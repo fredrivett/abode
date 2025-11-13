@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+set -euo pipefail
 
 # Export everything in .env if present
-if [[ -f ./app/.env ]]; then
-  set -a; source ./app/.env; set +a
+if [[ -f ./.env ]]; then
+  set -a; source ./.env; set +a
 fi
 
 # Export overrides from .env.local if present
