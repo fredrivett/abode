@@ -12,6 +12,18 @@ if [[ -f ./.env.local ]]; then
   set -a; source ./.env.local; set +a
 fi
 
+# Keep app/.env pointing to the root .env.local so Next.js picks it up.
+ensure_app_env_link() {
+  if [[ -f ./.env.local ]]; then
+    if [[ ! -L ./app/.env || "$(readlink ./app/.env)" != "../.env.local" ]]; then
+      echo "Linking app/.env -> ../.env.local"
+      ln -sf ../.env.local ./app/.env
+    fi
+  fi
+}
+
+ensure_app_env_link
+
 # Force ANSI colors even when output is piped
 export FORCE_COLOR=1
 export CLICOLOR_FORCE=1
@@ -24,7 +36,17 @@ if [[ -z "${NGROK_DOMAIN:-}" ]]; then
   echo "NGROK_DOMAIN is not set. Skipping ngrok. Set NGROK_DOMAIN in your .env to enable."
   NGROK_CMD="echo 'ngrok disabled'"
 else
-  NGROK_CMD="ngrok http 3200 --domain=${NGROK_DOMAIN} --log=stdout --log-format=logfmt --log-level=${NGROK_LOG_LEVEL}"
+  NGROK_CMD="ngrok http 3300 --domain=${NGROK_DOMAIN} --log=stdout --log-format=logfmt --log-level=${NGROK_LOG_LEVEL}"
+fi
+
+# -----------------------------
+# Local services
+# -----------------------------
+if command -v bunx >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+  if [[ -d "./.supabase" || -f "./supabase/config.toml" ]]; then
+    echo "Starting Supabase..."
+    bunx supabase start || echo "Supabase start failed or not configured; continuing..."
+  fi
 fi
 
 # -----------------------------

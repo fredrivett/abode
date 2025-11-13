@@ -8,6 +8,9 @@ A place to dwell.
 
 - `bin/install` — installs dependencies inside `app/` (run after cloning or when packages change).
 - `bin/dev` — sources `.env` / `.env.local`, then starts the Next.js dev server on http://localhost:3300.
+- Both scripts automatically start Supabase locally (via `bunx supabase start`) when Docker and the Supabase CLI are available.
+- Prereqs: [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) and Docker running in the background.
+- On first run, the scripts symlink `app/.env` → `../.env.local` so Next.js picks up your root env values.
 
 ## What it is
 

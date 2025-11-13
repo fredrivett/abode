@@ -4,6 +4,7 @@
 # misc
 .DS_Store
 *.pem
+.supabase
 
 # env files (can opt-in for committing if needed)
 .env*

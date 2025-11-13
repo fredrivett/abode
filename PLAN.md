@@ -15,6 +15,7 @@
   - [x] Add a couple of example stories for shadcn components.
   - [x] Wire Storybook into `bin/dev` so it runs alongside Next.js (headless/no-open).
 - [ ] **Supabase & Prisma plumbing**
+  - [x] Add Supabase CLI config (`supabase/config.toml`) and auto-start via `bin/install`/`bin/dev`.
   - [ ] Install `@supabase/supabase-js`, `@supabase/auth-helpers-nextjs`, `prisma`, `@prisma/client`.
   - [ ] Run `npx prisma init --datasource-provider postgresql` inside `app/`.
   - [ ] Configure `schema.prisma` for `users`, `items`, `item_vectors`, `tags`, etc.

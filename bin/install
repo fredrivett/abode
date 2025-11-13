@@ -13,7 +13,29 @@ if [[ -f ./.env.local ]]; then
   set -a; source ./.env.local; set +a
 fi
 
-# Install dependencies and set up database
+# Keep app/.env pointing to the root .env.local so Next.js picks it up.
+ensure_app_env_link() {
+  if [[ -f ./.env.local ]]; then
+    if [[ ! -L ./app/.env || "$(readlink ./app/.env)" != "../.env.local" ]]; then
+      echo "Linking app/.env -> ../.env.local"
+      ln -sf ../.env.local ./app/.env
+    fi
+  fi
+}
+
+ensure_app_env_link
+
+# Start Supabase for development
+if [[ "${SCRIPT_ENV:-development}" = "development" ]]; then
+  if command -v bunx >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+    if [[ -d "./.supabase" || -f "./supabase/config.toml" ]]; then
+      echo "Starting Supabase..."
+      bunx supabase start || echo "Supabase start failed or not configured; continuing..."
+    fi
+  fi
+fi
+
+# Install dependencies inside app/
 cd app
 echo "Installing dependencies..."
 bun install
