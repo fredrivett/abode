@@ -4,6 +4,11 @@ The mymind you can own. Beautiful like Sublime, but open like Ghost.
 Your mind shouldn’t live on someone else’s server.
 A place to dwell.
 
+## Development
+
+- `bin/install` — installs dependencies inside `app/` (run after cloning or when packages change).
+- `bin/dev` — sources `.env` / `.env.local`, then starts the Next.js dev server on http://localhost:3300.
+
 ## What it is
 
 Open-source, self-hostable library for saving images, links, quotes, videos, PDFs, and articles. Visual, minimal, serendipitous; single-player first. “Shelf” (public curation) comes later.

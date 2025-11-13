@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Export everything in .env if present
+if [[ -f ./.env ]]; then
+  set -a; source ./.env; set +a
+fi
+
+# Export overrides from .env.local if present
+if [[ -f ./.env.local ]]; then
+  set -a; source ./.env.local; set +a
+fi
+
+# Force ANSI colors even when output is piped
+export FORCE_COLOR=1
+export CLICOLOR_FORCE=1
+
+# -----------------------------
+# Ngrok
+# -----------------------------
+NGROK_LOG_LEVEL=${NGROK_LOG_LEVEL:-info}
+if [[ -z "${NGROK_DOMAIN:-}" ]]; then
+  echo "NGROK_DOMAIN is not set. Skipping ngrok. Set NGROK_DOMAIN in your .env to enable."
+  NGROK_CMD="echo 'ngrok disabled'"
+else
+  NGROK_CMD="ngrok http 3200 --domain=${NGROK_DOMAIN} --log=stdout --log-format=logfmt --log-level=${NGROK_LOG_LEVEL}"
+fi
+
+# -----------------------------
+# App processes (run in parallel)
+# -----------------------------
+echo "Starting development servers..."
+
+# Next.js and Storybook in parallel
+bunx concurrently -n "Next,Ngrok" -c "blue,green" \
+  "(cd app && bun dev)" \
+  "$NGROK_CMD" \
