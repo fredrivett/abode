@@ -32,7 +32,8 @@ fi
 # -----------------------------
 echo "Starting development servers..."
 
-# Next.js and Storybook in parallel
-bunx concurrently -n "Next,Ngrok" -c "blue,green" \
+# Next.js, Storybook, and Ngrok in parallel
+bunx concurrently -n "Next,Ngrok,Storybook" -c "blue,green,magenta" \
   "(cd app && bun dev)" \
   "$NGROK_CMD" \
+  "(cd app && bun run storybook -- --no-open --ci)"

@@ -8,17 +8,20 @@
 - [x] **Tailwind CSS v4 + design tokens**
   - [x] Upgrade/verify Tailwind v4 config, add base tokens (colors, spacing, typography).
   - [x] Wire global styles (`app/src/app/globals.css`) and add a `tailwind.config.ts` preset when needed.
-- [ ] **shadcn/ui + component scaffolding**
-  - [ ] Install shadcn CLI, generate foundational components (Button, Input, Dialog, Dropdown).
-  - [ ] Document usage pattern for future contributors inside `docs/ui.md`.
-- [ ] **TanStack Query + API layer**
-  - [ ] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
-  - [ ] Add a shared fetch client with auth headers + error handling.
+- [x] **shadcn/ui + component scaffolding**
+  - [x] Install shadcn CLI, generate foundational components (Button, Input).
+- [x] **Storybook**
+  - [x] Install Storybook (Next preset) inside `app/`.
+  - [x] Add a couple of example stories for shadcn components.
+  - [x] Wire Storybook into `bin/dev` so it runs alongside Next.js (headless/no-open).
 - [ ] **Supabase & Prisma plumbing**
   - [ ] Install `@supabase/supabase-js`, `@supabase/auth-helpers-nextjs`, `prisma`, `@prisma/client`.
   - [ ] Run `npx prisma init --datasource-provider postgresql` inside `app/`.
   - [ ] Configure `schema.prisma` for `users`, `items`, `item_vectors`, `tags`, etc.
   - [ ] Add `DATABASE_URL`/`DIRECT_URL` envs and document in `.env.example`.
+- [ ] **TanStack Query + API layer**
+  - [ ] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
+  - [ ] Add a shared fetch client with auth headers + error handling.
 - [ ] **Prisma workflow**
   - [ ] Add `bun run prisma:generate` and `bun run prisma:push` scripts.
   - [ ] Integrate Prisma client helper with edge-safe `globalThis` guard.
