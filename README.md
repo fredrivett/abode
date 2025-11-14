@@ -11,6 +11,7 @@ A place to dwell.
 - Both scripts automatically start Supabase locally (via `bunx supabase start`) when Docker and the Supabase CLI are available.
 - Prereqs: [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) and Docker running in the background.
 - On first run, the scripts symlink `app/.env` → `../.env.local` so Next.js picks up your root env values.
+- Supabase local services use dedicated ports to avoid clashes with other repos.
 
 ## What it is
 
