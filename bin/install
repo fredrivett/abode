@@ -38,3 +38,18 @@ fi
 cd app
 echo "Installing dependencies..."
 bun install
+
+echo "Setting up database..."
+bun run prisma:generate
+
+echo "Applying migrations..."
+if bun run prisma:deploy; then
+  echo "Installation complete!"
+  echo "Run 'bin/dev' to start the development server."
+else
+  echo "Database setup failed. Make sure:"
+  echo "  1. Supabase is running (check Docker containers)"
+  echo "  2. Environment variables are set (.env file with DATABASE_URL and DIRECT_URL)"
+  echo "  3. No port conflicts (default: 56322)"
+  exit 1
+fi
