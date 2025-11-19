@@ -14,18 +14,15 @@
   - [x] Install Storybook (Next preset) inside `app/`.
   - [x] Add a couple of example stories for shadcn components.
   - [x] Wire Storybook into `bin/dev` so it runs alongside Next.js (headless/no-open).
-- [ ] **Supabase & Prisma plumbing**
+- [x] **Supabase & Prisma plumbing**
   - [x] Add Supabase CLI config (`supabase/config.toml`) and auto-start via `bin/install`/`bin/dev`.
-  - [ ] Install `@supabase/supabase-js`, `@supabase/auth-helpers-nextjs`, `prisma`, `@prisma/client`.
-  - [ ] Run `npx prisma init --datasource-provider postgresql` inside `app/`.
-  - [ ] Configure `schema.prisma` for `users`, `items`, `item_vectors`, `tags`, etc.
-  - [ ] Add `DATABASE_URL`/`DIRECT_URL` envs and document in `.env.example`.
+  - [x] Setup prisma, initial schema, run migration.
+- [ ] **Prisma workflow**
+  - [x] Add `bun run prisma:generate` and `bun run prisma:migrate` scripts.
+  - [ ] Integrate Prisma client helper with edge-safe `globalThis` guard.
 - [ ] **TanStack Query + API layer**
   - [ ] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
   - [ ] Add a shared fetch client with auth headers + error handling.
-- [ ] **Prisma workflow**
-  - [ ] Add `bun run prisma:generate` and `bun run prisma:push` scripts.
-  - [ ] Integrate Prisma client helper with edge-safe `globalThis` guard.
 - [ ] **Supabase auth**
   - [ ] Configure Supabase project, enable email auth, and set JWT secret locally.
   - [ ] Implement middleware to load the session, enforce `user_id` scoping, and wire client helpers.
