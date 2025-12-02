@@ -45,6 +45,6 @@ When making styling changes, the user will see them in real-time via the dev ser
 
 IMPORTANT: This section must be followed strictly.
 
+- Only update the Prisma schema file (`prisma/schema.prisma`). Do NOT run migrations - the user will run them manually.
 - Never edit previously generated migrations, assume they have already been ran.
-- Always generate schema changes with Prisma using `prisma migrate dev` (example: `bunx prisma migrate dev --name add_feature_x`).
-- Never run `prisma db push`, `prisma migrate reset`, or any other destructive Prisma commands unless the user explicitly instructs you to.
+- Never run `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, or any other Prisma migration commands unless the user explicitly instructs you to.

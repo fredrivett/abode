@@ -31,7 +31,7 @@
   - [ ] Add upload helpers (either direct-to-storage or via Next route handler).
 - [ ] **pgvector & embeddings**
   - [ ] Enable pgvector extension in Supabase.
-  - [ ] Add `item_vectors` table + Prisma model and migration.
+  - [ ] Add `item_text` (OCR/article/transcript) + `item_vectors` tables when enrichment is ready; keep `items` lean for now.
 - [ ] **Async/worker stubs**
   - [ ] Add placeholder queue/job layer (Inngest or simple cron) with contracts for metadata, OCR, embeddings.
   - [ ] Document expected payloads in `docs/workers.md`.

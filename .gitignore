@@ -5,6 +5,7 @@
 .DS_Store
 *.pem
 .supabase
+!.env.example
 
 # env files (can opt-in for committing if needed)
 .env*
