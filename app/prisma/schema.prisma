@@ -14,15 +14,17 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  firstName  String?
-  lastName   String?
-  avatarUrl  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id // matches auth.users.id, no default - set by trigger
+  email     String   @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  items      Item[]
+  items Item[]
+
+  @@map("users")
 }
 
 enum ItemKind {
