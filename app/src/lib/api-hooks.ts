@@ -50,46 +50,50 @@ export function useApiMutation<TData = unknown, TVariables = unknown>(
 
 // User profile
 export function useUserProfile() {
-  return useApiQuery<{ id: string; email: string; name?: string }>("/api/v1/user/profile");
+  return useApiQuery<{ id: string; email: string; name?: string }>(
+    "/api/v1/user/profile",
+  );
 }
 
 // Items (for your items table)
 export function useItems() {
-  return useApiQuery<Array<{
-    id: string;
-    userId: string;
-    kind: string;
-    processingStatus: string;
-    fileKey: string | null;
-    meta: any;
-    source: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>>("/api/v1/items");
+  return useApiQuery<
+    Array<{
+      id: string;
+      userId: string;
+      kind: string;
+      processingStatus: string;
+      fileKey: string | null;
+      meta: any;
+      source: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  >("/api/v1/items");
 }
 
 export function useCreateItem() {
   return useApiMutation<
     { id: string },
     { kind: string; fileKey?: string; meta?: any; source?: string }
-  >(
-    (data) => api.post("/api/v1/items", data),
-    {
-      invalidateQueries: ["/api/v1/items"],
-    },
-  );
+  >((data) => api.post("/api/v1/items", data), {
+    invalidateQueries: ["/api/v1/items"],
+  });
 }
 
 export function useUpdateItem() {
   return useApiMutation<
     { id: string },
-    { id: string; processingStatus?: string; fileKey?: string; meta?: any; source?: string }
-  >(
-    ({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data),
     {
-      invalidateQueries: ["/api/v1/items"],
-    },
-  );
+      id: string;
+      processingStatus?: string;
+      fileKey?: string;
+      meta?: any;
+      source?: string;
+    }
+  >(({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data), {
+    invalidateQueries: ["/api/v1/items"],
+  });
 }
 
 export function useDeleteItem() {

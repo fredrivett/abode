@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
-import { api, ApiClientError } from "./api-client";
+import { ApiClientError, api } from "./api-client";
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -28,7 +28,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             retry: (failureCount, error) => {
               // Only retry mutations on 429 (rate limit) or 5xx errors
               if (error instanceof ApiClientError) {
-                return error.status === 429 || error.status >= 500 ? failureCount < 1 : false;
+                return error.status === 429 || error.status >= 500
+                  ? failureCount < 1
+                  : false;
               }
               return false;
             },
