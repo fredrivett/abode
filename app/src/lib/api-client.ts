@@ -25,9 +25,9 @@ async function apiClient<T>(
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (session?.access_token) {

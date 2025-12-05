@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         email: true,
-        name: true,
-        created_at: true,
-        updated_at: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 

@@ -53,15 +53,25 @@ export function useUserProfile() {
   return useApiQuery<{ id: string; email: string; name?: string }>("/api/v1/user/profile");
 }
 
-// Items (example for your items table)
+// Items (for your items table)
 export function useItems() {
-  return useApiQuery<Array<{ id: string; title: string; created_at: string }>>("/api/v1/items");
+  return useApiQuery<Array<{
+    id: string;
+    userId: string;
+    kind: string;
+    processingStatus: string;
+    fileKey: string | null;
+    meta: any;
+    source: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>>("/api/v1/items");
 }
 
 export function useCreateItem() {
   return useApiMutation<
     { id: string },
-    { title: string; content?: string }
+    { kind: string; fileKey?: string; meta?: any; source?: string }
   >(
     (data) => api.post("/api/v1/items", data),
     {
@@ -73,7 +83,7 @@ export function useCreateItem() {
 export function useUpdateItem() {
   return useApiMutation<
     { id: string },
-    { id: string; title?: string; content?: string }
+    { id: string; processingStatus?: string; fileKey?: string; meta?: any; source?: string }
   >(
     ({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data),
     {

@@ -21,14 +21,18 @@ export async function GET(
     const item = await db.item.findUnique({
       where: {
         id,
-        user_id: user.id, // Ensure user can only access their own items
+        userId: user.id, // Ensure user can only access their own items
       },
       select: {
         id: true,
-        title: true,
-        content: true,
-        created_at: true,
-        updated_at: true,
+        userId: true,
+        kind: true,
+        processingStatus: true,
+        fileKey: true,
+        meta: true,
+        source: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -66,13 +70,13 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, content } = body;
+    const { processingStatus, fileKey, meta, source } = body;
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
       where: {
         id,
-        user_id: user.id,
+        userId: user.id,
       },
     });
 
@@ -86,15 +90,21 @@ export async function PATCH(
     const updatedItem = await db.item.update({
       where: { id },
       data: {
-        ...(title !== undefined && { title }),
-        ...(content !== undefined && { content }),
+        ...(processingStatus !== undefined && { processingStatus }),
+        ...(fileKey !== undefined && { fileKey }),
+        ...(meta !== undefined && { meta }),
+        ...(source !== undefined && { source }),
       },
       select: {
         id: true,
-        title: true,
-        content: true,
-        created_at: true,
-        updated_at: true,
+        userId: true,
+        kind: true,
+        processingStatus: true,
+        fileKey: true,
+        meta: true,
+        source: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -128,7 +138,7 @@ export async function DELETE(
     const existingItem = await db.item.findUnique({
       where: {
         id,
-        user_id: user.id,
+        userId: user.id,
       },
     });
 

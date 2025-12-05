@@ -21,9 +21,7 @@ type Story = StoryObj<typeof meta>;
 export const SixDigits: Story = {
   args: {
     maxLength: 6,
-  },
-  render: (args) => (
-    <InputOTP {...args}>
+    children: (
       <InputOTPGroup>
         <InputOTPSlot index={0} />
         <InputOTPSlot index={1} />
@@ -32,17 +30,15 @@ export const SixDigits: Story = {
         <InputOTPSlot index={4} />
         <InputOTPSlot index={5} />
       </InputOTPGroup>
-    </InputOTP>
-  ),
+    ),
+  },
 };
 
 export const WithValue: Story = {
   args: {
     maxLength: 6,
     defaultValue: "123456",
-  },
-  render: (args) => (
-    <InputOTP {...args}>
+    children: (
       <InputOTPGroup>
         <InputOTPSlot index={0} />
         <InputOTPSlot index={1} />
@@ -51,17 +47,15 @@ export const WithValue: Story = {
         <InputOTPSlot index={4} />
         <InputOTPSlot index={5} />
       </InputOTPGroup>
-    </InputOTP>
-  ),
+    ),
+  },
 };
 
 export const Disabled: Story = {
   args: {
     maxLength: 6,
     disabled: true,
-  },
-  render: (args) => (
-    <InputOTP {...args}>
+    children: (
       <InputOTPGroup>
         <InputOTPSlot index={0} />
         <InputOTPSlot index={1} />
@@ -70,6 +64,6 @@ export const Disabled: Story = {
         <InputOTPSlot index={4} />
         <InputOTPSlot index={5} />
       </InputOTPGroup>
-    </InputOTP>
-  ),
+    ),
+  },
 };

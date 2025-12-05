@@ -15,15 +15,19 @@ export async function GET(request: NextRequest) {
     }
 
     const items = await db.item.findMany({
-      where: { user_id: user.id },
+      where: { userId: user.id },
       select: {
         id: true,
-        title: true,
-        content: true,
-        created_at: true,
-        updated_at: true,
+        userId: true,
+        kind: true,
+        processingStatus: true,
+        fileKey: true,
+        meta: true,
+        source: true,
+        createdAt: true,
+        updatedAt: true,
       },
-      orderBy: { created_at: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(items);
@@ -49,27 +53,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, content } = body;
+    const { kind, fileKey, meta, source } = body;
 
-    if (!title) {
+    if (!kind) {
       return NextResponse.json(
-        { message: "Title is required" },
+        { message: "Kind is required" },
         { status: 400 }
       );
     }
 
     const item = await db.item.create({
       data: {
-        title,
-        content: content || null,
-        user_id: user.id,
+        kind,
+        fileKey: fileKey || null,
+        meta: meta || null,
+        source: source || null,
+        userId: user.id,
       },
       select: {
         id: true,
-        title: true,
-        content: true,
-        created_at: true,
-        updated_at: true,
+        userId: true,
+        kind: true,
+        processingStatus: true,
+        fileKey: true,
+        meta: true,
+        source: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
