@@ -29,10 +29,11 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Do not run code between createServerClient and supabase.auth.getClaims().
+  // Do not run code between createServerClient and supabase.auth.getUser().
   // A simple mistake could make it very hard to debug issues with users being randomly logged out.
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Protected routes - redirect to login if not authenticated
   const isProtectedRoute =
@@ -45,12 +46,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages and homepage
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/signup");
+  const isHomePage = request.nextUrl.pathname === "/";
 
-  if (user && isAuthRoute) {
+  if (user && (isAuthRoute || isHomePage)) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
