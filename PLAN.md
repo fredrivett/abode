@@ -22,26 +22,33 @@
   - [x] Integrate Prisma client helper with edge-safe `globalThis` guard.
 - [x] **TanStack Query + API layer**
   - [x] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
-  - [ ] Add a shared fetch client with auth headers + error handling.
+  - [ ] Add a shared fetch client with Supabase access token injection, error normalization, and lightweight retry for 429/5xx; wire as the default TanStack Query fetcher.
 - [x] **Supabase auth**
   - [x] Configure Supabase project, enable email auth, and set JWT secret locally.
   - [x] Implement middleware to load the session, enforce `user_id` scoping, and wire client helpers.
   - [x] Create auth pages (login, signup) with OTP email verification.
   - [x] Set up trigger to sync auth.users to public.users table.
 - [ ] **Storage & uploads**
-  - [ ] Create Supabase storage buckets with RLS policies.
-  - [ ] Add upload helpers (either direct-to-storage or via Next route handler).
+  - [ ] Create general-purpose Supabase storage bucket(s) with RLS policies (start with images; decide public vs private, max size).
+  - [ ] Add upload helpers (prefer signed URL direct-to-storage; fallback: Next route proxy if needed).
 - [ ] **pgvector & embeddings**
   - [ ] Enable pgvector extension in Supabase.
-  - [ ] Add `item_text` (OCR/article/transcript) + `item_vectors` tables when enrichment is ready; keep `items` lean for now.
+  - [ ] Add `item_text` (OCR/article/transcript) + `item_vectors` tables; keep `items` lean for now.
+  - [ ] Add simple `jobs` table for embedding tasks processed by a lightweight worker/cron; choose embedding provider (OpenAI vs Voyage) later.
 - [ ] **Async/worker stubs**
-  - [ ] Add placeholder queue/job layer (Inngest or simple cron) with contracts for metadata, OCR, embeddings.
+  - [ ] Add placeholder queue/job layer (start with simple cron/worker script to process `jobs` table; avoid Inngest until needed) with contracts for metadata, OCR, embeddings.
   - [ ] Document expected payloads in `docs/workers.md`.
 - [ ] **Testing & linting**
   - [ ] Keep Biome for lint/format.
-  - [ ] Install Vitest + Testing Library; add sample component test.
+  - [ ] Add tests only when needed; defer baseline Vitest + Testing Library setup unless required.
 - [ ] **Observability**
-  - [ ] Add `pino` logger wrapper, plan for Sentry instrumentation hook.
+  - [ ] Add `pino` logger wrapper (reuse patterns from FR/log.limo); plan for Sentry instrumentation hook when justified.
+
+### Outstanding questions
+
+- Storage: Should the initial image bucket be public or private, and what is the expected max file size?
+- Upload path: Confirm preference for signed URL direct uploads vs Next.js proxy.
+- Embeddings: Which provider (OpenAI vs Voyage) when we wire the worker?
 
 ### Frontend
 
