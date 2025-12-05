@@ -17,15 +17,17 @@
 - [x] **Supabase & Prisma plumbing**
   - [x] Add Supabase CLI config (`supabase/config.toml`) and auto-start via `bin/install`/`bin/dev`.
   - [x] Setup prisma, initial schema, run migration.
-- [ ] **Prisma workflow**
+- [x] **Prisma workflow**
   - [x] Add `bun run prisma:generate` and `bun run prisma:migrate` scripts.
-  - [ ] Integrate Prisma client helper with edge-safe `globalThis` guard.
-- [ ] **TanStack Query + API layer**
-  - [ ] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
+  - [x] Integrate Prisma client helper with edge-safe `globalThis` guard.
+- [x] **TanStack Query + API layer**
+  - [x] Install `@tanstack/react-query` and set up the provider in `app/src/app/layout.tsx`.
   - [ ] Add a shared fetch client with auth headers + error handling.
-- [ ] **Supabase auth**
-  - [ ] Configure Supabase project, enable email auth, and set JWT secret locally.
-  - [ ] Implement middleware to load the session, enforce `user_id` scoping, and wire client helpers.
+- [x] **Supabase auth**
+  - [x] Configure Supabase project, enable email auth, and set JWT secret locally.
+  - [x] Implement middleware to load the session, enforce `user_id` scoping, and wire client helpers.
+  - [x] Create auth pages (login, signup) with OTP email verification.
+  - [x] Set up trigger to sync auth.users to public.users table.
 - [ ] **Storage & uploads**
   - [ ] Create Supabase storage buckets with RLS policies.
   - [ ] Add upload helpers (either direct-to-storage or via Next route handler).
@@ -52,7 +54,7 @@
 
 ### Authentication & Authorization
 
-- Start with Supabase Auth using `@supabase/auth-helpers-nextjs`; enforce RLS on tables keyed by `user_id`.
+- Using Supabase Auth with `@supabase/ssr` package; enforce RLS on tables keyed by `user_id`.
 
 ### Search & Similarity
 
