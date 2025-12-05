@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   InputOTP,
@@ -16,6 +16,7 @@ export function SignupForm() {
     {},
   );
   const [otp, setOtp] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (signupState.error) {
@@ -28,6 +29,13 @@ export function SignupForm() {
       toast.error(verifyState.error);
     }
   }, [verifyState]);
+
+  // Auto-submit when OTP is complete
+  useEffect(() => {
+    if (otp.length === 6 && formRef.current && !isVerifying) {
+      formRef.current.requestSubmit();
+    }
+  }, [otp, isVerifying]);
 
   // Show OTP input after successful signup
   if (signupState.success && signupState.email) {
@@ -42,7 +50,7 @@ export function SignupForm() {
           </p>
         </div>
 
-        <form action={verifyAction} className="space-y-4">
+        <form ref={formRef} action={verifyAction} className="space-y-6">
           <input type="hidden" name="email" value={signupState.email} />
           <input type="hidden" name="token" value={otp} />
 
@@ -82,7 +90,7 @@ export function SignupForm() {
         </p>
       </div>
 
-      <form action={signupAction} className="space-y-4">
+      <form action={signupAction} className="space-y-6">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium leading-none">
             Email

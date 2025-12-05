@@ -14,7 +14,7 @@ export function LoginForm() {
   }, [state]);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-6">
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium leading-none">
           Email
