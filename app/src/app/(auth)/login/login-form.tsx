@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { login } from "./actions";
 
 export function LoginForm() {
@@ -42,13 +43,9 @@ export function LoginForm() {
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-      >
+      <Button type="submit" size="lg" className="w-full" disabled={isPending}>
         {isPending ? "Signing in..." : "Sign in"}
-      </button>
+      </Button>
     </form>
   );
 }

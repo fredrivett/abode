@@ -7,6 +7,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { Button } from "@/components/ui/button";
 import { signup, verifyOtp } from "./actions";
 
 export function SignupForm() {
@@ -17,6 +18,7 @@ export function SignupForm() {
   );
   const [otp, setOtp] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const lastSubmittedOtp = useRef<string | null>(null);
 
   useEffect(() => {
     if (signupState.error) {
@@ -32,9 +34,16 @@ export function SignupForm() {
 
   // Auto-submit when OTP is complete
   useEffect(() => {
-    if (otp.length === 6 && formRef.current && !isVerifying) {
-      formRef.current.requestSubmit();
+    if (otp.length < 6) {
+      lastSubmittedOtp.current = null;
+      return;
     }
+
+    if (!formRef.current || isVerifying) return;
+    if (lastSubmittedOtp.current === otp) return; // avoid resubmitting the same code
+
+    lastSubmittedOtp.current = otp;
+    formRef.current.requestSubmit();
   }, [otp, isVerifying]);
 
   // Show OTP input after successful signup
@@ -55,7 +64,7 @@ export function SignupForm() {
           <input type="hidden" name="token" value={otp} />
 
           <div className="flex justify-center">
-            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+            <InputOTP maxLength={6} value={otp} onChange={setOtp} autoFocus>
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
                 <InputOTPSlot index={1} />
@@ -67,13 +76,14 @@ export function SignupForm() {
             </InputOTP>
           </div>
 
-          <button
+          <Button
             type="submit"
+            size="lg"
+            className="w-full"
             disabled={isVerifying || otp.length !== 6}
-            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             {isVerifying ? "Verifying..." : "Verify"}
-          </button>
+          </Button>
         </form>
       </>
     );
@@ -122,13 +132,9 @@ export function SignupForm() {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSigningUp}
-          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
+        <Button type="submit" size="lg" className="w-full" disabled={isSigningUp}>
           {isSigningUp ? "Creating account..." : "Sign up"}
-        </button>
+        </Button>
       </form>
 
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
