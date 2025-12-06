@@ -3,7 +3,11 @@
     "allow": [
       "Read(//Users/fredrivett/code/**)",
       "Bash(bun run:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebSearch",
+      "WebFetch(domain:masonry-grid.js.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(bun add:*)"
     ],
     "deny": [],
     "ask": []
