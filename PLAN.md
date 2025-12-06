@@ -28,13 +28,35 @@
   - [x] Implement middleware to load the session, enforce `user_id` scoping, and wire client helpers.
   - [x] Create auth pages (login, signup) with OTP email verification.
   - [x] Set up trigger to sync auth.users to public.users table.
-- [ ] **Storage & uploads**
-  - [ ] Create general-purpose Supabase storage bucket(s) with RLS policies (start with images; decide public vs private, max size).
-  - [ ] Add upload helpers (prefer signed URL direct-to-storage; fallback: Next route proxy if needed).
+- [x] **Storage & uploads**
+  - [x] Create general-purpose Supabase storage bucket(s) with RLS policies (items bucket, private, 50MB limit + MIME allowlist).
+  - [x] Add upload helpers (direct-to-storage from client with automatic dimension capture).
+  - [x] Build dashboard UI with masonry grid layout for uploaded images.
+  - [x] Implement delete functionality (removes from both storage and DB).
+- [ ] **Image analysis & auto-tagging (Google Cloud Vision)**
+  - [ ] Set up Google Cloud project and enable Vision API.
+  - [ ] Add Vision API credentials to env vars.
+  - [ ] Create image analysis service that calls Vision API on upload.
+  - [ ] Extract and store: labels/tags, OCR text, dominant colors, metadata.
+  - [ ] Update `items.meta` schema to include: `tags[]`, `ocrText`, `colors[]`, `visionData`.
+  - [ ] Add client-side color extraction as fallback/supplement (node-vibrant).
 - [ ] **pgvector & embeddings**
   - [ ] Enable pgvector extension in Supabase.
-  - [ ] Add `item_text` (OCR/article/transcript) + `item_vectors` tables; keep `items` lean for now.
-  - [ ] Add simple `jobs` table for embedding tasks processed by a lightweight worker/cron; choose embedding provider (OpenAI vs Voyage) later.
+  - [ ] Add `item_vectors` table with columns: `item_id`, `embedding vector(1536)`, `embedding_type` (text/image).
+  - [ ] Set up OpenAI embeddings API (text-embedding-3-small for text).
+  - [ ] Generate embeddings for: OCR text, tags, user notes.
+  - [ ] Store embeddings in `item_vectors` table linked to items.
+- [ ] **Search implementation (hybrid: vector + full-text)**
+  - [ ] Add PostgreSQL full-text search on `items.meta` (tags, OCR text, notes).
+  - [ ] Implement vector similarity search using pgvector for semantic queries.
+  - [ ] Create unified search API that combines both approaches:
+    - Full-text search for exact matches (tags, OCR text)
+    - Vector search for semantic/fuzzy queries
+    - Color filtering (exact match on extracted colors)
+    - Date range filtering
+  - [ ] Build search UI with real-time results and filters.
+  - [ ] Add search by color (visual color picker + hex input).
+  - [ ] Consider adding "find similar" feature using vector similarity.
 - [ ] **Async/worker stubs**
   - [ ] Add placeholder queue/job layer (start with simple cron/worker script to process `jobs` table; avoid Inngest until needed) with contracts for metadata, OCR, embeddings.
   - [ ] Document expected payloads in `docs/workers.md`.
@@ -46,9 +68,9 @@
 
 ### Outstanding questions
 
-- Storage: Should the initial image bucket be public or private, and what is the expected max file size?
-- Upload path: Confirm preference for signed URL direct uploads vs Next.js proxy.
-- Embeddings: Which provider (OpenAI vs Voyage) when we wire the worker?
+- **Image analysis privacy:** V1 uses Google Cloud Vision; consider self-hosted option (CLIP + Tesseract) for V2 with privacy toggle.
+- **Visual similarity:** Defer CLIP image embeddings for "same vibe" / similar images feature until V2.
+- **Smart Spaces:** Auto-clustering/grouping can be added after basic search works.
 
 ### Frontend
 
@@ -65,8 +87,11 @@
 
 ### Search & Similarity
 
-- Use pgvector in Supabase for embeddings stored in `item_vectors`.
-- Generate embeddings via OpenAI or Voyage AI initially; allow swapping to self-hosted sentence-transformers later for cost control.
+- **Hybrid search:** Combine PostgreSQL full-text search (exact matches) with pgvector semantic search (fuzzy/meaning-based queries).
+- **Text embeddings:** OpenAI text-embedding-3-small for OCR text, tags, and notes stored in `item_vectors` table.
+- **Image analysis:** Google Cloud Vision API for auto-tagging, OCR, and color extraction (V1).
+- **Visual similarity (V2):** Consider CLIP image embeddings for "same vibe" / similar images feature.
+- **Privacy option (V2):** Self-hosted CLIP + Tesseract stack as alternative to Google Vision for privacy-conscious users.
 
 ### Async Processing & Workers
 
