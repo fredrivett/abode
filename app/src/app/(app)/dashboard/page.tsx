@@ -1,24 +1,59 @@
+import { Button } from "@/components/ui/button";
+import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./actions";
+import { UploadWidget } from "./upload-widget";
+import { UploadsList } from "./uploads-list";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const [{ data: claims }, { data: userData }] = await Promise.all([
+    supabase.auth.getClaims(),
+    supabase.auth.getUser(),
+  ]);
+
+  const user = userData.user;
+
+  const itemsForClient =
+    user
+    ? await db.item.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          kind: true,
+          processingStatus: true,
+          fileKey: true,
+          meta: true,
+          source: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="text-zinc-500 dark:text-zinc-400">
-        Logged in as {data?.claims?.email}
-      </p>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
+      <div className="space-y-1 text-center">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-zinc-500 dark:text-zinc-400">
+          Logged in as {claims?.claims?.email}
+        </p>
+      </div>
+
+      <UploadWidget />
+
+      <UploadsList
+        items={itemsForClient.map((item) => ({
+          ...item,
+          createdAt: item.createdAt.toISOString(),
+          meta: (item.meta as Record<string, unknown> | null) ?? null,
+        }))}
+      />
+
       <form>
-        <button
-          type="submit"
-          formAction={signOut}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
-        >
+        <Button type="submit" formAction={signOut} variant="outline" size="lg">
           Sign out
-        </button>
+        </Button>
       </form>
     </div>
   );

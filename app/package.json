@@ -28,6 +28,8 @@
     "supabase:studio": "bash -lc 'open http://localhost:56323'"
   },
   "dependencies": {
+    "@masonry-grid/react": "^1.1.1",
+    "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.2",
