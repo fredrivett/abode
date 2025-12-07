@@ -7,7 +7,9 @@
       "WebSearch",
       "WebFetch(domain:masonry-grid.js.org)",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(bun add:*)"
+      "Bash(bun add:*)",
+      "WebFetch(domain:mymind.helpscoutdocs.com)",
+      "WebFetch(domain:supabase.com)"
     ],
     "deny": [],
     "ask": []
