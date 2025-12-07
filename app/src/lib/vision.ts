@@ -45,14 +45,17 @@ export async function analyzeImage(
   // Extract labels (general tags and concepts)
   const labels =
     result.labelAnnotations?.map((label) => label.description || "") || [];
-  const filteredLabels = labels.filter((label) => {
-    const normalized = label.toLowerCase();
-    return normalized !== "screenshot" && normalized !== "text";
-  });
+  const filteredLabels = uniqueStrings(
+    labels.filter((label) => {
+      const normalized = label.toLowerCase();
+      return normalized !== "screenshot" && normalized !== "text";
+    }),
+  );
 
   // Extract objects (concrete physical things)
-  const objects =
-    result.localizedObjectAnnotations?.map((obj) => obj.name || "") || [];
+  const objects = uniqueStrings(
+    result.localizedObjectAnnotations?.map((obj) => obj.name || "") || [],
+  );
 
   // Extract OCR text
   const ocrText = result.textAnnotations?.[0]?.description || undefined;
@@ -80,7 +83,7 @@ export async function analyzeImage(
   return {
     title,
     description,
-    tags: Array.from(new Set(filteredLabels).values()),
+    tags: filteredLabels,
     objects,
     ocrText,
     colors,
@@ -140,4 +143,14 @@ function getOcrTitle(ocrText?: string) {
     .filter(Boolean)[0];
   if (!firstLine) return undefined;
   return firstLine.length > 80 ? `${firstLine.slice(0, 80)}…` : firstLine;
+}
+
+function uniqueStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
