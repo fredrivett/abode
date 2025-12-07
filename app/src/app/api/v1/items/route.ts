@@ -1,8 +1,61 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { analyzeImage } from "@/lib/vision";
 
 const allowedKinds = new Set(["image"]);
+
+/**
+ * Analyze an image asynchronously and update the item with results
+ */
+async function analyzeImageAsync(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  itemId: string,
+  fileKey: string,
+) {
+  try {
+    // Download the image from storage
+    const { data, error } = await supabase.storage
+      .from("items")
+      .download(fileKey);
+
+    if (error || !data) {
+      throw new Error(`Failed to download image: ${error?.message}`);
+    }
+
+    // Convert blob to buffer
+    const arrayBuffer = await data.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Analyze the image with Vision API
+    const analysis = await analyzeImage(buffer);
+
+    // Update the item with analysis results
+    await db.item.update({
+      where: { id: itemId },
+      data: {
+        title: analysis.title,
+        description: analysis.description,
+        tags: analysis.tags,
+        objects: analysis.objects,
+        ocrText: analysis.ocrText,
+        colors: analysis.colors,
+        visionData: analysis.visionData,
+        processingStatus: "completed",
+      },
+    });
+
+    console.log(`Image analysis completed for item ${itemId}`);
+  } catch (error) {
+    console.error(`Image analysis failed for item ${itemId}:`, error);
+
+    // Mark as failed
+    await db.item.update({
+      where: { id: itemId },
+      data: { processingStatus: "failed" },
+    });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,6 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create the item initially with "processing" status
     const item = await db.item.create({
       data: {
         kind,
@@ -78,6 +132,7 @@ export async function POST(request: NextRequest) {
         meta: meta || null,
         source: source || null,
         userId: user.id,
+        processingStatus: "processing",
       },
       select: {
         id: true,
@@ -91,6 +146,13 @@ export async function POST(request: NextRequest) {
         updatedAt: true,
       },
     });
+
+    // Trigger image analysis asynchronously (don't wait for it)
+    if (kind === "image" && fileKey) {
+      analyzeImageAsync(supabase, item.id, fileKey).catch((error) => {
+        console.error("Image analysis error:", error);
+      });
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {

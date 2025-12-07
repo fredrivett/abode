@@ -33,6 +33,7 @@
   - [x] Add upload helpers (direct-to-storage from client with automatic dimension capture).
   - [x] Build dashboard UI with masonry grid layout for uploaded images.
   - [x] Implement delete functionality (removes from both storage and DB).
+  - [x] Update schema with columns for AI analysis: `title`, `description`, `tags[]`, `objects[]`, `ocrText`, `colors`, `visionData`.
 - [ ] **Image analysis & auto-tagging (Google Cloud Vision)**
   - [ ] Set up Google Cloud project and enable Vision API.
   - [ ] Add Vision API credentials to env vars.
