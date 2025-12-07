@@ -45,6 +45,10 @@ export async function analyzeImage(
   // Extract labels (general tags and concepts)
   const labels =
     result.labelAnnotations?.map((label) => label.description || "") || [];
+  const filteredLabels = labels.filter((label) => {
+    const normalized = label.toLowerCase();
+    return normalized !== "screenshot" && normalized !== "text";
+  });
 
   // Extract objects (concrete physical things)
   const objects =
@@ -64,16 +68,19 @@ export async function analyzeImage(
       score: color.score || 0,
     })) || [];
 
-  // Generate a title from the top labels
-  const title = labels.slice(0, 3).join(", ");
+  // Prefer OCR-derived title; fallback to filtered labels
+  const title =
+    getOcrTitle(ocrText) ||
+    filteredLabels.slice(0, 3).join(", ") ||
+    undefined;
 
   // Generate a description from labels and objects
-  const description = generateDescription(labels, objects, ocrText);
+  const description = generateDescription(filteredLabels, objects, ocrText);
 
   return {
     title,
     description,
-    tags: labels,
+    tags: Array.from(new Set(filteredLabels).values()),
     objects,
     ocrText,
     colors,
@@ -123,4 +130,14 @@ function generateDescription(
   }
 
   return parts.join(". ");
+}
+
+function getOcrTitle(ocrText?: string) {
+  if (!ocrText) return undefined;
+  const firstLine = ocrText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)[0];
+  if (!firstLine) return undefined;
+  return firstLine.length > 80 ? `${firstLine.slice(0, 80)}…` : firstLine;
 }
