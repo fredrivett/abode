@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
-import { createLogger } from "@/lib/logger";
+import { createLogger } from "@/lib/logger.client";
 
 const log = createLogger("dashboard/upload-widget");
 

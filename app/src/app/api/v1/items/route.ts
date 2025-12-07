@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
-import { createLogger } from "@/lib/logger";
+import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("api/v1/items");
 

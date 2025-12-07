@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { createLogger } from "@/lib/logger";
+import { createLogger } from "@/lib/logger.client";
 
 const log = createLogger("dashboard/uploads-list");
 
