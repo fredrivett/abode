@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api/v1/items/[id]");
 
 export async function GET(
   request: NextRequest,
@@ -42,7 +45,7 @@ export async function GET(
 
     return NextResponse.json(item);
   } catch (error) {
-    console.error("Item fetch error:", error);
+    log.error({ error }, "Item fetch error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -104,7 +107,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedItem);
   } catch (error) {
-    console.error("Item update error:", error);
+    log.error({ error }, "Item update error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -146,7 +149,7 @@ export async function DELETE(
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error("Item deletion error:", error);
+    log.error({ error }, "Item deletion error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

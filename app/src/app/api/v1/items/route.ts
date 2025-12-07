@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api/v1/items");
 
 const allowedKinds = new Set(["image"]);
 
@@ -45,9 +48,21 @@ async function analyzeImageAsync(
       },
     });
 
-    console.log(`Image analysis completed for item ${itemId}`);
+    log.info(
+      {
+        itemId,
+        title: analysis.title,
+        description: analysis.description,
+        tags: analysis.tags,
+        objects: analysis.objects,
+        ocrText: analysis.ocrText?.slice(0, 100),
+        colorCount: analysis.colors.length,
+        topColors: analysis.colors.slice(0, 3),
+      },
+      "Image analysis completed",
+    );
   } catch (error) {
-    console.error(`Image analysis failed for item ${itemId}:`, error);
+    log.error({ itemId, error }, "Image analysis failed");
 
     // Mark as failed
     await db.item.update({
@@ -87,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(items);
   } catch (error) {
-    console.error("Items fetch error:", error);
+    log.error({ error }, "Items fetch error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -150,13 +165,13 @@ export async function POST(request: NextRequest) {
     // Trigger image analysis asynchronously (don't wait for it)
     if (kind === "image" && fileKey) {
       analyzeImageAsync(supabase, item.id, fileKey).catch((error) => {
-        console.error("Image analysis error:", error);
+        log.error({ error }, "Image analysis error");
       });
     }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
-    console.error("Item creation error:", error);
+    log.error({ error }, "Item creation error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -207,7 +222,7 @@ export async function DELETE(request: NextRequest) {
         .remove([item.fileKey]);
 
       if (storageError) {
-        console.error("Storage deletion error:", storageError);
+        log.error({ itemId: id, error: storageError }, "Storage deletion error");
         // Continue with DB deletion even if storage deletion fails
       }
     }
@@ -219,7 +234,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: "Item deleted" }, { status: 200 });
   } catch (error) {
-    console.error("Item deletion error:", error);
+    log.error({ error }, "Item deletion error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

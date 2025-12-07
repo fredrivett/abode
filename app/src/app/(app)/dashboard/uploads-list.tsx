@@ -19,6 +19,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("dashboard/uploads-list");
 
 type DashboardItem = {
   id: string;
@@ -140,7 +143,7 @@ function MasonryItem({
         revokedUrl = objectUrl;
         setPreviewUrl(objectUrl);
       } catch (err) {
-        console.error("Preview load error:", err);
+        log.error({ error: err }, "Preview load error");
         setError("Unable to load preview");
       }
     };
@@ -164,7 +167,7 @@ function MasonryItem({
       setShowDeleteDialog(false);
       router.refresh();
     } catch (error) {
-      console.error("Delete error:", error);
+      log.error({ error }, "Delete error");
       toast.error("Failed to delete item");
       setIsDeleting(false);
     }
@@ -304,7 +307,7 @@ function UploadPreview({
         revokedUrl = objectUrl;
         setPreviewUrl(objectUrl);
       } catch (err) {
-        console.error("Preview load error:", err);
+        log.error({ error: err }, "Preview load error");
         setError("Unable to load preview");
       }
     };

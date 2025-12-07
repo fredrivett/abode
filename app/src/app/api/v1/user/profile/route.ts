@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api/v1/user/profile");
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(profile);
   } catch (error) {
-    console.error("Profile fetch error:", error);
+    log.error({ error }, "Profile fetch error");
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

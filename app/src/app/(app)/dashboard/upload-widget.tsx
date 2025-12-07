@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("dashboard/upload-widget");
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const allowedImageTypes = new Set([
@@ -87,7 +90,7 @@ export function UploadWidget() {
       try {
         dimensions = await getImageDimensions(file);
       } catch (error) {
-        console.warn("Failed to get image dimensions:", error);
+        log.warn({ error }, "Failed to get image dimensions");
       }
 
       const ext = file.name.includes(".")
@@ -130,7 +133,7 @@ export function UploadWidget() {
       resetFile();
       router.refresh();
     } catch (error) {
-      console.error("Upload error:", error);
+      log.error({ error }, "Upload error");
       toast.error("Upload failed. Please try again.");
       resetFile();
     } finally {
