@@ -1,6 +1,5 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import { UploadWidget } from "./upload-widget";
 import { UploadsList } from "./uploads-list";
 
 export default async function DashboardPage() {
@@ -12,8 +11,7 @@ export default async function DashboardPage() {
 
   const user = userData.user;
 
-  const itemsForClient =
-    user
+  const itemsForClient = user
     ? await db.item.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
@@ -31,8 +29,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <UploadWidget />
-
       <UploadsList
         items={itemsForClient.map((item) => ({
           ...item,

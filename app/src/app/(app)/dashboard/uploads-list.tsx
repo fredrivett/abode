@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api-client";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +16,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
+import { createClient } from "@/lib/supabase/client";
 
 const log = createLogger("dashboard/uploads-list");
 
@@ -52,13 +52,6 @@ export function UploadsList({ items }: { items: DashboardItem[] }) {
 
   return (
     <div className="w-full max-w-7xl space-y-3">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Your uploads</h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Private to you; links refresh when you open them.
-        </p>
-      </div>
-
       {items.length === 0 ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           No uploads yet.
@@ -210,20 +203,15 @@ function MasonryItem({
 
   return (
     <div className="group relative h-full w-full overflow-hidden rounded-lg">
-      <img
-        src={previewUrl}
-        alt={name}
-        className="h-full w-full object-cover"
-      />
+      <img src={previewUrl} alt={name} className="h-full w-full object-cover" />
       <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
         <div className="flex justify-end">
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+          >
             <AlertDialogTrigger asChild>
-              <Button
-                size="icon"
-                variant="destructive"
-                className="h-8 w-8"
-              >
+              <Button size="icon" variant="destructive" className="h-8 w-8">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
@@ -236,7 +224,9 @@ function MasonryItem({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={isDeleting}>
+                  Cancel
+                </AlertDialogCancel>
                 <AlertDialogAction
                   variant="destructive"
                   onClick={(e) => {
