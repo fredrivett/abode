@@ -44,8 +44,21 @@ model Item {
   kind             ItemKind
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
   fileKey          String?          @map("file_key")
-  meta             Json?
   source           String?
+
+  // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
+  meta             Json?
+
+  // AI-generated metadata (frequently queried, promoted to columns for performance)
+  title            String?
+  description      String?
+  tags             String[]         @default([])  // General labels/keywords
+  objects          String[]         @default([])  // Detected objects (car, person, building, etc.)
+  ocrText          String?          @map("ocr_text")
+  colors           Json?
+
+  // Raw API response (for debugging/reprocessing)
+  visionData       Json?            @map("vision_data")
 
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
@@ -56,5 +69,7 @@ model Item {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
+  @@index([tags])
+  @@index([objects])
   @@map("items")
 }
