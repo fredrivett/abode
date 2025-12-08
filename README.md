@@ -1,4 +1,4 @@
-abode — open-source personal library
+# abode — The home for your info
 
 The mymind you can own. Beautiful like Sublime, but open like Ghost.
 Your mind shouldn’t live on someone else’s server.
