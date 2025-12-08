@@ -22,7 +22,8 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  items Item[]
+  items       Item[]
+  itemVectors ItemVector[]
 
   @@map("users")
 }
@@ -36,6 +37,11 @@ enum ProcessingStatus {
   processing
   completed
   failed
+}
+
+enum VectorKind {
+  visual
+  text
 }
 
 model Item {
@@ -65,11 +71,30 @@ model Item {
   deletedAt        DateTime?        @map("deleted_at")
 
   // Relations
-  user             User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  itemVectors ItemVector[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
   @@index([tags])
   @@index([objects])
   @@map("items")
+}
+
+model ItemVector {
+  id        String     @id @default(uuid()) @db.Uuid
+  itemId    String     @map("item_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  kind      VectorKind
+  model     String // e.g., "clip-vit-base-patch32", "text-embedding-3-small"
+  // Note: embedding vector column will be added via Supabase migration (Prisma doesn't support pgvector type)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([itemId])
+  @@index([userId, kind])
+  @@map("item_vectors")
 }
