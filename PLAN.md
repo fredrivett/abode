@@ -34,30 +34,38 @@
   - [x] Build dashboard UI with masonry grid layout for uploaded images.
   - [x] Implement delete functionality (removes from both storage and DB).
   - [x] Update schema with columns for AI analysis: `title`, `description`, `tags[]`, `objects[]`, `ocrText`, `colors`, `visionData`.
-- [ ] **Image analysis & auto-tagging (Google Cloud Vision)**
-  - [ ] Set up Google Cloud project and enable Vision API.
-  - [ ] Add Vision API credentials to env vars.
-  - [ ] Create image analysis service that calls Vision API on upload.
-  - [ ] Extract and store: labels/tags, OCR text, dominant colors, metadata.
-  - [ ] Update `items.meta` schema to include: `tags[]`, `ocrText`, `colors[]`, `visionData`.
-  - [ ] Add client-side color extraction as fallback/supplement (node-vibrant).
+  - [ ] Enable RLS on `items` table with policies: SELECT/INSERT/UPDATE/DELETE WHERE `user_id = auth.uid()` for multi-tenant data isolation.
+- [x] **Image analysis & auto-tagging (Google Cloud Vision)**
+  - [x] Set up Google Cloud project and enable Vision API.
+  - [x] Add Vision API credentials to env vars.
+  - [x] Create image analysis service that calls Vision API on upload.
+  - [x] Extract and store: labels/tags, OCR text, dominant colors, metadata.
+  - [x] Update `items.meta` schema to include: `tags[]`, `ocrText`, `colors[]`, `visionData`.
 - [ ] **pgvector & embeddings**
   - [ ] Enable pgvector extension in Supabase.
-  - [ ] Add `item_vectors` table with columns: `item_id`, `embedding vector(1536)`, `embedding_type` (text/image).
-  - [ ] Set up OpenAI embeddings API (text-embedding-3-small for text).
-  - [ ] Generate embeddings for: OCR text, tags, user notes.
-  - [ ] Store embeddings in `item_vectors` table linked to items.
+  - [ ] Add `item_vectors` table with columns: `id`, `item_id`, `user_id`, `kind` (`visual` | `text`), `model`, `embedding vector(<model-dim>)`, `created_at`.
+  - [ ] Add foreign key constraint: `item_id` → `items.id` (cascade delete), `user_id` → `users.id` for multi-tenant isolation.
+  - [ ] Normalize all embeddings before insert (L2 normalization for inner product optimization).
+  - [ ] Index: HNSW on `embedding vector_ip_ops` (inner product) for best query performance; add supporting indexes on `item_id` and `(user_id, kind)` for multi-tenant queries.
+  - [ ] Visual embeddings: CLIP via Replicate API (512 dims) for "similar vibe" image similarity (V1, upgrade to DINOv2 in V2 for better quality).
+  - [ ] Text embeddings: OpenAI `text-embedding-3-small` (1536 dims) for OCR/tags/notes.
+  - [ ] Set up Replicate account and add `REPLICATE_API_TOKEN` to Vercel env.
+  - [ ] Create Next.js API route to generate CLIP embeddings via Replicate on image upload.
+  - [ ] Generate embeddings for: visuals (primary for "similar vibe"), text (OCR, tags, notes).
+  - [ ] Store one row per item per kind; handle upsert on re-embeds.
+  - [ ] Install `replicate` npm package for embedding generation.
+  - [ ] Enable RLS on `item_vectors` table: `user_id = auth.uid()` for multi-tenant data isolation.
 - [ ] **Search implementation (hybrid: vector + full-text)**
   - [ ] Add PostgreSQL full-text search on `items.meta` (tags, OCR text, notes).
-  - [ ] Implement vector similarity search using pgvector for semantic queries.
+  - [ ] Implement vector similarity search using pgvector with inner product distance (`<#>` operator) for semantic queries.
   - [ ] Create unified search API that combines both approaches:
     - Full-text search for exact matches (tags, OCR text)
-    - Vector search for semantic/fuzzy queries
+    - Vector search for semantic/fuzzy queries (use normalized embeddings with inner product for fastest performance)
     - Color filtering (exact match on extracted colors)
     - Date range filtering
   - [ ] Build search UI with real-time results and filters.
   - [ ] Add search by color (visual color picker + hex input).
-  - [ ] Consider adding "find similar" feature using vector similarity.
+  - [ ] Add "find similar" feature using visual vector similarity (primary use case for CLIP embeddings).
 - [ ] **Async/worker stubs**
   - [ ] Add placeholder queue/job layer (start with simple cron/worker script to process `jobs` table; avoid Inngest until needed) with contracts for metadata, OCR, embeddings.
   - [ ] Document expected payloads in `docs/workers.md`.
@@ -65,13 +73,16 @@
   - [ ] Keep Biome for lint/format.
   - [ ] Add tests only when needed; defer baseline Vitest + Testing Library setup unless required.
 - [ ] **Observability**
-  - [ ] Add `pino` logger wrapper (reuse patterns from FR/log.limo); plan for Sentry instrumentation hook when justified.
+  - [x] Add `pino` logger wrapper (reuse patterns from FR/log.limo); plan for Sentry instrumentation hook when justified.
+  - [ ] Add dev-only embeddings debug UI (KNN viewer + optional PCA/UMAP scatter) to inspect vectors and nearest neighbors.
+  - [ ] Monitor pgvector query performance with `pg_stat_statements`.
+  - [ ] Track embedding costs (Replicate + OpenAI) via logging.
 
 ### Outstanding questions
 
-- **Image analysis privacy:** V1 uses Google Cloud Vision; consider self-hosted option (CLIP + Tesseract) for V2 with privacy toggle.
-- **Visual similarity:** Defer CLIP image embeddings for "same vibe" / similar images feature until V2.
+- **Image analysis privacy:** V1 uses Google Cloud Vision; consider self-hosted option for V2 with privacy toggle.
 - **Smart Spaces:** Auto-clustering/grouping can be added after basic search works.
+- **Embedding model upgrades:** Start with CLIP via Replicate; upgrade to DINOv2 when quality improvements justify hosting costs.
 
 ### Frontend
 
@@ -88,11 +99,13 @@
 
 ### Search & Similarity
 
-- **Hybrid search:** Combine PostgreSQL full-text search (exact matches) with pgvector semantic search (fuzzy/meaning-based queries).
-- **Text embeddings:** OpenAI text-embedding-3-small for OCR text, tags, and notes stored in `item_vectors` table.
+- **Hybrid search:** Combine PostgreSQL full-text search (exact matches) with pgvector semantic search (fuzzy/meaning-based queries) using HNSW indexing with inner product distance.
+- **Visual embeddings:** CLIP via Replicate API (512 dims) for "similar vibe" / visual similarity (V1). Upgrade path to DINOv2 (768 dims, superior quality) in V2.
+- **Text embeddings:** OpenAI text-embedding-3-small (1536 dims) for OCR text, tags, and notes.
 - **Image analysis:** Google Cloud Vision API for auto-tagging, OCR, and color extraction (V1).
-- **Visual similarity (V2):** Consider CLIP image embeddings for "same vibe" / similar images feature.
-- **Privacy option (V2):** Self-hosted CLIP + Tesseract stack as alternative to Google Vision for privacy-conscious users.
+- **Performance:** Normalize all embeddings (L2) and use inner product (`<#>`) for fastest similarity queries.
+- **Infrastructure:** Replicate for pay-per-use CLIP embeddings (~$0.002/image), no server management required, works with Vercel deployment.
+- **Privacy option (V2):** Self-hosted model stack as alternative to cloud APIs for privacy-conscious users.
 
 ### Async Processing & Workers
 
@@ -111,8 +124,9 @@
 ### Infrastructure & Deployment
 
 - Deploy web app on Vercel (preview URLs, edge features). Supabase manages Postgres/auth/storage.
-- Consider adding Railway for long-lived/background workers when enrichment pipelines go live.
-- Maintain environment secrets via provider tooling (Vercel env, Supabase secrets).
+- Use Replicate for pay-per-use CLIP embeddings (no server management, auto-scales, ~$0.002/image).
+- Defer Railway/Modal for workers until embedding costs exceed $50/month or need DINOv2 upgrade.
+- Maintain environment secrets via provider tooling (Vercel env: `REPLICATE_API_TOKEN`, `OPENAI_API_KEY`; Supabase secrets).
 
 ### Observability & Tooling
 
