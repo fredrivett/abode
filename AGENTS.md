@@ -1,4 +1,4 @@
-# Agent Guidelines for Project World
+# Agent Guidelines for abode
 
 ## General Principles
 

@@ -25,7 +25,7 @@ export function DashboardHeader({
 
   return (
     <header className="flex w-full items-center justify-between gap-4 border-b p-4">
-      <h1 className="text-lg font-semibold leading-tight">Project World 🌍</h1>
+      <h1 className="text-lg font-semibold leading-tight">abode 🏠</h1>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
