@@ -34,7 +34,7 @@
   - [x] Build dashboard UI with masonry grid layout for uploaded images.
   - [x] Implement delete functionality (removes from both storage and DB).
   - [x] Update schema with columns for AI analysis: `title`, `description`, `tags[]`, `objects[]`, `ocrText`, `colors`, `visionData`.
-  - [ ] Enable RLS on `items` table with policies: SELECT/INSERT/UPDATE/DELETE WHERE `user_id = auth.uid()` for multi-tenant data isolation.
+  - [x] Enable RLS on `items` table with policies: SELECT/INSERT/UPDATE/DELETE WHERE `user_id = auth.uid()` for multi-tenant data isolation.
 - [x] **Image analysis & auto-tagging (Google Cloud Vision)**
   - [x] Set up Google Cloud project and enable Vision API.
   - [x] Add Vision API credentials to env vars.
@@ -42,19 +42,19 @@
   - [x] Extract and store: labels/tags, OCR text, dominant colors, metadata.
   - [x] Update `items.meta` schema to include: `tags[]`, `ocrText`, `colors[]`, `visionData`.
 - [ ] **pgvector & embeddings**
-  - [ ] Enable pgvector extension in Supabase.
-  - [ ] Add `item_vectors` table with columns: `id`, `item_id`, `user_id`, `kind` (`visual` | `text`), `model`, `embedding vector(<model-dim>)`, `created_at`.
-  - [ ] Add foreign key constraint: `item_id` → `items.id` (cascade delete), `user_id` → `users.id` for multi-tenant isolation.
-  - [ ] Normalize all embeddings before insert (L2 normalization for inner product optimization).
-  - [ ] Index: HNSW on `embedding vector_ip_ops` (inner product) for best query performance; add supporting indexes on `item_id` and `(user_id, kind)` for multi-tenant queries.
-  - [ ] Visual embeddings: CLIP via Replicate API (512 dims) for "similar vibe" image similarity (V1, upgrade to DINOv2 in V2 for better quality).
-  - [ ] Text embeddings: OpenAI `text-embedding-3-small` (1536 dims) for OCR/tags/notes.
+  - [x] Enable pgvector extension in Supabase.
+  - [x] Add `item_vectors` table with columns: `id`, `item_id`, `user_id`, `kind` (`visual` | `text`), `model`, `embedding vector(512)`, `created_at`.
+  - [x] Add foreign key constraint: `item_id` → `items.id` (cascade delete), `user_id` → `users.id` for multi-tenant isolation.
+  - [x] Index: HNSW on `embedding vector_ip_ops` (inner product) for best query performance; add supporting indexes on `item_id` and `(user_id, kind)` for multi-tenant queries.
+  - [x] Enable RLS on `item_vectors` table: `user_id = auth.uid()` for multi-tenant data isolation.
   - [ ] Set up Replicate account and add `REPLICATE_API_TOKEN` to Vercel env.
-  - [ ] Create Next.js API route to generate CLIP embeddings via Replicate on image upload.
-  - [ ] Generate embeddings for: visuals (primary for "similar vibe"), text (OCR, tags, notes).
-  - [ ] Store one row per item per kind; handle upsert on re-embeds.
   - [ ] Install `replicate` npm package for embedding generation.
-  - [ ] Enable RLS on `item_vectors` table: `user_id = auth.uid()` for multi-tenant data isolation.
+  - [ ] Create Next.js API route to generate CLIP embeddings via Replicate on image upload.
+  - [ ] Implement L2 normalization for embeddings before insert (for inner product optimization).
+  - [ ] Generate visual embeddings: CLIP via Replicate API (512 dims) for "similar vibe" image similarity.
+  - [ ] Generate text embeddings: OpenAI `text-embedding-3-small` (1536 dims) for OCR/tags/notes.
+  - [ ] Store one row per item per kind in `item_vectors`; handle upsert on re-embeds.
+  - [ ] Backfill embeddings for existing items in database.
 - [ ] **Search implementation (hybrid: vector + full-text)**
   - [ ] Add PostgreSQL full-text search on `items.meta` (tags, OCR text, notes).
   - [ ] Implement vector similarity search using pgvector with inner product distance (`<#>` operator) for semantic queries.
