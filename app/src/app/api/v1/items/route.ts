@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
+import { generateImageEmbedding, generateTextEmbedding } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("api/v1/items");
@@ -14,6 +15,7 @@ const allowedKinds = new Set(["image"]);
 async function analyzeImageAsync(
   supabase: Awaited<ReturnType<typeof createClient>>,
   itemId: string,
+  userId: string,
   fileKey: string,
 ) {
   try {
@@ -61,6 +63,13 @@ async function analyzeImageAsync(
       },
       "Image analysis completed",
     );
+
+    // Generate embeddings asynchronously (don't block on this)
+    generateEmbeddingsAsync(supabase, itemId, userId, fileKey, analysis).catch(
+      (error) => {
+        log.error({ itemId, error }, "Embedding generation failed");
+      },
+    );
   } catch (error) {
     log.error({ itemId, error }, "Image analysis failed");
 
@@ -69,6 +78,78 @@ async function analyzeImageAsync(
       where: { id: itemId },
       data: { processingStatus: "failed" },
     });
+  }
+}
+
+/**
+ * Generate and store embeddings for an item
+ */
+async function generateEmbeddingsAsync(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  itemId: string,
+  userId: string,
+  fileKey: string,
+  analysis: { tags: string[]; objects: string[]; ocrText: string | null },
+) {
+  try {
+    log.info({ itemId }, "Starting embedding generation");
+
+    // Get signed URL for the image (valid for 1 hour)
+    const { data: urlData, error: urlError } = await supabase.storage
+      .from("items")
+      .createSignedUrl(fileKey, 3600);
+
+    if (urlError || !urlData) {
+      throw new Error(`Failed to create signed URL: ${urlError?.message}`);
+    }
+
+    // Generate visual embedding (CLIP)
+    const visualEmbedding = await generateImageEmbedding(urlData.signedUrl);
+
+    // Store visual embedding
+    await db.itemVector.create({
+      data: {
+        itemId,
+        userId,
+        kind: "visual",
+        model: "clip-vit-base-patch32",
+        embedding: `[${visualEmbedding.join(",")}]`, // Postgres vector format
+      },
+    });
+
+    log.info({ itemId }, "Visual embedding stored");
+
+    // Generate text embedding if we have text content
+    const textContent = [
+      ...(analysis.tags || []),
+      ...(analysis.objects || []),
+      analysis.ocrText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (textContent) {
+      const textEmbedding = await generateTextEmbedding(textContent);
+
+      // Store text embedding
+      await db.itemVector.create({
+        data: {
+          itemId,
+          userId,
+          kind: "text",
+          model: "text-embedding-3-small",
+          embedding: `[${textEmbedding.join(",")}]`, // Postgres vector format
+        },
+      });
+
+      log.info({ itemId }, "Text embedding stored");
+    }
+
+    log.info({ itemId }, "All embeddings generated and stored");
+  } catch (error) {
+    log.error({ itemId, error }, "Failed to generate embeddings");
+    // Don't throw - we don't want to fail the whole process if embeddings fail
   }
 }
 
@@ -164,7 +245,7 @@ export async function POST(request: NextRequest) {
 
     // Trigger image analysis asynchronously (don't wait for it)
     if (kind === "image" && fileKey) {
-      analyzeImageAsync(supabase, item.id, fileKey).catch((error) => {
+      analyzeImageAsync(supabase, item.id, user.id, fileKey).catch((error) => {
         log.error({ error }, "Image analysis error");
       });
     }
