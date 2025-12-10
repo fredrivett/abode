@@ -111,7 +111,6 @@ async function generateEmbeddingsAsync(
       data: {
         itemId,
         userId,
-        kind: "visual",
         model: "clip-vit-base-patch32",
         embedding: `[${visualEmbedding.join(",")}]`, // Postgres vector format
       },
@@ -137,7 +136,6 @@ async function generateEmbeddingsAsync(
         data: {
           itemId,
           userId,
-          kind: "text",
           model: "text-embedding-3-small",
           embedding: `[${textEmbedding.join(",")}]`, // Postgres vector format
         },
