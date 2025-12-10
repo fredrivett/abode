@@ -1,4 +1,5 @@
 import vision from "@google-cloud/vision";
+import type { Prisma } from "@prisma/client";
 
 // Initialize the Vision API client
 function getVisionClient() {
@@ -17,9 +18,9 @@ export type ImageAnalysisResult = {
   description?: string;
   tags: string[];
   objects: string[];
-  ocrText?: string;
+  ocrText: string | null;
   colors: Array<{ hex: string; score: number }>;
-  visionData: unknown;
+  visionData: Prisma.InputJsonValue;
 };
 
 /**
@@ -58,7 +59,7 @@ export async function analyzeImage(
   );
 
   // Extract OCR text
-  const ocrText = result.textAnnotations?.[0]?.description || undefined;
+  const ocrText = result.textAnnotations?.[0]?.description || null;
 
   // Extract dominant colors
   const colors =
@@ -87,7 +88,7 @@ export async function analyzeImage(
     objects,
     ocrText,
     colors,
-    visionData: result, // Store full response for debugging/future use
+    visionData: JSON.parse(JSON.stringify(result)), // Store full response for debugging/future use
   };
 }
 
@@ -112,7 +113,7 @@ function rgbToHex(r: number, g: number, b: number): string {
 function generateDescription(
   labels: string[],
   objects: string[],
-  ocrText?: string,
+  ocrText: string | null,
 ): string {
   const parts: string[] = [];
 
@@ -135,7 +136,7 @@ function generateDescription(
   return parts.join(". ");
 }
 
-function getOcrTitle(ocrText?: string) {
+function getOcrTitle(ocrText: string | null) {
   if (!ocrText) return undefined;
   const firstLine = ocrText
     .split(/\r?\n/)
