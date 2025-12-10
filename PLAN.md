@@ -43,18 +43,18 @@
   - [x] Update `items.meta` schema to include: `tags[]`, `ocrText`, `colors[]`, `visionData`.
 - [ ] **pgvector & embeddings**
   - [x] Enable pgvector extension in Supabase.
-  - [x] Add `item_vectors` table with columns: `id`, `item_id`, `user_id`, `kind` (`visual` | `text`), `model`, `embedding vector(512)`, `created_at`.
-  - [x] Add foreign key constraint: `item_id` → `items.id` (cascade delete), `user_id` → `users.id` for multi-tenant isolation.
-  - [x] Index: HNSW on `embedding vector_ip_ops` (inner product) for best query performance; add supporting indexes on `item_id` and `(user_id, kind)` for multi-tenant queries.
-  - [x] Enable RLS on `item_vectors` table: `user_id = auth.uid()` for multi-tenant data isolation.
-  - [ ] Set up Replicate account and add `REPLICATE_API_TOKEN` to Vercel env.
-  - [ ] Install `replicate` npm package for embedding generation.
-  - [ ] Create Next.js API route to generate CLIP embeddings via Replicate on image upload.
-  - [ ] Implement L2 normalization for embeddings before insert (for inner product optimization).
-  - [ ] Generate visual embeddings: CLIP via Replicate API (512 dims) for "similar vibe" image similarity.
-  - [ ] Generate text embeddings: OpenAI `text-embedding-3-small` (1536 dims) for OCR/tags/notes.
-  - [ ] Store one row per item per kind in `item_vectors`; handle upsert on re-embeds.
-  - [ ] Backfill embeddings for existing items in database.
+  - [x] Add split tables `item_visual_vectors` (768d) and `item_text_vectors` (1536d) with `id`, `item_id`, `user_id`, `model`, `embedding vector`, `created_at`.
+  - [x] Add foreign keys: `item_id` → `items.id` (cascade delete), `user_id` → `users.id` for multi-tenant isolation.
+  - [x] Index: HNSW on each embedding column (`vector_ip_ops`) plus supporting indexes on `item_id` and `user_id`.
+  - [x] Enable RLS on both vector tables: `user_id = auth.uid()` for multi-tenant data isolation.
+  - [x] Set up Replicate account and add `REPLICATE_API_TOKEN` to Vercel env.
+  - [x] Install `replicate` and `openai` npm packages for embedding generation.
+  - [x] Create embedding service (`lib/embeddings.ts`) with CLIP and OpenAI text embedding functions.
+  - [x] Implement L2 normalization for embeddings before insert (for inner product optimization).
+  - [x] Integrate visual embedding generation (CLIP via Replicate, 768 dims) into upload flow.
+  - [x] Integrate text embedding generation (OpenAI `text-embedding-3-small`, 1536 dims) for OCR/tags/notes.
+  - [x] Store vectors per kind in the split tables automatically on upload.
+  - [x] Test embedding generation with sample image upload.
 - [ ] **Search implementation (hybrid: vector + full-text)**
   - [ ] Add PostgreSQL full-text search on `items.meta` (tags, OCR text, notes).
   - [ ] Implement vector similarity search using pgvector with inner product distance (`<#>` operator) for semantic queries.
