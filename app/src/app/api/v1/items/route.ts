@@ -36,8 +36,12 @@ async function analyzeImageAsync(
     const analysis = await analyzeImage(buffer);
 
     // Update the item with analysis results
+    // Security: Ensure we only update items belonging to this user
     await db.item.update({
-      where: { id: itemId },
+      where: {
+        id: itemId,
+        userId: userId,  // Multi-tenant isolation
+      },
       data: {
         title: analysis.title,
         description: analysis.description,
@@ -74,8 +78,12 @@ async function analyzeImageAsync(
     log.error({ itemId, error }, "Image analysis failed");
 
     // Mark as failed
+    // Security: Ensure we only update items belonging to this user
     await db.item.update({
-      where: { id: itemId },
+      where: {
+        id: itemId,
+        userId: userId,  // Multi-tenant isolation
+      },
       data: { processingStatus: "failed" },
     });
   }
