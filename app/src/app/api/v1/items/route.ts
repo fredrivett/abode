@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
@@ -8,6 +10,83 @@ import { createLogger } from "@/lib/logger.server";
 const log = createLogger("api/v1/items");
 
 const allowedKinds = new Set(["image"]);
+
+type EmbeddingInsert = {
+  itemId: string;
+  userId: string;
+  model: string;
+  embedding: number[];
+};
+
+function serializeError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      meta: error.meta,
+      stack: error.stack,
+    };
+  }
+
+  if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  return { error };
+}
+
+function toVectorLiteral(embedding: number[]) {
+  return `[${embedding.join(",")}]`;
+}
+
+// pgvector columns aren't in the Prisma schema so we write visual vectors via raw SQL
+async function insertVisualVector({
+  itemId,
+  userId,
+  model,
+  embedding,
+}: EmbeddingInsert) {
+  const id = randomUUID();
+  const vectorLiteral = toVectorLiteral(embedding);
+
+  await db.$executeRaw`
+    INSERT INTO "item_visual_vectors" ("id", "item_id", "user_id", "model", "embedding")
+    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
+  `;
+
+  return id;
+}
+
+// pgvector columns aren't in the Prisma schema so we write text vectors via raw SQL
+async function insertTextVector({
+  itemId,
+  userId,
+  model,
+  embedding,
+}: EmbeddingInsert) {
+  const id = randomUUID();
+  const vectorLiteral = toVectorLiteral(embedding);
+
+  await db.$executeRaw`
+    INSERT INTO "item_text_vectors" ("id", "item_id", "user_id", "model", "embedding")
+    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
+  `;
+
+  return id;
+}
 
 /**
  * Analyze an image asynchronously and update the item with results
@@ -111,20 +190,37 @@ async function generateEmbeddingsAsync(
       throw new Error(`Failed to create signed URL: ${urlError?.message}`);
     }
 
+    const urlDetails = new URL(urlData.signedUrl);
+    log.info(
+      {
+        itemId,
+        fileKey,
+        signedUrlHost: urlDetails.host,
+      },
+      "Signed URL created for embedding",
+    );
+
     // Generate visual embedding (CLIP)
     const visualEmbedding = await generateImageEmbedding(urlData.signedUrl);
 
-    // Store visual embedding
-    await db.itemVector.create({
-      data: {
+    log.info(
+      {
         itemId,
-        userId,
         model: "clip-vit-base-patch32",
-        embedding: `[${visualEmbedding.join(",")}]`, // Postgres vector format
+        vectorLength: visualEmbedding.length,
       },
+      "Storing visual embedding",
+    );
+
+    // Store visual embedding (pgvector column not in Prisma schema)
+    const visualVectorId = await insertVisualVector({
+      itemId,
+      userId,
+      model: "clip-vit-base-patch32",
+      embedding: visualEmbedding,
     });
 
-    log.info({ itemId }, "Visual embedding stored");
+    log.info({ itemId, visualVectorId }, "Visual embedding stored");
 
     // Generate text embedding if we have text content
     const textContent = [
@@ -139,22 +235,30 @@ async function generateEmbeddingsAsync(
     if (textContent) {
       const textEmbedding = await generateTextEmbedding(textContent);
 
-      // Store text embedding
-      await db.itemVector.create({
-        data: {
-          itemId,
-          userId,
-          model: "text-embedding-3-small",
-          embedding: `[${textEmbedding.join(",")}]`, // Postgres vector format
-        },
+      log.info(
+        {
+        itemId,
+        model: "text-embedding-3-small",
+        textLength: textContent.length,
+        vectorLength: textEmbedding.length,
+      },
+      "Storing text embedding",
+    );
+
+      // Store text embedding (pgvector column not in Prisma schema)
+      const textVectorId = await insertTextVector({
+        itemId,
+        userId,
+        model: "text-embedding-3-small",
+        embedding: textEmbedding,
       });
 
-      log.info({ itemId }, "Text embedding stored");
+      log.info({ itemId, textVectorId }, "Text embedding stored");
     }
 
     log.info({ itemId }, "All embeddings generated and stored");
   } catch (error) {
-    log.error({ itemId, error }, "Failed to generate embeddings");
+    log.error({ itemId, ...serializeError(error) }, "Failed to generate embeddings");
     // Don't throw - we don't want to fail the whole process if embeddings fail
   }
 }

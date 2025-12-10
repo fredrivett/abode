@@ -28,29 +28,73 @@ export function normalizeVector(vector: number[]): number[] {
 /**
  * Generate CLIP embedding for an image using Replicate
  * Returns a normalized 512-dimensional vector
+ *
+ * @param imageUrl - URL to the image or base64 data URI
  */
 export async function generateImageEmbedding(
 	imageUrl: string,
 ): Promise<number[]> {
 	try {
-		log.info({ imageUrl }, "Generating image embedding with CLIP");
+		log.info(
+			{ imageUrl: imageUrl.slice(0, 100) + "..." },
+			"Generating image embedding with CLIP",
+		);
+
+		// If it's a localhost URL, we need to fetch and convert to data URI
+		let imageInput = imageUrl;
+		if (imageUrl.startsWith('http://localhost') || imageUrl.startsWith('http://127.0.0.1')) {
+			const response = await fetch(imageUrl);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch image: ${response.statusText}`);
+			}
+
+			const buffer = await response.arrayBuffer();
+			const base64 = Buffer.from(buffer).toString('base64');
+			const contentType = response.headers.get('content-type') || 'image/png';
+			imageInput = `data:${contentType};base64,${base64}`;
+		}
 
 		// Use Replicate's CLIP model
+		const modelVersion = "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a";
+		const input = { inputs: imageInput };
+
 		const output = (await replicate.run(
-			"andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a",
-			{
-				input: {
-					inputs: imageUrl,
-				},
-			},
+			modelVersion,
+			{ input },
 		)) as number[][];
 
-		// CLIP returns array of arrays, we want the first embedding
-		const embedding = output[0];
+		// CLIP model may return different formats, handle both
+		let embedding: number[];
 
-		if (!embedding || embedding.length !== 512) {
+		if (Array.isArray(output) && output.length > 0) {
+			const first = output[0];
+
+			// Check if it's an array of arrays (expected format)
+			if (Array.isArray(first)) {
+				embedding = first;
+			}
+			// Check if it's an object with an embedding property
+			else if (typeof first === 'object' && first !== null) {
+				// Try common property names
+				const embeddingData = (first as any).embedding || (first as any).embeddings || (first as any).features;
+				if (Array.isArray(embeddingData)) {
+					embedding = embeddingData;
+				} else {
+					throw new Error(`Unexpected output format: first element is object but no embedding array found. Keys: ${Object.keys(first).join(', ')}`);
+				}
+			}
+			else {
+				throw new Error(`Unexpected output format: first element is ${typeof first}`);
+			}
+		} else {
+			throw new Error(`Invalid output: expected array with at least one element`);
+		}
+
+		// CLIP ViT-B/32 produces 768-dimensional embeddings
+		const expectedDimension = 768;
+		if (!embedding || embedding.length !== expectedDimension) {
 			throw new Error(
-				`Invalid embedding dimension: expected 512, got ${embedding?.length}`,
+				`Invalid embedding dimension: expected ${expectedDimension}, got ${embedding?.length}`,
 			);
 		}
 
@@ -60,14 +104,26 @@ export async function generateImageEmbedding(
 		log.info(
 			{
 				dimension: normalized.length,
-				sampleValues: normalized.slice(0, 3),
 			},
 			"Image embedding generated",
 		);
 
 		return normalized;
 	} catch (error) {
-		log.error({ error, imageUrl }, "Failed to generate image embedding");
+		// Log detailed error information
+		const errorDetails = {
+			imageUrl,
+			message: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+			// For Replicate ApiError, try to extract more details
+			...(error && typeof error === 'object' ? {
+				status: (error as any).status,
+				statusText: (error as any).statusText,
+				response: (error as any).response,
+				request: (error as any).request,
+			} : {}),
+		};
+		log.error(errorDetails, "Failed to generate image embedding");
 		throw error;
 	}
 }
@@ -100,14 +156,26 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
 		log.info(
 			{
 				dimension: normalized.length,
-				sampleValues: normalized.slice(0, 3),
+				textLength: text.length,
 			},
 			"Text embedding generated",
 		);
 
 		return normalized;
 	} catch (error) {
-		log.error({ error, textLength: text.length }, "Failed to generate text embedding");
+		// Log detailed error information
+		const errorDetails = {
+			textLength: text.length,
+			message: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+			// For OpenAI errors, try to extract more details
+			...(error && typeof error === 'object' ? {
+				status: (error as any).status,
+				statusText: (error as any).statusText,
+				response: (error as any).response,
+			} : {}),
+		};
+		log.error(errorDetails, "Failed to generate text embedding");
 		throw error;
 	}
 }
