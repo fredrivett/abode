@@ -1,7 +1,10 @@
 import { config as loadDotenv } from "dotenv";
 import { defineConfig, env } from "prisma/config";
 
-loadDotenv();
+// Only load .env file in local development (not in CI/production where env vars are injected)
+if (!process.env.VERCEL && !process.env.CI) {
+  loadDotenv();
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
