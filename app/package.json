@@ -28,6 +28,7 @@
     "supabase:studio": "bash -lc 'open http://localhost:56323'"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "@google-cloud/vision": "^5.3.4",
     "@masonry-grid/react": "^1.1.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -48,6 +49,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "replicate": "^1.4.0",
+    "prisma": "^6.19.0",
     "sonner": "^2.0.7",
     "tailwindcss": "^4",
     "tailwind-merge": "^3.4.0",
@@ -71,7 +73,6 @@
     "dotenv": "^16.5.0",
     "jsdom": "^27.3.0",
     "playwright": "^1.56.1",
-    "prisma": "^6.19.0",
     "storybook": "^10.0.7",
     "typescript": "^5.9.3",
     "vitest": "^4.0.8"
