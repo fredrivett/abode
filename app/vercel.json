@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bunx prisma generate && bunx prisma migrate deploy && bun run build",
+  "buildCommand": "echo \"[DEBUG] DATABASE_URL=$DATABASE_URL\" && echo \"[DEBUG] DIRECT_URL=$DIRECT_URL\" && echo \"[DEBUG] Starting prisma generate...\" && bunx prisma generate && echo \"[DEBUG] Prisma generate completed!\" && echo \"[DEBUG] Starting prisma migrate deploy...\" && bunx prisma migrate deploy --schema=prisma/schema.prisma && echo \"[DEBUG] Prisma migrate completed!\" && echo \"[DEBUG] Starting Next.js build...\" && bun run build && echo \"[DEBUG] Build completed!\"",
   "installCommand": "bun install",
   "framework": "nextjs"
 }
