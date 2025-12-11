@@ -1,16 +1,18 @@
 import { AbodeLogo } from "@/components/abode-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <main className="flex flex-col items-center gap-8 text-center">
-        <h1 className="flex flex-col items-center">
+      <main className="flex flex-col items-center text-center">
+        <h1 className="flex flex-col items-center mb-6">
           <span className="sr-only">abode</span>
-          <AbodeLogo className="h-12 w-auto text-foreground" aria-hidden />
+          <AbodeLogo className="h-14 w-auto text-foreground" aria-hidden />
         </h1>
-        <p className="text-lg font-serif font-semibold text-muted-foreground">
+        <p className="text-xl font-serif font-semibold text-muted-foreground">
           the home for your info
         </p>
+        <ThemeToggle className="mt-8" />
       </main>
     </div>
   );

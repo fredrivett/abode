@@ -3,6 +3,7 @@
 import { LogOut, User } from "lucide-react";
 
 import { AbodeLogo } from "@/components/abode-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,34 +32,37 @@ export function DashboardHeader({
         <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
       </h1>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2">
-            <User className="size-4" />
-            <span className="max-w-[180px] truncate">{displayEmail}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="justify-between">
-            <span className="truncate">{displayEmail}</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <form action={signOutAction}>
-            <DropdownMenuItem asChild>
-              <Button
-                type="submit"
-                variant="ghost"
-                className="h-auto w-full justify-start gap-2 px-2 py-1.5"
-              >
-                <LogOut className="size-4" />
-                Sign out
-              </Button>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <User className="size-4" />
+              <span className="max-w-[180px] truncate">{displayEmail}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="justify-between">
+              <span className="truncate">{displayEmail}</span>
             </DropdownMenuItem>
-          </form>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuSeparator />
+            <form action={signOutAction}>
+              <DropdownMenuItem asChild>
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  className="h-auto w-full justify-start gap-2 px-2 py-1.5"
+                >
+                  <LogOut className="size-4" />
+                  Sign out
+                </Button>
+              </DropdownMenuItem>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }
