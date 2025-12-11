@@ -20,8 +20,8 @@ const hedvigSerif = Hedvig_Letters_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Abode",
-  description: "The home for your info",
+  title: "abode",
+  description: "the home for your info",
 };
 
 export default function RootLayout({
