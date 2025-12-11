@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bash build.sh",
+  "buildCommand": "bunx prisma generate && bunx prisma migrate deploy && bun run build",
   "installCommand": "bun install",
   "framework": "nextjs"
 }
