@@ -1,4 +1,4 @@
--- Create the items storage bucket
+-- Create the items storage bucket (idempotent)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'items',
@@ -6,7 +6,8 @@ VALUES (
   false, -- private bucket
   52428800, -- 50MB limit
   ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/json']
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
 -- RLS policies for the items bucket
 
