@@ -2,6 +2,7 @@
 
 import { LogOut, User } from "lucide-react";
 
+import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,7 +26,10 @@ export function DashboardHeader({
 
   return (
     <header className="flex w-full items-center justify-between gap-4 border-b p-4">
-      <h1 className="text-lg font-semibold leading-tight">abode 🏠</h1>
+      <h1 className="flex items-center">
+        <span className="sr-only">abode</span>
+        <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
+      </h1>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
