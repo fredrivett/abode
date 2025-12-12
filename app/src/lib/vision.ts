@@ -1,11 +1,26 @@
 import vision from "@google-cloud/vision";
 import type { Prisma } from "@prisma/client";
 
+function parseCredentials(raw: string) {
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    // Only include a short preview to avoid leaking secrets in logs
+    const preview = raw.slice(0, 200);
+    const reason =
+      error instanceof Error && error.message
+        ? error.message
+        : "Unknown JSON parse error";
+    throw new Error(
+      `Invalid GOOGLE_CLOUD_CREDENTIALS JSON: ${reason}. Preview: ${preview}`,
+    );
+  }
+}
+
 // Initialize the Vision API client
 function getVisionClient() {
-  const credentials = process.env.GOOGLE_CLOUD_CREDENTIALS
-    ? JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
-    : undefined;
+  const rawCredentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
+  const credentials = rawCredentials ? parseCredentials(rawCredentials) : undefined;
 
   return new vision.ImageAnnotatorClient({
     keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS_PATH,

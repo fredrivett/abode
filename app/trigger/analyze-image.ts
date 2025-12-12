@@ -7,6 +7,7 @@ import {
 	generateImageEmbedding,
 	generateTextEmbedding,
 } from "@/lib/embeddings";
+import { inspect } from "node:util";
 
 type AnalyzeImagePayload = {
 	itemId: string;
@@ -42,7 +43,18 @@ function getSupabaseConfig() {
 
 function formatStorageError(error: unknown) {
 	if (!error) return "Unknown storage error";
-	if (error instanceof Error && error.message) return error.message;
+	if (error instanceof Error) {
+		if (error.message) return error.message;
+
+		const props = Object.fromEntries(
+			Object.getOwnPropertyNames(error).map((key) => [
+				key,
+				(error as Record<string, unknown>)[key],
+			]),
+		);
+
+		return inspect(props, { depth: 3 });
+	}
 	if (typeof error === "object") {
 		const payload = error as Record<string, unknown>;
 
@@ -51,7 +63,7 @@ function formatStorageError(error: unknown) {
 			(typeof payload.error === "string" && payload.error) ||
 			(typeof payload.status === "number" && `status ${payload.status}`) ||
 			(typeof payload.statusCode === "string" && payload.statusCode) ||
-			JSON.stringify(error)
+			inspect(payload, { depth: 3 })
 		);
 	}
 
