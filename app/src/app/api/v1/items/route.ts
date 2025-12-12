@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
 import { generateImageEmbedding, generateTextEmbedding } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
-import type { analyzeImageTask } from "@/trigger/analyze-image";
+import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
