@@ -25,6 +25,39 @@ function toVectorLiteral(embedding: number[]) {
 	return `[${embedding.join(",")}]`;
 }
 
+function getSupabaseConfig() {
+	const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+	if (!url) {
+		throw new Error("Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL for analyze-image");
+	}
+
+	if (!key) {
+		throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY for analyze-image");
+	}
+
+	return { url, key };
+}
+
+function formatStorageError(error: unknown) {
+	if (!error) return "Unknown storage error";
+	if (error instanceof Error && error.message) return error.message;
+	if (typeof error === "object") {
+		const payload = error as Record<string, unknown>;
+
+		return (
+			(typeof payload.message === "string" && payload.message) ||
+			(typeof payload.error === "string" && payload.error) ||
+			(typeof payload.status === "number" && `status ${payload.status}`) ||
+			(typeof payload.statusCode === "string" && payload.statusCode) ||
+			JSON.stringify(error)
+		);
+	}
+
+	return String(error);
+}
+
 // pgvector columns aren't in the Prisma schema so we write visual vectors via raw SQL
 async function insertVisualVector({
 	itemId,
@@ -67,13 +100,17 @@ export const analyzeImageTask = task({
 	run: async (payload: AnalyzeImagePayload) => {
 		const { itemId, userId, fileKey } = payload;
 
-		logger.log("Starting image analysis", { itemId, userId, fileKey });
+		const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
+
+		logger.log("Starting image analysis", {
+			itemId,
+			userId,
+			fileKey,
+			supabaseHost: new URL(supabaseUrl).host,
+		});
 
 		// Create Supabase client with service role key for server-side operations
-		const supabase = createClient(
-			process.env.NEXT_PUBLIC_SUPABASE_URL!,
-			process.env.SUPABASE_SERVICE_ROLE_KEY!,
-		);
+		const supabase = createClient(supabaseUrl, supabaseKey);
 
 		try {
 			// Step 1: Download the image from Supabase Storage
@@ -84,7 +121,7 @@ export const analyzeImageTask = task({
 				.download(fileKey);
 
 			if (error || !data) {
-				throw new Error(`Failed to download image: ${error?.message}`);
+				throw new Error(`Failed to download image: ${formatStorageError(error)}`);
 			}
 
 			// Convert blob to buffer
@@ -141,7 +178,9 @@ export const analyzeImageTask = task({
 				.createSignedUrl(fileKey, 3600);
 
 			if (urlError || !urlData) {
-				throw new Error(`Failed to create signed URL: ${urlError?.message}`);
+				throw new Error(
+					`Failed to create signed URL: ${formatStorageError(urlError)}`,
+				);
 			}
 
 			logger.log("Signed URL created", { itemId });
