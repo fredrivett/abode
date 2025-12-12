@@ -49,7 +49,7 @@ function formatStorageError(error: unknown) {
 		const props = Object.fromEntries(
 			Object.getOwnPropertyNames(error).map((key) => [
 				key,
-				(error as Record<string, unknown>)[key],
+				(error as unknown as Record<string, unknown>)[key],
 			]),
 		);
 
