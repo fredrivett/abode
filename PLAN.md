@@ -109,8 +109,11 @@
 
 ### Async Processing & Workers
 
-- Phase in Inngest for orchestration when enrichment pipelines (metadata, OCR, embeddings, auto-tagging) are ready.
+- **Current (Phase 1)**: Synchronous processing with increased timeout (300s)
+- **Future (Phase 2)**: Will re-evaluate async options when needed (processing approaches timeout, need better UX, or require reliability improvements)
 - Deploy Python workers (e.g., PaddleOCR, article parsing) on Railway only when needed; keep queue interfaces idempotent.
+
+See [docs/async-processing-options.md](docs/async-processing-options.md) for detailed evaluation of all options (Graphile Worker, pg-boss, Inngest, Trigger.dev, QStash, custom queue) with self-hosting considerations.
 
 ### Caching & Queues
 
