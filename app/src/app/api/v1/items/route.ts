@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { tasks } from "@trigger.dev/sdk/v3";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
 import { generateImageEmbedding, generateTextEmbedding } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
+import type { analyzeImageTask } from "@/trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
@@ -353,11 +355,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Trigger image analysis asynchronously (don't wait for it)
+    // Trigger image analysis via Trigger.dev (returns immediately)
     if (kind === "image" && fileKey) {
-      analyzeImageAsync(supabase, item.id, user.id, fileKey).catch((error) => {
-        log.error({ error }, "Image analysis error");
-      });
+      await tasks.trigger<typeof analyzeImageTask>(
+        "analyze-image",
+        {
+          itemId: item.id,
+          userId: user.id,
+          fileKey,
+        }
+      );
     }
 
     return NextResponse.json(item, { status: 201 });

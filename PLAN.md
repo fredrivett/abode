@@ -109,8 +109,11 @@
 
 ### Async Processing & Workers
 
-- **Current (Phase 1)**: Synchronous processing with increased timeout (300s)
-- **Future (Phase 2)**: Will re-evaluate async options when needed (processing approaches timeout, need better UX, or require reliability improvements)
+- **Current**: Using Trigger.dev for async image processing (implemented 2025-12-12)
+  - Vision API analysis, embedding generation, and vector storage run in background
+  - Free tier: $5/month usage (~11K images), then usage-based pricing
+  - Self-hosters can use Trigger.dev free tier or self-host (though cloud recommended)
+  - Built-in retries, monitoring, and logging via Trigger.dev dashboard
 - Deploy Python workers (e.g., PaddleOCR, article parsing) on Railway only when needed; keep queue interfaces idempotent.
 
 See [docs/async-processing-options.md](docs/async-processing-options.md) for detailed evaluation of all options (Graphile Worker, pg-boss, Inngest, Trigger.dev, QStash, custom queue) with self-hosting considerations.

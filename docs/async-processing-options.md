@@ -11,38 +11,44 @@ Abode processes images through multiple AI services (Google Vision, Replicate CL
 3. **Low cost**: Both for hosted SaaS and self-hosters
 4. **Simple deployment**: One-command setup for self-hosting
 
-## Current Approach (Phase 1)
+## Current Approach
 
-**Status**: ✅ Implemented (2025-12-12)
+**Status**: ✅ Implemented with Trigger.dev (2025-12-12)
 
-Running image analysis synchronously within the API route with increased timeout:
+Using Trigger.dev for async background image processing:
 
-```json
-// vercel.json
-{
-  "functions": {
-    "src/app/api/v1/items/route.ts": {
-      "maxDuration": 300  // 5 minutes on Vercel Pro
-    }
-  }
-}
+```typescript
+// API route triggers task and returns immediately
+await tasks.trigger<typeof analyzeImageTask>(
+  "analyze-image",
+  { itemId, userId, fileKey }
+);
+
+// Task runs on Trigger.dev infrastructure
+// - Downloads image from Supabase
+// - Calls Google Vision API
+// - Generates CLIP + OpenAI embeddings
+// - Updates Postgres with results
 ```
 
-**Pros**:
-- Zero additional complexity
-- No new services to manage
-- Current processing (6-18s) well within limits
-- Defers optimization until actually needed
+**Why Trigger.dev was chosen**:
+- ✅ Free tier: $5/month usage (~11,600 images)
+- ✅ No worker deployment needed (runs on their infrastructure)
+- ✅ Instant user response (upload completes in <1s)
+- ✅ Built-in retries, monitoring, logging
+- ✅ No timeout limits
+- ✅ Self-hosters can use free tier (acceptable external dependency)
+- ✅ Simpler than pg-boss (no separate worker process)
 
-**Cons**:
-- Limited to 5min on Vercel Pro (300s)
-- User waits for full processing before response
-- No built-in retry mechanism
-- Could timeout if processing gets more complex
+**Cost at scale**:
+- 1,000 images/month: $0 (free tier)
+- 15,000 images/month: ~$1.50/month
+- 25,000 images/month: ~$10/month
+- 100,000 images/month: ~$43/month
 
-**When to migrate**: When processing approaches 5min, need better UX, or require reliability improvements.
+**See**: [Implementation details in trigger/analyze-image.ts](../app/trigger/analyze-image.ts)
 
-## Future Options (Phase 2)
+## Alternative Options Evaluated
 
 ### Option 1: Graphile Worker ⭐ Recommended
 
