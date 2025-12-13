@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3300",
+    "dev": "next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
     "build": "next build --webpack",
-    "start": "next start -p 3300",
+    "start": "next start -p ${CONDUCTOR_PORT:-3300}",
     "lint": "biome check",
     "lint:all": "bunx concurrently --success=all -n biome,TS -c cyan,magenta \"bun run format\" \"bun run ts:check\"",
     "fix": "biome check --fix",
