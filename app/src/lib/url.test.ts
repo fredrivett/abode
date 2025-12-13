@@ -1,39 +1,60 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getAppBaseUrl } from "./url";
 
 describe("getAppBaseUrl", () => {
+  const originalEnv = process.env;
+
+  const setEnv = (vars: Record<string, string | undefined>) => {
+    process.env = { ...process.env, ...vars } as NodeJS.ProcessEnv;
+  };
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
   afterEach(() => {
-    vi.unstubAllEnvs();
+    process.env = originalEnv;
   });
 
   test("returns localhost in development", () => {
-    vi.stubEnv("NODE_ENV", "development");
+    setEnv({ NODE_ENV: "development" });
     expect(getAppBaseUrl()).toBe("http://localhost:3300");
   });
 
   test("returns localhost in test", () => {
-    vi.stubEnv("NODE_ENV", "test");
+    setEnv({ NODE_ENV: "test" });
     expect(getAppBaseUrl()).toBe("http://localhost:3300");
   });
 
+  test("uses Conductor port when provided", () => {
+    setEnv({ NODE_ENV: "development", CONDUCTOR_PORT: "4567" });
+    expect(getAppBaseUrl()).toBe("http://localhost:4567");
+  });
+
   test("returns Vercel URL for preview deployments", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("VERCEL_URL", "my-app-abc123.vercel.app");
-    vi.stubEnv("VERCEL_ENV", "preview");
+    setEnv({
+      NODE_ENV: "production",
+      VERCEL_URL: "my-app-abc123.vercel.app",
+      VERCEL_ENV: "preview",
+    });
     expect(getAppBaseUrl()).toBe("https://my-app-abc123.vercel.app");
   });
 
   test("returns production URL when VERCEL_ENV is production", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("VERCEL_URL", "my-app.vercel.app");
-    vi.stubEnv("VERCEL_ENV", "production");
+    setEnv({
+      NODE_ENV: "production",
+      VERCEL_URL: "my-app.vercel.app",
+      VERCEL_ENV: "production",
+    });
     expect(getAppBaseUrl()).toBe("https://www.abode.fyi");
   });
 
   test("returns production URL when no Vercel env vars", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("VERCEL_URL", "");
-    vi.stubEnv("VERCEL_ENV", "");
+    setEnv({
+      NODE_ENV: "production",
+      VERCEL_URL: "",
+      VERCEL_ENV: "",
+    });
     expect(getAppBaseUrl()).toBe("https://www.abode.fyi");
   });
 });
