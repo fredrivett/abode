@@ -1,15 +1,19 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getAppBaseUrl } from "./url";
 
 describe("getAppBaseUrl", () => {
+  const originalEnv = process.env;
+
   const setEnv = (vars: Record<string, string | undefined>) => {
-    for (const [key, value] of Object.entries(vars)) {
-      vi.stubEnv(key, value);
-    }
+    process.env = { ...process.env, ...vars } as NodeJS.ProcessEnv;
   };
 
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
   afterEach(() => {
-    vi.unstubAllEnvs();
+    process.env = originalEnv;
   });
 
   test("returns localhost in development", () => {
