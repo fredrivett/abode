@@ -19,6 +19,7 @@ import { DateTime } from "@/components/ui/date-time";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
@@ -290,6 +291,8 @@ function ItemDetailDialog({
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
+  const totalColorScore =
+    item.colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
 
   const handleNameSubmit = async (nextName: string) => {
     const trimmed = nextName.trim();
@@ -415,22 +418,31 @@ function ItemDetailDialog({
                         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Colors
                         </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {item.colors.slice(0, 6).map((color) => (
-                            <div
-                              key={color.hex}
-                              className="flex items-center gap-2"
-                            >
-                              <div
-                                className="h-6 w-6 rounded border border-zinc-300 dark:border-zinc-600"
-                                style={{ backgroundColor: color.hex }}
-                                title={`${color.hex} (${Math.round(color.score * 100)}%)`}
-                              />
-                              <span className="text-xs text-zinc-500">
-                                {color.hex}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="flex h-8 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700">
+                          {item.colors.map((color) => {
+                            const percent = Math.round(
+                              ((color.score ?? 0) / totalColorScore) * 100,
+                            );
+                            return (
+                              <Tooltip key={color.hex}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className="h-full"
+                                    style={{
+                                      backgroundColor: color.hex,
+                                      flexGrow: Math.max(color.score ?? 0, 0.001),
+                                      flexBasis: 0,
+                                      minWidth: 4,
+                                    }}
+                                    aria-label={`${color.hex} ${percent}%`}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent sideOffset={6}>
+                                  {color.hex} · {percent}%
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
