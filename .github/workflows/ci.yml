@@ -67,6 +67,9 @@ jobs:
       - name: Generate Prisma client
         run: bun run prisma:generate
 
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
       - name: Run tests
         run: bun run test --run
 
