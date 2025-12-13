@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DateTime } from "@/components/ui/date-time";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -381,9 +382,7 @@ function ItemDetailDialog({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Created</span>
-                      <span className="font-medium">
-                        {new Date(item.createdAt).toLocaleDateString()}
-                      </span>
+                      <DateTime date={item.createdAt} className="font-medium" />
                     </div>
                   </div>
                 </div>
