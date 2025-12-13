@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
+import type { ImageColor } from "@/lib/vision";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 
@@ -33,6 +34,12 @@ type DashboardItem = {
   meta: Record<string, unknown> | null;
   source: string | null;
   createdAt: string;
+  title: string | null;
+  description: string | null;
+  tags: string[];
+  objects: string[];
+  colors: ImageColor[];
+  ocrText: string | null;
 };
 
 type ItemCardProps = {
@@ -387,12 +394,112 @@ function ItemDetailDialog({
                   </div>
                 </div>
 
-                {/* AI-generated content will go here */}
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
-                  <p>
-                    AI analysis will appear here once processing is complete.
-                  </p>
-                </div>
+                {/* AI Analysis */}
+                {item.processingStatus === "completed" ? (
+                  <>
+                    {/* Description */}
+                    {item.description && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Description
+                        </h3>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {item.description}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Colors */}
+                    {item.colors.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Colors
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {item.colors.slice(0, 6).map((color, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-2"
+                            >
+                              <div
+                                className="h-6 w-6 rounded border border-zinc-300 dark:border-zinc-600"
+                                style={{ backgroundColor: color.hex }}
+                                title={`${color.hex} (${Math.round(color.score * 100)}%)`}
+                              />
+                              <span className="text-xs text-zinc-500">
+                                {color.hex}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Objects */}
+                    {item.objects.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Objects
+                        </h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.objects.map((obj, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                            >
+                              {obj}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    {item.tags.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Tags
+                        </h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OCR Text */}
+                    {item.ocrText && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Detected Text
+                        </h3>
+                        <div className="max-h-32 overflow-y-auto rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/50">
+                          <p className="whitespace-pre-wrap text-xs text-zinc-600 dark:text-zinc-400">
+                            {item.ocrText}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : item.processingStatus === "processing" ? (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                    <p>Analyzing image...</p>
+                  </div>
+                ) : item.processingStatus === "failed" ? (
+                  <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
+                    <p>Analysis failed. Please try re-uploading the image.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                    <p>No analysis available.</p>
+                  </div>
+                )}
 
                 <div className="pt-2">
                   <Button

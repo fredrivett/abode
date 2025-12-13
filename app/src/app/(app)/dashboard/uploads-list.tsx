@@ -2,6 +2,7 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { ItemCard } from "./item-card";
+import type { ImageColor } from "@/lib/vision";
 
 type DashboardItem = {
   id: string;
@@ -11,6 +12,12 @@ type DashboardItem = {
   meta: Record<string, unknown> | null;
   source: string | null;
   createdAt: string;
+  title: string | null;
+  description: string | null;
+  tags: string[];
+  objects: string[];
+  colors: ImageColor[];
+  ocrText: string | null;
 };
 
 function formatBytes(bytes?: number | null) {

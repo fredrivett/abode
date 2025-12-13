@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import type { ImageColor } from "@/lib/vision";
 import { UploadsList } from "./uploads-list";
 
 export default async function DashboardPage() {
@@ -23,6 +24,12 @@ export default async function DashboardPage() {
           meta: true,
           source: true,
           createdAt: true,
+          title: true,
+          description: true,
+          tags: true,
+          objects: true,
+          colors: true,
+          ocrText: true,
         },
       })
     : [];
@@ -34,6 +41,7 @@ export default async function DashboardPage() {
           ...item,
           createdAt: item.createdAt.toISOString(),
           meta: (item.meta as Record<string, unknown> | null) ?? null,
+          colors: (item.colors as ImageColor[]) ?? [],
         }))}
       />
     </div>

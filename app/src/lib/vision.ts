@@ -1,6 +1,8 @@
 import vision from "@google-cloud/vision";
 import type { Prisma } from "@prisma/client";
 
+export type ImageColor = { hex: string; score: number };
+
 function parseCredentials(raw: string) {
   try {
     return JSON.parse(raw);
@@ -36,7 +38,7 @@ export type ImageAnalysisResult = {
   tags: string[];
   objects: string[];
   ocrText: string | null;
-  colors: Array<{ hex: string; score: number }>;
+  colors: ImageColor[];
   visionData: Prisma.InputJsonValue;
 };
 
@@ -79,7 +81,7 @@ export async function analyzeImage(
   const ocrText = result.textAnnotations?.[0]?.description || null;
 
   // Extract dominant colors
-  const colors =
+  const colors: ImageColor[] =
     result.imagePropertiesAnnotation?.dominantColors?.colors?.map((color) => ({
       hex: rgbToHex(
         color.color?.red || 0,
