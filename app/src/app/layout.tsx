@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import { Toaster } from "sonner";
-import { DynamicFavicon } from "@/components/dynamic-favicon";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-client";
 
@@ -23,6 +22,21 @@ const hedvigSerif = Hedvig_Letters_Serif({
 export const metadata: Metadata = {
   title: "abode",
   description: "the home for your info",
+  icons: {
+    icon: [
+      {
+        url: "/favicon-light.png",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/favicon-dark.png",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -36,7 +50,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} antialiased`}
       >
         <QueryProvider>{children}</QueryProvider>
-        <DynamicFavicon />
         <Toaster richColors />
       </body>
     </html>
