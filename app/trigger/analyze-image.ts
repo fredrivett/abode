@@ -1,12 +1,12 @@
 import { logger, task } from "@trigger.dev/sdk/v3";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-import db from "@/lib/db";
-import { analyzeImage } from "@/lib/vision";
+import db from "../src/lib/db";
+import { analyzeImage } from "../src/lib/vision";
 import {
 	generateImageEmbedding,
 	generateTextEmbedding,
-} from "@/lib/embeddings";
+} from "../src/lib/embeddings";
 import { inspect } from "node:util";
 
 type AnalyzeImagePayload = {
