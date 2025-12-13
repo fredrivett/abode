@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { createClient } from "@/lib/supabase/server";
 import { createLogger } from "@/lib/logger.server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]");
 

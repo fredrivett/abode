@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { Download, LogOut, Settings, User } from "lucide-react"
+import type { Meta, StoryObj } from "@storybook/react";
+import { Download, LogOut, Settings, User } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -16,7 +16,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 const meta = {
   title: "UI/DropdownMenu",
@@ -24,11 +24,11 @@ const meta = {
   parameters: {
     layout: "centered",
   },
-} satisfies Meta<typeof DropdownMenu>
+} satisfies Meta<typeof DropdownMenu>;
 
-export default meta
+export default meta;
 
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
@@ -60,7 +60,7 @@ export const Default: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-}
+};
 
 export const WithSelection: Story = {
   render: () => (
@@ -86,7 +86,7 @@ export const WithSelection: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-}
+};
 
 export const WithSubmenus: Story = {
   render: () => (
@@ -110,4 +110,4 @@ export const WithSubmenus: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-}
+};

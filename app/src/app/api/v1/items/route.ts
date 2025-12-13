@@ -1,12 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { randomUUID } from "crypto";
 import { tasks } from "@trigger.dev/sdk/v3";
+import { randomUUID } from "crypto";
+import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import {
+  generateImageEmbedding,
+  generateTextEmbedding,
+} from "@/lib/embeddings";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeImage } from "@/lib/vision";
-import { generateImageEmbedding, generateTextEmbedding } from "@/lib/embeddings";
-import { createLogger } from "@/lib/logger.server";
 import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
@@ -121,7 +124,7 @@ async function analyzeImageAsync(
     await db.item.update({
       where: {
         id: itemId,
-        userId: userId,  // Multi-tenant isolation
+        userId: userId, // Multi-tenant isolation
       },
       data: {
         title: analysis.title,
@@ -163,7 +166,7 @@ async function analyzeImageAsync(
     await db.item.update({
       where: {
         id: itemId,
-        userId: userId,  // Multi-tenant isolation
+        userId: userId, // Multi-tenant isolation
       },
       data: { processingStatus: "failed" },
     });
@@ -239,13 +242,13 @@ async function generateEmbeddingsAsync(
 
       log.info(
         {
-        itemId,
-        model: "text-embedding-3-small",
-        textLength: textContent.length,
-        vectorLength: textEmbedding.length,
-      },
-      "Storing text embedding",
-    );
+          itemId,
+          model: "text-embedding-3-small",
+          textLength: textContent.length,
+          vectorLength: textEmbedding.length,
+        },
+        "Storing text embedding",
+      );
 
       // Store text embedding (pgvector column not in Prisma schema)
       const textVectorId = await insertTextVector({
@@ -260,7 +263,10 @@ async function generateEmbeddingsAsync(
 
     log.info({ itemId }, "All embeddings generated and stored");
   } catch (error) {
-    log.error({ itemId, ...serializeError(error) }, "Failed to generate embeddings");
+    log.error(
+      { itemId, ...serializeError(error) },
+      "Failed to generate embeddings",
+    );
     // Don't throw - we don't want to fail the whole process if embeddings fail
   }
 }
@@ -357,14 +363,11 @@ export async function POST(request: NextRequest) {
 
     // Trigger image analysis via Trigger.dev (returns immediately)
     if (kind === "image" && fileKey) {
-      await tasks.trigger<typeof analyzeImageTask>(
-        "analyze-image",
-        {
-          itemId: item.id,
-          userId: user.id,
-          fileKey,
-        }
-      );
+      await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
+        itemId: item.id,
+        userId: user.id,
+        fileKey,
+      });
     }
 
     return NextResponse.json(item, { status: 201 });
@@ -420,7 +423,10 @@ export async function DELETE(request: NextRequest) {
         .remove([item.fileKey]);
 
       if (storageError) {
-        log.error({ itemId: id, error: storageError }, "Storage deletion error");
+        log.error(
+          { itemId: id, error: storageError },
+          "Storage deletion error",
+        );
         // Continue with DB deletion even if storage deletion fails
       }
     }

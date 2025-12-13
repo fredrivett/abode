@@ -20,7 +20,9 @@ function parseCredentials(raw: string) {
 // Initialize the Vision API client
 function getVisionClient() {
   const rawCredentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
-  const credentials = rawCredentials ? parseCredentials(rawCredentials) : undefined;
+  const credentials = rawCredentials
+    ? parseCredentials(rawCredentials)
+    : undefined;
 
   return new vision.ImageAnnotatorClient({
     keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS_PATH,
@@ -89,9 +91,7 @@ export async function analyzeImage(
 
   // Prefer OCR-derived title; fallback to filtered labels
   const title =
-    getOcrTitle(ocrText) ||
-    filteredLabels.slice(0, 3).join(", ") ||
-    undefined;
+    getOcrTitle(ocrText) || filteredLabels.slice(0, 3).join(", ") || undefined;
 
   // Generate a description from labels and objects
   const description = generateDescription(filteredLabels, objects, ocrText);

@@ -1,12 +1,12 @@
 "use client";
 
-import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
-import { createClient } from "@/lib/supabase/client";
 import { createLogger } from "@/lib/logger.client";
+import { createClient } from "@/lib/supabase/client";
 
 const log = createLogger("dashboard/upload-widget");
 
@@ -60,7 +60,9 @@ export function UploadWidget() {
     setFileName(file.name);
 
     if (!allowedImageTypes.has(file.type)) {
-      toast.error("Unsupported file type. Choose a jpg, png, gif, or webp image.");
+      toast.error(
+        "Unsupported file type. Choose a jpg, png, gif, or webp image.",
+      );
       resetFile();
       return;
     }

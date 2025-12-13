@@ -5,12 +5,12 @@
  * - Production: https://www.abode.fyi
  */
 export function getAppBaseUrl(): string {
-	if (process.env.NODE_ENV !== "production") return "http://localhost:3300";
+  if (process.env.NODE_ENV !== "production") return "http://localhost:3300";
 
-	const isPreview =
-		process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL;
+  const isPreview =
+    process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL;
 
-	if (isPreview) return `https://${process.env.VERCEL_URL}`;
+  if (isPreview) return `https://${process.env.VERCEL_URL}`;
 
-	return "https://www.abode.fyi";
+  return "https://www.abode.fyi";
 }

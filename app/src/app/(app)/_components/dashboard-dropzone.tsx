@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
@@ -49,11 +49,7 @@ async function getImageDimensions(
   });
 }
 
-export function DashboardDropzone({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
@@ -62,7 +58,9 @@ export function DashboardDropzone({
   const handleUpload = useCallback(
     async (file: File) => {
       if (!allowedImageTypes.has(file.type)) {
-        toast.error("Unsupported file type. Choose a jpg, png, gif, or webp image.");
+        toast.error(
+          "Unsupported file type. Choose a jpg, png, gif, or webp image.",
+        );
         return;
       }
 

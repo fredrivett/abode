@@ -2,12 +2,12 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { Button } from "@/components/ui/button";
 import { signup, verifyOtp } from "./actions";
 
 export function SignupForm() {
@@ -132,7 +132,12 @@ export function SignupForm() {
           />
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSigningUp}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={isSigningUp}
+        >
           {isSigningUp ? "Creating account..." : "Sign up"}
         </Button>
       </form>

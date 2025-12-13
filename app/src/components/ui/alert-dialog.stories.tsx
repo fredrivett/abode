@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { AlertTriangle } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 const meta = {
   title: "UI/AlertDialog",
@@ -36,8 +35,8 @@ export const Default: Story = {
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete your
-            item and remove the data from our servers.
+            This action cannot be undone. This will permanently delete your item
+            and remove the data from our servers.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -68,7 +67,9 @@ export const Destructive: Story = {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive">Yes, delete it</AlertDialogAction>
+          <AlertDialogAction variant="destructive">
+            Yes, delete it
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

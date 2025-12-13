@@ -11,6 +11,6 @@ export const helloWorldTask = task({
 
     return {
       message: "Hello, world!",
-    }
+    };
   },
 });
