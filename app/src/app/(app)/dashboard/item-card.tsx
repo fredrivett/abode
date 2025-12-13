@@ -20,9 +20,9 @@ import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
-import type { ImageColor } from "@/lib/vision";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
+import type { ImageColor } from "@/lib/vision";
 
 const log = createLogger("dashboard/item-card");
 
@@ -416,9 +416,9 @@ function ItemDetailDialog({
                           Colors
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                          {item.colors.slice(0, 6).map((color, index) => (
+                          {item.colors.slice(0, 6).map((color) => (
                             <div
-                              key={index}
+                              key={color.hex}
                               className="flex items-center gap-2"
                             >
                               <div
@@ -442,9 +442,9 @@ function ItemDetailDialog({
                           Objects
                         </h3>
                         <div className="flex flex-wrap gap-1.5">
-                          {item.objects.map((obj, index) => (
+                          {item.objects.map((obj) => (
                             <span
-                              key={index}
+                              key={obj}
                               className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                             >
                               {obj}
@@ -461,9 +461,9 @@ function ItemDetailDialog({
                           Tags
                         </h3>
                         <div className="flex flex-wrap gap-1.5">
-                          {item.tags.map((tag, index) => (
+                          {item.tags.map((tag) => (
                             <span
-                              key={index}
+                              key={tag}
                               className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                             >
                               {tag}
