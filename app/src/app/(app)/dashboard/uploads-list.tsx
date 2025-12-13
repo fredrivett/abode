@@ -1,7 +1,7 @@
 "use client";
 
-import type { ImageColor } from "@/lib/vision";
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
+import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "./item-card";
 
 type DashboardItem = {
