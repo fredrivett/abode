@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/profile");
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient();
     const {

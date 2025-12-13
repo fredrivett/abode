@@ -34,7 +34,7 @@ export async function generateImageEmbedding(
 ): Promise<number[]> {
   try {
     log.info(
-      { imageUrl: imageUrl.slice(0, 100) + "..." },
+      { imageUrl: `${imageUrl.slice(0, 100)}...` },
       "Generating image embedding with CLIP",
     );
 
@@ -75,12 +75,15 @@ export async function generateImageEmbedding(
       // Check if it's an object with an embedding property
       else if (typeof first === "object" && first !== null) {
         // Try common property names
+        const candidate = first as {
+          embedding?: unknown;
+          embeddings?: unknown;
+          features?: unknown;
+        };
         const embeddingData =
-          (first as any).embedding ||
-          (first as any).embeddings ||
-          (first as any).features;
+          candidate.embedding ?? candidate.embeddings ?? candidate.features;
         if (Array.isArray(embeddingData)) {
-          embedding = embeddingData;
+          embedding = embeddingData as number[];
         } else {
           throw new Error(
             `Unexpected output format: first element is object but no embedding array found. Keys: ${Object.keys(first).join(", ")}`,
@@ -125,10 +128,10 @@ export async function generateImageEmbedding(
       // For Replicate ApiError, try to extract more details
       ...(error && typeof error === "object"
         ? {
-            status: (error as any).status,
-            statusText: (error as any).statusText,
-            response: (error as any).response,
-            request: (error as any).request,
+            status: (error as Record<string, unknown>).status,
+            statusText: (error as Record<string, unknown>).statusText,
+            response: (error as Record<string, unknown>).response,
+            request: (error as Record<string, unknown>).request,
           }
         : {}),
     };
@@ -180,9 +183,9 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
       // For OpenAI errors, try to extract more details
       ...(error && typeof error === "object"
         ? {
-            status: (error as any).status,
-            statusText: (error as any).statusText,
-            response: (error as any).response,
+            status: (error as Record<string, unknown>).status,
+            statusText: (error as Record<string, unknown>).statusText,
+            response: (error as Record<string, unknown>).response,
           }
         : {}),
     };

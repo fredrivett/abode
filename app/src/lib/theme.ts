@@ -104,6 +104,7 @@ export function storeThemePreference(preference: ThemePreference): void {
     cookieValue.push("Secure");
   }
 
+  // biome-ignore lint/suspicious/noDocumentCookie: using document.cookie for compatibility
   document.cookie = cookieValue.join("; ");
 }
 
@@ -114,6 +115,7 @@ export function clearStoredThemePreference(): void {
   } catch {
     // ignore
   }
+  // biome-ignore lint/suspicious/noDocumentCookie: using document.cookie for compatibility
   document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
 

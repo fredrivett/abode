@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import { Toaster } from "sonner";
+import { DynamicFavicon } from "@/components/dynamic-favicon";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-client";
-import { DynamicFavicon } from "@/components/dynamic-favicon";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
