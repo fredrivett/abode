@@ -1,3 +1,4 @@
+import { prismaExtension } from "@trigger.dev/build/extensions/prisma";
 import { defineConfig } from "@trigger.dev/sdk/v3";
 
 export default defineConfig({
@@ -19,4 +20,15 @@ export default defineConfig({
     },
   },
   dirs: ["trigger"],
+  build: {
+    extensions: [
+      prismaExtension({
+        mode: "legacy",
+        version: "6.19.0",
+        schema: "prisma/schema.prisma",
+        migrate: false,
+        directUrlEnvVarName: "DIRECT_URL",
+      }),
+    ],
+  },
 });
