@@ -19,7 +19,11 @@ import { DateTime } from "@/components/ui/date-time";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
@@ -430,10 +434,14 @@ function ItemDetailDialog({
                                     className="h-full"
                                     style={{
                                       backgroundColor: color.hex,
-                                      flexGrow: Math.max(color.score ?? 0, 0.001),
+                                      flexGrow: Math.max(
+                                        color.score ?? 0,
+                                        0.001,
+                                      ),
                                       flexBasis: 0,
                                       minWidth: 4,
                                     }}
+                                    role="img"
                                     aria-label={`${color.hex} ${percent}%`}
                                   />
                                 </TooltipTrigger>
