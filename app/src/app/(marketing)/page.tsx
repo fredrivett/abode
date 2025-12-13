@@ -1,5 +1,6 @@
 import { AbodeLogo } from "@/components/abode-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { XLink } from "@/components/x-link";
 
 export default function Home() {
   return (
@@ -12,7 +13,10 @@ export default function Home() {
         <p className="text-xl font-serif font-semibold text-muted-foreground">
           the home for your info
         </p>
-        <ThemeToggle className="mt-8" />
+        <div className="mt-8 flex items-center gap-2">
+          <ThemeToggle />
+          <XLink />
+        </div>
       </main>
     </div>
   );

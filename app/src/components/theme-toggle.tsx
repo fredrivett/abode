@@ -3,6 +3,7 @@
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   applyThemePreference,
   getCurrentPreference,
@@ -10,10 +11,6 @@ import {
   storeThemePreference,
   type ThemePreference,
 } from "@/lib/theme";
-import { cn } from "@/lib/utils";
-
-const BUTTON_CLASSES =
-  "flex items-center text-muted-foreground hover:text-foreground p-1 px-1.5 sm:px-3 sm:py-2 opacity-70 hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer";
 
 const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
 
@@ -85,31 +82,33 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         ? "Light theme"
         : "Dark theme";
 
-  const classes = cn(BUTTON_CLASSES, className);
-
   if (!mounted) {
     return (
-      <button
+      <Button
         type="button"
-        className={classes}
+        variant="ghost-subtle"
+        size="icon"
+        className={className}
         aria-label="Toggle theme"
         disabled
       >
         <SunMoon size={18} aria-hidden />
-      </button>
+      </Button>
     );
   }
 
   return (
-    <button
+    <Button
       type="button"
-      className={classes}
+      variant="ghost-subtle"
+      size="icon"
+      className={className}
       onClick={handleToggle}
       aria-label={`Set ${label}`}
       title={label}
       disabled={isPending}
     >
       {icon}
-    </button>
+    </Button>
   );
 }

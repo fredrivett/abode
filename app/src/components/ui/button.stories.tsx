@@ -21,6 +21,7 @@ const meta = {
         "outline",
         "secondary",
         "ghost",
+        "ghost-subtle",
         "link",
       ],
     },
@@ -60,5 +61,12 @@ export const WithIcon: Story = {
     variant: "secondary",
     children: <Plus className="size-4" />,
     "aria-label": "Add item",
+  },
+};
+
+export const GhostSubtle: Story = {
+  args: {
+    variant: "ghost-subtle",
+    children: "Open link",
   },
 };

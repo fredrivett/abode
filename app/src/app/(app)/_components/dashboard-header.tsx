@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { XLink } from "@/components/x-link";
 
 type DashboardHeaderProps = {
   email?: string | null;
