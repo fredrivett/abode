@@ -1,6 +1,5 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -14,7 +13,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
@@ -38,19 +37,6 @@ type DashboardItem = {
   source: string | null;
   createdAt: string;
 };
-
-function formatBytes(bytes?: number | null) {
-  if (!bytes || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const exponent = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  const value = bytes / 1024 ** exponent;
-  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${
-    units[exponent]
-  }`;
-}
 
 type ItemCardProps = {
   item: DashboardItem;
@@ -144,15 +130,34 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   if (!isImage) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-        <a
-          href={previewUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-primary underline"
-        >
-          View file: {name}
-        </a>
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-col items-center gap-4">
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-primary underline"
+          >
+            View file: {name}
+          </a>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+        <DeleteItemDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleDelete}
+          isDeleting={isDeleting}
+          itemName={name}
+        />
       </div>
     );
   }
@@ -187,6 +192,10 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
             previewUrl={previewUrl}
             open={showDetailDialog}
             onOpenChange={setShowDetailDialog}
+            deleteOpen={showDeleteDialog}
+            onDeleteOpenChange={setShowDeleteDialog}
+            onDeleteConfirm={handleDelete}
+            isDeleting={isDeleting}
           />
         )}
       </AnimatePresence>
@@ -201,7 +210,56 @@ type ItemDetailDialogProps = {
   previewUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleteOpenChange: (open: boolean) => void;
+  deleteOpen: boolean;
+  onDeleteConfirm: () => Promise<void>;
+  isDeleting: boolean;
 };
+
+type DeleteItemDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
+  isDeleting: boolean;
+  itemName: string;
+};
+
+function DeleteItemDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  isDeleting,
+  itemName,
+}: DeleteItemDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete item</AlertDialogTitle>
+          <AlertDialogDescription>
+            {`Are you sure you want to delete "${itemName}"? This action cannot be undone.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button variant="outline" disabled={isDeleting}>
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button
+              variant="destructive"
+              onClick={onConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <IsLoading label="Deleting" /> : "Delete item"}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 function ItemDetailDialog({
   item,
@@ -210,6 +268,10 @@ function ItemDetailDialog({
   previewUrl,
   open,
   onOpenChange,
+  deleteOpen,
+  onDeleteOpenChange,
+  onDeleteConfirm,
+  isDeleting,
 }: ItemDetailDialogProps) {
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
@@ -298,6 +360,20 @@ function ItemDetailDialog({
                     AI analysis will appear here once processing is complete.
                   </p>
                 </div>
+
+                <div className="pt-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => onDeleteOpenChange(true)}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <IsLoading label="Deleting" />
+                    ) : (
+                      "Delete item"
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -326,6 +402,14 @@ function ItemDetailDialog({
           </div>
         </motion.div>
       </DialogContent>
+
+      <DeleteItemDialog
+        open={deleteOpen}
+        onOpenChange={onDeleteOpenChange}
+        onConfirm={onDeleteConfirm}
+        isDeleting={isDeleting}
+        itemName={name}
+      />
     </Dialog>
   );
 }
