@@ -1,0 +1,331 @@
+"use client";
+
+import { Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { api } from "@/lib/api-client";
+import { createLogger } from "@/lib/logger.client";
+import { createClient } from "@/lib/supabase/client";
+
+const log = createLogger("dashboard/item-card");
+
+type DashboardItem = {
+  id: string;
+  kind: string;
+  processingStatus: string;
+  fileKey: string | null;
+  meta: Record<string, unknown> | null;
+  source: string | null;
+  createdAt: string;
+};
+
+function formatBytes(bytes?: number | null) {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const value = bytes / 1024 ** exponent;
+  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${
+    units[exponent]
+  }`;
+}
+
+type ItemCardProps = {
+  item: DashboardItem;
+  name: string;
+  size: string;
+  mimeType?: string;
+};
+
+export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
+  const supabase = createClient();
+  const router = useRouter();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+
+  useEffect(() => {
+    if (!item.fileKey) {
+      setPreviewUrl(null);
+      setError("Missing file");
+      return;
+    }
+
+    let revokedUrl: string | null = null;
+    const load = async () => {
+      setError(null);
+      try {
+        const { data, error: downloadError } = await supabase.storage
+          .from("items")
+          .download(item.fileKey!);
+
+        if (downloadError || !data) {
+          setError(downloadError?.message || "Unable to load preview");
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(data);
+        revokedUrl = objectUrl;
+        setPreviewUrl(objectUrl);
+      } catch (err) {
+        log.error({ error: err }, "Preview load error");
+        setError("Unable to load preview");
+      }
+    };
+
+    void load();
+
+    return () => {
+      if (revokedUrl) {
+        URL.revokeObjectURL(revokedUrl);
+      }
+    };
+  }, [item.fileKey, supabase]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete("/api/v1/items", {
+        body: JSON.stringify({ id: item.id }),
+      });
+      toast.success("Item deleted");
+      setShowDeleteDialog(false);
+      router.refresh();
+    } catch (error) {
+      log.error({ error }, "Delete error");
+      toast.error("Failed to delete item");
+      setIsDeleting(false);
+    }
+  };
+
+  const isImage = mimeType?.startsWith("image/");
+
+  if (error) {
+    return (
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-sm text-destructive">{error}</p>
+      </div>
+    );
+  }
+
+  if (!previewUrl) {
+    return (
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Loading preview...
+        </p>
+      </div>
+    );
+  }
+
+  if (!isImage) {
+    return (
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm text-primary underline"
+        >
+          View file: {name}
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="group relative h-full w-full rounded-lg">
+        <motion.div
+          layoutId={`item-image-${item.id}`}
+          className="h-full w-full cursor-pointer overflow-hidden rounded-lg !opacity-100"
+          onClick={() => {
+            setShowDetailDialog(true);
+          }}
+          transition={{
+            layout: { duration: 0.3 },
+          }}
+        >
+          <img
+            src={previewUrl}
+            alt={name}
+            className="h-full w-full object-cover"
+          />
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {showDetailDialog && (
+          <ItemDetailDialog
+            item={item}
+            name={name}
+            size={size}
+            previewUrl={previewUrl}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+type ItemDetailDialogProps = {
+  item: DashboardItem;
+  name: string;
+  size: string;
+  previewUrl: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+function ItemDetailDialog({
+  item,
+  name,
+  size,
+  previewUrl,
+  open,
+  onOpenChange,
+}: ItemDetailDialogProps) {
+  const meta = item.meta || {};
+  const width = (meta.width as number | undefined) ?? 0;
+  const height = (meta.height as number | undefined) ?? 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-[calc(100vw-2rem)] !sm:max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100">
+        <motion.div
+          className="w-full h-full bg-background rounded-lg border shadow-lg overflow-hidden"
+          initial={{ opacity: 0, scale: 1 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          style={{ willChange: "opacity" }}
+        >
+          <div className="flex h-full relative">
+            {/* Left side - Image container */}
+            <div className="flex-1 flex items-center justify-center bg-zinc-900">
+              <motion.div
+                layoutId={`item-image-${item.id}`}
+                className="relative"
+                transition={{
+                  layout: { duration: 0.3 },
+                  opacity: { duration: 0 },
+                }}
+                initial={false}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 1 }}
+              >
+                <img
+                  src={previewUrl}
+                  alt={name}
+                  className="max-h-[80vh] max-w-full object-contain"
+                />
+              </motion.div>
+            </div>
+
+            {/* Right side - Details */}
+            <div className="flex flex-col overflow-hidden bg-background w-[400px]">
+              <DialogHeader className="p-6 pb-4">
+                <DialogTitle className="text-xl">{name}</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+                {/* Basic Info */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                    Details
+                  </h3>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Type</span>
+                      <span className="font-medium">{item.kind}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Size</span>
+                      <span className="font-medium">{size}</span>
+                    </div>
+                    {width > 0 && height > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Dimensions</span>
+                        <span className="font-medium">
+                          {width} × {height}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Status</span>
+                      <span className="font-medium capitalize">
+                        {item.processingStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Created</span>
+                      <span className="font-medium">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI-generated content will go here */}
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                  <p>
+                    AI analysis will appear here once processing is complete.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+              <span className="sr-only">Close</span>
+            </button>
+          </div>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
+}
