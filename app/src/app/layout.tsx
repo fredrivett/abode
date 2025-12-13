@@ -35,7 +35,6 @@ export const metadata: Metadata = {
         media: "(prefers-color-scheme: dark)",
       },
     ],
-    shortcut: "/favicon.ico",
   },
 };
 
