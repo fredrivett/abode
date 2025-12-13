@@ -1,5 +1,8 @@
+import type { Prisma } from "@prisma/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api-client";
+
+type ItemMeta = Prisma.JsonValue;
 
 // Example usage patterns for your API routes
 
@@ -64,7 +67,7 @@ export function useItems() {
       kind: string;
       processingStatus: string;
       fileKey: string | null;
-      meta: any;
+      meta: ItemMeta | null;
       source: string | null;
       createdAt: string;
       updatedAt: string;
@@ -75,7 +78,12 @@ export function useItems() {
 export function useCreateItem() {
   return useApiMutation<
     { id: string },
-    { kind: string; fileKey?: string; meta?: any; source?: string }
+    {
+      kind: string;
+      fileKey?: string;
+      meta?: ItemMeta;
+      source?: string;
+    }
   >((data) => api.post("/api/v1/items", data), {
     invalidateQueries: ["/api/v1/items"],
   });
@@ -88,7 +96,7 @@ export function useUpdateItem() {
       id: string;
       processingStatus?: string;
       fileKey?: string;
-      meta?: any;
+      meta?: ItemMeta;
       source?: string;
     }
   >(({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data), {
