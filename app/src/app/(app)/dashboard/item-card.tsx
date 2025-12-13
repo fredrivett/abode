@@ -19,8 +19,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
@@ -48,6 +48,7 @@ type ItemCardProps = {
 export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const supabase = createClient();
   const router = useRouter();
+  const [itemName, setItemName] = useState(name);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -91,6 +92,10 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
       }
     };
   }, [item.fileKey, supabase]);
+
+  useEffect(() => {
+    setItemName(name);
+  }, [name]);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -138,7 +143,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
             rel="noreferrer"
             className="text-sm text-primary underline"
           >
-            View file: {name}
+            View file: {itemName}
           </a>
           <div className="flex items-center gap-2">
             <Button
@@ -156,7 +161,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
           onOpenChange={setShowDeleteDialog}
           onConfirm={handleDelete}
           isDeleting={isDeleting}
-          itemName={name}
+          itemName={itemName}
         />
       </div>
     );
@@ -177,7 +182,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         >
           <img
             src={previewUrl}
-            alt={name}
+            alt={itemName}
             className="h-full w-full object-cover"
           />
         </motion.div>
@@ -187,11 +192,12 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         {showDetailDialog && (
           <ItemDetailDialog
             item={item}
-            name={name}
             size={size}
             previewUrl={previewUrl}
             open={showDetailDialog}
             onOpenChange={setShowDetailDialog}
+            name={itemName}
+            onNameChange={setItemName}
             deleteOpen={showDeleteDialog}
             onDeleteOpenChange={setShowDeleteDialog}
             onDeleteConfirm={handleDelete}
@@ -205,11 +211,12 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
 type ItemDetailDialogProps = {
   item: DashboardItem;
-  name: string;
   size: string;
   previewUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  name: string;
+  onNameChange: (value: string) => void;
   onDeleteOpenChange: (open: boolean) => void;
   deleteOpen: boolean;
   onDeleteConfirm: () => Promise<void>;
@@ -263,23 +270,47 @@ function DeleteItemDialog({
 
 function ItemDetailDialog({
   item,
-  name,
   size,
   previewUrl,
   open,
   onOpenChange,
+  name,
+  onNameChange,
   deleteOpen,
   onDeleteOpenChange,
   onDeleteConfirm,
   isDeleting,
 }: ItemDetailDialogProps) {
+  const [isSavingName, setIsSavingName] = useState(false);
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
 
+  const handleNameSubmit = async (nextName: string) => {
+    const trimmed = nextName.trim();
+    if (!trimmed || trimmed === name.trim()) return;
+    setIsSavingName(true);
+    try {
+      const nextMeta = { ...meta, name: trimmed };
+      await api.patch(`/api/v1/items/${item.id}`, { meta: nextMeta });
+      onNameChange(trimmed);
+      toast.success("Name updated");
+    } catch (error) {
+      log.error({ error }, "Name update error");
+      toast.error("Failed to update name");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[calc(100vw-2rem)] !sm:max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100">
+      <DialogContent
+        className="!max-w-[calc(100vw-2rem)] !sm:max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+      >
         <motion.div
           className="w-full h-full bg-background rounded-lg border shadow-lg overflow-hidden"
           initial={{ opacity: 0, scale: 1 }}
@@ -312,8 +343,13 @@ function ItemDetailDialog({
 
             {/* Right side - Details */}
             <div className="flex flex-col overflow-hidden bg-background w-[400px]">
-              <DialogHeader className="p-6 pb-4">
-                <DialogTitle className="text-xl">{name}</DialogTitle>
+              <DialogHeader className="p-6 pb-4 items-start">
+                <EditableTitle
+                  value={name}
+                  onSubmit={handleNameSubmit}
+                  size="xl"
+                  isSaving={isSavingName}
+                />
               </DialogHeader>
 
               <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">

@@ -42,6 +42,7 @@ export function UploadsList({ items }: { items: DashboardItem[] }) {
           {items.map((item) => {
             const meta = item.meta || {};
             const name =
+              (meta.name as string | undefined) ??
               (meta.originalName as string | undefined) ??
               item.fileKey ??
               "Untitled";
