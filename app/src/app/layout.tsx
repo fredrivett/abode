@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-client";
+import { DynamicFavicon } from "@/components/dynamic-favicon";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} antialiased`}
       >
         <QueryProvider>{children}</QueryProvider>
+        <DynamicFavicon />
         <Toaster richColors />
       </body>
     </html>

@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "setup": "cd app && ln -sf \"$CONDUCTOR_ROOT_PATH/app/.env.local\" .env.local && bun install",
+    "run": "cd app && bun run dev -- -p $CONDUCTOR_PORT"
+  }
+}

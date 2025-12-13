@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
+    "dev": "bunx next dev --turbopack",
     "build": "next build --webpack",
-    "start": "next start -p ${CONDUCTOR_PORT:-3300}",
+    "start": "next start",
     "lint": "biome check",
     "lint:all": "bunx concurrently --success=all -n biome,TS -c cyan,magenta \"bun run format\" \"bun run ts:check\"",
     "fix": "biome check --fix",
@@ -79,7 +79,7 @@
     "jsdom": "^27.3.0",
     "playwright": "^1.56.1",
     "storybook": "^9.1.10",
-    "typescript": "^5.9.3",
+    "typescript": "5.9.3",
     "vitest": "^4.0.8"
   }
 }
