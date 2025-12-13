@@ -4,7 +4,7 @@ import { UploadsList } from "./uploads-list";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: claims }, { data: userData }] = await Promise.all([
+  const [, { data: userData }] = await Promise.all([
     supabase.auth.getClaims(),
     supabase.auth.getUser(),
   ]);

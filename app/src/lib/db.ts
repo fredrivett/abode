@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 /**
  * Primary prisma client (write) and optional read-replica client.
  * Mirrors the log.limo setup to avoid connection storms during dev reloads.
+ * Uses lazy initialization to avoid build-time errors when DATABASE_URL is not set.
  */
 
 const globalForPrisma = globalThis as unknown as {
@@ -14,24 +15,21 @@ const shouldLogQueries =
   process.env.NODE_ENV === "development" &&
   process.env.PRISMA_LOG_QUERIES === "true";
 
-// Primary client
-const write =
-  globalForPrisma.prismaWrite ??
-  new PrismaClient({
+function createWriteClient(): PrismaClient {
+  return new PrismaClient({
     log: shouldLogQueries ? ["query"] : [],
     transactionOptions: {
       timeout: 30_000,
       maxWait: 10_000,
     },
   });
+}
 
-// Optional read-replica client
-const readReplicaUrl = process.env.READ_REPLICA_DATABASE_URL?.trim();
-const primaryUrl = process.env.DATABASE_URL;
+function createReadClient(): PrismaClient {
+  const readReplicaUrl = process.env.READ_REPLICA_DATABASE_URL?.trim();
+  const primaryUrl = process.env.DATABASE_URL;
 
-const read =
-  globalForPrisma.prismaRead ??
-  new PrismaClient({
+  return new PrismaClient({
     log: shouldLogQueries ? ["query"] : [],
     datasources: {
       db: {
@@ -39,11 +37,35 @@ const read =
       },
     },
   });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaWrite = write;
-  globalForPrisma.prismaRead = read;
 }
+
+// Lazy initialization - only create clients when accessed
+function getWriteClient(): PrismaClient {
+  if (!globalForPrisma.prismaWrite) {
+    globalForPrisma.prismaWrite = createWriteClient();
+  }
+  return globalForPrisma.prismaWrite;
+}
+
+function getReadClient(): PrismaClient {
+  if (!globalForPrisma.prismaRead) {
+    globalForPrisma.prismaRead = createReadClient();
+  }
+  return globalForPrisma.prismaRead;
+}
+
+// Export getter proxies that lazily initialize
+const write = new Proxy({} as PrismaClient, {
+  get(_, prop) {
+    return Reflect.get(getWriteClient(), prop);
+  },
+});
+
+const read = new Proxy({} as PrismaClient, {
+  get(_, prop) {
+    return Reflect.get(getReadClient(), prop);
+  },
+});
 
 export { read, write };
 export default write;

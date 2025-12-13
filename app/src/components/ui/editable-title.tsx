@@ -71,7 +71,7 @@ export function EditableTitle({
     if (width > 0) {
       setInputWidth(Math.max(width + 4, 32));
     }
-  }, [canEdit, draft]);
+  }, [canEdit]);
 
   const handleCommit = useCallback(async () => {
     if (!canEdit) {

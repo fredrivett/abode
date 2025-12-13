@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk/v3";
-import { randomUUID } from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import {
@@ -96,7 +96,7 @@ async function insertTextVector({
 /**
  * Analyze an image asynchronously and update the item with results
  */
-async function analyzeImageAsync(
+async function _analyzeImageAsync(
   supabase: Awaited<ReturnType<typeof createClient>>,
   itemId: string,
   userId: string,
@@ -271,7 +271,7 @@ async function generateEmbeddingsAsync(
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient();
     const {

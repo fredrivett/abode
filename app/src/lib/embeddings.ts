@@ -34,7 +34,7 @@ export async function generateImageEmbedding(
 ): Promise<number[]> {
   try {
     log.info(
-      { imageUrl: imageUrl.slice(0, 100) + "..." },
+      { imageUrl: `${imageUrl.slice(0, 100)}...` },
       "Generating image embedding with CLIP",
     );
 

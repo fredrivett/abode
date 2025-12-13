@@ -13,13 +13,25 @@
       "!.next",
       "!app/.next",
       "!dist",
-      "!build"
+      "!build",
+      "!**/*.css"
     ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2
+  },
+  "css": {
+    "parser": {
+      "cssModules": true
+    },
+    "linter": {
+      "enabled": false
+    },
+    "formatter": {
+      "enabled": false
+    }
   },
   "linter": {
     "enabled": true,
