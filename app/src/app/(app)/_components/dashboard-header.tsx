@@ -1,32 +1,40 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { AbodeLogo } from "@/components/abode-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 type DashboardHeaderProps = {
   email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
   signOutAction: () => Promise<void>;
 };
 
 export function DashboardHeader({
   email,
+  firstName,
+  lastName,
+  avatarUrl,
   signOutAction,
 }: DashboardHeaderProps) {
   const displayEmail = email || "Account";
+  const displayName =
+    [firstName, lastName].filter(Boolean).join(" ").trim() || displayEmail;
+  const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (
-    <header className="flex w-full items-center justify-between gap-4 border-b p-4">
+    <header className="flex w-full items-center justify-between gap-4 p-4">
       <h1 className="flex items-center">
         <span className="sr-only">abode</span>
         <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
@@ -36,18 +44,21 @@ export function DashboardHeader({
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <User className="size-4" />
-              <span className="max-w-[180px] truncate">{displayEmail}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Open account menu"
+            >
+              <Avatar className="size-8">
+                {avatarUrl ? (
+                  <AvatarImage src={avatarUrl} alt={displayName} />
+                ) : null}
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled className="justify-between">
-              <span className="truncate">{displayEmail}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <form action={signOutAction}>
               <DropdownMenuItem asChild>
                 <Button
@@ -65,4 +76,24 @@ export function DashboardHeader({
       </div>
     </header>
   );
+}
+
+function getInitials({
+  firstName,
+  lastName,
+  fallback,
+}: {
+  firstName?: string | null;
+  lastName?: string | null;
+  fallback?: string | null;
+}) {
+  const first = firstName?.trim()?.[0];
+  const last = lastName?.trim()?.[0];
+  const fromNames = [first, last].filter(Boolean).join("").toUpperCase();
+  if (fromNames) return fromNames;
+
+  const fallbackInitial = fallback?.trim()?.[0]?.toUpperCase();
+  if (fallbackInitial) return fallbackInitial;
+
+  return "U";
 }
