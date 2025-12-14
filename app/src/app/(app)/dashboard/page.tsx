@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import type { ImageColor } from "@/lib/vision";
-import { UploadsList } from "./uploads-list";
+import { ItemsGrid } from "./items-grid";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <UploadsList
+      <ItemsGrid
         items={itemsForClient.map((item) => ({
           ...item,
           createdAt: item.createdAt.toISOString(),

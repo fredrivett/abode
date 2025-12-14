@@ -33,7 +33,7 @@ function formatBytes(bytes?: number | null) {
   }`;
 }
 
-export function UploadsList({ items }: { items: DashboardItem[] }) {
+export function ItemsGrid({ items }: { items: DashboardItem[] }) {
   return (
     <div className="w-full max-w-7xl space-y-3">
       {items.length === 0 ? (
