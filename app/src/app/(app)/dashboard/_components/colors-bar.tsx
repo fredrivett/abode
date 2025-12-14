@@ -1,11 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { copyToClipboard } from "@/lib/copy";
 import type { ImageColor } from "@/lib/vision";
 
 type ColorsBarProps = {
@@ -68,11 +69,20 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
   const containerRef = useRef<HTMLFieldSetElement>(null);
   const [containerWidthPx, setContainerWidthPx] = useState<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+  const copiedTimeoutRef = useRef<number | null>(null);
 
   const totalScore = useMemo(
     () => colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1,
     [colors],
   );
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current)
+        window.clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -107,6 +117,16 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
 
   if (colors.length === 0) return null;
 
+  const copyColor = async (hex: string) => {
+    if (!(await copyToClipboard(hex))) return;
+
+    setCopiedHex(hex);
+    if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
+    copiedTimeoutRef.current = window.setTimeout(() => {
+      setCopiedHex(null);
+    }, 1200);
+  };
+
   return (
     <fieldset
       ref={containerRef}
@@ -117,12 +137,14 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     >
       {colors.map((color, index) => {
         const percent = Math.round(((color.score ?? 0) / totalScore) * 100);
+        const isCopied = copiedHex === color.hex;
 
         return (
           <Tooltip key={`${color.hex}-${index}`} disableHoverableContent>
             <TooltipTrigger asChild>
-              <div
-                className="h-full cursor-help transition-[width] duration-200 ease-out"
+              <button
+                type="button"
+                className="h-full cursor-pipette appearance-none border-0 bg-transparent p-0 transition-[width] duration-200 ease-out outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 style={
                   sliceWidthsPx
                     ? {
@@ -137,20 +159,24 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
                         minWidth: 4,
                       }
                 }
-                role="img"
-                aria-label={`${color.hex} ${percent}%`}
+                aria-label={`Copy ${color.hex} (${percent}%)`}
+                onClick={() => void copyColor(color.hex)}
               />
             </TooltipTrigger>
             <TooltipContent sideOffset={6}>
-              <div className="flex items-center gap-2">
-                <div
-                  aria-hidden="true"
-                  className="h-3 w-3 shrink-0 rounded-sm border border-zinc-200/60 dark:border-zinc-700"
-                  style={{ backgroundColor: color.hex }}
-                />
-                <span className="font-mono">{color.hex}</span>
-                <span className="text-zinc-500">· {percent}%</span>
-              </div>
+              {isCopied ? (
+                <span className="font-mono">Copied!</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div
+                    aria-hidden="true"
+                    className="h-3 w-3 shrink-0 rounded-sm border border-zinc-200/60 dark:border-zinc-700"
+                    style={{ backgroundColor: color.hex }}
+                  />
+                  <span className="font-mono">{color.hex}</span>
+                  <span className="text-zinc-500">· {percent}%</span>
+                </div>
+              )}
             </TooltipContent>
           </Tooltip>
         );
