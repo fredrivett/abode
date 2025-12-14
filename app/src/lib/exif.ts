@@ -1,4 +1,7 @@
 import * as exifr from "exifr";
+import { createLogger } from "./logger.server";
+
+const log = createLogger("exif");
 
 export type ExifGpsLocation = {
   latitude: number;
@@ -19,14 +22,30 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
 export async function extractExifGpsLocation(
   buffer: Buffer,
 ): Promise<ExifGpsLocation | null> {
+  log.debug({ bufferSize: buffer.length }, "Extracting EXIF GPS from buffer");
   try {
     const gps = await exifr.gps(buffer);
-    if (!gps) return null;
+    log.debug({ gps }, "exifr.gps result");
+    if (!gps) {
+      log.debug("No GPS data returned from exifr");
+      return null;
+    }
 
-    if (!isValidLatLon(gps.latitude, gps.longitude)) return null;
+    if (!isValidLatLon(gps.latitude, gps.longitude)) {
+      log.debug(
+        { latitude: gps.latitude, longitude: gps.longitude },
+        "Invalid lat/lon values",
+      );
+      return null;
+    }
 
+    log.debug(
+      { latitude: gps.latitude, longitude: gps.longitude },
+      "Valid GPS location extracted",
+    );
     return { latitude: gps.latitude, longitude: gps.longitude };
-  } catch {
+  } catch (error) {
+    log.debug({ error }, "Error extracting EXIF GPS");
     return null;
   }
 }
