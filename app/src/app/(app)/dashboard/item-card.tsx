@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import { Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -297,6 +297,7 @@ function ItemDetailDialog({
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
     const el = descriptionRef.current;
     if (el) {
@@ -373,148 +374,153 @@ function ItemDetailDialog({
 
               <div className="flex-1 overflow-y-auto px-6 pb-6 flex flex-col">
                 <div className="space-y-6 flex-1">
-                {/* Basic Info */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                    Details
-                  </h3>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Type</span>
-                      <span className="font-medium">{item.kind}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Size</span>
-                      <span className="font-medium">{size}</span>
-                    </div>
-                    {width > 0 && height > 0 && (
+                  {/* Basic Info */}
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                      Details
+                    </h3>
+                    <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Dimensions</span>
-                        <span className="font-medium">
-                          {width} × {height}
+                        <span className="text-zinc-500">Type</span>
+                        <span className="font-medium">{item.kind}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Size</span>
+                        <span className="font-medium">{size}</span>
+                      </div>
+                      {width > 0 && height > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500">Dimensions</span>
+                          <span className="font-medium">
+                            {width} × {height}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Status</span>
+                        <span className="font-medium capitalize">
+                          {item.processingStatus}
                         </span>
                       </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Status</span>
-                      <span className="font-medium capitalize">
-                        {item.processingStatus}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Created</span>
-                      <DateTime date={item.createdAt} className="font-medium" />
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Created</span>
+                        <DateTime
+                          date={item.createdAt}
+                          className="font-medium"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* AI Analysis */}
-                {item.processingStatus === "completed" ? (
-                  <>
-                    {/* Description */}
-                    {item.description && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                          Description
-                        </h3>
-                        <p
-                          ref={descriptionRef}
-                          className={cn(
-                            "text-sm text-zinc-600 dark:text-zinc-400",
-                            !isDescriptionExpanded && "line-clamp-3",
-                          )}
-                        >
-                          {item.description}
-                        </p>
-                        {(isDescriptionClamped || isDescriptionExpanded) && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIsDescriptionExpanded(!isDescriptionExpanded)
-                            }
-                            className="text-sm font-medium text-primary hover:underline"
+                  {/* AI Analysis */}
+                  {item.processingStatus === "completed" ? (
+                    <>
+                      {/* Description */}
+                      {item.description && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Description
+                          </h3>
+                          <p
+                            ref={descriptionRef}
+                            className={cn(
+                              "text-sm text-zinc-600 dark:text-zinc-400",
+                              !isDescriptionExpanded && "line-clamp-3",
+                            )}
                           >
-                            {isDescriptionExpanded ? "Show less" : "Show more"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Colors */}
-                    {item.colors.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                          Colors
-                        </h3>
-                        <ColorsBar colors={item.colors} />
-                      </div>
-                    )}
-
-                    {/* Objects */}
-                    {item.objects.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                          Objects
-                        </h3>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.objects.map((obj) => (
-                            <span
-                              key={obj}
-                              className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                            >
-                              {obj}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {item.tags.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                          Tags
-                        </h3>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* OCR Text */}
-                    {item.ocrText && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                          Detected Text
-                        </h3>
-                        <div className="max-h-32 overflow-y-auto rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/50">
-                          <p className="whitespace-pre-wrap text-xs text-zinc-600 dark:text-zinc-400">
-                            {item.ocrText}
+                            {item.description}
                           </p>
+                          {(isDescriptionClamped || isDescriptionExpanded) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setIsDescriptionExpanded(!isDescriptionExpanded)
+                              }
+                              className="text-sm font-medium text-primary hover:underline"
+                            >
+                              {isDescriptionExpanded
+                                ? "Show less"
+                                : "Show more"}
+                            </button>
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </>
-                ) : item.processingStatus === "processing" ? (
-                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
-                    <p>Analyzing image...</p>
-                  </div>
-                ) : item.processingStatus === "failed" ? (
-                  <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
-                    <p>Analysis failed. Please try re-uploading the image.</p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
-                    <p>No analysis available.</p>
-                  </div>
-                )}
+                      )}
+
+                      {/* Colors */}
+                      {item.colors.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Colors
+                          </h3>
+                          <ColorsBar colors={item.colors} />
+                        </div>
+                      )}
+
+                      {/* Objects */}
+                      {item.objects.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Objects
+                          </h3>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.objects.map((obj) => (
+                              <span
+                                key={obj}
+                                className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                              >
+                                {obj}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tags */}
+                      {item.tags.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Tags
+                          </h3>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* OCR Text */}
+                      {item.ocrText && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Detected Text
+                          </h3>
+                          <div className="max-h-32 overflow-y-auto rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/50">
+                            <p className="whitespace-pre-wrap text-xs text-zinc-600 dark:text-zinc-400">
+                              {item.ocrText}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : item.processingStatus === "processing" ? (
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                      <p>Analyzing image...</p>
+                    </div>
+                  ) : item.processingStatus === "failed" ? (
+                    <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
+                      <p>Analysis failed. Please try re-uploading the image.</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                      <p>No analysis available.</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-6 mt-auto">
