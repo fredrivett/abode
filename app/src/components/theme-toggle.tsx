@@ -4,6 +4,7 @@ import { Moon, Sun, SunMoon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { createLogger } from "@/lib/logger.client";
 import {
   applyThemePreference,
   getCurrentPreference,
@@ -11,6 +12,8 @@ import {
   storeThemePreference,
   type ThemePreference,
 } from "@/lib/theme";
+
+const logger = createLogger("theme-toggle");
 
 const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
 
@@ -58,7 +61,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     } catch (error) {
       setPreference(previous);
       applyThemePreference(previous);
-      console.error("Failed to persist theme preference", error);
+      logger.error("Failed to persist theme preference", error);
     } finally {
       setIsPending(false);
     }

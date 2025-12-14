@@ -43,7 +43,7 @@ export default async function AccountPage() {
     getString(claimsUserMetadata.family_name) ??
     getString(claimsUserMetadata.last_name) ??
     null;
-  const avatarUrl =
+  const avatarUrl: string | null =
     getString(userMetadata.avatar_url) ??
     getString(userMetadata.picture) ??
     getString(claimsRecord.picture) ??

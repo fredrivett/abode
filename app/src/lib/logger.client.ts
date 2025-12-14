@@ -6,6 +6,7 @@ export function createLogger(namespace: string): Logger {
   const prefix = `[${namespace}]`;
 
   const log = (level: LogLevel, args: unknown[]) => {
+    // biome-ignore lint/suspicious/noConsole: This is the logger implementation
     const consoleFn = console[level] ?? console.log;
     consoleFn(prefix, ...args);
   };

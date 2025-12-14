@@ -38,7 +38,14 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noConsole": "warn"
+      },
+      "nursery": {
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "warn",
+        "noUnnecessaryConditions": "warn",
+        "useReactFunctionComponents": "warn"
       }
     },
     "domains": {
