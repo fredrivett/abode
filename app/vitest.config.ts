@@ -15,6 +15,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(dirname, "./src"),
+      // Vitest/Vite can resolve `server-only` to its throwing entrypoint so alias to Next's empty shim for unit tests
+      "server-only": path.resolve(
+        dirname,
+        "./node_modules/next/dist/compiled/server-only/empty.js",
+      ),
     },
   },
   test: {
@@ -42,9 +47,21 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: {
+            "@": path.resolve(dirname, "./src"),
+            "server-only": path.resolve(
+              dirname,
+              "./node_modules/next/dist/compiled/server-only/empty.js",
+            ),
+          },
+        },
         test: {
           name: "unit",
           environment: "jsdom",
+          environmentOptions: {
+            jsdom: { url: "http://localhost" },
+          },
           globals: true,
           setupFiles: ["./vitest.setup.ts"],
           include: ["src/**/*.{test,spec}.{ts,tsx}"],

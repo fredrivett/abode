@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { inspect } from "node:util";
 import { createClient } from "@supabase/supabase-js";
-import { logger, task } from "@trigger.dev/sdk/v3";
+import { logger, task } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import {
   generateImageEmbedding,

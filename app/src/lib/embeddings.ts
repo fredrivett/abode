@@ -4,13 +4,50 @@ import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/embeddings");
 
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
+let replicateClient: Replicate | null = null;
+function getReplicateClient(): Replicate {
+  if (replicateClient) return replicateClient;
+  const token = process.env.REPLICATE_API_TOKEN;
+  if (!token) throw new Error("Missing REPLICATE_API_TOKEN");
+  replicateClient = new Replicate({ auth: token });
+  return replicateClient;
+}
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAiClient(): OpenAI {
+  if (openaiClient) return openaiClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+  openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
+
+export function extractClipEmbedding(output: unknown): number[] {
+  if (!Array.isArray(output) || output.length === 0) {
+    throw new Error("Invalid output: expected array with at least one element");
+  }
+
+  const first = output[0];
+
+  if (Array.isArray(first)) return first as number[];
+
+  if (typeof first === "object" && first !== null) {
+    const candidate = first as {
+      embedding?: unknown;
+      embeddings?: unknown;
+      features?: unknown;
+    };
+    const embeddingData =
+      candidate.embedding ?? candidate.embeddings ?? candidate.features;
+    if (Array.isArray(embeddingData)) return embeddingData as number[];
+
+    throw new Error(
+      `Unexpected output format: first element is object but no embedding array found. Keys: ${Object.keys(first).join(", ")}`,
+    );
+  }
+
+  throw new Error(`Unexpected output format: first element is ${typeof first}`);
+}
 
 /**
  * Normalize a vector using L2 normalization for inner product optimization
@@ -60,45 +97,8 @@ export async function generateImageEmbedding(
       "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a";
     const input = { inputs: imageInput };
 
-    const output = (await replicate.run(modelVersion, { input })) as number[][];
-
-    // CLIP model may return different formats, handle both
-    let embedding: number[];
-
-    if (Array.isArray(output) && output.length > 0) {
-      const first = output[0];
-
-      // Check if it's an array of arrays (expected format)
-      if (Array.isArray(first)) {
-        embedding = first;
-      }
-      // Check if it's an object with an embedding property
-      else if (typeof first === "object" && first !== null) {
-        // Try common property names
-        const candidate = first as {
-          embedding?: unknown;
-          embeddings?: unknown;
-          features?: unknown;
-        };
-        const embeddingData =
-          candidate.embedding ?? candidate.embeddings ?? candidate.features;
-        if (Array.isArray(embeddingData)) {
-          embedding = embeddingData as number[];
-        } else {
-          throw new Error(
-            `Unexpected output format: first element is object but no embedding array found. Keys: ${Object.keys(first).join(", ")}`,
-          );
-        }
-      } else {
-        throw new Error(
-          `Unexpected output format: first element is ${typeof first}`,
-        );
-      }
-    } else {
-      throw new Error(
-        `Invalid output: expected array with at least one element`,
-      );
-    }
+    const output = await getReplicateClient().run(modelVersion, { input });
+    const embedding = extractClipEmbedding(output);
 
     // CLIP ViT-B/32 produces 768-dimensional embeddings
     const expectedDimension = 768;
@@ -148,7 +148,7 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
   try {
     log.info({ textLength: text.length }, "Generating text embedding");
 
-    const response = await openai.embeddings.create({
+    const response = await getOpenAiClient().embeddings.create({
       model: "text-embedding-3-small",
       input: text,
       encoding_format: "float",
