@@ -6,16 +6,13 @@ import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
+import {
+  allowedImageMimeTypes,
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from "@/lib/uploads";
 
 const log = createLogger("dashboard/dropzone");
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const allowedImageTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
 
 function hasFiles(dataTransfer?: DataTransfer | null) {
   if (!dataTransfer) return false;
@@ -57,15 +54,17 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
 
   const handleUpload = useCallback(
     async (file: File) => {
-      if (!allowedImageTypes.has(file.type)) {
+      if (!allowedImageMimeTypes.has(file.type)) {
         toast.error(
           "Unsupported file type. Choose a jpg, png, gif, or webp image.",
         );
         return;
       }
 
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error("File is too large. Max size is 50MB.");
+      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+        toast.error(
+          `File is too large. Max size is ${MAX_IMAGE_UPLOAD_LABEL}.`,
+        );
         return;
       }
 
@@ -175,7 +174,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
             </p>
             {!isUploading ? (
               <p className="text-xs text-muted-foreground">
-                JPG, PNG, GIF, or WEBP up to 50MB
+                JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
               </p>
             ) : null}
           </div>

@@ -7,16 +7,14 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  allowedImageMimeTypes,
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from "@/lib/uploads";
 
 const log = createLogger("dashboard/upload-widget");
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const allowedImageTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
 
 async function getImageDimensions(
   file: File,
@@ -59,7 +57,7 @@ export function UploadWidget() {
 
     setFileName(file.name);
 
-    if (!allowedImageTypes.has(file.type)) {
+    if (!allowedImageMimeTypes.has(file.type)) {
       toast.error(
         "Unsupported file type. Choose a jpg, png, gif, or webp image.",
       );
@@ -67,8 +65,8 @@ export function UploadWidget() {
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File is too large. Max size is 50MB.");
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      toast.error(`File is too large. Max size is ${MAX_IMAGE_UPLOAD_LABEL}.`);
       resetFile();
       return;
     }
@@ -148,14 +146,15 @@ export function UploadWidget() {
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Upload an item</h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Images only, up to 50MB. Stored privately per user.
+          Images only, up to {MAX_IMAGE_UPLOAD_LABEL}. Stored privately per
+          user.
         </p>
       </div>
 
       <input
         ref={fileInputRef}
         type="file"
-        accept={Array.from(allowedImageTypes).join(",")}
+        accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
         onChange={handleFileChange}
         className="hidden"
         disabled={isUploading}
