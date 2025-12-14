@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "setup": "cd app && ln -sf \"$CONDUCTOR_ROOT_PATH/app/.env.local\" .env.local && bun install",
+    "setup": "if [ -n \"${CONDUCTOR_ROOT_PATH:-}\" ] && [ -f \"$CONDUCTOR_ROOT_PATH/.env.local\" ]; then ln -sf \"$CONDUCTOR_ROOT_PATH/.env.local\" .env.local; else echo \"Missing CONDUCTOR_ROOT_PATH/.env.local; skipping link\"; fi && if [ -f .env.local ]; then if [ -L app/.env.local ]; then rm -f app/.env.local; fi; ln -sf ../.env.local app/.env; else echo \"No .env.local in workspace; skipping app/.env link\"; fi && cd app && bun install",
     "run": "cd app && bun run dev"
   }
 }
