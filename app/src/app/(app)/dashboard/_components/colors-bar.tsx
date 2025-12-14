@@ -95,12 +95,13 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     };
   }, []);
 
-  const adjustedWidthsPx = useMemo(() => {
-    if (!isHovered || !containerWidthPx) return null;
+  const sliceWidthsPx = useMemo(() => {
+    if (!containerWidthPx) return null;
+
     return getAdjustedSliceWidthsPx({
       colors,
       containerWidthPx,
-      minSlicePx,
+      minSlicePx: isHovered ? minSlicePx : 4,
     });
   }, [colors, containerWidthPx, isHovered, minSlicePx]);
 
@@ -118,15 +119,15 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
         const percent = Math.round(((color.score ?? 0) / totalScore) * 100);
 
         return (
-          <Tooltip key={`${color.hex}-${index}`}>
+          <Tooltip key={`${color.hex}-${index}`} disableHoverableContent>
             <TooltipTrigger asChild>
               <div
-                className="h-full cursor-help"
+                className="h-full cursor-help transition-[width] duration-200 ease-out"
                 style={
-                  adjustedWidthsPx
+                  sliceWidthsPx
                     ? {
                         backgroundColor: color.hex,
-                        width: adjustedWidthsPx[index],
+                        width: sliceWidthsPx[index],
                         flexShrink: 0,
                       }
                     : {
