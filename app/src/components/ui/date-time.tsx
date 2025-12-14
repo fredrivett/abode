@@ -26,7 +26,7 @@ export function DateTime({ date, className }: DateTimeProps) {
       <TooltipTrigger asChild>
         <span className={cn("cursor-default", className)}>{relativeTime}</span>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent side="left">
         <span>
           {time} · {localDate}
         </span>
