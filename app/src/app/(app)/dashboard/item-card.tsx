@@ -328,22 +328,22 @@ function ItemDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!max-w-[calc(100vw-2rem)] !sm:max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
+        className="!max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-auto !max-h-[calc(100vh-2rem)] md:!h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
       >
         <motion.div
-          className="w-full h-full bg-background rounded-lg border shadow-lg overflow-hidden"
+          className="w-full md:h-full bg-background rounded-lg border shadow-lg overflow-hidden"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
           transition={{ duration: 0.2 }}
           style={{ willChange: "opacity" }}
         >
-          <div className="flex h-full relative">
-            {/* Left side - Image container */}
-            <div className="flex-1 flex items-center justify-center bg-zinc-900">
+          <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
+            {/* Top (mobile) / Left (desktop) - Image container */}
+            <div className="shrink-0 flex items-center justify-center bg-zinc-900 md:flex-1">
               <motion.div
                 layoutId={`item-image-${item.id}`}
                 className="relative"
@@ -359,13 +359,13 @@ function ItemDetailDialog({
                 <img
                   src={previewUrl}
                   alt={name}
-                  className="max-h-[80vh] max-w-full object-contain"
+                  className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
                 />
               </motion.div>
             </div>
 
-            {/* Right side - Details */}
-            <div className="flex flex-col overflow-hidden bg-background w-[400px]">
+            {/* Bottom (mobile) / Right (desktop) - Details */}
+            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden">
               <DialogHeader className="p-6 pb-4 items-start">
                 <DialogTitle className="sr-only">
                   Item details for {name}
@@ -378,7 +378,7 @@ function ItemDetailDialog({
                 />
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 pb-6 flex flex-col">
+              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col">
                 <div className="space-y-6 flex-1">
                   {/* Basic Info */}
                   <div className="space-y-2">
