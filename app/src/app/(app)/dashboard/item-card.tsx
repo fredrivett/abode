@@ -523,10 +523,9 @@ function ItemDetailDialog({
                   )}
                 </div>
 
-                <div className="pt-6 mt-auto">
+                <div className="pt-6 mt-auto flex justify-end">
                   <Button
                     variant="destructive-outline"
-                    className="w-full"
                     onClick={() => onDeleteOpenChange(true)}
                     disabled={isDeleting}
                   >
