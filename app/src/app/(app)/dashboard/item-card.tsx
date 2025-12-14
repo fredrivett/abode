@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -22,6 +23,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import type { ImageColor } from "@/lib/vision";
 import { ColorsBar } from "./_components/colors-bar";
 
@@ -288,9 +290,19 @@ function ItemDetailDialog({
   isDeleting,
 }: ItemDetailDialogProps) {
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isDescriptionClamped, setIsDescriptionClamped] = useState(false);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
+
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (el) {
+      setIsDescriptionClamped(el.scrollHeight > el.clientHeight);
+    }
+  }, [item.description, isDescriptionExpanded]);
 
   const handleNameSubmit = async (nextName: string) => {
     const trimmed = nextName.trim();
@@ -359,7 +371,8 @@ function ItemDetailDialog({
                 />
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+              <div className="flex-1 overflow-y-auto px-6 pb-6 flex flex-col">
+                <div className="space-y-6 flex-1">
                 {/* Basic Info */}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
@@ -404,9 +417,26 @@ function ItemDetailDialog({
                         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Description
                         </h3>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        <p
+                          ref={descriptionRef}
+                          className={cn(
+                            "text-sm text-zinc-600 dark:text-zinc-400",
+                            !isDescriptionExpanded && "line-clamp-3",
+                          )}
+                        >
                           {item.description}
                         </p>
+                        {(isDescriptionClamped || isDescriptionExpanded) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsDescriptionExpanded(!isDescriptionExpanded)
+                            }
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            {isDescriptionExpanded ? "Show less" : "Show more"}
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -485,17 +515,22 @@ function ItemDetailDialog({
                     <p>No analysis available.</p>
                   </div>
                 )}
+                </div>
 
-                <div className="pt-2">
+                <div className="pt-6 mt-auto">
                   <Button
-                    variant="destructive"
+                    variant="destructive-outline"
+                    className="w-full"
                     onClick={() => onDeleteOpenChange(true)}
                     disabled={isDeleting}
                   >
                     {isDeleting ? (
                       <IsLoading label="Deleting" />
                     ) : (
-                      "Delete item"
+                      <>
+                        <Trash2 className="size-4" />
+                        Delete item
+                      </>
                     )}
                   </Button>
                 </div>

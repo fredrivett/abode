@@ -18,6 +18,7 @@ const meta = {
       options: [
         "default",
         "destructive",
+        "destructive-outline",
         "outline",
         "secondary",
         "ghost",
@@ -68,5 +69,12 @@ export const GhostSubtle: Story = {
   args: {
     variant: "ghost-subtle",
     children: "Open link",
+  },
+};
+
+export const DestructiveOutline: Story = {
+  args: {
+    variant: "destructive-outline",
+    children: "Delete item",
   },
 };
