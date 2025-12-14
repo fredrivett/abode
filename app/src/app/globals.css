@@ -123,5 +123,17 @@
 }
 
 @utility cursor-pipette {
-  cursor: url("/cursors/pipette.png") 2 30, crosshair;
+  cursor: url("/cursors/pipette-light.png") 2 30, crosshair;
+}
+
+.dark .cursor-pipette {
+  cursor: url("/cursors/pipette-dark.png") 2 30, crosshair;
+}
+
+@utility cursor-copy-check {
+  cursor: url("/cursors/copy-check-light.png") 2 30, crosshair;
+}
+
+.dark .cursor-copy-check {
+  cursor: url("/cursors/copy-check-dark.png") 2 30, crosshair;
 }

@@ -159,7 +159,7 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="h-full cursor-pipette appearance-none border-0 bg-transparent p-0 transition-[width] duration-200 ease-out outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className={`h-full appearance-none border-0 bg-transparent p-0 transition-[width] duration-200 ease-out outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
                 style={
                   sliceWidthsPx
                     ? {
