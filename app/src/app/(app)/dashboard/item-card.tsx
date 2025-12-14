@@ -17,7 +17,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
@@ -362,6 +367,9 @@ function ItemDetailDialog({
             {/* Right side - Details */}
             <div className="flex flex-col overflow-hidden bg-background w-[400px]">
               <DialogHeader className="p-6 pb-4 items-start">
+                <DialogTitle className="sr-only">
+                  Item details for {name}
+                </DialogTitle>
                 <EditableTitle
                   value={name}
                   onSubmit={handleNameSubmit}
