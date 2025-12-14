@@ -19,15 +19,11 @@ import { DateTime } from "@/components/ui/date-time";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import type { ImageColor } from "@/lib/vision";
+import { ColorsBar } from "./_components/colors-bar";
 
 const log = createLogger("dashboard/item-card");
 
@@ -295,8 +291,6 @@ function ItemDetailDialog({
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
-  const totalColorScore =
-    item.colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
 
   const handleNameSubmit = async (nextName: string) => {
     const trimmed = nextName.trim();
@@ -422,48 +416,7 @@ function ItemDetailDialog({
                         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Colors
                         </h3>
-                        <div className="flex h-4 hover:h-8 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 transition-[height] duration-200 ease-out">
-                          {item.colors.map((color) => {
-                            const percent = Math.round(
-                              ((color.score ?? 0) / totalColorScore) * 100,
-                            );
-                            return (
-                              <Tooltip key={color.hex}>
-                                <TooltipTrigger asChild>
-                                  <div
-                                    className="h-full"
-                                    style={{
-                                      backgroundColor: color.hex,
-                                      flexGrow: Math.max(
-                                        color.score ?? 0,
-                                        0.001,
-                                      ),
-                                      flexBasis: 0,
-                                      minWidth: 4,
-                                    }}
-                                    role="img"
-                                    aria-label={`${color.hex} ${percent}%`}
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent sideOffset={6}>
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      aria-hidden="true"
-                                      className="h-3 w-3 shrink-0 rounded-sm border border-zinc-200/60 dark:border-zinc-700"
-                                      style={{ backgroundColor: color.hex }}
-                                    />
-                                    <span className="font-mono">
-                                      {color.hex}
-                                    </span>
-                                    <span className="text-zinc-500">
-                                      · {percent}%
-                                    </span>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                          })}
-                        </div>
+                        <ColorsBar colors={item.colors} />
                       </div>
                     )}
 
