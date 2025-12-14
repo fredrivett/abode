@@ -122,8 +122,6 @@
   }
 }
 
-@layer utilities {
-  .cursor-pipette {
-    cursor: url("/cursors/pipette.png") 2 30, crosshair;
-  }
+@utility cursor-pipette {
+  cursor: url("/cursors/pipette.png") 2 30, crosshair;
 }

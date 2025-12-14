@@ -69,6 +69,8 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
   const containerRef = useRef<HTMLFieldSetElement>(null);
   const [containerWidthPx, setContainerWidthPx] = useState<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [activeHex, setActiveHex] = useState<string | null>(null);
+  const [pinnedHex, setPinnedHex] = useState<string | null>(null);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
 
@@ -118,12 +120,17 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
   if (colors.length === 0) return null;
 
   const copyColor = async (hex: string) => {
-    if (!(await copyToClipboard(hex))) return;
+    setPinnedHex(hex);
+    if (!(await copyToClipboard(hex))) {
+      setPinnedHex((prev) => (prev === hex ? null : prev));
+      return;
+    }
 
     setCopiedHex(hex);
     if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
     copiedTimeoutRef.current = window.setTimeout(() => {
-      setCopiedHex(null);
+      setCopiedHex((prev) => (prev === hex ? null : prev));
+      setPinnedHex((prev) => (prev === hex ? null : prev));
     }, 1200);
   };
 
@@ -137,10 +144,18 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     >
       {colors.map((color, index) => {
         const percent = Math.round(((color.score ?? 0) / totalScore) * 100);
+        const isOpen =
+          pinnedHex === color.hex ||
+          copiedHex === color.hex ||
+          (!pinnedHex && activeHex === color.hex);
         const isCopied = copiedHex === color.hex;
 
         return (
-          <Tooltip key={`${color.hex}-${index}`} disableHoverableContent>
+          <Tooltip
+            key={`${color.hex}-${index}`}
+            open={isOpen}
+            disableHoverableContent
+          >
             <TooltipTrigger asChild>
               <button
                 type="button"
@@ -160,6 +175,14 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
                       }
                 }
                 aria-label={`Copy ${color.hex} (${percent}%)`}
+                onMouseEnter={() => setActiveHex(color.hex)}
+                onMouseLeave={() =>
+                  setActiveHex((prev) => (prev === color.hex ? null : prev))
+                }
+                onFocus={() => setActiveHex(color.hex)}
+                onBlur={() =>
+                  setActiveHex((prev) => (prev === color.hex ? null : prev))
+                }
                 onClick={() => void copyColor(color.hex)}
               />
             </TooltipTrigger>
