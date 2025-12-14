@@ -261,14 +261,12 @@ function DeleteItemDialog({
               Cancel
             </Button>
           </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              variant="destructive"
-              onClick={onConfirm}
-              disabled={isDeleting}
-            >
-              {isDeleting ? <IsLoading label="Deleting" /> : "Delete item"}
-            </Button>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? <IsLoading label="Deleting" /> : "Delete item"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
