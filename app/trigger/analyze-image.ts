@@ -166,6 +166,8 @@ export const analyzeImageTask = task({
               city: place.city,
               country: place.country,
             });
+          } else {
+            logger.log("Reverse geocoding returned no place", { itemId });
           }
         } catch (error) {
           logger.log("Reverse geocoding failed", { itemId, error });
