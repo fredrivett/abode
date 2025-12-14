@@ -38,7 +38,10 @@ export function DashboardHeader({
   return (
     <header className="flex w-full items-center justify-between gap-4 p-4">
       <h1 className="flex items-center">
-        <Link href="/dashboard" className="opacity-50 transition-opacity hover:opacity-100">
+        <Link
+          href="/dashboard"
+          className="opacity-50 transition-opacity hover:opacity-100"
+        >
           <span className="sr-only">abode</span>
           <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
         </Link>
