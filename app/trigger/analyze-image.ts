@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { inspect } from "node:util";
+import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
@@ -7,6 +8,8 @@ import {
   generateImageEmbedding,
   generateTextEmbedding,
 } from "../src/lib/embeddings";
+import { extractExifGpsLocation } from "../src/lib/exif";
+import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImage } from "../src/lib/vision";
 
 type AnalyzeImagePayload = {
@@ -149,6 +152,67 @@ export const analyzeImageTask = task({
         sizeBytes: buffer.length,
       });
 
+      // Step 1.5: Extract location from EXIF (if present)
+      const gps = await extractExifGpsLocation(buffer);
+      let place: Awaited<ReturnType<typeof reverseGeocode>> = null;
+
+      if (gps) {
+        logger.log("EXIF GPS found", { itemId });
+        try {
+          place = await reverseGeocode(gps);
+          if (place) {
+            logger.log("Place found from GPS", {
+              itemId,
+              city: place.city,
+              country: place.country,
+            });
+          }
+        } catch (error) {
+          logger.log("Reverse geocoding failed", { itemId, error });
+        }
+      } else {
+        logger.log("No EXIF GPS data in image", { itemId });
+      }
+
+      if (gps || place) {
+        const raw: Record<string, Prisma.InputJsonValue> = {};
+        if (gps) raw.gps = gps as unknown as Prisma.InputJsonValue;
+        if (place) raw.place = place as unknown as Prisma.InputJsonValue;
+
+        await db.itemLocation.upsert({
+          where: { itemId_source: { itemId, source: "exif" } },
+          create: {
+            itemId,
+            userId,
+            source: "exif",
+            latitude: gps?.latitude ?? null,
+            longitude: gps?.longitude ?? null,
+            provider: place?.provider ?? null,
+            city: place?.city ?? null,
+            region: place?.region ?? null,
+            country: place?.country ?? null,
+            countryCode: place?.countryCode ?? null,
+            formatted: place?.formatted ?? null,
+            raw: raw as unknown as Prisma.InputJsonValue,
+          },
+          update: {
+            latitude: gps?.latitude ?? null,
+            longitude: gps?.longitude ?? null,
+            provider: place?.provider ?? null,
+            city: place?.city ?? null,
+            region: place?.region ?? null,
+            country: place?.country ?? null,
+            countryCode: place?.countryCode ?? null,
+            formatted: place?.formatted ?? null,
+            raw: raw as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } else {
+        await db.itemLocation.deleteMany({
+          where: { itemId, userId, source: "exif" },
+        });
+      }
+
       // Step 2: Analyze with Google Cloud Vision API
       logger.log("Analyzing image with Vision API", { itemId });
 
@@ -165,7 +229,6 @@ export const analyzeImageTask = task({
 
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
-
       await db.item.update({
         where: {
           id: itemId,

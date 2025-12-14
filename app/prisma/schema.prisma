@@ -25,6 +25,7 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   items         Item[]
+  locations     ItemLocation[]
   visualVectors ItemVisualVector[]
   textVectors   ItemTextVector[]
 
@@ -70,6 +71,7 @@ model Item {
 
   // Relations
   user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  locations         ItemLocation[]
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
 
@@ -80,12 +82,47 @@ model Item {
   @@map("items")
 }
 
+model ItemLocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+
+  // Source of location data (e.g. "exif", "manual", "inferred")
+  source      String
+
+  latitude    Float?   @map("latitude")
+  longitude   Float?   @map("longitude")
+
+  // Reverse geocoded place
+  provider    String?  @map("provider")
+  city        String?  @map("city")
+  region      String?  @map("region")
+  country     String?  @map("country")
+  countryCode String?  @map("country_code")
+  formatted   String?  @map("formatted")
+
+  // Raw payload (gps + place, provider-specific)
+  raw         Json?    @map("raw")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([itemId, source])
+  @@index([userId, city])
+  @@index([userId, country])
+  @@index([userId, countryCode])
+  @@map("item_locations")
+}
+
 model ItemVisualVector {
   id        String   @id @default(uuid()) @db.Uuid
   itemId    String   @map("item_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   model     String   // e.g., "clip-vit-base-patch32"
-  // Note: embedding vector(768) column will be added via Supabase migration (Prisma doesn't support pgvector type)
+  embedding Unsupported("vector")? // vector(768)
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -102,7 +139,7 @@ model ItemTextVector {
   itemId    String   @map("item_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   model     String   // e.g., "text-embedding-3-small"
-  // Note: embedding vector(1536) column will be added via Supabase migration (Prisma doesn't support pgvector type)
+  embedding Unsupported("vector")? // vector(1536)
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
