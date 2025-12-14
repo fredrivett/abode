@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { Blocks, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
@@ -14,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getInitials } from "@/lib/get-initials";
 
 type DashboardHeaderProps = {
@@ -49,6 +54,18 @@ export function DashboardHeader({
       </h1>
 
       <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button asChild variant="ghost-subtle" size="icon">
+              <Link href="/rooms" aria-label="Rooms">
+                <Blocks size={18} aria-hidden />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            <span className="font-mono">/rooms</span>
+          </TooltipContent>
+        </Tooltip>
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
