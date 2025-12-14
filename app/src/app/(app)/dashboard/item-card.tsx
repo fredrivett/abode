@@ -422,7 +422,7 @@ function ItemDetailDialog({
                         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Colors
                         </h3>
-                        <div className="flex h-8 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700">
+                        <div className="flex h-4 hover:h-8 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 transition-[height] duration-200 ease-out">
                           {item.colors.map((color) => {
                             const percent = Math.round(
                               ((color.score ?? 0) / totalColorScore) * 100,
@@ -446,7 +446,19 @@ function ItemDetailDialog({
                                   />
                                 </TooltipTrigger>
                                 <TooltipContent sideOffset={6}>
-                                  {color.hex} · {percent}%
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      aria-hidden="true"
+                                      className="h-3 w-3 shrink-0 rounded-sm border border-zinc-200/60 dark:border-zinc-700"
+                                      style={{ backgroundColor: color.hex }}
+                                    />
+                                    <span className="font-mono">
+                                      {color.hex}
+                                    </span>
+                                    <span className="text-zinc-500">
+                                      · {percent}%
+                                    </span>
+                                  </div>
                                 </TooltipContent>
                               </Tooltip>
                             );
