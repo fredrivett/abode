@@ -121,3 +121,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .cursor-pipette {
+    cursor: url("/cursors/pipette.png") 2 30, crosshair;
+  }
+}
