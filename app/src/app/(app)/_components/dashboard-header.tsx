@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -59,6 +61,23 @@ export function DashboardHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem asChild>
+              <Button
+                asChild
+                variant="ghost"
+                className="h-auto w-full justify-start px-2 py-2"
+              >
+                <Link href="/account">
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-sm font-medium">{displayName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {displayEmail}
+                    </span>
+                  </span>
+                </Link>
+              </Button>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <form action={signOutAction}>
               <DropdownMenuItem asChild>
                 <Button
