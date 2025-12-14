@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -42,8 +43,8 @@ export function DashboardHeader({
   const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (
-    <header className="flex w-full items-center justify-between gap-4 p-4">
-      <h1 className="flex items-center">
+    <header className="flex w-full flex-wrap items-center gap-x-4 gap-y-3 p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
+      <h1 className="order-1 flex shrink-0 items-center">
         <Link
           href="/dashboard"
           className="opacity-50 transition-opacity hover:opacity-100"
@@ -53,7 +54,7 @@ export function DashboardHeader({
         </Link>
       </h1>
 
-      <div className="flex items-center gap-2">
+      <div className="order-2 ml-auto flex shrink-0 items-center gap-2 md:order-3">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button asChild variant="ghost-subtle" size="icon">
@@ -115,6 +116,15 @@ export function DashboardHeader({
             </form>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-0 md:flex-1 md:basis-auto">
+        <Input
+          type="search"
+          placeholder="Search"
+          aria-label="Search"
+          className="rounded-none border-0 border-b bg-transparent px-0 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
+        />
       </div>
     </header>
   );
