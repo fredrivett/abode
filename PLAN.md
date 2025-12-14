@@ -29,7 +29,7 @@
   - [x] Create auth pages (login, signup) with OTP email verification.
   - [x] Set up trigger to sync auth.users to public.users table.
 - [x] **Storage & uploads**
-  - [x] Create general-purpose Supabase storage bucket(s) with RLS policies (items bucket, private, 50MB limit + MIME allowlist).
+  - [x] Create general-purpose Supabase storage bucket(s) with RLS policies (items bucket, private, 15MB limit + MIME allowlist).
   - [x] Add upload helpers (direct-to-storage from client with automatic dimension capture).
   - [x] Build dashboard UI with masonry grid layout for uploaded images.
   - [x] Implement delete functionality (removes from both storage and DB).

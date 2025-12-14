@@ -1,6 +1,9 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
+import { Home } from "lucide-react";
+import { AbodeLogo } from "@/components/abode-logo";
+import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "./item-card";
 
@@ -35,11 +38,35 @@ function formatBytes(bytes?: number | null) {
 
 export function ItemsGrid({ items }: { items: DashboardItem[] }) {
   return (
-    <div className="w-full max-w-7xl space-y-3">
+    <div className="w-full space-y-3">
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          No uploads yet.
-        </p>
+        <div className="flex min-h-[calc(100vh-14rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
+            <Home className="size-14 text-muted-foreground" />
+            <div className="space-y-2">
+              <h2 className="text-3xl font-serif font-semibold">
+                Welcome home
+              </h2>
+              <p className="text-base text-muted-foreground">
+                Drag and drop an image anywhere on this page to upload your
+                first item to{" "}
+                <span className="inline-flex items-baseline">
+                  <span className="sr-only">Abode</span>
+                  <AbodeLogo
+                    className="ml-1 h-[0.8em] w-auto text-muted-foreground"
+                    aria-hidden
+                  />
+                </span>
+                . We’ll analyze it automatically so it’s easy to search and
+                organize later.
+              </p>
+              <div className="mx-auto my-4 h-px w-36 bg-border" />
+              <p className="text-xs text-muted-foreground">
+                JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
+              </p>
+            </div>
+          </div>
+        </div>
       ) : (
         <BalancedMasonryGrid
           frameWidth={250}
