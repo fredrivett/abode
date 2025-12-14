@@ -4,6 +4,11 @@ import { Moon, Sun, SunMoon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { createLogger } from "@/lib/logger.client";
 import {
   applyThemePreference,
@@ -87,31 +92,46 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
   if (!mounted) {
     return (
-      <Button
-        type="button"
-        variant="ghost-subtle"
-        size="icon"
-        className={className}
-        aria-label="Toggle theme"
-        disabled
-      >
-        <SunMoon size={18} aria-hidden />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost-subtle"
+            size="icon"
+            className={className}
+            aria-label="Toggle theme"
+            disabled
+          >
+            <SunMoon size={18} aria-hidden />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={6}>
+          system
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
+  const tooltipValue = preference === "auto" ? "system" : preference;
+
   return (
-    <Button
-      type="button"
-      variant="ghost-subtle"
-      size="icon"
-      className={className}
-      onClick={handleToggle}
-      aria-label={`Set ${label}`}
-      title={label}
-      disabled={isPending}
-    >
-      {icon}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost-subtle"
+          size="icon"
+          className={className}
+          onClick={handleToggle}
+          aria-label={`Set ${label}`}
+          disabled={isPending}
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {tooltipValue}
+      </TooltipContent>
+    </Tooltip>
   );
 }
