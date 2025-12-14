@@ -20,6 +20,10 @@ export function DateTime({ date, className }: DateTimeProps) {
 
   const time = format(dateObj, "HH:mm");
   const localDate = dateObj.toLocaleDateString();
+  const timezone = dateObj
+    .toLocaleTimeString("en-US", { timeZoneName: "short" })
+    .split(" ")
+    .pop();
 
   return (
     <Tooltip>
@@ -28,7 +32,7 @@ export function DateTime({ date, className }: DateTimeProps) {
       </TooltipTrigger>
       <TooltipContent side="left">
         <span>
-          {time} · {localDate}
+          {time} · {localDate} ({timezone})
         </span>
       </TooltipContent>
     </Tooltip>
