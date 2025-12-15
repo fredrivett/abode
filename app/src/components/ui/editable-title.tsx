@@ -113,7 +113,7 @@ export function EditableTitle({
   return (
     <div
       className={cn(
-        "group relative inline-block -mx-2.5 -my-1.5",
+        "group relative inline-block -mx-2.5 -my-1.5 max-w-full",
         isEditing || isSaving || pending ? "mr-0" : "hover:mr-0",
       )}
     >
@@ -122,7 +122,7 @@ export function EditableTitle({
         ref={measurementRef}
         className={cn(
           textClasses,
-          "pointer-events-none absolute opacity-0 whitespace-pre -z-10",
+          "pointer-events-none absolute opacity-0 whitespace-pre -z-10 max-w-full",
         )}
         aria-hidden="true"
       >
@@ -148,10 +148,12 @@ export function EditableTitle({
         }}
         disabled={disabled || isSaving || pending}
         size={Math.max(draft.length, 1)}
-        style={{ width: inputWidth ? `${inputWidth}px` : undefined }}
+        style={{
+          width: inputWidth ? `min(${inputWidth}px, 100%)` : undefined,
+        }}
         className={cn(
           textClasses,
-          "box-content border-none outline-none cursor-text transition-[bg,padding] px-2.5 py-1.5",
+          "border-none outline-none cursor-text transition-[bg,padding] px-2.5 py-1.5",
           isEditing
             ? "bg-gray-100 dark:bg-gray-800 pr-2.5"
             : "bg-transparent hover:bg-gray-100 hover:dark:bg-gray-800",

@@ -142,10 +142,10 @@ export function UploadWidget() {
   };
 
   return (
-    <div className="w-full max-w-lg space-y-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="w-full max-w-lg space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Upload an item</h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Images only, up to {MAX_IMAGE_UPLOAD_LABEL}. Stored privately per
           user.
         </p>
@@ -171,7 +171,7 @@ export function UploadWidget() {
       </Button>
 
       {fileName ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Selected: {fileName}
         </p>
       ) : null}

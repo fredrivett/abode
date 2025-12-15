@@ -138,7 +138,7 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     <fieldset
       ref={containerRef}
       aria-label="Colors"
-      className="m-0 flex h-4 min-w-0 overflow-hidden rounded-md border border-zinc-200 p-0 hover:h-8 dark:border-zinc-700 transition-[height] duration-200 ease-out"
+      className="m-0 flex h-4 min-w-0 overflow-hidden rounded-md border border-gray-200 p-0 hover:h-8 dark:border-gray-700 transition-[height] duration-200 ease-out"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -193,11 +193,11 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
                 <div className="flex items-center gap-2">
                   <div
                     aria-hidden="true"
-                    className="h-3 w-3 shrink-0 rounded-sm border border-zinc-200/60 dark:border-zinc-700"
+                    className="h-3 w-3 shrink-0 rounded-sm border border-gray-200/60 dark:border-gray-700"
                     style={{ backgroundColor: color.hex }}
                   />
                   <span className="font-mono">{color.hex}</span>
-                  <span className="text-zinc-500">· {percent}%</span>
+                  <span className="text-gray-500">· {percent}%</span>
                 </div>
               )}
             </TooltipContent>

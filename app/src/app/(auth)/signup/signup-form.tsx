@@ -54,7 +54,7 @@ export function SignupForm() {
           <h1 className="text-2xl font-semibold tracking-tight">
             Check your email
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             We sent a code to {signupState.email}
           </p>
         </div>
@@ -95,7 +95,7 @@ export function SignupForm() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Create an account
         </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Enter your details to get started
         </p>
       </div>
@@ -110,7 +110,7 @@ export function SignupForm() {
             name="email"
             type="email"
             required
-            className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-100"
+            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
             placeholder="you@example.com"
           />
         </div>
@@ -128,7 +128,7 @@ export function SignupForm() {
             type="password"
             required
             minLength={6}
-            className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-100"
+            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
           />
         </div>
 
@@ -142,11 +142,11 @@ export function SignupForm() {
         </Button>
       </form>
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         Already have an account?{" "}
         <a
           href="/login"
-          className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+          className="font-medium text-gray-900 hover:underline dark:text-gray-100"
         >
           Sign in
         </a>

@@ -129,7 +129,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   if (error) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-destructive">{error}</p>
       </div>
     );
@@ -137,8 +137,8 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   if (!previewUrl) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Loading preview...
         </p>
       </div>
@@ -147,7 +147,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   if (!isImage) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <a
             href={previewUrl}
@@ -343,7 +343,7 @@ function ItemDetailDialog({
         >
           <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
             {/* Top (mobile) / Left (desktop) - Image container */}
-            <div className="shrink-0 flex items-center justify-center bg-zinc-900 md:flex-1">
+            <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1">
               <motion.div
                 layoutId={`item-image-${item.id}`}
                 className="relative"
@@ -382,34 +382,34 @@ function ItemDetailDialog({
                 <div className="space-y-6 flex-1">
                   {/* Basic Info */}
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Details
                     </h3>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Type</span>
+                        <span className="text-gray-500">Type</span>
                         <span className="font-medium">{item.kind}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Size</span>
+                        <span className="text-gray-500">Size</span>
                         <span className="font-medium">{size}</span>
                       </div>
                       {width > 0 && height > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-zinc-500">Dimensions</span>
+                          <span className="text-gray-500">Dimensions</span>
                           <span className="font-medium">
                             {width} × {height}
                           </span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Status</span>
+                        <span className="text-gray-500">Status</span>
                         <span className="font-medium capitalize">
                           {item.processingStatus}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Created</span>
+                        <span className="text-gray-500">Created</span>
                         <DateTime
                           date={item.createdAt}
                           className="font-medium"
@@ -424,13 +424,13 @@ function ItemDetailDialog({
                       {/* Description */}
                       {item.description && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Description
                           </h3>
                           <p
                             ref={descriptionRef}
                             className={cn(
-                              "text-sm text-zinc-600 dark:text-zinc-400",
+                              "text-sm text-gray-600 dark:text-gray-400",
                               !isDescriptionExpanded && "line-clamp-3",
                             )}
                           >
@@ -455,7 +455,7 @@ function ItemDetailDialog({
                       {/* Colors */}
                       {item.colors.length > 0 && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Colors
                           </h3>
                           <ColorsBar colors={item.colors} />
@@ -465,7 +465,7 @@ function ItemDetailDialog({
                       {/* Objects */}
                       {item.objects.length > 0 && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Objects
                           </h3>
                           <div className="flex flex-wrap gap-1.5">
@@ -484,14 +484,14 @@ function ItemDetailDialog({
                       {/* Tags */}
                       {item.tags.length > 0 && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Tags
                           </h3>
                           <div className="flex flex-wrap gap-1.5">
                             {item.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                               >
                                 {tag}
                               </span>
@@ -503,11 +503,11 @@ function ItemDetailDialog({
                       {/* OCR Text */}
                       {item.ocrText && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Detected Text
                           </h3>
-                          <div className="max-h-32 overflow-y-auto rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/50">
-                            <p className="whitespace-pre-wrap text-xs text-zinc-600 dark:text-zinc-400">
+                          <div className="max-h-32 overflow-y-auto rounded-md bg-gray-50 p-3 dark:bg-gray-800/50">
+                            <p className="whitespace-pre-wrap text-xs text-gray-600 dark:text-gray-400">
                               {item.ocrText}
                             </p>
                           </div>
@@ -515,7 +515,7 @@ function ItemDetailDialog({
                       )}
                     </>
                   ) : item.processingStatus === "processing" ? (
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
                       <p>Analyzing image...</p>
                     </div>
                   ) : item.processingStatus === "failed" ? (
@@ -523,7 +523,7 @@ function ItemDetailDialog({
                       <p>Analysis failed. Please try re-uploading the image.</p>
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
                       <p>No analysis available.</p>
                     </div>
                   )}
