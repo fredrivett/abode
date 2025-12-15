@@ -22,7 +22,6 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
 export async function extractExifGpsLocation(
   buffer: Buffer,
 ): Promise<ExifGpsLocation | null> {
-  log.debug({ bufferSize: buffer.length }, "Extracting EXIF GPS from buffer");
   try {
     const gps = await exifr.gps(buffer);
     log.debug({ gps }, "exifr.gps result");

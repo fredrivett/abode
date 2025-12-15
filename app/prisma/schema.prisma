@@ -93,13 +93,13 @@ model ItemLocation {
   latitude    Float?   @map("latitude")
   longitude   Float?   @map("longitude")
 
-  // Reverse geocoded place
-  provider    String?  @map("provider")
-  city        String?  @map("city")
-  region      String?  @map("region")
-  country     String?  @map("country")
-  countryCode String?  @map("country_code")
-  formatted   String?  @map("formatted")
+  // Reverse geocoded place (via Mapbox)
+  neighborhood String?  @map("neighborhood")
+  city         String?  @map("city")
+  region       String?  @map("region")
+  country      String?  @map("country")
+  countryCode  String?  @map("country_code")
+  formatted    String?  @map("formatted")
 
   // Raw payload (gps + place, provider-specific)
   raw         Json?    @map("raw")

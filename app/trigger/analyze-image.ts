@@ -189,7 +189,7 @@ export const analyzeImageTask = task({
             source: "exif",
             latitude: gps?.latitude ?? null,
             longitude: gps?.longitude ?? null,
-            provider: place?.provider ?? null,
+            neighborhood: place?.neighborhood ?? null,
             city: place?.city ?? null,
             region: place?.region ?? null,
             country: place?.country ?? null,
@@ -200,7 +200,7 @@ export const analyzeImageTask = task({
           update: {
             latitude: gps?.latitude ?? null,
             longitude: gps?.longitude ?? null,
-            provider: place?.provider ?? null,
+            neighborhood: place?.neighborhood ?? null,
             city: place?.city ?? null,
             region: place?.region ?? null,
             country: place?.country ?? null,
