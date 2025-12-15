@@ -179,7 +179,9 @@ export const analyzeImageTask = task({
       if (gps || place) {
         const raw: Record<string, Prisma.InputJsonValue> = {};
         if (gps) raw.gps = gps as unknown as Prisma.InputJsonValue;
-        if (place) raw.place = place as unknown as Prisma.InputJsonValue;
+        if (place?.raw) {
+          raw.mapbox = place.raw as unknown as Prisma.InputJsonValue;
+        }
 
         await db.itemLocation.upsert({
           where: { itemId_source: { itemId, source: "exif" } },

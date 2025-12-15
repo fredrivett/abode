@@ -5,6 +5,7 @@ export type ReverseGeocodedPlace = {
   country?: string;
   countryCode?: string;
   formatted?: string;
+  raw?: unknown; // Full Mapbox API response
 };
 
 export type LatLon = { latitude: number; longitude: number };
@@ -35,30 +36,33 @@ export async function reverseGeocode({
     const payload = (await response.json()) as {
       features?: Array<{
         place_name?: string;
-        properties?: {
-          place_formatted?: string;
-          context?: {
-            neighborhood?: { name?: string };
-            place?: { name?: string };
-            region?: { name?: string; region_code?: string };
-            country?: { name?: string; country_code?: string };
-          };
-        };
+        context?: Array<{
+          id?: string;
+          text?: string;
+          short_code?: string;
+        }>;
       }>;
     };
 
     const feature = payload.features?.[0];
     if (!feature) return null;
 
-    const context = feature.properties?.context ?? {};
+    const context = feature.context ?? [];
+
+    // Context is an array of objects with id like "neighborhood.xxx", "place.xxx", etc.
+    const neighborhood = context.find((c) => c.id?.startsWith("neighborhood."));
+    const place = context.find((c) => c.id?.startsWith("place."));
+    const region = context.find((c) => c.id?.startsWith("region."));
+    const country = context.find((c) => c.id?.startsWith("country."));
 
     return {
-      neighborhood: context.neighborhood?.name,
-      city: context.place?.name,
-      region: context.region?.name,
-      country: context.country?.name,
-      countryCode: context.country?.country_code?.toUpperCase(),
-      formatted: feature.properties?.place_formatted ?? feature.place_name,
+      neighborhood: neighborhood?.text,
+      city: place?.text,
+      region: region?.text,
+      country: country?.text,
+      countryCode: country?.short_code?.toUpperCase(),
+      formatted: feature.place_name,
+      raw: payload, // Store full Mapbox response
     };
   } finally {
     clearTimeout(timeoutId);
