@@ -8,18 +8,18 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             Welcome back
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Sign in to your account
           </p>
         </div>
 
         <LoginForm />
 
-        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           Don&apos;t have an account?{" "}
           <a
             href="/signup"
-            className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+            className="font-medium text-gray-900 hover:underline dark:text-gray-100"
           >
             Sign up
           </a>
