@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Filter as FilterIcon } from "lucide-react";
+import { createLogger } from "@/lib/logger.client";
+
+const logger = createLogger("search-input");
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -92,6 +95,7 @@ export function SearchInput({
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dateFilterAppliedRef = useRef(false);
 
   // Values loaded from API
   const [filterValues, setFilterValues] = useState<string[]>([]);
@@ -157,8 +161,27 @@ export function SearchInput({
   }, [value, onChange, filterContext]);
 
   const handleAddFilter = useCallback((filter: Filter) => {
+    logger.debug("handleAddFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
     // Remove any partial filter text
     const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
+    logger.debug("handleAddFilter newQuery", { newQuery, filtersCount: value.filters.length + 1 });
+
+    onChange({
+      query: newQuery,
+      filters: [...value.filters, filter],
+    });
+
+    inputRef.current?.focus();
+  }, [value, onChange, filterContext.prefixEnd]);
+
+  const handleAddDateFilter = useCallback((filter: Filter, _displayValue: string) => {
+    logger.debug("handleAddDateFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
+    // Mark that we just applied a date filter so handleCloseDatePicker doesn't clear it
+    dateFilterAppliedRef.current = true;
+
+    // Remove the @date: part from query (same as other filters)
+    const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
+    logger.debug("handleAddDateFilter newQuery", { newQuery });
 
     onChange({
       query: newQuery,
@@ -201,9 +224,17 @@ export function SearchInput({
   }, [value, onChange, filterContext.prefixEnd, filterContext.mode]);
 
   const handleCloseDatePicker = useCallback((open: boolean) => {
+    logger.debug("handleCloseDatePicker called", { open, query: value.query, dateFilterApplied: dateFilterAppliedRef.current });
     if (!open) {
-      // Remove the @date: from query when closing without selecting
+      // If we just applied a date filter, don't clear anything - reset the flag and return
+      if (dateFilterAppliedRef.current) {
+        logger.debug("handleCloseDatePicker skipping - date filter was just applied");
+        dateFilterAppliedRef.current = false;
+        return;
+      }
+      // Otherwise, user cancelled - clear the @date: from the query
       const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
+      logger.debug("handleCloseDatePicker clearing query (user cancelled)", { newQuery });
       onChange({ ...value, query: newQuery });
     }
   }, [value, onChange, filterContext.prefixEnd]);
@@ -281,7 +312,8 @@ export function SearchInput({
       <DateRangePicker
         open={datePickerOpen}
         onOpenChange={handleCloseDatePicker}
-        onAddFilter={handleAddFilter}
+        onAddFilter={handleAddDateFilter}
+        anchorRef={inputRef}
       />
     </div>
   );

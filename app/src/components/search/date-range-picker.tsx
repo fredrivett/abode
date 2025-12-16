@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
+import { createLogger } from "@/lib/logger.client";
+
+const logger = createLogger("date-range-picker");
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
@@ -20,8 +23,8 @@ import type { DateRange } from "react-day-picker";
 type DateRangePickerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddFilter: (filter: Filter) => void;
-  triggerRef?: React.RefObject<HTMLElement | null>;
+  onAddFilter: (filter: Filter, displayValue: string) => void;
+  anchorRef: React.RefObject<HTMLElement | null>;
 };
 
 type DateMode = "single" | "before" | "after" | "range";
@@ -30,7 +33,7 @@ export function DateRangePicker({
   open,
   onOpenChange,
   onAddFilter,
-  triggerRef,
+  anchorRef,
 }: DateRangePickerProps) {
   const [mode, setMode] = useState<DateMode>("single");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -43,37 +46,56 @@ export function DateRangePicker({
   };
 
   const handleApply = () => {
+    logger.debug("handleApply called", { mode, selectedDate, dateRange });
+    let dateValue: string | null = null;
     let filter: Filter | null = null;
 
     if (mode === "range" && dateRange?.from) {
+      const fromDate = format(dateRange.from, "yyyy-MM-dd");
+      const toDate = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : fromDate;
+      dateValue = `${fromDate}..${toDate}`;
       filter = {
         id: createFilterId(),
         type: "date",
-        value: format(dateRange.from, "yyyy-MM-dd"),
-        endDate: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(dateRange.from, "yyyy-MM-dd"),
+        value: fromDate,
+        endDate: toDate,
         negated: false,
         dateOperator: "between",
       };
     } else if (selectedDate) {
       const dateOperator: DateOperator =
         mode === "before" ? "before" : mode === "after" ? "after" : "is";
+      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+
+      // Format value based on operator
+      if (mode === "before") {
+        dateValue = `<${formattedDate}`;
+      } else if (mode === "after") {
+        dateValue = `>${formattedDate}`;
+      } else {
+        dateValue = formattedDate;
+      }
 
       filter = {
         id: createFilterId(),
         type: "date",
-        value: format(selectedDate, "yyyy-MM-dd"),
+        value: formattedDate,
         negated: false,
         dateOperator,
       };
     }
 
-    if (filter) {
-      onAddFilter(filter);
+    logger.debug("handleApply computed", { dateValue, filter });
+
+    if (dateValue && filter) {
+      logger.debug("handleApply calling onAddFilter", { filter, dateValue });
+      // Add the filter with the display value (combined in one call to avoid stale closure issues)
+      onAddFilter(filter, dateValue);
       // Reset state
       setMode("single");
       setSelectedDate(undefined);
       setDateRange(undefined);
-      onOpenChange(false);
+      logger.debug("handleApply complete");
     }
   };
 
@@ -81,14 +103,22 @@ export function DateRangePicker({
     (mode === "range" && dateRange?.from) ||
     ((mode === "single" || mode === "before" || mode === "after") && selectedDate);
 
+  // Create a non-null ref wrapper for Radix
+  const virtualRef = {
+    current: anchorRef.current,
+  } as React.RefObject<HTMLElement>;
+
+  if (!open) return null;
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      {triggerRef ? (
-        <PopoverTrigger asChild>
-          <span ref={triggerRef as React.RefObject<HTMLSpanElement>} />
-        </PopoverTrigger>
-      ) : null}
-      <PopoverContent className="w-auto p-0" align="start" sideOffset={8}>
+      <PopoverAnchor virtualRef={anchorRef.current ? virtualRef : undefined} />
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        sideOffset={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="p-3 space-y-3">
           {/* Mode selector */}
           <div className="flex gap-1">
