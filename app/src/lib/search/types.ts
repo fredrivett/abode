@@ -11,10 +11,11 @@
  * - @date:>2024-01-15 - Filter after date
  * - @date:<2024-01-15 - Filter before date
  * - @date:2024-01-01..2024-01-31 - Filter date range
+ * - @location:paris - Filter by location
  * - -@tag:landscape - Negated filter (exclude)
  */
 
-export type FilterType = "type" | "tag" | "object" | "color" | "source" | "date";
+export type FilterType = "type" | "tag" | "object" | "color" | "source" | "date" | "location";
 
 export type DateOperator = "is" | "before" | "after" | "between";
 
@@ -38,15 +39,82 @@ export type SearchState = {
 // Filter type metadata for UI
 export const FILTER_TYPES: Record<
   FilterType,
-  { label: string; placeholder: string; icon: string }
+  {
+    label: string;
+    placeholder: string;
+    icon: string;
+  }
 > = {
-  type: { label: "Type", placeholder: "e.g. image", icon: "🖼️" },
-  tag: { label: "Tag", placeholder: "e.g. landscape", icon: "🏷️" },
-  object: { label: "Object", placeholder: "e.g. tree", icon: "📦" },
-  color: { label: "Color", placeholder: "e.g. #FF5733", icon: "🎨" },
-  source: { label: "Source", placeholder: "e.g. instagram", icon: "🔗" },
-  date: { label: "Date", placeholder: "e.g. 2024-01-15", icon: "📅" },
+  type: {
+    label: "Type",
+    placeholder: "e.g. image",
+    icon: "✳️",
+  },
+  tag: {
+    label: "Tag",
+    placeholder: "e.g. landscape",
+    icon: "🏷️",
+  },
+  object: {
+    label: "Object",
+    placeholder: "e.g. tree",
+    icon: "📦",
+  },
+  color: {
+    label: "Color",
+    placeholder: "e.g. #FF5733",
+    icon: "🎨",
+  },
+  source: {
+    label: "Source",
+    placeholder: "e.g. instagram",
+    icon: "🔗",
+  },
+  date: {
+    label: "Date",
+    placeholder: "e.g. 2024-01-15",
+    icon: "📅",
+  },
+  location: {
+    label: "Location",
+    placeholder: "e.g. paris",
+    icon: "📍",
+  },
 };
+
+/**
+ * Get the text color class for a filter type.
+ * Note: These must be static strings (not template literals) for Tailwind JIT to detect them.
+ */
+export function getFilterTextColorClass(type: FilterType): string {
+  const textColors: Record<FilterType, string> = {
+    type: "text-filter-type",
+    tag: "text-filter-tag",
+    object: "text-filter-object",
+    color: "text-filter-color",
+    source: "text-filter-source",
+    date: "text-filter-date",
+    location: "text-filter-location",
+  };
+  return textColors[type];
+}
+
+/**
+ * Get all color classes for a filter type chip (background, text, border).
+ * Note: These must be static strings (not template literals) for Tailwind JIT to detect them.
+ */
+export function getFilterColorClass(type: FilterType): string {
+  const colorClasses: Record<FilterType, string> = {
+    type: "bg-filter-type/15 text-filter-type border-filter-type/30",
+    tag: "bg-filter-tag/15 text-filter-tag border-filter-tag/30",
+    object: "bg-filter-object/15 text-filter-object border-filter-object/30",
+    color: "bg-filter-color/15 text-filter-color border-filter-color/30",
+    source: "bg-filter-source/15 text-filter-source border-filter-source/30",
+    date: "bg-filter-date/15 text-filter-date border-filter-date/30",
+    location: "bg-filter-location/15 text-filter-location border-filter-location/30",
+  };
+  return colorClasses[type];
+}
 
 /**
  * Parse a filter string like "@tag:landscape" or "-@date:>2024-01-01"

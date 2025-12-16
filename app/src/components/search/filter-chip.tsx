@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type Filter, FILTER_TYPES, serializeFilter } from "@/lib/search/types";
+import { type Filter, FILTER_TYPES, getFilterColorClass } from "@/lib/search/types";
 
 type FilterChipProps = {
   filter: Filter;
@@ -18,19 +18,26 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
 
   return (
     <Badge
-      variant="secondary"
+      variant="outline"
       className={cn(
-        "gap-1 pr-1 font-normal",
+        "gap-1 pr-1 py-0.75 text-sm font-normal",
+        getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
         className
       )}
     >
-      <span className="text-muted-foreground">{meta.label}:</span>
-      <span>{displayValue}</span>
+      <span className="opacity-70">{meta.label}:</span>
+      {filter.type === "color" && (
+        <span
+          className="size-3 rounded-sm border border-current/20"
+          style={{ backgroundColor: filter.value }}
+        />
+      )}
+      <span className="font-medium">{displayValue}</span>
       <Button
         variant="ghost"
         size="icon"
-        className="size-4 rounded-full p-0 hover:bg-muted-foreground/20"
+        className="size-4 rounded-full p-0 hover:bg-current/20"
         onClick={(e) => {
           e.stopPropagation();
           onRemove(filter.id);

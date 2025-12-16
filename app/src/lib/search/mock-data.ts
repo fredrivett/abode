@@ -104,6 +104,35 @@ const MOCK_TYPES = [
   // Future types could include: "video", "document", "audio", etc.
 ];
 
+// Mock locations - cities and places
+const MOCK_LOCATIONS = [
+  "paris",
+  "new york",
+  "tokyo",
+  "london",
+  "san francisco",
+  "los angeles",
+  "barcelona",
+  "rome",
+  "amsterdam",
+  "berlin",
+  "dubai",
+  "sydney",
+  "singapore",
+  "hong kong",
+  "istanbul",
+  "prague",
+  "vienna",
+  "athens",
+  "venice",
+  "florence",
+  "madrid",
+  "lisbon",
+  "copenhagen",
+  "stockholm",
+  "oslo",
+];
+
 /**
  * Get mock filter values for a given filter type.
  * Simulates an async API call with a small delay.
@@ -123,6 +152,8 @@ export async function getMockFilterValues(type: FilterType): Promise<string[]> {
       return MOCK_SOURCES;
     case "type":
       return MOCK_TYPES;
+    case "location":
+      return MOCK_LOCATIONS;
     case "date":
       // Date filter uses calendar picker, not value list
       return [];
