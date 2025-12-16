@@ -274,25 +274,24 @@ export function SearchInput({
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Filter chips */}
         <FilterChips
           filters={value.filters}
           onRemove={handleRemoveFilter}
-          className="shrink-0"
         />
 
         {/* Input wrapper */}
-        <div className="relative flex-1">
+        <div className="relative min-w-32 flex-1">
           <input
             ref={inputRef}
             type="text"
             value={value.query}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={value.filters.length > 0 ? "" : placeholder}
+            placeholder={placeholder}
             aria-label="Search"
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
+            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
           />
         </div>
 
