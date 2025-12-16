@@ -29,6 +29,8 @@ type DashboardItem = {
   fileKey: string | null;
   meta: Record<string, unknown> | null;
   sourceType: SourceType | null;
+  sourceUrl: string | null;
+  coverFileKey: string | null;
   createdAt: string;
   title: string | null;
   description: string | null;

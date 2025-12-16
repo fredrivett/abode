@@ -23,6 +23,8 @@ export default async function DashboardPage() {
           fileKey: true,
           meta: true,
           sourceType: true,
+          sourceUrl: true,
+          coverFileKey: true,
           createdAt: true,
           title: true,
           description: true,

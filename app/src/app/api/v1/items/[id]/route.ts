@@ -34,6 +34,8 @@ export async function GET(
         fileKey: true,
         meta: true,
         sourceType: true,
+        sourceUrl: true,
+        coverFileKey: true,
         createdAt: true,
         updatedAt: true,
         title: true,
@@ -90,7 +92,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { processingStatus, fileKey, meta, sourceType } = body;
+    const { processingStatus, fileKey, meta, sourceType, sourceUrl, kind, coverFileKey } = body;
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
@@ -111,6 +113,9 @@ export async function PATCH(
         ...(fileKey !== undefined && { fileKey }),
         ...(meta !== undefined && { meta }),
         ...(sourceType !== undefined && { sourceType }),
+        ...(sourceUrl !== undefined && { sourceUrl }),
+        ...(kind !== undefined && { kind }),
+        ...(coverFileKey !== undefined && { coverFileKey }),
       },
       select: {
         id: true,
@@ -120,6 +125,8 @@ export async function PATCH(
         fileKey: true,
         meta: true,
         sourceType: true,
+        sourceUrl: true,
+        coverFileKey: true,
         createdAt: true,
         updatedAt: true,
         title: true,

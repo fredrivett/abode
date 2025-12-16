@@ -7,7 +7,7 @@ import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
-const allowedKinds = new Set(["image"]);
+const allowedKinds = new Set(["image", "article"]);
 
 export async function GET(_request: NextRequest) {
   try {
@@ -31,6 +31,8 @@ export async function GET(_request: NextRequest) {
         fileKey: true,
         meta: true,
         sourceType: true,
+        sourceUrl: true,
+        coverFileKey: true,
         createdAt: true,
         updatedAt: true,
         title: true,
@@ -80,11 +82,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { kind, fileKey, meta, sourceType } = body;
+    const { kind, fileKey, meta, sourceType, sourceUrl } = body;
 
-    if (!kind || !allowedKinds.has(kind)) {
+    // kind is optional (null for URL-sourced items during classification)
+    // but if provided, must be valid
+    if (kind && !allowedKinds.has(kind)) {
       return NextResponse.json(
-        { message: "Kind is required and must be valid" },
+        { message: "Kind must be valid if provided" },
         { status: 400 },
       );
     }
@@ -99,10 +103,11 @@ export async function POST(request: NextRequest) {
     // Create the item initially with "processing" status
     const item = await db.item.create({
       data: {
-        kind,
+        kind: kind || null,
         fileKey: fileKey || null,
         meta: meta || null,
         sourceType: sourceType || null,
+        sourceUrl: sourceUrl || null,
         userId: user.id,
         processingStatus: "processing",
       },
@@ -114,6 +119,8 @@ export async function POST(request: NextRequest) {
         fileKey: true,
         meta: true,
         sourceType: true,
+        sourceUrl: true,
+        coverFileKey: true,
         createdAt: true,
         updatedAt: true,
       },
