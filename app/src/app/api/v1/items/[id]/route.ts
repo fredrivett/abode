@@ -36,6 +36,26 @@ export async function GET(
         source: true,
         createdAt: true,
         updatedAt: true,
+        title: true,
+        description: true,
+        tags: true,
+        objects: true,
+        colors: true,
+        ocrText: true,
+        locations: {
+          select: {
+            id: true,
+            source: true,
+            latitude: true,
+            longitude: true,
+            neighborhood: true,
+            city: true,
+            region: true,
+            country: true,
+            countryCode: true,
+            formatted: true,
+          },
+        },
       },
     });
 
@@ -102,6 +122,26 @@ export async function PATCH(
         source: true,
         createdAt: true,
         updatedAt: true,
+        title: true,
+        description: true,
+        tags: true,
+        objects: true,
+        colors: true,
+        ocrText: true,
+        locations: {
+          select: {
+            id: true,
+            source: true,
+            latitude: true,
+            longitude: true,
+            neighborhood: true,
+            city: true,
+            region: true,
+            country: true,
+            countryCode: true,
+            formatted: true,
+          },
+        },
       },
     });
 

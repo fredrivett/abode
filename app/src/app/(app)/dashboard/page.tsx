@@ -30,6 +30,20 @@ export default async function DashboardPage() {
           objects: true,
           colors: true,
           ocrText: true,
+          locations: {
+            select: {
+              id: true,
+              source: true,
+              latitude: true,
+              longitude: true,
+              neighborhood: true,
+              city: true,
+              region: true,
+              country: true,
+              countryCode: true,
+              formatted: true,
+            },
+          },
         },
       })
     : [];
