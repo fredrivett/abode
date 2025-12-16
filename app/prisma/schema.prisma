@@ -34,6 +34,12 @@ model User {
 
 enum ItemKind {
   image
+  article
+}
+
+enum SourceType {
+  upload
+  url
 }
 
 enum ProcessingStatus {
@@ -46,10 +52,16 @@ enum ProcessingStatus {
 model Item {
   id               String           @id @default(uuid()) @db.Uuid
   userId           String           @map("user_id") @db.Uuid
-  kind             ItemKind
+  kind             ItemKind?
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
+
+  // Source tracking
+  sourceType       SourceType?      @map("source_type")
+  sourceUrl        String?          @map("source_url")
+
+  // Files
   fileKey          String?          @map("file_key")
-  sourceType       String?          @map("source_type")
+  coverFileKey     String?          @map("cover_file_key")
 
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
   meta             Json?
@@ -74,6 +86,7 @@ model Item {
   locations         ItemLocation[]
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
+  articleDetails    ItemArticleDetails?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
@@ -149,4 +162,19 @@ model ItemTextVector {
   @@index([itemId])
   @@index([userId])
   @@map("item_text_vectors")
+}
+
+model ItemArticleDetails {
+  itemId      String    @id @map("item_id") @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  author      String?
+  domain      String?
+  publishedAt DateTime? @map("published_at")
+  readingTime Int?      @map("reading_time") // minutes
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_article_details")
 }

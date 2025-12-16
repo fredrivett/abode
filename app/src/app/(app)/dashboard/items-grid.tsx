@@ -1,5 +1,6 @@
 "use client";
 
+import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -23,11 +24,11 @@ type ItemLocation = {
 
 type DashboardItem = {
   id: string;
-  kind: string;
-  processingStatus: string;
+  kind: ItemKind | null;
+  processingStatus: ProcessingStatus;
   fileKey: string | null;
   meta: Record<string, unknown> | null;
-  sourceType: string | null;
+  sourceType: SourceType | null;
   createdAt: string;
   title: string | null;
   description: string | null;
