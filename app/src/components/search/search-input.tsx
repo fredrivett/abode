@@ -2,9 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Filter as FilterIcon } from "lucide-react";
-import { createLogger } from "@/lib/logger.client";
-
-const logger = createLogger("search-input");
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -40,9 +37,10 @@ function parseFilterContext(query: string): {
     return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
   }
 
-  // @ must be at start or after a space
-  const charBefore = query[lastAtIndex - 1];
-  if (lastAtIndex > 0 && charBefore !== " ") {
+  const isAtStartOfQuery = lastAtIndex === 0;
+  const isAfterSpace = query[lastAtIndex - 1] === " ";
+  const isValidFilterStart = isAtStartOfQuery || isAfterSpace;
+  if (!isValidFilterStart) {
     return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
   }
 
@@ -52,9 +50,8 @@ function parseFilterContext(query: string): {
   const colonIndex = afterAt.indexOf(":");
 
   if (colonIndex === -1) {
-    // No colon yet - user is selecting filter type
-    // Check if text after @ contains a space (filter abandoned)
-    if (afterAt.includes(" ")) {
+    const filterAbandoned = afterAt.includes(" ");
+    if (filterAbandoned) {
       return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
     }
     return {
@@ -65,12 +62,10 @@ function parseFilterContext(query: string): {
     };
   }
 
-  // Has colon - check if it's a valid filter type
   const typePart = afterAt.slice(0, colonIndex);
   const valuePart = afterAt.slice(colonIndex + 1);
-
-  // Check if value part has a space (filter abandoned)
-  if (valuePart.includes(" ")) {
+  const filterAbandoned = valuePart.includes(" ");
+  if (filterAbandoned) {
     return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
   }
 
@@ -104,11 +99,10 @@ export function SearchInput({
   // Parse current filter context from query
   const filterContext = parseFilterContext(value.query);
 
-  // Dropdown is open when we're in types mode, or in values mode for non-date filters
-  const dropdownOpen = filterContext.mode === "types" ||
-    (filterContext.mode === "values" && filterContext.filterType !== "date");
+  const isSelectingFilterType = filterContext.mode === "types";
+  const isSelectingNonDateValue = filterContext.mode === "values" && filterContext.filterType !== "date";
+  const dropdownOpen = isSelectingFilterType || isSelectingNonDateValue;
 
-  // Date picker is open when we're in values mode for date filter
   const datePickerOpen = filterContext.mode === "values" && filterContext.filterType === "date";
 
   // Load filter values when entering values mode (for non-date types)
@@ -173,11 +167,9 @@ export function SearchInput({
   }, [value, onChange, filterContext, addFilterToList]);
 
   const handleAddFilter = useCallback((filter: Filter) => {
-    logger.debug("handleAddFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
     // Remove any partial filter text
     const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
     const newFilters = addFilterToList(value.filters, filter);
-    logger.debug("handleAddFilter newQuery", { newQuery, filtersCount: newFilters.length });
 
     onChange({
       query: newQuery,
@@ -188,14 +180,12 @@ export function SearchInput({
   }, [value, onChange, filterContext.prefixEnd, addFilterToList]);
 
   const handleAddDateFilter = useCallback((filter: Filter, _displayValue: string) => {
-    logger.debug("handleAddDateFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
     // Mark that we just applied a date filter so handleCloseDatePicker doesn't clear it
     dateFilterAppliedRef.current = true;
 
     // Remove the @date: part from query (same as other filters)
     const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
     const newFilters = addFilterToList(value.filters, filter);
-    logger.debug("handleAddDateFilter newQuery", { newQuery, filtersCount: newFilters.length });
 
     onChange({
       query: newQuery,
@@ -214,8 +204,9 @@ export function SearchInput({
   }, [value, onChange]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Backspace on empty input removes last filter chip
-    if (e.key === "Backspace" && value.query === "" && value.filters.length > 0) {
+    const isBackspaceOnEmptyInput = e.key === "Backspace" && value.query === "";
+    const hasFiltersToRemove = value.filters.length > 0;
+    if (isBackspaceOnEmptyInput && hasFiltersToRemove) {
       e.preventDefault();
       const lastFilter = value.filters[value.filters.length - 1];
       handleRemoveFilter(lastFilter.id);
@@ -238,31 +229,28 @@ export function SearchInput({
   }, [value, onChange, filterContext.prefixEnd, filterContext.mode]);
 
   const handleCloseDatePicker = useCallback((open: boolean) => {
-    logger.debug("handleCloseDatePicker called", { open, query: value.query, dateFilterApplied: dateFilterAppliedRef.current });
     if (!open) {
       // If we just applied a date filter, don't clear anything - reset the flag and return
       if (dateFilterAppliedRef.current) {
-        logger.debug("handleCloseDatePicker skipping - date filter was just applied");
         dateFilterAppliedRef.current = false;
         return;
       }
       // Otherwise, user cancelled - clear the @date: from the query
       const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-      logger.debug("handleCloseDatePicker clearing query (user cancelled)", { newQuery });
       onChange({ ...value, query: newQuery });
     }
   }, [value, onChange, filterContext.prefixEnd]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        if (dropdownOpen) {
-          handleCloseDropdown();
-        }
+      const target = e.target as Node;
+      const isInsideContainer = containerRef.current?.contains(target);
+      const popoverContent = document.querySelector("[data-radix-popper-content-wrapper]");
+      const isInsidePopover = popoverContent?.contains(target);
+
+      const isClickOutside = !isInsideContainer && !isInsidePopover;
+      if (isClickOutside && dropdownOpen) {
+        handleCloseDropdown();
       }
     };
 
@@ -281,30 +269,32 @@ export function SearchInput({
           onRemove={handleRemoveFilter}
         />
 
-        {/* Input wrapper */}
-        <div className="relative min-w-32 flex-1">
-          <input
-            ref={inputRef}
-            type="text"
-            value={value.query}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            aria-label="Search"
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
-          />
-        </div>
+        {/* Input + filter button wrapper - stays together when wrapping */}
+        <div className="flex min-w-48 flex-1 items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={value.query}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              aria-label="Search"
+              className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
+            />
+          </div>
 
-        {/* Mobile filter button */}
-        <Button
-          variant="ghost-subtle"
-          size="icon"
-          className="shrink-0 md:hidden"
-          onClick={handleFilterButtonClick}
-          aria-label="Add filter"
-        >
-          <FilterIcon className="size-4" />
-        </Button>
+          {/* Mobile filter button */}
+          <Button
+            variant="ghost-subtle"
+            size="icon"
+            className="shrink-0 md:hidden"
+            onClick={handleFilterButtonClick}
+            aria-label="Add filter"
+          >
+            <FilterIcon className="size-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Filter dropdown (for types and non-date values) */}

@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { createLogger } from "@/lib/logger.client";
-
-const logger = createLogger("date-range-picker");
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +43,6 @@ export function DateRangePicker({
   };
 
   const handleApply = () => {
-    logger.debug("handleApply called", { mode, selectedDate, dateRange });
     let dateValue: string | null = null;
     let filter: Filter | null = null;
 
@@ -85,17 +81,12 @@ export function DateRangePicker({
       };
     }
 
-    logger.debug("handleApply computed", { dateValue, filter });
-
     if (dateValue && filter) {
-      logger.debug("handleApply calling onAddFilter", { filter, dateValue });
-      // Add the filter with the display value (combined in one call to avoid stale closure issues)
       onAddFilter(filter, dateValue);
       // Reset state
       setMode("single");
       setSelectedDate(undefined);
       setDateRange(undefined);
-      logger.debug("handleApply complete");
     }
   };
 

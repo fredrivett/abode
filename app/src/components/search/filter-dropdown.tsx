@@ -140,6 +140,14 @@ export function FilterDropdown({
         align="start"
         sideOffset={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => {
+          // Prevent closing when clicking inside the popover
+          // The onClose will be handled by our click handlers
+        }}
+        onInteractOutside={(e) => {
+          // Let the search-input's click-outside handler manage this
+          e.preventDefault();
+        }}
       >
         <div ref={listRef} className="max-h-64 overflow-y-auto">
           {mode === "types" && (
@@ -157,7 +165,11 @@ export function FilterDropdown({
                     <button
                       key={type}
                       data-index={index}
-                      onClick={() => onSelectType(type)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelectType(type);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                         index === selectedIndex
@@ -198,7 +210,11 @@ export function FilterDropdown({
                     <button
                       key={value}
                       data-index={index}
-                      onClick={() => onSelectValue(value)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelectValue(value);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                         index === selectedIndex
