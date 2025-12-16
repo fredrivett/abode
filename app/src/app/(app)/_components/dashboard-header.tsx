@@ -64,10 +64,13 @@ export function DashboardHeader({
         {showHomeLink && (
           <Link
             href="/dashboard"
-            className="absolute top-full left-2 mt-1 flex items-center gap-1 whitespace-nowrap text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
+            className="group/home absolute top-full left-2 mt-1 flex items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
           >
-            <ArrowUpLeft className="size-3.5" />
-            take me home
+            <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
+            take me
+            <span className="ml-1 transition-all group-hover/home:font-serif">
+              home
+            </span>
           </Link>
         )}
       </div>

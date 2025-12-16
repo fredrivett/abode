@@ -87,10 +87,10 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
       <button
         type="button"
         onClick={handleClick}
-        className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 cursor-pointer pr-2 opacity-0 transition-opacity group-hover:opacity-50 hover:!opacity-100"
+        className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 cursor-pointer pr-1 opacity-0 transition-opacity group-hover:opacity-50 hover:!opacity-100"
         aria-label={`Copy link to ${text}`}
       >
-        <Hash className="size-4" />
+        <Hash className="size-[1em]" />
       </button>
       {children}
     </Tag>

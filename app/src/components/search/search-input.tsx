@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Filter as FilterIcon } from "lucide-react";
+import { Filter as FilterIcon, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -136,10 +137,23 @@ export function SearchInput({
   const addFilterToList = useCallback((filters: Filter[], newFilter: Filter): Filter[] => {
     const filterMeta = FILTER_TYPES[newFilter.type];
     if (filterMeta.multiple) {
-      // Allow multiple - just append
       return [...filters, newFilter];
     }
     // Single only - replace any existing filter of the same type
+    const existingFilter = filters.find(f => f.type === newFilter.type);
+    if (existingFilter) {
+      toast(
+        <span>
+          Replaced "{existingFilter.value}" — only one {filterMeta.label.toLowerCase()} filter allowed.{" "}
+          <a href="/help/filtering" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:no-underline">
+            Want OR queries? Use pipes
+          </a>
+        </span>,
+        {
+          icon: <RefreshCw className="size-4 animate-[spin_0.7s_ease-in-out_0.15s_1]" />,
+        }
+      );
+    }
     const withoutExisting = filters.filter(f => f.type !== newFilter.type);
     return [...withoutExisting, newFilter];
   }, []);

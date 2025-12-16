@@ -1,8 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import Markdown from "markdown-to-jsx";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { AbodeInline } from "../_components/abode-inline";
 import { FilterTypesTable } from "../_components/filter-types-table";
 import { HeadingIdProvider } from "../_components/heading-id-context";
 import { HeadingLink } from "../_components/heading-link";
@@ -34,6 +33,9 @@ const markdownOptions = {
     FilterTypesTable: {
       component: FilterTypesTable,
     },
+    Abode: {
+      component: AbodeInline,
+    },
   },
 };
 
@@ -42,14 +44,6 @@ export default async function FilteringHelpPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link
-        href="/dashboard"
-        className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to dashboard
-      </Link>
-
       <HeadingIdProvider>
         <article className="prose prose-neutral dark:prose-invert prose-headings:font-serif prose-h1:text-3xl prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-base prose-h3:font-semibold prose-p:text-base prose-table:text-sm prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none">
           <Markdown options={markdownOptions}>{filteringContent}</Markdown>

@@ -1,7 +1,8 @@
 # Filtering Your Items
 
-You can search in two ways:
-- **Natural language** — Just type what you're looking for (e.g., "beach sunset photos")
+You can search your <Abode /> in two ways:
+
+- **Natural language** — Just type what you're looking for (e.g., "beach sunset photos"), we'll do our best to find what you're looking for
 - **Filters** — Use `@` syntax for precise control (e.g., `@tag:landscape @source:instagram`)
 
 Type `@` in the search box to see available filters.
@@ -9,6 +10,7 @@ Type `@` in the search box to see available filters.
 ## Filter Syntax
 
 Filters use the format `@type:value`. For example:
+
 - `@tag:landscape` — items tagged "landscape"
 - `@source:instagram` — items from Instagram
 - `@date:2024-01-15` — items from a specific date
@@ -22,11 +24,13 @@ The "Stacks" column indicates whether you can add multiple filters of the same t
 ## Combining Filters
 
 ### AND (Multiple Filters)
+
 Add multiple filters to require all conditions. Each filter chip represents an AND condition.
 
-**Example:** `@tag:nature` + `@tag:sunset` finds items that have *both* the "nature" AND "sunset" tags.
+**Example:** `@tag:nature` + `@tag:sunset` finds items that have _both_ the "nature" AND "sunset" tags.
 
 ### OR (Pipe Syntax)
+
 Use the pipe character `|` within a single filter value to match any of the options.
 
 **Example:** `@source:instagram|camera-roll` finds items from Instagram OR Camera Roll.
@@ -36,6 +40,7 @@ This is especially useful for single-value fields like Type, Source, and Date wh
 ## Date Filters
 
 Date filters support special operators:
+
 - `@date:2024-01-15` — exact date
 - `@date:>2024-01-15` — after this date
 - `@date:<2024-01-15` — before this date
