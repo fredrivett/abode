@@ -11,17 +11,9 @@ import {
   MAX_IMAGE_UPLOAD_BYTES,
   MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploads";
+import { isValidUrl } from "@/lib/url-utils";
 
 const log = createLogger("dashboard/dropzone");
-
-function isValidUrl(text: string): boolean {
-  try {
-    const url = new URL(text);
-    return ["http:", "https:"].includes(url.protocol);
-  } catch {
-    return false;
-  }
-}
 
 function hasFiles(dataTransfer?: DataTransfer | null) {
   if (!dataTransfer) return false;

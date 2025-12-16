@@ -1,0 +1,164 @@
+import { describe, expect, it } from "vitest";
+import {
+  getExtensionFromContentType,
+  isImageUrl,
+  isValidUrl,
+} from "./url-utils";
+
+describe("isValidUrl", () => {
+  it("returns true for valid http URLs", () => {
+    expect(isValidUrl("http://example.com")).toBe(true);
+    expect(isValidUrl("http://example.com/path")).toBe(true);
+    expect(isValidUrl("http://example.com/path?query=1")).toBe(true);
+  });
+
+  it("returns true for valid https URLs", () => {
+    expect(isValidUrl("https://example.com")).toBe(true);
+    expect(isValidUrl("https://example.com/path")).toBe(true);
+    expect(isValidUrl("https://example.com/path?query=1")).toBe(true);
+  });
+
+  it("returns false for invalid URLs", () => {
+    expect(isValidUrl("not a url")).toBe(false);
+    expect(isValidUrl("example.com")).toBe(false);
+    expect(isValidUrl("")).toBe(false);
+    expect(isValidUrl("   ")).toBe(false);
+  });
+
+  it("returns false for non-http protocols", () => {
+    expect(isValidUrl("ftp://example.com")).toBe(false);
+    expect(isValidUrl("file:///path/to/file")).toBe(false);
+    expect(isValidUrl("javascript:alert(1)")).toBe(false);
+    expect(isValidUrl("data:text/html,<h1>Test</h1>")).toBe(false);
+  });
+});
+
+describe("isImageUrl", () => {
+  describe("detection by content type", () => {
+    it("detects common image content types", () => {
+      expect(isImageUrl("https://example.com/file", "image/jpeg")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "image/png")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "image/gif")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "image/webp")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "image/bmp")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "image/svg+xml")).toBe(
+        true,
+      );
+      expect(isImageUrl("https://example.com/file", "image/x-icon")).toBe(true);
+    });
+
+    it("handles content type with charset", () => {
+      expect(
+        isImageUrl("https://example.com/file", "image/jpeg; charset=utf-8"),
+      ).toBe(true);
+      expect(
+        isImageUrl("https://example.com/file", "image/png; charset=utf-8"),
+      ).toBe(true);
+    });
+
+    it("is case insensitive for content types", () => {
+      expect(isImageUrl("https://example.com/file", "IMAGE/JPEG")).toBe(true);
+      expect(isImageUrl("https://example.com/file", "Image/Png")).toBe(true);
+    });
+
+    it("returns false for non-image content types", () => {
+      expect(isImageUrl("https://example.com/file", "text/html")).toBe(false);
+      expect(isImageUrl("https://example.com/file", "application/json")).toBe(
+        false,
+      );
+      expect(
+        isImageUrl("https://example.com/file", "application/pdf"),
+      ).toBe(false);
+    });
+  });
+
+  describe("detection by URL extension", () => {
+    it("detects common image extensions", () => {
+      expect(isImageUrl("https://example.com/image.jpg")).toBe(true);
+      expect(isImageUrl("https://example.com/image.jpeg")).toBe(true);
+      expect(isImageUrl("https://example.com/image.png")).toBe(true);
+      expect(isImageUrl("https://example.com/image.gif")).toBe(true);
+      expect(isImageUrl("https://example.com/image.webp")).toBe(true);
+      expect(isImageUrl("https://example.com/image.bmp")).toBe(true);
+      expect(isImageUrl("https://example.com/image.svg")).toBe(true);
+      expect(isImageUrl("https://example.com/image.ico")).toBe(true);
+    });
+
+    it("is case insensitive for extensions", () => {
+      expect(isImageUrl("https://example.com/image.JPG")).toBe(true);
+      expect(isImageUrl("https://example.com/image.PNG")).toBe(true);
+      expect(isImageUrl("https://example.com/image.WEBP")).toBe(true);
+    });
+
+    it("handles URLs with query strings", () => {
+      expect(isImageUrl("https://example.com/image.jpg?size=large")).toBe(true);
+      expect(isImageUrl("https://example.com/image.png?v=123")).toBe(true);
+    });
+
+    it("returns false for non-image extensions", () => {
+      expect(isImageUrl("https://example.com/page.html")).toBe(false);
+      expect(isImageUrl("https://example.com/document.pdf")).toBe(false);
+      expect(isImageUrl("https://example.com/script.js")).toBe(false);
+    });
+
+    it("returns false for URLs without extensions", () => {
+      expect(isImageUrl("https://example.com/page")).toBe(false);
+      expect(isImageUrl("https://example.com/")).toBe(false);
+    });
+  });
+
+  describe("priority of content type over extension", () => {
+    it("uses content type when both are available", () => {
+      // Content type says image, extension says html
+      expect(isImageUrl("https://example.com/page.html", "image/jpeg")).toBe(
+        true,
+      );
+      // Content type says html, extension says image
+      expect(isImageUrl("https://example.com/image.jpg", "text/html")).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("handles null/undefined content type", () => {
+    it("falls back to extension check when content type is null", () => {
+      expect(isImageUrl("https://example.com/image.jpg", null)).toBe(true);
+      expect(isImageUrl("https://example.com/page.html", null)).toBe(false);
+    });
+
+    it("falls back to extension check when content type is undefined", () => {
+      expect(isImageUrl("https://example.com/image.jpg", undefined)).toBe(true);
+      expect(isImageUrl("https://example.com/page.html", undefined)).toBe(
+        false,
+      );
+    });
+  });
+});
+
+describe("getExtensionFromContentType", () => {
+  it("returns correct extension for common image types", () => {
+    expect(getExtensionFromContentType("image/jpeg")).toBe(".jpg");
+    expect(getExtensionFromContentType("image/png")).toBe(".png");
+    expect(getExtensionFromContentType("image/gif")).toBe(".gif");
+    expect(getExtensionFromContentType("image/webp")).toBe(".webp");
+    expect(getExtensionFromContentType("image/bmp")).toBe(".bmp");
+    expect(getExtensionFromContentType("image/svg+xml")).toBe(".svg");
+    expect(getExtensionFromContentType("image/x-icon")).toBe(".ico");
+  });
+
+  it("handles content type with charset", () => {
+    expect(getExtensionFromContentType("image/jpeg; charset=utf-8")).toBe(
+      ".jpg",
+    );
+    expect(getExtensionFromContentType("image/png; charset=utf-8")).toBe(
+      ".png",
+    );
+  });
+
+  it("defaults to .jpg for unknown types", () => {
+    expect(getExtensionFromContentType("application/octet-stream")).toBe(
+      ".jpg",
+    );
+    expect(getExtensionFromContentType("unknown/type")).toBe(".jpg");
+  });
+});

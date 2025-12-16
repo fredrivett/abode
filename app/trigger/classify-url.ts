@@ -3,6 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { extractArticleMetadata } from "../src/lib/html-metadata";
+import {
+  getExtensionFromContentType,
+  isImageUrl,
+} from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 
 type ClassifyUrlPayload = {
@@ -10,38 +15,6 @@ type ClassifyUrlPayload = {
   userId: string;
   url: string;
 };
-
-type ArticleMetadata = {
-  title: string | null;
-  description: string | null;
-  author: string | null;
-  domain: string;
-  publishedAt: Date | null;
-  ogImage: string | null;
-};
-
-// Common image extensions
-const imageExtensions = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".webp",
-  ".bmp",
-  ".svg",
-  ".ico",
-]);
-
-// Content types that indicate an image
-const imageContentTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/bmp",
-  "image/svg+xml",
-  "image/x-icon",
-]);
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,119 +31,6 @@ function getSupabaseConfig() {
   }
 
   return { url, key };
-}
-
-function isImageUrl(url: string, contentType?: string): boolean {
-  // Check content type first if available
-  if (contentType) {
-    const mimeType = contentType.split(";")[0].trim().toLowerCase();
-    if (imageContentTypes.has(mimeType)) {
-      return true;
-    }
-  }
-
-  // Check URL extension
-  try {
-    const parsedUrl = new URL(url);
-    const pathname = parsedUrl.pathname.toLowerCase();
-    for (const ext of imageExtensions) {
-      if (pathname.endsWith(ext)) {
-        return true;
-      }
-    }
-  } catch {
-    // Invalid URL, not an image
-  }
-
-  return false;
-}
-
-function extractMetaContent(html: string, name: string): string | null {
-  // Try property (Open Graph)
-  const ogMatch = html.match(
-    new RegExp(
-      `<meta[^>]+property=["']${name}["'][^>]+content=["']([^"']+)["']`,
-      "i",
-    ),
-  );
-  if (ogMatch) return ogMatch[1];
-
-  // Try name (standard meta)
-  const nameMatch = html.match(
-    new RegExp(
-      `<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']+)["']`,
-      "i",
-    ),
-  );
-  if (nameMatch) return nameMatch[1];
-
-  // Try reversed attribute order
-  const reversedOg = html.match(
-    new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${name}["']`,
-      "i",
-    ),
-  );
-  if (reversedOg) return reversedOg[1];
-
-  const reversedName = html.match(
-    new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${name}["']`,
-      "i",
-    ),
-  );
-  if (reversedName) return reversedName[1];
-
-  return null;
-}
-
-function extractTitle(html: string): string | null {
-  // Try Open Graph title first
-  const ogTitle = extractMetaContent(html, "og:title");
-  if (ogTitle) return ogTitle;
-
-  // Try Twitter title
-  const twitterTitle = extractMetaContent(html, "twitter:title");
-  if (twitterTitle) return twitterTitle;
-
-  // Fall back to <title> tag
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) return titleMatch[1].trim();
-
-  return null;
-}
-
-function extractArticleMetadata(html: string, url: string): ArticleMetadata {
-  const parsedUrl = new URL(url);
-
-  return {
-    title: extractTitle(html),
-    description:
-      extractMetaContent(html, "og:description") ||
-      extractMetaContent(html, "description") ||
-      extractMetaContent(html, "twitter:description"),
-    author:
-      extractMetaContent(html, "author") ||
-      extractMetaContent(html, "article:author"),
-    domain: parsedUrl.hostname.replace(/^www\./, ""),
-    publishedAt: parsePublishedDate(
-      extractMetaContent(html, "article:published_time") ||
-        extractMetaContent(html, "datePublished"),
-    ),
-    ogImage:
-      extractMetaContent(html, "og:image") ||
-      extractMetaContent(html, "twitter:image"),
-  };
-}
-
-function parsePublishedDate(dateStr: string | null): Date | null {
-  if (!dateStr) return null;
-  try {
-    const date = new Date(dateStr);
-    return Number.isNaN(date.getTime()) ? null : date;
-  } catch {
-    return null;
-  }
 }
 
 async function downloadAndStoreImage(
@@ -197,15 +57,7 @@ async function downloadAndStoreImage(
     const contentType = response.headers.get("content-type") || "image/jpeg";
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // Determine file extension from content type
-    const extMap: Record<string, string> = {
-      "image/jpeg": ".jpg",
-      "image/png": ".png",
-      "image/gif": ".gif",
-      "image/webp": ".webp",
-    };
-    const ext = extMap[contentType.split(";")[0]] || ".jpg";
-
+    const ext = getExtensionFromContentType(contentType);
     const fileKey = `${userId}/${randomUUID()}${ext}`;
 
     const { error: uploadError } = await supabase.storage
