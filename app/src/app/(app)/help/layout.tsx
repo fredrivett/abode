@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader } from "../_components/dashboard-header";
 import { signOut } from "../dashboard/actions";
+import { HelpNav } from "./_components/help-nav";
 
 function getString(value: unknown): string | undefined {
   if (typeof value !== "string") return;
@@ -64,7 +65,12 @@ export default async function HelpLayout({
           showHomeLink={true}
         />
       </Suspense>
-      <div className="mx-auto w-full max-w-5xl px-4 py-8">{children}</div>
+      <div className="mx-auto flex w-full max-w-5xl gap-8 px-4 py-8">
+        <aside className="hidden w-48 shrink-0 md:block">
+          <HelpNav />
+        </aside>
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }
