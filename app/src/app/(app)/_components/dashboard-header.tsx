@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, LogOut } from "lucide-react";
+import { ArrowUpLeft, Blocks, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
@@ -30,6 +30,7 @@ type DashboardHeaderProps = {
   avatarUrl?: string | null;
   signOutAction: () => Promise<void>;
   showSearch?: boolean;
+  showHomeLink?: boolean;
 };
 
 export function DashboardHeader({
@@ -39,6 +40,7 @@ export function DashboardHeader({
   avatarUrl,
   signOutAction,
   showSearch = true,
+  showHomeLink = false,
 }: DashboardHeaderProps) {
   const { state: searchState, setState: setSearchState } = useSearch();
 
@@ -49,15 +51,26 @@ export function DashboardHeader({
 
   return (
     <header className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
-      <h1 className="order-1 flex h-8 shrink-0 items-center">
-        <Link
-          href="/dashboard"
-          className="opacity-50 transition-opacity hover:opacity-100"
-        >
-          <span className="sr-only">abode</span>
-          <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
-        </Link>
-      </h1>
+      <div className="relative order-1 flex h-8 shrink-0 items-center">
+        <h1>
+          <Link
+            href="/dashboard"
+            className="opacity-50 transition-opacity hover:opacity-100"
+          >
+            <span className="sr-only">abode</span>
+            <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
+          </Link>
+        </h1>
+        {showHomeLink && (
+          <Link
+            href="/dashboard"
+            className="absolute top-full left-2 mt-1 flex items-center gap-1 whitespace-nowrap text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
+          >
+            <ArrowUpLeft className="size-3.5" />
+            take me home
+          </Link>
+        )}
+      </div>
 
       <div className="order-2 ml-auto flex h-8 shrink-0 items-center gap-2 md:order-3">
         <Tooltip>
