@@ -2,7 +2,7 @@
 
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import type { SelectSingleEventHandler } from "react-day-picker";
+import type { DateRange, SelectSingleEventHandler } from "react-day-picker";
 
 import { Calendar } from "@/components/ui/calendar";
 
@@ -39,7 +39,7 @@ export const WithDropdowns: Story = {
     return (
       <Calendar
         mode="single"
-        captionLayout="dropdown-buttons"
+        captionLayout="dropdown"
         selected={selected}
         onSelect={setSelected as SelectSingleEventHandler}
       />
@@ -49,10 +49,7 @@ export const WithDropdowns: Story = {
 
 export const RangeSelection: Story = {
   render: () => {
-    const [selected, setSelected] = useState<{
-      from?: Date;
-      to?: Date;
-    }>({
+    const [selected, setSelected] = useState<DateRange | undefined>({
       from: new Date(),
       to: new Date(new Date().setDate(new Date().getDate() + 7)),
     });
@@ -88,10 +85,7 @@ export const Disabled: Story = {
 
 export const MultipleMonth: Story = {
   render: () => {
-    const [selected, setSelected] = useState<{
-      from?: Date;
-      to?: Date;
-    }>({
+    const [selected, setSelected] = useState<DateRange | undefined>({
       from: new Date(),
     });
 
