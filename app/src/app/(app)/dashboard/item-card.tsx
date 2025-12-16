@@ -31,8 +31,22 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ImageColor } from "@/lib/vision";
 import { ColorsBar } from "./_components/colors-bar";
+import { LocationMap } from "./_components/location-map";
 
 const log = createLogger("dashboard/item-card");
+
+type ItemLocation = {
+  id: string;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  countryCode: string | null;
+  formatted: string | null;
+};
 
 type DashboardItem = {
   id: string;
@@ -48,6 +62,7 @@ type DashboardItem = {
   objects: string[];
   colors: ImageColor[];
   ocrText: string | null;
+  locations: ItemLocation[];
 };
 
 type ItemCardProps = {
@@ -511,6 +526,95 @@ function ItemDetailDialog({
                               {item.ocrText}
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Location */}
+                      {item.locations.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            Location
+                          </h3>
+                          {item.locations.map((location) => {
+                            const hasLocationData =
+                              location.neighborhood ||
+                              location.city ||
+                              location.region ||
+                              location.country;
+
+                            return (
+                              <div key={location.id} className="space-y-2">
+                                {hasLocationData && (
+                                  <div className="space-y-1 text-sm">
+                                    {location.neighborhood && (
+                                      <div className="flex justify-between">
+                                        <span className="text-zinc-500">
+                                          Neighborhood
+                                        </span>
+                                        <span className="font-medium">
+                                          {location.neighborhood}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {location.city && (
+                                      <div className="flex justify-between">
+                                        <span className="text-zinc-500">
+                                          City
+                                        </span>
+                                        <span className="font-medium">
+                                          {location.city}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {location.region && (
+                                      <div className="flex justify-between">
+                                        <span className="text-zinc-500">
+                                          Region
+                                        </span>
+                                        <span className="font-medium">
+                                          {location.region}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {location.country && (
+                                      <div className="flex justify-between">
+                                        <span className="text-zinc-500">
+                                          Country
+                                        </span>
+                                        <span className="font-medium">
+                                          {location.countryCode && (
+                                            <span className="mr-1">
+                                              {String.fromCodePoint(
+                                                ...[
+                                                  ...location.countryCode.toUpperCase(),
+                                                ].map(
+                                                  (c) =>
+                                                    127397 + c.charCodeAt(0),
+                                                ),
+                                              )}
+                                            </span>
+                                          )}
+                                          {location.country}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {location.latitude != null &&
+                                  location.longitude != null && (
+                                    <LocationMap
+                                      latitude={location.latitude}
+                                      longitude={location.longitude}
+                                      locationName={
+                                        location.city ||
+                                        location.country ||
+                                        "Location"
+                                      }
+                                    />
+                                  )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </>

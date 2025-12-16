@@ -7,6 +7,19 @@ import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "./item-card";
 
+type ItemLocation = {
+  id: string;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  countryCode: string | null;
+  formatted: string | null;
+};
+
 type DashboardItem = {
   id: string;
   kind: string;
@@ -21,6 +34,7 @@ type DashboardItem = {
   objects: string[];
   colors: ImageColor[];
   ocrText: string | null;
+  locations: ItemLocation[];
 };
 
 function formatBytes(bytes?: number | null) {
