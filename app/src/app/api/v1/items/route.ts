@@ -30,7 +30,7 @@ export async function GET(_request: NextRequest) {
         processingStatus: true,
         fileKey: true,
         meta: true,
-        source: true,
+        sourceType: true,
         createdAt: true,
         updatedAt: true,
         title: true,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { kind, fileKey, meta, source } = body;
+    const { kind, fileKey, meta, sourceType } = body;
 
     if (!kind || !allowedKinds.has(kind)) {
       return NextResponse.json(
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         kind,
         fileKey: fileKey || null,
         meta: meta || null,
-        source: source || null,
+        sourceType: sourceType || null,
         userId: user.id,
         processingStatus: "processing",
       },
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         processingStatus: true,
         fileKey: true,
         meta: true,
-        source: true,
+        sourceType: true,
         createdAt: true,
         updatedAt: true,
       },

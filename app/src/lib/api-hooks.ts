@@ -68,7 +68,7 @@ export function useItems() {
       processingStatus: string;
       fileKey: string | null;
       meta: ItemMeta | null;
-      source: string | null;
+      sourceType: string | null;
       createdAt: string;
       updatedAt: string;
     }>
@@ -82,7 +82,7 @@ export function useCreateItem() {
       kind: string;
       fileKey?: string;
       meta?: ItemMeta;
-      source?: string;
+      sourceType?: string;
     }
   >((data) => api.post("/api/v1/items", data), {
     invalidateQueries: ["/api/v1/items"],
@@ -97,7 +97,7 @@ export function useUpdateItem() {
       processingStatus?: string;
       fileKey?: string;
       meta?: ItemMeta;
-      source?: string;
+      sourceType?: string;
     }
   >(({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data), {
     invalidateQueries: ["/api/v1/items"],

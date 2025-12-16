@@ -22,7 +22,7 @@ export default async function DashboardPage() {
           processingStatus: true,
           fileKey: true,
           meta: true,
-          source: true,
+          sourceType: true,
           createdAt: true,
           title: true,
           description: true,

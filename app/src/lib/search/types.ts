@@ -86,7 +86,7 @@ export const FILTER_TYPES: Record<
     label: "Source",
     placeholder: "e.g. instagram",
     icon: "🔗",
-    multiple: false, // source is a single String
+    multiple: false, // sourceType is a single String
   },
   date: {
     label: "Date",

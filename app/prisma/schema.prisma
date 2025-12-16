@@ -49,7 +49,7 @@ model Item {
   kind             ItemKind
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
   fileKey          String?          @map("file_key")
-  source           String?
+  sourceType       String?          @map("source_type")
 
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
   meta             Json?

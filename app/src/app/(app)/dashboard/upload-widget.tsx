@@ -122,7 +122,7 @@ export function UploadWidget() {
             width: dimensions?.width,
             height: dimensions?.height,
           },
-          source: "upload",
+          sourceType: "upload",
         });
       } catch (itemError) {
         await supabase.storage.from("items").remove([objectPath]);

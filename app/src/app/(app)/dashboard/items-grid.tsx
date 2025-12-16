@@ -27,7 +27,7 @@ type DashboardItem = {
   processingStatus: string;
   fileKey: string | null;
   meta: Record<string, unknown> | null;
-  source: string | null;
+  sourceType: string | null;
   createdAt: string;
   title: string | null;
   description: string | null;
