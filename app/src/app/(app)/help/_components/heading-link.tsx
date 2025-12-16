@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Hash } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useHeadingId } from "./heading-id-context";
 import { getTextFromChildren } from "./utils/get-text-from-children";
 
@@ -24,18 +25,46 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
   const { getOrCreateId } = useHeadingId();
   const instanceKey = useId(); // Stable key for this component instance
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [isHighlighted, setIsHighlighted] = useState(false);
   const text = getTextFromChildren(children);
   const baseId = slugify(text);
   const id = getOrCreateId(instanceKey, baseId);
   const Tag = `h${level}` as const;
 
+  const triggerHighlight = () => {
+    setIsHighlighted(true);
+    setTimeout(() => setIsHighlighted(false), 2250);
+  };
+
+  const scrollAndHighlight = () => {
+    headingRef.current?.scrollIntoView({ behavior: "smooth" });
+    triggerHighlight();
+  };
+
+  // Handle initial page load with hash
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (hash === id && headingRef.current) {
       requestAnimationFrame(() => {
-        headingRef.current?.scrollIntoView({ behavior: "smooth" });
+        scrollAndHighlight();
       });
     }
+  }, [id]);
+
+  // Intercept clicks on anchor links to this heading for smooth scroll
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (anchor?.hash === `#${id}`) {
+        e.preventDefault();
+        window.history.pushState(null, "", anchor.hash);
+        scrollAndHighlight();
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, [id]);
 
   const handleClick = () => {
@@ -43,11 +72,18 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
     window.history.replaceState(null, "", url);
     navigator.clipboard.writeText(window.location.href);
     toast("Link copied to clipboard");
-    headingRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollAndHighlight();
   };
 
   return (
-    <Tag ref={headingRef} id={id} className="group relative">
+    <Tag
+      ref={headingRef}
+      id={id}
+      className={cn(
+        "group relative -mx-2 -my-1 rounded-md px-2 py-1 transition-colors duration-1000",
+        isHighlighted && "bg-muted"
+      )}
+    >
       <button
         type="button"
         onClick={handleClick}
