@@ -54,13 +54,7 @@ export const RangeSelection: Story = {
       to: new Date(new Date().setDate(new Date().getDate() + 7)),
     });
 
-    return (
-      <Calendar
-        mode="range"
-        selected={selected}
-        onSelect={setSelected}
-      />
-    );
+    return <Calendar mode="range" selected={selected} onSelect={setSelected} />;
   },
 };
 

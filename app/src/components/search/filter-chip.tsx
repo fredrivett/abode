@@ -3,8 +3,12 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  FILTER_TYPES,
+  type Filter,
+  getFilterColorClass,
+} from "@/lib/search/types";
 import { cn } from "@/lib/utils";
-import { type Filter, FILTER_TYPES, getFilterColorClass } from "@/lib/search/types";
 
 type FilterChipProps = {
   filter: Filter;
@@ -23,7 +27,7 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
         "gap-1 pr-1 py-0.75 text-sm font-normal",
         getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
-        className
+        className,
       )}
     >
       <span className="opacity-70">{meta.label}:</span>
@@ -90,7 +94,11 @@ type FilterChipsProps = {
   className?: string;
 };
 
-export function FilterChips({ filters, onRemove, className }: FilterChipsProps) {
+export function FilterChips({
+  filters,
+  onRemove,
+  className,
+}: FilterChipsProps) {
   if (filters.length === 0) return null;
 
   return (

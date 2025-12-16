@@ -1,21 +1,20 @@
 "use client";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { FileText, Settings, Zap } from "lucide-react";
 import { useState } from "react";
-import { Zap, FileText, Settings } from "lucide-react";
-
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandDialog,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
+  CommandList,
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
 
 const meta = {
   title: "UI/Command",

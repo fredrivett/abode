@@ -1,20 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Filter as FilterIcon, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
+  createFilterId,
+  FILTER_TYPES,
   type Filter,
   type FilterType,
   type SearchState,
-  FILTER_TYPES,
-  createFilterId,
 } from "@/lib/search/types";
+import { cn } from "@/lib/utils";
+import { DateRangePicker } from "./date-range-picker";
 import { FilterChips } from "./filter-chip";
 import { FilterDropdown } from "./filter-dropdown";
-import { DateRangePicker } from "./date-range-picker";
 
 type SearchInputProps = {
   value: SearchState;
@@ -59,7 +59,7 @@ function parseFilterContext(query: string): {
       mode: "types",
       filterType: null,
       searchText: afterAt,
-      prefixEnd: lastAtIndex
+      prefixEnd: lastAtIndex,
     };
   }
 
@@ -75,7 +75,7 @@ function parseFilterContext(query: string): {
       mode: "values",
       filterType: typePart as FilterType,
       searchText: valuePart,
-      prefixEnd: lastAtIndex
+      prefixEnd: lastAtIndex,
     };
   }
 
@@ -101,14 +101,21 @@ export function SearchInput({
   const filterContext = parseFilterContext(value.query);
 
   const isSelectingFilterType = filterContext.mode === "types";
-  const isSelectingNonDateValue = filterContext.mode === "values" && filterContext.filterType !== "date";
+  const isSelectingNonDateValue =
+    filterContext.mode === "values" && filterContext.filterType !== "date";
   const dropdownOpen = isSelectingFilterType || isSelectingNonDateValue;
 
-  const datePickerOpen = filterContext.mode === "values" && filterContext.filterType === "date";
+  const datePickerOpen =
+    filterContext.mode === "values" && filterContext.filterType === "date";
 
   // Load filter values when entering values mode (for non-date types)
   useEffect(() => {
-    if (filterContext.mode === "values" && filterContext.filterType && filterContext.filterType !== "date" && getFilterValues) {
+    if (
+      filterContext.mode === "values" &&
+      filterContext.filterType &&
+      filterContext.filterType !== "date" &&
+      getFilterValues
+    ) {
       setLoadingValues(true);
       getFilterValues(filterContext.filterType)
         .then(setFilterValues)
@@ -123,99 +130,109 @@ export function SearchInput({
     onChange({ ...value, query: e.target.value });
   };
 
-  const handleSelectFilterType = useCallback((type: FilterType) => {
-    // Insert @type: into the query (for all types including date)
-    const beforeFilter = value.query.slice(0, filterContext.prefixEnd);
-    const newQuery = `${beforeFilter}@${type}:`;
-    onChange({ ...value, query: newQuery });
+  const handleSelectFilterType = useCallback(
+    (type: FilterType) => {
+      // Insert @type: into the query (for all types including date)
+      const beforeFilter = value.query.slice(0, filterContext.prefixEnd);
+      const newQuery = `${beforeFilter}@${type}:`;
+      onChange({ ...value, query: newQuery });
 
-    // Keep focus on input
-    inputRef.current?.focus();
-  }, [value, onChange, filterContext.prefixEnd]);
+      // Keep focus on input
+      inputRef.current?.focus();
+    },
+    [value, onChange, filterContext.prefixEnd],
+  );
 
   // Helper to add a filter, replacing existing ones if the type doesn't allow multiple
-  const addFilterToList = useCallback((filters: Filter[], newFilter: Filter): Filter[] => {
-    const filterMeta = FILTER_TYPES[newFilter.type];
-    if (filterMeta.multiple) {
-      return [...filters, newFilter];
-    }
-    // Single only - replace any existing filter of the same type
-    const existingFilter = filters.find(f => f.type === newFilter.type);
-    if (existingFilter) {
-      toast(
-        <span>
-          Replaced "{existingFilter.value}" — only one {filterMeta.label.toLowerCase()} filter allowed.{" "}
-          <a href="/help/filtering" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:no-underline">
-            Want OR queries? Use pipes
-          </a>
-        </span>,
-        {
-          icon: <RefreshCw className="size-4 animate-[spin_0.7s_ease-in-out_0.15s_1]" />,
-        }
-      );
-    }
-    const withoutExisting = filters.filter(f => f.type !== newFilter.type);
-    return [...withoutExisting, newFilter];
-  }, []);
+  const addFilterToList = useCallback(
+    (filters: Filter[], newFilter: Filter): Filter[] => {
+      const filterMeta = FILTER_TYPES[newFilter.type];
+      if (filterMeta.multiple) {
+        return [...filters, newFilter];
+      }
+      // Single only - replace any existing filter of the same type
+      const existingFilter = filters.find((f) => f.type === newFilter.type);
+      if (existingFilter) {
+        toast(
+          <span>
+            Replaced "{existingFilter.value}" — only one{" "}
+            {filterMeta.label.toLowerCase()} filter allowed.{" "}
+            <a
+              href="/help/filtering"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:no-underline"
+            >
+              Want OR queries? Use pipes
+            </a>
+          </span>,
+          {
+            icon: (
+              <RefreshCw className="size-4 animate-[spin_0.7s_ease-in-out_0.15s_1]" />
+            ),
+          },
+        );
+      }
+      const withoutExisting = filters.filter((f) => f.type !== newFilter.type);
+      return [...withoutExisting, newFilter];
+    },
+    [],
+  );
 
-  const handleSelectFilterValue = useCallback((filterValue: string) => {
-    if (!filterContext.filterType) return;
+  const handleSelectFilterValue = useCallback(
+    (filterValue: string) => {
+      if (!filterContext.filterType) return;
 
-    // Create the filter
-    const newFilter: Filter = {
-      id: createFilterId(),
-      type: filterContext.filterType,
-      value: filterValue,
-      negated: false,
-    };
+      // Create the filter
+      const newFilter: Filter = {
+        id: createFilterId(),
+        type: filterContext.filterType,
+        value: filterValue,
+        negated: false,
+      };
 
-    // Remove the @type:value part from query
-    const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
+      // Remove the @type:value part from query
+      const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
 
-    onChange({
-      query: newQuery,
-      filters: addFilterToList(value.filters, newFilter),
-    });
+      onChange({
+        query: newQuery,
+        filters: addFilterToList(value.filters, newFilter),
+      });
 
-    inputRef.current?.focus();
-  }, [value, onChange, filterContext, addFilterToList]);
+      inputRef.current?.focus();
+    },
+    [value, onChange, filterContext, addFilterToList],
+  );
 
-  const handleAddFilter = useCallback((filter: Filter) => {
-    // Remove any partial filter text
-    const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-    const newFilters = addFilterToList(value.filters, filter);
+  const handleAddDateFilter = useCallback(
+    (filter: Filter, _displayValue: string) => {
+      // Mark that we just applied a date filter so handleCloseDatePicker doesn't clear it
+      dateFilterAppliedRef.current = true;
 
-    onChange({
-      query: newQuery,
-      filters: newFilters,
-    });
+      // Remove the @date: part from query (same as other filters)
+      const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
+      const newFilters = addFilterToList(value.filters, filter);
 
-    inputRef.current?.focus();
-  }, [value, onChange, filterContext.prefixEnd, addFilterToList]);
+      onChange({
+        query: newQuery,
+        filters: newFilters,
+      });
 
-  const handleAddDateFilter = useCallback((filter: Filter, _displayValue: string) => {
-    // Mark that we just applied a date filter so handleCloseDatePicker doesn't clear it
-    dateFilterAppliedRef.current = true;
+      inputRef.current?.focus();
+    },
+    [value, onChange, filterContext.prefixEnd, addFilterToList],
+  );
 
-    // Remove the @date: part from query (same as other filters)
-    const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-    const newFilters = addFilterToList(value.filters, filter);
-
-    onChange({
-      query: newQuery,
-      filters: newFilters,
-    });
-
-    inputRef.current?.focus();
-  }, [value, onChange, filterContext.prefixEnd, addFilterToList]);
-
-  const handleRemoveFilter = useCallback((id: string) => {
-    onChange({
-      ...value,
-      filters: value.filters.filter((f) => f.id !== id),
-    });
-    inputRef.current?.focus();
-  }, [value, onChange]);
+  const handleRemoveFilter = useCallback(
+    (id: string) => {
+      onChange({
+        ...value,
+        filters: value.filters.filter((f) => f.id !== id),
+      });
+      inputRef.current?.focus();
+    },
+    [value, onChange],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const isBackspaceOnEmptyInput = e.key === "Backspace" && value.query === "";
@@ -229,7 +246,9 @@ export function SearchInput({
 
   const handleFilterButtonClick = useCallback(() => {
     // Insert @ at the end of query to trigger filter dropdown
-    const newQuery = value.query.trimEnd() + (value.query.endsWith(" ") || !value.query ? "@" : " @");
+    const newQuery =
+      value.query.trimEnd() +
+      (value.query.endsWith(" ") || !value.query ? "@" : " @");
     onChange({ ...value, query: newQuery });
     inputRef.current?.focus();
   }, [value, onChange]);
@@ -242,24 +261,31 @@ export function SearchInput({
     }
   }, [value, onChange, filterContext.prefixEnd, filterContext.mode]);
 
-  const handleCloseDatePicker = useCallback((open: boolean) => {
-    if (!open) {
-      // If we just applied a date filter, don't clear anything - reset the flag and return
-      if (dateFilterAppliedRef.current) {
-        dateFilterAppliedRef.current = false;
-        return;
+  const handleCloseDatePicker = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        // If we just applied a date filter, don't clear anything - reset the flag and return
+        if (dateFilterAppliedRef.current) {
+          dateFilterAppliedRef.current = false;
+          return;
+        }
+        // Otherwise, user cancelled - clear the @date: from the query
+        const newQuery = value.query
+          .slice(0, filterContext.prefixEnd)
+          .trimEnd();
+        onChange({ ...value, query: newQuery });
       }
-      // Otherwise, user cancelled - clear the @date: from the query
-      const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-      onChange({ ...value, query: newQuery });
-    }
-  }, [value, onChange, filterContext.prefixEnd]);
+    },
+    [value, onChange, filterContext.prefixEnd],
+  );
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const isInsideContainer = containerRef.current?.contains(target);
-      const popoverContent = document.querySelector("[data-radix-popper-content-wrapper]");
+      const popoverContent = document.querySelector(
+        "[data-radix-popper-content-wrapper]",
+      );
       const isInsidePopover = popoverContent?.contains(target);
 
       const isClickOutside = !isInsideContainer && !isInsidePopover;
@@ -270,7 +296,8 @@ export function SearchInput({
 
     if (dropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [dropdownOpen, handleCloseDropdown]);
 
@@ -278,10 +305,7 @@ export function SearchInput({
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="flex flex-wrap items-center gap-2">
         {/* Filter chips */}
-        <FilterChips
-          filters={value.filters}
-          onRemove={handleRemoveFilter}
-        />
+        <FilterChips filters={value.filters} onRemove={handleRemoveFilter} />
 
         {/* Input + filter button wrapper - stays together when wrapping */}
         <div className="flex min-w-48 flex-1 items-center gap-2">

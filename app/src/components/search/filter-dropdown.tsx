@@ -3,14 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Popover,
-  PopoverContent,
   PopoverAnchor,
+  PopoverContent,
 } from "@/components/ui/popover";
+import { FILTER_TYPES, type FilterType } from "@/lib/search/types";
 import { cn } from "@/lib/utils";
-import {
-  type FilterType,
-  FILTER_TYPES,
-} from "@/lib/search/types";
 
 type FilterDropdownProps = {
   open: boolean;
@@ -42,11 +39,15 @@ export function FilterDropdown({
 
   // Filter types based on search text
   const filteredTypes = useMemo(() => {
-    const types = Object.entries(FILTER_TYPES) as [FilterType, typeof FILTER_TYPES[FilterType]][];
+    const types = Object.entries(FILTER_TYPES) as [
+      FilterType,
+      (typeof FILTER_TYPES)[FilterType],
+    ][];
     if (!searchText) return types;
-    return types.filter(([type, meta]) =>
-      type.toLowerCase().startsWith(searchText.toLowerCase()) ||
-      meta.label.toLowerCase().startsWith(searchText.toLowerCase())
+    return types.filter(
+      ([type, meta]) =>
+        type.toLowerCase().startsWith(searchText.toLowerCase()) ||
+        meta.label.toLowerCase().startsWith(searchText.toLowerCase()),
     );
   }, [searchText]);
 
@@ -54,21 +55,24 @@ export function FilterDropdown({
   const filteredValues = useMemo(() => {
     if (!searchText) return filterValues;
     return filterValues.filter((v) =>
-      v.toLowerCase().includes(searchText.toLowerCase())
+      v.toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [filterValues, searchText]);
 
-  const itemCount = mode === "types" ? filteredTypes.length : filteredValues.length;
+  const itemCount =
+    mode === "types" ? filteredTypes.length : filteredValues.length;
 
   // Reset selection when items change
   useEffect(() => {
     setSelectedIndex(0);
-  }, [searchText, mode, itemCount]);
+  }, []);
 
   // Scroll selected item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const selectedEl = listRef.current.querySelector(`[data-index="${selectedIndex}"]`);
+    const selectedEl = listRef.current.querySelector(
+      `[data-index="${selectedIndex}"]`,
+    );
     if (selectedEl) {
       selectedEl.scrollIntoView({ block: "nearest" });
     }
@@ -123,7 +127,18 @@ export function FilterDropdown({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, mode, selectedIndex, itemCount, filteredTypes, filteredValues, searchText, onSelectType, onSelectValue, onClose]);
+  }, [
+    open,
+    mode,
+    selectedIndex,
+    itemCount,
+    filteredTypes,
+    filteredValues,
+    searchText,
+    onSelectType,
+    onSelectValue,
+    onClose,
+  ]);
 
   // Create a non-null ref wrapper for Radix
   const virtualRef = {
@@ -140,7 +155,7 @@ export function FilterDropdown({
         align="start"
         sideOffset={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => {
+        onPointerDownOutside={() => {
           // Prevent closing when clicking inside the popover
           // The onClose will be handled by our click handlers
         }}
@@ -150,95 +165,92 @@ export function FilterDropdown({
         }}
       >
         <div ref={listRef} className="max-h-64 overflow-y-auto">
-          {mode === "types" && (
-            <>
-              {filteredTypes.length === 0 ? (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  No filter types match "{searchText}"
+          {mode === "types" &&
+            (filteredTypes.length === 0 ? (
+              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                No filter types match "{searchText}"
+              </div>
+            ) : (
+              <>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  Filter by
                 </div>
-              ) : (
-                <>
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    Filter by
-                  </div>
-                  {filteredTypes.map(([type, meta], index) => (
-                    <button
-                      key={type}
-                      data-index={index}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSelectType(type);
-                      }}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                        index === selectedIndex
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      )}
-                    >
-                      <span>{meta.icon}</span>
-                      <span>{meta.label}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        @{type}:
-                      </span>
-                    </button>
-                  ))}
-                </>
-              )}
-            </>
-          )}
+                {filteredTypes.map(([type, meta], index) => (
+                  <button
+                    type="button"
+                    key={type}
+                    data-index={index}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelectType(type);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                      index === selectedIndex
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <span>{meta.icon}</span>
+                    <span>{meta.label}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      @{type}:
+                    </span>
+                  </button>
+                ))}
+              </>
+            ))}
 
-          {mode === "values" && currentFilterType && (
-            <>
-              {loadingValues ? (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  Loading...
+          {mode === "values" &&
+            currentFilterType &&
+            (loadingValues ? (
+              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                Loading...
+              </div>
+            ) : filteredValues.length === 0 ? (
+              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                {searchText
+                  ? `Press Enter to add "${searchText}"`
+                  : "Type a value or select from list"}
+              </div>
+            ) : (
+              <>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  {FILTER_TYPES[currentFilterType].label}
                 </div>
-              ) : filteredValues.length === 0 ? (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  {searchText
-                    ? `Press Enter to add "${searchText}"`
-                    : "Type a value or select from list"}
-                </div>
-              ) : (
-                <>
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    {FILTER_TYPES[currentFilterType].label}
-                  </div>
-                  {filteredValues.map((value, index) => (
-                    <button
-                      key={value}
-                      data-index={index}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSelectValue(value);
-                      }}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                        index === selectedIndex
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      )}
-                    >
-                      {currentFilterType === "color" ? (
-                        <>
-                          <div
-                            className="size-4 rounded-full border"
-                            style={{ backgroundColor: value }}
-                          />
-                          <span>{value}</span>
-                        </>
-                      ) : (
+                {filteredValues.map((value, index) => (
+                  <button
+                    type="button"
+                    key={value}
+                    data-index={index}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelectValue(value);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                      index === selectedIndex
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    {currentFilterType === "color" ? (
+                      <>
+                        <div
+                          className="size-4 rounded-full border"
+                          style={{ backgroundColor: value }}
+                        />
                         <span>{value}</span>
-                      )}
-                    </button>
-                  ))}
-                </>
-              )}
-            </>
-          )}
+                      </>
+                    ) : (
+                      <span>{value}</span>
+                    )}
+                  </button>
+                ))}
+              </>
+            ))}
         </div>
       </PopoverContent>
     </Popover>

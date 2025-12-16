@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getInitials } from "@/lib/get-initials";
-import { useSearch, getMockFilterValues } from "@/lib/search";
+import { getMockFilterValues, useSearch } from "@/lib/search";
 
 type DashboardHeaderProps = {
   email?: string | null;

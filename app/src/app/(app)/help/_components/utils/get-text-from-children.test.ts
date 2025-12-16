@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { createElement } from "react";
+import { describe, expect, it } from "vitest";
 import { getTextFromChildren } from "./get-text-from-children";
 
 describe("getTextFromChildren", () => {
@@ -34,7 +34,7 @@ describe("getTextFromChildren", () => {
       null,
       createElement("span", null, "Hello"),
       " ",
-      createElement("strong", null, "World")
+      createElement("strong", null, "World"),
     );
     expect(getTextFromChildren(element)).toBe("Hello World");
   });
@@ -45,7 +45,7 @@ describe("getTextFromChildren", () => {
       null,
       "Text ",
       createElement("code", null, "code"),
-      " more text"
+      " more text",
     );
     expect(getTextFromChildren(element)).toBe("Text code more text");
   });
@@ -57,8 +57,8 @@ describe("getTextFromChildren", () => {
       createElement(
         "span",
         null,
-        createElement("strong", null, createElement("em", null, "Deep"))
-      )
+        createElement("strong", null, createElement("em", null, "Deep")),
+      ),
     );
     expect(getTextFromChildren(element)).toBe("Deep");
   });

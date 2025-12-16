@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  type SearchState,
   type Filter,
   parseSearchParams,
+  type SearchState,
   serializeSearchParams,
 } from "./types";
 
@@ -27,7 +27,7 @@ export function useSearch() {
 
   // Parse initial URL state on mount only
   const [state, setLocalState] = useState<SearchState>(() =>
-    parseSearchParams(searchParams)
+    parseSearchParams(searchParams),
   );
 
   // Handle browser back/forward navigation
@@ -62,7 +62,7 @@ export function useSearch() {
         router.replace(url, { scroll: false });
       }, DEBOUNCE_MS);
     },
-    [router]
+    [router],
   );
 
   // Cleanup on unmount
@@ -80,7 +80,7 @@ export function useSearch() {
       setLocalState(newState);
       updateUrl(newState);
     },
-    [updateUrl]
+    [updateUrl],
   );
 
   // Convenience methods
@@ -90,7 +90,7 @@ export function useSearch() {
       setLocalState(newState);
       updateUrl(newState);
     },
-    [state, updateUrl]
+    [state, updateUrl],
   );
 
   const addFilter = useCallback(
@@ -102,7 +102,7 @@ export function useSearch() {
       setLocalState(newState);
       updateUrl(newState);
     },
-    [state, updateUrl]
+    [state, updateUrl],
   );
 
   const removeFilter = useCallback(
@@ -114,7 +114,7 @@ export function useSearch() {
       setLocalState(newState);
       updateUrl(newState);
     },
-    [state, updateUrl]
+    [state, updateUrl],
   );
 
   const clearFilters = useCallback(() => {

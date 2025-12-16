@@ -1,21 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
+import { useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
-  PopoverContent,
   PopoverAnchor,
+  PopoverContent,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import {
-  type Filter,
-  type DateOperator,
   createFilterId,
+  type DateOperator,
+  type Filter,
 } from "@/lib/search/types";
-import type { DateRange } from "react-day-picker";
 
 type DateRangePickerProps = {
   open: boolean;
@@ -48,7 +47,9 @@ export function DateRangePicker({
 
     if (mode === "range" && dateRange?.from) {
       const fromDate = format(dateRange.from, "yyyy-MM-dd");
-      const toDate = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : fromDate;
+      const toDate = dateRange.to
+        ? format(dateRange.to, "yyyy-MM-dd")
+        : fromDate;
       dateValue = `${fromDate}..${toDate}`;
       filter = {
         id: createFilterId(),
@@ -92,7 +93,8 @@ export function DateRangePicker({
 
   const canApply =
     (mode === "range" && dateRange?.from) ||
-    ((mode === "single" || mode === "before" || mode === "after") && selectedDate);
+    ((mode === "single" || mode === "before" || mode === "after") &&
+      selectedDate);
 
   // Create a non-null ref wrapper for Radix
   const virtualRef = {
@@ -179,11 +181,7 @@ export function DateRangePicker({
               )}
               {!canApply && "Select a date"}
             </div>
-            <Button
-              size="sm"
-              onClick={handleApply}
-              disabled={!canApply}
-            >
+            <Button size="sm" onClick={handleApply} disabled={!canApply}>
               Apply
             </Button>
           </div>

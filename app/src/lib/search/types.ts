@@ -15,7 +15,14 @@
  * - -@tag:landscape - Negated filter (exclude)
  */
 
-export type FilterType = "type" | "tag" | "object" | "color" | "source" | "date" | "location";
+export type FilterType =
+  | "type"
+  | "tag"
+  | "object"
+  | "color"
+  | "source"
+  | "date"
+  | "location";
 
 export type DateOperator = "is" | "before" | "after" | "between";
 
@@ -124,7 +131,8 @@ export function getFilterColorClass(type: FilterType): string {
     color: "bg-filter-color/15 text-filter-color border-filter-color/30",
     source: "bg-filter-source/15 text-filter-source border-filter-source/30",
     date: "bg-filter-date/15 text-filter-date border-filter-date/30",
-    location: "bg-filter-location/15 text-filter-location border-filter-location/30",
+    location:
+      "bg-filter-location/15 text-filter-location border-filter-location/30",
   };
   return colorClasses[type];
 }

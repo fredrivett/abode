@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useRef, useCallback } from "react";
+import { createContext, useCallback, useContext, useRef } from "react";
 
 type HeadingIdContextType = {
   getOrCreateId: (instanceKey: string, baseId: string) => string;
@@ -14,22 +14,25 @@ export function HeadingIdProvider({ children }: { children: React.ReactNode }) {
   // Map of instanceKey -> assigned id (to return same id for same component)
   const instanceIds = useRef<Map<string, string>>(new Map());
 
-  const getOrCreateId = useCallback((instanceKey: string, baseId: string): string => {
-    // If this instance already has an id, return it
-    const existingId = instanceIds.current.get(instanceKey);
-    if (existingId !== undefined) {
-      return existingId;
-    }
+  const getOrCreateId = useCallback(
+    (instanceKey: string, baseId: string): string => {
+      // If this instance already has an id, return it
+      const existingId = instanceIds.current.get(instanceKey);
+      if (existingId !== undefined) {
+        return existingId;
+      }
 
-    // Generate a new unique id
-    const count = idCounts.current.get(baseId) ?? 0;
-    idCounts.current.set(baseId, count + 1);
+      // Generate a new unique id
+      const count = idCounts.current.get(baseId) ?? 0;
+      idCounts.current.set(baseId, count + 1);
 
-    const newId = count === 0 ? baseId : `${baseId}-${count}`;
-    instanceIds.current.set(instanceKey, newId);
+      const newId = count === 0 ? baseId : `${baseId}-${count}`;
+      instanceIds.current.set(instanceKey, newId);
 
-    return newId;
-  }, []);
+      return newId;
+    },
+    [],
+  );
 
   return (
     <HeadingIdContext.Provider value={{ getOrCreateId }}>

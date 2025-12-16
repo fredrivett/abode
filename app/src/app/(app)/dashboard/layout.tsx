@@ -1,5 +1,5 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
 import { DashboardHeader } from "../_components/dashboard-header";

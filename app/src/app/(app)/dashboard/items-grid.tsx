@@ -57,7 +57,11 @@ type ItemsGridProps = {
   onClearSearch?: () => void;
 };
 
-export function ItemsGrid({ items, hasActiveSearch, onClearSearch }: ItemsGridProps) {
+export function ItemsGrid({
+  items,
+  hasActiveSearch,
+  onClearSearch,
+}: ItemsGridProps) {
   return (
     <div className="w-full space-y-3">
       {items.length === 0 ? (

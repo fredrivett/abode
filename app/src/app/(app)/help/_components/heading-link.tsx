@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
 import { Hash } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useHeadingId } from "./heading-id-context";
@@ -31,15 +31,15 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
   const id = getOrCreateId(instanceKey, baseId);
   const Tag = `h${level}` as const;
 
-  const triggerHighlight = () => {
+  const triggerHighlight = useCallback(() => {
     setIsHighlighted(true);
     setTimeout(() => setIsHighlighted(false), 2250);
-  };
+  }, []);
 
-  const scrollAndHighlight = () => {
+  const scrollAndHighlight = useCallback(() => {
     headingRef.current?.scrollIntoView({ behavior: "smooth" });
     triggerHighlight();
-  };
+  }, [triggerHighlight]);
 
   // Handle initial page load with hash
   useEffect(() => {
@@ -49,7 +49,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
         scrollAndHighlight();
       });
     }
-  }, [id]);
+  }, [id, scrollAndHighlight]);
 
   // Intercept clicks on anchor links to this heading for smooth scroll
   useEffect(() => {
@@ -65,7 +65,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
 
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
-  }, [id]);
+  }, [id, scrollAndHighlight]);
 
   const handleClick = () => {
     const url = `${window.location.pathname}#${id}`;
@@ -81,7 +81,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
       id={id}
       className={cn(
         "group relative -mx-2 -my-1 rounded-md px-2 py-1 transition-colors duration-1000",
-        isHighlighted && "bg-muted"
+        isHighlighted && "bg-muted",
       )}
     >
       <button

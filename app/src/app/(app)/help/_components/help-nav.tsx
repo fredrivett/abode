@@ -33,7 +33,7 @@ export function HelpNav() {
               "rounded-md py-1.5 pl-5.5 pr-3 text-sm transition-colors",
               isActive
                 ? "bg-muted font-medium text-foreground"
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
             )}
           >
             {page.label}

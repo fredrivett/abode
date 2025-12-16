@@ -2,10 +2,13 @@
 
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const meta = {
   title: "UI/Popover",
@@ -138,10 +141,7 @@ export const WithForm: Story = {
               >
                 Cancel
               </Button>
-              <Button
-                size="sm"
-                onClick={() => setOpen(false)}
-              >
+              <Button size="sm" onClick={() => setOpen(false)}>
                 Apply
               </Button>
             </div>
@@ -174,9 +174,7 @@ export const ControlledPopover: Story = {
             <Button variant="secondary">Trigger</Button>
           </PopoverTrigger>
           <PopoverContent>
-            <p className="text-sm">
-              This popover is controlled externally.
-            </p>
+            <p className="text-sm">This popover is controlled externally.</p>
           </PopoverContent>
         </Popover>
       </div>
