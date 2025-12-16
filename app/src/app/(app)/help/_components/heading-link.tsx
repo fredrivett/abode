@@ -33,7 +33,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
 
   const triggerHighlight = useCallback(() => {
     setIsHighlighted(true);
-    setTimeout(() => setIsHighlighted(false), 2250);
+    setTimeout(() => setIsHighlighted(false), 1500);
   }, []);
 
   const scrollAndHighlight = useCallback(() => {
@@ -80,8 +80,8 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
       ref={headingRef}
       id={id}
       className={cn(
-        "group relative -mx-2 -my-1 rounded-md px-2 py-1 transition-colors duration-1000",
-        isHighlighted && "bg-muted",
+        "group relative -mx-2.5 -my-1.5 rounded-md px-2.5 py-1.5 transition-all duration-500",
+        isHighlighted && "scale-[1.075] bg-muted shadow-xl",
       )}
     >
       <button
