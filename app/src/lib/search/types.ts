@@ -37,48 +37,61 @@ export type SearchState = {
 };
 
 // Filter type metadata for UI
+// `multiple` reflects whether items can have multiple values of this type in the schema:
+// - Arrays (tags[], objects[]) → multiple: true
+// - Single values (kind, source, createdAt) → multiple: false
+// For OR queries on single-value fields, use pipe syntax: @source:instagram|camera-roll
 export const FILTER_TYPES: Record<
   FilterType,
   {
     label: string;
     placeholder: string;
     icon: string;
+    /** Whether multiple filters of this type can be added (based on schema cardinality). */
+    multiple: boolean;
   }
 > = {
   type: {
     label: "Type",
     placeholder: "e.g. image",
     icon: "✳️",
+    multiple: false, // ItemKind is a single enum value
   },
   tag: {
     label: "Tag",
     placeholder: "e.g. landscape",
     icon: "🏷️",
+    multiple: true, // tags is String[]
   },
   object: {
     label: "Object",
     placeholder: "e.g. tree",
     icon: "📦",
+    multiple: true, // objects is String[]
   },
   color: {
     label: "Color",
     placeholder: "e.g. #FF5733",
     icon: "🎨",
+    multiple: true, // colors is Json (can have multiple)
   },
   source: {
     label: "Source",
     placeholder: "e.g. instagram",
     icon: "🔗",
+    multiple: false, // source is a single String
   },
   date: {
     label: "Date",
     placeholder: "e.g. 2024-01-15",
     icon: "📅",
+    multiple: false, // createdAt is a single DateTime
   },
   location: {
     label: "Location",
     placeholder: "e.g. paris",
     icon: "📍",
+    multiple: true, // ItemLocation is a separate table, items can have multiple
   },
 };
 

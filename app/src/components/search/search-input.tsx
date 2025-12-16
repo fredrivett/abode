@@ -90,7 +90,7 @@ export function SearchInput({
   value,
   onChange,
   getFilterValues,
-  placeholder = "Search",
+  placeholder = "Find...",
   className,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +138,18 @@ export function SearchInput({
     inputRef.current?.focus();
   }, [value, onChange, filterContext.prefixEnd]);
 
+  // Helper to add a filter, replacing existing ones if the type doesn't allow multiple
+  const addFilterToList = useCallback((filters: Filter[], newFilter: Filter): Filter[] => {
+    const filterMeta = FILTER_TYPES[newFilter.type];
+    if (filterMeta.multiple) {
+      // Allow multiple - just append
+      return [...filters, newFilter];
+    }
+    // Single only - replace any existing filter of the same type
+    const withoutExisting = filters.filter(f => f.type !== newFilter.type);
+    return [...withoutExisting, newFilter];
+  }, []);
+
   const handleSelectFilterValue = useCallback((filterValue: string) => {
     if (!filterContext.filterType) return;
 
@@ -154,25 +166,26 @@ export function SearchInput({
 
     onChange({
       query: newQuery,
-      filters: [...value.filters, newFilter],
+      filters: addFilterToList(value.filters, newFilter),
     });
 
     inputRef.current?.focus();
-  }, [value, onChange, filterContext]);
+  }, [value, onChange, filterContext, addFilterToList]);
 
   const handleAddFilter = useCallback((filter: Filter) => {
     logger.debug("handleAddFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
     // Remove any partial filter text
     const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-    logger.debug("handleAddFilter newQuery", { newQuery, filtersCount: value.filters.length + 1 });
+    const newFilters = addFilterToList(value.filters, filter);
+    logger.debug("handleAddFilter newQuery", { newQuery, filtersCount: newFilters.length });
 
     onChange({
       query: newQuery,
-      filters: [...value.filters, filter],
+      filters: newFilters,
     });
 
     inputRef.current?.focus();
-  }, [value, onChange, filterContext.prefixEnd]);
+  }, [value, onChange, filterContext.prefixEnd, addFilterToList]);
 
   const handleAddDateFilter = useCallback((filter: Filter, _displayValue: string) => {
     logger.debug("handleAddDateFilter called", { filter, query: value.query, prefixEnd: filterContext.prefixEnd });
@@ -181,15 +194,16 @@ export function SearchInput({
 
     // Remove the @date: part from query (same as other filters)
     const newQuery = value.query.slice(0, filterContext.prefixEnd).trimEnd();
-    logger.debug("handleAddDateFilter newQuery", { newQuery });
+    const newFilters = addFilterToList(value.filters, filter);
+    logger.debug("handleAddDateFilter newQuery", { newQuery, filtersCount: newFilters.length });
 
     onChange({
       query: newQuery,
-      filters: [...value.filters, filter],
+      filters: newFilters,
     });
 
     inputRef.current?.focus();
-  }, [value, onChange, filterContext.prefixEnd]);
+  }, [value, onChange, filterContext.prefixEnd, addFilterToList]);
 
   const handleRemoveFilter = useCallback((id: string) => {
     onChange({
