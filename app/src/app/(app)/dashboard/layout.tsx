@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
@@ -59,13 +60,15 @@ export default async function DashboardLayout({
   return (
     <DashboardDropzone>
       <div className="min-h-screen bg-background">
-        <DashboardHeader
-          email={email}
-          firstName={firstName}
-          lastName={lastName}
-          avatarUrl={avatarUrl}
-          signOutAction={signOut}
-        />
+        <Suspense fallback={<div className="h-16" />}>
+          <DashboardHeader
+            email={email}
+            firstName={firstName}
+            lastName={lastName}
+            avatarUrl={avatarUrl}
+            signOutAction={signOut}
+          />
+        </Suspense>
         <div className="mx-auto w-full max-w-5xl px-4 py-8">{children}</div>
       </div>
     </DashboardDropzone>

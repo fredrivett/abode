@@ -4,6 +4,7 @@ import { Blocks, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
+import { SearchInput } from "@/components/search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getInitials } from "@/lib/get-initials";
+import { useSearch, getMockFilterValues } from "@/lib/search";
 
 type DashboardHeaderProps = {
   email?: string | null;
@@ -37,6 +38,8 @@ export function DashboardHeader({
   avatarUrl,
   signOutAction,
 }: DashboardHeaderProps) {
+  const { state: searchState, setState: setSearchState } = useSearch();
+
   const displayEmail = email || "Account";
   const displayName =
     [firstName, lastName].filter(Boolean).join(" ").trim() || displayEmail;
@@ -119,11 +122,11 @@ export function DashboardHeader({
       </div>
 
       <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-0 md:flex-1 md:basis-auto">
-        <Input
-          type="search"
+        <SearchInput
+          value={searchState}
+          onChange={setSearchState}
+          getFilterValues={getMockFilterValues}
           placeholder="Search"
-          aria-label="Search"
-          className="rounded-none border-0 border-b bg-transparent px-0 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
         />
       </div>
     </header>
