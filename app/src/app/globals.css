@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -153,6 +154,23 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom underline styles - apply to elements with underline class or text-decoration: underline */
+:where(.underline, [style*="text-decoration: underline"], a.underline) {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Prose links get underlines by default */
+.prose a {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: oklch(from currentColor l c h / 40%);
+}
+
+.prose a:hover {
+  text-decoration-color: currentColor;
 }
 
 @utility cursor-pipette {

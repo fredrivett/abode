@@ -29,6 +29,7 @@ type DashboardHeaderProps = {
   lastName?: string | null;
   avatarUrl?: string | null;
   signOutAction: () => Promise<void>;
+  showSearch?: boolean;
 };
 
 export function DashboardHeader({
@@ -37,6 +38,7 @@ export function DashboardHeader({
   lastName,
   avatarUrl,
   signOutAction,
+  showSearch = true,
 }: DashboardHeaderProps) {
   const { state: searchState, setState: setSearchState } = useSearch();
 
@@ -121,14 +123,16 @@ export function DashboardHeader({
         </DropdownMenu>
       </div>
 
-      <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-        <SearchInput
-          value={searchState}
-          onChange={setSearchState}
-          getFilterValues={getMockFilterValues}
-          placeholder="Find..."
-        />
-      </div>
+      {showSearch && (
+        <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+          <SearchInput
+            value={searchState}
+            onChange={setSearchState}
+            getFilterValues={getMockFilterValues}
+            placeholder="Find..."
+          />
+        </div>
+      )}
     </header>
   );
 }
