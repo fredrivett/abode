@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
@@ -13,6 +13,15 @@ import {
 } from "@/lib/uploads";
 
 const log = createLogger("dashboard/dropzone");
+
+function isValidUrl(text: string): boolean {
+  try {
+    const url = new URL(text);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
 
 function hasFiles(dataTransfer?: DataTransfer | null) {
   if (!dataTransfer) return false;
@@ -51,6 +60,57 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmittingUrl, setIsSubmittingUrl] = useState(false);
+
+  const handleUrlSubmit = useCallback(
+    async (url: string) => {
+      setIsSubmittingUrl(true);
+      try {
+        await api.post("/api/v1/items/from-url", { url });
+        toast.success("URL added - processing in background");
+        router.refresh();
+      } catch (error) {
+        log.error({ error }, "URL submission error");
+        toast.error("Failed to add URL. Please try again.");
+      } finally {
+        setIsSubmittingUrl(false);
+      }
+    },
+    [router],
+  );
+
+  // Listen for paste events globally
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      // Don't intercept paste if user is typing in an input
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const text = event.clipboardData?.getData("text/plain")?.trim();
+      if (!text || !isValidUrl(text)) {
+        return;
+      }
+
+      // Prevent default paste behavior
+      event.preventDefault();
+
+      if (isSubmittingUrl || isUploading) {
+        toast.error("Please wait for the current operation to complete");
+        return;
+      }
+
+      void handleUrlSubmit(text);
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handleUrlSubmit, isSubmittingUrl, isUploading]);
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -166,13 +226,17 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
     >
       {children}
 
-      {(isDragging || isUploading) && (
+      {(isDragging || isUploading || isSubmittingUrl) && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5">
           <div className="rounded-md bg-background/90 px-4 py-3 text-center shadow">
             <p className="text-sm font-medium text-primary">
-              {isUploading ? "Uploading" : "Drop your image to upload"}
+              {isUploading
+                ? "Uploading"
+                : isSubmittingUrl
+                  ? "Adding URL"
+                  : "Drop your image to upload"}
             </p>
-            {!isUploading ? (
+            {!isUploading && !isSubmittingUrl ? (
               <p className="text-xs text-muted-foreground">
                 JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
               </p>
