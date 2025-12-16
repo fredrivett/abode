@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { DashboardDropzone } from "../_components/dashboard-dropzone";
 import { DashboardHeader } from "../_components/dashboard-header";
-import { signOut } from "./actions";
+import { signOut } from "../dashboard/actions";
+import { HelpNav } from "./_components/help-nav";
 
 function getString(value: unknown): string | undefined {
   if (typeof value !== "string") return;
@@ -12,7 +11,7 @@ function getString(value: unknown): string | undefined {
   return trimmedValue;
 }
 
-export default async function DashboardLayout({
+export default async function HelpLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -23,11 +22,7 @@ export default async function DashboardLayout({
     supabase.auth.getUser(),
   ]);
 
-  if (!claims?.claims) {
-    redirect("/login");
-  }
-
-  const claimsRecord = (claims.claims ?? {}) as Record<string, unknown>;
+  const claimsRecord = (claims?.claims ?? {}) as Record<string, unknown>;
   const claimsUserMetadata = (claimsRecord.user_metadata ?? {}) as Record<
     string,
     unknown
@@ -58,19 +53,24 @@ export default async function DashboardLayout({
     getString(claimsUserMetadata.avatar_url);
 
   return (
-    <DashboardDropzone>
-      <div className="min-h-screen bg-background">
-        <Suspense fallback={<div className="h-16" />}>
-          <DashboardHeader
-            email={email}
-            firstName={firstName}
-            lastName={lastName}
-            avatarUrl={avatarUrl}
-            signOutAction={signOut}
-          />
-        </Suspense>
-        <div className="mx-auto w-full max-w-5xl px-4 py-8">{children}</div>
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<div className="h-16" />}>
+        <DashboardHeader
+          email={email}
+          firstName={firstName}
+          lastName={lastName}
+          avatarUrl={avatarUrl}
+          signOutAction={signOut}
+          showSearch={false}
+          showHomeLink={true}
+        />
+      </Suspense>
+      <div className="mx-auto flex w-full max-w-5xl gap-8 px-4 py-8">
+        <aside className="hidden w-48 shrink-0 md:block">
+          <HelpNav />
+        </aside>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
-    </DashboardDropzone>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -22,6 +23,13 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-filter-type: var(--filter-type);
+  --color-filter-tag: var(--filter-tag);
+  --color-filter-object: var(--filter-object);
+  --color-filter-color: var(--filter-color);
+  --color-filter-source: var(--filter-source);
+  --color-filter-date: var(--filter-date);
+  --color-filter-location: var(--filter-location);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -81,6 +89,13 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  --filter-type: oklch(0.5 0.2 250); /* Blue */
+  --filter-tag: oklch(0.55 0.18 210); /* Sky */
+  --filter-object: oklch(0.5 0.2 145); /* Green */
+  --filter-color: oklch(0.45 0 0); /* Gray */
+  --filter-source: oklch(0.55 0.22 125); /* Lime */
+  --filter-date: oklch(0.5 0.18 195); /* Teal */
+  --filter-location: oklch(0.5 0.22 295); /* Violet */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -115,6 +130,13 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  --filter-type: oklch(0.7 0.18 250); /* Blue - brighter in dark mode */
+  --filter-tag: oklch(0.75 0.14 210); /* Sky - brighter in dark mode */
+  --filter-object: oklch(0.7 0.18 145); /* Green - brighter in dark mode */
+  --filter-color: oklch(0.65 0 0); /* Gray - brighter in dark mode */
+  --filter-source: oklch(0.75 0.2 125); /* Lime - brighter in dark mode */
+  --filter-date: oklch(0.7 0.16 195); /* Teal - brighter in dark mode */
+  --filter-location: oklch(0.72 0.2 295); /* Violet - brighter in dark mode */
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -132,6 +154,23 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom underline styles - apply to elements with underline class or text-decoration: underline */
+:where(.underline, [style*="text-decoration: underline"], a.underline) {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Prose links get underlines by default */
+.prose a {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: oklch(from currentColor l c h / 40%);
+}
+
+.prose a:hover {
+  text-decoration-color: currentColor;
 }
 
 @utility cursor-pipette {
