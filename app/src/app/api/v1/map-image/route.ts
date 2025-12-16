@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const lat = searchParams.get("lat");
     const lng = searchParams.get("lng");
-    const zoom = searchParams.get("zoom") ?? "9";
+    const zoom = searchParams.get("zoom") ?? "10";
     const width = searchParams.get("width") ?? "368";
     const height = searchParams.get("height") ?? "200";
 
