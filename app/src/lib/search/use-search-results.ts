@@ -1,10 +1,49 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type SearchResponse, type SearchResultItem, search } from "./api";
+import { toast } from "sonner";
+import {
+  type InvalidFilterValue,
+  SearchError,
+  type SearchResponse,
+  type SearchResultItem,
+  search,
+} from "./api";
 import type { Filter, SearchState } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * Show a single toast notification for invalid filter values.
+ * Groups invalid values by filter type for a cleaner user experience.
+ */
+function showInvalidFiltersToast(invalidFilters: InvalidFilterValue[]) {
+  if (invalidFilters.length === 0) return;
+
+  // Group by filter type
+  const byType = new Map<string, string[]>();
+  for (const invalid of invalidFilters) {
+    const values = byType.get(invalid.filterType) || [];
+    values.push(invalid.value);
+    byType.set(invalid.filterType, values);
+  }
+
+  // Build message
+  const parts: string[] = [];
+  for (const [filterType, values] of byType) {
+    const quotedValues = values.map((v) => `"${v}"`).join(", ");
+    parts.push(`${quotedValues} for ${filterType}`);
+  }
+
+  const title =
+    invalidFilters.length === 1
+      ? "Invalid filter value"
+      : "Invalid filter values";
+
+  toast.error(title, {
+    description: `${parts.join("; ")}. Valid values are shown in the autocomplete dropdown.`,
+  });
+}
 
 export type SearchResultsState = {
   isLoading: boolean;
@@ -141,6 +180,11 @@ export function useSearchResults(searchState: SearchState) {
           return;
         }
 
+        // Show toast for any invalid filter values
+        if (response.invalidFilters && response.invalidFilters.length > 0) {
+          showInvalidFiltersToast(response.invalidFilters);
+        }
+
         setState({
           isLoading: false,
           isSearching: false,
@@ -155,6 +199,15 @@ export function useSearchResults(searchState: SearchState) {
         // Check if this is still the current request
         if (requestId !== currentRequestId.current) {
           return;
+        }
+
+        // Show toast for any invalid filter values from the error
+        if (
+          error instanceof SearchError &&
+          error.invalidFilters &&
+          error.invalidFilters.length > 0
+        ) {
+          showInvalidFiltersToast(error.invalidFilters);
         }
 
         setState((prev) => ({

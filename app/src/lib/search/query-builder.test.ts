@@ -12,6 +12,10 @@ import {
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
+  VALID_ITEM_KINDS,
+  VALID_SOURCE_TYPES,
+  validateSourceFilters,
+  validateTypeFilters,
 } from "./query-builder";
 
 describe("parseFiltersFromParams", () => {
@@ -57,6 +61,74 @@ describe("parseFiltersFromParams", () => {
       expect(filters.color).toHaveLength(1);
       expect(filters.source).toHaveLength(1);
       expect(filters.location).toHaveLength(1);
+    });
+  });
+
+  describe("pipe-separated OR values", () => {
+    it("parses pipe-separated type values as OR group", () => {
+      const params = new URLSearchParams("type=image|article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("parses pipe-separated tag values as OR group", () => {
+      const params = new URLSearchParams("tag=vacation|summer");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "vacation", negated: false, orGroup: 0 },
+        { value: "summer", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("handles negation within pipe-separated values", () => {
+      const params = new URLSearchParams("type=image|!video");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "video", negated: true, orGroup: 0 },
+      ]);
+    });
+
+    it("assigns different orGroups to separate params", () => {
+      const params = new URLSearchParams("tag=a|b&tag=c|d");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "a", negated: false, orGroup: 0 },
+        { value: "b", negated: false, orGroup: 0 },
+        { value: "c", negated: false, orGroup: 1 },
+        { value: "d", negated: false, orGroup: 1 },
+      ]);
+    });
+
+    it("mixes pipe-separated and regular params", () => {
+      const params = new URLSearchParams("tag=a|b&tag=c");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "a", negated: false, orGroup: 0 },
+        { value: "b", negated: false, orGroup: 0 },
+        { value: "c", negated: false },
+      ]);
+    });
+
+    it("trims whitespace from pipe-separated values", () => {
+      const params = new URLSearchParams("type=image | article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("skips empty values in pipe-separated string", () => {
+      const params = new URLSearchParams("type=image||article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
     });
   });
 
@@ -113,26 +185,175 @@ describe("buildTypeCondition", () => {
   });
 
   it("builds condition for negated type", () => {
-    const result = buildTypeCondition([{ value: "video", negated: true }]);
+    const result = buildTypeCondition([{ value: "article", negated: true }]);
     expect(result.sql).toBe('((kind IS NULL OR kind != $1::"ItemKind"))');
-    expect(result.params).toEqual(["video"]);
+    expect(result.params).toEqual(["article"]);
   });
 
-  it("builds condition for multiple types", () => {
+  it("builds condition for multiple types without orGroup (AND)", () => {
     const result = buildTypeCondition([
       { value: "image", negated: false },
-      { value: "video", negated: true },
+      { value: "article", negated: true },
     ]);
     expect(result.sql).toBe(
       '(kind = $1::"ItemKind" AND (kind IS NULL OR kind != $2::"ItemKind"))',
     );
-    expect(result.params).toEqual(["image", "video"]);
+    expect(result.params).toEqual(["image", "article"]);
+  });
+
+  it("builds condition for OR group (pipe-separated values)", () => {
+    const result = buildTypeCondition([
+      { value: "image", negated: false, orGroup: 0 },
+      { value: "article", negated: false, orGroup: 0 },
+    ]);
+    expect(result.sql).toBe(
+      '((kind = $1::"ItemKind" OR kind = $2::"ItemKind"))',
+    );
+    expect(result.params).toEqual(["image", "article"]);
+  });
+
+  it("combines OR groups with AND for non-orGroup params", () => {
+    const result = buildTypeCondition([
+      { value: "image", negated: false, orGroup: 0 },
+      { value: "article", negated: false, orGroup: 0 },
+      { value: "image", negated: true },
+    ]);
+    expect(result.sql).toBe(
+      '((kind = $1::"ItemKind" OR kind = $2::"ItemKind") AND (kind IS NULL OR kind != $3::"ItemKind"))',
+    );
+    expect(result.params).toEqual(["image", "article", "image"]);
+  });
+
+  it("filters out invalid type values and returns them as invalid", () => {
+    const result = buildTypeCondition([
+      { value: "image", negated: false },
+      { value: "invalid_type", negated: false },
+    ]);
+    expect(result.sql).toBe('(kind = $1::"ItemKind")');
+    expect(result.params).toEqual(["image"]);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "type",
+        value: "invalid_type",
+        reason:
+          '"invalid_type" is not a valid type. Valid types: image, article',
+      },
+    ]);
+  });
+
+  it("returns all invalid values when no valid types provided", () => {
+    const result = buildTypeCondition([
+      { value: "not_a_type", negated: false },
+      { value: "also_invalid", negated: false },
+    ]);
+    expect(result.sql).toBe("");
+    expect(result.params).toEqual([]);
+    expect(result.invalid).toHaveLength(2);
   });
 
   it("returns empty string for empty array", () => {
     const result = buildTypeCondition([]);
     expect(result.sql).toBe("");
     expect(result.params).toEqual([]);
+  });
+});
+
+describe("validateTypeFilters", () => {
+  it("accepts valid item kinds", () => {
+    const result = validateTypeFilters([
+      { value: "image", negated: false },
+      { value: "article", negated: false },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  it("normalizes case to lowercase", () => {
+    const result = validateTypeFilters([
+      { value: "IMAGE", negated: false },
+      { value: "Article", negated: false },
+    ]);
+    expect(result.valid).toEqual([
+      { value: "image", negated: false },
+      { value: "article", negated: false },
+    ]);
+  });
+
+  it("rejects invalid types with helpful message", () => {
+    const result = validateTypeFilters([
+      { value: "not_a_type", negated: false },
+    ]);
+    expect(result.valid).toHaveLength(0);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "type",
+        value: "not_a_type",
+        reason: `"not_a_type" is not a valid type. Valid types: ${VALID_ITEM_KINDS.join(", ")}`,
+      },
+    ]);
+  });
+
+  it("preserves orGroup and negated in valid results", () => {
+    const result = validateTypeFilters([
+      { value: "image", negated: true, orGroup: 1 },
+    ]);
+    expect(result.valid).toEqual([
+      { value: "image", negated: true, orGroup: 1 },
+    ]);
+  });
+
+  it("separates valid and invalid in mixed input", () => {
+    const result = validateTypeFilters([
+      { value: "image", negated: false },
+      { value: "invalid", negated: false },
+      { value: "article", negated: true },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(1);
+  });
+});
+
+describe("validateSourceFilters", () => {
+  it("accepts valid source types", () => {
+    const result = validateSourceFilters([
+      { value: "upload", negated: false },
+      { value: "url", negated: false },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  it("normalizes case to lowercase", () => {
+    const result = validateSourceFilters([
+      { value: "UPLOAD", negated: false },
+      { value: "Url", negated: false },
+    ]);
+    expect(result.valid).toEqual([
+      { value: "upload", negated: false },
+      { value: "url", negated: false },
+    ]);
+  });
+
+  it("rejects invalid sources with helpful message", () => {
+    const result = validateSourceFilters([{ value: "camera", negated: false }]);
+    expect(result.valid).toHaveLength(0);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "source",
+        value: "camera",
+        reason: `"camera" is not a valid source. Valid sources: ${VALID_SOURCE_TYPES.join(", ")}`,
+      },
+    ]);
+  });
+
+  it("separates valid and invalid in mixed input", () => {
+    const result = validateSourceFilters([
+      { value: "upload", negated: false },
+      { value: "camera", negated: false },
+      { value: "url", negated: true },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(1);
   });
 });
 
@@ -199,23 +420,65 @@ describe("buildObjectCondition", () => {
 });
 
 describe("buildSourceCondition", () => {
-  it("builds condition for source", () => {
+  it("builds condition for valid source", () => {
+    const result = buildSourceCondition(
+      [{ value: "upload", negated: false }],
+      1,
+    );
+    expect(result.sql).toBe('(source_type = $1::"SourceType")');
+    expect(result.params).toEqual(["upload"]);
+    expect(result.invalid).toEqual([]);
+  });
+
+  it("builds condition for negated source", () => {
+    const result = buildSourceCondition([{ value: "url", negated: true }], 1);
+    expect(result.sql).toBe(
+      '((source_type IS NULL OR source_type != $1::"SourceType"))',
+    );
+    expect(result.params).toEqual(["url"]);
+  });
+
+  it("filters out invalid source values and returns them as invalid", () => {
+    const result = buildSourceCondition(
+      [
+        { value: "upload", negated: false },
+        { value: "camera", negated: false },
+      ],
+      1,
+    );
+    expect(result.sql).toBe('(source_type = $1::"SourceType")');
+    expect(result.params).toEqual(["upload"]);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "source",
+        value: "camera",
+        reason: '"camera" is not a valid source. Valid sources: upload, url',
+      },
+    ]);
+  });
+
+  it("returns all invalid values when no valid sources provided", () => {
     const result = buildSourceCondition(
       [{ value: "camera", negated: false }],
       1,
     );
-    expect(result.sql).toContain("lower(source_type) = lower($1)");
-    expect(result.params).toEqual(["camera"]);
+    expect(result.sql).toBe("");
+    expect(result.params).toEqual([]);
+    expect(result.invalid).toHaveLength(1);
   });
 
-  it("builds condition for negated source", () => {
+  it("builds OR condition for pipe-separated values", () => {
     const result = buildSourceCondition(
-      [{ value: "upload", negated: true }],
+      [
+        { value: "upload", negated: false, orGroup: 0 },
+        { value: "url", negated: false, orGroup: 0 },
+      ],
       1,
     );
-    expect(result.sql).toContain(
-      "source_type IS NULL OR lower(source_type) != lower($1)",
+    expect(result.sql).toBe(
+      '((source_type = $1::"SourceType" OR source_type = $2::"SourceType"))',
     );
+    expect(result.params).toEqual(["upload", "url"]);
   });
 });
 
