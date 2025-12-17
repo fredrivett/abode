@@ -151,6 +151,19 @@ function buildSearchParams(params: SearchParams): URLSearchParams {
  * @returns Search results with pagination info
  * @throws Error if the request fails
  */
+/**
+ * Custom error class that can carry invalid filter information.
+ */
+export class SearchError extends Error {
+  invalidFilters?: InvalidFilterValue[];
+
+  constructor(message: string, invalidFilters?: InvalidFilterValue[]) {
+    super(message);
+    this.name = "SearchError";
+    this.invalidFilters = invalidFilters;
+  }
+}
+
 export async function search(params: SearchParams): Promise<SearchResponse> {
   const searchParams = buildSearchParams(params);
   const response = await fetch(`/api/v1/search?${searchParams.toString()}`);
@@ -158,16 +171,17 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
   if (!response.ok) {
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
-      throw new Error(
+      throw new SearchError(
         `Rate limited. Try again in ${retryAfter || "a few"} seconds.`,
       );
     }
     if (response.status === 401) {
-      throw new Error("Unauthorized. Please sign in.");
+      throw new SearchError("Unauthorized. Please sign in.");
     }
     const data = await response.json().catch(() => ({}));
-    throw new Error(
+    throw new SearchError(
       data.message || `Search failed with status ${response.status}`,
+      data.invalidFilters,
     );
   }
 
