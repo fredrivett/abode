@@ -204,7 +204,7 @@ export function buildTypeCondition(filters: FilterValue[]): {
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {
@@ -258,7 +258,7 @@ export function buildTagCondition(
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {
@@ -314,7 +314,7 @@ export function buildObjectCondition(
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {
@@ -373,7 +373,7 @@ export function buildSourceCondition(
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {
@@ -428,7 +428,7 @@ export function buildLocationCondition(
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {
@@ -556,7 +556,7 @@ export function buildColorCondition(
   // Build conditions for each group
   const groupConditions: string[] = [];
 
-  for (const [, group] of orGroups) {
+  for (const group of orGroups.values()) {
     const conditions: string[] = [];
 
     for (const filter of group) {

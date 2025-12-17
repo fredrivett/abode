@@ -145,13 +145,6 @@ function buildSearchParams(params: SearchParams): URLSearchParams {
 }
 
 /**
- * Search for items.
- *
- * @param params - Search parameters
- * @returns Search results with pagination info
- * @throws Error if the request fails
- */
-/**
  * Custom error class that can carry invalid filter information.
  */
 export class SearchError extends Error {

@@ -243,8 +243,8 @@ describe("buildTypeCondition", () => {
 
   it("returns all invalid values when no valid types provided", () => {
     const result = buildTypeCondition([
-      { value: "video", negated: false },
-      { value: "audio", negated: false },
+      { value: "not_a_type", negated: false },
+      { value: "also_invalid", negated: false },
     ]);
     expect(result.sql).toBe("");
     expect(result.params).toEqual([]);
@@ -280,13 +280,15 @@ describe("validateTypeFilters", () => {
   });
 
   it("rejects invalid types with helpful message", () => {
-    const result = validateTypeFilters([{ value: "video", negated: false }]);
+    const result = validateTypeFilters([
+      { value: "not_a_type", negated: false },
+    ]);
     expect(result.valid).toHaveLength(0);
     expect(result.invalid).toEqual([
       {
         filterType: "type",
-        value: "video",
-        reason: `"video" is not a valid type. Valid types: ${VALID_ITEM_KINDS.join(", ")}`,
+        value: "not_a_type",
+        reason: `"not_a_type" is not a valid type. Valid types: ${VALID_ITEM_KINDS.join(", ")}`,
       },
     ]);
   });
