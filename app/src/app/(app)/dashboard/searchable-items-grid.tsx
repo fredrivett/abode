@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  ItemKind,
-  ProcessingStatus,
-  SourceType,
-} from "@prisma/client";
+import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { useMemo } from "react";
 import { useSearch, useSearchResults } from "@/lib/search";
 import { type DashboardItem, ItemsGrid } from "./items-grid";
@@ -13,13 +9,27 @@ type SearchableItemsGridProps = {
   initialItems: DashboardItem[];
 };
 
-export function SearchableItemsGrid({ initialItems }: SearchableItemsGridProps) {
+export function SearchableItemsGrid({
+  initialItems,
+}: SearchableItemsGridProps) {
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
 
   // Convert search results to dashboard item format
   const searchItems = useMemo((): DashboardItem[] | null => {
+    // Don't switch to search results until we have them
+    // This prevents showing "no results" while the search is in progress
     if (!searchResults.hasActiveSearch) {
+      return null;
+    }
+
+    // If we're still searching (debouncing or loading), show initialItems
+    // Once we have results (even empty), show search results
+    // isSearching is true immediately, isLoading is true after debounce
+    if (
+      (searchResults.isSearching || searchResults.isLoading) &&
+      searchResults.items.length === 0
+    ) {
       return null;
     }
 
@@ -37,12 +47,18 @@ export function SearchableItemsGrid({ initialItems }: SearchableItemsGridProps) 
       description: item.description,
       tags: item.tags,
       objects: item.objects,
-      colors: item.colors?.map((c) => ({ ...c, name: c.name ?? "", score: 0 })) ?? [],
+      colors:
+        item.colors?.map((c) => ({ ...c, name: c.name ?? "", score: 0 })) ?? [],
       ocrText: item.ocrText,
       locations: item.locations,
       articleDetails: item.articleDetails,
     }));
-  }, [searchResults.items, searchResults.hasActiveSearch]);
+  }, [
+    searchResults.items,
+    searchResults.hasActiveSearch,
+    searchResults.isSearching,
+    searchResults.isLoading,
+  ]);
 
   // Use search results when actively searching, otherwise show all items
   const displayItems = searchItems ?? initialItems;

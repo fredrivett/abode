@@ -29,7 +29,9 @@ export function useFilterOptions() {
    * Get filter values for a specific type from cache.
    * Returns immediately from cache if available.
    */
-  const getFilterValuesForType = async (type: FilterType): Promise<string[]> => {
+  const getFilterValuesForType = async (
+    type: FilterType,
+  ): Promise<string[]> => {
     if (!data) {
       // If data isn't loaded yet, fall back to fetching
       const response = await getFilterValues(type);

@@ -199,4 +199,3 @@ export async function getFilterValues(
 
   return response.json();
 }
-
