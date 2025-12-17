@@ -1,10 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type SearchResponse, type SearchResultItem, search } from "./api";
+import { toast } from "sonner";
+import {
+  type InvalidFilterValue,
+  type SearchResponse,
+  type SearchResultItem,
+  search,
+} from "./api";
 import type { Filter, SearchState } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * Show toast notifications for invalid filter values.
+ */
+function showInvalidFiltersToast(invalidFilters: InvalidFilterValue[]) {
+  for (const invalid of invalidFilters) {
+    toast.error(`"${invalid.value}" is not a valid ${invalid.filterType}`, {
+      description: `Valid ${invalid.filterType}s will be shown in autocomplete.`,
+    });
+  }
+}
 
 export type SearchResultsState = {
   isLoading: boolean;
@@ -139,6 +156,11 @@ export function useSearchResults(searchState: SearchState) {
         // Check if this is still the current request
         if (requestId !== currentRequestId.current) {
           return;
+        }
+
+        // Show toast for any invalid filter values
+        if (response.invalidFilters && response.invalidFilters.length > 0) {
+          showInvalidFiltersToast(response.invalidFilters);
         }
 
         setState({

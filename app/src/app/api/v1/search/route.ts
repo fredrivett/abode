@@ -12,10 +12,12 @@ import {
   buildTagCondition,
   buildTypeCondition,
   hasFilters,
+  type InvalidFilterValue,
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
+  validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
@@ -94,6 +96,7 @@ type SearchResponse = {
   total: number;
   cursor?: string;
   warnings?: SearchWarning[];
+  invalidFilters?: InvalidFilterValue[];
 };
 
 function encodeCursor(data: CursorData): string {
@@ -149,8 +152,26 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor");
     const filters = parseFiltersFromParams(searchParams);
 
+    // Validate type filters upfront and collect invalid values
+    const invalidFilters: InvalidFilterValue[] = [];
+    if (filters.type && filters.type.length > 0) {
+      const { valid, invalid } = validateTypeFilters(filters.type);
+      filters.type = valid.length > 0 ? valid : undefined;
+      invalidFilters.push(...invalid);
+    }
+
     // Require at least one filter or query
     if (!query && !hasFilters(filters)) {
+      // If we have invalid filters but no valid filters, return helpful error
+      if (invalidFilters.length > 0) {
+        return NextResponse.json(
+          {
+            message: "No valid filters provided",
+            invalidFilters,
+          },
+          { status: 400 },
+        );
+      }
       return NextResponse.json(
         { message: "At least one filter or query parameter is required" },
         { status: 400 },
@@ -181,6 +202,7 @@ export async function GET(request: NextRequest) {
       total: results.total,
       ...(results.cursor && { cursor: results.cursor }),
       ...(warnings.length > 0 && { warnings }),
+      ...(invalidFilters.length > 0 && { invalidFilters }),
     };
 
     return NextResponse.json(response, {
@@ -205,7 +227,7 @@ async function executeFiltersOnlySearch(
   const params: unknown[] = [userId];
   let paramIndex = 2;
 
-  // Type filter
+  // Type filter (already validated in route handler)
   if (filters.type && filters.type.length > 0) {
     const typeCondition = buildTypeCondition(filters.type);
     if (typeCondition.sql) {

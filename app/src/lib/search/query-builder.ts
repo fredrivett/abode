@@ -25,6 +25,17 @@ export type ParsedFilters = {
   ocr?: string;
 };
 
+/** Valid ItemKind enum values */
+export const VALID_ITEM_KINDS = ["image", "article"] as const;
+export type ItemKind = (typeof VALID_ITEM_KINDS)[number];
+
+/** Represents an invalid filter value that was rejected during validation */
+export type InvalidFilterValue = {
+  filterType: string;
+  value: string;
+  reason: string;
+};
+
 /**
  * Parse filter values from URL search params.
  * Handles negation (prefix with !), date operators (>, <), and OR groups (pipe |).
@@ -107,18 +118,51 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
 }
 
 /**
+ * Validate type filter values against the ItemKind enum.
+ * Returns valid filters and any invalid values found.
+ */
+export function validateTypeFilters(filters: FilterValue[]): {
+  valid: FilterValue[];
+  invalid: InvalidFilterValue[];
+} {
+  const valid: FilterValue[] = [];
+  const invalid: InvalidFilterValue[] = [];
+
+  for (const filter of filters) {
+    const normalized = filter.value.toLowerCase();
+    if (VALID_ITEM_KINDS.includes(normalized as ItemKind)) {
+      valid.push({ ...filter, value: normalized });
+    } else {
+      invalid.push({
+        filterType: "type",
+        value: filter.value,
+        reason: `"${filter.value}" is not a valid type. Valid types: ${VALID_ITEM_KINDS.join(", ")}`,
+      });
+    }
+  }
+
+  return { valid, invalid };
+}
+
+/**
  * Build SQL WHERE conditions for type filter.
  * Handles OR groups for pipe-separated values.
+ * Validates values against ItemKind enum and returns invalid values.
  */
-export function buildTypeCondition(
-  filters: FilterValue[],
-): { sql: string; params: unknown[] } {
+export function buildTypeCondition(filters: FilterValue[]): {
+  sql: string;
+  params: unknown[];
+  invalid: InvalidFilterValue[];
+} {
+  // Validate type values
+  const { valid: validFilters, invalid } = validateTypeFilters(filters);
+
   const sqlParams: unknown[] = [];
   let paramIndex = 1;
 
   // Group filters by orGroup
   const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
+  for (const filter of validFilters) {
     const key = filter.orGroup;
     const group = orGroups.get(key) || [];
     group.push(filter);
@@ -154,6 +198,7 @@ export function buildTypeCondition(
   return {
     sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
     params: sqlParams,
+    invalid,
   };
 }
 

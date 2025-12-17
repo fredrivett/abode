@@ -67,11 +67,18 @@ export type SearchWarning =
   | "partial_results"
   | "slow_query";
 
+export type InvalidFilterValue = {
+  filterType: string;
+  value: string;
+  reason: string;
+};
+
 export type SearchResponse = {
   items: SearchResultItem[];
   total: number;
   cursor?: string;
   warnings?: SearchWarning[];
+  invalidFilters?: InvalidFilterValue[];
 };
 
 export type FiltersResponse = {
