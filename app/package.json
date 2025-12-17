@@ -10,6 +10,7 @@
     "lint:all": "bunx concurrently --success=all -n biome,TS -c cyan,magenta \"bun run format\" \"bun run ts:check\"",
     "fix": "bunx -p @biomejs/biome biome check --fix",
     "fix:unsafe": "bunx -p @biomejs/biome biome check --fix --unsafe",
+    "check:fix": "bun run fix && bun run ts:check",
     "format": "bunx -p @biomejs/biome biome format --write",
     "test": "vitest",
     "test:watch": "vitest watch",
