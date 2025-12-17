@@ -149,13 +149,10 @@ export const classifyUrlTask = task({
       let articleContent: string | null = null;
       let readingTime: number | null = null;
       try {
-        const defuddled = await Defuddle(html, url);
+        // Use markdown: true to get clean text output instead of HTML
+        const defuddled = await Defuddle(html, url, { markdown: true });
         if (defuddled?.content) {
-          // Strip HTML tags to get plain text content
-          articleContent = defuddled.content
-            .replace(/<[^>]*>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
+          articleContent = defuddled.content;
           // Calculate reading time (average 200 words per minute)
           if (defuddled.wordCount > 0) {
             readingTime = Math.ceil(defuddled.wordCount / 200);
