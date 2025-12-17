@@ -1,6 +1,10 @@
 "use client";
 
-import type { ItemKind } from "@prisma/client";
+import type {
+  ItemKind,
+  ProcessingStatus,
+  SourceType,
+} from "@prisma/client";
 import { useMemo } from "react";
 import { useSearch, useSearchResults } from "@/lib/search";
 import { type DashboardItem, ItemsGrid } from "./items-grid";
@@ -22,21 +26,21 @@ export function SearchableItemsGrid({ initialItems }: SearchableItemsGridProps) 
     return searchResults.items.map((item) => ({
       id: item.id,
       kind: item.kind as ItemKind | null,
-      processingStatus: "completed",
+      processingStatus: item.processingStatus as ProcessingStatus,
       fileKey: item.fileKey,
-      meta: null,
-      sourceType: null,
-      sourceUrl: null,
+      meta: item.meta,
+      sourceType: item.sourceType as SourceType | null,
+      sourceUrl: item.sourceUrl,
       coverFileKey: item.coverFileKey,
       createdAt: item.createdAt,
       title: item.title,
-      description: null,
+      description: item.description,
       tags: item.tags,
-      objects: [],
-      colors: item.colors?.map((c) => ({ ...c, name: "", score: 0 })) ?? [],
-      ocrText: null,
-      locations: [],
-      articleDetails: null,
+      objects: item.objects,
+      colors: item.colors?.map((c) => ({ ...c, name: c.name ?? "", score: 0 })) ?? [],
+      ocrText: item.ocrText,
+      locations: item.locations,
+      articleDetails: item.articleDetails,
     }));
   }, [searchResults.items, searchResults.hasActiveSearch]);
 

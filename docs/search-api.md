@@ -333,6 +333,20 @@ type FiltersResponse = {
 
 ## Future Considerations
 
+### Performance: Response Payload Optimization
+
+The search API currently returns full item data to enable immediate display in the grid. This simplifies the frontend but increases payload size. If response times become an issue:
+
+1. **Minimal grid response** — Return only fields needed for grid display (id, kind, fileKey, coverFileKey, title, meta for dimensions). Fetch full details on item click via a separate endpoint.
+
+2. **Batch fetch on demand** — Return minimal data from search, then batch fetch full details for visible items with `GET /api/v1/items?ids=id1,id2,...`. This adds one extra request but reduces initial payload.
+
+3. **Progressive loading** — Return minimal data immediately, then fetch full item details in the background. Update items as data arrives. Best UX but most complex to implement.
+
+The current full-response approach is simpler and works well at small scale. Consider optimizing when search response times exceed ~500ms or payload exceeds ~100KB.
+
+---
+
 Features to consider adding later:
 
 - **Sort options** — currently hardcoded to relevance for search, date for filters
