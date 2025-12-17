@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Filter,
@@ -19,22 +19,22 @@ const DEBOUNCE_MS = 300;
  * - URL is only read on initial mount and browser back/forward
  */
 export function useSearch() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-
-  // Track if we initiated the URL change (vs browser back/forward)
-  const isInternalUpdate = useRef(false);
 
   // Parse initial URL state on mount only
   const [state, setLocalState] = useState<SearchState>(() =>
     parseSearchParams(searchParams),
   );
 
+  // Track the last URL we set to avoid reacting to our own changes
+  const lastUrlRef = useRef<string | null>(null);
+
   // Handle browser back/forward navigation
   useEffect(() => {
-    // If we initiated the change, ignore it
-    if (isInternalUpdate.current) {
-      isInternalUpdate.current = false;
+    const currentUrl = searchParams.toString();
+
+    // If this URL matches what we set, ignore it (our own update)
+    if (lastUrlRef.current === currentUrl) {
       return;
     }
 
@@ -46,24 +46,23 @@ export function useSearch() {
   // Debounced URL update
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const updateUrl = useCallback(
-    (newState: SearchState) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+  const updateUrl = useCallback((newState: SearchState) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
 
-      timeoutRef.current = setTimeout(() => {
-        const params = serializeSearchParams(newState);
-        const queryString = params.toString();
-        const url = queryString ? `?${queryString}` : window.location.pathname;
+    timeoutRef.current = setTimeout(() => {
+      const params = serializeSearchParams(newState);
+      const queryString = params.toString();
+      const url = queryString ? `?${queryString}` : window.location.pathname;
 
-        // Mark this as our update so we ignore the resulting searchParams change
-        isInternalUpdate.current = true;
-        router.replace(url, { scroll: false });
-      }, DEBOUNCE_MS);
-    },
-    [router],
-  );
+      // Track this URL so we ignore the popstate event
+      lastUrlRef.current = queryString;
+
+      // Use history.replaceState to update URL without triggering navigation
+      window.history.replaceState(null, "", url);
+    }, DEBOUNCE_MS);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
