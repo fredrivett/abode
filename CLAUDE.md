@@ -1,3 +1,22 @@
+<!-- CODE QUALITY START -->
+
+# Code Quality
+
+**After making code changes, run the following from the `./app` directory:**
+
+```bash
+cd ./app
+bun run check:fix
+```
+
+This command:
+1. Auto-fixes linting and formatting issues (Biome)
+2. Reports any TypeScript errors
+
+If there are TypeScript errors that cannot be auto-fixed, address them before considering the task complete.
+
+<!-- CODE QUALITY END -->
+
 <!-- DEPENDENCIES START -->
 
 # Dependencies
