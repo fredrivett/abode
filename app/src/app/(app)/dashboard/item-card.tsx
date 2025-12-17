@@ -96,6 +96,9 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const isArticle = item.kind === "article";
   // For articles, use coverFileKey; for images, use fileKey
   const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
+  // Has displayable image: either it's an image type OR it's an article with a cover
+  const hasDisplayableImage =
+    mimeType?.startsWith("image/") || (isArticle && !!item.coverFileKey);
 
   useEffect(() => {
     // Articles without a cover image don't need to load anything
@@ -158,8 +161,6 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
     }
   };
 
-  const isImage = mimeType?.startsWith("image/");
-
   if (error) {
     return (
       <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
@@ -221,7 +222,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
     );
   }
 
-  if (!isImage) {
+  if (!hasDisplayableImage) {
     return (
       <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
