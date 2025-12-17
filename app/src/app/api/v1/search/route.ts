@@ -15,6 +15,8 @@ import {
   type ParsedFilters,
   parseFiltersFromParams,
 } from "@/lib/search/query-builder";
+import { mergeSearchResults } from "@/lib/search/rrf";
+import { vectorSearch } from "@/lib/search/vector-search";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/search");
@@ -437,24 +439,37 @@ async function executeFiltersOnlySearch(
 }
 
 /**
- * Execute ranked search using full-text search.
- * Vector search and RRF will be added in Chunks 5-6.
+ * Execute ranked search using full-text + vector search with RRF.
  */
 async function executeRankedSearch(
   userId: string,
   filters: ParsedFilters,
   query: string,
-  _warnings: SearchWarning[], // Will be used in Chunks 5-6 for vector_search_unavailable
+  warnings: SearchWarning[],
 ): Promise<{ items: SearchResultItem[]; total: number }> {
-  // Execute full-text search
-  const textResults = await fullTextSearch(
-    userId,
-    filters,
-    query,
-    MAX_RANKED_RESULTS,
-  );
+  // Run full-text and vector search in parallel
+  const [textResults, vectorResults] = await Promise.all([
+    fullTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
+    vectorSearch(userId, filters, query, MAX_RANKED_RESULTS).catch((error) => {
+      // Handle vector search failure gracefully
+      log.error({ error }, "Vector search failed, falling back to text-only");
+      warnings.push("vector_search_unavailable");
+      return [];
+    }),
+  ]);
 
-  if (textResults.length === 0) {
+  // Check if we have any results
+  if (textResults.length === 0 && vectorResults.length === 0) {
+    return { items: [], total: 0 };
+  }
+
+  // Merge results using RRF
+  const mergedResults = mergeSearchResults(textResults, vectorResults, {
+    k: 60,
+    limit: MAX_RANKED_RESULTS,
+  });
+
+  if (mergedResults.length === 0) {
     return { items: [], total: 0 };
   }
 
@@ -466,8 +481,14 @@ async function executeRankedSearch(
     }
   }
 
-  // Fetch full item data for the search results
-  const itemIds = textResults.map((r) => r.id);
+  // Track which items came from which source
+  const sourceMap = new Map<string, string[]>();
+  for (const result of mergedResults) {
+    sourceMap.set(result.id, result.sources);
+  }
+
+  // Fetch full item data for the merged results
+  const itemIds = mergedResults.map((r) => r.id);
 
   const items = await db.$queryRawUnsafe<
     Array<{
@@ -518,9 +539,9 @@ async function executeRankedSearch(
     colorMatches = matches;
   }
 
-  // Build result items in rank order, excluding filtered-out items
+  // Build result items in RRF rank order, excluding filtered-out items
   const resultItems: SearchResultItem[] = [];
-  for (const result of textResults) {
+  for (const result of mergedResults) {
     if (!filteredItemIds.has(result.id)) continue;
 
     const item = itemMap.get(result.id);
@@ -528,21 +549,34 @@ async function executeRankedSearch(
 
     const ocrSnippet = ocrSnippets.get(result.id);
     const colorMatch = colorMatches.get(result.id);
+    const sources = sourceMap.get(result.id) || [];
 
     // Build match reasons
     const reasons: MatchReason[] = [];
 
-    // Add text search match reason (null field indicates semantic/text match)
-    if (ocrSnippet) {
+    // Add search match reasons based on sources
+    const hasFulltext = sources.includes("fulltext");
+    const hasVector = sources.includes("vector");
+
+    if (hasFulltext && ocrSnippet) {
       reasons.push({
         field: "ocrText",
         snippet: ocrSnippet,
       });
-    } else {
+    } else if (hasFulltext) {
       // Text matched in title, tags, or description
       reasons.push({
-        field: null, // indicates full-text match across multiple fields
+        field: null, // indicates full-text match
         value: query,
+      });
+    }
+
+    if (hasVector) {
+      // Add semantic match indicator
+      reasons.push({
+        field: null, // null field indicates semantic/vector match
+        value: query,
+        proximity: 0.8, // Approximate semantic relevance
       });
     }
 
