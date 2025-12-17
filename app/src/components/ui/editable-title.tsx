@@ -64,14 +64,15 @@ export function EditableTitle({
     }
   }, [isEditing, value]);
 
-  // Measure width for input sizing
+  // Measure width for input sizing (content-box means we measure just the text, padding is added on top)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft is intentionally included to remeasure when text changes
   useLayoutEffect(() => {
     if (!canEdit || !measurementRef.current) return;
     const width = measurementRef.current.offsetWidth;
     if (width > 0) {
-      setInputWidth(Math.max(width + 4, 32));
+      setInputWidth(Math.max(width, 32));
     }
-  }, [canEdit]);
+  }, [canEdit, draft]);
 
   const handleCommit = useCallback(async () => {
     if (!canEdit) {
@@ -108,8 +109,6 @@ export function EditableTitle({
     return <h2 className={textClasses}>{value}</h2>;
   }
 
-  const showIcon = !isEditing && (isSaving || pending);
-
   return (
     <div
       className={cn(
@@ -117,12 +116,12 @@ export function EditableTitle({
         isEditing || isSaving || pending ? "mr-0" : "hover:mr-0",
       )}
     >
-      {/* Hidden measurement span */}
+      {/* Hidden measurement span - no padding since input uses content-box */}
       <span
         ref={measurementRef}
         className={cn(
           textClasses,
-          "pointer-events-none absolute opacity-0 whitespace-pre -z-10 max-w-full",
+          "pointer-events-none absolute opacity-0 whitespace-pre -z-10",
         )}
         aria-hidden="true"
       >
@@ -148,17 +147,15 @@ export function EditableTitle({
         }}
         disabled={disabled || isSaving || pending}
         size={Math.max(draft.length, 1)}
-        style={{
-          width: inputWidth ? `min(${inputWidth}px, 100%)` : undefined,
-        }}
+        style={{ width: inputWidth }}
         className={cn(
           textClasses,
-          "border-none outline-none cursor-text transition-[bg,padding] px-2.5 py-1.5",
+          // max-width accounts for padding: 100% - px-2.5 (10px) - pr-2.5 or pr-9 (10px or 36px)
+          "box-content border-none outline-none cursor-text transition-[background,padding,max-width] px-2.5 py-1.5 max-w-[calc(100%-20px)]",
           isEditing
             ? "bg-gray-100 dark:bg-gray-800 pr-2.5"
-            : "bg-transparent hover:bg-gray-100 hover:dark:bg-gray-800",
-          (showIcon || !isEditing) && "hover:pr-9",
-          (isSaving || pending) && "pr-9",
+            : "bg-transparent hover:bg-gray-100 hover:dark:bg-gray-800 hover:pr-9 hover:max-w-[calc(100%-46px)]",
+          (isSaving || pending) && "pr-9 max-w-[calc(100%-46px)]",
           inputClassName,
         )}
       />
