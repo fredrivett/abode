@@ -170,18 +170,3 @@ export async function getFilterValues(
   return response.json();
 }
 
-/**
- * Get filter values for a specific type (convenience wrapper).
- *
- * @param type - Filter type
- * @returns Array of values for that type
- */
-export async function getFilterValuesForType(
-  type: FilterType,
-): Promise<string[]> {
-  const response = await getFilterValues(type);
-
-  // Map frontend filter type to API response key
-  const apiKey = type as keyof FiltersResponse;
-  return response[apiKey] || [];
-}
