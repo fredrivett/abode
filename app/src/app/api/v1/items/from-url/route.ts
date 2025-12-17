@@ -23,10 +23,7 @@ export async function POST(request: NextRequest) {
     const { url } = body;
 
     if (!url || typeof url !== "string") {
-      return NextResponse.json(
-        { message: "URL is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
     // Basic URL validation

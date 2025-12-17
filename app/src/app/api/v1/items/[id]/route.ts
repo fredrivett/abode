@@ -92,7 +92,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { processingStatus, fileKey, meta, sourceType, sourceUrl, kind, coverFileKey } = body;
+    const {
+      processingStatus,
+      fileKey,
+      meta,
+      sourceType,
+      sourceUrl,
+      kind,
+      coverFileKey,
+    } = body;
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({

@@ -133,7 +133,10 @@ export function extractDomain(url: string): string {
 /**
  * Extracts all article metadata from HTML in a single pass
  */
-export function extractArticleMetadata(html: string, url: string): ArticleMetadata {
+export function extractArticleMetadata(
+  html: string,
+  url: string,
+): ArticleMetadata {
   const publishedTimeStr =
     extractMetaContent(html, "article:published_time") ||
     extractMetaContent(html, "datePublished");

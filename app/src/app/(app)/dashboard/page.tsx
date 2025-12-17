@@ -69,7 +69,8 @@ export default async function DashboardPage() {
           articleDetails: item.articleDetails
             ? {
                 ...item.articleDetails,
-                publishedAt: item.articleDetails.publishedAt?.toISOString() ?? null,
+                publishedAt:
+                  item.articleDetails.publishedAt?.toISOString() ?? null,
               }
             : null,
         }))}

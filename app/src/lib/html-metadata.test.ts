@@ -239,7 +239,9 @@ describe("extractArticleMetadata", () => {
     expect(metadata.domain).toBe("example.com");
     expect(metadata.ogImage).toBe("https://example.com/cover.jpg");
     expect(metadata.publishedAt).toBeInstanceOf(Date);
-    expect(metadata.publishedAt?.toISOString()).toBe("2024-01-15T10:30:00.000Z");
+    expect(metadata.publishedAt?.toISOString()).toBe(
+      "2024-01-15T10:30:00.000Z",
+    );
   });
 
   it("handles missing optional fields", () => {

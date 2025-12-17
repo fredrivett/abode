@@ -4,10 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import { extractArticleMetadata } from "../src/lib/html-metadata";
-import {
-  getExtensionFromContentType,
-  isImageUrl,
-} from "../src/lib/url-utils";
+import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 
 type ClassifyUrlPayload = {
@@ -124,7 +121,8 @@ export const classifyUrlTask = task({
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://abode.dev)",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
       });
 

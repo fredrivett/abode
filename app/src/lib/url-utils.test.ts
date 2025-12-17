@@ -66,9 +66,9 @@ describe("isImageUrl", () => {
       expect(isImageUrl("https://example.com/file", "application/json")).toBe(
         false,
       );
-      expect(
-        isImageUrl("https://example.com/file", "application/pdf"),
-      ).toBe(false);
+      expect(isImageUrl("https://example.com/file", "application/pdf")).toBe(
+        false,
+      );
     });
   });
 
