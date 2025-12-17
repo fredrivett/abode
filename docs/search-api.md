@@ -337,3 +337,21 @@ Features to consider adding later:
 - **Faceted counts** — "10 images, 5 videos" breakdown in results
 - **Search history** — recent searches for quick access
 - **Saved searches** — bookmarkable filter combinations
+
+### Performance: Case-insensitive tag/object filtering
+
+The current tag and object filters use `lower()` for case-insensitive matching:
+
+```sql
+EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($1))
+```
+
+This prevents PostgreSQL from using GIN indexes on the arrays, requiring a scan of each tag in each row. At small scale (hundreds/thousands of items per user) this is fine since queries are already scoped to a single user. At larger scale it may become slow.
+
+**Potential solutions:**
+
+1. **Generated column** (recommended) — Add a `tags_lower text[]` generated column that stores lowercased tags, with a GIN index on that column. Query uses `tags_lower`, UI displays original `tags`. Preserves user casing (`iPhone`, `NYC`) while enabling index usage.
+
+2. **Normalize on write** — Store tags lowercase when saving. Query becomes `WHERE $1 = ANY(tags)` which uses the GIN index directly. Simpler but loses original case in the UI.
+
+3. **Expression index** — Not directly supported for arrays with `lower()`, but could work with a custom function.
