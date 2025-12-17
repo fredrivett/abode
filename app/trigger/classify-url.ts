@@ -157,12 +157,6 @@ export const classifyUrlTask = task({
           if (defuddled.wordCount > 0) {
             readingTime = Math.ceil(defuddled.wordCount / 200);
           }
-          logger.log("Article content extracted", {
-            itemId,
-            contentLength: articleContent.length,
-            wordCount: defuddled.wordCount,
-            readingTime,
-          });
         }
       } catch (defuddleError) {
         logger.warn("Failed to extract article content with Defuddle", {
@@ -170,6 +164,13 @@ export const classifyUrlTask = task({
           error: defuddleError,
         });
       }
+
+      logger.log("Article content extraction result", {
+        itemId,
+        contentExtracted: !!articleContent,
+        contentLength: articleContent?.length ?? 0,
+        readingTime,
+      });
 
       logger.log("URL classified as article", {
         itemId,
