@@ -14,14 +14,35 @@ import type { Filter, SearchState } from "./types";
 const SEARCH_DEBOUNCE_MS = 250;
 
 /**
- * Show toast notifications for invalid filter values.
+ * Show a single toast notification for invalid filter values.
+ * Groups invalid values by filter type for a cleaner user experience.
  */
 function showInvalidFiltersToast(invalidFilters: InvalidFilterValue[]) {
+  if (invalidFilters.length === 0) return;
+
+  // Group by filter type
+  const byType = new Map<string, string[]>();
   for (const invalid of invalidFilters) {
-    toast.error(`"${invalid.value}" is not a valid ${invalid.filterType}`, {
-      description: `Valid ${invalid.filterType}s are shown in the autocomplete dropdown menu.`,
-    });
+    const values = byType.get(invalid.filterType) || [];
+    values.push(invalid.value);
+    byType.set(invalid.filterType, values);
   }
+
+  // Build message
+  const parts: string[] = [];
+  for (const [filterType, values] of byType) {
+    const quotedValues = values.map((v) => `"${v}"`).join(", ");
+    parts.push(`${quotedValues} for ${filterType}`);
+  }
+
+  const title =
+    invalidFilters.length === 1
+      ? "Invalid filter value"
+      : "Invalid filter values";
+
+  toast.error(title, {
+    description: `${parts.join("; ")}. Valid values are shown in the autocomplete dropdown.`,
+  });
 }
 
 export type SearchResultsState = {
