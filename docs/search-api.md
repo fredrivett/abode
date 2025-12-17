@@ -1,6 +1,6 @@
 # Search API
 
-**Status:** Not Started
+**Status:** Implemented
 **Owner:** Unassigned
 
 ## Overview
