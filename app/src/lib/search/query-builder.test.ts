@@ -13,8 +13,10 @@ import {
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
+  validateSourceFilters,
   validateTypeFilters,
   VALID_ITEM_KINDS,
+  VALID_SOURCE_TYPES,
 } from "./query-builder";
 
 describe("parseFiltersFromParams", () => {
@@ -309,6 +311,50 @@ describe("validateTypeFilters", () => {
   });
 });
 
+describe("validateSourceFilters", () => {
+  it("accepts valid source types", () => {
+    const result = validateSourceFilters([
+      { value: "upload", negated: false },
+      { value: "url", negated: false },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  it("normalizes case to lowercase", () => {
+    const result = validateSourceFilters([
+      { value: "UPLOAD", negated: false },
+      { value: "Url", negated: false },
+    ]);
+    expect(result.valid).toEqual([
+      { value: "upload", negated: false },
+      { value: "url", negated: false },
+    ]);
+  });
+
+  it("rejects invalid sources with helpful message", () => {
+    const result = validateSourceFilters([{ value: "camera", negated: false }]);
+    expect(result.valid).toHaveLength(0);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "source",
+        value: "camera",
+        reason: `"camera" is not a valid source. Valid sources: ${VALID_SOURCE_TYPES.join(", ")}`,
+      },
+    ]);
+  });
+
+  it("separates valid and invalid in mixed input", () => {
+    const result = validateSourceFilters([
+      { value: "upload", negated: false },
+      { value: "camera", negated: false },
+      { value: "url", negated: true },
+    ]);
+    expect(result.valid).toHaveLength(2);
+    expect(result.invalid).toHaveLength(1);
+  });
+});
+
 describe("buildTagCondition", () => {
   it("builds EXISTS condition for tag", () => {
     const result = buildTagCondition(
@@ -372,23 +418,68 @@ describe("buildObjectCondition", () => {
 });
 
 describe("buildSourceCondition", () => {
-  it("builds condition for source", () => {
+  it("builds condition for valid source", () => {
     const result = buildSourceCondition(
-      [{ value: "camera", negated: false }],
+      [{ value: "upload", negated: false }],
       1,
     );
-    expect(result.sql).toContain("lower(source_type) = lower($1)");
-    expect(result.params).toEqual(["camera"]);
+    expect(result.sql).toBe('(source_type = $1::"SourceType")');
+    expect(result.params).toEqual(["upload"]);
+    expect(result.invalid).toEqual([]);
   });
 
   it("builds condition for negated source", () => {
     const result = buildSourceCondition(
-      [{ value: "upload", negated: true }],
+      [{ value: "url", negated: true }],
       1,
     );
-    expect(result.sql).toContain(
-      "source_type IS NULL OR lower(source_type) != lower($1)",
+    expect(result.sql).toBe(
+      '((source_type IS NULL OR source_type != $1::"SourceType"))',
     );
+    expect(result.params).toEqual(["url"]);
+  });
+
+  it("filters out invalid source values and returns them as invalid", () => {
+    const result = buildSourceCondition(
+      [
+        { value: "upload", negated: false },
+        { value: "camera", negated: false },
+      ],
+      1,
+    );
+    expect(result.sql).toBe('(source_type = $1::"SourceType")');
+    expect(result.params).toEqual(["upload"]);
+    expect(result.invalid).toEqual([
+      {
+        filterType: "source",
+        value: "camera",
+        reason: '"camera" is not a valid source. Valid sources: upload, url',
+      },
+    ]);
+  });
+
+  it("returns all invalid values when no valid sources provided", () => {
+    const result = buildSourceCondition(
+      [{ value: "camera", negated: false }],
+      1,
+    );
+    expect(result.sql).toBe("");
+    expect(result.params).toEqual([]);
+    expect(result.invalid).toHaveLength(1);
+  });
+
+  it("builds OR condition for pipe-separated values", () => {
+    const result = buildSourceCondition(
+      [
+        { value: "upload", negated: false, orGroup: 0 },
+        { value: "url", negated: false, orGroup: 0 },
+      ],
+      1,
+    );
+    expect(result.sql).toBe(
+      '((source_type = $1::"SourceType" OR source_type = $2::"SourceType"))',
+    );
+    expect(result.params).toEqual(["upload", "url"]);
   });
 });
 

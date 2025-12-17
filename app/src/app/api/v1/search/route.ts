@@ -17,6 +17,7 @@ import {
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
+  validateSourceFilters,
   validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { mergeSearchResults } from "@/lib/search/rrf";
@@ -152,11 +153,16 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor");
     const filters = parseFiltersFromParams(searchParams);
 
-    // Validate type filters upfront and collect invalid values
+    // Validate enum-based filters upfront and collect invalid values
     const invalidFilters: InvalidFilterValue[] = [];
     if (filters.type && filters.type.length > 0) {
       const { valid, invalid } = validateTypeFilters(filters.type);
       filters.type = valid.length > 0 ? valid : undefined;
+      invalidFilters.push(...invalid);
+    }
+    if (filters.source && filters.source.length > 0) {
+      const { valid, invalid } = validateSourceFilters(filters.source);
+      filters.source = valid.length > 0 ? valid : undefined;
       invalidFilters.push(...invalid);
     }
 

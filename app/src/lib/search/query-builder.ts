@@ -29,12 +29,45 @@ export type ParsedFilters = {
 export const VALID_ITEM_KINDS = ["image", "article"] as const;
 export type ItemKind = (typeof VALID_ITEM_KINDS)[number];
 
+/** Valid SourceType enum values */
+export const VALID_SOURCE_TYPES = ["upload", "url"] as const;
+export type SourceType = (typeof VALID_SOURCE_TYPES)[number];
+
 /** Represents an invalid filter value that was rejected during validation */
 export type InvalidFilterValue = {
   filterType: string;
   value: string;
   reason: string;
 };
+
+/**
+ * Generic filter validation function for enum-based filters.
+ * Validates filter values against a list of valid values and returns
+ * valid filters (normalized to lowercase) and invalid values with helpful messages.
+ */
+function validateEnumFilters<T extends string>(
+  filters: FilterValue[],
+  validValues: readonly T[],
+  filterType: string,
+): { valid: FilterValue[]; invalid: InvalidFilterValue[] } {
+  const valid: FilterValue[] = [];
+  const invalid: InvalidFilterValue[] = [];
+
+  for (const filter of filters) {
+    const normalized = filter.value.toLowerCase();
+    if (validValues.includes(normalized as T)) {
+      valid.push({ ...filter, value: normalized });
+    } else {
+      invalid.push({
+        filterType,
+        value: filter.value,
+        reason: `"${filter.value}" is not a valid ${filterType}. Valid ${filterType}s: ${validValues.join(", ")}`,
+      });
+    }
+  }
+
+  return { valid, invalid };
+}
 
 /**
  * Parse filter values from URL search params.
@@ -125,23 +158,18 @@ export function validateTypeFilters(filters: FilterValue[]): {
   valid: FilterValue[];
   invalid: InvalidFilterValue[];
 } {
-  const valid: FilterValue[] = [];
-  const invalid: InvalidFilterValue[] = [];
+  return validateEnumFilters(filters, VALID_ITEM_KINDS, "type");
+}
 
-  for (const filter of filters) {
-    const normalized = filter.value.toLowerCase();
-    if (VALID_ITEM_KINDS.includes(normalized as ItemKind)) {
-      valid.push({ ...filter, value: normalized });
-    } else {
-      invalid.push({
-        filterType: "type",
-        value: filter.value,
-        reason: `"${filter.value}" is not a valid type. Valid types: ${VALID_ITEM_KINDS.join(", ")}`,
-      });
-    }
-  }
-
-  return { valid, invalid };
+/**
+ * Validate source filter values against the SourceType enum.
+ * Returns valid filters and any invalid values found.
+ */
+export function validateSourceFilters(filters: FilterValue[]): {
+  valid: FilterValue[];
+  invalid: InvalidFilterValue[];
+} {
+  return validateEnumFilters(filters, VALID_SOURCE_TYPES, "source");
 }
 
 /**
@@ -316,19 +344,22 @@ export function buildObjectCondition(
 
 /**
  * Build SQL WHERE conditions for source filter.
- * Case-insensitive matching.
+ * Validates values against SourceType enum.
  * Handles OR groups for pipe-separated values.
  */
 export function buildSourceCondition(
   filters: FilterValue[],
   startParamIndex: number,
-): { sql: string; params: unknown[] } {
+): { sql: string; params: unknown[]; invalid: InvalidFilterValue[] } {
+  // Validate source values
+  const { valid: validFilters, invalid } = validateSourceFilters(filters);
+
   const sqlParams: unknown[] = [];
   let paramIndex = startParamIndex;
 
   // Group filters by orGroup
   const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
+  for (const filter of validFilters) {
     const key = filter.orGroup;
     const group = orGroups.get(key) || [];
     group.push(filter);
@@ -344,10 +375,10 @@ export function buildSourceCondition(
     for (const filter of group) {
       if (filter.negated) {
         conditions.push(
-          `(source_type IS NULL OR lower(source_type) != lower($${paramIndex}))`,
+          `(source_type IS NULL OR source_type != $${paramIndex}::"SourceType")`,
         );
       } else {
-        conditions.push(`lower(source_type) = lower($${paramIndex})`);
+        conditions.push(`source_type = $${paramIndex}::"SourceType"`);
       }
       sqlParams.push(filter.value);
       paramIndex++;
@@ -365,6 +396,7 @@ export function buildSourceCondition(
   return {
     sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
     params: sqlParams,
+    invalid,
   };
 }
 
