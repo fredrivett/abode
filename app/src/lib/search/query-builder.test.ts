@@ -7,16 +7,15 @@ import {
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
-  type FilterValue,
   hasFilters,
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
-  validateSourceFilters,
-  validateTypeFilters,
   VALID_ITEM_KINDS,
   VALID_SOURCE_TYPES,
+  validateSourceFilters,
+  validateTypeFilters,
 } from "./query-builder";
 
 describe("parseFiltersFromParams", () => {
@@ -236,7 +235,8 @@ describe("buildTypeCondition", () => {
       {
         filterType: "type",
         value: "invalid_type",
-        reason: '"invalid_type" is not a valid type. Valid types: image, article',
+        reason:
+          '"invalid_type" is not a valid type. Valid types: image, article',
       },
     ]);
   });
@@ -431,10 +431,7 @@ describe("buildSourceCondition", () => {
   });
 
   it("builds condition for negated source", () => {
-    const result = buildSourceCondition(
-      [{ value: "url", negated: true }],
-      1,
-    );
+    const result = buildSourceCondition([{ value: "url", negated: true }], 1);
     expect(result.sql).toBe(
       '((source_type IS NULL OR source_type != $1::"SourceType"))',
     );

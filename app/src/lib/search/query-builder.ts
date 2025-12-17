@@ -7,8 +7,8 @@
 
 import {
   ItemKind,
-  SourceType,
   type ItemKind as ItemKindType,
+  SourceType,
   type SourceType as SourceTypeType,
 } from "@prisma/client";
 import {
@@ -83,7 +83,10 @@ type ConditionBuilderContext = {
 function buildGroupedConditions(
   filters: FilterValue[],
   startParamIndex: number,
-  buildCondition: (filter: FilterValue, ctx: ConditionBuilderContext) => string | null,
+  buildCondition: (
+    filter: FilterValue,
+    ctx: ConditionBuilderContext,
+  ) => string | null,
 ): { sql: string; params: unknown[] } {
   const orGroups = groupFiltersByOrGroup(filters);
   const groupConditions: string[] = [];
@@ -262,14 +265,18 @@ export function buildTypeCondition(filters: FilterValue[]): {
 } {
   const { valid: validFilters, invalid } = validateTypeFilters(filters);
 
-  const { sql, params } = buildGroupedConditions(validFilters, 1, (filter, ctx) => {
-    const condition = filter.negated
-      ? `(kind IS NULL OR kind != $${ctx.paramIndex}::"ItemKind")`
-      : `kind = $${ctx.paramIndex}::"ItemKind"`;
-    ctx.params.push(filter.value);
-    ctx.paramIndex++;
-    return condition;
-  });
+  const { sql, params } = buildGroupedConditions(
+    validFilters,
+    1,
+    (filter, ctx) => {
+      const condition = filter.negated
+        ? `(kind IS NULL OR kind != $${ctx.paramIndex}::"ItemKind")`
+        : `kind = $${ctx.paramIndex}::"ItemKind"`;
+      ctx.params.push(filter.value);
+      ctx.paramIndex++;
+      return condition;
+    },
+  );
 
   return { sql, params, invalid };
 }
