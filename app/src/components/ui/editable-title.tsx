@@ -65,6 +65,7 @@ export function EditableTitle({
   }, [isEditing, value]);
 
   // Measure width for input sizing (content-box means we measure just the text, padding is added on top)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft is intentionally included to remeasure when text changes
   useLayoutEffect(() => {
     if (!canEdit || !measurementRef.current) return;
     const width = measurementRef.current.offsetWidth;
@@ -107,8 +108,6 @@ export function EditableTitle({
   if (!canEdit) {
     return <h2 className={textClasses}>{value}</h2>;
   }
-
-  const showIcon = !isEditing && (isSaving || pending);
 
   return (
     <div
