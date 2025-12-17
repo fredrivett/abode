@@ -7,6 +7,7 @@ import {
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
+  type FilterValue,
   hasFilters,
   normalizeColorFilterValue,
   type ParsedFilters,
@@ -57,6 +58,74 @@ describe("parseFiltersFromParams", () => {
       expect(filters.color).toHaveLength(1);
       expect(filters.source).toHaveLength(1);
       expect(filters.location).toHaveLength(1);
+    });
+  });
+
+  describe("pipe-separated OR values", () => {
+    it("parses pipe-separated type values as OR group", () => {
+      const params = new URLSearchParams("type=image|article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("parses pipe-separated tag values as OR group", () => {
+      const params = new URLSearchParams("tag=vacation|summer");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "vacation", negated: false, orGroup: 0 },
+        { value: "summer", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("handles negation within pipe-separated values", () => {
+      const params = new URLSearchParams("type=image|!video");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "video", negated: true, orGroup: 0 },
+      ]);
+    });
+
+    it("assigns different orGroups to separate params", () => {
+      const params = new URLSearchParams("tag=a|b&tag=c|d");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "a", negated: false, orGroup: 0 },
+        { value: "b", negated: false, orGroup: 0 },
+        { value: "c", negated: false, orGroup: 1 },
+        { value: "d", negated: false, orGroup: 1 },
+      ]);
+    });
+
+    it("mixes pipe-separated and regular params", () => {
+      const params = new URLSearchParams("tag=a|b&tag=c");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.tag).toEqual([
+        { value: "a", negated: false, orGroup: 0 },
+        { value: "b", negated: false, orGroup: 0 },
+        { value: "c", negated: false },
+      ]);
+    });
+
+    it("trims whitespace from pipe-separated values", () => {
+      const params = new URLSearchParams("type=image | article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
+    });
+
+    it("skips empty values in pipe-separated string", () => {
+      const params = new URLSearchParams("type=image||article");
+      const filters = parseFiltersFromParams(params);
+      expect(filters.type).toEqual([
+        { value: "image", negated: false, orGroup: 0 },
+        { value: "article", negated: false, orGroup: 0 },
+      ]);
     });
   });
 
@@ -118,7 +187,7 @@ describe("buildTypeCondition", () => {
     expect(result.params).toEqual(["video"]);
   });
 
-  it("builds condition for multiple types", () => {
+  it("builds condition for multiple types without orGroup (AND)", () => {
     const result = buildTypeCondition([
       { value: "image", negated: false },
       { value: "video", negated: true },
@@ -127,6 +196,29 @@ describe("buildTypeCondition", () => {
       '(kind = $1::"ItemKind" AND (kind IS NULL OR kind != $2::"ItemKind"))',
     );
     expect(result.params).toEqual(["image", "video"]);
+  });
+
+  it("builds condition for OR group (pipe-separated values)", () => {
+    const result = buildTypeCondition([
+      { value: "image", negated: false, orGroup: 0 },
+      { value: "article", negated: false, orGroup: 0 },
+    ]);
+    expect(result.sql).toBe(
+      '((kind = $1::"ItemKind" OR kind = $2::"ItemKind"))',
+    );
+    expect(result.params).toEqual(["image", "article"]);
+  });
+
+  it("combines OR groups with AND for separate params", () => {
+    const result = buildTypeCondition([
+      { value: "image", negated: false, orGroup: 0 },
+      { value: "article", negated: false, orGroup: 0 },
+      { value: "video", negated: true },
+    ]);
+    expect(result.sql).toBe(
+      '((kind = $1::"ItemKind" OR kind = $2::"ItemKind") AND (kind IS NULL OR kind != $3::"ItemKind"))',
+    );
+    expect(result.params).toEqual(["image", "article", "video"]);
   });
 
   it("returns empty string for empty array", () => {
