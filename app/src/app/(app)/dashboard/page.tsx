@@ -46,6 +46,14 @@ export default async function DashboardPage() {
               formatted: true,
             },
           },
+          articleDetails: {
+            select: {
+              author: true,
+              domain: true,
+              publishedAt: true,
+              readingTime: true,
+            },
+          },
         },
       })
     : [];
@@ -58,6 +66,12 @@ export default async function DashboardPage() {
           createdAt: item.createdAt.toISOString(),
           meta: (item.meta as Record<string, unknown> | null) ?? null,
           colors: (item.colors as ImageColor[]) ?? [],
+          articleDetails: item.articleDetails
+            ? {
+                ...item.articleDetails,
+                publishedAt: item.articleDetails.publishedAt?.toISOString() ?? null,
+              }
+            : null,
         }))}
       />
     </div>
