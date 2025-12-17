@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -81,7 +81,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -96,7 +96,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('app/bun.lock') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -129,7 +129,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -144,7 +144,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('app/bun.lock') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -191,7 +191,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
