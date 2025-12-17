@@ -64,16 +64,18 @@ export function reciprocalRankFusion(
 }
 
 /**
- * Merge full-text and vector search results using RRF.
+ * Merge full-text, vector, and OCR search results using RRF.
  *
  * @param textResults - Full-text search results (id, rank)
  * @param vectorResults - Vector search results (id, similarity)
+ * @param ocrResults - OCR text search results (id, rank)
  * @param options - RRF options
  * @returns Merged results with source tracking
  */
 export function mergeSearchResults(
   textResults: Array<{ id: string; rank?: number }>,
   vectorResults: Array<{ id: string; similarity?: number }>,
+  ocrResults: Array<{ id: string; rank?: number }> = [],
   options: RRFOptions = {},
 ): { id: string; score: number; sources: string[] }[] {
   const resultSets = new Map<string, string[]>();
@@ -91,6 +93,14 @@ export function mergeSearchResults(
     resultSets.set(
       "vector",
       vectorResults.map((r) => r.id),
+    );
+  }
+
+  // OCR results (already in rank order)
+  if (ocrResults.length > 0) {
+    resultSets.set(
+      "ocr",
+      ocrResults.map((r) => r.id),
     );
   }
 

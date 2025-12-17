@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { fullTextSearch } from "@/lib/search/full-text-search";
+import {
+  fullTextSearch,
+  ocrTextSearch,
+} from "@/lib/search/full-text-search";
 import {
   buildDateCondition,
   buildLocationCondition,
@@ -454,7 +457,7 @@ async function executeFiltersOnlySearch(
 }
 
 /**
- * Execute ranked search using full-text + vector search with RRF.
+ * Execute ranked search using full-text + vector + OCR search with RRF.
  */
 async function executeRankedSearch(
   userId: string,
@@ -462,8 +465,8 @@ async function executeRankedSearch(
   query: string,
   warnings: SearchWarning[],
 ): Promise<{ items: SearchResultItem[]; total: number }> {
-  // Run full-text and vector search in parallel
-  const [textResults, vectorResults] = await Promise.all([
+  // Run full-text, vector, and OCR search in parallel
+  const [textResults, vectorResults, ocrResults] = await Promise.all([
     fullTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
     vectorSearch(userId, filters, query, MAX_RANKED_RESULTS).catch((error) => {
       // Handle vector search failure gracefully
@@ -471,29 +474,37 @@ async function executeRankedSearch(
       warnings.push("vector_search_unavailable");
       return [];
     }),
+    ocrTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
   ]);
 
   // Check if we have any results
-  if (textResults.length === 0 && vectorResults.length === 0) {
+  if (
+    textResults.length === 0 &&
+    vectorResults.length === 0 &&
+    ocrResults.length === 0
+  ) {
     return { items: [], total: 0 };
   }
 
-  // Merge results using RRF
-  const mergedResults = mergeSearchResults(textResults, vectorResults, {
-    k: 60,
-    limit: MAX_RANKED_RESULTS,
-  });
+  // Merge results using RRF (3-way merge)
+  const mergedResults = mergeSearchResults(
+    textResults,
+    vectorResults,
+    ocrResults,
+    {
+      k: 60,
+      limit: MAX_RANKED_RESULTS,
+    },
+  );
 
   if (mergedResults.length === 0) {
     return { items: [], total: 0 };
   }
 
-  // Build a map of OCR snippets from full-text results
+  // Build a map of OCR snippets from OCR search results
   const ocrSnippets = new Map<string, string>();
-  for (const result of textResults) {
-    if (result.ocrSnippet) {
-      ocrSnippets.set(result.id, result.ocrSnippet);
-    }
+  for (const result of ocrResults) {
+    ocrSnippets.set(result.id, result.snippet);
   }
 
   // Track which items came from which source
@@ -572,22 +583,26 @@ async function executeRankedSearch(
     // Add search match reasons based on sources
     const hasFulltext = sources.includes("fulltext");
     const hasVector = sources.includes("vector");
+    const hasOcr = sources.includes("ocr");
 
-    if (hasFulltext && ocrSnippet) {
+    // OCR match (from dedicated OCR search)
+    if (hasOcr && ocrSnippet) {
       reasons.push({
         field: "ocrText",
         snippet: ocrSnippet,
       });
-    } else if (hasFulltext) {
-      // Text matched in title, tags, or description
+    }
+
+    // Full-text match (title, tags, description)
+    if (hasFulltext) {
       reasons.push({
-        field: null, // indicates full-text match
+        field: null, // indicates full-text match on metadata
         value: query,
       });
     }
 
+    // Vector/semantic match
     if (hasVector) {
-      // Add semantic match indicator
       reasons.push({
         field: null, // null field indicates semantic/vector match
         value: query,
