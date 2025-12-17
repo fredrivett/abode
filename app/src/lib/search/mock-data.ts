@@ -1,163 +1,28 @@
 /**
- * Mock data for filter autocomplete.
- * This simulates what we'd get from Typesense faceted search.
- * Replace with actual API calls when backend is wired up.
+ * Filter values loader for autocomplete.
+ *
+ * This module was previously mock data, now it fetches from the real API.
+ * Kept as a separate module to maintain backward compatibility with existing imports.
  */
 
+import { getFilterValuesForType } from "./api";
 import type { FilterType } from "./types";
 
-// Mock tags - common photo categories
-const MOCK_TAGS = [
-  "landscape",
-  "portrait",
-  "nature",
-  "urban",
-  "architecture",
-  "food",
-  "travel",
-  "street",
-  "wildlife",
-  "macro",
-  "sunset",
-  "sunrise",
-  "beach",
-  "mountain",
-  "forest",
-  "ocean",
-  "city",
-  "night",
-  "black-and-white",
-  "abstract",
-  "minimalist",
-  "vintage",
-  "documentary",
-  "event",
-  "family",
-];
-
-// Mock objects - things detected by AI
-const MOCK_OBJECTS = [
-  "person",
-  "car",
-  "tree",
-  "building",
-  "dog",
-  "cat",
-  "bird",
-  "flower",
-  "sky",
-  "water",
-  "mountain",
-  "road",
-  "bridge",
-  "boat",
-  "airplane",
-  "bicycle",
-  "motorcycle",
-  "train",
-  "bus",
-  "chair",
-  "table",
-  "computer",
-  "phone",
-  "book",
-  "food",
-];
-
-// Mock colors - dominant colors in hex
-const MOCK_COLORS = [
-  "#FF5733", // red-orange
-  "#33FF57", // green
-  "#3357FF", // blue
-  "#FF33F5", // magenta
-  "#33FFF5", // cyan
-  "#F5FF33", // yellow
-  "#000000", // black
-  "#FFFFFF", // white
-  "#808080", // gray
-  "#8B4513", // brown
-  "#FFD700", // gold
-  "#4B0082", // indigo
-  "#FF69B4", // pink
-  "#00CED1", // dark cyan
-  "#FF4500", // orange-red
-];
-
-// Mock sources
-const MOCK_SOURCES = [
-  "camera-roll",
-  "instagram",
-  "screenshot",
-  "download",
-  "airdrop",
-  "email",
-  "messages",
-  "safari",
-  "chrome",
-  "slack",
-  "figma",
-];
-
-// Mock types (item kinds)
-const MOCK_TYPES = [
-  "image",
-  // Future types could include: "video", "document", "audio", etc.
-];
-
-// Mock locations - cities and places
-const MOCK_LOCATIONS = [
-  "paris",
-  "new york",
-  "tokyo",
-  "london",
-  "san francisco",
-  "los angeles",
-  "barcelona",
-  "rome",
-  "amsterdam",
-  "berlin",
-  "dubai",
-  "sydney",
-  "singapore",
-  "hong kong",
-  "istanbul",
-  "prague",
-  "vienna",
-  "athens",
-  "venice",
-  "florence",
-  "madrid",
-  "lisbon",
-  "copenhagen",
-  "stockholm",
-  "oslo",
-];
-
 /**
- * Get mock filter values for a given filter type.
- * Simulates an async API call with a small delay.
+ * Get filter values for a given filter type.
+ *
+ * @param type - The filter type to get values for
+ * @returns Array of values for autocomplete
  */
 export async function getMockFilterValues(type: FilterType): Promise<string[]> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Date filter uses calendar picker, not value list
+  if (type === "date") {
+    return [];
+  }
 
-  switch (type) {
-    case "tag":
-      return MOCK_TAGS;
-    case "object":
-      return MOCK_OBJECTS;
-    case "color":
-      return MOCK_COLORS;
-    case "source":
-      return MOCK_SOURCES;
-    case "type":
-      return MOCK_TYPES;
-    case "location":
-      return MOCK_LOCATIONS;
-    case "date":
-      // Date filter uses calendar picker, not value list
-      return [];
-    default:
-      return [];
+  try {
+    return await getFilterValuesForType(type);
+  } catch (_error) {
+    return [];
   }
 }
