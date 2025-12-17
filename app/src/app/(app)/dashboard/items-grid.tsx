@@ -9,7 +9,7 @@ import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "./item-card";
 
-type ItemLocation = {
+export type ItemLocation = {
   id: string;
   source: string;
   latitude: number | null;
@@ -22,7 +22,7 @@ type ItemLocation = {
   formatted: string | null;
 };
 
-type ArticleDetails = {
+export type ArticleDetails = {
   author: string | null;
   domain: string | null;
   publishedAt: string | null;
@@ -30,7 +30,7 @@ type ArticleDetails = {
   content: string | null;
 };
 
-type DashboardItem = {
+export type DashboardItem = {
   id: string;
   kind: ItemKind | null;
   processingStatus: ProcessingStatus;
