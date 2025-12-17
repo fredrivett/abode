@@ -1,7 +1,8 @@
 import vision from "@google-cloud/vision";
 import type { Prisma } from "@prisma/client";
+import { getNearestColorName } from "./search/color-utils";
 
-export type ImageColor = { hex: string; score: number };
+export type ImageColor = { hex: string; name: string; score: number };
 
 function parseCredentials(raw: string) {
   try {
@@ -80,16 +81,23 @@ export async function analyzeImage(
   // Extract OCR text
   const ocrText = result.textAnnotations?.[0]?.description || null;
 
-  // Extract dominant colors
+  // Extract dominant colors with nearest named color
   const colors: ImageColor[] =
-    result.imagePropertiesAnnotation?.dominantColors?.colors?.map((color) => ({
-      hex: rgbToHex(
-        color.color?.red || 0,
-        color.color?.green || 0,
-        color.color?.blue || 0,
-      ),
-      score: color.score || 0,
-    })) || [];
+    result.imagePropertiesAnnotation?.dominantColors?.colors
+      ?.map((color) => {
+        const hex = rgbToHex(
+          color.color?.red || 0,
+          color.color?.green || 0,
+          color.color?.blue || 0,
+        );
+        const name = getNearestColorName(hex);
+        return {
+          hex,
+          name: name || "unknown",
+          score: color.score || 0,
+        };
+      })
+      .filter((c) => c.name !== "unknown") || [];
 
   // Prefer OCR-derived title; fallback to filtered labels
   const title =

@@ -66,16 +66,13 @@ model Item {
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
   meta             Json?
 
-  // AI-generated metadata (frequently queried, promoted to columns for performance)
+  // AI-generated metadata (shared across all item types)
   title            String?
   description      String?
   tags             String[]         @default([])  // General labels/keywords
-  objects          String[]         @default([])  // Detected objects (car, person, building, etc.)
-  ocrText          String?          @map("ocr_text")
-  colors           Json?
 
-  // Raw API response (for debugging/reprocessing)
-  visionData       Json?            @map("vision_data")
+  // Full-text search vector (generated column, managed via raw SQL)
+  searchVector     Unsupported("tsvector")?  @map("search_vector")
 
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
@@ -87,11 +84,11 @@ model Item {
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
   articleDetails    ItemArticleDetails?
+  imageDetails      ItemImageDetails?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
   @@index([tags])
-  @@index([objects])
   @@map("items")
 }
 
@@ -178,4 +175,20 @@ model ItemArticleDetails {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("item_article_details")
+}
+
+model ItemImageDetails {
+  itemId      String    @id @map("item_id") @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  objects     String[]  @default([])  // Detected objects (car, person, building, etc.)
+  colors      Json?                    // Color palette
+  ocrText     String?   @map("ocr_text")
+  visionData  Json?     @map("vision_data")  // Raw Vision API response
+  captureDate DateTime? @map("capture_date") // EXIF capture timestamp
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_image_details")
 }

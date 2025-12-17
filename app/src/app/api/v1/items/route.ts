@@ -38,9 +38,6 @@ export async function GET(_request: NextRequest) {
         title: true,
         description: true,
         tags: true,
-        objects: true,
-        colors: true,
-        ocrText: true,
         locations: {
           select: {
             id: true,
@@ -55,11 +52,36 @@ export async function GET(_request: NextRequest) {
             formatted: true,
           },
         },
+        imageDetails: {
+          select: {
+            objects: true,
+            colors: true,
+            ocrText: true,
+          },
+        },
+        articleDetails: {
+          select: {
+            author: true,
+            domain: true,
+            publishedAt: true,
+            readingTime: true,
+            content: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(items);
+    // Flatten imageDetails for backward compatibility with frontend
+    const flattenedItems = items.map((item) => ({
+      ...item,
+      objects: item.imageDetails?.objects ?? [],
+      colors: item.imageDetails?.colors ?? [],
+      ocrText: item.imageDetails?.ocrText ?? null,
+      imageDetails: undefined,
+    }));
+
+    return NextResponse.json(flattenedItems);
   } catch (error) {
     log.error({ error }, "Items fetch error");
     return NextResponse.json(

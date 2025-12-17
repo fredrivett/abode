@@ -41,9 +41,6 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
-        objects: true,
-        colors: true,
-        ocrText: true,
         locations: {
           select: {
             id: true,
@@ -58,6 +55,22 @@ export async function GET(
             formatted: true,
           },
         },
+        imageDetails: {
+          select: {
+            objects: true,
+            colors: true,
+            ocrText: true,
+          },
+        },
+        articleDetails: {
+          select: {
+            author: true,
+            domain: true,
+            publishedAt: true,
+            readingTime: true,
+            content: true,
+          },
+        },
       },
     });
 
@@ -65,7 +78,16 @@ export async function GET(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
-    return NextResponse.json(item);
+    // Flatten imageDetails for backward compatibility with frontend
+    const flattenedItem = {
+      ...item,
+      objects: item.imageDetails?.objects ?? [],
+      colors: item.imageDetails?.colors ?? [],
+      ocrText: item.imageDetails?.ocrText ?? null,
+      imageDetails: undefined,
+    };
+
+    return NextResponse.json(flattenedItem);
   } catch (error) {
     log.error({ error }, "Item fetch error");
     return NextResponse.json(
@@ -140,9 +162,6 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
-        objects: true,
-        colors: true,
-        ocrText: true,
         locations: {
           select: {
             id: true,
@@ -157,10 +176,35 @@ export async function PATCH(
             formatted: true,
           },
         },
+        imageDetails: {
+          select: {
+            objects: true,
+            colors: true,
+            ocrText: true,
+          },
+        },
+        articleDetails: {
+          select: {
+            author: true,
+            domain: true,
+            publishedAt: true,
+            readingTime: true,
+            content: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(updatedItem);
+    // Flatten imageDetails for backward compatibility with frontend
+    const flattenedItem = {
+      ...updatedItem,
+      objects: updatedItem.imageDetails?.objects ?? [],
+      colors: updatedItem.imageDetails?.colors ?? [],
+      ocrText: updatedItem.imageDetails?.ocrText ?? null,
+      imageDetails: undefined,
+    };
+
+    return NextResponse.json(flattenedItem);
   } catch (error) {
     log.error({ error }, "Item update error");
     return NextResponse.json(
