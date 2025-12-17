@@ -87,7 +87,8 @@ Executed asynchronously after initial save:
 
 2. Article extraction
 
-- Pull main content; TBD how.
+- Uses [Defuddle](https://github.com/kepano/defuddle) to extract main article content from web pages.
+- Alternative: [@mozilla/readability](https://github.com/mozilla/readability) is more battle-tested (~30k weekly downloads vs ~400 for Defuddle) but Defuddle provides better output for modern web pages and HTML-to-Markdown conversion.
 
 3. OCR
 

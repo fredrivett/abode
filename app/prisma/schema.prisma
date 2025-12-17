@@ -172,6 +172,7 @@ model ItemArticleDetails {
   domain      String?
   publishedAt DateTime? @map("published_at")
   readingTime Int?      @map("reading_time") // minutes
+  content     String?   // Extracted article text content
 
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")

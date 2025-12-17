@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
+import { Defuddle } from "defuddle/node";
 import db from "../src/lib/db";
 import { extractArticleMetadata } from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
@@ -142,12 +143,44 @@ export const classifyUrlTask = task({
       const html = await response.text();
       const metadata = extractArticleMetadata(html, url);
 
+      // Step 3.5: Extract article content using Defuddle
+      // Note: Alternative library is @mozilla/readability which is more battle-tested
+      // but Defuddle provides better output for modern web pages
+      let articleContent: string | null = null;
+      let readingTime: number | null = null;
+      try {
+        const defuddled = await Defuddle(html, url);
+        if (defuddled?.content) {
+          // Strip HTML tags to get plain text content
+          articleContent = defuddled.content
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          // Calculate reading time (average 200 words per minute)
+          if (defuddled.wordCount > 0) {
+            readingTime = Math.ceil(defuddled.wordCount / 200);
+          }
+          logger.log("Article content extracted", {
+            itemId,
+            contentLength: articleContent.length,
+            wordCount: defuddled.wordCount,
+            readingTime,
+          });
+        }
+      } catch (defuddleError) {
+        logger.warn("Failed to extract article content with Defuddle", {
+          itemId,
+          error: defuddleError,
+        });
+      }
+
       logger.log("URL classified as article", {
         itemId,
         url,
         title: metadata.title,
         domain: metadata.domain,
         hasOgImage: !!metadata.ogImage,
+        hasContent: !!articleContent,
       });
 
       // Step 4: Download cover image if available
@@ -189,6 +222,8 @@ export const classifyUrlTask = task({
           author: metadata.author,
           domain: metadata.domain,
           publishedAt: metadata.publishedAt,
+          readingTime,
+          content: articleContent,
         },
       });
 
