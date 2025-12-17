@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/filters");
@@ -35,6 +36,18 @@ export async function GET(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(user.id, "filters");
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: "Too many requests" },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimitResult, "filters"),
+        },
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -177,7 +190,9 @@ export async function GET(request: NextRequest) {
       response.type = types;
     }
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: getRateLimitHeaders(rateLimitResult, "filters"),
+    });
   } catch (error) {
     log.error({ error }, "Filters fetch error");
     return NextResponse.json(

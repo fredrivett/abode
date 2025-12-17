@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch } from "@/lib/search/full-text-search";
 import {
   buildDateCondition,
@@ -100,6 +101,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(user.id, "search");
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: "Too many requests" },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimitResult, "search"),
+        },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
     const cursor = searchParams.get("cursor");
@@ -139,7 +152,9 @@ export async function GET(request: NextRequest) {
       ...(warnings.length > 0 && { warnings }),
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: getRateLimitHeaders(rateLimitResult, "search"),
+    });
   } catch (error) {
     log.error({ error }, "Search error");
     return NextResponse.json(
