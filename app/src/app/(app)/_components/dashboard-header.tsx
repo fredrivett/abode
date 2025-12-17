@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getInitials } from "@/lib/get-initials";
-import { getMockFilterValues, useSearch } from "@/lib/search";
+import { getFilterValuesForType, useSearch } from "@/lib/search";
 
 type DashboardHeaderProps = {
   email?: string | null;
@@ -144,7 +144,7 @@ export function DashboardHeader({
           <SearchInput
             value={searchState}
             onChange={setSearchState}
-            getFilterValues={getMockFilterValues}
+            getFilterValues={getFilterValuesForType}
             placeholder="Find..."
           />
         </div>
