@@ -6,6 +6,12 @@
  */
 
 import {
+  ItemKind,
+  SourceType,
+  type ItemKind as ItemKindType,
+  type SourceType as SourceTypeType,
+} from "@prisma/client";
+import {
   getColorNames,
   getNearestColorName,
   normalizeColor,
@@ -25,13 +31,11 @@ export type ParsedFilters = {
   ocr?: string;
 };
 
-/** Valid ItemKind enum values */
-export const VALID_ITEM_KINDS = ["image", "article"] as const;
-export type ItemKind = (typeof VALID_ITEM_KINDS)[number];
+/** Valid ItemKind enum values derived from Prisma schema */
+export const VALID_ITEM_KINDS = Object.values(ItemKind) as ItemKindType[];
 
-/** Valid SourceType enum values */
-export const VALID_SOURCE_TYPES = ["upload", "url"] as const;
-export type SourceType = (typeof VALID_SOURCE_TYPES)[number];
+/** Valid SourceType enum values derived from Prisma schema */
+export const VALID_SOURCE_TYPES = Object.values(SourceType) as SourceTypeType[];
 
 /** Represents an invalid filter value that was rejected during validation */
 export type InvalidFilterValue = {
@@ -45,9 +49,9 @@ export type InvalidFilterValue = {
  * Validates filter values against a list of valid values and returns
  * valid filters (normalized to lowercase) and invalid values with helpful messages.
  */
-function validateEnumFilters<T extends string>(
+function validateEnumFilters(
   filters: FilterValue[],
-  validValues: readonly T[],
+  validValues: string[],
   filterType: string,
 ): { valid: FilterValue[]; invalid: InvalidFilterValue[] } {
   const valid: FilterValue[] = [];
@@ -55,7 +59,7 @@ function validateEnumFilters<T extends string>(
 
   for (const filter of filters) {
     const normalized = filter.value.toLowerCase();
-    if (validValues.includes(normalized as T)) {
+    if (validValues.includes(normalized)) {
       valid.push({ ...filter, value: normalized });
     } else {
       invalid.push({
