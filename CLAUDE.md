@@ -17,6 +17,55 @@ If there are TypeScript errors that cannot be auto-fixed, address them before co
 
 <!-- CODE QUALITY END -->
 
+<!-- TESTING START -->
+
+# Testing
+
+**Run tests from the `./app` directory:**
+
+```bash
+cd ./app
+bun run test              # Unit tests only
+bun run test:integration  # Integration tests (requires Docker)
+bun run test:all          # All Vitest tests
+bun run test:e2e          # E2E tests with Playwright (requires Docker)
+```
+
+## Test Types
+
+### Unit Tests
+- **Files**: `*.test.ts` or `*.spec.ts` (e.g., `utils.test.ts`)
+- **Environment**: jsdom
+- **Database**: None
+
+### Integration Tests
+- **Files**: `*.integration.test.ts` or `*.integration.spec.ts` (e.g., `db.integration.test.ts`)
+- **Environment**: Node
+- **Database**: PostgreSQL test container via Testcontainers
+- Longer timeouts for container startup
+- Sequential execution to avoid database conflicts
+
+### E2E Tests
+- **Files**: `e2e/*.spec.ts`
+- **Tool**: Playwright
+- **Database**: PostgreSQL test container via Testcontainers (shared setup with integration tests)
+- Tests run against a real Next.js dev server
+- Container starts in `globalSetup`, stops in `globalTeardown`
+
+## Shared Test Infrastructure
+
+Database container setup is shared between integration and e2e tests:
+- `test/db-container.ts` - Shared container management (start, stop, reset)
+- `vitest.setup.db.ts` - Vitest integration test setup
+- `e2e/global-setup.ts` - Playwright e2e test setup
+
+## Path Aliases in Tests
+
+- `@/` - Maps to `./src` (available in all test types)
+- `@app/` - Maps to `./app` root (available in integration tests only)
+
+<!-- TESTING END -->
+
 <!-- DEPENDENCIES START -->
 
 # Dependencies

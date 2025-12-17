@@ -65,6 +65,29 @@ export default defineConfig({
           globals: true,
           setupFiles: ["./vitest.setup.ts"],
           include: ["src/**/*.{test,spec}.{ts,tsx}"],
+          exclude: ["src/**/*.integration.{test,spec}.{ts,tsx}"],
+        },
+      },
+      {
+        resolve: {
+          alias: {
+            "@": path.resolve(dirname, "./src"),
+            "@app": path.resolve(dirname, "."),
+            "server-only": path.resolve(
+              dirname,
+              "./node_modules/next/dist/compiled/server-only/empty.js",
+            ),
+          },
+        },
+        test: {
+          name: "integration",
+          environment: "node",
+          globals: true,
+          setupFiles: ["./vitest.setup.db.ts"],
+          include: ["src/**/*.integration.{test,spec}.{ts,tsx}"],
+          testTimeout: 30000,
+          hookTimeout: 120000, // Container startup can take time
+          fileParallelism: false, // DB tests run sequentially
         },
       },
     ],
