@@ -29,9 +29,6 @@ export default async function DashboardPage() {
           title: true,
           description: true,
           tags: true,
-          objects: true,
-          colors: true,
-          ocrText: true,
           locations: {
             select: {
               id: true,
@@ -44,6 +41,13 @@ export default async function DashboardPage() {
               country: true,
               countryCode: true,
               formatted: true,
+            },
+          },
+          imageDetails: {
+            select: {
+              objects: true,
+              colors: true,
+              ocrText: true,
             },
           },
           articleDetails: {
@@ -66,7 +70,10 @@ export default async function DashboardPage() {
           ...item,
           createdAt: item.createdAt.toISOString(),
           meta: (item.meta as Record<string, unknown> | null) ?? null,
-          colors: (item.colors as ImageColor[]) ?? [],
+          objects: item.imageDetails?.objects ?? [],
+          colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
+          ocrText: item.imageDetails?.ocrText ?? null,
+          imageDetails: undefined,
           articleDetails: item.articleDetails
             ? {
                 ...item.articleDetails,
