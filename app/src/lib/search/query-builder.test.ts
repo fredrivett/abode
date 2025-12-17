@@ -108,13 +108,13 @@ describe("parseFiltersFromParams", () => {
 describe("buildTypeCondition", () => {
   it("builds condition for single type", () => {
     const result = buildTypeCondition([{ value: "image", negated: false }]);
-    expect(result.sql).toBe("(kind = $1)");
+    expect(result.sql).toBe('(kind = $1::"ItemKind")');
     expect(result.params).toEqual(["image"]);
   });
 
   it("builds condition for negated type", () => {
     const result = buildTypeCondition([{ value: "video", negated: true }]);
-    expect(result.sql).toBe("((kind IS NULL OR kind != $1))");
+    expect(result.sql).toBe('((kind IS NULL OR kind != $1::"ItemKind"))');
     expect(result.params).toEqual(["video"]);
   });
 
@@ -123,7 +123,9 @@ describe("buildTypeCondition", () => {
       { value: "image", negated: false },
       { value: "video", negated: true },
     ]);
-    expect(result.sql).toBe("(kind = $1 AND (kind IS NULL OR kind != $2))");
+    expect(result.sql).toBe(
+      '(kind = $1::"ItemKind" AND (kind IS NULL OR kind != $2::"ItemKind"))',
+    );
     expect(result.params).toEqual(["image", "video"]);
   });
 

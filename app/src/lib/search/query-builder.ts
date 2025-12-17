@@ -87,9 +87,9 @@ export function buildTypeCondition(
 
   for (const filter of filters) {
     if (filter.negated) {
-      conditions.push(`(kind IS NULL OR kind != $${paramIndex})`);
+      conditions.push(`(kind IS NULL OR kind != $${paramIndex}::"ItemKind")`);
     } else {
-      conditions.push(`kind = $${paramIndex}`);
+      conditions.push(`kind = $${paramIndex}::"ItemKind"`);
     }
     sqlParams.push(filter.value);
     paramIndex++;
