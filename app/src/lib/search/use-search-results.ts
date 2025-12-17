@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type SearchResponse, type SearchResultItem, search } from "./api";
 import type { Filter, SearchState } from "./types";
 
-const SEARCH_DEBOUNCE_MS = 500;
+const SEARCH_DEBOUNCE_MS = 250;
 
 export type SearchResultsState = {
   isLoading: boolean;
@@ -267,9 +267,15 @@ export function useSearchResults(searchState: SearchState) {
     }
   }, [state.cursor, state.isLoading, searchState]);
 
+  const hasActiveSearch = hasSearchCriteria(searchState);
+
   return {
     ...state,
     loadMore,
-    hasActiveSearch: hasSearchCriteria(searchState),
+    hasActiveSearch,
+    // isSearching should be true whenever we have search criteria but haven't received results yet
+    // This covers the gap between searchState changing and the effect setting isSearching
+    isSearching:
+      hasActiveSearch && (state.isSearching || state.items.length === 0),
   };
 }

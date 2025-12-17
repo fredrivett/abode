@@ -17,14 +17,44 @@ export type MatchReason = {
   proximity?: number;
 };
 
+export type ItemLocation = {
+  id: string;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  countryCode: string | null;
+  formatted: string | null;
+};
+
+export type ArticleDetails = {
+  author: string | null;
+  domain: string | null;
+  publishedAt: string | null;
+  readingTime: number | null;
+  content: string | null;
+};
+
 export type SearchResultItem = {
   id: string;
   kind: string | null;
+  processingStatus: string;
   fileKey: string | null;
   coverFileKey: string | null;
+  meta: Record<string, unknown> | null;
+  sourceType: string | null;
+  sourceUrl: string | null;
   title: string | null;
+  description: string | null;
   tags: string[];
-  colors: Array<{ hex: string; percentage: number }> | null;
+  objects: string[];
+  colors: Array<{ hex: string; percentage: number; name?: string }> | null;
+  ocrText: string | null;
+  locations: ItemLocation[];
+  articleDetails: ArticleDetails | null;
   createdAt: string;
   match: {
     reasons: MatchReason[];
@@ -168,20 +198,4 @@ export async function getFilterValues(
   }
 
   return response.json();
-}
-
-/**
- * Get filter values for a specific type (convenience wrapper).
- *
- * @param type - Filter type
- * @returns Array of values for that type
- */
-export async function getFilterValuesForType(
-  type: FilterType,
-): Promise<string[]> {
-  const response = await getFilterValues(type);
-
-  // Map frontend filter type to API response key
-  const apiKey = type as keyof FiltersResponse;
-  return response[apiKey] || [];
 }

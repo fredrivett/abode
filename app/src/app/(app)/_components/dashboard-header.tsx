@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getInitials } from "@/lib/get-initials";
-import { getFilterValuesForType, useSearch } from "@/lib/search";
+import { useFilterOptions, useSearch } from "@/lib/search";
 
 type DashboardHeaderProps = {
   email?: string | null;
@@ -43,6 +43,7 @@ export function DashboardHeader({
   showHomeLink = false,
 }: DashboardHeaderProps) {
   const { state: searchState, setState: setSearchState } = useSearch();
+  const { getFilterValuesForType } = useFilterOptions();
 
   const displayEmail = email || "Account";
   const displayName =

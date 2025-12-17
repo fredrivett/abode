@@ -39,14 +39,44 @@ type MatchReason = {
   proximity?: number;
 };
 
+type ItemLocation = {
+  id: string;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  countryCode: string | null;
+  formatted: string | null;
+};
+
+type ArticleDetails = {
+  author: string | null;
+  domain: string | null;
+  publishedAt: string | null;
+  readingTime: number | null;
+  content: string | null;
+};
+
 type SearchResultItem = {
   id: string;
   kind: string | null;
+  processingStatus: string;
   fileKey: string | null;
   coverFileKey: string | null;
+  meta: Record<string, unknown> | null;
+  sourceType: string | null;
+  sourceUrl: string | null;
   title: string | null;
+  description: string | null;
   tags: string[];
-  colors: Array<{ hex: string; percentage: number }> | null;
+  objects: string[];
+  colors: Array<{ hex: string; percentage: number; name?: string }> | null;
+  ocrText: string | null;
+  locations: ItemLocation[];
+  articleDetails: ArticleDetails | null;
   createdAt: string;
   match: {
     reasons: MatchReason[];
@@ -312,20 +342,33 @@ async function executeFiltersOnlySearch(
   // Fetch one extra to check if there are more results
   const fetchLimit = PAGE_SIZE + 1;
 
-  // Query items
+  // Query items with all fields needed for display
   const itemsQuery = `
     SELECT
       items.id,
       items.kind,
+      items.processing_status,
       items.file_key,
       items.cover_file_key,
+      items.meta,
+      items.source_type,
+      items.source_url,
       items.title,
+      items.description,
       items.tags,
       items.created_at,
+      iid.objects,
       iid.colors,
-      iid.capture_date
+      iid.ocr_text,
+      iid.capture_date,
+      ad.author as article_author,
+      ad.domain as article_domain,
+      ad.published_at as article_published_at,
+      ad.reading_time as article_reading_time,
+      ad.content as article_content
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
+    LEFT JOIN item_article_details ad ON ad.item_id = items.id
     WHERE ${whereClause}
     ${cursorCondition}
     ORDER BY
@@ -339,20 +382,69 @@ async function executeFiltersOnlySearch(
     Array<{
       id: string;
       kind: string | null;
+      processing_status: string;
       file_key: string | null;
       cover_file_key: string | null;
+      meta: unknown;
+      source_type: string | null;
+      source_url: string | null;
       title: string | null;
+      description: string | null;
       tags: string[];
       created_at: Date;
+      objects: string[] | null;
       colors: unknown;
+      ocr_text: string | null;
       capture_date: Date | null;
+      article_author: string | null;
+      article_domain: string | null;
+      article_published_at: Date | null;
+      article_reading_time: number | null;
+      article_content: string | null;
     }>
   >(itemsQuery, ...params);
 
-  // Parse colors JSON
+  // Get item IDs for location fetch
+  const itemIds = rawItems.map((item) => item.id);
+
+  // Fetch locations for all items in one query
+  const locations =
+    itemIds.length > 0
+      ? await db.$queryRawUnsafe<
+          Array<{
+            id: string;
+            item_id: string;
+            source: string;
+            latitude: number | null;
+            longitude: number | null;
+            neighborhood: string | null;
+            city: string | null;
+            region: string | null;
+            country: string | null;
+            country_code: string | null;
+            formatted: string | null;
+          }>
+        >(
+          `SELECT id, item_id, source, latitude, longitude, neighborhood, city, region, country, country_code, formatted
+         FROM item_locations
+         WHERE item_id = ANY($1::uuid[])`,
+          itemIds,
+        )
+      : [];
+
+  // Group locations by item_id
+  const locationsByItemId = new Map<string, typeof locations>();
+  for (const loc of locations) {
+    const existing = locationsByItemId.get(loc.item_id) || [];
+    existing.push(loc);
+    locationsByItemId.set(loc.item_id, existing);
+  }
+
+  // Parse colors JSON and combine data
   const items = rawItems.map((item) => ({
     ...item,
     colors: parseColors(item.colors),
+    locations: locationsByItemId.get(item.id) || [],
   }));
 
   // Check if there are more results
@@ -422,11 +514,43 @@ async function executeFiltersOnlySearch(
   const resultItems: SearchResultItem[] = pageItems.map((item) => ({
     id: item.id,
     kind: item.kind,
+    processingStatus: item.processing_status,
     fileKey: item.file_key,
     coverFileKey: item.cover_file_key,
+    meta: (item.meta as Record<string, unknown>) || null,
+    sourceType: item.source_type,
+    sourceUrl: item.source_url,
     title: item.title,
+    description: item.description,
     tags: item.tags || [],
+    objects: item.objects || [],
     colors: item.colors,
+    ocrText: item.ocr_text,
+    locations: item.locations.map((loc) => ({
+      id: loc.id,
+      source: loc.source,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      neighborhood: loc.neighborhood,
+      city: loc.city,
+      region: loc.region,
+      country: loc.country,
+      countryCode: loc.country_code,
+      formatted: loc.formatted,
+    })),
+    articleDetails:
+      item.article_author ||
+      item.article_domain ||
+      item.article_published_at ||
+      item.article_content
+        ? {
+            author: item.article_author,
+            domain: item.article_domain,
+            publishedAt: item.article_published_at?.toISOString() || null,
+            readingTime: item.article_reading_time,
+            content: item.article_content,
+          }
+        : null,
     createdAt: item.created_at.toISOString(),
     match: {
       reasons: buildMatchReasons(item.id),
@@ -530,37 +654,118 @@ async function executeRankedSearch(
   // Fetch full item data for the merged results
   const itemIds = mergedResults.map((r) => r.id);
 
-  const items = await db.$queryRawUnsafe<
+  const rawItems = await db.$queryRawUnsafe<
     Array<{
       id: string;
       kind: string | null;
+      processing_status: string;
       file_key: string | null;
       cover_file_key: string | null;
+      meta: unknown;
+      source_type: string | null;
+      source_url: string | null;
       title: string | null;
+      description: string | null;
       tags: string[];
       created_at: Date;
+      objects: string[] | null;
       colors: unknown;
+      ocr_text: string | null;
+      article_author: string | null;
+      article_domain: string | null;
+      article_published_at: Date | null;
+      article_reading_time: number | null;
+      article_content: string | null;
     }>
   >(
     `
     SELECT
       i.id,
       i.kind,
+      i.processing_status,
       i.file_key,
       i.cover_file_key,
+      i.meta,
+      i.source_type,
+      i.source_url,
       i.title,
+      i.description,
       i.tags,
       i.created_at,
-      iid.colors
+      iid.objects,
+      iid.colors,
+      iid.ocr_text,
+      ad.author as article_author,
+      ad.domain as article_domain,
+      ad.published_at as article_published_at,
+      ad.reading_time as article_reading_time,
+      ad.content as article_content
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
+    LEFT JOIN item_article_details ad ON ad.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,
     itemIds,
   );
 
+  // Fetch locations for all items in one query
+  const locations =
+    itemIds.length > 0
+      ? await db.$queryRawUnsafe<
+          Array<{
+            id: string;
+            item_id: string;
+            source: string;
+            latitude: number | null;
+            longitude: number | null;
+            neighborhood: string | null;
+            city: string | null;
+            region: string | null;
+            country: string | null;
+            country_code: string | null;
+            formatted: string | null;
+          }>
+        >(
+          `SELECT id, item_id, source, latitude, longitude, neighborhood, city, region, country, country_code, formatted
+         FROM item_locations
+         WHERE item_id = ANY($1::uuid[])`,
+          itemIds,
+        )
+      : [];
+
+  // Group locations by item_id
+  const locationsByItemId = new Map<
+    string,
+    Array<{
+      id: string;
+      item_id: string;
+      source: string;
+      latitude: number | null;
+      longitude: number | null;
+      neighborhood: string | null;
+      city: string | null;
+      region: string | null;
+      country: string | null;
+      country_code: string | null;
+      formatted: string | null;
+    }>
+  >();
+  for (const loc of locations) {
+    const existing = locationsByItemId.get(loc.item_id) || [];
+    existing.push(loc);
+    locationsByItemId.set(loc.item_id, existing);
+  }
+
   // Create a map for quick lookup
-  const itemMap = new Map(items.map((item) => [item.id, item]));
+  const itemMap = new Map(
+    rawItems.map((item) => [
+      item.id,
+      {
+        ...item,
+        locations: locationsByItemId.get(item.id) || [],
+      },
+    ]),
+  );
 
   // Build result items in RRF rank order
   // Color filter is already applied in the individual search functions
@@ -648,11 +853,43 @@ async function executeRankedSearch(
     resultItems.push({
       id: item.id,
       kind: item.kind,
+      processingStatus: item.processing_status,
       fileKey: item.file_key,
       coverFileKey: item.cover_file_key,
+      meta: (item.meta as Record<string, unknown>) || null,
+      sourceType: item.source_type,
+      sourceUrl: item.source_url,
       title: item.title,
+      description: item.description,
       tags: item.tags || [],
+      objects: item.objects || [],
       colors: parseColors(item.colors),
+      ocrText: item.ocr_text,
+      locations: item.locations.map((loc) => ({
+        id: loc.id,
+        source: loc.source,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        neighborhood: loc.neighborhood,
+        city: loc.city,
+        region: loc.region,
+        country: loc.country,
+        countryCode: loc.country_code,
+        formatted: loc.formatted,
+      })),
+      articleDetails:
+        item.article_author ||
+        item.article_domain ||
+        item.article_published_at ||
+        item.article_content
+          ? {
+              author: item.article_author,
+              domain: item.article_domain,
+              publishedAt: item.article_published_at?.toISOString() || null,
+              readingTime: item.article_reading_time,
+              content: item.article_content,
+            }
+          : null,
       createdAt: item.created_at.toISOString(),
       match: { reasons },
     });

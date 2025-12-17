@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import type { ImageColor } from "@/lib/vision";
-import { ItemsGrid } from "./items-grid";
+import { SearchableItemsGrid } from "./searchable-items-grid";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -65,8 +65,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ItemsGrid
-        items={itemsForClient.map((item) => ({
+      <SearchableItemsGrid
+        initialItems={itemsForClient.map((item) => ({
           ...item,
           createdAt: item.createdAt.toISOString(),
           meta: (item.meta as Record<string, unknown> | null) ?? null,
