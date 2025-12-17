@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
+import { ExternalLink, FileText, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -48,13 +49,22 @@ type ItemLocation = {
   formatted: string | null;
 };
 
+type ArticleDetails = {
+  author: string | null;
+  domain: string | null;
+  publishedAt: string | null;
+  readingTime: number | null;
+};
+
 type DashboardItem = {
   id: string;
-  kind: string;
-  processingStatus: string;
+  kind: ItemKind | null;
+  processingStatus: ProcessingStatus;
   fileKey: string | null;
   meta: Record<string, unknown> | null;
-  source: string | null;
+  sourceType: SourceType | null;
+  sourceUrl: string | null;
+  coverFileKey: string | null;
   createdAt: string;
   title: string | null;
   description: string | null;
@@ -63,6 +73,7 @@ type DashboardItem = {
   colors: ImageColor[];
   ocrText: string | null;
   locations: ItemLocation[];
+  articleDetails: ArticleDetails | null;
 };
 
 type ItemCardProps = {
@@ -82,10 +93,17 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
 
+  const isArticle = item.kind === "article";
+  // For articles, use coverFileKey; for images, use fileKey
+  const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
+
   useEffect(() => {
-    if (!item.fileKey) {
+    // Articles without a cover image don't need to load anything
+    if (!imageFileKey) {
       setPreviewUrl(null);
-      setError("Missing file");
+      if (!isArticle) {
+        setError("Missing file");
+      }
       return;
     }
 
@@ -95,7 +113,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
       try {
         const { data, error: downloadError } = await supabase.storage
           .from("items")
-          .download(item.fileKey ?? "");
+          .download(imageFileKey);
 
         if (downloadError || !data) {
           setError(downloadError?.message || "Unable to load preview");
@@ -118,7 +136,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [item.fileKey, supabase]);
+  }, [imageFileKey, isArticle, supabase]);
 
   useEffect(() => {
     setItemName(name);
@@ -147,6 +165,49 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
       <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-destructive">{error}</p>
       </div>
+    );
+  }
+
+  // Articles without cover images get a placeholder card
+  if (isArticle && !previewUrl && !imageFileKey) {
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          onClick={() => setShowDetailDialog(true)}
+        >
+          <FileText className="size-12 text-gray-400 dark:text-gray-500" />
+          <div className="text-center">
+            <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {itemName}
+            </p>
+            {item.articleDetails?.domain && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {item.articleDetails.domain}
+              </p>
+            )}
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {showDetailDialog && (
+            <ItemDetailDialog
+              item={item}
+              size={size}
+              previewUrl={null}
+              open={showDetailDialog}
+              onOpenChange={setShowDetailDialog}
+              name={itemName}
+              onNameChange={setItemName}
+              deleteOpen={showDeleteDialog}
+              onDeleteOpenChange={setShowDeleteDialog}
+              onDeleteConfirm={handleDelete}
+              isDeleting={isDeleting}
+            />
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 
@@ -240,7 +301,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 type ItemDetailDialogProps = {
   item: DashboardItem;
   size: string;
-  previewUrl: string;
+  previewUrl: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   name: string;
@@ -314,6 +375,7 @@ function ItemDetailDialog({
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
+  const isArticle = item.kind === "article";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -359,24 +421,33 @@ function ItemDetailDialog({
           <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
             {/* Top (mobile) / Left (desktop) - Image container */}
             <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1">
-              <motion.div
-                layoutId={`item-image-${item.id}`}
-                className="relative"
-                transition={{
-                  layout: { duration: 0.3 },
-                  opacity: { duration: 0 },
-                }}
-                initial={false}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 1 }}
-              >
-                {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
-                <img
-                  src={previewUrl}
-                  alt={name}
-                  className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
-                />
-              </motion.div>
+              {previewUrl ? (
+                <motion.div
+                  layoutId={`item-image-${item.id}`}
+                  className="relative"
+                  transition={{
+                    layout: { duration: 0.3 },
+                    opacity: { duration: 0 },
+                  }}
+                  initial={false}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 1 }}
+                >
+                  {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
+                  <img
+                    src={previewUrl}
+                    alt={name}
+                    className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
+                  />
+                </motion.div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+                  <FileText className="size-24 text-gray-600" />
+                  <p className="text-lg font-medium text-gray-400">
+                    {isArticle ? "No cover image" : "No preview available"}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Bottom (mobile) / Right (desktop) - Details */}
@@ -403,13 +474,17 @@ function ItemDetailDialog({
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Type</span>
-                        <span className="font-medium">{item.kind}</span>
+                        <span className="font-medium capitalize">
+                          {item.kind ?? "unknown"}
+                        </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Size</span>
-                        <span className="font-medium">{size}</span>
-                      </div>
-                      {width > 0 && height > 0 && (
+                      {!isArticle && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Size</span>
+                          <span className="font-medium">{size}</span>
+                        </div>
+                      )}
+                      {!isArticle && width > 0 && height > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Dimensions</span>
                           <span className="font-medium">
@@ -424,7 +499,7 @@ function ItemDetailDialog({
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Created</span>
+                        <span className="text-gray-500">Saved</span>
                         <DateTime
                           date={item.createdAt}
                           className="font-medium"
@@ -432,6 +507,61 @@ function ItemDetailDialog({
                       </div>
                     </div>
                   </div>
+
+                  {/* Article Details */}
+                  {isArticle && item.articleDetails && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Article Info
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        {item.articleDetails.domain && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Source</span>
+                            <span className="font-medium">
+                              {item.articleDetails.domain}
+                            </span>
+                          </div>
+                        )}
+                        {item.articleDetails.author && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Author</span>
+                            <span className="font-medium">
+                              {item.articleDetails.author}
+                            </span>
+                          </div>
+                        )}
+                        {item.articleDetails.publishedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Published</span>
+                            <DateTime
+                              date={item.articleDetails.publishedAt}
+                              className="font-medium"
+                            />
+                          </div>
+                        )}
+                        {item.articleDetails.readingTime && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Reading time</span>
+                            <span className="font-medium">
+                              {item.articleDetails.readingTime} min
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {item.sourceUrl && (
+                        <a
+                          href={item.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                        >
+                          <ExternalLink className="size-3.5" />
+                          View original article
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {/* AI Analysis */}
                   {item.processingStatus === "completed" ? (

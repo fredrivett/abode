@@ -1,6 +1,7 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
+import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { Home, SearchX } from "lucide-react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
@@ -21,13 +22,22 @@ type ItemLocation = {
   formatted: string | null;
 };
 
+type ArticleDetails = {
+  author: string | null;
+  domain: string | null;
+  publishedAt: string | null;
+  readingTime: number | null;
+};
+
 type DashboardItem = {
   id: string;
-  kind: string;
-  processingStatus: string;
+  kind: ItemKind | null;
+  processingStatus: ProcessingStatus;
   fileKey: string | null;
   meta: Record<string, unknown> | null;
-  source: string | null;
+  sourceType: SourceType | null;
+  sourceUrl: string | null;
+  coverFileKey: string | null;
   createdAt: string;
   title: string | null;
   description: string | null;
@@ -36,6 +46,7 @@ type DashboardItem = {
   colors: ImageColor[];
   ocrText: string | null;
   locations: ItemLocation[];
+  articleDetails: ArticleDetails | null;
 };
 
 function formatBytes(bytes?: number | null) {
@@ -128,17 +139,27 @@ export function ItemsGrid({
         >
           {items.map((item) => {
             const meta = item.meta || {};
-            const name =
-              (meta.name as string | undefined) ??
-              (meta.originalName as string | undefined) ??
-              item.fileKey ??
-              "Untitled";
+            const isArticle = item.kind === "article";
+
+            // For articles, prefer title; for images, prefer meta name
+            const name = isArticle
+              ? (item.title ?? item.articleDetails?.domain ?? "Untitled")
+              : ((meta.name as string | undefined) ??
+                (meta.originalName as string | undefined) ??
+                item.title ??
+                item.fileKey ??
+                "Untitled");
+
             const size = formatBytes(meta.size as number | undefined);
             const mimeType = meta.type as string | undefined;
 
-            // Use actual image dimensions if available, fallback to 3:4 aspect ratio
-            const width = (meta.width as number | undefined) ?? 3;
-            const height = (meta.height as number | undefined) ?? 4;
+            // For articles, use 16:9 aspect ratio; for images use actual dimensions or 3:4
+            const width = isArticle
+              ? 16
+              : ((meta.width as number | undefined) ?? 3);
+            const height = isArticle
+              ? 9
+              : ((meta.height as number | undefined) ?? 4);
 
             return (
               <Frame key={item.id} width={width} height={height}>

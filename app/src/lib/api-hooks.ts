@@ -1,4 +1,9 @@
-import type { Prisma } from "@prisma/client";
+import type {
+  ItemKind,
+  Prisma,
+  ProcessingStatus,
+  SourceType,
+} from "@prisma/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api-client";
 
@@ -64,11 +69,11 @@ export function useItems() {
     Array<{
       id: string;
       userId: string;
-      kind: string;
-      processingStatus: string;
+      kind: ItemKind | null;
+      processingStatus: ProcessingStatus;
       fileKey: string | null;
       meta: ItemMeta | null;
-      source: string | null;
+      sourceType: SourceType | null;
       createdAt: string;
       updatedAt: string;
     }>
@@ -79,10 +84,10 @@ export function useCreateItem() {
   return useApiMutation<
     { id: string },
     {
-      kind: string;
+      kind?: ItemKind;
       fileKey?: string;
       meta?: ItemMeta;
-      source?: string;
+      sourceType?: SourceType;
     }
   >((data) => api.post("/api/v1/items", data), {
     invalidateQueries: ["/api/v1/items"],
@@ -94,10 +99,10 @@ export function useUpdateItem() {
     { id: string },
     {
       id: string;
-      processingStatus?: string;
+      processingStatus?: ProcessingStatus;
       fileKey?: string;
       meta?: ItemMeta;
-      source?: string;
+      sourceType?: SourceType;
     }
   >(({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data), {
     invalidateQueries: ["/api/v1/items"],
