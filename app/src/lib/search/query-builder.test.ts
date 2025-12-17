@@ -9,9 +9,9 @@ import {
   buildTypeCondition,
   hasFilters,
   normalizeColorFilterValue,
+  type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
-  type ParsedFilters,
 } from "./query-builder";
 
 describe("parseFiltersFromParams", () => {
@@ -48,7 +48,7 @@ describe("parseFiltersFromParams", () => {
 
     it("parses all array filter types", () => {
       const params = new URLSearchParams(
-        "type=image&tag=vacation&object=person&color=red&source=camera&location=paris"
+        "type=image&tag=vacation&object=person&color=red&source=camera&location=paris",
       );
       const filters = parseFiltersFromParams(params);
       expect(filters.type).toHaveLength(1);
@@ -136,7 +136,10 @@ describe("buildTypeCondition", () => {
 
 describe("buildTagCondition", () => {
   it("builds EXISTS condition for tag", () => {
-    const result = buildTagCondition([{ value: "vacation", negated: false }], 1);
+    const result = buildTagCondition(
+      [{ value: "vacation", negated: false }],
+      1,
+    );
     expect(result.sql).toContain("EXISTS");
     expect(result.sql).toContain("unnest(tags)");
     expect(result.sql).toContain("lower(t) = lower($1)");
@@ -150,7 +153,10 @@ describe("buildTagCondition", () => {
   });
 
   it("uses correct starting param index", () => {
-    const result = buildTagCondition([{ value: "vacation", negated: false }], 5);
+    const result = buildTagCondition(
+      [{ value: "vacation", negated: false }],
+      5,
+    );
     expect(result.sql).toContain("$5");
     expect(result.params).toEqual(["vacation"]);
   });
@@ -161,7 +167,7 @@ describe("buildTagCondition", () => {
         { value: "vacation", negated: false },
         { value: "work", negated: true },
       ],
-      1
+      1,
     );
     expect(result.sql).toContain("$1");
     expect(result.sql).toContain("$2");
@@ -171,7 +177,10 @@ describe("buildTagCondition", () => {
 
 describe("buildObjectCondition", () => {
   it("builds EXISTS condition for object", () => {
-    const result = buildObjectCondition([{ value: "person", negated: false }], 1);
+    const result = buildObjectCondition(
+      [{ value: "person", negated: false }],
+      1,
+    );
     expect(result.sql).toContain("EXISTS");
     expect(result.sql).toContain("item_image_details");
     expect(result.sql).toContain("unnest(iid.objects)");
@@ -179,27 +188,41 @@ describe("buildObjectCondition", () => {
   });
 
   it("builds NOT EXISTS condition for negated object", () => {
-    const result = buildObjectCondition([{ value: "person", negated: true }], 1);
+    const result = buildObjectCondition(
+      [{ value: "person", negated: true }],
+      1,
+    );
     expect(result.sql).toContain("NOT EXISTS");
   });
 });
 
 describe("buildSourceCondition", () => {
   it("builds condition for source", () => {
-    const result = buildSourceCondition([{ value: "camera", negated: false }], 1);
+    const result = buildSourceCondition(
+      [{ value: "camera", negated: false }],
+      1,
+    );
     expect(result.sql).toContain("lower(source_type) = lower($1)");
     expect(result.params).toEqual(["camera"]);
   });
 
   it("builds condition for negated source", () => {
-    const result = buildSourceCondition([{ value: "upload", negated: true }], 1);
-    expect(result.sql).toContain("source_type IS NULL OR lower(source_type) != lower($1)");
+    const result = buildSourceCondition(
+      [{ value: "upload", negated: true }],
+      1,
+    );
+    expect(result.sql).toContain(
+      "source_type IS NULL OR lower(source_type) != lower($1)",
+    );
   });
 });
 
 describe("buildLocationCondition", () => {
   it("builds EXISTS condition for location", () => {
-    const result = buildLocationCondition([{ value: "paris", negated: false }], 1);
+    const result = buildLocationCondition(
+      [{ value: "paris", negated: false }],
+      1,
+    );
     expect(result.sql).toContain("EXISTS");
     expect(result.sql).toContain("item_locations");
     expect(result.sql).toContain("neighborhood");
@@ -210,7 +233,10 @@ describe("buildLocationCondition", () => {
   });
 
   it("builds NOT EXISTS condition for negated location", () => {
-    const result = buildLocationCondition([{ value: "london", negated: true }], 1);
+    const result = buildLocationCondition(
+      [{ value: "london", negated: true }],
+      1,
+    );
     expect(result.sql).toContain("NOT EXISTS");
   });
 });
@@ -291,7 +317,10 @@ describe("buildColorCondition", () => {
   });
 
   it("converts hex values to color names", () => {
-    const result = buildColorCondition([{ value: "#FF0000", negated: false }], 1);
+    const result = buildColorCondition(
+      [{ value: "#FF0000", negated: false }],
+      1,
+    );
     expect(result.params).toEqual(["red"]);
   });
 
@@ -301,7 +330,7 @@ describe("buildColorCondition", () => {
         { value: "red", negated: false },
         { value: "blue", negated: true },
       ],
-      1
+      1,
     );
     expect(result.sql).toContain("$1");
     expect(result.sql).toContain("$2");
@@ -320,14 +349,17 @@ describe("buildColorCondition", () => {
         { value: "red", negated: false },
         { value: "invalidcolor", negated: false },
       ],
-      1
+      1,
     );
     // Only red should be in params, invalid is skipped
     expect(result.params).toEqual(["red"]);
   });
 
   it("returns empty for all invalid colors", () => {
-    const result = buildColorCondition([{ value: "invalidcolor", negated: false }], 1);
+    const result = buildColorCondition(
+      [{ value: "invalidcolor", negated: false }],
+      1,
+    );
     expect(result.sql).toBe("");
     expect(result.params).toEqual([]);
   });
@@ -339,12 +371,16 @@ describe("hasFilters", () => {
   });
 
   it("returns true for type filter", () => {
-    const filters: ParsedFilters = { type: [{ value: "image", negated: false }] };
+    const filters: ParsedFilters = {
+      type: [{ value: "image", negated: false }],
+    };
     expect(hasFilters(filters)).toBe(true);
   });
 
   it("returns true for tag filter", () => {
-    const filters: ParsedFilters = { tag: [{ value: "vacation", negated: false }] };
+    const filters: ParsedFilters = {
+      tag: [{ value: "vacation", negated: false }],
+    };
     expect(hasFilters(filters)).toBe(true);
   });
 
@@ -369,7 +405,9 @@ describe("remapParamIndices", () => {
   });
 
   it("remaps multiple parameters", () => {
-    expect(remapParamIndices("a = $1 AND b = $2", 2, 3)).toBe("a = $3 AND b = $4");
+    expect(remapParamIndices("a = $1 AND b = $2", 2, 3)).toBe(
+      "a = $3 AND b = $4",
+    );
   });
 
   it("handles single digit param counts correctly", () => {

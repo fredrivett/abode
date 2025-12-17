@@ -186,4 +186,3 @@ export async function vectorSearch(
     similarity: r.similarity,
   }));
 }
-

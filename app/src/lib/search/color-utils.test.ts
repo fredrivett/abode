@@ -110,7 +110,8 @@ describe("deltaE", () => {
       const yellowOrange = deltaE("yellow", "orange");
       expect(yellowGreen).not.toBeNull();
       expect(yellowOrange).not.toBeNull();
-      expect(yellowOrange!).toBeLessThan(yellowGreen!);
+      // Using non-null assertion as we've verified both are non-null above
+      expect(yellowOrange as number).toBeLessThan(yellowGreen as number);
     });
 
     it("considers black and white maximally different", () => {
@@ -200,8 +201,12 @@ describe("colorProximity", () => {
       const redToLightRed = colorProximity("#FF0000", "#FF3030");
       const redToBlue = colorProximity("red", "blue");
 
+      // Verify both values are valid before comparing
+      expect(redToLightRed).not.toBeNull();
+      expect(redToBlue).not.toBeNull();
+
       // Light red should be much closer to red than blue is
-      expect(redToLightRed).toBeGreaterThan(redToBlue!);
+      expect(redToLightRed as number).toBeGreaterThan(redToBlue as number);
       expect(redToLightRed).toBeGreaterThan(0); // Just verify it's positive
     });
   });

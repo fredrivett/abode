@@ -127,8 +127,14 @@ describe("reciprocalRankFusion", () => {
 
 describe("mergeSearchResults", () => {
   it("merges fulltext and vector results", () => {
-    const textResults = [{ id: "a", rank: 1 }, { id: "b", rank: 2 }];
-    const vectorResults = [{ id: "b", similarity: 0.9 }, { id: "c", similarity: 0.8 }];
+    const textResults = [
+      { id: "a", rank: 1 },
+      { id: "b", rank: 2 },
+    ];
+    const vectorResults = [
+      { id: "b", similarity: 0.9 },
+      { id: "c", similarity: 0.8 },
+    ];
 
     const result = mergeSearchResults(textResults, vectorResults);
 
@@ -183,10 +189,16 @@ describe("mergeSearchResults", () => {
   });
 
   it("passes through RRF options", () => {
-    const textResults = Array.from({ length: 50 }, (_, i) => ({ id: `t-${i}` }));
-    const vectorResults = Array.from({ length: 50 }, (_, i) => ({ id: `v-${i}` }));
+    const textResults = Array.from({ length: 50 }, (_, i) => ({
+      id: `t-${i}`,
+    }));
+    const vectorResults = Array.from({ length: 50 }, (_, i) => ({
+      id: `v-${i}`,
+    }));
 
-    const result = mergeSearchResults(textResults, vectorResults, [], { limit: 10 });
+    const result = mergeSearchResults(textResults, vectorResults, [], {
+      limit: 10,
+    });
     expect(result).toHaveLength(10);
   });
 

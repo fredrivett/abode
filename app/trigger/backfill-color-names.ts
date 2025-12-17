@@ -5,7 +5,7 @@
  * Can be triggered manually from the Trigger.dev dashboard.
  */
 
-import { task } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { getNearestColorName } from "@/lib/search/color-utils";
 
@@ -34,7 +34,7 @@ export const backfillColorNamesTask = task({
         AND NOT (colors->0 ? 'name')
     `;
 
-    console.log(`Found ${itemsToUpdate.length} items to backfill`);
+    logger.info(`Found ${itemsToUpdate.length} items to backfill`);
 
     let updated = 0;
     let skipped = 0;
@@ -65,15 +65,15 @@ export const backfillColorNamesTask = task({
 
         // Log progress every 100 items
         if (updated % 100 === 0) {
-          console.log(`Progress: ${updated}/${itemsToUpdate.length} updated`);
+          logger.info(`Progress: ${updated}/${itemsToUpdate.length} updated`);
         }
       } catch (error) {
-        console.error(`Failed to update item ${item.item_id}:`, error);
+        logger.error(`Failed to update item ${item.item_id}:`, { error });
         skipped++;
       }
     }
 
-    console.log(
+    logger.info(
       `Backfill complete: ${updated} updated, ${skipped} skipped, ${itemsToUpdate.length} total`,
     );
 

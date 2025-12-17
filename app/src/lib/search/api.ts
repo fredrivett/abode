@@ -147,7 +147,8 @@ export async function search(params: SearchParams): Promise<SearchResponse> {
 export async function getFilterValues(
   type?: FilterType,
 ): Promise<FiltersResponse> {
-  const url = type ? `/api/v1/filters?type=${type}` : "/api/v1/filters";
+  const url =
+    type !== undefined ? `/api/v1/filters?type=${type}` : "/api/v1/filters";
   const response = await fetch(url);
 
   if (!response.ok) {

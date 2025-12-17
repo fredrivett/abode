@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  getNearestColorName,
-  NAMED_COLORS,
-} from "@/lib/search/color-utils";
+import { getNearestColorName, NAMED_COLORS } from "@/lib/search/color-utils";
 
 // Sample colors to test - a variety of hex values to see what they map to
 const TEST_COLORS = [

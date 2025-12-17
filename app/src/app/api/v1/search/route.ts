@@ -2,10 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import {
-  fullTextSearch,
-  ocrTextSearch,
-} from "@/lib/search/full-text-search";
+import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
 import {
   buildColorCondition,
   buildDateCondition,
@@ -363,7 +360,7 @@ async function executeFiltersOnlySearch(
   const pageItems = items.slice(0, PAGE_SIZE);
 
   // Build match reasons based on filters
-  const buildMatchReasons = (itemId: string): MatchReason[] => {
+  const buildMatchReasons = (_itemId: string): MatchReason[] => {
     const reasons: MatchReason[] = [];
 
     if (filters.type && filters.type.length > 0) {
