@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { fullTextSearch } from "@/lib/search/full-text-search";
 import {
   buildDateCondition,
   buildLocationCondition,
@@ -19,8 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 const log = createLogger("api/v1/search");
 
 const PAGE_SIZE = 20;
-// MAX_RANKED_RESULTS will be used in Chunks 4-6 for full-text + vector search
-const _MAX_RANKED_RESULTS = 100;
+const MAX_RANKED_RESULTS = 100;
 
 type SearchWarning =
   | "vector_search_unavailable"
@@ -111,18 +111,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // For now, only implement filters-only mode
-    // Full-text and vector search will be added in later chunks
-    if (query) {
-      // TODO: Implement full-text + vector search in Chunks 4-6
-      return NextResponse.json(
-        { message: "Text search not yet implemented" },
-        { status: 501 },
-      );
-    }
+    let results: {
+      items: SearchResultItem[];
+      total: number;
+      cursor?: string;
+    };
 
-    // Filters-only mode with cursor pagination
-    const results = await executeFiltersOnlySearch(user.id, filters, cursor);
+    if (query) {
+      // Text search mode: Full-text search (vector search will be added in Chunk 5-6)
+      results = await executeRankedSearch(user.id, filters, query, warnings);
+    } else {
+      // Filters-only mode with cursor pagination
+      results = await executeFiltersOnlySearch(user.id, filters, cursor);
+    }
 
     // Check for slow query
     if (Date.now() - startTime > 3000) {
@@ -432,6 +433,169 @@ async function executeFiltersOnlySearch(
     items: resultItems,
     total,
     cursor: nextCursor,
+  };
+}
+
+/**
+ * Execute ranked search using full-text search.
+ * Vector search and RRF will be added in Chunks 5-6.
+ */
+async function executeRankedSearch(
+  userId: string,
+  filters: ParsedFilters,
+  query: string,
+  _warnings: SearchWarning[], // Will be used in Chunks 5-6 for vector_search_unavailable
+): Promise<{ items: SearchResultItem[]; total: number }> {
+  // Execute full-text search
+  const textResults = await fullTextSearch(
+    userId,
+    filters,
+    query,
+    MAX_RANKED_RESULTS,
+  );
+
+  if (textResults.length === 0) {
+    return { items: [], total: 0 };
+  }
+
+  // Build a map of OCR snippets from full-text results
+  const ocrSnippets = new Map<string, string>();
+  for (const result of textResults) {
+    if (result.ocrSnippet) {
+      ocrSnippets.set(result.id, result.ocrSnippet);
+    }
+  }
+
+  // Fetch full item data for the search results
+  const itemIds = textResults.map((r) => r.id);
+
+  const items = await db.$queryRawUnsafe<
+    Array<{
+      id: string;
+      kind: string | null;
+      file_key: string | null;
+      cover_file_key: string | null;
+      title: string | null;
+      tags: string[];
+      created_at: Date;
+      colors: unknown;
+    }>
+  >(
+    `
+    SELECT
+      i.id,
+      i.kind,
+      i.file_key,
+      i.cover_file_key,
+      i.title,
+      i.tags,
+      i.created_at,
+      iid.colors
+    FROM items i
+    LEFT JOIN item_image_details iid ON iid.item_id = i.id
+    WHERE i.id = ANY($1::uuid[])
+  `,
+    itemIds,
+  );
+
+  // Create a map for quick lookup
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+
+  // Apply color filter if present
+  let colorMatches = new Map<string, ColorMatch>();
+  let filteredItemIds = new Set(itemIds);
+
+  if (filters.color && filters.color.length > 0) {
+    const itemsWithColors = items.map((item) => ({
+      id: item.id,
+      colors: parseColors(item.colors),
+    }));
+    const { filteredIds, matches } = filterByColor(
+      itemsWithColors,
+      filters.color,
+    );
+    filteredItemIds = filteredIds;
+    colorMatches = matches;
+  }
+
+  // Build result items in rank order, excluding filtered-out items
+  const resultItems: SearchResultItem[] = [];
+  for (const result of textResults) {
+    if (!filteredItemIds.has(result.id)) continue;
+
+    const item = itemMap.get(result.id);
+    if (!item) continue;
+
+    const ocrSnippet = ocrSnippets.get(result.id);
+    const colorMatch = colorMatches.get(result.id);
+
+    // Build match reasons
+    const reasons: MatchReason[] = [];
+
+    // Add text search match reason (null field indicates semantic/text match)
+    if (ocrSnippet) {
+      reasons.push({
+        field: "ocrText",
+        snippet: ocrSnippet,
+      });
+    } else {
+      // Text matched in title, tags, or description
+      reasons.push({
+        field: null, // indicates full-text match across multiple fields
+        value: query,
+      });
+    }
+
+    // Add filter-based match reasons
+    if (filters.type) {
+      for (const f of filters.type) {
+        if (!f.negated) reasons.push({ field: "type", value: f.value });
+      }
+    }
+    if (filters.tag) {
+      for (const f of filters.tag) {
+        if (!f.negated) reasons.push({ field: "tags", value: f.value });
+      }
+    }
+    if (filters.object) {
+      for (const f of filters.object) {
+        if (!f.negated) reasons.push({ field: "objects", value: f.value });
+      }
+    }
+    if (filters.source) {
+      for (const f of filters.source) {
+        if (!f.negated) reasons.push({ field: "source", value: f.value });
+      }
+    }
+    if (filters.location) {
+      for (const f of filters.location) {
+        if (!f.negated) reasons.push({ field: "location", value: f.value });
+      }
+    }
+    if (colorMatch) {
+      reasons.push({
+        field: "colors",
+        value: colorMatch.hex,
+        proximity: colorMatch.proximity,
+      });
+    }
+
+    resultItems.push({
+      id: item.id,
+      kind: item.kind,
+      fileKey: item.file_key,
+      coverFileKey: item.cover_file_key,
+      title: item.title,
+      tags: item.tags || [],
+      colors: parseColors(item.colors),
+      createdAt: item.created_at.toISOString(),
+      match: { reasons },
+    });
+  }
+
+  return {
+    items: resultItems,
+    total: resultItems.length,
   };
 }
 
