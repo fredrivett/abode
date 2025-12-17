@@ -82,15 +82,21 @@ export async function GET(request: NextRequest) {
     const fetchColors = async (): Promise<string[]> => {
       // Colors are stored as JSON array of {hex, name, score} objects
       // Return distinct color names for filtering
+      // Use a subquery to extract color names since set-returning functions
+      // can't be used directly in WHERE clauses
       const result = await db.$queryRaw<{ name: string }[]>`
-        SELECT DISTINCT (jsonb_array_elements(iid.colors)->>'name') as name
+        SELECT DISTINCT color_data.name
         FROM item_image_details iid
         JOIN items i ON i.id = iid.item_id
+        CROSS JOIN LATERAL jsonb_array_elements(iid.colors) AS color_elem
+        CROSS JOIN LATERAL (
+          SELECT color_elem->>'name' AS name
+        ) AS color_data
         WHERE i.user_id = ${user.id}::uuid
           AND i.deleted_at IS NULL
           AND iid.colors IS NOT NULL
-          AND (jsonb_array_elements(iid.colors)->>'name') IS NOT NULL
-        ORDER BY name
+          AND color_data.name IS NOT NULL
+        ORDER BY color_data.name
       `;
       return result.map((r) => r.name);
     };
