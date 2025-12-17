@@ -45,6 +45,80 @@ export type InvalidFilterValue = {
 };
 
 /**
+ * Group filters by their orGroup property.
+ * Filters with the same orGroup are grouped together for OR semantics.
+ * Filters without an orGroup are each in their own group (undefined key).
+ */
+function groupFiltersByOrGroup(
+  filters: FilterValue[],
+): Map<number | undefined, FilterValue[]> {
+  const groups = new Map<number | undefined, FilterValue[]>();
+  for (const filter of filters) {
+    const key = filter.orGroup;
+    const group = groups.get(key) || [];
+    group.push(filter);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+/**
+ * Context passed to condition builders, allowing them to track params.
+ */
+type ConditionBuilderContext = {
+  paramIndex: number;
+  params: unknown[];
+};
+
+/**
+ * Build SQL conditions from grouped filters with parameter tracking.
+ * Takes a callback that generates SQL for each filter, handles OR/AND grouping,
+ * and tracks SQL parameters.
+ *
+ * @param filters - Array of filter values
+ * @param startParamIndex - Starting parameter index for SQL placeholders
+ * @param buildCondition - Callback that returns SQL condition and optionally adds to params
+ * @returns Object with combined SQL string and collected params
+ */
+function buildGroupedConditions(
+  filters: FilterValue[],
+  startParamIndex: number,
+  buildCondition: (filter: FilterValue, ctx: ConditionBuilderContext) => string | null,
+): { sql: string; params: unknown[] } {
+  const orGroups = groupFiltersByOrGroup(filters);
+  const groupConditions: string[] = [];
+  const ctx: ConditionBuilderContext = {
+    paramIndex: startParamIndex,
+    params: [],
+  };
+
+  for (const group of orGroups.values()) {
+    const conditions: string[] = [];
+
+    for (const filter of group) {
+      const condition = buildCondition(filter, ctx);
+      if (condition) {
+        conditions.push(condition);
+      }
+    }
+
+    if (conditions.length > 0) {
+      // Within an OR group, use OR; standalone filters use the condition as-is
+      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
+        groupConditions.push(`(${conditions.join(" OR ")})`);
+      } else {
+        groupConditions.push(...conditions);
+      }
+    }
+  }
+
+  return {
+    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
+    params: ctx.params,
+  };
+}
+
+/**
  * Generic filter validation function for enum-based filters.
  * Validates filter values against a list of valid values and returns
  * valid filters (normalized to lowercase) and invalid values with helpful messages.
@@ -186,52 +260,18 @@ export function buildTypeCondition(filters: FilterValue[]): {
   params: unknown[];
   invalid: InvalidFilterValue[];
 } {
-  // Validate type values
   const { valid: validFilters, invalid } = validateTypeFilters(filters);
 
-  const sqlParams: unknown[] = [];
-  let paramIndex = 1;
+  const { sql, params } = buildGroupedConditions(validFilters, 1, (filter, ctx) => {
+    const condition = filter.negated
+      ? `(kind IS NULL OR kind != $${ctx.paramIndex}::"ItemKind")`
+      : `kind = $${ctx.paramIndex}::"ItemKind"`;
+    ctx.params.push(filter.value);
+    ctx.paramIndex++;
+    return condition;
+  });
 
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of validFilters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      if (filter.negated) {
-        conditions.push(`(kind IS NULL OR kind != $${paramIndex}::"ItemKind")`);
-      } else {
-        conditions.push(`kind = $${paramIndex}::"ItemKind"`);
-      }
-      sqlParams.push(filter.value);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      // Within an OR group, use OR; standalone filters use the condition as-is
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-    invalid,
-  };
+  return { sql, params, invalid };
 }
 
 /**
@@ -243,51 +283,14 @@ export function buildTagCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
-  const sqlParams: unknown[] = [];
-  let paramIndex = startParamIndex;
-
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      if (filter.negated) {
-        conditions.push(
-          `NOT EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${paramIndex}))`,
-        );
-      } else {
-        conditions.push(
-          `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${paramIndex}))`,
-        );
-      }
-      sqlParams.push(filter.value);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-  };
+  return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    const condition = filter.negated
+      ? `NOT EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`
+      : `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`;
+    ctx.params.push(filter.value);
+    ctx.paramIndex++;
+    return condition;
+  });
 }
 
 /**
@@ -299,51 +302,14 @@ export function buildObjectCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
-  const sqlParams: unknown[] = [];
-  let paramIndex = startParamIndex;
-
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      if (filter.negated) {
-        conditions.push(
-          `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${paramIndex})))`,
-        );
-      } else {
-        conditions.push(
-          `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${paramIndex})))`,
-        );
-      }
-      sqlParams.push(filter.value);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-  };
+  return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    const condition = filter.negated
+      ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${ctx.paramIndex})))`
+      : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${ctx.paramIndex})))`;
+    ctx.params.push(filter.value);
+    ctx.paramIndex++;
+    return condition;
+  });
 }
 
 /**
@@ -355,53 +321,22 @@ export function buildSourceCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[]; invalid: InvalidFilterValue[] } {
-  // Validate source values
   const { valid: validFilters, invalid } = validateSourceFilters(filters);
 
-  const sqlParams: unknown[] = [];
-  let paramIndex = startParamIndex;
+  const { sql, params } = buildGroupedConditions(
+    validFilters,
+    startParamIndex,
+    (filter, ctx) => {
+      const condition = filter.negated
+        ? `(source_type IS NULL OR source_type != $${ctx.paramIndex}::"SourceType")`
+        : `source_type = $${ctx.paramIndex}::"SourceType"`;
+      ctx.params.push(filter.value);
+      ctx.paramIndex++;
+      return condition;
+    },
+  );
 
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of validFilters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      if (filter.negated) {
-        conditions.push(
-          `(source_type IS NULL OR source_type != $${paramIndex}::"SourceType")`,
-        );
-      } else {
-        conditions.push(`source_type = $${paramIndex}::"SourceType"`);
-      }
-      sqlParams.push(filter.value);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-    invalid,
-  };
+  return { sql, params, invalid };
 }
 
 /**
@@ -413,58 +348,22 @@ export function buildLocationCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
-  const sqlParams: unknown[] = [];
-  let paramIndex = startParamIndex;
-
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      const locationMatch = `EXISTS (
+  return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    const locationMatch = `EXISTS (
       SELECT 1 FROM item_locations il
       WHERE il.item_id = items.id
       AND (
-        lower(il.neighborhood) = lower($${paramIndex})
-        OR lower(il.city) = lower($${paramIndex})
-        OR lower(il.region) = lower($${paramIndex})
-        OR lower(il.country) = lower($${paramIndex})
+        lower(il.neighborhood) = lower($${ctx.paramIndex})
+        OR lower(il.city) = lower($${ctx.paramIndex})
+        OR lower(il.region) = lower($${ctx.paramIndex})
+        OR lower(il.country) = lower($${ctx.paramIndex})
       )
     )`;
-
-      if (filter.negated) {
-        conditions.push(`NOT ${locationMatch}`);
-      } else {
-        conditions.push(locationMatch);
-      }
-      sqlParams.push(filter.value);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-  };
+    const condition = filter.negated ? `NOT ${locationMatch}` : locationMatch;
+    ctx.params.push(filter.value);
+    ctx.paramIndex++;
+    return condition;
+  });
 }
 
 /**
@@ -541,70 +440,31 @@ export function buildColorCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
-  const sqlParams: unknown[] = [];
-  let paramIndex = startParamIndex;
+  return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    const colorName = normalizeColorFilterValue(filter.value);
+    if (!colorName) return null; // Skip invalid color values
 
-  // Group filters by orGroup
-  const orGroups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
-    const key = filter.orGroup;
-    const group = orGroups.get(key) || [];
-    group.push(filter);
-    orGroups.set(key, group);
-  }
-
-  // Build conditions for each group
-  const groupConditions: string[] = [];
-
-  for (const group of orGroups.values()) {
-    const conditions: string[] = [];
-
-    for (const filter of group) {
-      const colorName = normalizeColorFilterValue(filter.value);
-      if (!colorName) continue; // Skip invalid color values
-
-      if (filter.negated) {
-        // Item should NOT have this color
-        conditions.push(
-          `NOT EXISTS (
+    const condition = filter.negated
+      ? `NOT EXISTS (
           SELECT 1 FROM item_image_details iid
           WHERE iid.item_id = items.id
           AND EXISTS (
             SELECT 1 FROM jsonb_array_elements(iid.colors) c
-            WHERE lower(c->>'name') = lower($${paramIndex})
+            WHERE lower(c->>'name') = lower($${ctx.paramIndex})
           )
-        )`,
-        );
-      } else {
-        // Item should have this color
-        conditions.push(
-          `EXISTS (
+        )`
+      : `EXISTS (
           SELECT 1 FROM item_image_details iid
           WHERE iid.item_id = items.id
           AND EXISTS (
             SELECT 1 FROM jsonb_array_elements(iid.colors) c
-            WHERE lower(c->>'name') = lower($${paramIndex})
+            WHERE lower(c->>'name') = lower($${ctx.paramIndex})
           )
-        )`,
-        );
-      }
-      sqlParams.push(colorName);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      if (group[0]?.orGroup !== undefined && conditions.length > 1) {
-        groupConditions.push(`(${conditions.join(" OR ")})`);
-      } else {
-        groupConditions.push(...conditions);
-      }
-    }
-  }
-
-  return {
-    sql: groupConditions.length > 0 ? `(${groupConditions.join(" AND ")})` : "",
-    params: sqlParams,
-  };
+        )`;
+    ctx.params.push(colorName);
+    ctx.paramIndex++;
+    return condition;
+  });
 }
 
 /**
