@@ -1,4 +1,8 @@
-![Abode](app/public/abode.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="app/public/abode-light.svg" width="127">
+  <source media="(prefers-color-scheme: light)" srcset="app/public/abode.svg" width="127">
+  <img src="app/public/abode.svg" alt="Abode" width="127">
+</picture>
 
 # 🏠 abode — the home for your info
 
