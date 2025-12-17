@@ -27,6 +27,7 @@ type ArticleDetails = {
   domain: string | null;
   publishedAt: string | null;
   readingTime: number | null;
+  content: string | null;
 };
 
 type DashboardItem = {

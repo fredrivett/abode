@@ -2,6 +2,7 @@
 
 import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { ExternalLink, FileText, Trash2 } from "lucide-react";
+import Markdown from "markdown-to-jsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -54,6 +55,7 @@ type ArticleDetails = {
   domain: string | null;
   publishedAt: string | null;
   readingTime: number | null;
+  content: string | null;
 };
 
 type DashboardItem = {
@@ -519,9 +521,21 @@ function ItemDetailDialog({
                         {item.articleDetails.domain && (
                           <div className="flex justify-between">
                             <span className="text-gray-500">Source</span>
-                            <span className="font-medium">
-                              {item.articleDetails.domain}
-                            </span>
+                            {item.sourceUrl ? (
+                              <a
+                                href={new URL(item.sourceUrl).origin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                              >
+                                <ExternalLink className="size-3" />
+                                {item.articleDetails.domain}
+                              </a>
+                            ) : (
+                              <span className="font-medium">
+                                {item.articleDetails.domain}
+                              </span>
+                            )}
                           </div>
                         )}
                         {item.articleDetails.author && (
@@ -551,15 +565,21 @@ function ItemDetailDialog({
                         )}
                       </div>
                       {item.sourceUrl && (
-                        <a
-                          href={item.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          asChild
                         >
-                          <ExternalLink className="size-3.5" />
-                          View original article
-                        </a>
+                          <a
+                            href={item.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="size-3.5" />
+                            View original article
+                          </a>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -595,6 +615,18 @@ function ItemDetailDialog({
                                 : "Show more"}
                             </button>
                           )}
+                        </div>
+                      )}
+
+                      {/* Article Content */}
+                      {isArticle && item.articleDetails?.content && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Article Content
+                          </h3>
+                          <Markdown className="prose prose-sm prose-neutral dark:prose-invert max-h-96 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                            {item.articleDetails.content}
+                          </Markdown>
                         </div>
                       )}
 

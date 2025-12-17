@@ -52,6 +52,7 @@ export default async function DashboardPage() {
               domain: true,
               publishedAt: true,
               readingTime: true,
+              content: true,
             },
           },
         },
