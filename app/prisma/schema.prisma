@@ -71,6 +71,9 @@ model Item {
   description      String?
   tags             String[]         @default([])  // General labels/keywords
 
+  // Full-text search vector (generated column, managed via raw SQL)
+  searchVector     Unsupported("tsvector")?  @map("search_vector")
+
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
   deletedAt        DateTime?        @map("deleted_at")
