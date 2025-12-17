@@ -234,37 +234,39 @@ export const analyzeImageTask = task({
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
 
-      // Update shared fields on Item
-      await db.item.update({
-        where: {
-          id: itemId,
-          userId: userId, // Multi-tenant isolation
-        },
-        data: {
-          title: analysis.title,
-          description: analysis.description,
-          tags: analysis.tags,
-          processingStatus: "completed",
-        },
-      });
-
-      // Create/update image-specific details
-      await db.itemImageDetails.upsert({
-        where: { itemId },
-        create: {
-          itemId,
-          objects: analysis.objects,
-          ocrText: analysis.ocrText,
-          colors: analysis.colors,
-          visionData: analysis.visionData,
-        },
-        update: {
-          objects: analysis.objects,
-          ocrText: analysis.ocrText,
-          colors: analysis.colors,
-          visionData: analysis.visionData,
-        },
-      });
+      // Update Item and ImageDetails in a transaction for consistency
+      await db.$transaction([
+        // Update shared fields on Item
+        db.item.update({
+          where: {
+            id: itemId,
+            userId: userId, // Multi-tenant isolation
+          },
+          data: {
+            title: analysis.title,
+            description: analysis.description,
+            tags: analysis.tags,
+            processingStatus: "completed",
+          },
+        }),
+        // Create/update image-specific details
+        db.itemImageDetails.upsert({
+          where: { itemId },
+          create: {
+            itemId,
+            objects: analysis.objects,
+            ocrText: analysis.ocrText,
+            colors: analysis.colors,
+            visionData: analysis.visionData,
+          },
+          update: {
+            objects: analysis.objects,
+            ocrText: analysis.ocrText,
+            colors: analysis.colors,
+            visionData: analysis.visionData,
+          },
+        }),
+      ]);
 
       logger.log("Item updated with analysis", { itemId });
 
