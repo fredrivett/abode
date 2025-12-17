@@ -5,7 +5,11 @@
  * into a complete WHERE clause.
  */
 
-import { colorProximity, colorsMatch, normalizeColor } from "./color-utils";
+import {
+  getColorNames,
+  getNearestColorName,
+  normalizeColor,
+} from "./color-utils";
 
 export type ParsedFilters = {
   type?: { value: string; negated: boolean }[];
@@ -268,96 +272,82 @@ export function buildDateCondition(
 }
 
 /**
- * Color filter is handled post-query since we need to calculate deltaE.
- * Returns item IDs that match the color filter.
+ * Normalize a color filter value to its canonical color name.
+ * Accepts both named colors ("red") and hex values ("#FF0000").
+ * For hex values, finds the nearest named color.
+ *
+ * @param value - Color filter value (name or hex)
+ * @returns Canonical color name, or null if invalid
  */
-export type ColorMatch = {
-  itemId: string;
-  hex: string;
-  proximity: number;
-};
+export function normalizeColorFilterValue(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
 
-export function filterByColor(
-  items: Array<{
-    id: string;
-    colors: Array<{ hex: string; percentage: number }> | null;
-  }>,
-  colorFilters: { value: string; negated: boolean }[],
-  threshold = 5.0,
-): {
-  filteredIds: Set<string>;
-  matches: Map<string, ColorMatch>;
-} {
-  const filteredIds = new Set<string>();
-  const matches = new Map<string, ColorMatch>();
-
-  // Helper to check if item has a matching color
-  const findMatchingColor = (
-    itemColors: Array<{ hex: string; percentage: number }>,
-    filterHex: string,
-  ): { hex: string; proximity: number } | null => {
-    for (const itemColor of itemColors) {
-      if (colorsMatch(filterHex, itemColor.hex, threshold)) {
-        const proximity = colorProximity(filterHex, itemColor.hex);
-        if (proximity !== null) {
-          return { hex: itemColor.hex, proximity };
-        }
-      }
-    }
-    return null;
-  };
-
-  itemLoop: for (const item of items) {
-    if (!item.colors || item.colors.length === 0) {
-      // Items without colors don't match positive color filters
-      // but do match negated color filters
-      const allNegated = colorFilters.every((f) => f.negated);
-      if (allNegated) {
-        filteredIds.add(item.id);
-      }
-      continue;
-    }
-
-    let bestMatch: ColorMatch | null = null;
-
-    for (const filter of colorFilters) {
-      const normalizedFilter = normalizeColor(filter.value);
-      if (!normalizedFilter) continue;
-
-      const colorMatch = findMatchingColor(item.colors, normalizedFilter);
-      const hasMatch = colorMatch !== null;
-
-      if (filter.negated && hasMatch) {
-        // Negated filter: item should NOT have this color, but it does
-        continue itemLoop;
-      }
-
-      if (!filter.negated && !hasMatch) {
-        // Positive filter: item should have this color, but doesn't
-        continue itemLoop;
-      }
-
-      // Track best color match for reasons
-      if (
-        colorMatch &&
-        (!bestMatch || colorMatch.proximity > bestMatch.proximity)
-      ) {
-        bestMatch = {
-          itemId: item.id,
-          hex: colorMatch.hex,
-          proximity: colorMatch.proximity,
-        };
-      }
-    }
-
-    // Item passed all filters
-    filteredIds.add(item.id);
-    if (bestMatch) {
-      matches.set(item.id, bestMatch);
-    }
+  // Check if it's a named color
+  const validNames = getColorNames();
+  if (validNames.includes(trimmed) || trimmed === "grey") {
+    // Normalize grey -> gray
+    return trimmed === "grey" ? "gray" : trimmed;
   }
 
-  return { filteredIds, matches };
+  // Check if it's a hex color - find nearest named color
+  const normalized = normalizeColor(value);
+  if (normalized) {
+    return getNearestColorName(normalized);
+  }
+
+  return null;
+}
+
+/**
+ * Build SQL WHERE conditions for color filter.
+ * Filters by the `name` field in the JSONB colors array.
+ * This is much more efficient than post-query filtering.
+ */
+export function buildColorCondition(
+  filters: { value: string; negated: boolean }[],
+  startParamIndex: number,
+): { sql: string; params: unknown[] } {
+  const conditions: string[] = [];
+  const sqlParams: unknown[] = [];
+  let paramIndex = startParamIndex;
+
+  for (const filter of filters) {
+    const colorName = normalizeColorFilterValue(filter.value);
+    if (!colorName) continue; // Skip invalid color values
+
+    if (filter.negated) {
+      // Item should NOT have this color
+      conditions.push(
+        `NOT EXISTS (
+          SELECT 1 FROM item_image_details iid
+          WHERE iid.item_id = items.id
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements(iid.colors) c
+            WHERE lower(c->>'name') = lower($${paramIndex})
+          )
+        )`,
+      );
+    } else {
+      // Item should have this color
+      conditions.push(
+        `EXISTS (
+          SELECT 1 FROM item_image_details iid
+          WHERE iid.item_id = items.id
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements(iid.colors) c
+            WHERE lower(c->>'name') = lower($${paramIndex})
+          )
+        )`,
+      );
+    }
+    sqlParams.push(colorName);
+    paramIndex++;
+  }
+
+  return {
+    sql: conditions.length > 0 ? `(${conditions.join(" AND ")})` : "",
+    params: sqlParams,
+  };
 }
 
 /**

@@ -90,7 +90,7 @@ Filters are **exact match, case-insensitive**. Fuzzy/partial matching happens vi
 | `tag=!work` | `WHERE NOT EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower('work'))` |
 | `object=tree` | `WHERE EXISTS (SELECT 1 FROM unnest(objects) t WHERE lower(t) = lower('tree'))` |
 | `source=camera` | `WHERE lower(source) = lower('camera')` |
-| `color=red` or `color=#FF5733` | Convert named colors to hex, find items with closest color match within deltaE ≤ 5.0 threshold (using `color-diff` library with CIE76 formula) |
+| `color=red` or `color=#FF5733` | Colors are stored with both hex and nearest color name. Filters match by name (SQL-indexed). Hex values are converted to nearest named color using CIE76 deltaE. |
 | `date=>2024-01-15` | `WHERE COALESCE(capture_date, created_at) > date` |
 | `location=paris` | `WHERE EXISTS (SELECT 1 FROM item_locations WHERE item_id = items.id AND (lower(city) = lower('paris') OR lower(country) = lower('paris') OR lower(region) = lower('paris') OR lower(neighborhood) = lower('paris')))` |
 | `ocr=receipt` | Full-text search on `ocr_text` field only |
@@ -171,6 +171,8 @@ Basic rate limiting from the start using middleware:
 | `GET /api/v1/filters` | 120 req/min | Cheap (DB reads only) |
 
 Return `429 Too Many Requests` with `Retry-After` header (seconds until limit resets).
+
+> **Note:** Current implementation uses in-memory storage (sliding window algorithm). This works for single-instance deployments but **rate limit state is not shared across multiple server instances**. If we scale to multiple instances, migrate to Redis-based rate limiting.
 
 ## Query Embedding Cache
 

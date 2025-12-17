@@ -80,17 +80,19 @@ export async function GET(request: NextRequest) {
     };
 
     const fetchColors = async (): Promise<string[]> => {
-      // Colors are stored as JSON array of {hex, percentage} objects
-      const result = await db.$queryRaw<{ hex: string }[]>`
-        SELECT DISTINCT (jsonb_array_elements(iid.colors)->>'hex') as hex
+      // Colors are stored as JSON array of {hex, name, score} objects
+      // Return distinct color names for filtering
+      const result = await db.$queryRaw<{ name: string }[]>`
+        SELECT DISTINCT (jsonb_array_elements(iid.colors)->>'name') as name
         FROM item_image_details iid
         JOIN items i ON i.id = iid.item_id
         WHERE i.user_id = ${user.id}::uuid
           AND i.deleted_at IS NULL
           AND iid.colors IS NOT NULL
-        ORDER BY hex
+          AND (jsonb_array_elements(iid.colors)->>'name') IS NOT NULL
+        ORDER BY name
       `;
-      return result.map((r) => r.hex);
+      return result.map((r) => r.name);
     };
 
     const fetchSources = async (): Promise<string[]> => {

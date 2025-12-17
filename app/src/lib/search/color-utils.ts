@@ -6,7 +6,8 @@
  */
 
 // Named colors to hex mapping
-const NAMED_COLORS: Record<string, string> = {
+// These are the canonical color names that can be stored and filtered in the database
+export const NAMED_COLORS: Record<string, string> = {
   red: "#FF0000",
   green: "#00FF00",
   blue: "#0000FF",
@@ -167,4 +168,40 @@ export function colorProximity(color1: string, color2: string): number | null {
   // deltaE of 0 = proximity 1
   // deltaE of ~25 or more = proximity ~0
   return Math.max(0, 1 - delta / 25);
+}
+
+/**
+ * Get the list of canonical color names for filtering.
+ */
+export function getColorNames(): string[] {
+  // Return unique names (grey is alias for gray)
+  return Object.keys(NAMED_COLORS).filter((name) => name !== "grey");
+}
+
+/**
+ * Find the nearest named color for a given hex value.
+ * Uses deltaE to find the perceptually closest match.
+ *
+ * @param hex - Hex color string (e.g., "#FF5733")
+ * @returns The name of the nearest color, or null if hex is invalid
+ */
+export function getNearestColorName(hex: string): string | null {
+  const normalizedHex = normalizeColor(hex);
+  if (!normalizedHex) return null;
+
+  let nearestName: string | null = null;
+  let nearestDelta = Infinity;
+
+  // Skip "grey" since it's an alias for "gray"
+  for (const [name, namedHex] of Object.entries(NAMED_COLORS)) {
+    if (name === "grey") continue;
+
+    const delta = deltaE(normalizedHex, namedHex);
+    if (delta !== null && delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestName = name;
+    }
+  }
+
+  return nearestName;
 }

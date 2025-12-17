@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildColorCondition,
   buildDateCondition,
   buildLocationCondition,
   buildObjectCondition,
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
-  filterByColor,
   hasFilters,
+  normalizeColorFilterValue,
   parseFiltersFromParams,
   remapParamIndices,
   type ParsedFilters,
@@ -248,106 +249,87 @@ describe("buildDateCondition", () => {
   });
 });
 
-describe("filterByColor", () => {
-  const itemsWithColors = [
-    {
-      id: "1",
-      colors: [
-        { hex: "#FF0000", percentage: 50 },
-        { hex: "#00FF00", percentage: 30 },
-      ],
-    },
-    {
-      id: "2",
-      colors: [
-        { hex: "#0000FF", percentage: 60 },
-        { hex: "#FFFF00", percentage: 20 },
-      ],
-    },
-    {
-      id: "3",
-      colors: null,
-    },
-  ];
-
-  it("filters items by matching color", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "red", negated: false },
-    ]);
-    expect(result.filteredIds.has("1")).toBe(true);
-    expect(result.filteredIds.has("2")).toBe(false);
+describe("normalizeColorFilterValue", () => {
+  it("normalizes named colors", () => {
+    expect(normalizeColorFilterValue("red")).toBe("red");
+    expect(normalizeColorFilterValue("Blue")).toBe("blue");
+    expect(normalizeColorFilterValue("GREEN")).toBe("green");
   });
 
-  it("filters items by negated color", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "red", negated: true },
-    ]);
-    expect(result.filteredIds.has("1")).toBe(false);
-    expect(result.filteredIds.has("2")).toBe(true);
+  it("normalizes grey to gray", () => {
+    expect(normalizeColorFilterValue("grey")).toBe("gray");
+    expect(normalizeColorFilterValue("Gray")).toBe("gray");
   });
 
-  it("includes items without colors for all-negated filters", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "red", negated: true },
-    ]);
-    expect(result.filteredIds.has("3")).toBe(true);
+  it("converts hex to nearest named color", () => {
+    expect(normalizeColorFilterValue("#FF0000")).toBe("red");
+    expect(normalizeColorFilterValue("#00FF00")).toBe("green");
+    expect(normalizeColorFilterValue("#0000FF")).toBe("blue");
   });
 
-  it("excludes items without colors for positive filters", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "red", negated: false },
-    ]);
-    expect(result.filteredIds.has("3")).toBe(false);
+  it("returns null for invalid values", () => {
+    expect(normalizeColorFilterValue("invalidcolor")).toBeNull();
+    expect(normalizeColorFilterValue("#GGGGGG")).toBeNull();
+  });
+});
+
+describe("buildColorCondition", () => {
+  it("builds EXISTS condition for color name", () => {
+    const result = buildColorCondition([{ value: "red", negated: false }], 1);
+    expect(result.sql).toContain("EXISTS");
+    expect(result.sql).toContain("item_image_details");
+    expect(result.sql).toContain("jsonb_array_elements");
+    expect(result.sql).toContain("c->>'name'");
+    expect(result.sql).toContain("$1");
+    expect(result.params).toEqual(["red"]);
   });
 
-  it("tracks color matches with proximity", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "#FF0000", negated: false },
-    ]);
-    const match = result.matches.get("1");
-    expect(match).toBeDefined();
-    expect(match?.hex).toBe("#FF0000");
-    expect(match?.proximity).toBe(1);
+  it("builds NOT EXISTS condition for negated color", () => {
+    const result = buildColorCondition([{ value: "blue", negated: true }], 1);
+    expect(result.sql).toContain("NOT EXISTS");
+    expect(result.params).toEqual(["blue"]);
   });
 
-  it("respects custom threshold", () => {
-    // With very strict threshold, only exact matches
-    const strictResult = filterByColor(
-      itemsWithColors,
-      [{ value: "#FF0001", negated: false }],
-      0.1
-    );
-    expect(strictResult.filteredIds.has("1")).toBe(false);
-
-    // With relaxed threshold
-    const relaxedResult = filterByColor(
-      itemsWithColors,
-      [{ value: "#FF0001", negated: false }],
-      10
-    );
-    expect(relaxedResult.filteredIds.has("1")).toBe(true);
+  it("converts hex values to color names", () => {
+    const result = buildColorCondition([{ value: "#FF0000", negated: false }], 1);
+    expect(result.params).toEqual(["red"]);
   });
 
   it("handles multiple color filters", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "red", negated: false },
-      { value: "green", negated: false },
-    ]);
-    // Item 1 has both red and green
-    expect(result.filteredIds.has("1")).toBe(true);
-    // Item 2 has neither
-    expect(result.filteredIds.has("2")).toBe(false);
+    const result = buildColorCondition(
+      [
+        { value: "red", negated: false },
+        { value: "blue", negated: true },
+      ],
+      1
+    );
+    expect(result.sql).toContain("$1");
+    expect(result.sql).toContain("$2");
+    expect(result.params).toEqual(["red", "blue"]);
   });
 
-  it("skips invalid color names in filtering", () => {
-    const result = filterByColor(itemsWithColors, [
-      { value: "invalidcolor", negated: false },
-    ]);
-    // Invalid color filter is skipped, so all items with colors pass
-    // (items without colors are excluded by non-negated filters)
-    expect(result.filteredIds.has("1")).toBe(true);
-    expect(result.filteredIds.has("2")).toBe(true);
-    expect(result.filteredIds.has("3")).toBe(false);
+  it("uses correct starting param index", () => {
+    const result = buildColorCondition([{ value: "green", negated: false }], 5);
+    expect(result.sql).toContain("$5");
+    expect(result.params).toEqual(["green"]);
+  });
+
+  it("skips invalid color values", () => {
+    const result = buildColorCondition(
+      [
+        { value: "red", negated: false },
+        { value: "invalidcolor", negated: false },
+      ],
+      1
+    );
+    // Only red should be in params, invalid is skipped
+    expect(result.params).toEqual(["red"]);
+  });
+
+  it("returns empty for all invalid colors", () => {
+    const result = buildColorCondition([{ value: "invalidcolor", negated: false }], 1);
+    expect(result.sql).toBe("");
+    expect(result.params).toEqual([]);
   });
 });
 

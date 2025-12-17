@@ -7,15 +7,15 @@ import {
   ocrTextSearch,
 } from "@/lib/search/full-text-search";
 import {
+  buildColorCondition,
   buildDateCondition,
   buildLocationCondition,
   buildObjectCondition,
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
-  type ColorMatch,
-  filterByColor,
   hasFilters,
+  normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
   remapParamIndices,
@@ -262,6 +262,16 @@ async function executeFiltersOnlySearch(
     paramIndex++;
   }
 
+  // Color filter - now uses SQL filtering by color name
+  if (filters.color && filters.color.length > 0) {
+    const colorCondition = buildColorCondition(filters.color, paramIndex);
+    if (colorCondition.sql) {
+      conditions.push(colorCondition.sql);
+      params.push(...colorCondition.params);
+      paramIndex += colorCondition.params.length;
+    }
+  }
+
   // Cursor pagination
   // Track params added before cursor for count query
   const paramsBeforeCursor = params.length;
@@ -302,9 +312,8 @@ async function executeFiltersOnlySearch(
 
   const whereClause = conditions.join(" AND ");
 
-  // Color filter is handled post-query, so we need to fetch more items if color filter is present
-  const hasColorFilter = filters.color && filters.color.length > 0;
-  const fetchLimit = hasColorFilter ? PAGE_SIZE * 5 : PAGE_SIZE + 1; // Fetch extra for color filtering
+  // Fetch one extra to check if there are more results
+  const fetchLimit = PAGE_SIZE + 1;
 
   // Query items
   const itemsQuery = `
@@ -344,21 +353,10 @@ async function executeFiltersOnlySearch(
   >(itemsQuery, ...params);
 
   // Parse colors JSON
-  let items = rawItems.map((item) => ({
+  const items = rawItems.map((item) => ({
     ...item,
     colors: parseColors(item.colors),
   }));
-
-  // Apply color filter post-query
-  let colorMatches: Map<string, ColorMatch> = new Map();
-  if (hasColorFilter && filters.color) {
-    const { filteredIds, matches } = filterByColor(
-      items.map((i) => ({ id: i.id, colors: i.colors })),
-      filters.color,
-    );
-    items = items.filter((i) => filteredIds.has(i.id));
-    colorMatches = matches;
-  }
 
   // Check if there are more results
   const hasMore = items.length > PAGE_SIZE;
@@ -408,13 +406,16 @@ async function executeFiltersOnlySearch(
       }
     }
 
-    const colorMatch = colorMatches.get(itemId);
-    if (colorMatch) {
-      reasons.push({
-        field: "colors",
-        value: colorMatch.hex,
-        proximity: colorMatch.proximity,
-      });
+    if (filters.color && filters.color.length > 0) {
+      for (const f of filters.color) {
+        if (!f.negated) {
+          const colorName = normalizeColorFilterValue(f.value);
+          reasons.push({
+            field: "colors",
+            value: colorName || f.value,
+          });
+        }
+      }
     }
 
     return reasons;
@@ -564,33 +565,14 @@ async function executeRankedSearch(
   // Create a map for quick lookup
   const itemMap = new Map(items.map((item) => [item.id, item]));
 
-  // Apply color filter if present
-  let colorMatches = new Map<string, ColorMatch>();
-  let filteredItemIds = new Set(itemIds);
-
-  if (filters.color && filters.color.length > 0) {
-    const itemsWithColors = items.map((item) => ({
-      id: item.id,
-      colors: parseColors(item.colors),
-    }));
-    const { filteredIds, matches } = filterByColor(
-      itemsWithColors,
-      filters.color,
-    );
-    filteredItemIds = filteredIds;
-    colorMatches = matches;
-  }
-
-  // Build result items in RRF rank order, excluding filtered-out items
+  // Build result items in RRF rank order
+  // Color filter is already applied in the individual search functions
   const resultItems: SearchResultItem[] = [];
   for (const result of mergedResults) {
-    if (!filteredItemIds.has(result.id)) continue;
-
     const item = itemMap.get(result.id);
     if (!item) continue;
 
     const ocrSnippet = ocrSnippets.get(result.id);
-    const colorMatch = colorMatches.get(result.id);
     const sources = sourceMap.get(result.id) || [];
     const vectorSimilarity = vectorSimilarities.get(result.id);
 
@@ -657,12 +639,13 @@ async function executeRankedSearch(
         if (!f.negated) reasons.push({ field: "location", value: f.value });
       }
     }
-    if (colorMatch) {
-      reasons.push({
-        field: "colors",
-        value: colorMatch.hex,
-        proximity: colorMatch.proximity,
-      });
+    if (filters.color) {
+      for (const f of filters.color) {
+        if (!f.negated) {
+          const colorName = normalizeColorFilterValue(f.value);
+          reasons.push({ field: "colors", value: colorName || f.value });
+        }
+      }
     }
 
     resultItems.push({

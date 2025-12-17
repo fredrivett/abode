@@ -8,6 +8,7 @@
 import db from "@/lib/db";
 import type { ParsedFilters } from "./query-builder";
 import {
+  buildColorCondition,
   buildDateCondition,
   buildLocationCondition,
   buildObjectCondition,
@@ -123,6 +124,16 @@ export async function fullTextSearch(
       conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
       params.push(...dateCondition.params);
       paramIndex += dateCondition.params.length;
+    }
+  }
+
+  // Color filter
+  if (filters.color && filters.color.length > 0) {
+    const colorCondition = buildColorCondition(filters.color, paramIndex);
+    if (colorCondition.sql) {
+      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      params.push(...colorCondition.params);
+      paramIndex += colorCondition.params.length;
     }
   }
 
@@ -270,6 +281,16 @@ export async function ocrTextSearch(
       conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
       params.push(...dateCondition.params);
       paramIndex += dateCondition.params.length;
+    }
+  }
+
+  // Color filter
+  if (filters.color && filters.color.length > 0) {
+    const colorCondition = buildColorCondition(filters.color, paramIndex);
+    if (colorCondition.sql) {
+      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      params.push(...colorCondition.params);
+      paramIndex += colorCondition.params.length;
     }
   }
 

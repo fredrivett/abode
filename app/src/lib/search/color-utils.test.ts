@@ -3,6 +3,8 @@ import {
   colorProximity,
   colorsMatch,
   deltaE,
+  getColorNames,
+  getNearestColorName,
   normalizeColor,
 } from "./color-utils";
 
@@ -106,7 +108,9 @@ describe("deltaE", () => {
     it("considers yellow and green more different than yellow and orange", () => {
       const yellowGreen = deltaE("yellow", "green");
       const yellowOrange = deltaE("yellow", "orange");
-      expect(yellowOrange).toBeLessThan(yellowGreen);
+      expect(yellowGreen).not.toBeNull();
+      expect(yellowOrange).not.toBeNull();
+      expect(yellowOrange!).toBeLessThan(yellowGreen!);
     });
 
     it("considers black and white maximally different", () => {
@@ -206,6 +210,104 @@ describe("colorProximity", () => {
     it("returns null for invalid colors", () => {
       expect(colorProximity("invalid", "#FF0000")).toBeNull();
       expect(colorProximity("#FF0000", "invalid")).toBeNull();
+    });
+  });
+});
+
+describe("getColorNames", () => {
+  it("returns array of color names", () => {
+    const names = getColorNames();
+    expect(Array.isArray(names)).toBe(true);
+    expect(names.length).toBeGreaterThan(20); // We have ~30 colors defined
+  });
+
+  it("includes common colors", () => {
+    const names = getColorNames();
+    expect(names).toContain("red");
+    expect(names).toContain("green");
+    expect(names).toContain("blue");
+    expect(names).toContain("yellow");
+    expect(names).toContain("black");
+    expect(names).toContain("white");
+  });
+
+  it("excludes grey alias (uses gray)", () => {
+    const names = getColorNames();
+    expect(names).toContain("gray");
+    expect(names).not.toContain("grey");
+  });
+});
+
+describe("getNearestColorName", () => {
+  describe("exact matches", () => {
+    it("returns exact color name for primary colors", () => {
+      expect(getNearestColorName("#FF0000")).toBe("red");
+      expect(getNearestColorName("#00FF00")).toBe("green");
+      expect(getNearestColorName("#0000FF")).toBe("blue");
+    });
+
+    it("returns exact color name for common named colors", () => {
+      expect(getNearestColorName("#FFFF00")).toBe("yellow");
+      expect(getNearestColorName("#FFA500")).toBe("orange");
+      expect(getNearestColorName("#800080")).toBe("purple");
+      expect(getNearestColorName("#000000")).toBe("black");
+      expect(getNearestColorName("#FFFFFF")).toBe("white");
+    });
+  });
+
+  describe("nearest matches", () => {
+    it("finds red for reddish colors", () => {
+      expect(getNearestColorName("#FF3030")).toBe("red"); // Light red
+      expect(getNearestColorName("#CC0000")).toBe("red"); // Dark red
+      expect(getNearestColorName("#FF1010")).toBe("red"); // Nearly pure red
+    });
+
+    it("finds blue for bluish colors", () => {
+      expect(getNearestColorName("#0000CC")).toBe("blue"); // Dark blue
+      expect(getNearestColorName("#3030FF")).toBe("blue"); // Light blue
+    });
+
+    it("finds appropriate color for mixed hues", () => {
+      // Orange-ish should map to orange or coral
+      const orangeResult = getNearestColorName("#FF6600");
+      expect(["orange", "coral"]).toContain(orangeResult);
+
+      // Pink-ish colors (hot pink maps to violet in LAB space)
+      const pinkResult = getNearestColorName("#FF69B4");
+      expect(["pink", "magenta", "coral", "salmon", "violet"]).toContain(
+        pinkResult,
+      );
+    });
+
+    it("finds gray for grayish colors", () => {
+      expect(getNearestColorName("#7F7F7F")).toBe("gray");
+      expect(getNearestColorName("#909090")).toBe("gray");
+    });
+  });
+
+  describe("error handling", () => {
+    it("returns null for invalid hex", () => {
+      expect(getNearestColorName("invalid")).toBeNull();
+      expect(getNearestColorName("#GGGGGG")).toBeNull();
+      expect(getNearestColorName("")).toBeNull();
+    });
+  });
+
+  describe("case handling", () => {
+    it("handles lowercase hex", () => {
+      expect(getNearestColorName("#ff0000")).toBe("red");
+      expect(getNearestColorName("#00ff00")).toBe("green");
+    });
+
+    it("handles mixed case hex", () => {
+      expect(getNearestColorName("#Ff0000")).toBe("red");
+      expect(getNearestColorName("#00fF00")).toBe("green");
+    });
+
+    it("handles 3-char hex", () => {
+      expect(getNearestColorName("#f00")).toBe("red");
+      expect(getNearestColorName("#0f0")).toBe("green");
+      expect(getNearestColorName("#00f")).toBe("blue");
     });
   });
 });
