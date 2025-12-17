@@ -18,6 +18,7 @@ import {
   hasFilters,
   type ParsedFilters,
   parseFiltersFromParams,
+  remapParamIndices,
 } from "@/lib/search/query-builder";
 import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
@@ -262,27 +263,36 @@ async function executeFiltersOnlySearch(
   }
 
   // Cursor pagination
+  // Track params added before cursor for count query
+  const paramsBeforeCursor = params.length;
   let cursorCondition = "";
   if (cursor) {
     const cursorData = decodeCursor(cursor);
     if (cursorData) {
-      // Order by capture_date (with fallback to created_at), then created_at, then id
-      cursorCondition = `AND (
-        COALESCE(
-          (SELECT iid.capture_date FROM item_image_details iid WHERE iid.item_id = items.id),
-          items.created_at
-        ),
-        items.created_at,
-        items.id
-      ) < (
-        ${cursorData.captureDate ? `$${paramIndex}::timestamp` : "NULL"},
-        $${paramIndex + 1}::timestamp,
-        $${paramIndex + 2}::uuid
+      // Use COALESCE to handle NULL capture_date in comparison
+      // Order: effective_date DESC, created_at DESC, id DESC
+      // We need items where (effective_date, created_at, id) < cursor values
+      const effectiveDateExpr = `COALESCE(
+        (SELECT iid.capture_date FROM item_image_details iid WHERE iid.item_id = items.id),
+        items.created_at
       )`;
-      if (cursorData.captureDate) {
-        params.push(cursorData.captureDate);
-        paramIndex++;
-      }
+      const cursorEffectiveDate =
+        cursorData.captureDate || cursorData.createdAt;
+
+      cursorCondition = `AND (
+        ${effectiveDateExpr} < $${paramIndex}::timestamp
+        OR (
+          ${effectiveDateExpr} = $${paramIndex}::timestamp
+          AND items.created_at < $${paramIndex + 1}::timestamp
+        )
+        OR (
+          ${effectiveDateExpr} = $${paramIndex}::timestamp
+          AND items.created_at = $${paramIndex + 1}::timestamp
+          AND items.id < $${paramIndex + 2}::uuid
+        )
+      )`;
+      params.push(cursorEffectiveDate);
+      paramIndex++;
       params.push(cursorData.createdAt);
       paramIndex++;
       params.push(cursorData.id);
@@ -445,7 +455,7 @@ async function executeFiltersOnlySearch(
   `;
   const countResult = await db.$queryRawUnsafe<[{ count: bigint }]>(
     countQuery,
-    ...params.slice(0, paramIndex - (cursor ? 3 : 0)), // Exclude cursor params
+    ...params.slice(0, paramsBeforeCursor), // Exclude cursor params
   );
   const total = Number(countResult[0].count);
 
@@ -505,6 +515,12 @@ async function executeRankedSearch(
   const ocrSnippets = new Map<string, string>();
   for (const result of ocrResults) {
     ocrSnippets.set(result.id, result.snippet);
+  }
+
+  // Build a map of vector similarities for match reasons
+  const vectorSimilarities = new Map<string, number>();
+  for (const result of vectorResults) {
+    vectorSimilarities.set(result.id, result.similarity);
   }
 
   // Track which items came from which source
@@ -576,6 +592,7 @@ async function executeRankedSearch(
     const ocrSnippet = ocrSnippets.get(result.id);
     const colorMatch = colorMatches.get(result.id);
     const sources = sourceMap.get(result.id) || [];
+    const vectorSimilarity = vectorSimilarities.get(result.id);
 
     // Build match reasons
     const reasons: MatchReason[] = [];
@@ -602,11 +619,15 @@ async function executeRankedSearch(
     }
 
     // Vector/semantic match
-    if (hasVector) {
+    if (hasVector && vectorSimilarity !== undefined) {
+      // Convert similarity score to 0-1 proximity
+      // Inner product similarity can range roughly -1 to 1 for normalized vectors
+      // Map to 0-1 where higher = more similar
+      const proximity = Math.max(0, Math.min(1, (vectorSimilarity + 1) / 2));
       reasons.push({
         field: null, // null field indicates semantic/vector match
         value: query,
-        proximity: 0.8, // Approximate semantic relevance
+        proximity,
       });
     }
 
@@ -661,25 +682,6 @@ async function executeRankedSearch(
     items: resultItems,
     total: resultItems.length,
   };
-}
-
-/**
- * Remap parameter indices in SQL string from 1-based to new start index.
- */
-function remapParamIndices(
-  sql: string,
-  paramCount: number,
-  newStartIndex: number,
-): string {
-  let result = sql;
-  // Replace in reverse order to avoid double-replacing
-  for (let i = paramCount; i >= 1; i--) {
-    result = result.replace(
-      new RegExp(`\\$${i}`, "g"),
-      `$${newStartIndex + i - 1}`,
-    );
-  }
-  return result;
 }
 
 /**

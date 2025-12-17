@@ -14,6 +14,7 @@ import {
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
+  remapParamIndices,
 } from "./query-builder";
 
 export type FullTextResult = {
@@ -313,21 +314,3 @@ export async function ocrTextSearch(
   }));
 }
 
-/**
- * Remap parameter indices in SQL string from 1-based to new start index.
- */
-function remapParamIndices(
-  sql: string,
-  paramCount: number,
-  newStartIndex: number,
-): string {
-  let result = sql;
-  // Replace in reverse order to avoid double-replacing
-  for (let i = paramCount; i >= 1; i--) {
-    result = result.replace(
-      new RegExp(`\\$${i}`, "g"),
-      `$${newStartIndex + i - 1}`,
-    );
-  }
-  return result;
-}

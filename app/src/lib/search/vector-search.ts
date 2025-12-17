@@ -16,6 +16,7 @@ import {
   buildSourceCondition,
   buildTagCondition,
   buildTypeCondition,
+  remapParamIndices,
 } from "./query-builder";
 
 const log = createLogger("lib/search/vector-search");
@@ -132,18 +133,22 @@ export async function vectorSearch(
   const whereClause = conditions.join(" AND ");
   const vectorLiteral = toVectorLiteral(queryEmbedding);
 
+  // Add vector as a parameter
+  const vectorParamIndex = paramIndex;
+  params.push(vectorLiteral);
+
   // Vector similarity search using inner product
   // Higher inner product = more similar (for normalized vectors)
   // We negate to get descending order since pgvector uses ASC for distance
   const searchQuery = `
     SELECT
       i.id,
-      (itv.embedding <#> '${vectorLiteral}'::vector) * -1 AS similarity
+      (itv.embedding <#> $${vectorParamIndex}::vector) * -1 AS similarity
     FROM items i
     JOIN item_text_vectors itv ON itv.item_id = i.id
     WHERE ${whereClause}
       AND itv.embedding IS NOT NULL
-    ORDER BY itv.embedding <#> '${vectorLiteral}'::vector ASC
+    ORDER BY itv.embedding <#> $${vectorParamIndex}::vector ASC
     LIMIT ${limit}
   `;
 
@@ -171,20 +176,3 @@ export async function vectorSearch(
   }));
 }
 
-/**
- * Remap parameter indices in SQL string from 1-based to new start index.
- */
-function remapParamIndices(
-  sql: string,
-  paramCount: number,
-  newStartIndex: number,
-): string {
-  let result = sql;
-  for (let i = paramCount; i >= 1; i--) {
-    result = result.replace(
-      new RegExp(`\\$${i}`, "g"),
-      `$${newStartIndex + i - 1}`,
-    );
-  }
-  return result;
-}

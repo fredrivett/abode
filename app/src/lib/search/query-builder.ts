@@ -376,3 +376,30 @@ export function hasFilters(filters: ParsedFilters): boolean {
     filters.ocr !== undefined
   );
 }
+
+/**
+ * Remap parameter indices in SQL string from 1-based to new start index.
+ *
+ * Used when composing SQL fragments that use $1, $2, etc. into a larger query
+ * where those parameters need to be renumbered.
+ *
+ * @param sql - SQL string containing parameter placeholders ($1, $2, etc.)
+ * @param paramCount - Number of parameters in the SQL string
+ * @param newStartIndex - New starting index for parameters
+ * @returns SQL string with remapped parameter indices
+ */
+export function remapParamIndices(
+  sql: string,
+  paramCount: number,
+  newStartIndex: number,
+): string {
+  let result = sql;
+  // Replace in reverse order to avoid double-replacing (e.g., $1 -> $10 -> $100)
+  for (let i = paramCount; i >= 1; i--) {
+    result = result.replace(
+      new RegExp(`\\$${i}`, "g"),
+      `$${newStartIndex + i - 1}`,
+    );
+  }
+  return result;
+}
