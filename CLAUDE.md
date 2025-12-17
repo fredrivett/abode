@@ -1,3 +1,18 @@
+<!-- DEPENDENCIES START -->
+
+# Dependencies
+
+**All package installations must use `bun` from the `./app` directory:**
+
+```bash
+cd ./app
+bun add package-name
+```
+
+Never use `npm` or `yarn`. Always install from the app directory.
+
+<!-- DEPENDENCIES END -->
+
 <!-- TRIGGER.DEV basic START -->
 
 # Trigger.dev Basic Tasks (v4)
