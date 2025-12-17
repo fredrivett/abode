@@ -87,6 +87,7 @@ model Item {
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
   articleDetails    ItemArticleDetails?
+  imageDetails      ItemImageDetails?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
@@ -178,4 +179,20 @@ model ItemArticleDetails {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("item_article_details")
+}
+
+model ItemImageDetails {
+  itemId      String    @id @map("item_id") @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  objects     String[]  @default([])  // Detected objects (car, person, building, etc.)
+  colors      Json?                    // Color palette
+  ocrText     String?   @map("ocr_text")
+  visionData  Json?     @map("vision_data")  // Raw Vision API response
+  captureDate DateTime? @map("capture_date") // EXIF capture timestamp
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_image_details")
 }
