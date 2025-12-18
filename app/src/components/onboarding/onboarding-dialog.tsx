@@ -1,7 +1,7 @@
 "use client";
 
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
-import { Filter, Home, Sparkles, Upload, Users } from "lucide-react";
+import { Filter, Home, Sparkles, Upload } from "lucide-react";
 import { useState } from "react";
 import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { Badge } from "@/components/ui/badge";
@@ -16,14 +16,14 @@ import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
 const ONBOARDING_STEPS = [
   {
     icon: Upload,
-    title: "Upload images or paste articles",
+    title: "Upload images & paste articles",
     description: (
       <>
         Drag and drop images, or paste any URL to save articles.
         <span className="translate-y-[0.025em]">
           <AbodeInline />
         </span>{" "}
-        accepts images and web content.
+        currently supports images and web content, with more coming soon.
       </>
     ),
   },
@@ -35,16 +35,16 @@ const ONBOARDING_STEPS = [
         <span className="translate-y-[0.025em]">
           <AbodeInline />
         </span>{" "}
-        uses AI to analyze your content — extracting colors, objects, locations,
-        and key details automatically.
+        automatically analyzes your content — extracting colors, objects,
+        locations, and key details.
       </>
     ),
   },
   {
     icon: Filter,
-    title: "Powerful filtering",
+    title: "Find things effortlessly",
     description:
-      "Search and filter by type, tags, content, colors, or location. Find exactly what you need instantly.",
+      "Filter by type, tags, colors, or location — or just type to search in natural language.",
   },
   {
     icon: Home,
@@ -53,13 +53,13 @@ const ONBOARDING_STEPS = [
       "Organize your visual life in one place. Everything is private and secure by default.",
   },
   {
-    icon: Users,
-    title: "Create smart rooms",
+    icon: Sparkles,
+    title: "Smart rooms",
     description: (
       <>
-        Group items into rooms for personal use or sharing. Create collections
-        like <Badge variant="secondary">Vancouver photos 2025</Badge>{" "}
-        effortlessly.
+        Automatically group items into smart rooms for personal use or sharing.
+        Create collections like{" "}
+        <Badge variant="secondary">Vancouver photos 2025</Badge> effortlessly.
       </>
     ),
   },
