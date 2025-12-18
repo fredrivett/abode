@@ -180,12 +180,14 @@ export function ItemsGrid({
 
             return (
               <Frame key={item.id} width={width} height={height}>
-                <ItemCard
-                  item={item}
-                  name={name}
-                  size={size}
-                  mimeType={mimeType}
-                />
+                <div className="h-full pb-4">
+                  <ItemCard
+                    item={item}
+                    name={name}
+                    size={size}
+                    mimeType={mimeType}
+                  />
+                </div>
               </Frame>
             );
           })}
