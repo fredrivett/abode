@@ -73,7 +73,7 @@ Run both queries, fetch top 100 from each, merge by rank position. Items appeari
 **Formula:** `score = Σ 1/(k + rank)` where k=60
 
 - **Full-text**: Weighted tsvector search on `title` (A), `description`/`tags` (B), `ocrText` (C)
-- **Vector**: Embed query using OpenAI `text-embedding-3-small`, inner product similarity on `item_text_vectors`
+- **Vector**: Embed query using OpenAI `text-embedding-3-small`, inner product similarity on `item_text_vectors`. Results are filtered by a minimum similarity threshold (currently 0.3) to avoid returning irrelevant items when there are no good semantic matches.
 
 > Note: 100 from each for 100 results is fine at our scale. If ranking gaps appear later, bump to 150-200 from each.
 
@@ -344,6 +344,25 @@ The search API currently returns full item data to enable immediate display in t
 3. **Progressive loading** — Return minimal data immediately, then fetch full item details in the background. Update items as data arrives. Best UX but most complex to implement.
 
 The current full-response approach is simpler and works well at small scale. Consider optimizing when search response times exceed ~500ms or payload exceeds ~100KB.
+
+---
+
+### Vector Search: Post-Retrieval Filtering
+
+The current vector search uses a fixed similarity threshold in the SQL query (`MIN_SIMILARITY_THRESHOLD = 0.3`). This is simple and efficient but has limitations:
+
+- Can't adapt threshold based on result distribution
+- If threshold is too aggressive, may return zero results when there are "okay" matches
+
+If we need more flexibility, consider moving to **post-retrieval filtering**:
+
+1. Fetch top 100 results from DB (no threshold in SQL)
+2. Filter in application code before RRF merging
+3. Enables adaptive thresholds (e.g., "keep results within 60% of top score")
+4. Allows logging/observability of what gets filtered
+5. Can implement graceful fallback when no results meet threshold
+
+The performance difference is negligible (~2KB extra data transfer) since the expensive vector similarity computation happens regardless.
 
 ---
 

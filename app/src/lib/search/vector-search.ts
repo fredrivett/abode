@@ -35,6 +35,16 @@ function toVectorLiteral(embedding: number[]): string {
 }
 
 /**
+ * Minimum similarity threshold for vector search results.
+ * Results below this threshold are filtered out to avoid returning
+ * irrelevant items when there are no good semantic matches.
+ *
+ * Inner product on normalized vectors yields values roughly in [0, 1].
+ * A threshold of 0.3 filters out poor matches while keeping reasonable ones.
+ */
+const MIN_SIMILARITY_THRESHOLD = 0.3;
+
+/**
  * Execute vector similarity search on items.
  *
  * @param userId - User ID to scope search
@@ -151,6 +161,7 @@ export async function vectorSearch(
   // Vector similarity search using inner product
   // Higher inner product = more similar (for normalized vectors)
   // We negate to get descending order since pgvector uses ASC for distance
+  // Filter by minimum similarity threshold to avoid returning irrelevant results
   const searchQuery = `
     SELECT
       i.id,
@@ -159,6 +170,7 @@ export async function vectorSearch(
     JOIN item_text_vectors itv ON itv.item_id = i.id
     WHERE ${whereClause}
       AND itv.embedding IS NOT NULL
+      AND (itv.embedding <#> $${vectorParamIndex}::vector) * -1 >= ${MIN_SIMILARITY_THRESHOLD}
     ORDER BY itv.embedding <#> $${vectorParamIndex}::vector ASC
     LIMIT ${limit}
   `;
