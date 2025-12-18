@@ -619,7 +619,7 @@ function ItemDetailDialog({
                 />
               </DialogHeader>
 
-              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col">
+              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col gap-8">
                 <div className="space-y-6 flex-1">
                   {/* Basic Info */}
                   <div className="space-y-2">
@@ -1002,7 +1002,7 @@ function ItemDetailDialog({
                   </p>
                 </div>
 
-                <div className="pt-6 mt-auto flex justify-end">
+                <div className="mt-auto flex justify-end">
                   <Button
                     variant="destructive-outline"
                     onClick={() => onDeleteOpenChange(true)}
