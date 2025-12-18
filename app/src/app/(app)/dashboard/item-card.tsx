@@ -82,6 +82,7 @@ type DashboardItem = {
   ocrText: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
+  excludeFromPublicRooms?: boolean;
 };
 
 type ItemCardProps = {
@@ -469,6 +470,10 @@ function ItemDetailDialog({
   const [isSavingName, setIsSavingName] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isDescriptionClamped, setIsDescriptionClamped] = useState(false);
+  const [excludeFromPublicRooms, setExcludeFromPublicRooms] = useState(
+    item.excludeFromPublicRooms ?? false,
+  );
+  const [isSavingExclude, setIsSavingExclude] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
@@ -497,6 +502,25 @@ function ItemDetailDialog({
       toast.error("Failed to update name");
     } finally {
       setIsSavingName(false);
+    }
+  };
+
+  const handleExcludeToggle = async () => {
+    const newValue = !excludeFromPublicRooms;
+    setIsSavingExclude(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, {
+        excludeFromPublicRooms: newValue,
+      });
+      setExcludeFromPublicRooms(newValue);
+      toast.success(
+        newValue ? "Excluded from public rooms" : "Included in public rooms",
+      );
+    } catch (error) {
+      log.error({ error }, "Exclude toggle error");
+      toast.error("Failed to update setting");
+    } finally {
+      setIsSavingExclude(false);
     }
   };
 
@@ -604,6 +628,45 @@ function ItemDetailDialog({
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Privacy Setting */}
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Privacy
+                    </h3>
+                    <label className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Exclude from public rooms
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={excludeFromPublicRooms}
+                        onClick={handleExcludeToggle}
+                        disabled={isSavingExclude}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          excludeFromPublicRooms
+                            ? "bg-primary"
+                            : "bg-gray-200 dark:bg-gray-700",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                            excludeFromPublicRooms
+                              ? "translate-x-5"
+                              : "translate-x-0",
+                          )}
+                        />
+                      </button>
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      When enabled, this item won't appear in public smart rooms
+                    </p>
                   </div>
 
                   {/* Article Details */}

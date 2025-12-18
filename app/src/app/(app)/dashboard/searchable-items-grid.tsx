@@ -4,6 +4,7 @@ import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { useMemo } from "react";
 import { useSearch, useSearchResults } from "@/lib/search";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
+import { SaveAsRoomButton } from "./_components/save-as-room-button";
 import { type DashboardItem, ItemsGrid } from "./items-grid";
 
 type SearchableItemsGridProps = {
@@ -72,10 +73,17 @@ export function SearchableItemsGrid({
   const displayItems = searchItems ?? initialItems;
 
   return (
-    <ItemsGrid
-      items={displayItems}
-      hasActiveSearch={searchResults.hasActiveSearch}
-      onClearSearch={clearAll}
-    />
+    <div className="space-y-4">
+      {searchState.filters.length > 0 && (
+        <div className="flex justify-end">
+          <SaveAsRoomButton searchState={searchState} />
+        </div>
+      )}
+      <ItemsGrid
+        items={displayItems}
+        hasActiveSearch={searchResults.hasActiveSearch}
+        onClearSearch={clearAll}
+      />
+    </div>
   );
 }
