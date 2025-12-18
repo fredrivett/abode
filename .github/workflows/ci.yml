@@ -159,7 +159,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-      - name: Run E2E tests
+      - name: Run E2E tests (starts test DB container)
         run: bun run start & npx wait-on http://localhost:3300 && bun run test:e2e
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3300
