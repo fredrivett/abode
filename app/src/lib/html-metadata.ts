@@ -159,10 +159,10 @@ function escapeRegex(str: string): string {
 }
 
 /**
- * Decodes common HTML entities
+ * Decodes HTML entities including named, decimal, and hex entities
  */
-function decodeHtmlEntities(str: string): string {
-  const entities: Record<string, string> = {
+export function decodeHtmlEntities(str: string): string {
+  const namedEntities: Record<string, string> = {
     "&amp;": "&",
     "&lt;": "<",
     "&gt;": ">",
@@ -172,5 +172,24 @@ function decodeHtmlEntities(str: string): string {
     "&nbsp;": " ",
   };
 
-  return str.replace(/&[a-z0-9#]+;/gi, (match) => entities[match] || match);
+  return str.replace(/&[a-z0-9#]+;/gi, (match) => {
+    // Check named entities first
+    if (namedEntities[match]) {
+      return namedEntities[match];
+    }
+
+    // Handle decimal numeric entities (&#123;)
+    const decimalMatch = match.match(/^&#(\d+);$/);
+    if (decimalMatch) {
+      return String.fromCharCode(Number.parseInt(decimalMatch[1], 10));
+    }
+
+    // Handle hex numeric entities (&#x7B; or &#X7B;)
+    const hexMatch = match.match(/^&#x([0-9a-f]+);$/i);
+    if (hexMatch) {
+      return String.fromCharCode(Number.parseInt(hexMatch[1], 16));
+    }
+
+    return match;
+  });
 }

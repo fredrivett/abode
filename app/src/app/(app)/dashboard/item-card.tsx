@@ -34,6 +34,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
+import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const isArticle = item.kind === "article";
   const isProcessingUrl =
@@ -355,12 +357,18 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   return (
     <>
-      <div className="group relative h-full w-full rounded-lg">
+      <div
+        className={cn(
+          "group relative h-full w-full rounded-lg",
+          (showDetailDialog || isAnimating) && "z-50",
+        )}
+      >
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
           className="h-full w-full cursor-pointer overflow-hidden rounded-lg !opacity-100"
           onClick={() => {
+            setIsAnimating(true);
             setShowDetailDialog(true);
           }}
           transition={{
@@ -376,7 +384,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         </motion.div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
         {showDetailDialog && (
           <ItemDetailDialog
             item={item}
@@ -432,7 +440,7 @@ function DeleteItemDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete item</AlertDialogTitle>
           <AlertDialogDescription>
-            {`Are you sure you want to delete "${itemName}"? This action cannot be undone.`}
+            {`Are you sure you want to delete "${decodeHtmlEntities(itemName)}"? This action cannot be undone.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -533,7 +541,7 @@ function ItemDetailDialog({
         }}
       >
         <motion.div
-          className="w-full md:h-full bg-background rounded-lg border shadow-lg overflow-hidden"
+          className="w-full md:h-full rounded-lg border shadow-lg overflow-hidden"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
@@ -541,9 +549,34 @@ function ItemDetailDialog({
           style={{ willChange: "opacity" }}
         >
           <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
-            {/* Top (mobile) / Left (desktop) - Image container */}
-            <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1">
-              {previewUrl ? (
+            {/* Top (mobile) / Left (desktop) - Main content area */}
+            <div
+              className={cn(
+                "shrink-0 flex items-center justify-center md:flex-1 md:overflow-hidden",
+                !isArticle && "bg-gray-900",
+              )}
+            >
+              {isArticle && item.articleDetails?.content ? (
+                // Article content as main view - delayed fade-in after cover image transition
+                <motion.div
+                  className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <article className="w-full max-w-prose">
+                    {item.title && (
+                      <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
+                        {decodeHtmlEntities(item.title)}
+                      </h1>
+                    )}
+                    <Markdown className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none">
+                      {item.articleDetails.content}
+                    </Markdown>
+                  </article>
+                </motion.div>
+              ) : previewUrl && !isArticle ? (
+                // Non-article image
                 <motion.div
                   layoutId={`item-image-${item.id}`}
                   className="relative"
@@ -566,14 +599,14 @@ function ItemDetailDialog({
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
                   <p className="text-lg font-medium text-gray-400">
-                    {isArticle ? "No cover image" : "No preview available"}
+                    {isArticle ? "No article content" : "No preview available"}
                   </p>
                 </div>
               )}
             </div>
 
             {/* Bottom (mobile) / Right (desktop) - Details */}
-            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden">
+            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden border-t md:border-t-0 md:border-l border-border">
               <DialogHeader className="p-6 pb-4 items-start">
                 <DialogTitle className="sr-only">
                   Item details for {name}
@@ -586,7 +619,7 @@ function ItemDetailDialog({
                 />
               </DialogHeader>
 
-              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col">
+              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col gap-8">
                 <div className="space-y-6 flex-1">
                   {/* Basic Info */}
                   <div className="space-y-2">
@@ -628,45 +661,6 @@ function ItemDetailDialog({
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Privacy Setting */}
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Privacy
-                    </h3>
-                    <label className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Exclude from public rooms
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={excludeFromPublicRooms}
-                        onClick={handleExcludeToggle}
-                        disabled={isSavingExclude}
-                        className={cn(
-                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                          excludeFromPublicRooms
-                            ? "bg-primary"
-                            : "bg-gray-200 dark:bg-gray-700",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                            excludeFromPublicRooms
-                              ? "translate-x-5"
-                              : "translate-x-0",
-                          )}
-                        />
-                      </button>
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      When enabled, this item won't appear in public smart rooms
-                    </p>
                   </div>
 
                   {/* Article Details */}
@@ -742,6 +736,33 @@ function ItemDetailDialog({
                     </div>
                   )}
 
+                  {/* Article Cover Image (shown in details panel for articles) */}
+                  {isArticle && previewUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Cover Image
+                      </h3>
+                      <motion.div
+                        layoutId={`item-image-${item.id}`}
+                        className="overflow-hidden rounded-md"
+                        transition={{
+                          layout: { duration: 0.3 },
+                          opacity: { duration: 0 },
+                        }}
+                        initial={false}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 1 }}
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
+                        <img
+                          src={previewUrl}
+                          alt={name}
+                          className="w-full object-cover"
+                        />
+                      </motion.div>
+                    </div>
+                  )}
+
                   {/* AI Analysis */}
                   {item.processingStatus === "completed" ? (
                     <>
@@ -758,7 +779,7 @@ function ItemDetailDialog({
                               !isDescriptionExpanded && "line-clamp-3",
                             )}
                           >
-                            {item.description}
+                            {decodeHtmlEntities(item.description)}
                           </p>
                           {(isDescriptionClamped || isDescriptionExpanded) && (
                             <button
@@ -773,18 +794,6 @@ function ItemDetailDialog({
                                 : "Show more"}
                             </button>
                           )}
-                        </div>
-                      )}
-
-                      {/* Article Content */}
-                      {isArticle && item.articleDetails?.content && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Article Content
-                          </h3>
-                          <Markdown className="prose prose-sm prose-neutral dark:prose-invert max-h-96 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                            {item.articleDetails.content}
-                          </Markdown>
                         </div>
                       )}
 
@@ -954,7 +963,46 @@ function ItemDetailDialog({
                   )}
                 </div>
 
-                <div className="pt-6 mt-auto flex justify-end">
+                {/* Privacy Setting */}
+                <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Privacy
+                  </h3>
+                  <label className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Exclude from public rooms
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={excludeFromPublicRooms}
+                      onClick={handleExcludeToggle}
+                      disabled={isSavingExclude}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                        excludeFromPublicRooms
+                          ? "bg-primary"
+                          : "bg-gray-200 dark:bg-gray-700",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                          excludeFromPublicRooms
+                            ? "translate-x-5"
+                            : "translate-x-0",
+                        )}
+                      />
+                    </button>
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, this item won't appear in public smart rooms
+                  </p>
+                </div>
+
+                <div className="mt-auto flex justify-end">
                   <Button
                     variant="destructive-outline"
                     onClick={() => onDeleteOpenChange(true)}
