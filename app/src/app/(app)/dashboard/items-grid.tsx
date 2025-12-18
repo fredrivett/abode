@@ -80,7 +80,7 @@ export function ItemsGrid({
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
-          <div className="flex min-h-[calc(100vh-14rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
@@ -105,7 +105,7 @@ export function ItemsGrid({
           </div>
         ) : (
           // Empty state for no items at all
-          <div className="flex min-h-[calc(100vh-14rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <Home className="size-14 text-muted-foreground" />
               <div className="space-y-2">

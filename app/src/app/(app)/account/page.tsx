@@ -57,7 +57,7 @@ export default async function AccountPage() {
   const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader
         email={email}
         firstName={firstName}

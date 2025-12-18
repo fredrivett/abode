@@ -59,7 +59,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardDropzone>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-0 flex-1 flex-col bg-background">
         <Suspense fallback={<div className="h-16" />}>
           <DashboardHeader
             email={email}
