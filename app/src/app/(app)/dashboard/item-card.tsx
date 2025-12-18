@@ -541,7 +541,7 @@ function ItemDetailDialog({
         }}
       >
         <motion.div
-          className="w-full md:h-full bg-background rounded-lg border shadow-lg overflow-hidden"
+          className="w-full md:h-full rounded-lg border shadow-lg overflow-hidden"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
