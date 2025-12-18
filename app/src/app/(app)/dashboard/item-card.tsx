@@ -1,7 +1,13 @@
 "use client";
 
 import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
-import { ExternalLink, FileText, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Trash2,
+} from "lucide-react";
 import Markdown from "markdown-to-jsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -84,6 +90,45 @@ type ItemCardProps = {
   size: string;
   mimeType?: string;
 };
+
+function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
+  if (status === "completed") return null;
+
+  const isProcessing = status === "processing";
+  const isFailed = status === "failed";
+
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2",
+        isProcessing &&
+          "bg-gradient-to-t from-black/60 via-transparent to-transparent",
+        isFailed &&
+          "bg-gradient-to-t from-red-900/70 via-transparent to-transparent",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm",
+          isProcessing && "bg-white/20 text-white",
+          isFailed && "bg-red-500/30 text-red-100",
+        )}
+      >
+        {isProcessing ? (
+          <>
+            <Loader2 className="size-3 animate-spin" />
+            <span>Analyzing</span>
+          </>
+        ) : isFailed ? (
+          <>
+            <AlertCircle className="size-3" />
+            <span>Failed</span>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const supabase = createClient();
@@ -180,6 +225,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
           className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           onClick={() => setShowDetailDialog(true)}
         >
+          <ProcessingOverlay status={item.processingStatus} />
           <FileText className="size-12 text-gray-400 dark:text-gray-500" />
           <div className="text-center">
             <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -261,6 +307,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   return (
     <>
       <div className="group relative h-full w-full rounded-lg">
+        <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
           className="h-full w-full cursor-pointer overflow-hidden rounded-lg !opacity-100"

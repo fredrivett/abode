@@ -3,6 +3,7 @@
 import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { useMemo } from "react";
 import { useSearch, useSearchResults } from "@/lib/search";
+import { useProcessingPoll } from "@/lib/use-processing-poll";
 import { type DashboardItem, ItemsGrid } from "./items-grid";
 
 type SearchableItemsGridProps = {
@@ -14,6 +15,18 @@ export function SearchableItemsGrid({
 }: SearchableItemsGridProps) {
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
+
+  // Get IDs of items that are still processing
+  const processingItemIds = useMemo(
+    () =>
+      initialItems
+        .filter((item) => item.processingStatus === "processing")
+        .map((item) => item.id),
+    [initialItems],
+  );
+
+  // Poll for status updates on processing items
+  useProcessingPoll(processingItemIds);
 
   // Convert search results to dashboard item format
   const searchItems = useMemo((): DashboardItem[] | null => {
