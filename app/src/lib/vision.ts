@@ -1,6 +1,10 @@
 import vision from "@google-cloud/vision";
 import type { Prisma } from "@prisma/client";
+import OpenAI from "openai";
+import { createLogger } from "./logger.server";
 import { getNearestColorName } from "./search/color-utils";
+
+const log = createLogger("lib/vision");
 
 export type ImageColor = { hex: string; name: string; score: number };
 
@@ -179,4 +183,132 @@ function uniqueStrings(items: string[]): string[] {
     seen.add(key);
     return true;
   });
+}
+
+let openaiClient: OpenAI | null = null;
+function getOpenAiClient(): OpenAI {
+  if (openaiClient) return openaiClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+  openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
+
+export type GenerateTitleInput = {
+  originalFilename?: string;
+  labels: string[];
+  objects: string[];
+  ocrText: string | null;
+};
+
+/**
+ * Build context parts for the AI title generation prompt.
+ * Exported for testing.
+ */
+export function buildTitleContextParts(input: GenerateTitleInput): string[] {
+  const { originalFilename, labels, objects, ocrText } = input;
+  const contextParts: string[] = [];
+
+  if (originalFilename) {
+    contextParts.push(`Original filename: ${originalFilename}`);
+  }
+
+  if (labels.length > 0) {
+    contextParts.push(
+      `Detected labels/themes: ${labels.slice(0, 10).join(", ")}`,
+    );
+  }
+
+  if (objects.length > 0) {
+    contextParts.push(`Detected objects: ${objects.join(", ")}`);
+  }
+
+  if (ocrText) {
+    const preview = ocrText.slice(0, 200);
+    contextParts.push(
+      `Text in image: ${preview}${ocrText.length > 200 ? "..." : ""}`,
+    );
+  }
+
+  return contextParts;
+}
+
+/**
+ * Build the full prompt for AI title generation.
+ * Exported for testing.
+ */
+export function buildTitlePrompt(contextParts: string[]): string {
+  return `Based on the following information about an image, suggest a concise and descriptive title (2-6 words). The title should be human-friendly and capture the essence of what the image contains or represents.
+
+${contextParts.join("\n")}
+
+Respond with ONLY the title, nothing else. Do not include quotes, periods, or any other punctuation at the end.`;
+}
+
+/**
+ * Process an AI-generated title (trim, truncate if needed).
+ * Exported for testing.
+ */
+export function processAITitle(
+  rawTitle: string | null | undefined,
+): string | null {
+  if (!rawTitle) {
+    return null;
+  }
+
+  const title = rawTitle.trim();
+
+  if (title.length === 0) {
+    return null;
+  }
+
+  // Truncate if too long
+  if (title.length > 80) {
+    return `${title.slice(0, 77)}...`;
+  }
+
+  return title;
+}
+
+/**
+ * Generate an AI-suggested title for an image based on analysis data and original filename.
+ * Uses OpenAI GPT-4o-mini to generate a concise, descriptive title.
+ */
+export async function generateAITitle(
+  input: GenerateTitleInput,
+): Promise<string | null> {
+  const contextParts = buildTitleContextParts(input);
+
+  if (contextParts.length === 0) {
+    return null;
+  }
+
+  const prompt = buildTitlePrompt(contextParts);
+
+  try {
+    const client = getOpenAiClient();
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 50,
+      temperature: 0.7,
+    });
+
+    const title = processAITitle(response.choices[0]?.message?.content);
+
+    if (title) {
+      log.info(
+        { originalFilename: input.originalFilename, generatedTitle: title },
+        "AI title generated",
+      );
+    }
+
+    return title;
+  } catch (error) {
+    log.error(
+      { error, originalFilename: input.originalFilename },
+      "Failed to generate AI title, falling back to default",
+    );
+    return null;
+  }
 }
