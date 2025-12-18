@@ -552,8 +552,13 @@ function ItemDetailDialog({
             {/* Top (mobile) / Left (desktop) - Main content area */}
             <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
               {isArticle && item.articleDetails?.content ? (
-                // Article content as main view
-                <div className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12">
+                // Article content as main view - delayed fade-in after cover image transition
+                <motion.div
+                  className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                >
                   <article className="w-full max-w-prose">
                     {item.title && (
                       <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
@@ -564,7 +569,7 @@ function ItemDetailDialog({
                       {item.articleDetails.content}
                     </Markdown>
                   </article>
-                </div>
+                </motion.div>
               ) : previewUrl && !isArticle ? (
                 // Non-article image
                 <motion.div
