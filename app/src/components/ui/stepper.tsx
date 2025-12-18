@@ -182,7 +182,11 @@ function StepperContent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="relative overflow-hidden">
+    <motion.div
+      className="relative overflow-hidden py-8"
+      layout
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
       <AnimatePresence mode="wait" custom={direction} initial={false}>
         <motion.div
           key={currentStep}
@@ -196,7 +200,7 @@ function StepperContent({ children }: { children: React.ReactNode }) {
           {children}
         </motion.div>
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
