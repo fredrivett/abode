@@ -560,8 +560,8 @@ function ItemDetailDialog({
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
                   className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12"
-                  initial={{ opacity: 0, y: 32 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 32, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
                 >
                   <article className="w-full max-w-prose">
