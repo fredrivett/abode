@@ -1,12 +1,12 @@
 "use client";
 
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Filter, Home, Sparkles, Upload, Users } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
@@ -75,6 +75,12 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <VisuallyHidden.Root>
+          <DialogTitle>Welcome to Abode</DialogTitle>
+          <DialogDescription>
+            Learn how to use Abode to organize your digital life
+          </DialogDescription>
+        </VisuallyHidden.Root>
         <Stepper onComplete={handleComplete}>
           {ONBOARDING_STEPS.map((step) => (
             <Step key={step.title}>
@@ -107,12 +113,12 @@ function StepContent({
   description: string;
 }) {
   return (
-    <DialogHeader className="text-center sm:text-center">
+    <div className="flex flex-col gap-2 text-center">
       <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
         <Icon className="size-8 text-primary" />
       </div>
-      <DialogTitle className="text-xl">{title}</DialogTitle>
-      <DialogDescription className="text-base">{description}</DialogDescription>
-    </DialogHeader>
+      <h2 className="text-lg font-semibold leading-none">{title}</h2>
+      <p className="text-base text-muted-foreground">{description}</p>
+    </div>
   );
 }
