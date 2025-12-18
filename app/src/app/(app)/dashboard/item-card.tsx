@@ -550,7 +550,12 @@ function ItemDetailDialog({
         >
           <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
             {/* Top (mobile) / Left (desktop) - Main content area */}
-            <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
+            <div
+              className={cn(
+                "shrink-0 flex items-center justify-center md:flex-1 md:overflow-hidden",
+                !isArticle && "bg-gray-900",
+              )}
+            >
               {isArticle && item.articleDetails?.content ? (
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
