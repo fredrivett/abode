@@ -141,6 +141,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const isArticle = item.kind === "article";
   const isProcessingUrl =
@@ -359,7 +360,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
       <div
         className={cn(
           "group relative h-full w-full rounded-lg",
-          showDetailDialog && "z-50",
+          (showDetailDialog || isAnimating) && "z-50",
         )}
       >
         <ProcessingOverlay status={item.processingStatus} />
@@ -367,6 +368,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
           layoutId={`item-image-${item.id}`}
           className="h-full w-full cursor-pointer overflow-hidden rounded-lg !opacity-100"
           onClick={() => {
+            setIsAnimating(true);
             setShowDetailDialog(true);
           }}
           transition={{
@@ -382,7 +384,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         </motion.div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
         {showDetailDialog && (
           <ItemDetailDialog
             item={item}
