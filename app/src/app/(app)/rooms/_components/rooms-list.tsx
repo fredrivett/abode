@@ -4,6 +4,7 @@ import type { RoomType, RoomVisibility } from "@prisma/client";
 import { Blocks, Plus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { FilterBadges } from "@/components/rooms/filter-badges";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,7 +145,7 @@ export function RoomsList({ initialRooms }: RoomsListProps) {
               </div>
               {room.type === "smart" && room.filters && (
                 <div className="mt-3 flex flex-wrap gap-1">
-                  {renderFilterBadges(room.filters)}
+                  <FilterBadges filters={room.filters} compact />
                 </div>
               )}
             </Link>
@@ -178,90 +179,4 @@ export function RoomsList({ initialRooms }: RoomsListProps) {
       </AlertDialog>
     </div>
   );
-}
-
-function renderFilterBadges(filters: RoomFilters) {
-  const badges: React.ReactNode[] = [];
-  let key = 0;
-
-  if (filters.type?.length) {
-    for (const f of filters.type.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          {f.negated ? "!" : ""}type:{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.type.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          +{filters.type.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.tag?.length) {
-    for (const f of filters.tag.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          {f.negated ? "!" : ""}#{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.tag.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          +{filters.tag.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.source?.length) {
-    for (const f of filters.source.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          {f.negated ? "!" : ""}source:{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.source.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className="text-xs">
-          +{filters.source.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.location?.length) {
-    badges.push(
-      <Badge key={key++} variant="outline" className="text-xs">
-        {filters.location.length} location
-        {filters.location.length > 1 ? "s" : ""}
-      </Badge>,
-    );
-  }
-
-  if (filters.dateAfter || filters.dateBefore) {
-    badges.push(
-      <Badge key={key++} variant="outline" className="text-xs">
-        date filter
-      </Badge>,
-    );
-  }
-
-  // Limit total badges shown
-  if (badges.length > 4) {
-    const remaining = badges.length - 3;
-    return [
-      ...badges.slice(0, 3),
-      <Badge key="more" variant="outline" className="text-xs">
-        +{remaining} more
-      </Badge>,
-    ];
-  }
-
-  return badges;
 }

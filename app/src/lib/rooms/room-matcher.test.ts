@@ -1,5 +1,4 @@
 import type { ItemImageDetails, ItemKind, ItemLocation } from "@prisma/client";
-import { describe, expect, it } from "vitest";
 import { hasValidFilters, itemMatchesRoom } from "./room-matcher";
 import type { ItemWithDetails, RoomFilters, RoomWithFilters } from "./types";
 

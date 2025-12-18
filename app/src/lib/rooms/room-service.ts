@@ -116,23 +116,25 @@ export async function syncItemToRooms(
 
     if (matches) {
       // Add to room if not already present
-      const result = await db.roomItem.upsert({
+      // Use findFirst + create instead of upsert to reliably track new inserts
+      const existing = await db.roomItem.findUnique({
         where: {
           roomId_itemId: {
             roomId: room.id,
             itemId: item.id,
           },
         },
-        create: {
-          roomId: room.id,
-          itemId: item.id,
-        },
-        update: {},
       });
 
-      // Check if it was a new insert (addedAt will be very recent)
-      const isNew = Date.now() - result.addedAt.getTime() < 1000;
-      if (isNew) added++;
+      if (!existing) {
+        await db.roomItem.create({
+          data: {
+            roomId: room.id,
+            itemId: item.id,
+          },
+        });
+        added++;
+      }
     } else {
       // Remove from room if present
       const result = await db.roomItem.deleteMany({

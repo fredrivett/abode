@@ -126,6 +126,7 @@ export async function PATCH(
       kind,
       coverFileKey,
       excludeFromPublicRooms,
+      tags,
     } = body;
 
     // Check if item exists and belongs to user
@@ -141,11 +142,18 @@ export async function PATCH(
     }
 
     // Track if filter-relevant fields changed for room sync
+    // Compare tags arrays by value since array equality check would always fail
+    const tagsChanged =
+      tags !== undefined &&
+      JSON.stringify(tags.slice().sort()) !==
+        JSON.stringify(existingItem.tags.slice().sort());
+
     const filterRelevantFieldsChanged =
       (kind !== undefined && kind !== existingItem.kind) ||
       (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
       (excludeFromPublicRooms !== undefined &&
-        excludeFromPublicRooms !== existingItem.excludeFromPublicRooms);
+        excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
+      tagsChanged;
 
     const updatedItem = await db.item.update({
       where: { id },
@@ -158,6 +166,7 @@ export async function PATCH(
         ...(kind !== undefined && { kind }),
         ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
+        ...(tags !== undefined && { tags }),
       },
       select: {
         id: true,

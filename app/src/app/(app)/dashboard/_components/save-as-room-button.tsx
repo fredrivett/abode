@@ -115,10 +115,10 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
       } else {
         const data = await response.json();
         toast.error(data.message || "Failed to create room");
-        setIsCreating(false);
       }
     } catch {
       toast.error("Failed to create room");
+    } finally {
       setIsCreating(false);
     }
   };

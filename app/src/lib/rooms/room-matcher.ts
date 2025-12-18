@@ -138,11 +138,10 @@ function matchesColor(item: ItemWithDetails, value: string): boolean {
  * Uses capture date if available, otherwise falls back to created at.
  */
 function getEffectiveDate(item: ItemWithDetails): Date {
-  // Check for capture date in image details
-  // Note: captureDate might not be in the type if using older schema
-  const captureDate = (item.imageDetails as { captureDate?: Date } | null)
-    ?.captureDate;
-  if (captureDate) return new Date(captureDate);
+  // Check for capture date in image details (from EXIF data)
+  if (item.imageDetails?.captureDate) {
+    return new Date(item.imageDetails.captureDate);
+  }
   return new Date(item.createdAt);
 }
 

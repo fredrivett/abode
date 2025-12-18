@@ -15,6 +15,12 @@ type SyncRoomItemsPayload = {
 export const syncRoomItemsTask = task({
   id: "sync-room-items",
   maxDuration: 300, // 5 minutes for large item sets
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 1000,
+    maxTimeoutInMs: 60000,
+  },
   run: async (payload: SyncRoomItemsPayload) => {
     const { roomId, userId } = payload;
 
