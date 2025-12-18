@@ -50,30 +50,11 @@ function Stepper({
   const { steps, otherChildren } = useMemo(() => {
     const stepArray: React.ReactNode[] = [];
     const otherArray: React.ReactNode[] = [];
-    const childArray = Array.isArray(children) ? children : [children];
 
-    // Debug logging
-    console.log("[Stepper] children:", children);
-    console.log("[Stepper] childArray:", childArray);
-    console.log("[Stepper] childArray length:", childArray.length);
+    // Flatten the children array - .map() in JSX returns nested arrays
+    const childArray = Array.isArray(children) ? children.flat() : [children];
 
     for (const child of childArray) {
-      console.log("[Stepper] child:", child);
-      console.log(
-        "[Stepper] child type:",
-        child && typeof child === "object" && "type" in child
-          ? child.type
-          : "N/A",
-      );
-      console.log("[Stepper] Step:", Step);
-      console.log(
-        "[Stepper] child.type === Step:",
-        child &&
-          typeof child === "object" &&
-          "type" in child &&
-          child.type === Step,
-      );
-
       if (
         child &&
         typeof child === "object" &&
@@ -86,17 +67,10 @@ function Stepper({
       }
     }
 
-    console.log("[Stepper] stepArray:", stepArray);
-    console.log("[Stepper] otherArray:", otherArray);
-
     return { steps: stepArray, otherChildren: otherArray };
   }, [children]);
 
   const totalSteps = steps.length;
-
-  console.log("[Stepper] totalSteps:", totalSteps);
-  console.log("[Stepper] currentStep:", currentStep);
-  console.log("[Stepper] steps[currentStep]:", steps[currentStep]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
