@@ -440,7 +440,7 @@ function DeleteItemDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete item</AlertDialogTitle>
           <AlertDialogDescription>
-            {`Are you sure you want to delete "${itemName}"? This action cannot be undone.`}
+            {`Are you sure you want to delete "${decodeHtmlEntities(itemName)}"? This action cannot be undone.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
