@@ -541,9 +541,24 @@ function ItemDetailDialog({
           style={{ willChange: "opacity" }}
         >
           <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
-            {/* Top (mobile) / Left (desktop) - Image container */}
-            <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1">
-              {previewUrl ? (
+            {/* Top (mobile) / Left (desktop) - Main content area */}
+            <div className="shrink-0 flex items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
+              {isArticle && item.articleDetails?.content ? (
+                // Article content as main view
+                <div className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12">
+                  <article className="w-full max-w-prose">
+                    {item.title && (
+                      <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
+                        {item.title}
+                      </h1>
+                    )}
+                    <Markdown className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none">
+                      {item.articleDetails.content}
+                    </Markdown>
+                  </article>
+                </div>
+              ) : previewUrl && !isArticle ? (
+                // Non-article image
                 <motion.div
                   layoutId={`item-image-${item.id}`}
                   className="relative"
@@ -566,7 +581,7 @@ function ItemDetailDialog({
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
                   <p className="text-lg font-medium text-gray-400">
-                    {isArticle ? "No cover image" : "No preview available"}
+                    {isArticle ? "No article content" : "No preview available"}
                   </p>
                 </div>
               )}
@@ -628,45 +643,6 @@ function ItemDetailDialog({
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Privacy Setting */}
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Privacy
-                    </h3>
-                    <label className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Exclude from public rooms
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={excludeFromPublicRooms}
-                        onClick={handleExcludeToggle}
-                        disabled={isSavingExclude}
-                        className={cn(
-                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                          excludeFromPublicRooms
-                            ? "bg-primary"
-                            : "bg-gray-200 dark:bg-gray-700",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                            excludeFromPublicRooms
-                              ? "translate-x-5"
-                              : "translate-x-0",
-                          )}
-                        />
-                      </button>
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      When enabled, this item won't appear in public smart rooms
-                    </p>
                   </div>
 
                   {/* Article Details */}
@@ -742,6 +718,33 @@ function ItemDetailDialog({
                     </div>
                   )}
 
+                  {/* Article Cover Image (shown in details panel for articles) */}
+                  {isArticle && previewUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Cover Image
+                      </h3>
+                      <motion.div
+                        layoutId={`item-image-${item.id}`}
+                        className="overflow-hidden rounded-md"
+                        transition={{
+                          layout: { duration: 0.3 },
+                          opacity: { duration: 0 },
+                        }}
+                        initial={false}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 1 }}
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
+                        <img
+                          src={previewUrl}
+                          alt={name}
+                          className="w-full object-cover"
+                        />
+                      </motion.div>
+                    </div>
+                  )}
+
                   {/* AI Analysis */}
                   {item.processingStatus === "completed" ? (
                     <>
@@ -773,18 +776,6 @@ function ItemDetailDialog({
                                 : "Show more"}
                             </button>
                           )}
-                        </div>
-                      )}
-
-                      {/* Article Content */}
-                      {isArticle && item.articleDetails?.content && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Article Content
-                          </h3>
-                          <Markdown className="prose prose-sm prose-neutral dark:prose-invert max-h-96 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                            {item.articleDetails.content}
-                          </Markdown>
                         </div>
                       )}
 
@@ -952,6 +943,45 @@ function ItemDetailDialog({
                       <p>No analysis available.</p>
                     </div>
                   )}
+                </div>
+
+                {/* Privacy Setting */}
+                <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Privacy
+                  </h3>
+                  <label className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Exclude from public rooms
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={excludeFromPublicRooms}
+                      onClick={handleExcludeToggle}
+                      disabled={isSavingExclude}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                        excludeFromPublicRooms
+                          ? "bg-primary"
+                          : "bg-gray-200 dark:bg-gray-700",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                          excludeFromPublicRooms
+                            ? "translate-x-5"
+                            : "translate-x-0",
+                        )}
+                      />
+                    </button>
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, this item won't appear in public smart rooms
+                  </p>
                 </div>
 
                 <div className="pt-6 mt-auto flex justify-end">
