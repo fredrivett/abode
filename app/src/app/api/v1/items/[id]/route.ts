@@ -1,7 +1,9 @@
+import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to-rooms";
 
 const log = createLogger("api/v1/items/[id]");
 
@@ -41,6 +43,7 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
+        excludeFromPublicRooms: true,
         locations: {
           select: {
             id: true,
@@ -122,6 +125,7 @@ export async function PATCH(
       sourceUrl,
       kind,
       coverFileKey,
+      excludeFromPublicRooms,
     } = body;
 
     // Check if item exists and belongs to user
@@ -136,6 +140,13 @@ export async function PATCH(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
+    // Track if filter-relevant fields changed for room sync
+    const filterRelevantFieldsChanged =
+      (kind !== undefined && kind !== existingItem.kind) ||
+      (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
+      (excludeFromPublicRooms !== undefined &&
+        excludeFromPublicRooms !== existingItem.excludeFromPublicRooms);
+
     const updatedItem = await db.item.update({
       where: { id },
       data: {
@@ -146,6 +157,7 @@ export async function PATCH(
         ...(sourceUrl !== undefined && { sourceUrl }),
         ...(kind !== undefined && { kind }),
         ...(coverFileKey !== undefined && { coverFileKey }),
+        ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
       },
       select: {
         id: true,
@@ -162,6 +174,7 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
+        excludeFromPublicRooms: true,
         locations: {
           select: {
             id: true,
@@ -194,6 +207,14 @@ export async function PATCH(
         },
       },
     });
+
+    // Trigger room sync if filter-relevant fields changed
+    if (filterRelevantFieldsChanged) {
+      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+        itemId: id,
+        userId: user.id,
+      });
+    }
 
     // Flatten imageDetails for backward compatibility with frontend
     const flattenedItem = {
