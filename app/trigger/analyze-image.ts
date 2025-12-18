@@ -10,7 +10,7 @@ import {
 } from "../src/lib/embeddings";
 import { extractExifGpsLocation } from "../src/lib/exif";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
-import { analyzeImage } from "../src/lib/vision";
+import { analyzeImage, generateAITitle } from "../src/lib/vision";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type AnalyzeImagePayload = {
@@ -232,6 +232,48 @@ export const analyzeImageTask = task({
         colorCount: analysis.colors.length,
       });
 
+      // Step 2.5: Fetch item metadata for original filename
+      const item = await db.item.findUnique({
+        where: { id: itemId },
+        select: { meta: true },
+      });
+
+      const meta = item?.meta as { originalName?: string } | null;
+      const originalFilename = meta?.originalName;
+
+      logger.log("Fetched item metadata", { itemId, originalFilename });
+
+      // Step 2.6: Generate AI-suggested title
+      let finalTitle = analysis.title;
+      if (
+        originalFilename ||
+        analysis.tags.length > 0 ||
+        analysis.objects.length > 0 ||
+        analysis.ocrText
+      ) {
+        logger.log("Generating AI title", { itemId, originalFilename });
+
+        const aiTitle = await generateAITitle({
+          originalFilename,
+          labels: analysis.tags,
+          objects: analysis.objects,
+          ocrText: analysis.ocrText,
+        });
+
+        if (aiTitle) {
+          finalTitle = aiTitle;
+          logger.log("Using AI-generated title", { itemId, aiTitle });
+        } else {
+          logger.log(
+            "AI title generation returned null, using Vision-derived title",
+            {
+              itemId,
+              fallbackTitle: analysis.title,
+            },
+          );
+        }
+      }
+
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
 
@@ -244,7 +286,7 @@ export const analyzeImageTask = task({
             userId: userId, // Multi-tenant isolation
           },
           data: {
-            title: analysis.title,
+            title: finalTitle,
             description: analysis.description,
             tags: analysis.tags,
             processingStatus: "completed",
@@ -357,7 +399,7 @@ export const analyzeImageTask = task({
         success: true,
         itemId,
         analysis: {
-          title: analysis.title,
+          title: finalTitle,
           description: analysis.description,
           tagCount: analysis.tags.length,
           objectCount: analysis.objects.length,
