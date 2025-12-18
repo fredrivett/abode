@@ -93,6 +93,9 @@ export function SearchInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const dateFilterAppliedRef = useRef(false);
 
+  // Track focus state for placeholder hint
+  const [isFocused, setIsFocused] = useState(false);
+
   // Values loaded from API
   const [filterValues, setFilterValues] = useState<string[]>([]);
   const [loadingValues, setLoadingValues] = useState(false);
@@ -235,9 +238,12 @@ export function SearchInput({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const isBackspaceOnEmptyInput = e.key === "Backspace" && value.query === "";
+    const input = e.currentTarget;
+    const cursorAtStart =
+      input.selectionStart === 0 && input.selectionEnd === 0;
+    const isBackspaceAtStart = e.key === "Backspace" && cursorAtStart;
     const hasFiltersToRemove = value.filters.length > 0;
-    if (isBackspaceOnEmptyInput && hasFiltersToRemove) {
+    if (isBackspaceAtStart && hasFiltersToRemove) {
       e.preventDefault();
       const lastFilter = value.filters[value.filters.length - 1];
       handleRemoveFilter(lastFilter.id);
@@ -316,7 +322,13 @@ export function SearchInput({
               value={value.query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={
+                isFocused
+                  ? `${placeholder} (@ to filter, or just type to search)`
+                  : placeholder
+              }
               aria-label="Search"
               className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
             />
