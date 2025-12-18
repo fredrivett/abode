@@ -16,13 +16,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @db.Uuid // matches auth.users.id, no default - set by trigger
-  email     String   @unique
-  firstName String?  @map("first_name")
-  lastName  String?  @map("last_name")
-  avatarUrl String?  @map("avatar_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                    String    @id @db.Uuid // matches auth.users.id, no default - set by trigger
+  email                 String    @unique
+  firstName             String?   @map("first_name")
+  lastName              String?   @map("last_name")
+  avatarUrl             String?   @map("avatar_url")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   items         Item[]
   locations     ItemLocation[]
