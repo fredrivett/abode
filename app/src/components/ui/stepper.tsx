@@ -5,9 +5,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -158,21 +156,7 @@ function StepperIndicator() {
 }
 
 function StepperContent({ children }: { children: React.ReactNode }) {
-  const { direction } = useStepper();
-  const [height, setHeight] = useState<number | "auto">("auto");
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (contentRef.current) {
-      const resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          setHeight(entry.contentRect.height);
-        }
-      });
-      resizeObserver.observe(contentRef.current);
-      return () => resizeObserver.disconnect();
-    }
-  }, []);
+  const { direction, currentStep } = useStepper();
 
   const variants = {
     enter: (direction: number) => ({
@@ -190,15 +174,10 @@ function StepperContent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <motion.div
-      className="relative overflow-hidden"
-      animate={{ height }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-    >
-      <AnimatePresence mode="popLayout" custom={direction}>
+    <div className="relative overflow-hidden">
+      <AnimatePresence mode="wait" custom={direction} initial={false}>
         <motion.div
-          key={JSON.stringify(children)}
-          ref={contentRef}
+          key={currentStep}
           custom={direction}
           variants={variants}
           initial="enter"
@@ -209,7 +188,7 @@ function StepperContent({ children }: { children: React.ReactNode }) {
           {children}
         </motion.div>
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
