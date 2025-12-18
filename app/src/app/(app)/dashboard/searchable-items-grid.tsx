@@ -17,22 +17,17 @@ export function SearchableItemsGrid({
 
   // Convert search results to dashboard item format
   const searchItems = useMemo((): DashboardItem[] | null => {
-    // Don't switch to search results until we have them
-    // This prevents showing "no results" while the search is in progress
+    // No active search - use initial items
     if (!searchResults.hasActiveSearch) {
       return null;
     }
 
-    // If we're still searching (debouncing or loading), show initialItems
-    // Once we have results (even empty), show search results
-    // isSearching is true immediately, isLoading is true after debounce
-    if (
-      (searchResults.isSearching || searchResults.isLoading) &&
-      searchResults.items.length === 0
-    ) {
+    // Still searching - keep showing previous items
+    if (searchResults.isSearching || searchResults.isLoading) {
       return null;
     }
 
+    // Search complete - show results (even if empty, to display "no results" UI)
     return searchResults.items.map((item) => ({
       id: item.id,
       kind: item.kind as ItemKind | null,
