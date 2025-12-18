@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { inspect } from "node:util";
 import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import { logger, task } from "@trigger.dev/sdk";
+import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import {
   generateImageEmbedding,
@@ -11,6 +11,7 @@ import {
 import { extractExifGpsLocation } from "../src/lib/exif";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImage } from "../src/lib/vision";
+import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type AnalyzeImagePayload = {
   itemId: string;
@@ -344,6 +345,13 @@ export const analyzeImageTask = task({
       }
 
       logger.log("Image analysis complete", { itemId });
+
+      // Step 5: Sync item to smart rooms
+      logger.log("Triggering smart room sync", { itemId, userId });
+      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+        itemId,
+        userId,
+      });
 
       return {
         success: true,

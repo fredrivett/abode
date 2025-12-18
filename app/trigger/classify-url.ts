@@ -7,6 +7,7 @@ import db from "../src/lib/db";
 import { extractArticleMetadata } from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
+import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type ClassifyUrlPayload = {
   itemId: string;
@@ -226,6 +227,13 @@ export const classifyUrlTask = task({
       });
 
       logger.log("Article processing complete", { itemId });
+
+      // Step 7: Sync item to smart rooms
+      logger.log("Triggering smart room sync", { itemId, userId });
+      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+        itemId,
+        userId,
+      });
 
       return {
         success: true,
