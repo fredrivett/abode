@@ -5,7 +5,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -166,6 +168,7 @@ function StepperIndicator() {
 
 function StepperContent({ children }: { children: React.ReactNode }) {
   const { direction, currentStep } = useStepper();
+  const [height, setHeight] = useState(0);
 
   const variants = {
     enter: (direction: number) => ({
@@ -184,23 +187,60 @@ function StepperContent({ children }: { children: React.ReactNode }) {
 
   return (
     <motion.div
-      className="relative overflow-hidden py-8"
-      layout
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="relative overflow-hidden"
+      animate={{ height: height || "auto" }}
+      transition={{ type: "spring", duration: 0.4 }}
     >
-      <AnimatePresence mode="wait" custom={direction} initial={false}>
-        <motion.div
+      <AnimatePresence mode="sync" custom={direction} initial={false}>
+        <SlideTransition
           key={currentStep}
-          custom={direction}
+          direction={direction}
           variants={variants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.3, ease: "easeInOut" }}
+          onHeightReady={setHeight}
         >
           {children}
-        </motion.div>
+        </SlideTransition>
       </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function SlideTransition({
+  children,
+  direction,
+  variants,
+  onHeightReady,
+}: {
+  children: React.ReactNode;
+  direction: number;
+  variants: {
+    enter: (direction: number) => { x: number; opacity: number };
+    center: { x: number; opacity: number };
+    exit: (direction: number) => { x: number; opacity: number };
+  };
+  onHeightReady: (height: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: children triggers re-measurement when content changes
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      onHeightReady(containerRef.current.offsetHeight);
+    }
+  }, [children, onHeightReady]);
+
+  return (
+    <motion.div
+      ref={containerRef}
+      custom={direction}
+      variants={variants}
+      initial="enter"
+      animate="center"
+      exit="exit"
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="absolute inset-x-0 top-0 py-8"
+    >
+      {children}
     </motion.div>
   );
 }
