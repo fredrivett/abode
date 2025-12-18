@@ -290,39 +290,33 @@ function StepperNavigation({
   }, [isFirstStep, isLastStep, handleBack, handleNext, handleComplete]);
 
   return (
-    <div className={cn("flex flex-col gap-4 pt-4", className)}>
-      <div className="flex justify-between">
-        <div>
-          {!isFirstStep && (
-            <Button variant="ghost-subtle" onClick={handleBack}>
-              {backLabel}
-            </Button>
-          )}
-        </div>
-        <Button onClick={isLastStep ? handleComplete : handleNext}>
-          {isLastStep ? completeLabel : nextLabel}
-        </Button>
+    <div className={cn("flex justify-between pt-4", className)}>
+      <div>
+        {!isFirstStep && (
+          <Button variant="ghost-subtle" onClick={handleBack}>
+            {showKeyboardHints && <Kbd>←</Kbd>}
+            {backLabel}
+          </Button>
+        )}
       </div>
-      {showKeyboardHints && (
-        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          {!isFirstStep && (
-            <span className="flex items-center gap-1.5">
-              <Kbd>←</Kbd> Back
-            </span>
-          )}
-          {!isLastStep && (
-            <span className="flex items-center gap-1.5">
-              <Kbd>→</Kbd> Next
-            </span>
-          )}
-          {isLastStep && (
-            <span className="flex items-center gap-1.5">
-              <Kbd>⌘</Kbd>
-              <Kbd>↵</Kbd> Get started
-            </span>
-          )}
-        </div>
-      )}
+      <Button onClick={isLastStep ? handleComplete : handleNext}>
+        {isLastStep ? (
+          <>
+            {completeLabel}
+            {showKeyboardHints && (
+              <>
+                <Kbd variant="primary">⌘</Kbd>
+                <Kbd variant="primary">↵</Kbd>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            {nextLabel}
+            {showKeyboardHints && <Kbd variant="primary">→</Kbd>}
+          </>
+        )}
+      </Button>
     </div>
   );
 }
