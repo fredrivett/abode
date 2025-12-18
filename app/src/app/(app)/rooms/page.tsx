@@ -1,66 +1,58 @@
+import db from "@/lib/db";
+import type { RoomFilters } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
+import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardHeader } from "../_components/dashboard-header";
 import { signOut } from "../dashboard/actions";
-
-function getString(value: unknown): string | undefined {
-  if (typeof value !== "string") return;
-  const trimmedValue = value.trim();
-  if (!trimmedValue) return;
-  return trimmedValue;
-}
+import { RoomsList } from "./_components/rooms-list";
 
 export default async function RoomsPage() {
   const supabase = await createClient();
-  const [{ data: claims }, { data: userData }] = await Promise.all([
-    supabase.auth.getClaims(),
-    supabase.auth.getUser(),
-  ]);
+  const { user, metadata } = await getUserWithMetadata(supabase);
 
-  const claimsRecord = (claims?.claims ?? {}) as Record<string, unknown>;
-  const claimsUserMetadata = (claimsRecord.user_metadata ?? {}) as Record<
-    string,
-    unknown
-  >;
-  const userMetadata = (userData.user?.user_metadata ?? {}) as Record<
-    string,
-    unknown
-  >;
+  // Fetch rooms for the user
+  const rooms = user
+    ? await db.room.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          filters: true,
+          visibility: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { roomItems: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
 
-  const email = getString(claimsRecord.email) ?? userData.user?.email ?? null;
-  const firstName =
-    getString(userMetadata.first_name) ??
-    getString(userMetadata.given_name) ??
-    getString(claimsRecord.given_name) ??
-    getString(claimsUserMetadata.given_name) ??
-    getString(claimsUserMetadata.first_name) ??
-    null;
-  const lastName =
-    getString(userMetadata.last_name) ??
-    getString(userMetadata.family_name) ??
-    getString(claimsRecord.family_name) ??
-    getString(claimsUserMetadata.family_name) ??
-    getString(claimsUserMetadata.last_name) ??
-    null;
-  const avatarUrl: string | null =
-    getString(userMetadata.avatar_url) ??
-    getString(userMetadata.picture) ??
-    getString(claimsRecord.picture) ??
-    getString(claimsUserMetadata.picture) ??
-    getString(claimsUserMetadata.avatar_url) ??
-    null;
+  const roomsForClient = rooms.map((room) => ({
+    id: room.id,
+    name: room.name,
+    type: room.type,
+    filters: room.filters as RoomFilters | null,
+    visibility: room.visibility,
+    createdAt: room.createdAt.toISOString(),
+    updatedAt: room.updatedAt.toISOString(),
+    itemCount: room._count.roomItems,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
-        email={email}
-        firstName={firstName}
-        lastName={lastName}
-        avatarUrl={avatarUrl}
+        email={metadata.email}
+        firstName={metadata.firstName}
+        lastName={metadata.lastName}
+        avatarUrl={metadata.avatarUrl}
         signOutAction={signOut}
       />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <h2 className="text-2xl font-semibold tracking-tight">Rooms</h2>
+        <RoomsList initialRooms={roomsForClient} />
       </div>
     </div>
   );

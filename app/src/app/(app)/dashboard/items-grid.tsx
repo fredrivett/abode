@@ -48,6 +48,7 @@ export type DashboardItem = {
   ocrText: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
+  excludeFromPublicRooms?: boolean;
 };
 
 function formatBytes(bytes?: number | null) {

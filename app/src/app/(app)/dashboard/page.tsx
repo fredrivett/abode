@@ -29,6 +29,7 @@ export default async function DashboardPage() {
           title: true,
           description: true,
           tags: true,
+          excludeFromPublicRooms: true,
           locations: {
             select: {
               id: true,
@@ -73,6 +74,7 @@ export default async function DashboardPage() {
           objects: item.imageDetails?.objects ?? [],
           colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
           ocrText: item.imageDetails?.ocrText ?? null,
+          excludeFromPublicRooms: item.excludeFromPublicRooms,
           imageDetails: undefined,
           articleDetails: item.articleDetails
             ? {
