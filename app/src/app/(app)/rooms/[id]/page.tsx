@@ -161,7 +161,6 @@ export default async function RoomDetailPage({ params }: Props) {
         lastName={metadata.lastName}
         avatarUrl={metadata.avatarUrl}
         signOutAction={signOut}
-        showHomeLink
       />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
