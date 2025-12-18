@@ -356,7 +356,12 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   return (
     <>
-      <div className="group relative h-full w-full rounded-lg">
+      <div
+        className={cn(
+          "group relative h-full w-full rounded-lg",
+          showDetailDialog && "z-50",
+        )}
+      >
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
