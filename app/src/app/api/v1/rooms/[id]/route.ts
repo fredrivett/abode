@@ -121,10 +121,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.visibility = visibility;
     }
 
-    // Track if filters changed for smart rooms
-    let filtersChanged = false;
+    // Handle filter updates for smart rooms
+    const shouldSyncRoom =
+      filters !== undefined && existingRoom.type === "smart";
 
-    if (filters !== undefined && existingRoom.type === "smart") {
+    if (shouldSyncRoom) {
       const roomFilters = filters as RoomFilters;
       if (!hasValidFilters(roomFilters)) {
         return NextResponse.json(
@@ -133,7 +134,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         );
       }
       updateData.filters = roomFilters;
-      filtersChanged = true;
     }
 
     // Update the room
@@ -155,7 +155,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
 
     // If filters changed, trigger re-sync
-    if (filtersChanged) {
+    if (shouldSyncRoom) {
       await tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
         roomId: id,
         userId: user.id,
