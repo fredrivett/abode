@@ -48,6 +48,7 @@ function showInvalidFiltersToast(invalidFilters: InvalidFilterValue[]) {
 export type SearchResultsState = {
   isLoading: boolean;
   isSearching: boolean;
+  hasReceivedResults: boolean;
   items: SearchResultItem[];
   total: number;
   cursor: string | null;
@@ -154,6 +155,7 @@ export function useSearchResults(searchState: SearchState) {
   const [state, setState] = useState<SearchResultsState>({
     isLoading: false,
     isSearching: false,
+    hasReceivedResults: false,
     items: [],
     total: 0,
     cursor: null,
@@ -188,6 +190,7 @@ export function useSearchResults(searchState: SearchState) {
         setState({
           isLoading: false,
           isSearching: false,
+          hasReceivedResults: true,
           items: response.items,
           total: response.total,
           cursor: response.cursor || null,
@@ -234,6 +237,7 @@ export function useSearchResults(searchState: SearchState) {
       setState({
         isLoading: false,
         isSearching: false,
+        hasReceivedResults: false,
         items: [],
         total: 0,
         cursor: null,
@@ -247,10 +251,11 @@ export function useSearchResults(searchState: SearchState) {
     // Build search params
     const params = buildSearchParams(searchState);
 
-    // Set loading state
+    // Set searching state and reset hasReceivedResults for new search
     setState((prev) => ({
       ...prev,
       isSearching: true,
+      hasReceivedResults: false,
     }));
 
     // Increment request ID
@@ -329,6 +334,6 @@ export function useSearchResults(searchState: SearchState) {
     // isSearching should be true whenever we have search criteria but haven't received results yet
     // This covers the gap between searchState changing and the effect setting isSearching
     isSearching:
-      hasActiveSearch && (state.isSearching || state.items.length === 0),
+      hasActiveSearch && (state.isSearching || !state.hasReceivedResults),
   };
 }
