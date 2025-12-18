@@ -28,6 +28,7 @@ model User {
   locations     ItemLocation[]
   visualVectors ItemVisualVector[]
   textVectors   ItemTextVector[]
+  rooms         Room[]
 
   @@map("users")
 }
@@ -47,6 +48,16 @@ enum ProcessingStatus {
   processing
   completed
   failed
+}
+
+enum RoomType {
+  smart
+  manual
+}
+
+enum RoomVisibility {
+  private
+  public
 }
 
 model Item {
@@ -78,6 +89,9 @@ model Item {
   updatedAt        DateTime         @updatedAt @map("updated_at")
   deletedAt        DateTime?        @map("deleted_at")
 
+  // Smart rooms
+  excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
+
   // Relations
   user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   locations         ItemLocation[]
@@ -85,6 +99,7 @@ model Item {
   textVectors       ItemTextVector[]
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
+  roomItems         RoomItem[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
@@ -191,4 +206,36 @@ model ItemImageDetails {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("item_image_details")
+}
+
+model Room {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  name       String
+  type       RoomType
+  filters    Json?          // JSONB for smart room filters
+  visibility RoomVisibility @default(private)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomItems RoomItem[]
+
+  @@index([userId])
+  @@map("rooms")
+}
+
+model RoomItem {
+  id      String   @id @default(uuid()) @db.Uuid
+  roomId  String   @map("room_id") @db.Uuid
+  itemId  String   @map("item_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, itemId])
+  @@index([roomId])
+  @@index([itemId])
+  @@map("room_items")
 }
