@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { OnboardingWrapper } from "@/components/onboarding";
+import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
 import { DashboardHeader } from "../_components/dashboard-header";
@@ -23,9 +25,17 @@ export default async function DashboardLayout({
     supabase.auth.getUser(),
   ]);
 
-  if (!claims?.claims) {
+  if (!claims?.claims || !userData.user) {
     redirect("/login");
   }
+
+  // Fetch user from database to get onboarding status
+  const user = await db.user.findUnique({
+    where: { id: userData.user.id },
+    select: { onboardingCompletedAt: true },
+  });
+
+  const showOnboarding = user !== null && user.onboardingCompletedAt === null;
 
   const claimsRecord = (claims.claims ?? {}) as Record<string, unknown>;
   const claimsUserMetadata = (claimsRecord.user_metadata ?? {}) as Record<
@@ -58,19 +68,21 @@ export default async function DashboardLayout({
     getString(claimsUserMetadata.avatar_url);
 
   return (
-    <DashboardDropzone>
-      <div className="flex min-h-0 flex-1 flex-col bg-background">
-        <Suspense fallback={<div className="h-16" />}>
-          <DashboardHeader
-            email={email}
-            firstName={firstName}
-            lastName={lastName}
-            avatarUrl={avatarUrl}
-            signOutAction={signOut}
-          />
-        </Suspense>
-        <div className="w-full px-4 py-8">{children}</div>
-      </div>
-    </DashboardDropzone>
+    <OnboardingWrapper showOnboarding={showOnboarding}>
+      <DashboardDropzone>
+        <div className="flex min-h-0 flex-1 flex-col bg-background">
+          <Suspense fallback={<div className="h-16" />}>
+            <DashboardHeader
+              email={email}
+              firstName={firstName}
+              lastName={lastName}
+              avatarUrl={avatarUrl}
+              signOutAction={signOut}
+            />
+          </Suspense>
+          <div className="w-full px-4 py-8">{children}</div>
+        </div>
+      </DashboardDropzone>
+    </OnboardingWrapper>
   );
 }
