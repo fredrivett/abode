@@ -115,6 +115,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
           <StepperNavigation
             nextLabel="Next"
             completeLabel={isCompleting ? "Finishing..." : "Get started"}
+            showKeyboardHints
           />
         </Stepper>
       </DialogContent>

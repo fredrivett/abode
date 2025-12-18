@@ -5,12 +5,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 type StepperContextValue = {
@@ -254,11 +256,13 @@ function StepperNavigation({
   backLabel = "Back",
   nextLabel = "Next",
   completeLabel = "Complete",
+  showKeyboardHints = false,
 }: {
   className?: string;
   backLabel?: string;
   nextLabel?: string;
   completeLabel?: string;
+  showKeyboardHints?: boolean;
 }) {
   const { currentStep, totalSteps, handleNext, handleBack, handleComplete } =
     useStepper();
@@ -266,18 +270,59 @@ function StepperNavigation({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && !isFirstStep) {
+        e.preventDefault();
+        handleBack();
+      } else if (e.key === "ArrowRight" && !isLastStep) {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && isLastStep) {
+        e.preventDefault();
+        handleComplete();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFirstStep, isLastStep, handleBack, handleNext, handleComplete]);
+
   return (
-    <div className={cn("flex justify-between pt-4", className)}>
-      <div>
-        {!isFirstStep && (
-          <Button variant="ghost-subtle" onClick={handleBack}>
-            {backLabel}
-          </Button>
-        )}
+    <div className={cn("flex flex-col gap-4 pt-4", className)}>
+      <div className="flex justify-between">
+        <div>
+          {!isFirstStep && (
+            <Button variant="ghost-subtle" onClick={handleBack}>
+              {backLabel}
+            </Button>
+          )}
+        </div>
+        <Button onClick={isLastStep ? handleComplete : handleNext}>
+          {isLastStep ? completeLabel : nextLabel}
+        </Button>
       </div>
-      <Button onClick={isLastStep ? handleComplete : handleNext}>
-        {isLastStep ? completeLabel : nextLabel}
-      </Button>
+      {showKeyboardHints && (
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          {!isFirstStep && (
+            <span className="flex items-center gap-1.5">
+              <Kbd>←</Kbd> Back
+            </span>
+          )}
+          {!isLastStep && (
+            <span className="flex items-center gap-1.5">
+              <Kbd>→</Kbd> Next
+            </span>
+          )}
+          {isLastStep && (
+            <span className="flex items-center gap-1.5">
+              <Kbd>⌘</Kbd>
+              <Kbd>↵</Kbd> Get started
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
