@@ -66,10 +66,7 @@ export const Default: Story = {
           description="Find what you need instantly"
         />
       </Step>
-      <StepperNavigation
-        onSkip={() => alert("Skipped!")}
-        completeLabel="Get started"
-      />
+      <StepperNavigation completeLabel="Get started" />
     </Stepper>
   ),
 };
@@ -113,15 +110,12 @@ export const WithFiveSteps: Story = {
           description="Group items into rooms for personal use or sharing."
         />
       </Step>
-      <StepperNavigation
-        onSkip={() => alert("Skipped!")}
-        completeLabel="Get started"
-      />
+      <StepperNavigation completeLabel="Get started" />
     </Stepper>
   ),
 };
 
-export const WithoutSkip: Story = {
+export const TwoSteps: Story = {
   args: { children: null },
   render: () => (
     <Stepper onComplete={() => alert("Completed!")}>

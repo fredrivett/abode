@@ -214,15 +214,11 @@ function StepperNavigation({
   backLabel = "Back",
   nextLabel = "Next",
   completeLabel = "Complete",
-  onSkip,
-  skipLabel = "Skip",
 }: {
   className?: string;
   backLabel?: string;
   nextLabel?: string;
   completeLabel?: string;
-  onSkip?: () => void;
-  skipLabel?: string;
 }) {
   const { currentStep, totalSteps, handleNext, handleBack, handleComplete } =
     useStepper();
@@ -233,15 +229,11 @@ function StepperNavigation({
   return (
     <div className={cn("flex justify-between pt-4", className)}>
       <div>
-        {isFirstStep && onSkip ? (
-          <Button variant="ghost-subtle" onClick={onSkip}>
-            {skipLabel}
-          </Button>
-        ) : !isFirstStep ? (
+        {!isFirstStep && (
           <Button variant="ghost-subtle" onClick={handleBack}>
             {backLabel}
           </Button>
-        ) : null}
+        )}
       </div>
       <Button onClick={isLastStep ? handleComplete : handleNext}>
         {isLastStep ? completeLabel : nextLabel}

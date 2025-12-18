@@ -3,6 +3,8 @@
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Filter, Home, Sparkles, Upload, Users } from "lucide-react";
 import { useState } from "react";
+import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -15,14 +17,28 @@ const ONBOARDING_STEPS = [
   {
     icon: Upload,
     title: "Upload images or paste articles",
-    description:
-      "Drag and drop images, or paste any URL to save articles. Abode accepts images and web content.",
+    description: (
+      <>
+        Drag and drop images, or paste any URL to save articles.
+        <span className="translate-y-[0.025em]">
+          <AbodeInline />
+        </span>{" "}
+        accepts images and web content.
+      </>
+    ),
   },
   {
     icon: Sparkles,
     title: "Automatic analysis",
-    description:
-      "Abode uses AI to analyze your content — extracting colors, objects, locations, and key details automatically.",
+    description: (
+      <>
+        <span className="translate-y-[0.025em]">
+          <AbodeInline />
+        </span>{" "}
+        uses AI to analyze your content — extracting colors, objects, locations,
+        and key details automatically.
+      </>
+    ),
   },
   {
     icon: Filter,
@@ -39,8 +55,13 @@ const ONBOARDING_STEPS = [
   {
     icon: Users,
     title: "Create smart rooms",
-    description:
-      'Group items into rooms for personal use or sharing. Create collections like "Vancouver photos 2025" effortlessly.',
+    description: (
+      <>
+        Group items into rooms for personal use or sharing. Create collections
+        like <Badge variant="secondary">Vancouver photos 2025</Badge>{" "}
+        effortlessly.
+      </>
+    ),
   },
 ];
 
@@ -92,8 +113,6 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
             </Step>
           ))}
           <StepperNavigation
-            onSkip={handleComplete}
-            skipLabel="Skip"
             nextLabel="Next"
             completeLabel={isCompleting ? "Finishing..." : "Get started"}
           />
@@ -110,7 +129,7 @@ function StepContent({
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
-  description: string;
+  description: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2 text-center">
