@@ -762,7 +762,7 @@ function ItemDetailDialog({
                               !isDescriptionExpanded && "line-clamp-3",
                             )}
                           >
-                            {item.description}
+                            {decodeHtmlEntities(item.description)}
                           </p>
                           {(isDescriptionClamped || isDescriptionExpanded) && (
                             <button
