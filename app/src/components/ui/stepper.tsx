@@ -47,8 +47,9 @@ function Stepper({
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [direction, setDirection] = useState(0);
 
-  const steps = useMemo(() => {
+  const { steps, otherChildren } = useMemo(() => {
     const stepArray: React.ReactNode[] = [];
+    const otherArray: React.ReactNode[] = [];
     const childArray = Array.isArray(children) ? children : [children];
     for (const child of childArray) {
       if (
@@ -58,9 +59,11 @@ function Stepper({
         child.type === Step
       ) {
         stepArray.push(child);
+      } else if (child) {
+        otherArray.push(child);
       }
     }
-    return stepArray;
+    return { steps: stepArray, otherChildren: otherArray };
   }, [children]);
 
   const totalSteps = steps.length;
@@ -111,6 +114,7 @@ function Stepper({
       <div className={cn("flex flex-col", className)}>
         <StepperIndicator />
         <StepperContent>{steps[currentStep]}</StepperContent>
+        {otherChildren}
       </div>
     </StepperContext.Provider>
   );
