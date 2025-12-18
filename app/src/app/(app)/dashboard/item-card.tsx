@@ -589,7 +589,7 @@ function ItemDetailDialog({
             </div>
 
             {/* Bottom (mobile) / Right (desktop) - Details */}
-            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden">
+            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden border-t md:border-t-0 md:border-l border-border">
               <DialogHeader className="p-6 pb-4 items-start">
                 <DialogTitle className="sr-only">
                   Item details for {name}
