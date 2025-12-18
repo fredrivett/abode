@@ -1,9 +1,7 @@
-import db from "@/lib/db";
-import type { RoomFilters } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
-import { DashboardHeader } from "../_components/dashboard-header";
-import { signOut } from "../dashboard/actions";
-import { RoomsList } from "./_components/rooms-list";
+import { DashboardHeader } from "../../_components/dashboard-header";
+import { signOut } from "../../dashboard/actions";
+import { NewRoomForm } from "./_components/new-room-form";
 
 function getString(value: unknown): string | undefined {
   if (typeof value !== "string") return;
@@ -12,14 +10,12 @@ function getString(value: unknown): string | undefined {
   return trimmedValue;
 }
 
-export default async function RoomsPage() {
+export default async function NewRoomPage() {
   const supabase = await createClient();
   const [{ data: claims }, { data: userData }] = await Promise.all([
     supabase.auth.getClaims(),
     supabase.auth.getUser(),
   ]);
-
-  const user = userData.user;
 
   const claimsRecord = (claims?.claims ?? {}) as Record<string, unknown>;
   const claimsUserMetadata = (claimsRecord.user_metadata ?? {}) as Record<
@@ -54,37 +50,6 @@ export default async function RoomsPage() {
     getString(claimsUserMetadata.avatar_url) ??
     null;
 
-  // Fetch rooms for the user
-  const rooms = user
-    ? await db.room.findMany({
-        where: { userId: user.id },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          filters: true,
-          visibility: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: { roomItems: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      })
-    : [];
-
-  const roomsForClient = rooms.map((room) => ({
-    id: room.id,
-    name: room.name,
-    type: room.type,
-    filters: room.filters as RoomFilters | null,
-    visibility: room.visibility,
-    createdAt: room.createdAt.toISOString(),
-    updatedAt: room.updatedAt.toISOString(),
-    itemCount: room._count.roomItems,
-  }));
-
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
@@ -93,10 +58,11 @@ export default async function RoomsPage() {
         lastName={lastName}
         avatarUrl={avatarUrl}
         signOutAction={signOut}
+        showHomeLink
       />
 
-      <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <RoomsList initialRooms={roomsForClient} />
+      <div className="mx-auto w-full max-w-2xl px-4 py-8">
+        <NewRoomForm />
       </div>
     </div>
   );
