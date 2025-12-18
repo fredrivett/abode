@@ -34,6 +34,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
+import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -549,7 +550,7 @@ function ItemDetailDialog({
                   <article className="w-full max-w-prose">
                     {item.title && (
                       <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
-                        {item.title}
+                        {decodeHtmlEntities(item.title)}
                       </h1>
                     )}
                     <Markdown className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none">
