@@ -141,26 +141,42 @@ export function ItemsGrid({
           {items.map((item) => {
             const meta = item.meta || {};
             const isArticle = item.kind === "article";
+            const isProcessingUrl =
+              item.sourceType === "url" &&
+              item.processingStatus === "processing";
 
-            // For articles, prefer title; for images, prefer meta name
-            const name = isArticle
-              ? (item.title ?? item.articleDetails?.domain ?? "Untitled")
-              : ((meta.name as string | undefined) ??
+            // Derive display name based on item type
+            let name: string;
+            if (isArticle) {
+              name = item.title ?? item.articleDetails?.domain ?? "Untitled";
+            } else if (isProcessingUrl && item.sourceUrl) {
+              // For processing URLs, show the domain as the name
+              try {
+                name = new URL(item.sourceUrl).hostname;
+              } catch {
+                name = "Processing URL";
+              }
+            } else {
+              name =
+                (meta.name as string | undefined) ??
                 (meta.originalName as string | undefined) ??
                 item.title ??
                 item.fileKey ??
-                "Untitled");
+                "Untitled";
+            }
 
             const size = formatBytes(meta.size as number | undefined);
             const mimeType = meta.type as string | undefined;
 
-            // For articles, use 16:9 aspect ratio; for images use actual dimensions or 3:4
-            const width = isArticle
-              ? 16
-              : ((meta.width as number | undefined) ?? 3);
-            const height = isArticle
-              ? 9
-              : ((meta.height as number | undefined) ?? 4);
+            // For articles and processing URLs, use 16:9 aspect ratio; for images use actual dimensions or 3:4
+            const width =
+              isArticle || isProcessingUrl
+                ? 16
+                : ((meta.width as number | undefined) ?? 3);
+            const height =
+              isArticle || isProcessingUrl
+                ? 9
+                : ((meta.height as number | undefined) ?? 4);
 
             return (
               <Frame key={item.id} width={width} height={height}>

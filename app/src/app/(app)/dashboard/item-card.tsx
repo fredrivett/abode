@@ -141,6 +141,8 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   const isArticle = item.kind === "article";
+  const isProcessingUrl =
+    item.sourceType === "url" && item.processingStatus === "processing";
   // For articles, use coverFileKey; for images, use fileKey
   const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
   // Has displayable image: either it's an image type OR it's an article with a cover
@@ -149,9 +151,10 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 
   useEffect(() => {
     // Articles without a cover image don't need to load anything
+    // URL items that are still processing don't have a file yet - that's expected
     if (!imageFileKey) {
       setPreviewUrl(null);
-      if (!isArticle) {
+      if (!isArticle && !isProcessingUrl) {
         setError("Missing file");
       }
       return;
@@ -186,7 +189,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [imageFileKey, isArticle, supabase]);
+  }, [imageFileKey, isArticle, isProcessingUrl, supabase]);
 
   useEffect(() => {
     setItemName(name);
@@ -234,6 +237,51 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
             {item.articleDetails?.domain && (
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {item.articleDetails.domain}
+              </p>
+            )}
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {showDetailDialog && (
+            <ItemDetailDialog
+              item={item}
+              size={size}
+              previewUrl={null}
+              open={showDetailDialog}
+              onOpenChange={setShowDetailDialog}
+              name={itemName}
+              onNameChange={setItemName}
+              deleteOpen={showDeleteDialog}
+              onDeleteOpenChange={setShowDeleteDialog}
+              onDeleteConfirm={handleDelete}
+              isDeleting={isDeleting}
+            />
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // URL items that are still processing show a special placeholder
+  if (isProcessingUrl && !previewUrl) {
+    const domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          onClick={() => setShowDetailDialog(true)}
+        >
+          <ProcessingOverlay status={item.processingStatus} />
+          <ExternalLink className="size-12 text-gray-400 dark:text-gray-500" />
+          <div className="text-center">
+            <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {itemName}
+            </p>
+            {domain && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {domain}
               </p>
             )}
           </div>
