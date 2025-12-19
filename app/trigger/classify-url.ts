@@ -203,6 +203,7 @@ export const classifyUrlTask = task({
       }
 
       // Step 5: Update item with article data
+      // Store original extracted title in meta.originalName for reference
       await db.item.update({
         where: { id: itemId, userId },
         data: {
@@ -211,6 +212,9 @@ export const classifyUrlTask = task({
           description: metadata.description,
           coverFileKey,
           processingStatus: "completed",
+          meta: {
+            originalName: metadata.title,
+          },
         },
       });
 

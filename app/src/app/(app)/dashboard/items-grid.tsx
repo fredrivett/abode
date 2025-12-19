@@ -146,11 +146,9 @@ export function ItemsGrid({
               item.sourceType === "url" &&
               item.processingStatus === "processing";
 
-            // Derive display name based on item type
+            // Derive display name - item.title is the single source of truth
             let name: string;
-            if (isArticle) {
-              name = item.title ?? item.articleDetails?.domain ?? "Untitled";
-            } else if (isProcessingUrl && item.sourceUrl) {
+            if (isProcessingUrl && item.sourceUrl) {
               // For processing URLs, show the domain as the name
               try {
                 name = new URL(item.sourceUrl).hostname;
@@ -158,12 +156,7 @@ export function ItemsGrid({
                 name = "Processing URL";
               }
             } else {
-              name =
-                (meta.name as string | undefined) ??
-                (meta.originalName as string | undefined) ??
-                item.title ??
-                item.fileKey ??
-                "Untitled";
+              name = item.title ?? "Untitled";
             }
 
             const size = formatBytes(meta.size as number | undefined);
