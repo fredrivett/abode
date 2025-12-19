@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FilterBadges } from "@/components/rooms/filter-badges";
 import {
@@ -460,9 +460,9 @@ function EditFiltersDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset state when dialog opens
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
+  // Reset state when dialog opens (via prop change or internal action)
+  useEffect(() => {
+    if (open) {
       setFilters(roomFilters ?? {});
       setDateAfter(roomFilters?.dateAfter ?? "");
       setDateBefore(roomFilters?.dateBefore ?? "");
@@ -471,8 +471,7 @@ function EditFiltersDialog({
       setNewFilterNegated(false);
       setError(null);
     }
-    onOpenChange(isOpen);
-  };
+  }, [open, roomFilters]);
 
   const handleAddFilter = () => {
     if (!newFilterType || !newFilterValue.trim()) return;
@@ -551,7 +550,7 @@ function EditFiltersDialog({
     (dateBefore ? 1 : 0);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Room Filters</DialogTitle>
