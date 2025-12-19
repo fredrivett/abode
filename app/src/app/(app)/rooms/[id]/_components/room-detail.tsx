@@ -95,6 +95,7 @@ type RoomItem = {
   objects: string[];
   colors: ImageColor[];
   ocrText: string | null;
+  captureDate: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
 };

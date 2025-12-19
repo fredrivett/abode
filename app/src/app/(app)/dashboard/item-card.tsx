@@ -80,6 +80,7 @@ type DashboardItem = {
   objects: string[];
   colors: ImageColor[];
   ocrText: string | null;
+  captureDate: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
   excludeFromPublicRooms?: boolean;
@@ -627,6 +628,15 @@ function ItemDetailDialog({
                           className="font-medium"
                         />
                       </div>
+                      {item.captureDate && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Captured</span>
+                          <DateTime
+                            date={item.captureDate}
+                            className="font-medium"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -53,6 +53,7 @@ export type SearchResultItem = {
   objects: string[];
   colors: Array<{ hex: string; percentage: number; name?: string }> | null;
   ocrText: string | null;
+  captureDate: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
   createdAt: string;

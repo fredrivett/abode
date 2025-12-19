@@ -59,6 +59,7 @@ export function SearchableItemsGrid({
       colors:
         item.colors?.map((c) => ({ ...c, name: c.name ?? "", score: 0 })) ?? [],
       ocrText: item.ocrText,
+      captureDate: item.captureDate,
       locations: item.locations,
       articleDetails: item.articleDetails,
     }));

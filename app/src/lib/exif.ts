@@ -8,6 +8,11 @@ export type ExifGpsLocation = {
   longitude: number;
 };
 
+export type ExifData = {
+  gps: ExifGpsLocation | null;
+  captureDate: Date | null;
+};
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -46,5 +51,91 @@ export async function extractExifGpsLocation(
   } catch (error) {
     log.debug({ error }, "Error extracting EXIF GPS");
     return null;
+  }
+}
+
+/**
+ * Extract capture date from EXIF data (DateTimeOriginal or CreateDate)
+ */
+export async function extractExifCaptureDate(
+  buffer: Buffer,
+): Promise<Date | null> {
+  try {
+    const exif = await exifr.parse(buffer, {
+      pick: ["DateTimeOriginal", "CreateDate", "DateTimeDigitized"],
+    });
+
+    log.debug({ exif }, "exifr.parse result for capture date");
+
+    if (!exif) {
+      log.debug("No EXIF data returned from exifr");
+      return null;
+    }
+
+    // Try DateTimeOriginal first (when the photo was actually taken)
+    // Then CreateDate (when the digital file was created)
+    // Then DateTimeDigitized (when the image was digitized)
+    const captureDate =
+      exif.DateTimeOriginal || exif.CreateDate || exif.DateTimeDigitized;
+
+    if (!captureDate) {
+      log.debug("No capture date found in EXIF");
+      return null;
+    }
+
+    // exifr returns Date objects for date fields
+    if (captureDate instanceof Date && !Number.isNaN(captureDate.getTime())) {
+      log.debug({ captureDate }, "Valid capture date extracted");
+      return captureDate;
+    }
+
+    log.debug({ captureDate }, "Invalid capture date value");
+    return null;
+  } catch (error) {
+    log.debug({ error }, "Error extracting EXIF capture date");
+    return null;
+  }
+}
+
+/**
+ * Extract all EXIF data (GPS and capture date) in a single pass
+ */
+export async function extractExifData(buffer: Buffer): Promise<ExifData> {
+  try {
+    const exif = await exifr.parse(buffer, {
+      gps: true,
+      pick: ["DateTimeOriginal", "CreateDate", "DateTimeDigitized"],
+    });
+
+    log.debug({ exif }, "exifr.parse result for full EXIF data");
+
+    let gps: ExifGpsLocation | null = null;
+    let captureDate: Date | null = null;
+
+    // Extract GPS
+    if (exif?.latitude !== undefined && exif?.longitude !== undefined) {
+      if (isValidLatLon(exif.latitude, exif.longitude)) {
+        gps = { latitude: exif.latitude, longitude: exif.longitude };
+        log.debug(gps, "Valid GPS location extracted");
+      } else {
+        log.debug(
+          { latitude: exif.latitude, longitude: exif.longitude },
+          "Invalid lat/lon values",
+        );
+      }
+    }
+
+    // Extract capture date
+    const dateValue =
+      exif?.DateTimeOriginal || exif?.CreateDate || exif?.DateTimeDigitized;
+    if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+      captureDate = dateValue;
+      log.debug({ captureDate }, "Valid capture date extracted");
+    }
+
+    return { gps, captureDate };
+  } catch (error) {
+    log.debug({ error }, "Error extracting EXIF data");
+    return { gps: null, captureDate: null };
   }
 }

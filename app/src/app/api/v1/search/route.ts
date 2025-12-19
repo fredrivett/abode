@@ -78,6 +78,7 @@ type SearchResultItem = {
   objects: string[];
   colors: Array<{ hex: string; percentage: number; name?: string }> | null;
   ocrText: string | null;
+  captureDate: string | null;
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
   createdAt: string;
@@ -554,6 +555,7 @@ async function executeFiltersOnlySearch(
     objects: item.objects || [],
     colors: item.colors,
     ocrText: item.ocr_text,
+    captureDate: item.capture_date?.toISOString() || null,
     locations: item.locations.map((loc) => ({
       id: loc.id,
       source: loc.source,
@@ -699,6 +701,7 @@ async function executeRankedSearch(
       objects: string[] | null;
       colors: unknown;
       ocr_text: string | null;
+      capture_date: Date | null;
       article_author: string | null;
       article_domain: string | null;
       article_published_at: Date | null;
@@ -723,6 +726,7 @@ async function executeRankedSearch(
       iid.objects,
       iid.colors,
       iid.ocr_text,
+      iid.capture_date,
       ad.author as article_author,
       ad.domain as article_domain,
       ad.published_at as article_published_at,
@@ -893,6 +897,7 @@ async function executeRankedSearch(
       objects: item.objects || [],
       colors: parseColors(item.colors),
       ocrText: item.ocr_text,
+      captureDate: item.capture_date?.toISOString() || null,
       locations: item.locations.map((loc) => ({
         id: loc.id,
         source: loc.source,
