@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpLeft, Blocks, LogOut } from "lucide-react";
+import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
@@ -122,6 +122,13 @@ export function DashboardHeader({
                   </span>
                 </Link>
               </Button>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex items-center gap-2">
+                <Settings className="size-4" />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <form action={signOutAction}>
