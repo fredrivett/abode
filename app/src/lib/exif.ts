@@ -29,9 +29,10 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
  */
 export async function extractExifData(buffer: Buffer): Promise<ExifData> {
   try {
+    // Note: We don't use `pick` here because it would exclude GPS tags.
+    // The `gps: true` option enables GPS parsing but pick would filter them out.
     const exif = await exifr.parse(buffer, {
       gps: true,
-      pick: ["DateTimeOriginal", "CreateDate", "DateTimeDigitized"],
     });
 
     log.debug({ exif }, "exifr.parse result for full EXIF data");
