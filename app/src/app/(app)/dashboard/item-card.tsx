@@ -1,6 +1,6 @@
 "use client";
 
-import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
+import type { ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
   ExternalLink,
@@ -37,54 +37,11 @@ import { api } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { ImageColor } from "@/lib/vision";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationMap } from "./_components/location-map";
+import type { DashboardItem } from "./items-grid";
 
 const log = createLogger("dashboard/item-card");
-
-type ItemLocation = {
-  id: string;
-  source: string;
-  latitude: number | null;
-  longitude: number | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  countryCode: string | null;
-  formatted: string | null;
-};
-
-type ArticleDetails = {
-  author: string | null;
-  domain: string | null;
-  publishedAt: string | null;
-  readingTime: number | null;
-  content: string | null;
-};
-
-type DashboardItem = {
-  id: string;
-  kind: ItemKind | null;
-  processingStatus: ProcessingStatus;
-  fileKey: string | null;
-  meta: Record<string, unknown> | null;
-  sourceType: SourceType | null;
-  sourceUrl: string | null;
-  coverFileKey: string | null;
-  createdAt: string;
-  title: string | null;
-  description: string | null;
-  tags: string[];
-  objects: string[];
-  colors: ImageColor[];
-  ocrText: string | null;
-  captureDate: string | null;
-  locations: ItemLocation[];
-  articleDetails: ArticleDetails | null;
-  excludeFromPublicRooms?: boolean;
-};
 
 type ItemCardProps = {
   item: DashboardItem;

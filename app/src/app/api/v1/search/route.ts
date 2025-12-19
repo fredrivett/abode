@@ -555,7 +555,7 @@ async function executeFiltersOnlySearch(
     objects: item.objects || [],
     colors: item.colors,
     ocrText: item.ocr_text,
-    captureDate: item.capture_date?.toISOString() || null,
+    captureDate: item.capture_date?.toISOString() ?? null,
     locations: item.locations.map((loc) => ({
       id: loc.id,
       source: loc.source,
@@ -576,7 +576,7 @@ async function executeFiltersOnlySearch(
         ? {
             author: item.article_author,
             domain: item.article_domain,
-            publishedAt: item.article_published_at?.toISOString() || null,
+            publishedAt: item.article_published_at?.toISOString() ?? null,
             readingTime: item.article_reading_time,
             content: item.article_content,
           }
@@ -592,7 +592,7 @@ async function executeFiltersOnlySearch(
   if (hasMore && pageItems.length > 0) {
     const lastItem = pageItems[pageItems.length - 1];
     nextCursor = encodeCursor({
-      captureDate: lastItem.capture_date?.toISOString() || null,
+      captureDate: lastItem.capture_date?.toISOString() ?? null,
       createdAt: lastItem.created_at.toISOString(),
       id: lastItem.id,
     });
@@ -897,7 +897,7 @@ async function executeRankedSearch(
       objects: item.objects || [],
       colors: parseColors(item.colors),
       ocrText: item.ocr_text,
-      captureDate: item.capture_date?.toISOString() || null,
+      captureDate: item.capture_date?.toISOString() ?? null,
       locations: item.locations.map((loc) => ({
         id: loc.id,
         source: loc.source,
@@ -918,7 +918,7 @@ async function executeRankedSearch(
           ? {
               author: item.article_author,
               domain: item.article_domain,
-              publishedAt: item.article_published_at?.toISOString() || null,
+              publishedAt: item.article_published_at?.toISOString() ?? null,
               readingTime: item.article_reading_time,
               content: item.article_content,
             }
