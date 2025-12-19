@@ -49,7 +49,7 @@ export function EditableTitle({
   const textClasses = useMemo(
     () =>
       cn(
-        "font-semibold leading-tight",
+        "font-serif font-semibold leading-tight",
         SIZE_STYLES[size],
         disabled ? "cursor-default opacity-50" : null,
         className,

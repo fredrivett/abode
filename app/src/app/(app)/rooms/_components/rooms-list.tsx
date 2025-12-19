@@ -1,7 +1,7 @@
 "use client";
 
 import type { RoomType, RoomVisibility } from "@prisma/client";
-import { Blocks, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Blocks, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { FilterBadges } from "@/components/rooms/filter-badges";
@@ -104,14 +104,9 @@ export function RoomsList({ initialRooms }: RoomsListProps) {
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {room.type === "smart" ? (
-                    <Sparkles className="size-4 text-amber-500" />
-                  ) : (
-                    <Blocks className="size-4 text-muted-foreground" />
-                  )}
-                  <h3 className="font-medium leading-none">{room.name}</h3>
-                </div>
+                <h3 className="font-serif font-medium leading-none">
+                  {room.name}
+                </h3>
                 <div className="flex items-center gap-1">
                   {room.visibility === "public" && (
                     <Badge variant="secondary" className="text-xs">

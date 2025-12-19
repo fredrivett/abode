@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type FilterChipProps = {
   filter: Filter;
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
   className?: string;
 };
 
@@ -24,7 +24,8 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 pr-1 py-0.75 text-sm font-normal",
+        "gap-1 py-0.75 text-sm font-normal",
+        onRemove ? "pr-1" : "pr-2",
         getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
         className,
@@ -38,18 +39,20 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
         />
       )}
       <span className="font-medium">{displayValue}</span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-4 rounded-full p-0 hover:bg-current/20"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(filter.id);
-        }}
-        aria-label={`Remove ${meta.label} filter`}
-      >
-        <X className="size-3" />
-      </Button>
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-4 rounded-full p-0 hover:bg-current/20"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(filter.id);
+          }}
+          aria-label={`Remove ${meta.label} filter`}
+        >
+          <X className="size-3" />
+        </Button>
+      )}
     </Badge>
   );
 }

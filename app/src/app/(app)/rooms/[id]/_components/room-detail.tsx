@@ -10,12 +10,10 @@ import type {
 } from "@prisma/client";
 import {
   ArrowLeft,
-  Blocks,
   Loader2,
   Pencil,
   Plus,
   SearchX,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -215,8 +213,8 @@ export function RoomDetail({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="space-y-2 flex-1">
           <Link
             href="/rooms"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -225,11 +223,6 @@ export function RoomDetail({
             Back to rooms
           </Link>
           <div className="flex items-center gap-3">
-            {room.type === "smart" ? (
-              <Sparkles className="size-6 text-amber-500" />
-            ) : (
-              <Blocks className="size-6 text-muted-foreground" />
-            )}
             <EditableTitle
               value={roomName}
               onSubmit={handleNameSubmit}
