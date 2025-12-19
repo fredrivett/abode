@@ -1,7 +1,33 @@
+import { redirect } from "next/navigation";
+import db from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader } from "../_components/dashboard-header";
 import { signOut } from "../dashboard/actions";
+import { UsernameSettings } from "./_components/username-settings";
+
+type PreviousUsername = {
+  username: string;
+  changedAt: string;
+};
 
 export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { username: true, previousUsernames: true },
+  });
+
+  const previousUsernames =
+    (dbUser?.previousUsernames as PreviousUsername[]) || [];
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader signOutAction={signOut} />
@@ -14,11 +40,12 @@ export default async function SettingsPage() {
           </p>
         </header>
 
-        <section className="mt-8 rounded-xl border p-6">
-          <p className="text-sm text-muted-foreground">
-            Settings options coming soon.
-          </p>
-        </section>
+        <div className="mt-8 space-y-6">
+          <UsernameSettings
+            currentUsername={dbUser?.username || null}
+            changesUsed={previousUsernames.length}
+          />
+        </div>
       </div>
     </div>
   );
