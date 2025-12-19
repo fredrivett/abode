@@ -49,6 +49,7 @@ export default async function DashboardPage() {
               objects: true,
               colors: true,
               ocrText: true,
+              captureDate: true,
             },
           },
           articleDetails: {
@@ -74,6 +75,7 @@ export default async function DashboardPage() {
           objects: item.imageDetails?.objects ?? [],
           colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
           ocrText: item.imageDetails?.ocrText ?? null,
+          captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
           excludeFromPublicRooms: item.excludeFromPublicRooms,
           imageDetails: undefined,
           articleDetails: item.articleDetails

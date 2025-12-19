@@ -89,6 +89,7 @@ export default async function RoomDetailPage({ params }: Props) {
               objects: true,
               colors: true,
               ocrText: true,
+              captureDate: true,
             },
           },
           articleDetails: {
@@ -143,6 +144,7 @@ export default async function RoomDetailPage({ params }: Props) {
     objects: roomItem.item.imageDetails?.objects ?? [],
     colors: (roomItem.item.imageDetails?.colors as ImageColor[]) ?? [],
     ocrText: roomItem.item.imageDetails?.ocrText ?? null,
+    captureDate: roomItem.item.imageDetails?.captureDate?.toISOString() ?? null,
     locations: roomItem.item.locations,
     articleDetails: roomItem.item.articleDetails
       ? {

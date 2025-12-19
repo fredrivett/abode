@@ -93,6 +93,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 objects: true,
                 colors: true,
                 ocrText: true,
+                captureDate: true,
               },
             },
             articleDetails: {
@@ -121,6 +122,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       objects: roomItem.item.imageDetails?.objects ?? [],
       colors: roomItem.item.imageDetails?.colors ?? [],
       ocrText: roomItem.item.imageDetails?.ocrText ?? null,
+      captureDate: roomItem.item.imageDetails?.captureDate ?? null,
       imageDetails: undefined,
     }));
 

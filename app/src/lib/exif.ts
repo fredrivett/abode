@@ -8,6 +8,11 @@ export type ExifGpsLocation = {
   longitude: number;
 };
 
+export type ExifData = {
+  gps: ExifGpsLocation | null;
+  captureDate: Date | null;
+};
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -19,32 +24,45 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
   return true;
 }
 
-export async function extractExifGpsLocation(
-  buffer: Buffer,
-): Promise<ExifGpsLocation | null> {
+/**
+ * Extract all EXIF data (GPS and capture date) in a single pass
+ */
+export async function extractExifData(buffer: Buffer): Promise<ExifData> {
   try {
-    const gps = await exifr.gps(buffer);
-    log.debug({ gps }, "exifr.gps result");
-    if (!gps) {
-      log.debug("No GPS data returned from exifr");
-      return null;
+    const exif = await exifr.parse(buffer, {
+      gps: true,
+      pick: ["DateTimeOriginal", "CreateDate", "DateTimeDigitized"],
+    });
+
+    log.debug({ exif }, "exifr.parse result for full EXIF data");
+
+    let gps: ExifGpsLocation | null = null;
+    let captureDate: Date | null = null;
+
+    // Extract GPS
+    if (exif?.latitude !== undefined && exif?.longitude !== undefined) {
+      if (isValidLatLon(exif.latitude, exif.longitude)) {
+        gps = { latitude: exif.latitude, longitude: exif.longitude };
+        log.debug(gps, "Valid GPS location extracted");
+      } else {
+        log.debug(
+          { latitude: exif.latitude, longitude: exif.longitude },
+          "Invalid lat/lon values",
+        );
+      }
     }
 
-    if (!isValidLatLon(gps.latitude, gps.longitude)) {
-      log.debug(
-        { latitude: gps.latitude, longitude: gps.longitude },
-        "Invalid lat/lon values",
-      );
-      return null;
+    // Extract capture date
+    const dateValue =
+      exif?.DateTimeOriginal || exif?.CreateDate || exif?.DateTimeDigitized;
+    if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+      captureDate = dateValue;
+      log.debug({ captureDate }, "Valid capture date extracted");
     }
 
-    log.debug(
-      { latitude: gps.latitude, longitude: gps.longitude },
-      "Valid GPS location extracted",
-    );
-    return { latitude: gps.latitude, longitude: gps.longitude };
+    return { gps, captureDate };
   } catch (error) {
-    log.debug({ error }, "Error extracting EXIF GPS");
-    return null;
+    log.debug({ error }, "Error extracting EXIF data");
+    return { gps: null, captureDate: null };
   }
 }

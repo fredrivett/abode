@@ -8,7 +8,7 @@ import {
   generateImageEmbedding,
   generateTextEmbedding,
 } from "../src/lib/embeddings";
-import { extractExifGpsLocation } from "../src/lib/exif";
+import { extractExifData } from "../src/lib/exif";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImage, generateAITitle } from "../src/lib/vision";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
@@ -153,9 +153,16 @@ export const analyzeImageTask = task({
         sizeBytes: buffer.length,
       });
 
-      // Step 1.5: Extract location from EXIF (if present)
-      const gps = await extractExifGpsLocation(buffer);
+      // Step 1.5: Extract EXIF data (GPS and capture date)
+      const exifData = await extractExifData(buffer);
+      const { gps, captureDate } = exifData;
       let place: Awaited<ReturnType<typeof reverseGeocode>> = null;
+
+      if (captureDate) {
+        logger.log("EXIF capture date found", { itemId, captureDate });
+      } else {
+        logger.log("No EXIF capture date in image", { itemId });
+      }
 
       if (gps) {
         logger.log("EXIF GPS found", { itemId });
@@ -301,12 +308,14 @@ export const analyzeImageTask = task({
             ocrText: analysis.ocrText,
             colors: analysis.colors,
             visionData: analysis.visionData,
+            captureDate,
           },
           update: {
             objects: analysis.objects,
             ocrText: analysis.ocrText,
             colors: analysis.colors,
             visionData: analysis.visionData,
+            captureDate,
           },
         }),
       ]);
