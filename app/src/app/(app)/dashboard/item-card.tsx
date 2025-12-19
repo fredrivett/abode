@@ -501,8 +501,8 @@ function ItemDetailDialog({
     if (!trimmed || trimmed === name.trim()) return;
     setIsSavingName(true);
     try {
-      const nextMeta = { ...meta, name: trimmed };
-      await api.patch(`/api/v1/items/${item.id}`, { meta: nextMeta });
+      // Update item.title directly - it's the single source of truth for display name
+      await api.patch(`/api/v1/items/${item.id}`, { title: trimmed });
       onNameChange(trimmed);
       toast.success("Name updated");
     } catch (error) {
@@ -565,9 +565,10 @@ function ItemDetailDialog({
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
                   <article className="w-full max-w-prose">
-                    {item.title && (
+                    {/* Use meta.originalName for the article's original title (from HTML) */}
+                    {(meta.originalName as string | undefined) && (
                       <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
-                        {decodeHtmlEntities(item.title)}
+                        {decodeHtmlEntities(meta.originalName as string)}
                       </h1>
                     )}
                     <Markdown className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none">

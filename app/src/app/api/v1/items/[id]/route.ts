@@ -127,6 +127,7 @@ export async function PATCH(
       coverFileKey,
       excludeFromPublicRooms,
       tags,
+      title,
     } = body;
 
     // Check if item exists and belongs to user
@@ -167,6 +168,7 @@ export async function PATCH(
         ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
+        ...(title !== undefined && { title }),
       },
       select: {
         id: true,

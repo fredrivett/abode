@@ -314,14 +314,8 @@ export function RoomDetail({
               const meta = item.meta || {};
               const isArticle = item.kind === "article";
 
-              // For articles, prefer title; for images, prefer meta name
-              const name = isArticle
-                ? (item.title ?? item.articleDetails?.domain ?? "Untitled")
-                : ((meta.name as string | undefined) ??
-                  (meta.originalName as string | undefined) ??
-                  item.title ??
-                  item.fileKey ??
-                  "Untitled");
+              // item.title is the single source of truth for display name
+              const name = item.title ?? "Untitled";
 
               const size = formatBytes(meta.size as number | undefined);
               const mimeType = meta.type as string | undefined;
