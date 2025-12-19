@@ -22,6 +22,10 @@ type RoomFilterType =
 
 /**
  * Convert RoomFilters to an array of Filter objects for use with FilterChip.
+ *
+ * RoomFilters (grouped by type, stored in DB) differs from search Filter[] (flat with IDs).
+ * This adapter enables reusing FilterChip for display. If we add filter editing to rooms
+ * using the search UI components, consider unifying to a single filter format.
  */
 function roomFiltersToSearchFilters(filters: RoomFilters): Filter[] {
   const result: Filter[] = [];
