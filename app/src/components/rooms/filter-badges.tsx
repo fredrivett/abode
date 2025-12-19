@@ -1,13 +1,82 @@
+import { FilterChip } from "@/components/search/filter-chip";
 import { Badge } from "@/components/ui/badge";
 import type { RoomFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 
 type FilterBadgesProps = {
   filters: RoomFilters;
   /** When true, limits badges shown and uses compact format for lists */
   compact?: boolean;
-  /** Additional className for badges */
-  badgeClassName?: string;
+  /** Additional className for filter chips */
+  chipClassName?: string;
 };
+
+/** Filter types that exist on RoomFilters (excludes 'date' which uses dateAfter/dateBefore) */
+type RoomFilterType =
+  | "type"
+  | "tag"
+  | "object"
+  | "color"
+  | "source"
+  | "location";
+
+/**
+ * Convert RoomFilters to an array of Filter objects for use with FilterChip.
+ *
+ * RoomFilters (grouped by type, stored in DB) differs from search Filter[] (flat with IDs).
+ * This adapter enables reusing FilterChip for display. If we add filter editing to rooms
+ * using the search UI components, consider unifying to a single filter format.
+ */
+function roomFiltersToSearchFilters(filters: RoomFilters): Filter[] {
+  const result: Filter[] = [];
+  let id = 0;
+
+  const filterTypes: RoomFilterType[] = [
+    "type",
+    "tag",
+    "object",
+    "color",
+    "source",
+    "location",
+  ];
+
+  for (const type of filterTypes) {
+    const values = filters[type];
+    if (values?.length) {
+      for (const f of values) {
+        result.push({
+          id: `room-filter-${id++}`,
+          type,
+          value: f.value,
+          negated: f.negated,
+        });
+      }
+    }
+  }
+
+  // Handle date filters
+  if (filters.dateAfter) {
+    result.push({
+      id: `room-filter-${id++}`,
+      type: "date",
+      value: filters.dateAfter,
+      negated: false,
+      dateOperator: "after",
+    });
+  }
+
+  if (filters.dateBefore) {
+    result.push({
+      id: `room-filter-${id++}`,
+      type: "date",
+      value: filters.dateBefore,
+      negated: false,
+      dateOperator: "before",
+    });
+  }
+
+  return result;
+}
 
 /**
  * Render filter badges for a room's filters.
@@ -16,193 +85,63 @@ type FilterBadgesProps = {
 export function FilterBadges({
   filters,
   compact = false,
-  badgeClassName,
+  chipClassName,
 }: FilterBadgesProps) {
+  const searchFilters = roomFiltersToSearchFilters(filters);
+
+  if (searchFilters.length === 0) return null;
+
   if (compact) {
-    return <CompactFilterBadges filters={filters} className={badgeClassName} />;
-  }
-  return <FullFilterBadges filters={filters} className={badgeClassName} />;
-}
-
-function FullFilterBadges({
-  filters,
-  className,
-}: {
-  filters: RoomFilters;
-  className?: string;
-}) {
-  const badges: React.ReactNode[] = [];
-  let key = 0;
-
-  if (filters.type?.length) {
-    for (const f of filters.type) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}type:{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.tag?.length) {
-    for (const f of filters.tag) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}#{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.object?.length) {
-    for (const f of filters.object) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}object:{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.color?.length) {
-    for (const f of filters.color) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}color:{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.source?.length) {
-    for (const f of filters.source) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}source:{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.location?.length) {
-    for (const f of filters.location) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}location:{f.value}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.dateAfter) {
-    badges.push(
-      <Badge key={key++} variant="outline" className={className}>
-        after:{filters.dateAfter}
-      </Badge>,
+    return (
+      <CompactFilterBadges
+        filters={searchFilters}
+        chipClassName={chipClassName}
+      />
     );
   }
 
-  if (filters.dateBefore) {
-    badges.push(
-      <Badge key={key++} variant="outline" className={className}>
-        before:{filters.dateBefore}
-      </Badge>,
-    );
-  }
-
-  return <>{badges}</>;
+  return (
+    <>
+      {searchFilters.map((filter) => (
+        <FilterChip key={filter.id} filter={filter} className={chipClassName} />
+      ))}
+    </>
+  );
 }
 
 function CompactFilterBadges({
   filters,
-  className = "text-xs",
+  chipClassName = "text-xs",
 }: {
-  filters: RoomFilters;
-  className?: string;
+  filters: Filter[];
+  chipClassName?: string;
 }) {
-  const badges: React.ReactNode[] = [];
-  let key = 0;
+  // Limit to first 3 filters, show "+N more" if there are more
+  const maxVisible = 3;
 
-  if (filters.type?.length) {
-    for (const f of filters.type.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}type:{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.type.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          +{filters.type.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.tag?.length) {
-    for (const f of filters.tag.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}#{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.tag.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          +{filters.tag.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.source?.length) {
-    for (const f of filters.source.slice(0, 2)) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          {f.negated ? "!" : ""}source:{f.value}
-        </Badge>,
-      );
-    }
-    if (filters.source.length > 2) {
-      badges.push(
-        <Badge key={key++} variant="outline" className={className}>
-          +{filters.source.length - 2}
-        </Badge>,
-      );
-    }
-  }
-
-  if (filters.location?.length) {
-    badges.push(
-      <Badge key={key++} variant="outline" className={className}>
-        {filters.location.length} location
-        {filters.location.length > 1 ? "s" : ""}
-      </Badge>,
-    );
-  }
-
-  if (filters.dateAfter || filters.dateBefore) {
-    badges.push(
-      <Badge key={key++} variant="outline" className={className}>
-        date filter
-      </Badge>,
-    );
-  }
-
-  // Limit total badges shown
-  if (badges.length > 4) {
-    const remaining = badges.length - 3;
+  if (filters.length <= maxVisible) {
     return (
       <>
-        {badges.slice(0, 3)}
-        <Badge key="more" variant="outline" className={className}>
-          +{remaining} more
-        </Badge>
+        {filters.map((filter) => (
+          <FilterChip
+            key={filter.id}
+            filter={filter}
+            className={chipClassName}
+          />
+        ))}
       </>
     );
   }
 
-  return <>{badges}</>;
+  const remaining = filters.length - maxVisible;
+  return (
+    <>
+      {filters.slice(0, maxVisible).map((filter) => (
+        <FilterChip key={filter.id} filter={filter} className={chipClassName} />
+      ))}
+      <Badge variant="outline" className={chipClassName}>
+        +{remaining} more
+      </Badge>
+    </>
+  );
 }
