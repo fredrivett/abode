@@ -25,6 +25,14 @@ describe("isReservedWord", () => {
     expect(isReservedWord("home")).toBe(true);
   });
 
+  it("returns true for major external brands", () => {
+    expect(isReservedWord("apple")).toBe(true);
+    expect(isReservedWord("google")).toBe(true);
+    expect(isReservedWord("microsoft")).toBe(true);
+    expect(isReservedWord("openai")).toBe(true);
+    expect(isReservedWord("anthropic")).toBe(true);
+  });
+
   it("is case-insensitive", () => {
     expect(isReservedWord("Dashboard")).toBe(true);
     expect(isReservedWord("SETTINGS")).toBe(true);

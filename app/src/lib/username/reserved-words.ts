@@ -35,7 +35,7 @@ const APP_ROUTES = [
   "webhooks",
 ];
 
-// Brand terms - prevent impersonation
+// Brand terms - prevent impersonation (our brand)
 const BRAND_TERMS = [
   "abode",
   "support",
@@ -49,6 +49,64 @@ const BRAND_TERMS = [
   "root",
   "null",
   "undefined",
+];
+
+// Major external brands - prevent impersonation
+const EXTERNAL_BRANDS = [
+  // Tech giants
+  "apple",
+  "google",
+  "microsoft",
+  "amazon",
+  "meta",
+  "facebook",
+  "instagram",
+  "whatsapp",
+  "twitter",
+  "x",
+  "tiktok",
+  "snapchat",
+  "linkedin",
+  "pinterest",
+  "reddit",
+  "discord",
+  "slack",
+  "zoom",
+  "netflix",
+  "spotify",
+  "youtube",
+  "twitch",
+  // AI companies
+  "openai",
+  "anthropic",
+  "claude",
+  "chatgpt",
+  "gemini",
+  "copilot",
+  "midjourney",
+  // Other major brands
+  "tesla",
+  "nvidia",
+  "adobe",
+  "oracle",
+  "ibm",
+  "intel",
+  "samsung",
+  "sony",
+  "nintendo",
+  "xbox",
+  "playstation",
+  "paypal",
+  "stripe",
+  "visa",
+  "mastercard",
+  "venmo",
+  "cashapp",
+  "uber",
+  "lyft",
+  "airbnb",
+  "doordash",
+  "grubhub",
 ];
 
 // Generic/valuable terms
@@ -101,9 +159,13 @@ const OFFENSIVE_TERMS = [
 ];
 
 export const RESERVED_WORDS = new Set(
-  [...APP_ROUTES, ...BRAND_TERMS, ...GENERIC_TERMS, ...OFFENSIVE_TERMS].map(
-    (w) => w.toLowerCase(),
-  ),
+  [
+    ...APP_ROUTES,
+    ...BRAND_TERMS,
+    ...EXTERNAL_BRANDS,
+    ...GENERIC_TERMS,
+    ...OFFENSIVE_TERMS,
+  ].map((w) => w.toLowerCase()),
 );
 
 /**
