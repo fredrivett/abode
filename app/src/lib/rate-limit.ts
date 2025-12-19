@@ -32,6 +32,10 @@ export const RATE_LIMITS = {
     maxRequests: 120,
     windowMs: 60 * 1000, // 1 minute
   },
+  usernameCheck: {
+    maxRequests: 20,
+    windowMs: 60 * 1000, // 1 minute
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;
@@ -168,4 +172,19 @@ export function clearRateLimit(userId: string, endpoint?: RateLimitEndpoint) {
  */
 export function clearAllRateLimits() {
   rateLimitStore.clear();
+}
+
+/**
+ * Extract client IP from request headers.
+ * Handles x-forwarded-for (proxy chains) and x-real-ip.
+ * Used for rate limiting logged-out users (e.g., username availability check).
+ */
+export function getClientIp(headers: Headers): string {
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    // Take the first IP in the chain (original client)
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  return headers.get("x-real-ip") || "unknown";
 }
