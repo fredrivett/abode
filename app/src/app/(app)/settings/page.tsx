@@ -1,14 +1,10 @@
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import type { PreviousUsername } from "@/lib/username";
 import { DashboardHeader } from "../_components/dashboard-header";
 import { signOut } from "../dashboard/actions";
 import { UsernameSettings } from "./_components/username-settings";
-
-type PreviousUsername = {
-  username: string;
-  changedAt: string;
-};
 
 export default async function SettingsPage() {
   const supabase = await createClient();

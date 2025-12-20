@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useActionState,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,16 +8,9 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { validateUsernameFormat } from "@/lib/username";
 import { parseEmailToUsername } from "@/lib/username/generate-from-email";
+import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { signup, verifyOtp } from "./actions";
-
-type UsernameStatus =
-  | { type: "idle" }
-  | { type: "checking" }
-  | { type: "available" }
-  | { type: "unavailable"; error: string; suggestion?: string }
-  | { type: "invalid"; error: string };
 
 export function SignupForm() {
   const [signupState, signupAction, isSigningUp] = useActionState(signup, {});
@@ -32,13 +19,14 @@ export function SignupForm() {
     {},
   );
   const [otp, setOtp] = useState("");
-  const [username, setUsername] = useState("");
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({
-    type: "idle",
-  });
+  const {
+    username,
+    status: usernameStatus,
+    handleChange,
+    useSuggestion,
+  } = useUsernameAvailability();
   const formRef = useRef<HTMLFormElement>(null);
   const lastSubmittedOtp = useRef<string | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoSuggestedRef = useRef(false);
 
   useEffect(() => {
@@ -67,91 +55,15 @@ export function SignupForm() {
     formRef.current.requestSubmit();
   }, [otp, isVerifying]);
 
-  // Check username availability with debounce
-  const checkUsernameAvailability = useCallback(async (value: string) => {
-    // Clear any pending timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Immediate format validation
-    const formatResult = validateUsernameFormat(value);
-    if (!formatResult.valid) {
-      setUsernameStatus({ type: "invalid", error: formatResult.error || "" });
-      return;
-    }
-
-    setUsernameStatus({ type: "checking" });
-
-    // Debounce the API call
-    debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `/api/v1/username/check?username=${encodeURIComponent(value)}`,
-        );
-        const data = await response.json();
-
-        if (data.available) {
-          setUsernameStatus({ type: "available" });
-        } else {
-          setUsernameStatus({
-            type: "unavailable",
-            error: data.error || "Username is not available",
-            suggestion: data.suggestion,
-          });
-        }
-      } catch {
-        setUsernameStatus({
-          type: "invalid",
-          error: "Failed to check availability",
-        });
-      }
-    }, 1000);
-  }, []);
-
-  // Handle username input change
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setUsername(value);
-
-    if (value.length === 0) {
-      setUsernameStatus({ type: "idle" });
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      return;
-    }
-
-    void checkUsernameAvailability(value);
-  };
-
   // Auto-suggest username from email
   const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const email = e.target.value;
     if (email && !username && !hasAutoSuggestedRef.current) {
       const suggested = parseEmailToUsername(email);
-      setUsername(suggested);
+      handleChange(suggested);
       hasAutoSuggestedRef.current = true;
-      void checkUsernameAvailability(suggested);
     }
   };
-
-  // Use suggestion
-  const useSuggestion = () => {
-    if (usernameStatus.type === "unavailable" && usernameStatus.suggestion) {
-      setUsername(usernameStatus.suggestion);
-      setUsernameStatus({ type: "available" });
-    }
-  };
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
 
   // Show OTP input after successful signup
   if (signupState.success && signupState.email) {
@@ -204,6 +116,10 @@ export function SignupForm() {
   const isUsernameValid =
     usernameStatus.type === "available" ||
     (usernameStatus.type === "idle" && username.length === 0);
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleChange(e.target.value);
+  };
 
   return (
     <>

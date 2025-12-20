@@ -1,23 +1,11 @@
 "use client";
 
-import {
-  useActionState,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { MAX_USERNAME_CHANGES, validateUsernameFormat } from "@/lib/username";
+import { MAX_USERNAME_CHANGES } from "@/lib/username";
+import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { changeUsername } from "../actions";
-
-type UsernameStatus =
-  | { type: "idle" }
-  | { type: "checking" }
-  | { type: "available" }
-  | { type: "unavailable"; error: string; suggestion?: string }
-  | { type: "invalid"; error: string };
 
 type Props = {
   currentUsername: string | null;
@@ -26,15 +14,18 @@ type Props = {
 
 export function UsernameSettings({ currentUsername, changesUsed }: Props) {
   const [state, action, isPending] = useActionState(changeUsername, {});
-  const [username, setUsername] = useState(currentUsername || "");
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({
-    type: "idle",
-  });
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    username,
+    status: usernameStatus,
+    isValid,
+    hasChanged,
+    handleChange,
+    useSuggestion,
+    reset,
+  } = useUsernameAvailability({ currentUsername });
 
   const changesRemaining = MAX_USERNAME_CHANGES - changesUsed;
   const canChange = changesRemaining > 0;
-  const hasChanged = username !== currentUsername;
 
   useEffect(() => {
     if (state.error) {
@@ -42,92 +33,9 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
     }
     if (state.success) {
       toast.success("Username updated");
-      setUsernameStatus({ type: "idle" });
+      reset();
     }
-  }, [state]);
-
-  // Check username availability with debounce
-  const checkUsernameAvailability = useCallback(
-    async (value: string) => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // Skip if same as current
-      if (value === currentUsername) {
-        setUsernameStatus({ type: "idle" });
-        return;
-      }
-
-      // Immediate format validation
-      const formatResult = validateUsernameFormat(value);
-      if (!formatResult.valid) {
-        setUsernameStatus({ type: "invalid", error: formatResult.error || "" });
-        return;
-      }
-
-      setUsernameStatus({ type: "checking" });
-
-      debounceTimerRef.current = setTimeout(async () => {
-        try {
-          const response = await fetch(
-            `/api/v1/username/check?username=${encodeURIComponent(value)}`,
-          );
-          const data = await response.json();
-
-          if (data.available) {
-            setUsernameStatus({ type: "available" });
-          } else {
-            setUsernameStatus({
-              type: "unavailable",
-              error: data.error || "Username is not available",
-              suggestion: data.suggestion,
-            });
-          }
-        } catch {
-          setUsernameStatus({
-            type: "invalid",
-            error: "Failed to check availability",
-          });
-        }
-      }, 1000);
-    },
-    [currentUsername],
-  );
-
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setUsername(value);
-
-    if (value.length === 0 || value === currentUsername) {
-      setUsernameStatus({ type: "idle" });
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      return;
-    }
-
-    void checkUsernameAvailability(value);
-  };
-
-  const useSuggestion = () => {
-    if (usernameStatus.type === "unavailable" && usernameStatus.suggestion) {
-      setUsername(usernameStatus.suggestion);
-      setUsernameStatus({ type: "available" });
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  const isValid =
-    usernameStatus.type === "available" ||
-    (usernameStatus.type === "idle" && !hasChanged);
+  }, [state, reset]);
 
   return (
     <section className="rounded-xl border p-6">
@@ -147,7 +55,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
               name="username"
               type="text"
               value={username}
-              onChange={handleUsernameChange}
+              onChange={(e) => handleChange(e.target.value)}
               disabled={!canChange}
               className={`flex h-10 w-full rounded-md border bg-background py-2 pl-7 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
                 usernameStatus.type === "available"

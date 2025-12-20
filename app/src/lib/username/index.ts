@@ -8,6 +8,10 @@ export {
   RESERVED_WORDS,
 } from "./reserved-words";
 export {
+  type UsernameStatus,
+  useUsernameAvailability,
+} from "./use-username-availability";
+export {
   MAX_USERNAME_CHANGES,
   MIN_LETTERS_REQUIRED,
   USERNAME_MAX_LENGTH,
@@ -16,6 +20,14 @@ export {
   type UsernameValidationResult,
   validateUsernameFormat,
 } from "./validation";
+
+/**
+ * Type for tracking previous usernames when a user changes their username.
+ */
+export type PreviousUsername = {
+  username: string;
+  changedAt: string;
+};
 
 import { containsOffensiveContent, isReservedWord } from "./reserved-words";
 import {

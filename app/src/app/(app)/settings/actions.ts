@@ -3,12 +3,11 @@
 import { revalidatePath } from "next/cache";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import { MAX_USERNAME_CHANGES, validateUsername } from "@/lib/username";
-
-type PreviousUsername = {
-  username: string;
-  changedAt: string;
-};
+import {
+  MAX_USERNAME_CHANGES,
+  type PreviousUsername,
+  validateUsername,
+} from "@/lib/username";
 
 export type ChangeUsernameResult = {
   error?: string;
@@ -46,19 +45,25 @@ export async function changeUsername(
     return { error: "User not found" };
   }
 
-  // Check if it's the same username
-  if (currentUser.username?.toLowerCase() === newUsername.toLowerCase()) {
+  // Check if it's exactly the same username (no change at all)
+  if (currentUser.username === newUsername) {
     return { error: "This is already your username" };
   }
 
-  // Check change limit
+  // Check if it's only a case change (e.g., "Fred" -> "FRED")
+  const isCaseOnlyChange =
+    currentUser.username?.toLowerCase() === newUsername.toLowerCase();
+
   const previousUsernames =
     (currentUser.previousUsernames as PreviousUsername[]) || [];
-  if (previousUsernames.length >= MAX_USERNAME_CHANGES) {
+
+  // Only check change limit for non-case-only changes
+  if (!isCaseOnlyChange && previousUsernames.length >= MAX_USERNAME_CHANGES) {
     return { error: "Maximum username changes reached" };
   }
 
   // Check availability (case-insensitive, excluding current user)
+  // For case-only changes, this will find no conflicts since we exclude current user
   const existing = await db.user.findFirst({
     where: {
       username: {
@@ -74,9 +79,9 @@ export async function changeUsername(
     return { error: "Username is already taken" };
   }
 
-  // Build updated previous usernames array
+  // Build updated previous usernames array (only for non-case-only changes)
   const updatedPreviousUsernames: PreviousUsername[] = [...previousUsernames];
-  if (currentUser.username) {
+  if (!isCaseOnlyChange && currentUser.username) {
     updatedPreviousUsernames.push({
       username: currentUser.username,
       changedAt: new Date().toISOString(),

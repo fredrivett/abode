@@ -1,43 +1,14 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import db from "@/lib/db";
 
 type Props = {
   params: Promise<{ username: string }>;
 };
 
-export async function generateMetadata({ params }: Props) {
-  const { username } = await params;
-
-  const user = await db.user.findFirst({
-    where: {
-      username: {
-        equals: username,
-        mode: "insensitive",
-      },
-    },
-    select: { username: true, firstName: true, lastName: true },
-  });
-
-  if (!user) {
-    return { title: "User not found" };
-  }
-
-  const displayName =
-    user.firstName && user.lastName
-      ? `${user.firstName} ${user.lastName}`
-      : `@${user.username}`;
-
-  return {
-    title: `${displayName} | abode`,
-    description: `${displayName}'s profile on abode`,
-  };
-}
-
-export default async function ProfilePage({ params }: Props) {
-  const { username } = await params;
-
-  const user = await db.user.findFirst({
+const getUser = cache(async (username: string) => {
+  return db.user.findFirst({
     where: {
       username: {
         equals: username,
@@ -53,15 +24,48 @@ export default async function ProfilePage({ params }: Props) {
       createdAt: true,
     },
   });
+});
+
+function getDisplayName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+}): string {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  if (user.firstName) {
+    return user.firstName;
+  }
+  return `@${user.username}`;
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { username } = await params;
+  const user = await getUser(username);
+
+  if (!user) {
+    return { title: "User not found" };
+  }
+
+  const displayName = getDisplayName(user);
+
+  return {
+    title: `${displayName} | abode`,
+    description: `${displayName}'s profile on abode`,
+  };
+}
+
+export default async function ProfilePage({ params }: Props) {
+  const { username } = await params;
+  const user = await getUser(username);
 
   if (!user) {
     notFound();
   }
 
-  const displayName =
-    user.firstName && user.lastName
-      ? `${user.firstName} ${user.lastName}`
-      : null;
+  const displayName = getDisplayName(user);
+  const showUsername = user.firstName !== null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -70,7 +74,7 @@ export default async function ProfilePage({ params }: Props) {
           {user.avatarUrl ? (
             <Image
               src={user.avatarUrl}
-              alt={displayName || `@${user.username}`}
+              alt={displayName}
               width={96}
               height={96}
               className="h-24 w-24 rounded-full object-cover"
@@ -82,10 +86,10 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <h1 className="mt-6 font-serif text-3xl font-semibold tracking-tight">
-            {displayName || `@${user.username}`}
+            {displayName}
           </h1>
 
-          {displayName && (
+          {showUsername && (
             <p className="mt-1 text-muted-foreground">@{user.username}</p>
           )}
 
