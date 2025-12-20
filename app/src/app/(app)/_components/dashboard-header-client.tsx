@@ -2,6 +2,7 @@
 
 import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 
 import { AbodeLogo } from "@/components/abode-logo";
 import { UserAvatar } from "@/components/avatar/user-avatar";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { getDisplayName } from "@/lib/get-display-name";
 import { useFilterOptions, useSearch } from "@/lib/search";
+import { useUserStore } from "@/stores/user-store";
 
 export type DashboardHeaderClientProps = {
   email?: string | null;
@@ -39,13 +41,22 @@ export function DashboardHeaderClient({
   firstName,
   lastName,
   username,
-  avatarUrl,
+  avatarUrl: initialAvatarUrl,
   signOutAction,
   showSearch = false,
   showHomeLink = false,
 }: DashboardHeaderClientProps) {
   const { state: searchState, setState: setSearchState } = useSearch();
   const { getFilterValuesForType } = useFilterOptions();
+  const { avatarUrl: storeAvatarUrl, setAvatarUrl } = useUserStore();
+
+  // Initialize store with server-fetched value on mount
+  useEffect(() => {
+    setAvatarUrl(initialAvatarUrl ?? null);
+  }, [initialAvatarUrl, setAvatarUrl]);
+
+  // Use store value (falls back to initial if store not yet hydrated)
+  const avatarUrl = storeAvatarUrl ?? initialAvatarUrl;
 
   const displayEmail = email || "Account";
   const displayName = getDisplayName({ firstName, lastName, username });

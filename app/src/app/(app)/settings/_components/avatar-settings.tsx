@@ -7,6 +7,7 @@ import { AvatarCropper } from "@/components/avatar/avatar-cropper";
 import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { Button } from "@/components/ui/button";
+import { useUserStore } from "@/stores/user-store";
 
 type AvatarSettingsProps = {
   firstName?: string | null;
@@ -23,9 +24,15 @@ export function AvatarSettings({
   email,
   initialAvatarUrl,
 }: AvatarSettingsProps) {
-  const handleSuccess = useCallback(() => {
-    toast.success("Avatar updated");
-  }, []);
+  const setAvatarUrl = useUserStore((state) => state.setAvatarUrl);
+
+  const handleSuccess = useCallback(
+    (newAvatarUrl: string) => {
+      toast.success("Avatar updated");
+      setAvatarUrl(newAvatarUrl);
+    },
+    [setAvatarUrl],
+  );
 
   const handleError = useCallback((error: Error) => {
     toast.error(error.message);
@@ -53,8 +60,9 @@ export function AvatarSettings({
     const success = await handleDelete();
     if (success) {
       toast.success("Avatar removed");
+      setAvatarUrl(null);
     }
-  }, [handleDelete]);
+  }, [handleDelete, setAvatarUrl]);
 
   return (
     <section className="rounded-xl border p-6">
