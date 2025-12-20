@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getDisplayName } from "@/lib/get-display-name";
 import { getInitials } from "@/lib/get-initials";
 import { useFilterOptions, useSearch } from "@/lib/search";
 
@@ -27,6 +28,7 @@ type DashboardHeaderProps = {
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  username?: string | null;
   avatarUrl?: string | null;
   signOutAction: () => Promise<void>;
   showSearch?: boolean;
@@ -37,6 +39,7 @@ export function DashboardHeader({
   email,
   firstName,
   lastName,
+  username,
   avatarUrl,
   signOutAction,
   showSearch = true,
@@ -46,8 +49,7 @@ export function DashboardHeader({
   const { getFilterValuesForType } = useFilterOptions();
 
   const displayEmail = email || "Account";
-  const displayName =
-    [firstName, lastName].filter(Boolean).join(" ").trim() || displayEmail;
+  const displayName = getDisplayName({ firstName, lastName, username });
   const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (

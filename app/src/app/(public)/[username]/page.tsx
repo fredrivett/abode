@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import db from "@/lib/db";
+import { getDisplayName } from "@/lib/get-display-name";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -25,20 +26,6 @@ const getUser = cache(async (username: string) => {
     },
   });
 });
-
-function getDisplayName(user: {
-  firstName: string | null;
-  lastName: string | null;
-  username: string | null;
-}): string {
-  if (user.firstName && user.lastName) {
-    return `${user.firstName} ${user.lastName}`;
-  }
-  if (user.firstName) {
-    return user.firstName;
-  }
-  return `@${user.username}`;
-}
 
 export async function generateMetadata({ params }: Props) {
   const { username } = await params;
