@@ -24,14 +24,14 @@ ensure_app_env_link() {
 
 ensure_app_env_link
 
-# Start Supabase for development
+# Start Supabase and apply migrations for development
 if [[ "${SCRIPT_ENV:-development}" = "development" ]]; then
   if command -v bunx >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
     if [[ -d "./.supabase" || -f "./supabase/config.toml" ]]; then
       echo "Starting Supabase..."
       bunx supabase start || echo "Supabase start failed or not configured; continuing..."
-      echo "Applying Supabase migrations (storage buckets, RLS policies)..."
-      bunx supabase db push || echo "Supabase db push failed; continuing..."
+      echo "Applying Supabase migrations to local database..."
+      bunx supabase db push --local || echo "Supabase db push failed; continuing..."
     fi
   fi
 fi
@@ -44,7 +44,7 @@ bun install
 echo "Setting up database..."
 bun run prisma:generate
 
-echo "Applying migrations..."
+echo "Applying Prisma migrations..."
 if bun run prisma:deploy; then
   echo "Installation complete!"
   echo "Run 'bin/dev' to start the development server."
