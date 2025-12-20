@@ -134,21 +134,30 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
         )}
       </form>
 
-      {isFocused && (
-        <p className="mt-4 text-xs text-muted-foreground">
-          {canChange ? (
-            <>
-              You can change your username{" "}
-              <span className="font-medium">
-                {changesRemaining} more time{changesRemaining !== 1 ? "s" : ""}
-              </span>
-              . Old profile URLs will stop working.
-            </>
-          ) : (
-            "You have reached the maximum number of username changes. Contact support if you need assistance."
-          )}
-        </p>
-      )}
+      <div
+        className={`grid transition-all duration-200 ease-out ${
+          isFocused
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <p className="mt-4 text-xs text-muted-foreground">
+            {canChange ? (
+              <>
+                You can change your username{" "}
+                <span className="font-medium">
+                  {changesRemaining} more time
+                  {changesRemaining !== 1 ? "s" : ""}
+                </span>
+                . Old profile URLs will stop working.
+              </>
+            ) : (
+              "You have reached the maximum number of username changes. Contact support if you need assistance."
+            )}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }
