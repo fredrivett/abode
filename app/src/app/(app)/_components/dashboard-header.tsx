@@ -1,164 +1,39 @@
-"use client";
-
-import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
-import Link from "next/link";
-
-import { AbodeLogo } from "@/components/abode-logo";
-import { UserAvatar } from "@/components/avatar/user-avatar";
-import { SearchInput } from "@/components/search";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { getDisplayName } from "@/lib/get-display-name";
-import { useFilterOptions, useSearch } from "@/lib/search";
+import db from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
+import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { signOut } from "../dashboard/actions";
+import { DashboardHeaderClient } from "./dashboard-header-client";
 
 type DashboardHeaderProps = {
-  email?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  username?: string | null;
-  avatarUrl?: string | null;
-  signOutAction: () => Promise<void>;
   showSearch?: boolean;
   showHomeLink?: boolean;
 };
 
-export function DashboardHeader({
-  email,
-  firstName,
-  lastName,
-  username,
-  avatarUrl,
-  signOutAction,
-  showSearch = true,
+export async function DashboardHeader({
+  showSearch = false,
   showHomeLink = false,
-}: DashboardHeaderProps) {
-  const { state: searchState, setState: setSearchState } = useSearch();
-  const { getFilterValuesForType } = useFilterOptions();
+}: DashboardHeaderProps = {}) {
+  const supabase = await createClient();
+  const { user, metadata } = await getUserWithMetadata(supabase);
 
-  const displayEmail = email || "Account";
-  const displayName = getDisplayName({ firstName, lastName, username });
+  // Get username and avatarUrl from DB (these take priority)
+  const dbUser = user
+    ? await db.user.findUnique({
+        where: { id: user.id },
+        select: { username: true, avatarUrl: true },
+      })
+    : null;
 
   return (
-    <header className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
-      <div className="relative order-1 flex h-8 shrink-0 items-center">
-        <h1>
-          <Link
-            href="/dashboard"
-            className="opacity-50 transition-opacity hover:opacity-100"
-          >
-            <span className="sr-only">abode</span>
-            <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
-          </Link>
-        </h1>
-        {showHomeLink && (
-          <Link
-            href="/dashboard"
-            className="group/home absolute top-full left-2 mt-1 flex items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
-          >
-            <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
-            take me
-            <span className="ml-1 transition-all group-hover/home:font-serif">
-              home
-            </span>
-          </Link>
-        )}
-      </div>
-
-      <div className="order-2 ml-auto flex h-8 shrink-0 items-center gap-2 md:order-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button asChild variant="ghost-subtle" size="icon">
-              <Link href="/rooms" aria-label="Rooms">
-                <Blocks size={18} aria-hidden />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={6}>
-            <span className="font-mono">/rooms</span>
-          </TooltipContent>
-        </Tooltip>
-        <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label="Open account menu"
-            >
-              <UserAvatar
-                avatarUrl={avatarUrl}
-                firstName={firstName}
-                lastName={lastName}
-                username={username}
-                email={email}
-                className="size-8"
-              />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem asChild>
-              <Button
-                asChild
-                variant="ghost"
-                className="h-auto w-full justify-start px-2 py-2"
-              >
-                <Link href="/account">
-                  <span className="flex flex-col items-start leading-tight">
-                    <span className="text-sm font-medium">{displayName}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {displayEmail}
-                    </span>
-                  </span>
-                </Link>
-              </Button>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2">
-                <Settings className="size-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <form action={signOutAction}>
-              <DropdownMenuItem asChild>
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  className="h-auto w-full justify-start gap-2 px-2 py-1.5"
-                >
-                  <LogOut className="size-4" />
-                  Sign out
-                </Button>
-              </DropdownMenuItem>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {showSearch && (
-        <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-          <SearchInput
-            value={searchState}
-            onChange={setSearchState}
-            getFilterValues={getFilterValuesForType}
-            placeholder="Find..."
-          />
-        </div>
-      )}
-    </header>
+    <DashboardHeaderClient
+      email={metadata.email}
+      firstName={metadata.firstName}
+      lastName={metadata.lastName}
+      username={dbUser?.username ?? metadata.username}
+      avatarUrl={dbUser?.avatarUrl ?? metadata.avatarUrl}
+      signOutAction={signOut}
+      showSearch={showSearch}
+      showHomeLink={showHomeLink}
+    />
   );
 }

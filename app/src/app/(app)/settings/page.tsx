@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { DashboardHeader } from "../_components/dashboard-header";
-import { signOut } from "../dashboard/actions";
 import { AvatarSettings } from "./_components/avatar-settings";
 import { UsernameSettings } from "./_components/username-settings";
 
@@ -18,17 +17,17 @@ export default async function SettingsPage() {
 
   const dbUser = await db.user.findUnique({
     where: { id: user.id },
-    select: { username: true, previousUsernames: true },
+    select: { username: true, previousUsernames: true, avatarUrl: true },
   });
 
-  const { email, firstName, lastName, avatarUrl } = metadata;
+  const { email, firstName, lastName } = metadata;
 
   const previousUsernames =
     (dbUser?.previousUsernames as PreviousUsername[]) || [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <DashboardHeader signOutAction={signOut} />
+      <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <header>
@@ -44,7 +43,7 @@ export default async function SettingsPage() {
             lastName={lastName}
             username={dbUser?.username}
             email={email}
-            initialAvatarUrl={avatarUrl}
+            initialAvatarUrl={dbUser?.avatarUrl}
           />
           <UsernameSettings
             currentUsername={dbUser?.username || null}

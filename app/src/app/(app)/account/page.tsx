@@ -5,7 +5,6 @@ import { getDisplayName } from "@/lib/get-display-name";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardHeader } from "../_components/dashboard-header";
-import { signOut } from "../dashboard/actions";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -17,24 +16,18 @@ export default async function AccountPage() {
 
   const dbUser = await db.user.findUnique({
     where: { id: user.id },
-    select: { username: true },
+    select: { username: true, avatarUrl: true },
   });
 
-  const { email, firstName, lastName, avatarUrl } = metadata;
+  const { email, firstName, lastName } = metadata;
   const username = dbUser?.username || null;
+  const avatarUrl = dbUser?.avatarUrl || metadata.avatarUrl;
   const displayEmail = email || "Account";
   const displayName = getDisplayName({ firstName, lastName, username });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <DashboardHeader
-        email={email}
-        firstName={firstName}
-        lastName={lastName}
-        username={username}
-        avatarUrl={avatarUrl}
-        signOutAction={signOut}
-      />
+      <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <div className="grid gap-8 md:grid-cols-[1fr_280px] md:items-start">
