@@ -30,6 +30,8 @@ if [[ "${SCRIPT_ENV:-development}" = "development" ]]; then
     if [[ -d "./.supabase" || -f "./supabase/config.toml" ]]; then
       echo "Starting Supabase..."
       bunx supabase start || echo "Supabase start failed or not configured; continuing..."
+      echo "Applying Supabase migrations (storage buckets, RLS policies)..."
+      bunx supabase db push || echo "Supabase db push failed; continuing..."
     fi
   fi
 fi
