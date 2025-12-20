@@ -75,6 +75,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
             <input
               name="username"
               type="text"
+              autoComplete="off"
               value={username}
               onChange={(e) => handleChange(e.target.value)}
               onFocus={() => setIsFocused(true)}
