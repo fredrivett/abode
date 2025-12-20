@@ -12,7 +12,9 @@ export function getInitials({
   const fromNames = [first, last].filter(Boolean).join("").toUpperCase();
   if (fromNames) return fromNames;
 
-  const fallbackInitial = fallback?.trim()?.[0]?.toUpperCase();
+  // Strip leading @ from fallback (e.g. when displayName is "@username")
+  const cleanedFallback = fallback?.trim()?.replace(/^@/, "");
+  const fallbackInitial = cleanedFallback?.[0]?.toUpperCase();
   if (fallbackInitial) return fallbackInitial;
 
   return "U";

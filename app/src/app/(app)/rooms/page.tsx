@@ -47,6 +47,7 @@ export default async function RoomsPage() {
         email={metadata.email}
         firstName={metadata.firstName}
         lastName={metadata.lastName}
+        username={metadata.username}
         avatarUrl={metadata.avatarUrl}
         signOutAction={signOut}
       />

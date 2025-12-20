@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   // Rewrite /@username to /username for cleaner public profile URLs
   if (request.nextUrl.pathname.startsWith("/@")) {
     const url = request.nextUrl.clone();
-    url.pathname = url.pathname.slice(1); // Remove the leading @
+    url.pathname = `/${url.pathname.slice(2)}`; // Remove "/@" prefix, keep the rest
     return NextResponse.rewrite(url);
   }
 

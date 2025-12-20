@@ -139,6 +139,7 @@ describe("getUserMetadata", () => {
       email: null,
       firstName: null,
       lastName: null,
+      username: null,
       avatarUrl: null,
     });
   });
@@ -199,6 +200,7 @@ describe("getUserWithMetadata", () => {
       email: "test@example.com",
       firstName: "John",
       lastName: "Doe",
+      username: null,
       avatarUrl: null,
     });
   });
