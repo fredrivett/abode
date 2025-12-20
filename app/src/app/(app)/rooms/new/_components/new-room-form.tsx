@@ -37,7 +37,8 @@ export function NewRoomForm() {
         return;
       }
 
-      if (roomType === "smart" && !hasFilters) {
+      const filters = searchState.filters;
+      if (roomType === "smart" && filters.length === 0) {
         toast.error("Smart rooms require at least one filter");
         return;
       }
@@ -50,7 +51,7 @@ export function NewRoomForm() {
           body: JSON.stringify({
             name: name.trim(),
             type: roomType,
-            filters: roomType === "smart" ? searchState.filters : null,
+            filters: roomType === "smart" ? filters : null,
             visibility: "private",
           }),
         });
@@ -69,7 +70,7 @@ export function NewRoomForm() {
         setIsCreating(false);
       }
     },
-    [name, roomType, hasFilters, searchState.filters, router],
+    [name, roomType, searchState.filters, router],
   );
 
   return (

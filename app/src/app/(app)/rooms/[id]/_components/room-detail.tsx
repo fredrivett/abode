@@ -258,12 +258,20 @@ export function RoomDetail({
             setRoomFilters(newFilters);
 
             // Refresh items after filter change
-            const itemsResponse = await fetch(`/api/v1/rooms/${room.id}/items`);
-            if (itemsResponse.ok) {
-              const data = await itemsResponse.json();
-              setItems(data.items);
-              setCursor(data.nextCursor);
-              setHasMore(data.hasMore);
+            try {
+              const itemsResponse = await fetch(
+                `/api/v1/rooms/${room.id}/items`,
+              );
+              if (itemsResponse.ok) {
+                const data = await itemsResponse.json();
+                setItems(data.items);
+                setCursor(data.nextCursor);
+                setHasMore(data.hasMore);
+              } else {
+                toast.error("Failed to refresh items");
+              }
+            } catch {
+              toast.error("Failed to refresh items");
             }
           }}
         />

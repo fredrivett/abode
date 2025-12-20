@@ -88,6 +88,14 @@ function getEffectiveDate(item: ItemWithDetails): Date {
 
 /**
  * Check if item matches a date filter.
+ *
+ * Date comparisons use ISO date strings (YYYY-MM-DD) for the default "is"
+ * operator to ensure timezone-agnostic day matching. The filter.value is
+ * expected to be in ISO format (e.g., "2024-01-15"). Both dates are converted
+ * to ISO strings and compared by their date portion only.
+ *
+ * For "after" and "before" operators, full datetime comparison is used,
+ * which means the comparison happens in the local timezone of the server.
  */
 function matchesDateFilter(item: ItemWithDetails, filter: Filter): boolean {
   const itemDate = getEffectiveDate(item);
@@ -106,7 +114,7 @@ function matchesDateFilter(item: ItemWithDetails, filter: Filter): boolean {
       return itemDate >= filterDate && itemDate <= endDate;
     }
     default:
-      // Same day comparison
+      // Same day comparison using ISO date string (YYYY-MM-DD)
       return (
         itemDate.toISOString().slice(0, 10) ===
         filterDate.toISOString().slice(0, 10)
@@ -120,44 +128,60 @@ const VALID_SOURCE_TYPES = Object.values(SourceType).map((s) =>
 );
 
 /**
+ * Check if item matches a single value for a given filter type.
+ * Does not handle negation - that's applied at the filter level.
+ */
+function matchesSingleValue(
+  item: ItemWithDetails,
+  type: Filter["type"],
+  value: string,
+): boolean {
+  switch (type) {
+    case "type":
+      // Validate against enum
+      if (!VALID_ITEM_KINDS.includes(value.toLowerCase())) {
+        return true; // Invalid type filter = pass (don't block)
+      }
+      return matchesType(item, value);
+    case "tag":
+      return matchesTag(item, value);
+    case "object":
+      return matchesObject(item, value);
+    case "color":
+      return matchesColor(item, value);
+    case "source":
+      // Validate against enum
+      if (!VALID_SOURCE_TYPES.includes(value.toLowerCase())) {
+        return true; // Invalid source filter = pass (don't block)
+      }
+      return matchesSource(item, value);
+    case "location":
+      return matchesLocation(item, value);
+    default:
+      return true;
+  }
+}
+
+/**
  * Check if a single filter matches the item.
+ *
+ * Supports OR groups via pipe syntax (e.g., "image|article").
+ * For pipe-separated values, returns true if ANY value matches.
  */
 function filterMatchesItem(item: ItemWithDetails, filter: Filter): boolean {
   let matches: boolean;
 
-  switch (filter.type) {
-    case "type":
-      // Validate against enum
-      if (!VALID_ITEM_KINDS.includes(filter.value.toLowerCase())) {
-        return true; // Invalid type filter = pass (don't block)
-      }
-      matches = matchesType(item, filter.value);
-      break;
-    case "tag":
-      matches = matchesTag(item, filter.value);
-      break;
-    case "object":
-      matches = matchesObject(item, filter.value);
-      break;
-    case "color":
-      matches = matchesColor(item, filter.value);
-      break;
-    case "source":
-      // Validate against enum
-      if (!VALID_SOURCE_TYPES.includes(filter.value.toLowerCase())) {
-        return true; // Invalid source filter = pass (don't block)
-      }
-      matches = matchesSource(item, filter.value);
-      break;
-    case "location":
-      matches = matchesLocation(item, filter.value);
-      break;
-    case "date":
-      matches = matchesDateFilter(item, filter);
-      break;
-    default:
-      // Unknown filter type = pass
-      return true;
+  // Date filters don't support pipe syntax
+  if (filter.type === "date") {
+    matches = matchesDateFilter(item, filter);
+  } else if (filter.value.includes("|")) {
+    // OR group: split by pipe and check if ANY value matches
+    const values = filter.value.split("|").map((v) => v.trim());
+    matches = values.some((value) =>
+      matchesSingleValue(item, filter.type, value),
+    );
+  } else {
+    matches = matchesSingleValue(item, filter.type, filter.value);
   }
 
   // Apply negation

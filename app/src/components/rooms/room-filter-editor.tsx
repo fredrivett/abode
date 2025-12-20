@@ -35,6 +35,9 @@ type RoomFilterEditorProps = {
   placeholder?: string;
 };
 
+/** Maximum number of items to show in the preview grid */
+const PREVIEW_LIMIT = 12;
+
 function formatBytes(bytes?: number | null) {
   if (!bytes || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -201,13 +204,13 @@ export function RoomFilterEditor({
                   gap={12}
                   style={{ overflow: "visible !important" }}
                 >
-                  {preview.items.slice(0, 12).map((item) => (
+                  {preview.items.slice(0, PREVIEW_LIMIT).map((item) => (
                     <PreviewItem key={item.id} item={item} />
                   ))}
                 </BalancedMasonryGrid>
-                {preview.total > 12 && (
+                {preview.total > PREVIEW_LIMIT && (
                   <p className="mt-3 text-center text-sm text-muted-foreground">
-                    +{preview.total - 12} more items
+                    +{preview.total - PREVIEW_LIMIT} more items
                   </p>
                 )}
               </div>
@@ -265,6 +268,26 @@ export function RoomFilterEditor({
 }
 
 /**
+ * Adapt SearchResultItem to DashboardItem for use with ItemCard.
+ *
+ * These types are structurally compatible for rendering - both have the same
+ * fields with compatible shapes. The difference is that DashboardItem uses
+ * Prisma enums (ItemKind, ProcessingStatus, SourceType) while SearchResultItem
+ * uses their string representations. At runtime, Prisma enums ARE strings,
+ * so the values are identical.
+ *
+ * The only structural differences are:
+ * - SearchResultItem has `match` (search metadata) - not used by ItemCard
+ * - DashboardItem has `excludeFromPublicRooms` - optional, not used by ItemCard
+ * - colors array shape differs slightly but both work with ColorsBar
+ */
+function toDashboardItem(item: SearchResultItem): DashboardItem {
+  // At runtime, this is safe because Prisma enums serialize to their string values.
+  // TypeScript requires the cast because the nominal types differ.
+  return item as unknown as DashboardItem;
+}
+
+/**
  * Preview item card - simplified version for filter preview.
  */
 function PreviewItem({ item }: { item: SearchResultItem }) {
@@ -277,14 +300,10 @@ function PreviewItem({ item }: { item: SearchResultItem }) {
   const width = isArticle ? 16 : ((meta.width as number | undefined) ?? 3);
   const height = isArticle ? 9 : ((meta.height as number | undefined) ?? 4);
 
-  // Cast SearchResultItem to DashboardItem - they share the same structure
-  // but DashboardItem uses ItemKind enum while SearchResultItem uses string
-  const dashboardItem = item as unknown as DashboardItem;
-
   return (
     <Frame width={width} height={height}>
       <ItemCard
-        item={dashboardItem}
+        item={toDashboardItem(item)}
         name={name}
         size={size}
         mimeType={mimeType}

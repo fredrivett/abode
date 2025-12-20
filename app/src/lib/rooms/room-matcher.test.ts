@@ -92,8 +92,8 @@ function createTestItem(
 
 /**
  * Helper to create a filter for testing.
+ * Uses crypto.randomUUID for unique IDs to avoid test order dependencies.
  */
-let filterId = 0;
 function createFilter(
   type: Filter["type"],
   value: string,
@@ -104,7 +104,7 @@ function createFilter(
   } = {},
 ): Filter {
   return {
-    id: `test-filter-${filterId++}`,
+    id: `test-filter-${crypto.randomUUID()}`,
     type,
     value,
     negated: options.negated ?? false,
@@ -504,6 +504,90 @@ describe("itemMatchesRoom", () => {
       const room = createTestRoom([
         createFilter("date", "invalid-date", { dateOperator: "after" }),
       ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+  });
+
+  describe("OR groups (pipe syntax)", () => {
+    it("matches when any value in OR group matches (type)", () => {
+      const item = createTestItem({ kind: "image" });
+      const room = createTestRoom([createFilter("type", "image|article")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("matches second option in OR group (type)", () => {
+      const item = createTestItem({ kind: "article" });
+      const room = createTestRoom([createFilter("type", "image|article")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("does not match when none in OR group match (type)", () => {
+      const item = createTestItem({ kind: null });
+      const room = createTestRoom([createFilter("type", "image|article")]);
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("handles OR groups for tag filter", () => {
+      const item = createTestItem({ tags: ["vacation"] });
+      const room = createTestRoom([createFilter("tag", "travel|vacation")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("handles OR groups for source filter", () => {
+      const item = createTestItem({ sourceType: "url" });
+      const room = createTestRoom([createFilter("source", "upload|url")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("handles OR groups for location filter", () => {
+      const item = createTestItem({
+        locations: [createLocation({ city: "Paris" })],
+      });
+      const room = createTestRoom([
+        createFilter("location", "London|Paris|Tokyo"),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("handles negated OR group", () => {
+      const item = createTestItem({ kind: "image" });
+      const room = createTestRoom([
+        createFilter("type", "image|article", { negated: true }),
+      ]);
+      // Item matches one of the OR values, but filter is negated
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("handles negated OR group when item does not match", () => {
+      const item = createTestItem({ kind: null });
+      const room = createTestRoom([
+        createFilter("type", "image|article", { negated: true }),
+      ]);
+      // Item doesn't match any OR value, and filter is negated = true
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("handles mixed OR groups and regular filters (AND logic)", () => {
+      const item = createTestItem({ kind: "image", tags: ["travel"] });
+      const room = createTestRoom([
+        createFilter("type", "image|article"),
+        createFilter("tag", "travel"),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("fails when OR group matches but regular filter does not", () => {
+      const item = createTestItem({ kind: "image", tags: ["food"] });
+      const room = createTestRoom([
+        createFilter("type", "image|article"),
+        createFilter("tag", "travel"),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("handles whitespace around pipe values", () => {
+      const item = createTestItem({ kind: "article" });
+      const room = createTestRoom([createFilter("type", "image | article")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
   });
