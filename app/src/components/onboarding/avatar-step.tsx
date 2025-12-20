@@ -1,8 +1,8 @@
 "use client";
 
 import { Camera } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
 import { AvatarCropper } from "@/components/avatar/avatar-cropper";
+import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { Button } from "@/components/ui/button";
 
@@ -23,75 +23,21 @@ export function AvatarStep({
   initialAvatarUrl,
   onAvatarChange,
 }: AvatarStepProps) {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(
-    initialAvatarUrl ?? null,
-  );
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isCropperOpen, setIsCropperOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      // Create object URL for cropper preview
-      const objectUrl = URL.createObjectURL(file);
-      setSelectedImage(objectUrl);
-      setIsCropperOpen(true);
-
-      // Reset input so same file can be selected again
-      e.target.value = "";
-    },
-    [],
-  );
-
-  const handleCropComplete = useCallback(
-    async (croppedBlob: Blob) => {
-      setIsUploading(true);
-
-      try {
-        const formData = new FormData();
-        formData.append("file", croppedBlob, "avatar.jpg");
-
-        const response = await fetch("/api/v1/user/avatar", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to upload avatar");
-        }
-
-        const data = await response.json();
-        setAvatarUrl(data.avatarUrl);
-        onAvatarChange?.(data.avatarUrl);
-        setIsCropperOpen(false);
-      } catch {
-        // Silently fail - upload errors don't block the user from continuing
-      } finally {
-        setIsUploading(false);
-        // Clean up object URL
-        if (selectedImage) {
-          URL.revokeObjectURL(selectedImage);
-          setSelectedImage(null);
-        }
-      }
-    },
-    [selectedImage, onAvatarChange],
-  );
-
-  const handleCropperClose = useCallback(
-    (open: boolean) => {
-      if (!open && selectedImage) {
-        URL.revokeObjectURL(selectedImage);
-        setSelectedImage(null);
-      }
-      setIsCropperOpen(open);
-    },
-    [selectedImage],
-  );
+  const {
+    avatarUrl,
+    selectedImage,
+    isCropperOpen,
+    isUploading,
+    fileInputRef,
+    openFilePicker,
+    handleFileSelect,
+    handleCropComplete,
+    handleCropperClose,
+  } = useAvatarUpload({
+    initialAvatarUrl,
+    onSuccess: onAvatarChange,
+    // Silent errors in onboarding - don't block user from continuing
+  });
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
@@ -117,7 +63,7 @@ export function AvatarStep({
           size="icon"
           variant="secondary"
           className="absolute -right-1 -bottom-1 size-8 rounded-full shadow-md"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={openFilePicker}
         >
           <Camera className="size-4" />
           <span className="sr-only">Upload photo</span>
@@ -137,7 +83,7 @@ export function AvatarStep({
         variant="outline"
         size="sm"
         className="mt-2"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={openFilePicker}
       >
         Choose photo
       </Button>
