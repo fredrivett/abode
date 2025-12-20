@@ -64,7 +64,12 @@ export function AvatarSettings({
       </p>
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="relative">
+        <button
+          type="button"
+          onClick={openFilePicker}
+          disabled={isUploading}
+          className="relative cursor-pointer disabled:cursor-not-allowed"
+        >
           <UserAvatar
             avatarUrl={avatarUrl}
             firstName={firstName}
@@ -74,18 +79,11 @@ export function AvatarSettings({
             className="size-16"
             fallbackClassName="text-xl"
           />
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className="absolute -right-1 -bottom-1 size-6 rounded-full shadow-md"
-            onClick={openFilePicker}
-            disabled={isUploading}
-          >
+          <span className="absolute -right-1 -bottom-1 flex size-6 items-center justify-center rounded-full bg-secondary shadow-md">
             <Camera className="size-3" />
             <span className="sr-only">Upload photo</span>
-          </Button>
-        </div>
+          </span>
+        </button>
 
         <div className="flex gap-2">
           <Button
