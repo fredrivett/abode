@@ -34,7 +34,7 @@ export function UserAvatar({
   });
 
   return (
-    <Avatar className={cn("size-10", className)}>
+    <Avatar key={avatarUrl || "fallback"} className={cn("size-10", className)}>
       {avatarUrl ? (
         <AvatarImage src={avatarUrl} alt={alt || displayName} />
       ) : null}
