@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import db from "@/lib/db";
 
 export type UserMetadata = {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
+  username: string | null;
   avatarUrl: string | null;
 };
 
@@ -15,8 +17,9 @@ function getString(value: unknown): string | undefined {
 }
 
 /**
- * Extract user metadata (email, firstName, lastName, avatarUrl) from Supabase auth claims and user data.
+ * Extract user metadata (email, firstName, lastName, username, avatarUrl) from Supabase auth claims and user data.
  * Handles the various places where OAuth providers store user info.
+ * Username is fetched from the database.
  */
 export async function getUserMetadata(
   supabase: SupabaseClient,
@@ -36,6 +39,14 @@ export async function getUserMetadata(
     unknown
   >;
 
+  // Fetch username from database
+  const dbUser = userData.user?.id
+    ? await db.user.findUnique({
+        where: { id: userData.user.id },
+        select: { username: true },
+      })
+    : null;
+
   const email = getString(claimsRecord.email) ?? userData.user?.email ?? null;
   const firstName =
     getString(userMetadata.first_name) ??
@@ -51,6 +62,7 @@ export async function getUserMetadata(
     getString(claimsUserMetadata.family_name) ??
     getString(claimsUserMetadata.last_name) ??
     null;
+  const username = dbUser?.username ?? null;
   const avatarUrl =
     getString(userMetadata.avatar_url) ??
     getString(userMetadata.picture) ??
@@ -59,7 +71,7 @@ export async function getUserMetadata(
     getString(claimsUserMetadata.avatar_url) ??
     null;
 
-  return { email, firstName, lastName, avatarUrl };
+  return { email, firstName, lastName, username, avatarUrl };
 }
 
 /**
@@ -85,6 +97,14 @@ export async function getUserWithMetadata(supabase: SupabaseClient): Promise<{
     unknown
   >;
 
+  // Fetch username from database
+  const dbUser = userData.user?.id
+    ? await db.user.findUnique({
+        where: { id: userData.user.id },
+        select: { username: true },
+      })
+    : null;
+
   const email = getString(claimsRecord.email) ?? userData.user?.email ?? null;
   const firstName =
     getString(userMetadata.first_name) ??
@@ -100,6 +120,7 @@ export async function getUserWithMetadata(supabase: SupabaseClient): Promise<{
     getString(claimsUserMetadata.family_name) ??
     getString(claimsUserMetadata.last_name) ??
     null;
+  const username = dbUser?.username ?? null;
   const avatarUrl =
     getString(userMetadata.avatar_url) ??
     getString(userMetadata.picture) ??
@@ -110,6 +131,6 @@ export async function getUserWithMetadata(supabase: SupabaseClient): Promise<{
 
   return {
     user: userData.user,
-    metadata: { email, firstName, lastName, avatarUrl },
+    metadata: { email, firstName, lastName, username, avatarUrl },
   };
 }

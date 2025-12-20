@@ -161,6 +161,7 @@ export default async function RoomDetailPage({ params }: Props) {
         email={metadata.email}
         firstName={metadata.firstName}
         lastName={metadata.lastName}
+        username={metadata.username}
         avatarUrl={metadata.avatarUrl}
         signOutAction={signOut}
       />

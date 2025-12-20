@@ -4,7 +4,8 @@
  * Priority:
  * 1. "First Last" if both exist
  * 2. "First" if only firstName exists
- * 3. "@username" as fallback
+ * 3. "@username" if username exists
+ * 4. Empty string as final fallback
  *
  * Note: lastName alone is skipped - we fall back to username.
  */
@@ -19,5 +20,8 @@ export function getDisplayName(user: {
   if (user.firstName) {
     return user.firstName;
   }
-  return `@${user.username}`;
+  if (user.username) {
+    return `@${user.username}`;
+  }
+  return "";
 }

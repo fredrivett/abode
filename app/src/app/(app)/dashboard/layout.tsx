@@ -29,10 +29,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Fetch user from database to get onboarding status
+  // Fetch user from database to get onboarding status and username
   const user = await db.user.findUnique({
     where: { id: userData.user.id },
-    select: { onboardingCompletedAt: true },
+    select: { onboardingCompletedAt: true, username: true },
   });
 
   const showOnboarding = user !== null && user.onboardingCompletedAt === null;
@@ -76,6 +76,7 @@ export default async function DashboardLayout({
               email={email}
               firstName={firstName}
               lastName={lastName}
+              username={user?.username}
               avatarUrl={avatarUrl}
               signOutAction={signOut}
             />
