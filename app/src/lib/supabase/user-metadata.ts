@@ -39,11 +39,11 @@ export async function getUserMetadata(
     unknown
   >;
 
-  // Fetch username from database
+  // Fetch username and avatar from database
   const dbUser = userData.user?.id
     ? await db.user.findUnique({
         where: { id: userData.user.id },
-        select: { username: true },
+        select: { username: true, avatarUrl: true },
       })
     : null;
 
@@ -63,13 +63,8 @@ export async function getUserMetadata(
     getString(claimsUserMetadata.last_name) ??
     null;
   const username = dbUser?.username ?? null;
-  const avatarUrl =
-    getString(userMetadata.avatar_url) ??
-    getString(userMetadata.picture) ??
-    getString(claimsRecord.picture) ??
-    getString(claimsUserMetadata.picture) ??
-    getString(claimsUserMetadata.avatar_url) ??
-    null;
+  // DB avatar takes priority (includes uploaded, OAuth copied, and Gravatar)
+  const avatarUrl = dbUser?.avatarUrl ?? null;
 
   return { email, firstName, lastName, username, avatarUrl };
 }
@@ -97,11 +92,11 @@ export async function getUserWithMetadata(supabase: SupabaseClient): Promise<{
     unknown
   >;
 
-  // Fetch username from database
+  // Fetch username and avatar from database
   const dbUser = userData.user?.id
     ? await db.user.findUnique({
         where: { id: userData.user.id },
-        select: { username: true },
+        select: { username: true, avatarUrl: true },
       })
     : null;
 
@@ -121,13 +116,8 @@ export async function getUserWithMetadata(supabase: SupabaseClient): Promise<{
     getString(claimsUserMetadata.last_name) ??
     null;
   const username = dbUser?.username ?? null;
-  const avatarUrl =
-    getString(userMetadata.avatar_url) ??
-    getString(userMetadata.picture) ??
-    getString(claimsRecord.picture) ??
-    getString(claimsUserMetadata.picture) ??
-    getString(claimsUserMetadata.avatar_url) ??
-    null;
+  // DB avatar takes priority (includes uploaded, OAuth copied, and Gravatar)
+  const avatarUrl = dbUser?.avatarUrl ?? null;
 
   return {
     user: userData.user,

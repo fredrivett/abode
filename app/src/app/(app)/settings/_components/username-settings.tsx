@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MAX_USERNAME_CHANGES } from "@/lib/username";
@@ -14,6 +15,7 @@ type Props = {
 
 export function UsernameSettings({ currentUsername, changesUsed }: Props) {
   const [state, action, isPending] = useActionState(changeUsername, {});
+  const [isFocused, setIsFocused] = useState(false);
   const {
     username,
     status: usernameStatus,
@@ -26,6 +28,10 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
 
   const changesRemaining = MAX_USERNAME_CHANGES - changesUsed;
   const canChange = changesRemaining > 0;
+
+  // Check if username has meaningfully changed (not just case)
+  const hasMeaningfulChange =
+    currentUsername && username.toLowerCase() !== currentUsername.toLowerCase();
 
   useEffect(() => {
     if (state.error) {
@@ -41,8 +47,23 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
     <section className="rounded-xl border p-6">
       <h3 className="text-lg font-semibold">Username</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Your public profile URL will be{" "}
-        <span className="font-medium">/@{username || "username"}</span>
+        {hasMeaningfulChange ? (
+          <>
+            Your public profile URL will be{" "}
+            <span className="font-medium">/@{username || "username"}</span>
+          </>
+        ) : (
+          <>
+            Your public profile URL is{" "}
+            <Link
+              href={`/@${username || "username"}`}
+              target="_blank"
+              className="font-medium underline hover:no-underline"
+            >
+              /@{username || "username"}
+            </Link>
+          </>
+        )}
       </p>
 
       <form action={action} className="mt-4">
@@ -54,8 +75,11 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
             <input
               name="username"
               type="text"
+              autoComplete="off"
               value={username}
               onChange={(e) => handleChange(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               disabled={!canChange}
               className={`flex h-10 w-full rounded-md border bg-background py-2 pl-7 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
                 usernameStatus.type === "available"
@@ -111,19 +135,30 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
         )}
       </form>
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        {canChange ? (
-          <>
-            You can change your username{" "}
-            <span className="font-medium">
-              {changesRemaining} more time{changesRemaining !== 1 ? "s" : ""}
-            </span>
-            . Old profile URLs will stop working.
-          </>
-        ) : (
-          "You have reached the maximum number of username changes. Contact support if you need assistance."
-        )}
-      </p>
+      <div
+        className={`grid transition-all duration-200 ease-out ${
+          isFocused
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <p className="mt-4 text-xs text-muted-foreground">
+            {canChange ? (
+              <>
+                You can change your username{" "}
+                <span className="font-medium">
+                  {changesRemaining} more time
+                  {changesRemaining !== 1 ? "s" : ""}
+                </span>
+                . Old profile URLs will stop working.
+              </>
+            ) : (
+              "You have reached the maximum number of username changes. Contact support if you need assistance."
+            )}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

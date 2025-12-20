@@ -163,6 +163,7 @@ export function SignupForm() {
               id="username"
               name="username"
               type="text"
+              autoComplete="off"
               required
               value={username}
               onChange={handleUsernameChange}

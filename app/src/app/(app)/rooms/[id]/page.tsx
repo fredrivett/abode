@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { ImageColor } from "@/lib/vision";
 import { DashboardHeader } from "../../_components/dashboard-header";
-import { signOut } from "../../dashboard/actions";
 import { RoomDetail } from "./_components/room-detail";
 
 type Props = {
@@ -16,7 +15,7 @@ type Props = {
 export default async function RoomDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-  const { user, metadata } = await getUserWithMetadata(supabase);
+  const { user } = await getUserWithMetadata(supabase);
 
   if (!user) {
     notFound();
@@ -157,14 +156,7 @@ export default async function RoomDetailPage({ params }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <DashboardHeader
-        email={metadata.email}
-        firstName={metadata.firstName}
-        lastName={metadata.lastName}
-        username={metadata.username}
-        avatarUrl={metadata.avatarUrl}
-        signOutAction={signOut}
-      />
+      <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <RoomDetail

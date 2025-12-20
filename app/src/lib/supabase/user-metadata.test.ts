@@ -2,9 +2,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserMetadata, getUserWithMetadata } from "./user-metadata";
 
+// Mock the db module
+vi.mock("@/lib/db", () => ({
+  default: {
+    user: {
+      findUnique: vi.fn(),
+    },
+  },
+}));
+
+import db from "@/lib/db";
+
 function createMockSupabase(options: {
   claims?: Record<string, unknown>;
-  user?: { email?: string; user_metadata?: Record<string, unknown> } | null;
+  user?: {
+    id?: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  } | null;
 }): SupabaseClient {
   return {
     auth: {
@@ -18,7 +33,22 @@ function createMockSupabase(options: {
   } as unknown as SupabaseClient;
 }
 
+function mockDbUser(
+  dbUser: { username?: string | null; avatarUrl?: string | null } | null,
+) {
+  vi.mocked(db.user.findUnique).mockResolvedValue(
+    dbUser as ReturnType<typeof db.user.findUnique> extends Promise<infer T>
+      ? T
+      : never,
+  );
+}
+
 describe("getUserMetadata", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDbUser(null);
+  });
+
   it("extracts email from claims", async () => {
     const supabase = createMockSupabase({
       claims: { email: "test@example.com" },
@@ -100,9 +130,10 @@ describe("getUserMetadata", () => {
     expect(result.lastName).toBe("Smith");
   });
 
-  it("extracts avatarUrl from user_metadata.avatar_url", async () => {
+  it("extracts avatarUrl from database", async () => {
+    mockDbUser({ username: null, avatarUrl: "https://example.com/avatar.jpg" });
     const supabase = createMockSupabase({
-      user: { user_metadata: { avatar_url: "https://example.com/avatar.jpg" } },
+      user: { id: "user-123" },
     });
 
     const result = await getUserMetadata(supabase);
@@ -110,24 +141,30 @@ describe("getUserMetadata", () => {
     expect(result.avatarUrl).toBe("https://example.com/avatar.jpg");
   });
 
-  it("extracts avatarUrl from user_metadata.picture", async () => {
+  it("returns null avatarUrl when not in database", async () => {
+    mockDbUser({ username: null, avatarUrl: null });
     const supabase = createMockSupabase({
-      user: { user_metadata: { picture: "https://example.com/picture.jpg" } },
+      user: {
+        id: "user-123",
+        user_metadata: { picture: "https://oauth.com/pic.jpg" },
+      },
     });
 
     const result = await getUserMetadata(supabase);
 
-    expect(result.avatarUrl).toBe("https://example.com/picture.jpg");
+    // OAuth picture is no longer used - only DB avatar
+    expect(result.avatarUrl).toBe(null);
   });
 
-  it("extracts avatarUrl from claims.picture", async () => {
+  it("returns null avatarUrl when user not found in database", async () => {
+    mockDbUser(null);
     const supabase = createMockSupabase({
-      claims: { picture: "https://example.com/claims-picture.jpg" },
+      user: { id: "user-123" },
     });
 
     const result = await getUserMetadata(supabase);
 
-    expect(result.avatarUrl).toBe("https://example.com/claims-picture.jpg");
+    expect(result.avatarUrl).toBe(null);
   });
 
   it("returns null for all fields when no data is available", async () => {
@@ -181,10 +218,16 @@ describe("getUserMetadata", () => {
 });
 
 describe("getUserWithMetadata", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDbUser(null);
+  });
+
   it("returns user object and metadata", async () => {
     const supabase = createMockSupabase({
       claims: { email: "test@example.com" },
       user: {
+        id: "user-123",
         email: "test@example.com",
         user_metadata: { first_name: "John", last_name: "Doe" },
       },
@@ -193,6 +236,7 @@ describe("getUserWithMetadata", () => {
     const result = await getUserWithMetadata(supabase);
 
     expect(result.user).toEqual({
+      id: "user-123",
       email: "test@example.com",
       user_metadata: { first_name: "John", last_name: "Doe" },
     });
