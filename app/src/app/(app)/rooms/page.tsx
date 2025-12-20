@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import type { RoomFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardHeader } from "../_components/dashboard-header";
@@ -33,7 +33,7 @@ export default async function RoomsPage() {
     id: room.id,
     name: room.name,
     type: room.type,
-    filters: room.filters as RoomFilters | null,
+    filters: room.filters as Filter[] | null,
     visibility: room.visibility,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),

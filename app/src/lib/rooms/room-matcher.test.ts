@@ -1,6 +1,11 @@
 import type { ItemImageDetails, ItemKind, ItemLocation } from "@prisma/client";
-import { hasValidFilters, itemMatchesRoom } from "./room-matcher";
-import type { ItemWithDetails, RoomFilters, RoomWithFilters } from "./types";
+import type { Filter } from "../search/types";
+import { itemMatchesRoom } from "./room-matcher";
+import {
+  hasValidFilters,
+  type ItemWithDetails,
+  type RoomWithFilters,
+} from "./types";
 
 /**
  * Create a complete ItemImageDetails object for testing.
@@ -86,10 +91,33 @@ function createTestItem(
 }
 
 /**
+ * Helper to create a filter for testing.
+ */
+let filterId = 0;
+function createFilter(
+  type: Filter["type"],
+  value: string,
+  options: {
+    negated?: boolean;
+    dateOperator?: Filter["dateOperator"];
+    endDate?: string;
+  } = {},
+): Filter {
+  return {
+    id: `test-filter-${filterId++}`,
+    type,
+    value,
+    negated: options.negated ?? false,
+    dateOperator: options.dateOperator,
+    endDate: options.endDate,
+  };
+}
+
+/**
  * Factory function to create a test room with default values.
  */
 function createTestRoom(
-  filters: RoomFilters | null,
+  filters: Filter[] | null,
   overrides: Partial<RoomWithFilters> = {},
 ): RoomWithFilters {
   return {
@@ -110,56 +138,21 @@ describe("hasValidFilters", () => {
     expect(hasValidFilters(null)).toBe(false);
   });
 
-  it("returns false for empty filters object", () => {
-    expect(hasValidFilters({})).toBe(false);
+  it("returns false for empty filters array", () => {
+    expect(hasValidFilters([])).toBe(false);
   });
 
-  it("returns true when type filter exists", () => {
+  it("returns true when filter exists", () => {
+    expect(hasValidFilters([createFilter("type", "image")])).toBe(true);
+  });
+
+  it("returns true with multiple filters", () => {
     expect(
-      hasValidFilters({ type: [{ value: "image", negated: false }] }),
+      hasValidFilters([
+        createFilter("tag", "travel"),
+        createFilter("type", "image"),
+      ]),
     ).toBe(true);
-  });
-
-  it("returns true when tag filter exists", () => {
-    expect(
-      hasValidFilters({ tag: [{ value: "travel", negated: false }] }),
-    ).toBe(true);
-  });
-
-  it("returns true when object filter exists", () => {
-    expect(
-      hasValidFilters({ object: [{ value: "car", negated: false }] }),
-    ).toBe(true);
-  });
-
-  it("returns true when color filter exists", () => {
-    expect(hasValidFilters({ color: [{ value: "red", negated: false }] })).toBe(
-      true,
-    );
-  });
-
-  it("returns true when source filter exists", () => {
-    expect(
-      hasValidFilters({ source: [{ value: "upload", negated: false }] }),
-    ).toBe(true);
-  });
-
-  it("returns true when location filter exists", () => {
-    expect(
-      hasValidFilters({ location: [{ value: "London", negated: false }] }),
-    ).toBe(true);
-  });
-
-  it("returns true when dateAfter filter exists", () => {
-    expect(hasValidFilters({ dateAfter: "2024-01-01" })).toBe(true);
-  });
-
-  it("returns true when dateBefore filter exists", () => {
-    expect(hasValidFilters({ dateBefore: "2024-12-31" })).toBe(true);
-  });
-
-  it("returns false when arrays are empty", () => {
-    expect(hasValidFilters({ type: [], tag: [], object: [] })).toBe(false);
   });
 });
 
@@ -173,9 +166,7 @@ describe("itemMatchesRoom", () => {
 
     it("returns false for soft-deleted items", () => {
       const item = createTestItem({ deletedAt: new Date() });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "image")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
@@ -184,10 +175,9 @@ describe("itemMatchesRoom", () => {
         excludeFromPublicRooms: true,
         kind: "image",
       });
-      const room = createTestRoom(
-        { type: [{ value: "image", negated: false }] },
-        { visibility: "public" },
-      );
+      const room = createTestRoom([createFilter("type", "image")], {
+        visibility: "public",
+      });
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
@@ -196,10 +186,9 @@ describe("itemMatchesRoom", () => {
         excludeFromPublicRooms: true,
         kind: "image",
       });
-      const room = createTestRoom(
-        { type: [{ value: "image", negated: false }] },
-        { visibility: "private" },
-      );
+      const room = createTestRoom([createFilter("type", "image")], {
+        visibility: "private",
+      });
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
   });
@@ -207,57 +196,47 @@ describe("itemMatchesRoom", () => {
   describe("type filter", () => {
     it("matches item kind", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "image")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("is case-insensitive", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "IMAGE", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "IMAGE")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("does not match different kind", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "article", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "article")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles negated type filter", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: true }],
-      });
+      const room = createTestRoom([
+        createFilter("type", "image", { negated: true }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles negated type filter when not matching", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "article", negated: true }],
-      });
+      const room = createTestRoom([
+        createFilter("type", "article", { negated: true }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("handles null kind", () => {
       const item = createTestItem({ kind: null });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "image")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("ignores invalid type values", () => {
       const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [{ value: "invalid", negated: false }],
-      });
+      const room = createTestRoom([createFilter("type", "invalid")]);
       // Invalid filter value is ignored, so item matches (no valid filters)
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
@@ -266,53 +245,45 @@ describe("itemMatchesRoom", () => {
   describe("tag filter", () => {
     it("matches item with tag", () => {
       const item = createTestItem({ tags: ["travel", "vacation"] });
-      const room = createTestRoom({
-        tag: [{ value: "travel", negated: false }],
-      });
+      const room = createTestRoom([createFilter("tag", "travel")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("is case-insensitive", () => {
       const item = createTestItem({ tags: ["Travel"] });
-      const room = createTestRoom({
-        tag: [{ value: "travel", negated: false }],
-      });
+      const room = createTestRoom([createFilter("tag", "travel")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("does not match item without tag", () => {
       const item = createTestItem({ tags: ["food"] });
-      const room = createTestRoom({
-        tag: [{ value: "travel", negated: false }],
-      });
+      const room = createTestRoom([createFilter("tag", "travel")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles negated tag filter", () => {
       const item = createTestItem({ tags: ["work"] });
-      const room = createTestRoom({ tag: [{ value: "work", negated: true }] });
+      const room = createTestRoom([
+        createFilter("tag", "work", { negated: true }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles multiple tags with AND logic", () => {
       const item = createTestItem({ tags: ["travel", "vacation"] });
-      const room = createTestRoom({
-        tag: [
-          { value: "travel", negated: false },
-          { value: "vacation", negated: false },
-        ],
-      });
+      const room = createTestRoom([
+        createFilter("tag", "travel"),
+        createFilter("tag", "vacation"),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("fails when one of multiple tags is missing", () => {
       const item = createTestItem({ tags: ["travel"] });
-      const room = createTestRoom({
-        tag: [
-          { value: "travel", negated: false },
-          { value: "vacation", negated: false },
-        ],
-      });
+      const room = createTestRoom([
+        createFilter("tag", "travel"),
+        createFilter("tag", "vacation"),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
@@ -322,9 +293,7 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         imageDetails: createImageDetails({ objects: ["car", "tree"] }),
       });
-      const room = createTestRoom({
-        object: [{ value: "car", negated: false }],
-      });
+      const room = createTestRoom([createFilter("object", "car")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -332,9 +301,7 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         imageDetails: createImageDetails({ objects: ["Car"] }),
       });
-      const room = createTestRoom({
-        object: [{ value: "car", negated: false }],
-      });
+      const room = createTestRoom([createFilter("object", "car")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -342,17 +309,13 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         imageDetails: createImageDetails({ objects: ["person"] }),
       });
-      const room = createTestRoom({
-        object: [{ value: "car", negated: false }],
-      });
+      const room = createTestRoom([createFilter("object", "car")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles item without imageDetails", () => {
       const item = createTestItem({ imageDetails: null });
-      const room = createTestRoom({
-        object: [{ value: "car", negated: false }],
-      });
+      const room = createTestRoom([createFilter("object", "car")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
@@ -360,33 +323,25 @@ describe("itemMatchesRoom", () => {
   describe("source filter", () => {
     it("matches item source type", () => {
       const item = createTestItem({ sourceType: "upload" });
-      const room = createTestRoom({
-        source: [{ value: "upload", negated: false }],
-      });
+      const room = createTestRoom([createFilter("source", "upload")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("is case-insensitive", () => {
       const item = createTestItem({ sourceType: "upload" });
-      const room = createTestRoom({
-        source: [{ value: "UPLOAD", negated: false }],
-      });
+      const room = createTestRoom([createFilter("source", "UPLOAD")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
     it("does not match different source", () => {
       const item = createTestItem({ sourceType: "upload" });
-      const room = createTestRoom({
-        source: [{ value: "url", negated: false }],
-      });
+      const room = createTestRoom([createFilter("source", "url")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles null sourceType", () => {
       const item = createTestItem({ sourceType: null });
-      const room = createTestRoom({
-        source: [{ value: "upload", negated: false }],
-      });
+      const room = createTestRoom([createFilter("source", "upload")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
@@ -396,9 +351,7 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         locations: [createLocation({ city: "London" })],
       });
-      const room = createTestRoom({
-        location: [{ value: "London", negated: false }],
-      });
+      const room = createTestRoom([createFilter("location", "London")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -406,9 +359,7 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         locations: [createLocation({ country: "United Kingdom" })],
       });
-      const room = createTestRoom({
-        location: [{ value: "United Kingdom", negated: false }],
-      });
+      const room = createTestRoom([createFilter("location", "United Kingdom")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -416,9 +367,7 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         locations: [createLocation({ city: "London" })],
       });
-      const room = createTestRoom({
-        location: [{ value: "london", negated: false }],
-      });
+      const room = createTestRoom([createFilter("location", "london")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -426,17 +375,13 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         locations: [createLocation({ city: "London" })],
       });
-      const room = createTestRoom({
-        location: [{ value: "Paris", negated: false }],
-      });
+      const room = createTestRoom([createFilter("location", "Paris")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("handles item without locations", () => {
       const item = createTestItem({ locations: [] });
-      const room = createTestRoom({
-        location: [{ value: "London", negated: false }],
-      });
+      const room = createTestRoom([createFilter("location", "London")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
@@ -448,9 +393,7 @@ describe("itemMatchesRoom", () => {
           colors: [{ name: "red", hex: "#FF0000" }],
         }),
       });
-      const room = createTestRoom({
-        color: [{ value: "red", negated: false }],
-      });
+      const room = createTestRoom([createFilter("color", "red")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -460,9 +403,7 @@ describe("itemMatchesRoom", () => {
           colors: [{ name: "Red", hex: "#FF0000" }],
         }),
       });
-      const room = createTestRoom({
-        color: [{ value: "red", negated: false }],
-      });
+      const room = createTestRoom([createFilter("color", "red")]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -472,9 +413,7 @@ describe("itemMatchesRoom", () => {
           colors: [{ name: "blue", hex: "#0000FF" }],
         }),
       });
-      const room = createTestRoom({
-        color: [{ value: "red", negated: false }],
-      });
+      const room = createTestRoom([createFilter("color", "red")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
@@ -482,120 +421,90 @@ describe("itemMatchesRoom", () => {
       const item = createTestItem({
         imageDetails: createImageDetails({ colors: [] }),
       });
-      const room = createTestRoom({
-        color: [{ value: "red", negated: false }],
-      });
+      const room = createTestRoom([createFilter("color", "red")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
 
   describe("date filters", () => {
-    it("matches item after dateAfter", () => {
+    it("matches item after date with 'after' operator", () => {
       const item = createTestItem({ createdAt: new Date("2024-06-15") });
-      const room = createTestRoom({ dateAfter: "2024-01-01" });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
-    it("does not match item before dateAfter", () => {
+    it("does not match item before date with 'after' operator", () => {
       const item = createTestItem({ createdAt: new Date("2023-06-15") });
-      const room = createTestRoom({ dateAfter: "2024-01-01" });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
-    it("matches item before dateBefore", () => {
+    it("matches item before date with 'before' operator", () => {
       const item = createTestItem({ createdAt: new Date("2024-06-15") });
-      const room = createTestRoom({ dateBefore: "2024-12-31" });
+      const room = createTestRoom([
+        createFilter("date", "2024-12-31", { dateOperator: "before" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
-    it("does not match item after dateBefore", () => {
+    it("does not match item after date with 'before' operator", () => {
       const item = createTestItem({ createdAt: new Date("2025-06-15") });
-      const room = createTestRoom({ dateBefore: "2024-12-31" });
+      const room = createTestRoom([
+        createFilter("date", "2024-12-31", { dateOperator: "before" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
-    it("matches item within date range", () => {
+    it("matches item within date range using 'between' operator", () => {
       const item = createTestItem({ createdAt: new Date("2024-06-15") });
-      const room = createTestRoom({
-        dateAfter: "2024-01-01",
-        dateBefore: "2024-12-31",
-      });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", {
+          dateOperator: "between",
+          endDate: "2024-12-31",
+        }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
-    it("does not match item outside date range", () => {
+    it("does not match item outside date range using 'between' operator", () => {
       const item = createTestItem({ createdAt: new Date("2023-06-15") });
-      const room = createTestRoom({
-        dateAfter: "2024-01-01",
-        dateBefore: "2024-12-31",
-      });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", {
+          dateOperator: "between",
+          endDate: "2024-12-31",
+        }),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("matches item within date range using multiple date filters (AND logic)", () => {
+      const item = createTestItem({ createdAt: new Date("2024-06-15") });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+        createFilter("date", "2024-12-31", { dateOperator: "before" }),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("does not match item outside date range using multiple date filters", () => {
+      const item = createTestItem({ createdAt: new Date("2023-06-15") });
+      const room = createTestRoom([
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+        createFilter("date", "2024-12-31", { dateOperator: "before" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
     it("ignores invalid date strings", () => {
       const item = createTestItem({ createdAt: new Date("2024-06-15") });
-      const room = createTestRoom({ dateAfter: "invalid-date" });
+      const room = createTestRoom([
+        createFilter("date", "invalid-date", { dateOperator: "after" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
-    });
-  });
-
-  describe("OR groups", () => {
-    it("matches when any item in OR group matches", () => {
-      const item = createTestItem({ kind: "image" });
-      const room = createTestRoom({
-        type: [
-          { value: "image", negated: false, orGroup: 0 },
-          { value: "article", negated: false, orGroup: 0 },
-        ],
-      });
-      expect(itemMatchesRoom(item, room)).toBe(true);
-    });
-
-    it("matches second option in OR group", () => {
-      const item = createTestItem({ kind: "article" });
-      const room = createTestRoom({
-        type: [
-          { value: "image", negated: false, orGroup: 0 },
-          { value: "article", negated: false, orGroup: 0 },
-        ],
-      });
-      expect(itemMatchesRoom(item, room)).toBe(true);
-    });
-
-    it("does not match when none in OR group match", () => {
-      // Using null kind to test when item doesn't match either option in OR group
-      const item = createTestItem({ kind: null });
-      const room = createTestRoom({
-        type: [
-          { value: "image", negated: false, orGroup: 0 },
-          { value: "article", negated: false, orGroup: 0 },
-        ],
-      });
-      expect(itemMatchesRoom(item, room)).toBe(false);
-    });
-
-    it("handles mixed OR groups and regular filters", () => {
-      const item = createTestItem({ kind: "image", tags: ["travel"] });
-      const room = createTestRoom({
-        type: [
-          { value: "image", negated: false, orGroup: 0 },
-          { value: "article", negated: false, orGroup: 0 },
-        ],
-        tag: [{ value: "travel", negated: false }],
-      });
-      expect(itemMatchesRoom(item, room)).toBe(true);
-    });
-
-    it("fails when OR group matches but regular filter does not", () => {
-      const item = createTestItem({ kind: "image", tags: ["food"] });
-      const room = createTestRoom({
-        type: [
-          { value: "image", negated: false, orGroup: 0 },
-          { value: "article", negated: false, orGroup: 0 },
-        ],
-        tag: [{ value: "travel", negated: false }],
-      });
-      expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });
 
@@ -606,11 +515,11 @@ describe("itemMatchesRoom", () => {
         tags: ["travel"],
         sourceType: "upload",
       });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: false }],
-        tag: [{ value: "travel", negated: false }],
-        source: [{ value: "upload", negated: false }],
-      });
+      const room = createTestRoom([
+        createFilter("type", "image"),
+        createFilter("tag", "travel"),
+        createFilter("source", "upload"),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(true);
     });
 
@@ -620,11 +529,43 @@ describe("itemMatchesRoom", () => {
         tags: ["food"], // Wrong tag
         sourceType: "upload",
       });
-      const room = createTestRoom({
-        type: [{ value: "image", negated: false }],
-        tag: [{ value: "travel", negated: false }],
-        source: [{ value: "upload", negated: false }],
+      const room = createTestRoom([
+        createFilter("type", "image"),
+        createFilter("tag", "travel"),
+        createFilter("source", "upload"),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("handles complex combination with multiple filter types", () => {
+      const item = createTestItem({
+        kind: "image",
+        tags: ["travel", "vacation"],
+        sourceType: "upload",
+        createdAt: new Date("2024-06-15"),
+        locations: [createLocation({ city: "London" })],
       });
+      const room = createTestRoom([
+        createFilter("type", "image"),
+        createFilter("tag", "travel"),
+        createFilter("location", "London"),
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("fails complex combination when one filter does not match", () => {
+      const item = createTestItem({
+        kind: "image",
+        tags: ["travel"],
+        sourceType: "upload",
+        createdAt: new Date("2023-06-15"), // Before the date filter
+      });
+      const room = createTestRoom([
+        createFilter("type", "image"),
+        createFilter("tag", "travel"),
+        createFilter("date", "2024-01-01", { dateOperator: "after" }),
+      ]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
   });

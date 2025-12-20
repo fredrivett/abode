@@ -3,8 +3,9 @@
  */
 
 import db from "@/lib/db";
+import type { Filter } from "@/lib/search/types";
 import { itemMatchesRoom } from "./room-matcher";
-import type { ItemWithDetails, RoomFilters, RoomWithFilters } from "./types";
+import type { ItemWithDetails, RoomWithFilters } from "./types";
 
 /** Maximum number of smart rooms per user */
 export const MAX_SMART_ROOMS_PER_USER = 5;
@@ -27,7 +28,7 @@ export async function getUserSmartRooms(
 
   return rooms.map((room) => ({
     ...room,
-    filters: room.filters as RoomFilters | null,
+    filters: room.filters as Filter[] | null,
   }));
 }
 
@@ -173,7 +174,7 @@ export async function syncRoomItems(
 
   const roomWithFilters: RoomWithFilters = {
     ...room,
-    filters: room.filters as RoomFilters | null,
+    filters: room.filters as Filter[] | null,
   };
 
   const items = await loadUserItemsWithDetails(userId);
@@ -244,6 +245,6 @@ export async function getRoomById(
 
   return {
     ...room,
-    filters: room.filters as RoomFilters | null,
+    filters: room.filters as Filter[] | null,
   };
 }

@@ -1,7 +1,7 @@
 import type { RoomType, RoomVisibility } from "@prisma/client";
 import { notFound } from "next/navigation";
 import db from "@/lib/db";
-import type { RoomFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { ImageColor } from "@/lib/vision";
@@ -118,7 +118,7 @@ export default async function RoomDetailPage({ params }: Props) {
     id: room.id,
     name: room.name,
     type: room.type as RoomType,
-    filters: room.filters as RoomFilters | null,
+    filters: room.filters as Filter[] | null,
     visibility: room.visibility as RoomVisibility,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),

@@ -8,20 +8,12 @@ import type {
   RoomVisibility,
   SourceType,
 } from "@prisma/client";
-import {
-  ArrowLeft,
-  Loader2,
-  Pencil,
-  Plus,
-  SearchX,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Loader2, SearchX, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { FilterBadges } from "@/components/rooms/filter-badges";
+import { RoomFilterEditor } from "@/components/rooms/room-filter-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,23 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { EditableTitle } from "@/components/ui/editable-title";
-import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
-import type { FilterValue, RoomFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "../../../dashboard/item-card";
 
@@ -102,7 +80,7 @@ type Room = {
   id: string;
   name: string;
   type: RoomType;
-  filters: RoomFilters | null;
+  filters: Filter[] | null;
   visibility: RoomVisibility;
   createdAt: string;
   updatedAt: string;
@@ -144,7 +122,6 @@ export function RoomDetail({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadMoreItems = async () => {
@@ -251,33 +228,45 @@ export function RoomDetail({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {room.type === "smart" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowEditDialog(true)}
-            >
-              <Pencil className="size-4" />
-              Edit filters
-            </Button>
-          )}
-          <Button
-            variant="destructive-outline"
-            size="sm"
-            onClick={() => setShowDeleteDialog(true)}
-          >
-            <Trash2 className="size-4" />
-            Delete room
-          </Button>
-        </div>
+        <Button
+          variant="destructive-outline"
+          size="sm"
+          onClick={() => setShowDeleteDialog(true)}
+        >
+          <Trash2 className="size-4" />
+          Delete room
+        </Button>
       </div>
 
-      {/* Filter badges for smart rooms */}
+      {/* Filter editor for smart rooms */}
       {room.type === "smart" && roomFilters && (
-        <div className="flex flex-wrap gap-2">
-          <FilterBadges filters={roomFilters} />
-        </div>
+        <RoomFilterEditor
+          filters={roomFilters}
+          onSave={async (newFilters) => {
+            // Save to API
+            const response = await fetch(`/api/v1/rooms/${room.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filters: newFilters }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to save filters");
+            }
+
+            // Update local state
+            setRoomFilters(newFilters);
+
+            // Refresh items after filter change
+            const itemsResponse = await fetch(`/api/v1/rooms/${room.id}/items`);
+            if (itemsResponse.ok) {
+              const data = await itemsResponse.json();
+              setItems(data.items);
+              setCursor(data.nextCursor);
+              setHasMore(data.hasMore);
+            }
+          }}
+        />
       )}
 
       {/* Items grid */}
@@ -379,348 +368,6 @@ export function RoomDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Edit filters dialog */}
-      <EditFiltersDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        room={room}
-        roomFilters={roomFilters}
-        onFiltersUpdate={async (newFilters) => {
-          setRoomFilters(newFilters);
-          // Fetch updated items after filter change (reset pagination)
-          try {
-            const response = await fetch(`/api/v1/rooms/${room.id}/items`);
-            if (response.ok) {
-              const data = await response.json();
-              setItems(data.items);
-              setCursor(data.nextCursor);
-              setHasMore(data.hasMore);
-            }
-          } catch {
-            // Silently fail - user can refresh to see updated items
-          }
-        }}
-      />
     </div>
-  );
-}
-
-type FilterCategory = keyof Omit<RoomFilters, "dateAfter" | "dateBefore">;
-
-const FILTER_CATEGORIES: {
-  key: FilterCategory;
-  label: string;
-  placeholder: string;
-  icon: string;
-}[] = [
-  { key: "type", label: "Type", placeholder: "image or article", icon: "✳️" },
-  { key: "tag", label: "Tag", placeholder: "e.g. landscape", icon: "🏷️" },
-  { key: "object", label: "Object", placeholder: "e.g. tree", icon: "📦" },
-  { key: "color", label: "Color", placeholder: "e.g. blue", icon: "🎨" },
-  { key: "source", label: "Source", placeholder: "upload or url", icon: "🔗" },
-  {
-    key: "location",
-    label: "Location",
-    placeholder: "e.g. Paris",
-    icon: "📍",
-  },
-];
-
-type EditFiltersDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  room: Room;
-  roomFilters: RoomFilters | null;
-  onFiltersUpdate: (filters: RoomFilters) => void;
-};
-
-function EditFiltersDialog({
-  open,
-  onOpenChange,
-  room,
-  roomFilters,
-  onFiltersUpdate,
-}: EditFiltersDialogProps) {
-  const [filters, setFilters] = useState<RoomFilters>(roomFilters ?? {});
-  const [newFilterType, setNewFilterType] = useState<FilterCategory | null>(
-    null,
-  );
-  const [newFilterValue, setNewFilterValue] = useState("");
-  const [newFilterNegated, setNewFilterNegated] = useState(false);
-  const [dateAfter, setDateAfter] = useState(roomFilters?.dateAfter ?? "");
-  const [dateBefore, setDateBefore] = useState(roomFilters?.dateBefore ?? "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Reset state when dialog opens (via prop change or internal action)
-  useEffect(() => {
-    if (open) {
-      setFilters(roomFilters ?? {});
-      setDateAfter(roomFilters?.dateAfter ?? "");
-      setDateBefore(roomFilters?.dateBefore ?? "");
-      setNewFilterType(null);
-      setNewFilterValue("");
-      setNewFilterNegated(false);
-      setError(null);
-    }
-  }, [open, roomFilters]);
-
-  const handleAddFilter = () => {
-    if (!newFilterType || !newFilterValue.trim()) return;
-
-    const newFilter: FilterValue = {
-      value: newFilterValue.trim(),
-      negated: newFilterNegated,
-    };
-
-    setFilters((prev) => ({
-      ...prev,
-      [newFilterType]: [...(prev[newFilterType] ?? []), newFilter],
-    }));
-
-    setNewFilterType(null);
-    setNewFilterValue("");
-    setNewFilterNegated(false);
-  };
-
-  const handleRemoveFilter = (category: FilterCategory, index: number) => {
-    setFilters((prev) => {
-      const updated = [...(prev[category] ?? [])];
-      updated.splice(index, 1);
-      return {
-        ...prev,
-        [category]: updated.length > 0 ? updated : undefined,
-      };
-    });
-  };
-
-  const handleSave = async () => {
-    setError(null);
-
-    // Build the final filters object
-    const finalFilters: RoomFilters = { ...filters };
-    if (dateAfter) finalFilters.dateAfter = dateAfter;
-    if (dateBefore) finalFilters.dateBefore = dateBefore;
-
-    // Clean up empty arrays
-    for (const key of Object.keys(finalFilters) as (keyof RoomFilters)[]) {
-      const value = finalFilters[key];
-      if (Array.isArray(value) && value.length === 0) {
-        delete finalFilters[key];
-      }
-    }
-
-    setIsSaving(true);
-    try {
-      const response = await fetch(`/api/v1/rooms/${room.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filters: finalFilters }),
-      });
-      if (response.ok) {
-        toast.success("Filters updated");
-        onOpenChange(false);
-        onFiltersUpdate(finalFilters);
-      } else {
-        const data = await response.json();
-        setError(data.message || "Failed to update filters");
-      }
-    } catch {
-      setError("Failed to update filters");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Count total filters
-  const totalFilters =
-    Object.values(filters).reduce(
-      (sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0),
-      0,
-    ) +
-    (dateAfter ? 1 : 0) +
-    (dateBefore ? 1 : 0);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit Room Filters</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Items matching all filters will automatically appear in this room.
-          </p>
-
-          {/* Current filters */}
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              {FILTER_CATEGORIES.map((cat) =>
-                (filters[cat.key] ?? []).map((f, idx) => (
-                  <Badge
-                    key={`${cat.key}-${idx}`}
-                    variant="outline"
-                    className="gap-1 pr-1"
-                  >
-                    <span className="opacity-70">{cat.label}:</span>
-                    <span className={f.negated ? "line-through" : ""}>
-                      {f.value}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-4 rounded-full p-0 hover:bg-destructive/20"
-                      onClick={() => handleRemoveFilter(cat.key, idx)}
-                    >
-                      <X className="size-3" />
-                    </Button>
-                  </Badge>
-                )),
-              )}
-              {dateAfter && (
-                <Badge variant="outline" className="gap-1 pr-1">
-                  <span className="opacity-70">After:</span>
-                  <span>{dateAfter}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-4 rounded-full p-0 hover:bg-destructive/20"
-                    onClick={() => setDateAfter("")}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </Badge>
-              )}
-              {dateBefore && (
-                <Badge variant="outline" className="gap-1 pr-1">
-                  <span className="opacity-70">Before:</span>
-                  <span>{dateBefore}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-4 rounded-full p-0 hover:bg-destructive/20"
-                    onClick={() => setDateBefore("")}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </Badge>
-              )}
-              {totalFilters === 0 && (
-                <span className="text-sm text-muted-foreground italic">
-                  No filters added yet
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Add new filter */}
-          <div className="space-y-2 rounded-md border p-3">
-            <div className="text-sm font-medium">Add filter</div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="min-w-[100px]">
-                    {newFilterType
-                      ? FILTER_CATEGORIES.find((c) => c.key === newFilterType)
-                          ?.label
-                      : "Select type"}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {FILTER_CATEGORIES.map((cat) => (
-                    <DropdownMenuItem
-                      key={cat.key}
-                      onClick={() => setNewFilterType(cat.key)}
-                    >
-                      <span className="mr-2">{cat.icon}</span>
-                      {cat.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {newFilterType && (
-                <>
-                  <Input
-                    placeholder={
-                      FILTER_CATEGORIES.find((c) => c.key === newFilterType)
-                        ?.placeholder
-                    }
-                    value={newFilterValue}
-                    onChange={(e) => setNewFilterValue(e.target.value)}
-                    className="flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddFilter();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setNewFilterNegated(!newFilterNegated)}
-                    className={newFilterNegated ? "bg-destructive/10" : ""}
-                  >
-                    {newFilterNegated ? "Exclude" : "Include"}
-                  </Button>
-                  <Button size="sm" onClick={handleAddFilter}>
-                    <Plus className="size-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Date filters */}
-          <div className="space-y-2 rounded-md border p-3">
-            <div className="text-sm font-medium">Date range (optional)</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label
-                  htmlFor="filter-date-after"
-                  className="text-xs text-muted-foreground"
-                >
-                  After
-                </label>
-                <Input
-                  id="filter-date-after"
-                  type="date"
-                  value={dateAfter}
-                  onChange={(e) => setDateAfter(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="filter-date-before"
-                  className="text-xs text-muted-foreground"
-                >
-                  Before
-                </label>
-                <Input
-                  id="filter-date-before"
-                  type="date"
-                  value={dateBefore}
-                  onChange={(e) => setDateBefore(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? <IsLoading label="Saving" /> : "Save filters"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

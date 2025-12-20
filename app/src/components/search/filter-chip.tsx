@@ -93,7 +93,7 @@ function getDisplayValue(filter: Filter): string {
 
 type FilterChipsProps = {
   filters: Filter[];
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
   className?: string;
 };
 
