@@ -43,6 +43,15 @@ export function useUsernameAvailability(
         return;
       }
 
+      // Case-only change is always available (no API check needed)
+      if (
+        currentUsername &&
+        value.toLowerCase() === currentUsername.toLowerCase()
+      ) {
+        setStatus({ type: "available" });
+        return;
+      }
+
       // Immediate format validation
       const formatResult = validateUsernameFormat(value);
       if (!formatResult.valid) {
