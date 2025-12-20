@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,10 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
   const changesRemaining = MAX_USERNAME_CHANGES - changesUsed;
   const canChange = changesRemaining > 0;
 
+  // Check if username has meaningfully changed (not just case)
+  const hasMeaningfulChange =
+    currentUsername && username.toLowerCase() !== currentUsername.toLowerCase();
+
   useEffect(() => {
     if (state.error) {
       toast.error(state.error);
@@ -41,8 +46,22 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
     <section className="rounded-xl border p-6">
       <h3 className="text-lg font-semibold">Username</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Your public profile URL will be{" "}
-        <span className="font-medium">/@{username || "username"}</span>
+        {hasMeaningfulChange ? (
+          <>
+            Your public profile URL will be{" "}
+            <span className="font-medium">/@{username || "username"}</span>
+          </>
+        ) : (
+          <>
+            Your public profile URL is{" "}
+            <Link
+              href={`/@${username || "username"}`}
+              className="font-medium underline hover:no-underline"
+            >
+              /@{username || "username"}
+            </Link>
+          </>
+        )}
       </p>
 
       <form action={action} className="mt-4">
