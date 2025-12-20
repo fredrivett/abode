@@ -6,8 +6,8 @@ import {
   canCreateSmartRoom,
   hasValidFilters,
   MAX_SMART_ROOMS_PER_USER,
-  type RoomFilters,
 } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
 
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Smart rooms must have at least one filter
-      const roomFilters = filters as RoomFilters | undefined;
-      if (!hasValidFilters(roomFilters ?? null)) {
+      const filterArray = filters as Filter[] | undefined;
+      if (!hasValidFilters(filterArray ?? null)) {
         return NextResponse.json(
           { message: "Smart rooms require at least one filter" },
           { status: 400 },

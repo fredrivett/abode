@@ -22,6 +22,8 @@ type SearchInputProps = {
   getFilterValues?: (type: FilterType) => Promise<string[]>;
   placeholder?: string;
   className?: string;
+  /** When true, input and filters are disabled (view-only mode). */
+  disabled?: boolean;
 };
 
 // Parse the current filter context from the query string
@@ -88,13 +90,11 @@ export function SearchInput({
   getFilterValues,
   placeholder = "Find...",
   className,
+  disabled = false,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dateFilterAppliedRef = useRef(false);
-
-  // Track focus state for placeholder hint
-  const [isFocused, setIsFocused] = useState(false);
 
   // Values loaded from API
   const [filterValues, setFilterValues] = useState<string[]>([]);
@@ -311,7 +311,10 @@ export function SearchInput({
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="flex flex-wrap items-center gap-2">
         {/* Filter chips */}
-        <FilterChips filters={value.filters} onRemove={handleRemoveFilter} />
+        <FilterChips
+          filters={value.filters}
+          onRemove={disabled ? undefined : handleRemoveFilter}
+        />
 
         {/* Input + filter button wrapper - stays together when wrapping */}
         <div className="flex min-w-48 flex-1 items-center gap-2">
@@ -322,28 +325,28 @@ export function SearchInput({
               value={value.query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={
-                isFocused
-                  ? `${placeholder} (@ to filter, or just type to search)`
-                  : placeholder
-              }
+              disabled={disabled}
+              placeholder={placeholder}
               aria-label="Search"
-              className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg"
+              className={cn(
+                "w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg",
+                disabled && "cursor-not-allowed opacity-50",
+              )}
             />
           </div>
 
           {/* Mobile filter button */}
-          <Button
-            variant="ghost-subtle"
-            size="icon"
-            className="shrink-0 md:hidden"
-            onClick={handleFilterButtonClick}
-            aria-label="Add filter"
-          >
-            <FilterIcon className="size-4" />
-          </Button>
+          {!disabled && (
+            <Button
+              variant="ghost-subtle"
+              size="icon"
+              className="shrink-0 md:hidden"
+              onClick={handleFilterButtonClick}
+              aria-label="Add filter"
+            >
+              <FilterIcon className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 

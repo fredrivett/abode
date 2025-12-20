@@ -15,65 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
-import type { FilterValue, RoomFilters } from "@/lib/rooms";
-import type { Filter, SearchState } from "@/lib/search";
+import type { SearchState } from "@/lib/search";
 
 type SaveAsRoomButtonProps = {
   searchState: SearchState;
 };
-
-/**
- * Convert search filters to room filters format.
- * Note: Date filters are converted to dateAfter/dateBefore.
- */
-function searchFiltersToRoomFilters(filters: Filter[]): RoomFilters {
-  const roomFilters: RoomFilters = {};
-
-  for (const filter of filters) {
-    const filterValue: FilterValue = {
-      value: filter.value,
-      negated: filter.negated,
-    };
-
-    switch (filter.type) {
-      case "type":
-        roomFilters.type = [...(roomFilters.type || []), filterValue];
-        break;
-      case "tag":
-        roomFilters.tag = [...(roomFilters.tag || []), filterValue];
-        break;
-      case "object":
-        roomFilters.object = [...(roomFilters.object || []), filterValue];
-        break;
-      case "color":
-        roomFilters.color = [...(roomFilters.color || []), filterValue];
-        break;
-      case "source":
-        roomFilters.source = [...(roomFilters.source || []), filterValue];
-        break;
-      case "location":
-        roomFilters.location = [...(roomFilters.location || []), filterValue];
-        break;
-      case "date":
-        // Handle date filters by converting to dateAfter/dateBefore
-        if (filter.dateOperator === "after") {
-          roomFilters.dateAfter = filter.value;
-        } else if (filter.dateOperator === "before") {
-          roomFilters.dateBefore = filter.value;
-        } else if (filter.dateOperator === "between") {
-          roomFilters.dateAfter = filter.value;
-          roomFilters.dateBefore = filter.endDate;
-        } else {
-          // "is" means exact date - use both as same value
-          roomFilters.dateAfter = filter.value;
-          roomFilters.dateBefore = filter.value;
-        }
-        break;
-    }
-  }
-
-  return roomFilters;
-}
 
 export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
   const router = useRouter();
@@ -94,15 +40,13 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
 
     setIsCreating(true);
     try {
-      const roomFilters = searchFiltersToRoomFilters(searchState.filters);
-
       const response = await fetch("/api/v1/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: roomName.trim(),
           type: "smart",
-          filters: roomFilters,
+          filters: searchState.filters,
           visibility: "private",
         }),
       });

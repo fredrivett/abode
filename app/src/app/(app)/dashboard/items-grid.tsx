@@ -1,56 +1,12 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
-import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { Home, SearchX } from "lucide-react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
+import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
-import type { ImageColor } from "@/lib/vision";
 import { ItemCard } from "./item-card";
-
-export type ItemLocation = {
-  id: string;
-  source: string;
-  latitude: number | null;
-  longitude: number | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  countryCode: string | null;
-  formatted: string | null;
-};
-
-export type ArticleDetails = {
-  author: string | null;
-  domain: string | null;
-  publishedAt: string | null;
-  readingTime: number | null;
-  content: string | null;
-};
-
-export type DashboardItem = {
-  id: string;
-  kind: ItemKind | null;
-  processingStatus: ProcessingStatus;
-  fileKey: string | null;
-  meta: Record<string, unknown> | null;
-  sourceType: SourceType | null;
-  sourceUrl: string | null;
-  coverFileKey: string | null;
-  createdAt: string;
-  title: string | null;
-  description: string | null;
-  tags: string[];
-  objects: string[];
-  colors: ImageColor[];
-  ocrText: string | null;
-  captureDate: string | null;
-  locations: ItemLocation[];
-  articleDetails: ArticleDetails | null;
-  excludeFromPublicRooms?: boolean;
-};
 
 function formatBytes(bytes?: number | null) {
   if (!bytes || bytes <= 0) return "0 B";
@@ -66,7 +22,7 @@ function formatBytes(bytes?: number | null) {
 }
 
 type ItemsGridProps = {
-  items: DashboardItem[];
+  items: Item[];
   hasActiveSearch?: boolean;
   onClearSearch?: () => void;
 };

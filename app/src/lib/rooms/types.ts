@@ -1,7 +1,8 @@
 /**
  * Types for smart room filtering.
  *
- * Uses the same filter structure as the search system for consistency.
+ * Uses the same Filter[] structure as the search system for consistency.
+ * Filters are stored directly as Filter[] in the rooms.filters JSONB column.
  */
 
 import type {
@@ -11,32 +12,7 @@ import type {
   Room,
   RoomVisibility,
 } from "@prisma/client";
-
-/**
- * Filter value with optional negation and OR grouping.
- * Matches the structure from search/query-builder.ts
- */
-export type FilterValue = {
-  value: string;
-  negated: boolean;
-  orGroup?: number;
-};
-
-/**
- * Room filters structure - same as ParsedFilters from search.
- * Stored as JSONB in the rooms.filters column.
- */
-export type RoomFilters = {
-  type?: FilterValue[];
-  tag?: FilterValue[];
-  object?: FilterValue[];
-  color?: FilterValue[];
-  source?: FilterValue[];
-  location?: FilterValue[];
-  dateAfter?: string;
-  dateBefore?: string;
-  // Note: ocr is not supported in smart rooms v1
-};
+import type { Filter } from "@/lib/search/types";
 
 /**
  * Item with all related data needed for room matching.
@@ -47,10 +23,10 @@ export type ItemWithDetails = Item & {
 };
 
 /**
- * Room with typed filters.
+ * Room with typed filters (Filter[] stored as JSONB).
  */
 export type RoomWithFilters = Omit<Room, "filters"> & {
-  filters: RoomFilters | null;
+  filters: Filter[] | null;
 };
 
 /**
@@ -58,4 +34,12 @@ export type RoomWithFilters = Omit<Room, "filters"> & {
  */
 export function isPublicRoom(visibility: RoomVisibility): boolean {
   return visibility === "public";
+}
+
+/**
+ * Check if a filters array has at least one valid filter.
+ * Used for validation before saving smart rooms.
+ */
+export function hasValidFilters(filters: Filter[] | null): boolean {
+  return filters !== null && filters.length > 0;
 }

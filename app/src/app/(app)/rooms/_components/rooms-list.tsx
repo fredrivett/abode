@@ -17,13 +17,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { RoomFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 
 export type RoomForList = {
   id: string;
   name: string;
   type: RoomType;
-  filters: RoomFilters | null;
+  filters: Filter[] | null;
   visibility: RoomVisibility;
   createdAt: string;
   updatedAt: string;

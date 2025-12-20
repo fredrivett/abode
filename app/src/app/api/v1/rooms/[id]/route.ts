@@ -2,7 +2,8 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { hasValidFilters, type RoomFilters } from "@/lib/rooms";
+import { hasValidFilters } from "@/lib/rooms";
+import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../../trigger/sync-room-items";
 
@@ -97,7 +98,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Build update data
     const updateData: {
       name?: string;
-      filters?: RoomFilters;
+      filters?: Filter[];
       visibility?: "private" | "public";
     } = {};
 
@@ -126,14 +127,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       filters !== undefined && existingRoom.type === "smart";
 
     if (shouldSyncRoom) {
-      const roomFilters = filters as RoomFilters;
-      if (!hasValidFilters(roomFilters)) {
+      const filterArray = filters as Filter[];
+      if (!hasValidFilters(filterArray)) {
         return NextResponse.json(
           { message: "Smart rooms require at least one filter" },
           { status: 400 },
         );
       }
-      updateData.filters = roomFilters;
+      updateData.filters = filterArray;
     }
 
     // Update the room

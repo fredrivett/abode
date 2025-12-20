@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import type { ImageColor } from "@/lib/vision";
+import type { ImageColor } from "@/lib/types/item";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 export default async function DashboardPage() {

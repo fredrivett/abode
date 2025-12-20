@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { SearchItem } from "@/lib/types/item";
 import {
   type InvalidFilterValue,
   SearchError,
   type SearchResponse,
-  type SearchResultItem,
   search,
 } from "./api";
 import type { Filter, SearchState } from "./types";
@@ -49,7 +49,7 @@ export type SearchResultsState = {
   isLoading: boolean;
   isSearching: boolean;
   hasReceivedResults: boolean;
-  items: SearchResultItem[];
+  items: SearchItem[];
   total: number;
   cursor: string | null;
   hasMore: boolean;

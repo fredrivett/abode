@@ -1,82 +1,15 @@
 import { FilterChip } from "@/components/search/filter-chip";
 import { Badge } from "@/components/ui/badge";
-import type { RoomFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 
 type FilterBadgesProps = {
-  filters: RoomFilters;
+  /** Filters array (directly from room.filters) */
+  filters: Filter[];
   /** When true, limits badges shown and uses compact format for lists */
   compact?: boolean;
   /** Additional className for filter chips */
   chipClassName?: string;
 };
-
-/** Filter types that exist on RoomFilters (excludes 'date' which uses dateAfter/dateBefore) */
-type RoomFilterType =
-  | "type"
-  | "tag"
-  | "object"
-  | "color"
-  | "source"
-  | "location";
-
-/**
- * Convert RoomFilters to an array of Filter objects for use with FilterChip.
- *
- * RoomFilters (grouped by type, stored in DB) differs from search Filter[] (flat with IDs).
- * This adapter enables reusing FilterChip for display. If we add filter editing to rooms
- * using the search UI components, consider unifying to a single filter format.
- */
-function roomFiltersToSearchFilters(filters: RoomFilters): Filter[] {
-  const result: Filter[] = [];
-  let id = 0;
-
-  const filterTypes: RoomFilterType[] = [
-    "type",
-    "tag",
-    "object",
-    "color",
-    "source",
-    "location",
-  ];
-
-  for (const type of filterTypes) {
-    const values = filters[type];
-    if (values?.length) {
-      for (const f of values) {
-        result.push({
-          id: `room-filter-${id++}`,
-          type,
-          value: f.value,
-          negated: f.negated,
-        });
-      }
-    }
-  }
-
-  // Handle date filters
-  if (filters.dateAfter) {
-    result.push({
-      id: `room-filter-${id++}`,
-      type: "date",
-      value: filters.dateAfter,
-      negated: false,
-      dateOperator: "after",
-    });
-  }
-
-  if (filters.dateBefore) {
-    result.push({
-      id: `room-filter-${id++}`,
-      type: "date",
-      value: filters.dateBefore,
-      negated: false,
-      dateOperator: "before",
-    });
-  }
-
-  return result;
-}
 
 /**
  * Render filter badges for a room's filters.
@@ -87,22 +20,17 @@ export function FilterBadges({
   compact = false,
   chipClassName,
 }: FilterBadgesProps) {
-  const searchFilters = roomFiltersToSearchFilters(filters);
-
-  if (searchFilters.length === 0) return null;
+  if (filters.length === 0) return null;
 
   if (compact) {
     return (
-      <CompactFilterBadges
-        filters={searchFilters}
-        chipClassName={chipClassName}
-      />
+      <CompactFilterBadges filters={filters} chipClassName={chipClassName} />
     );
   }
 
   return (
     <>
-      {searchFilters.map((filter) => (
+      {filters.map((filter) => (
         <FilterChip key={filter.id} filter={filter} className={chipClassName} />
       ))}
     </>

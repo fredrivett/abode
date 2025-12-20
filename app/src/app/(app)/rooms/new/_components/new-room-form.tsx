@@ -1,118 +1,77 @@
 "use client";
 
-import { ArrowLeft, Blocks, Plus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Blocks, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/search/search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
-import type { FilterValue, RoomFilters } from "@/lib/rooms";
-
-type FilterType = "type" | "tag" | "object" | "color" | "source" | "location";
-
-const FILTER_TYPES: {
-  value: FilterType;
-  label: string;
-  placeholder: string;
-}[] = [
-  { value: "type", label: "Type", placeholder: "e.g., image, article" },
-  { value: "tag", label: "Tag", placeholder: "e.g., travel, food" },
-  { value: "object", label: "Object", placeholder: "e.g., car, dog" },
-  { value: "color", label: "Color", placeholder: "e.g., blue, #ff0000" },
-  { value: "source", label: "Source", placeholder: "e.g., upload, screenshot" },
-  { value: "location", label: "Location", placeholder: "e.g., London, Japan" },
-];
+import type { SearchState } from "@/lib/search/types";
+import { useFilterOptions } from "@/lib/search/use-filter-options";
 
 export function NewRoomForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [roomType, setRoomType] = useState<"smart" | "manual">("smart");
-  const [filters, setFilters] = useState<RoomFilters>({});
+  const [searchState, setSearchState] = useState<SearchState>({
+    query: "",
+    filters: [],
+  });
   const [isCreating, setIsCreating] = useState(false);
 
-  // For adding new filters
-  const [selectedFilterType, setSelectedFilterType] =
-    useState<FilterType>("type");
-  const [filterValue, setFilterValue] = useState("");
-  const [isNegated, setIsNegated] = useState(false);
+  // Get filter options for autocomplete
+  const { getFilterValuesForType } = useFilterOptions();
 
-  const addFilter = () => {
-    const trimmed = filterValue.trim();
-    if (!trimmed) return;
+  // Check if we have any filters
+  const hasFilters = searchState.filters.length > 0;
 
-    const newFilter: FilterValue = {
-      value: trimmed,
-      negated: isNegated,
-    };
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    setFilters((prev) => ({
-      ...prev,
-      [selectedFilterType]: [...(prev[selectedFilterType] || []), newFilter],
-    }));
-
-    setFilterValue("");
-    setIsNegated(false);
-  };
-
-  const removeFilter = (type: FilterType, index: number) => {
-    setFilters((prev) => {
-      const current = prev[type] || [];
-      const updated = current.filter((_, i) => i !== index);
-      if (updated.length === 0) {
-        const { [type]: _, ...rest } = prev;
-        return rest;
+      if (!name.trim()) {
+        toast.error("Please enter a room name");
+        return;
       }
-      return { ...prev, [type]: updated };
-    });
-  };
 
-  const hasFilters = Object.values(filters).some(
-    (arr) => arr && arr.length > 0,
-  );
+      const filters = searchState.filters;
+      if (roomType === "smart" && filters.length === 0) {
+        toast.error("Smart rooms require at least one filter");
+        return;
+      }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+      setIsCreating(true);
+      try {
+        const response = await fetch("/api/v1/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            type: roomType,
+            filters: roomType === "smart" ? filters : null,
+            visibility: "private",
+          }),
+        });
 
-    if (!name.trim()) {
-      toast.error("Please enter a room name");
-      return;
-    }
-
-    if (roomType === "smart" && !hasFilters) {
-      toast.error("Smart rooms require at least one filter");
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const response = await fetch("/api/v1/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          type: roomType,
-          filters: roomType === "smart" ? filters : null,
-          visibility: "private",
-        }),
-      });
-
-      if (response.ok) {
-        const room = await response.json();
-        toast.success("Room created");
-        router.push(`/rooms/${room.id}`);
-      } else {
-        const data = await response.json();
-        toast.error(data.message || "Failed to create room");
+        if (response.ok) {
+          const room = await response.json();
+          toast.success("Room created");
+          router.push(`/rooms/${room.id}`);
+        } else {
+          const data = await response.json();
+          toast.error(data.message || "Failed to create room");
+          setIsCreating(false);
+        }
+      } catch {
+        toast.error("Failed to create room");
         setIsCreating(false);
       }
-    } catch {
-      toast.error("Failed to create room");
-      setIsCreating(false);
-    }
-  };
+    },
+    [name, roomType, searchState.filters, router],
+  );
 
   return (
     <div className="space-y-8">
@@ -202,109 +161,27 @@ export function NewRoomForm() {
               </p>
             </div>
 
-            {/* Current filters */}
-            {hasFilters && (
-              <div className="flex flex-wrap gap-2 p-4 rounded-lg border bg-muted/30">
-                {(Object.entries(filters) as [FilterType, FilterValue[]][]).map(
-                  ([type, values]) =>
-                    values?.map((filter, filterIndex) => (
-                      <Badge
-                        key={`${type}-${filter.value}-${filter.negated}`}
-                        variant="secondary"
-                        className="gap-1 pr-1"
-                      >
-                        {filter.negated && "!"}
-                        {type}:{filter.value}
-                        <button
-                          type="button"
-                          onClick={() => removeFilter(type, filterIndex)}
-                          className="ml-1 rounded-full p-0.5 hover:bg-muted"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    )),
-                )}
-              </div>
+            <SearchInput
+              value={searchState}
+              onChange={setSearchState}
+              getFilterValues={getFilterValuesForType}
+              placeholder="Add filters"
+            />
+
+            {!hasFilters && (
+              <p className="text-sm text-muted-foreground italic">
+                Type @ to add a filter, or click the filter button on mobile
+              </p>
             )}
-
-            {/* Add filter form */}
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="filterType"
-                  className="text-xs text-muted-foreground"
-                >
-                  Filter type
-                </label>
-                <select
-                  id="filterType"
-                  value={selectedFilterType}
-                  onChange={(e) =>
-                    setSelectedFilterType(e.target.value as FilterType)
-                  }
-                  className="h-9 rounded-md border bg-background px-3 text-sm"
-                >
-                  {FILTER_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex-1 min-w-[200px] space-y-1.5">
-                <label
-                  htmlFor="filterValue"
-                  className="text-xs text-muted-foreground"
-                >
-                  Value
-                </label>
-                <Input
-                  id="filterValue"
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  placeholder={
-                    FILTER_TYPES.find((t) => t.value === selectedFilterType)
-                      ?.placeholder
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addFilter();
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isNegated}
-                    onChange={(e) => setIsNegated(e.target.checked)}
-                    className="rounded border-muted-foreground"
-                  />
-                  Exclude
-                </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addFilter}
-                  disabled={!filterValue.trim()}
-                >
-                  <Plus className="size-4" />
-                  Add
-                </Button>
-              </div>
-            </div>
           </div>
         )}
 
         {/* Submit */}
         <div className="flex gap-3">
-          <Button type="submit" disabled={isCreating}>
+          <Button
+            type="submit"
+            disabled={isCreating || (roomType === "smart" && !hasFilters)}
+          >
             {isCreating ? (
               <IsLoading label="Creating" />
             ) : (

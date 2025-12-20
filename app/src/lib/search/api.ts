@@ -6,61 +6,18 @@
  * - /api/v1/filters - Get available filter values for autocomplete
  */
 
+import type { SearchItem } from "@/lib/types/item";
 import type { FilterType } from "./types";
 
-// Response types matching the API
-
-export type MatchReason = {
-  field: string | null;
-  value?: string;
-  snippet?: string;
-  proximity?: number;
-};
-
-export type ItemLocation = {
-  id: string;
-  source: string;
-  latitude: number | null;
-  longitude: number | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  countryCode: string | null;
-  formatted: string | null;
-};
-
-export type ArticleDetails = {
-  author: string | null;
-  domain: string | null;
-  publishedAt: string | null;
-  readingTime: number | null;
-  content: string | null;
-};
-
-export type SearchResultItem = {
-  id: string;
-  kind: string | null;
-  processingStatus: string;
-  fileKey: string | null;
-  coverFileKey: string | null;
-  meta: Record<string, unknown> | null;
-  sourceType: string | null;
-  sourceUrl: string | null;
-  title: string | null;
-  description: string | null;
-  tags: string[];
-  objects: string[];
-  colors: Array<{ hex: string; percentage: number; name?: string }> | null;
-  ocrText: string | null;
-  captureDate: string | null;
-  locations: ItemLocation[];
-  articleDetails: ArticleDetails | null;
-  createdAt: string;
-  match: {
-    reasons: MatchReason[];
-  };
-};
+// Re-export shared types for backwards compatibility
+export type {
+  ArticleDetails,
+  ImageColor,
+  Item,
+  ItemLocation,
+  MatchReason,
+  SearchItem,
+} from "@/lib/types/item";
 
 export type SearchWarning =
   | "vector_search_unavailable"
@@ -75,7 +32,7 @@ export type InvalidFilterValue = {
 };
 
 export type SearchResponse = {
-  items: SearchResultItem[];
+  items: SearchItem[];
   total: number;
   cursor?: string;
   warnings?: SearchWarning[];

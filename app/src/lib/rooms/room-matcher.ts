@@ -7,67 +7,8 @@
 
 import { ItemKind, SourceType } from "@prisma/client";
 import { normalizeColorFilterValue } from "../search/query-builder";
-import type {
-  FilterValue,
-  ItemWithDetails,
-  RoomFilters,
-  RoomWithFilters,
-} from "./types";
-
-/**
- * Group filters by their orGroup property.
- * Filters with the same orGroup are OR'd together.
- * Filters without an orGroup are each evaluated independently (AND'd).
- */
-function groupFiltersByOrGroup(
-  filters: FilterValue[],
-): Map<number | undefined, FilterValue[]> {
-  const groups = new Map<number | undefined, FilterValue[]>();
-  for (const filter of filters) {
-    const key = filter.orGroup;
-    const group = groups.get(key) || [];
-    group.push(filter);
-    groups.set(key, group);
-  }
-  return groups;
-}
-
-/**
- * Evaluate grouped filters with custom matcher function.
- *
- * Within an OR group: ANY match = group passes
- * Across groups: ALL groups must pass (AND)
- *
- * Handles negation: negated filters must NOT match.
- */
-function evaluateGroupedFilters(
-  filters: FilterValue[],
-  matchFn: (value: string) => boolean,
-): boolean {
-  const groups = groupFiltersByOrGroup(filters);
-
-  for (const group of groups.values()) {
-    const isOrGroup = group[0]?.orGroup !== undefined && group.length > 1;
-
-    if (isOrGroup) {
-      // OR group: at least one must match (respecting negation)
-      const anyMatch = group.some((filter) => {
-        const matches = matchFn(filter.value);
-        return filter.negated ? !matches : matches;
-      });
-      if (!anyMatch) return false;
-    } else {
-      // Individual filters (AND): all must match (respecting negation)
-      for (const filter of group) {
-        const matches = matchFn(filter.value);
-        const passed = filter.negated ? !matches : matches;
-        if (!passed) return false;
-      }
-    }
-  }
-
-  return true;
-}
+import type { Filter } from "../search/types";
+import type { ItemWithDetails, RoomWithFilters } from "./types";
 
 /**
  * Check if item kind matches filter value.
@@ -146,32 +87,39 @@ function getEffectiveDate(item: ItemWithDetails): Date {
 }
 
 /**
- * Check if item's effective date is after the given date.
+ * Check if item matches a date filter.
+ *
+ * Date comparisons use ISO date strings (YYYY-MM-DD) for the default "is"
+ * operator to ensure timezone-agnostic day matching. The filter.value is
+ * expected to be in ISO format (e.g., "2024-01-15"). Both dates are converted
+ * to ISO strings and compared by their date portion only.
+ *
+ * For "after" and "before" operators, full datetime comparison is used,
+ * which means the comparison happens in the local timezone of the server.
  */
-function matchesDateAfter(item: ItemWithDetails, dateStr: string): boolean {
-  const filterDate = new Date(dateStr);
-  if (Number.isNaN(filterDate.getTime())) return true; // Invalid date = no filter
-  return getEffectiveDate(item) >= filterDate;
-}
+function matchesDateFilter(item: ItemWithDetails, filter: Filter): boolean {
+  const itemDate = getEffectiveDate(item);
+  const filterDate = new Date(filter.value);
+  if (Number.isNaN(filterDate.getTime())) return true; // Invalid date = pass
 
-/**
- * Check if item's effective date is before the given date.
- */
-function matchesDateBefore(item: ItemWithDetails, dateStr: string): boolean {
-  const filterDate = new Date(dateStr);
-  if (Number.isNaN(filterDate.getTime())) return true; // Invalid date = no filter
-  return getEffectiveDate(item) <= filterDate;
-}
-
-/**
- * Validate filter values against valid enum values.
- * Returns only valid filter values.
- */
-function validateEnumFilters(
-  filters: FilterValue[],
-  validValues: string[],
-): FilterValue[] {
-  return filters.filter((f) => validValues.includes(f.value.toLowerCase()));
+  switch (filter.dateOperator) {
+    case "after":
+      return itemDate >= filterDate;
+    case "before":
+      return itemDate <= filterDate;
+    case "between": {
+      if (!filter.endDate) return true;
+      const endDate = new Date(filter.endDate);
+      if (Number.isNaN(endDate.getTime())) return true;
+      return itemDate >= filterDate && itemDate <= endDate;
+    }
+    default:
+      // Same day comparison using ISO date string (YYYY-MM-DD)
+      return (
+        itemDate.toISOString().slice(0, 10) ===
+        filterDate.toISOString().slice(0, 10)
+      );
+  }
 }
 
 const VALID_ITEM_KINDS = Object.values(ItemKind).map((k) => k.toLowerCase());
@@ -180,7 +128,70 @@ const VALID_SOURCE_TYPES = Object.values(SourceType).map((s) =>
 );
 
 /**
+ * Check if item matches a single value for a given filter type.
+ * Does not handle negation - that's applied at the filter level.
+ */
+function matchesSingleValue(
+  item: ItemWithDetails,
+  type: Filter["type"],
+  value: string,
+): boolean {
+  switch (type) {
+    case "type":
+      // Validate against enum
+      if (!VALID_ITEM_KINDS.includes(value.toLowerCase())) {
+        return true; // Invalid type filter = pass (don't block)
+      }
+      return matchesType(item, value);
+    case "tag":
+      return matchesTag(item, value);
+    case "object":
+      return matchesObject(item, value);
+    case "color":
+      return matchesColor(item, value);
+    case "source":
+      // Validate against enum
+      if (!VALID_SOURCE_TYPES.includes(value.toLowerCase())) {
+        return true; // Invalid source filter = pass (don't block)
+      }
+      return matchesSource(item, value);
+    case "location":
+      return matchesLocation(item, value);
+    default:
+      return true;
+  }
+}
+
+/**
+ * Check if a single filter matches the item.
+ *
+ * Supports OR groups via pipe syntax (e.g., "image|article").
+ * For pipe-separated values, returns true if ANY value matches.
+ */
+function filterMatchesItem(item: ItemWithDetails, filter: Filter): boolean {
+  let matches: boolean;
+
+  // Date filters don't support pipe syntax
+  if (filter.type === "date") {
+    matches = matchesDateFilter(item, filter);
+  } else if (filter.value.includes("|")) {
+    // OR group: split by pipe and check if ANY value matches
+    const values = filter.value.split("|").map((v) => v.trim());
+    matches = values.some((value) =>
+      matchesSingleValue(item, filter.type, value),
+    );
+  } else {
+    matches = matchesSingleValue(item, filter.type, filter.value);
+  }
+
+  // Apply negation
+  return filter.negated ? !matches : matches;
+}
+
+/**
  * Check if an item matches a room's filters.
+ *
+ * All filters are AND'd together - item must match all filters.
  *
  * @param item - Item with all related data (imageDetails, locations)
  * @param room - Room with typed filters
@@ -203,93 +214,10 @@ export function itemMatchesRoom(
   const filters = room.filters;
 
   // No filters = no items match (smart room must have at least one filter)
-  if (!filters) {
+  if (!filters || filters.length === 0) {
     return false;
   }
 
-  // Check type filter
-  if (filters.type && filters.type.length > 0) {
-    const validFilters = validateEnumFilters(filters.type, VALID_ITEM_KINDS);
-    if (validFilters.length > 0) {
-      if (!evaluateGroupedFilters(validFilters, (v) => matchesType(item, v))) {
-        return false;
-      }
-    }
-  }
-
-  // Check tag filter
-  if (filters.tag && filters.tag.length > 0) {
-    if (!evaluateGroupedFilters(filters.tag, (v) => matchesTag(item, v))) {
-      return false;
-    }
-  }
-
-  // Check object filter
-  if (filters.object && filters.object.length > 0) {
-    if (
-      !evaluateGroupedFilters(filters.object, (v) => matchesObject(item, v))
-    ) {
-      return false;
-    }
-  }
-
-  // Check color filter
-  if (filters.color && filters.color.length > 0) {
-    if (!evaluateGroupedFilters(filters.color, (v) => matchesColor(item, v))) {
-      return false;
-    }
-  }
-
-  // Check source filter
-  if (filters.source && filters.source.length > 0) {
-    const validFilters = validateEnumFilters(
-      filters.source,
-      VALID_SOURCE_TYPES,
-    );
-    if (validFilters.length > 0) {
-      if (
-        !evaluateGroupedFilters(validFilters, (v) => matchesSource(item, v))
-      ) {
-        return false;
-      }
-    }
-  }
-
-  // Check location filter
-  if (filters.location && filters.location.length > 0) {
-    if (
-      !evaluateGroupedFilters(filters.location, (v) => matchesLocation(item, v))
-    ) {
-      return false;
-    }
-  }
-
-  // Check date filters
-  if (filters.dateAfter && !matchesDateAfter(item, filters.dateAfter)) {
-    return false;
-  }
-
-  if (filters.dateBefore && !matchesDateBefore(item, filters.dateBefore)) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Check if a room has any valid filters defined.
- */
-export function hasValidFilters(filters: RoomFilters | null): boolean {
-  if (!filters) return false;
-
-  return (
-    (filters.type && filters.type.length > 0) ||
-    (filters.tag && filters.tag.length > 0) ||
-    (filters.object && filters.object.length > 0) ||
-    (filters.color && filters.color.length > 0) ||
-    (filters.source && filters.source.length > 0) ||
-    (filters.location && filters.location.length > 0) ||
-    filters.dateAfter !== undefined ||
-    filters.dateBefore !== undefined
-  );
+  // All filters must match (AND logic)
+  return filters.every((filter) => filterMatchesItem(item, filter));
 }
