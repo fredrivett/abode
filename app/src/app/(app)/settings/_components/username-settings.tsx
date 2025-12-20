@@ -58,7 +58,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
             <Link
               href={`/@${username || "username"}`}
               target="_blank"
-              className="font-medium underline hover:no-underline"
+              className="font-medium underline"
             >
               /@{username || "username"}
             </Link>
