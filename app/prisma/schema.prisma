@@ -23,6 +23,7 @@ model User {
   firstName             String?   @map("first_name")
   lastName              String?   @map("last_name")
   avatarUrl             String?   @map("avatar_url")
+  avatarSource          AvatarSource? @map("avatar_source")
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
@@ -61,6 +62,12 @@ enum RoomType {
 enum RoomVisibility {
   private
   public
+}
+
+enum AvatarSource {
+  upload
+  oauth
+  gravatar
 }
 
 model Item {
