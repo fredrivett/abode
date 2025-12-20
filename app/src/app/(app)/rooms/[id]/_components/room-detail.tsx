@@ -1,13 +1,7 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
-import type {
-  ItemKind,
-  ProcessingStatus,
-  RoomType,
-  RoomVisibility,
-  SourceType,
-} from "@prisma/client";
+import type { RoomType, RoomVisibility } from "@prisma/client";
 import { ArrowLeft, Loader2, SearchX, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,51 +23,12 @@ import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { Filter } from "@/lib/search/types";
-import type { ImageColor } from "@/lib/vision";
+import type { Item } from "@/lib/types/item";
 import { ItemCard } from "../../../dashboard/item-card";
 
-type ItemLocation = {
-  id: string;
-  source: string;
-  latitude: number | null;
-  longitude: number | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  countryCode: string | null;
-  formatted: string | null;
-};
-
-type ArticleDetails = {
-  author: string | null;
-  domain: string | null;
-  publishedAt: string | null;
-  readingTime: number | null;
-  content: string | null;
-};
-
-type RoomItem = {
+type RoomItem = Item & {
   roomItemId: string;
   addedAt: string;
-  id: string;
-  kind: ItemKind | null;
-  processingStatus: ProcessingStatus;
-  fileKey: string | null;
-  meta: Record<string, unknown> | null;
-  sourceType: SourceType | null;
-  sourceUrl: string | null;
-  coverFileKey: string | null;
-  createdAt: string;
-  title: string | null;
-  description: string | null;
-  tags: string[];
-  objects: string[];
-  colors: ImageColor[];
-  ocrText: string | null;
-  captureDate: string | null;
-  locations: ItemLocation[];
-  articleDetails: ArticleDetails | null;
 };
 
 type Room = {

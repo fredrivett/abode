@@ -3,10 +3,12 @@ import type { Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { createLogger } from "./logger.server";
 import { getNearestColorName } from "./search/color-utils";
+import type { ImageColor } from "./types/item";
 
 const log = createLogger("lib/vision");
 
-export type ImageColor = { hex: string; name: string; score: number };
+// Re-export for backwards compatibility
+export type { ImageColor } from "./types/item";
 
 function parseCredentials(raw: string) {
   try {

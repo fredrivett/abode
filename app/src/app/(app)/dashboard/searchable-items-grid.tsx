@@ -1,14 +1,14 @@
 "use client";
 
-import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { useMemo } from "react";
 import { useSearch, useSearchResults } from "@/lib/search";
+import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
 import { SaveAsRoomButton } from "./_components/save-as-room-button";
-import { type DashboardItem, ItemsGrid } from "./items-grid";
+import { ItemsGrid } from "./items-grid";
 
 type SearchableItemsGridProps = {
-  initialItems: DashboardItem[];
+  initialItems: Item[];
 };
 
 export function SearchableItemsGrid({
@@ -29,8 +29,7 @@ export function SearchableItemsGrid({
   // Poll for status updates on processing items
   useProcessingPoll(processingItemIds);
 
-  // Convert search results to dashboard item format
-  const searchItems = useMemo((): DashboardItem[] | null => {
+  const searchItems = useMemo((): Item[] | null => {
     // No active search - use initial items
     if (!searchResults.hasActiveSearch) {
       return null;
@@ -41,28 +40,8 @@ export function SearchableItemsGrid({
       return null;
     }
 
-    // Search complete - show results (even if empty, to display "no results" UI)
-    return searchResults.items.map((item) => ({
-      id: item.id,
-      kind: item.kind as ItemKind | null,
-      processingStatus: item.processingStatus as ProcessingStatus,
-      fileKey: item.fileKey,
-      meta: item.meta,
-      sourceType: item.sourceType as SourceType | null,
-      sourceUrl: item.sourceUrl,
-      coverFileKey: item.coverFileKey,
-      createdAt: item.createdAt,
-      title: item.title,
-      description: item.description,
-      tags: item.tags,
-      objects: item.objects,
-      colors:
-        item.colors?.map((c) => ({ ...c, name: c.name ?? "", score: 0 })) ?? [],
-      ocrText: item.ocrText,
-      captureDate: item.captureDate,
-      locations: item.locations,
-      articleDetails: item.articleDetails,
-    }));
+    // Search complete - items are already in the correct format
+    return searchResults.items;
   }, [
     searchResults.items,
     searchResults.hasActiveSearch,

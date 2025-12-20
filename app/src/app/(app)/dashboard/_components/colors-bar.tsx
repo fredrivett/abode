@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyToClipboard } from "@/lib/copy";
-import type { ImageColor } from "@/lib/vision";
+import type { ImageColor } from "@/lib/types/item";
 
 type ColorsBarProps = {
   colors: ImageColor[];

@@ -37,15 +37,15 @@ import { api } from "@/lib/api-client";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
+import type { Item } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationMap } from "./_components/location-map";
-import type { DashboardItem } from "./items-grid";
 
 const log = createLogger("dashboard/item-card");
 
 type ItemCardProps = {
-  item: DashboardItem;
+  item: Item;
   name: string;
   size: string;
   mimeType?: string;
@@ -364,7 +364,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
 }
 
 type ItemDetailDialogProps = {
-  item: DashboardItem;
+  item: Item;
   size: string;
   previewUrl: string | null;
   open: boolean;

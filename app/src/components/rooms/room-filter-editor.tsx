@@ -18,11 +18,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useFilterPreview } from "@/lib/rooms/use-filter-preview";
-import type { SearchResultItem } from "@/lib/search/api";
 import type { Filter, SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
+import type { Item } from "@/lib/types/item";
 import { ItemCard } from "../../app/(app)/dashboard/item-card";
-import type { DashboardItem } from "../../app/(app)/dashboard/items-grid";
 
 type RoomFilterEditorProps = {
   /** Current room filters (Filter[] stored directly) */
@@ -268,29 +267,9 @@ export function RoomFilterEditor({
 }
 
 /**
- * Adapt SearchResultItem to DashboardItem for use with ItemCard.
- *
- * These types are structurally compatible for rendering - both have the same
- * fields with compatible shapes. The difference is that DashboardItem uses
- * Prisma enums (ItemKind, ProcessingStatus, SourceType) while SearchResultItem
- * uses their string representations. At runtime, Prisma enums ARE strings,
- * so the values are identical.
- *
- * The only structural differences are:
- * - SearchResultItem has `match` (search metadata) - not used by ItemCard
- * - DashboardItem has `excludeFromPublicRooms` - optional, not used by ItemCard
- * - colors array shape differs slightly but both work with ColorsBar
- */
-function toDashboardItem(item: SearchResultItem): DashboardItem {
-  // At runtime, this is safe because Prisma enums serialize to their string values.
-  // TypeScript requires the cast because the nominal types differ.
-  return item as unknown as DashboardItem;
-}
-
-/**
  * Preview item card - simplified version for filter preview.
  */
-function PreviewItem({ item }: { item: SearchResultItem }) {
+function PreviewItem({ item }: { item: Item }) {
   const meta = item.meta || {};
   const isArticle = item.kind === "article";
   const name = item.title ?? "Untitled";
@@ -302,12 +281,7 @@ function PreviewItem({ item }: { item: SearchResultItem }) {
 
   return (
     <Frame width={width} height={height}>
-      <ItemCard
-        item={toDashboardItem(item)}
-        name={name}
-        size={size}
-        mimeType={mimeType}
-      />
+      <ItemCard item={item} name={name} size={size} mimeType={mimeType} />
     </Frame>
   );
 }

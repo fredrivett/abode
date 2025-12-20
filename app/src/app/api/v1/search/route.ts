@@ -1,3 +1,4 @@
+import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
@@ -23,6 +24,7 @@ import {
 import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
 import { createClient } from "@/lib/supabase/server";
+import type { ImageColor, MatchReason, SearchItem } from "@/lib/types/item";
 
 const log = createLogger("api/v1/search");
 
@@ -35,58 +37,6 @@ type SearchWarning =
   | "partial_results"
   | "slow_query";
 
-type MatchReason = {
-  field: string | null;
-  value?: string;
-  snippet?: string;
-  proximity?: number;
-};
-
-type ItemLocation = {
-  id: string;
-  source: string;
-  latitude: number | null;
-  longitude: number | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  countryCode: string | null;
-  formatted: string | null;
-};
-
-type ArticleDetails = {
-  author: string | null;
-  domain: string | null;
-  publishedAt: string | null;
-  readingTime: number | null;
-  content: string | null;
-};
-
-type SearchResultItem = {
-  id: string;
-  kind: string | null;
-  processingStatus: string;
-  fileKey: string | null;
-  coverFileKey: string | null;
-  meta: Record<string, unknown> | null;
-  sourceType: string | null;
-  sourceUrl: string | null;
-  title: string | null;
-  description: string | null;
-  tags: string[];
-  objects: string[];
-  colors: Array<{ hex: string; percentage: number; name?: string }> | null;
-  ocrText: string | null;
-  captureDate: string | null;
-  locations: ItemLocation[];
-  articleDetails: ArticleDetails | null;
-  createdAt: string;
-  match: {
-    reasons: MatchReason[];
-  };
-};
-
 type CursorData = {
   captureDate: string | null;
   createdAt: string;
@@ -94,12 +44,131 @@ type CursorData = {
 };
 
 type SearchResponse = {
-  items: SearchResultItem[];
+  items: SearchItem[];
   total: number;
   cursor?: string;
   warnings?: SearchWarning[];
   invalidFilters?: InvalidFilterValue[];
 };
+
+/**
+ * Raw item row from SQL query.
+ *
+ * Raw SQL returns strings for enum columns (kind, processing_status, source_type).
+ * These are guaranteed to be valid enum values from the database schema.
+ */
+type RawItemRow = {
+  id: string;
+  kind: string | null;
+  processing_status: string;
+  file_key: string | null;
+  cover_file_key: string | null;
+  meta: unknown;
+  source_type: string | null;
+  source_url: string | null;
+  title: string | null;
+  description: string | null;
+  tags: string[];
+  created_at: Date;
+  objects: string[] | null;
+  colors: unknown;
+  ocr_text: string | null;
+  capture_date: Date | null;
+  article_author: string | null;
+  article_domain: string | null;
+  article_published_at: Date | null;
+  article_reading_time: number | null;
+  article_content: string | null;
+};
+
+type RawLocationRow = {
+  id: string;
+  item_id: string;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  country_code: string | null;
+  formatted: string | null;
+};
+
+/**
+ * Transform a raw SQL row into an Item.
+ *
+ * Raw SQL returns strings for Prisma enum columns. Since these values come
+ * directly from the database (which enforces the enum constraints), they are
+ * guaranteed to be valid enum values. We cast them to the Prisma enum types
+ * for type safety in the rest of the application.
+ */
+function transformRawItemToItem(
+  row: RawItemRow,
+  locations: RawLocationRow[],
+): Omit<SearchItem, "match"> {
+  return {
+    id: row.id,
+    kind: row.kind as ItemKind | null,
+    processingStatus: row.processing_status as ProcessingStatus,
+    fileKey: row.file_key,
+    coverFileKey: row.cover_file_key,
+    meta: (row.meta as Record<string, unknown>) || null,
+    sourceType: row.source_type as SourceType | null,
+    sourceUrl: row.source_url,
+    title: row.title,
+    description: row.description,
+    tags: row.tags || [],
+    objects: row.objects || [],
+    colors: parseColors(row.colors) ?? [],
+    ocrText: row.ocr_text,
+    captureDate: row.capture_date?.toISOString() ?? null,
+    locations: locations.map((loc) => ({
+      id: loc.id,
+      source: loc.source,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      neighborhood: loc.neighborhood,
+      city: loc.city,
+      region: loc.region,
+      country: loc.country,
+      countryCode: loc.country_code,
+      formatted: loc.formatted,
+    })),
+    articleDetails:
+      row.article_author ||
+      row.article_domain ||
+      row.article_published_at ||
+      row.article_content
+        ? {
+            author: row.article_author,
+            domain: row.article_domain,
+            publishedAt: row.article_published_at?.toISOString() ?? null,
+            readingTime: row.article_reading_time,
+            content: row.article_content,
+          }
+        : null,
+    createdAt: row.created_at.toISOString(),
+  };
+}
+
+/**
+ * Parse colors from database (could be string or object).
+ */
+function parseColors(colors: unknown): ImageColor[] | null {
+  if (!colors) return null;
+  if (Array.isArray(colors)) {
+    return colors as ImageColor[];
+  }
+  if (typeof colors === "string") {
+    try {
+      return JSON.parse(colors);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 function encodeCursor(data: CursorData): string {
   return Buffer.from(JSON.stringify(data)).toString("base64url");
@@ -186,7 +255,7 @@ export async function GET(request: NextRequest) {
     }
 
     let results: {
-      items: SearchResultItem[];
+      items: SearchItem[];
       total: number;
       cursor?: string;
     };
@@ -228,7 +297,7 @@ async function executeFiltersOnlySearch(
   userId: string,
   filters: ParsedFilters,
   cursor: string | null,
-): Promise<{ items: SearchResultItem[]; total: number; cursor?: string }> {
+): Promise<{ items: SearchItem[]; total: number; cursor?: string }> {
   // Build WHERE conditions
   const conditions: string[] = ["user_id = $1::uuid", "deleted_at IS NULL"];
   const params: unknown[] = [userId];
@@ -407,31 +476,10 @@ async function executeFiltersOnlySearch(
     LIMIT ${fetchLimit}
   `;
 
-  const rawItems = await db.$queryRawUnsafe<
-    Array<{
-      id: string;
-      kind: string | null;
-      processing_status: string;
-      file_key: string | null;
-      cover_file_key: string | null;
-      meta: unknown;
-      source_type: string | null;
-      source_url: string | null;
-      title: string | null;
-      description: string | null;
-      tags: string[];
-      created_at: Date;
-      objects: string[] | null;
-      colors: unknown;
-      ocr_text: string | null;
-      capture_date: Date | null;
-      article_author: string | null;
-      article_domain: string | null;
-      article_published_at: Date | null;
-      article_reading_time: number | null;
-      article_content: string | null;
-    }>
-  >(itemsQuery, ...params);
+  const rawItems = await db.$queryRawUnsafe<RawItemRow[]>(
+    itemsQuery,
+    ...params,
+  );
 
   // Get item IDs for location fetch
   const itemIds = rawItems.map((item) => item.id);
@@ -439,21 +487,7 @@ async function executeFiltersOnlySearch(
   // Fetch locations for all items in one query
   const locations =
     itemIds.length > 0
-      ? await db.$queryRawUnsafe<
-          Array<{
-            id: string;
-            item_id: string;
-            source: string;
-            latitude: number | null;
-            longitude: number | null;
-            neighborhood: string | null;
-            city: string | null;
-            region: string | null;
-            country: string | null;
-            country_code: string | null;
-            formatted: string | null;
-          }>
-        >(
+      ? await db.$queryRawUnsafe<RawLocationRow[]>(
           `SELECT id, item_id, source, latitude, longitude, neighborhood, city, region, country, country_code, formatted
          FROM item_locations
          WHERE item_id = ANY($1::uuid[])`,
@@ -462,23 +496,16 @@ async function executeFiltersOnlySearch(
       : [];
 
   // Group locations by item_id
-  const locationsByItemId = new Map<string, typeof locations>();
+  const locationsByItemId = new Map<string, RawLocationRow[]>();
   for (const loc of locations) {
     const existing = locationsByItemId.get(loc.item_id) || [];
     existing.push(loc);
     locationsByItemId.set(loc.item_id, existing);
   }
 
-  // Parse colors JSON and combine data
-  const items = rawItems.map((item) => ({
-    ...item,
-    colors: parseColors(item.colors),
-    locations: locationsByItemId.get(item.id) || [],
-  }));
-
   // Check if there are more results
-  const hasMore = items.length > PAGE_SIZE;
-  const pageItems = items.slice(0, PAGE_SIZE);
+  const hasMore = rawItems.length > PAGE_SIZE;
+  const pageItems = rawItems.slice(0, PAGE_SIZE);
 
   // Build match reasons based on filters
   const buildMatchReasons = (_itemId: string): MatchReason[] => {
@@ -539,52 +566,10 @@ async function executeFiltersOnlySearch(
     return reasons;
   };
 
-  // Format response
-  const resultItems: SearchResultItem[] = pageItems.map((item) => ({
-    id: item.id,
-    kind: item.kind,
-    processingStatus: item.processing_status,
-    fileKey: item.file_key,
-    coverFileKey: item.cover_file_key,
-    meta: (item.meta as Record<string, unknown>) || null,
-    sourceType: item.source_type,
-    sourceUrl: item.source_url,
-    title: item.title,
-    description: item.description,
-    tags: item.tags || [],
-    objects: item.objects || [],
-    colors: item.colors,
-    ocrText: item.ocr_text,
-    captureDate: item.capture_date?.toISOString() ?? null,
-    locations: item.locations.map((loc) => ({
-      id: loc.id,
-      source: loc.source,
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      neighborhood: loc.neighborhood,
-      city: loc.city,
-      region: loc.region,
-      country: loc.country,
-      countryCode: loc.country_code,
-      formatted: loc.formatted,
-    })),
-    articleDetails:
-      item.article_author ||
-      item.article_domain ||
-      item.article_published_at ||
-      item.article_content
-        ? {
-            author: item.article_author,
-            domain: item.article_domain,
-            publishedAt: item.article_published_at?.toISOString() ?? null,
-            readingTime: item.article_reading_time,
-            content: item.article_content,
-          }
-        : null,
-    createdAt: item.created_at.toISOString(),
-    match: {
-      reasons: buildMatchReasons(item.id),
-    },
+  // Transform raw items to SearchItem format
+  const resultItems: SearchItem[] = pageItems.map((item) => ({
+    ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
+    match: { reasons: buildMatchReasons(item.id) },
   }));
 
   // Generate cursor for next page
@@ -626,7 +611,7 @@ async function executeRankedSearch(
   filters: ParsedFilters,
   query: string,
   warnings: SearchWarning[],
-): Promise<{ items: SearchResultItem[]; total: number }> {
+): Promise<{ items: SearchItem[]; total: number }> {
   // Run full-text, vector, and OCR search in parallel
   const [textResults, vectorResults, ocrResults] = await Promise.all([
     fullTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
@@ -684,31 +669,7 @@ async function executeRankedSearch(
   // Fetch full item data for the merged results
   const itemIds = mergedResults.map((r) => r.id);
 
-  const rawItems = await db.$queryRawUnsafe<
-    Array<{
-      id: string;
-      kind: string | null;
-      processing_status: string;
-      file_key: string | null;
-      cover_file_key: string | null;
-      meta: unknown;
-      source_type: string | null;
-      source_url: string | null;
-      title: string | null;
-      description: string | null;
-      tags: string[];
-      created_at: Date;
-      objects: string[] | null;
-      colors: unknown;
-      ocr_text: string | null;
-      capture_date: Date | null;
-      article_author: string | null;
-      article_domain: string | null;
-      article_published_at: Date | null;
-      article_reading_time: number | null;
-      article_content: string | null;
-    }>
-  >(
+  const rawItems = await db.$queryRawUnsafe<RawItemRow[]>(
     `
     SELECT
       i.id,
@@ -743,21 +704,7 @@ async function executeRankedSearch(
   // Fetch locations for all items in one query
   const locations =
     itemIds.length > 0
-      ? await db.$queryRawUnsafe<
-          Array<{
-            id: string;
-            item_id: string;
-            source: string;
-            latitude: number | null;
-            longitude: number | null;
-            neighborhood: string | null;
-            city: string | null;
-            region: string | null;
-            country: string | null;
-            country_code: string | null;
-            formatted: string | null;
-          }>
-        >(
+      ? await db.$queryRawUnsafe<RawLocationRow[]>(
           `SELECT id, item_id, source, latitude, longitude, neighborhood, city, region, country, country_code, formatted
          FROM item_locations
          WHERE item_id = ANY($1::uuid[])`,
@@ -766,22 +713,7 @@ async function executeRankedSearch(
       : [];
 
   // Group locations by item_id
-  const locationsByItemId = new Map<
-    string,
-    Array<{
-      id: string;
-      item_id: string;
-      source: string;
-      latitude: number | null;
-      longitude: number | null;
-      neighborhood: string | null;
-      city: string | null;
-      region: string | null;
-      country: string | null;
-      country_code: string | null;
-      formatted: string | null;
-    }>
-  >();
+  const locationsByItemId = new Map<string, RawLocationRow[]>();
   for (const loc of locations) {
     const existing = locationsByItemId.get(loc.item_id) || [];
     existing.push(loc);
@@ -789,19 +721,11 @@ async function executeRankedSearch(
   }
 
   // Create a map for quick lookup
-  const itemMap = new Map(
-    rawItems.map((item) => [
-      item.id,
-      {
-        ...item,
-        locations: locationsByItemId.get(item.id) || [],
-      },
-    ]),
-  );
+  const itemMap = new Map(rawItems.map((item) => [item.id, item]));
 
   // Build result items in RRF rank order
   // Color filter is already applied in the individual search functions
-  const resultItems: SearchResultItem[] = [];
+  const resultItems: SearchItem[] = [];
   for (const result of mergedResults) {
     const item = itemMap.get(result.id);
     if (!item) continue;
@@ -883,47 +807,7 @@ async function executeRankedSearch(
     }
 
     resultItems.push({
-      id: item.id,
-      kind: item.kind,
-      processingStatus: item.processing_status,
-      fileKey: item.file_key,
-      coverFileKey: item.cover_file_key,
-      meta: (item.meta as Record<string, unknown>) || null,
-      sourceType: item.source_type,
-      sourceUrl: item.source_url,
-      title: item.title,
-      description: item.description,
-      tags: item.tags || [],
-      objects: item.objects || [],
-      colors: parseColors(item.colors),
-      ocrText: item.ocr_text,
-      captureDate: item.capture_date?.toISOString() ?? null,
-      locations: item.locations.map((loc) => ({
-        id: loc.id,
-        source: loc.source,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        neighborhood: loc.neighborhood,
-        city: loc.city,
-        region: loc.region,
-        country: loc.country,
-        countryCode: loc.country_code,
-        formatted: loc.formatted,
-      })),
-      articleDetails:
-        item.article_author ||
-        item.article_domain ||
-        item.article_published_at ||
-        item.article_content
-          ? {
-              author: item.article_author,
-              domain: item.article_domain,
-              publishedAt: item.article_published_at?.toISOString() ?? null,
-              readingTime: item.article_reading_time,
-              content: item.article_content,
-            }
-          : null,
-      createdAt: item.created_at.toISOString(),
+      ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
       match: { reasons },
     });
   }
@@ -932,24 +816,4 @@ async function executeRankedSearch(
     items: resultItems,
     total: resultItems.length,
   };
-}
-
-/**
- * Parse colors from database (could be string or object).
- */
-function parseColors(
-  colors: unknown,
-): Array<{ hex: string; percentage: number }> | null {
-  if (!colors) return null;
-  if (Array.isArray(colors)) {
-    return colors as Array<{ hex: string; percentage: number }>;
-  }
-  if (typeof colors === "string") {
-    try {
-      return JSON.parse(colors);
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
