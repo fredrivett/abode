@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import db from "@/lib/db";
 import { getDisplayName } from "@/lib/get-display-name";
-import { getInitials } from "@/lib/get-initials";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardHeader } from "../_components/dashboard-header";
@@ -25,7 +24,6 @@ export default async function AccountPage() {
   const username = dbUser?.username || null;
   const displayEmail = email || "Account";
   const displayName = getDisplayName({ firstName, lastName, username });
-  const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
@@ -69,12 +67,15 @@ export default async function AccountPage() {
           <aside className="md:sticky md:top-6">
             <div className="rounded-xl border p-6">
               <div className="flex flex-col items-center text-center">
-                <Avatar className="size-16">
-                  {avatarUrl ? (
-                    <AvatarImage src={avatarUrl} alt={displayName} />
-                  ) : null}
-                  <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  avatarUrl={avatarUrl}
+                  firstName={firstName}
+                  lastName={lastName}
+                  username={username}
+                  email={email}
+                  className="size-16"
+                  fallbackClassName="text-xl"
+                />
                 <div className="mt-3">
                   <div className="text-sm font-medium">{displayName}</div>
                   <div className="text-xs text-muted-foreground">

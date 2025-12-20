@@ -1,10 +1,12 @@
 "use server";
 
+import { tasks } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { validateUsername } from "@/lib/username";
+import type { checkGravatarTask } from "../../../../trigger/check-gravatar";
 
 export type AuthResult = {
   error?: string;
@@ -92,11 +94,34 @@ export async function verifyOtp(
   } = await supabase.auth.getUser();
 
   if (user && username) {
-    // Set username on the user record
+    // Check for OAuth avatar in user metadata
+    const userMetadata = user.user_metadata as
+      | Record<string, unknown>
+      | undefined;
+    const oauthPicture =
+      (userMetadata?.picture as string) ||
+      (userMetadata?.avatar_url as string) ||
+      null;
+
+    // Set username (and OAuth avatar if present) in a single update
     await db.user.update({
       where: { id: user.id },
-      data: { username },
+      data: {
+        username,
+        ...(oauthPicture && {
+          avatarUrl: oauthPicture,
+          avatarSource: "oauth" as const,
+        }),
+      },
     });
+
+    // No OAuth avatar - trigger background Gravatar check
+    if (!oauthPicture) {
+      await tasks.trigger<typeof checkGravatarTask>("check-gravatar", {
+        userId: user.id,
+        email,
+      });
+    }
   }
 
   revalidatePath("/", "layout");

@@ -12,6 +12,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
+import { AvatarStep } from "./avatar-step";
+
+type UserMetadata = {
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+};
 
 const ONBOARDING_STEPS = [
   {
@@ -68,9 +77,14 @@ const ONBOARDING_STEPS = [
 type OnboardingDialogProps = {
   open: boolean;
   onComplete: () => void;
+  userMetadata?: UserMetadata;
 };
 
-export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
+export function OnboardingDialog({
+  open,
+  onComplete,
+  userMetadata,
+}: OnboardingDialogProps) {
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleComplete = async () => {
@@ -103,6 +117,15 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
           </DialogDescription>
         </VisuallyHidden.Root>
         <Stepper onComplete={handleComplete}>
+          <Step key="avatar">
+            <AvatarStep
+              firstName={userMetadata?.firstName}
+              lastName={userMetadata?.lastName}
+              username={userMetadata?.username}
+              email={userMetadata?.email}
+              initialAvatarUrl={userMetadata?.avatarUrl}
+            />
+          </Step>
           {ONBOARDING_STEPS.map((step) => (
             <Step key={step.title}>
               <StepContent

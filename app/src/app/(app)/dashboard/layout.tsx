@@ -29,10 +29,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Fetch user from database to get onboarding status and username
+  // Fetch user from database to get onboarding status, username, and avatar
   const user = await db.user.findUnique({
     where: { id: userData.user.id },
-    select: { onboardingCompletedAt: true, username: true },
+    select: { onboardingCompletedAt: true, username: true, avatarUrl: true },
   });
 
   const showOnboarding = user !== null && user.onboardingCompletedAt === null;
@@ -60,15 +60,20 @@ export default async function DashboardLayout({
     getString(claimsRecord.family_name) ??
     getString(claimsUserMetadata.family_name) ??
     getString(claimsUserMetadata.last_name);
-  const avatarUrl =
-    getString(userMetadata.avatar_url) ??
-    getString(userMetadata.picture) ??
-    getString(claimsRecord.picture) ??
-    getString(claimsUserMetadata.picture) ??
-    getString(claimsUserMetadata.avatar_url);
+  // DB avatar takes priority (includes uploaded, OAuth copied, and Gravatar)
+  const avatarUrl = user?.avatarUrl ?? null;
 
   return (
-    <OnboardingWrapper showOnboarding={showOnboarding}>
+    <OnboardingWrapper
+      showOnboarding={showOnboarding}
+      userMetadata={{
+        firstName,
+        lastName,
+        username: user?.username,
+        email,
+        avatarUrl,
+      }}
+    >
       <DashboardDropzone>
         <div className="flex min-h-0 flex-1 flex-col bg-background">
           <Suspense fallback={<div className="h-16" />}>

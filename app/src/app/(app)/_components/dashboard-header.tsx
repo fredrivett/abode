@@ -4,9 +4,9 @@ import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
 import { AbodeLogo } from "@/components/abode-logo";
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import { SearchInput } from "@/components/search";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,7 +21,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getDisplayName } from "@/lib/get-display-name";
-import { getInitials } from "@/lib/get-initials";
 import { useFilterOptions, useSearch } from "@/lib/search";
 
 type DashboardHeaderProps = {
@@ -50,7 +49,6 @@ export function DashboardHeader({
 
   const displayEmail = email || "Account";
   const displayName = getDisplayName({ firstName, lastName, username });
-  const initials = getInitials({ firstName, lastName, fallback: displayName });
 
   return (
     <header className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
@@ -100,12 +98,14 @@ export function DashboardHeader({
               className="rounded-full"
               aria-label="Open account menu"
             >
-              <Avatar className="size-8">
-                {avatarUrl ? (
-                  <AvatarImage src={avatarUrl} alt={displayName} />
-                ) : null}
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                avatarUrl={avatarUrl}
+                firstName={firstName}
+                lastName={lastName}
+                username={username}
+                email={email}
+                className="size-8"
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
