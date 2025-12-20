@@ -18,6 +18,8 @@ datasource db {
 model User {
   id                    String    @id @db.Uuid // matches auth.users.id, no default - set by trigger
   email                 String    @unique
+  username              String?   // Display version (e.g., "Fred_Dev"), case-insensitive unique via index
+  previousUsernames     Json?     @map("previous_usernames") // [{username, changedAt}]
   firstName             String?   @map("first_name")
   lastName              String?   @map("last_name")
   avatarUrl             String?   @map("avatar_url")

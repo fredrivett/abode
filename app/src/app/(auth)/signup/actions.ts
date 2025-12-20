@@ -2,13 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { validateUsername } from "@/lib/username";
 
 export type AuthResult = {
   error?: string;
   success?: boolean;
   message?: string;
   email?: string;
+  username?: string;
 };
 
 export async function signup(
@@ -19,8 +22,37 @@ export async function signup(
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const username = formData.get("username") as string;
 
-  const { error } = await supabase.auth.signUp({ email, password });
+  // Validate username
+  const validation = validateUsername(username);
+  if (!validation.valid) {
+    return { error: validation.error };
+  }
+
+  // Check availability (case-insensitive)
+  const existing = await db.user.findFirst({
+    where: {
+      username: {
+        equals: username,
+        mode: "insensitive",
+      },
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return { error: "Username is already taken" };
+  }
+
+  // Store username in Supabase user metadata for retrieval after OTP
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { pending_username: username },
+    },
+  });
 
   if (error) {
     return { error: error.message };
@@ -29,6 +61,7 @@ export async function signup(
   return {
     success: true,
     email,
+    username,
     message: "Check your email for a confirmation code.",
   };
 }
@@ -41,6 +74,7 @@ export async function verifyOtp(
 
   const email = formData.get("email") as string;
   const token = formData.get("token") as string;
+  const username = formData.get("username") as string;
 
   const { error } = await supabase.auth.verifyOtp({
     email,
@@ -50,6 +84,19 @@ export async function verifyOtp(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Get the user after verification
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user && username) {
+    // Set username on the user record
+    await db.user.update({
+      where: { id: user.id },
+      data: { username },
+    });
   }
 
   revalidatePath("/", "layout");
