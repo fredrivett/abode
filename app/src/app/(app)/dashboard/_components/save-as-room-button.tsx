@@ -55,7 +55,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         const room = await response.json();
         toast.success("Smart room created");
         setIsOpen(false);
-        router.push(`/rooms/${room.id}`);
+        router.push(`/@${room.username}/${room.slug}`);
       } else {
         const data = await response.json();
         toast.error(data.message || "Failed to create room");

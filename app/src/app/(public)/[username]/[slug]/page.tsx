@@ -1,47 +1,101 @@
 import type { RoomType, RoomVisibility } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { ImageColor } from "@/lib/vision";
-import { DashboardHeader } from "../../_components/dashboard-header";
 import { RoomDetail } from "./_components/room-detail";
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ username: string; slug: string }>;
 };
 
-export default async function RoomDetailPage({ params }: Props) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { user } = await getUserWithMetadata(supabase);
-
-  if (!user) {
-    notFound();
-  }
-
-  // Fetch room with item count
-  const room = await db.room.findUnique({
+const getUser = cache(async (username: string) => {
+  return db.user.findFirst({
     where: {
-      id,
-      userId: user.id,
+      username: {
+        equals: username,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      username: true,
+    },
+  });
+});
+
+const getRoom = cache(async (userId: string, slug: string) => {
+  return db.room.findFirst({
+    where: {
+      userId,
+      slug: {
+        equals: slug,
+        mode: "insensitive",
+      },
     },
     select: {
       id: true,
       name: true,
+      slug: true,
       type: true,
       filters: true,
       visibility: true,
       createdAt: true,
       updatedAt: true,
+      userId: true,
       _count: {
         select: { roomItems: true },
       },
     },
   });
+});
+
+export async function generateMetadata({ params }: Props) {
+  const { username, slug } = await params;
+  const user = await getUser(username);
+
+  if (!user) {
+    return { title: "User not found" };
+  }
+
+  const room = await getRoom(user.id, slug);
 
   if (!room) {
+    return { title: "Room not found" };
+  }
+
+  return {
+    title: `${room.name} | @${user.username} | abode`,
+    description: `${room.name} - a room by @${user.username}`,
+  };
+}
+
+export default async function RoomPage({ params }: Props) {
+  const { username, slug } = await params;
+
+  // Get the user by username
+  const user = await getUser(username);
+  if (!user) {
+    notFound();
+  }
+
+  // Get the room by user + slug
+  const room = await getRoom(user.id, slug);
+  if (!room) {
+    notFound();
+  }
+
+  // Check if current user is the owner
+  const supabase = await createClient();
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
+  const isOwner = currentUser?.id === room.userId;
+
+  // Private rooms are only visible to owner
+  if (room.visibility === "private" && !isOwner) {
     notFound();
   }
 
@@ -49,8 +103,8 @@ export default async function RoomDetailPage({ params }: Props) {
 
   // Fetch room items with their associated items
   const roomItems = await db.roomItem.findMany({
-    where: { roomId: id },
-    take: PAGE_SIZE + 1, // Fetch one extra to determine if there are more
+    where: { roomId: room.id },
+    take: PAGE_SIZE + 1,
     orderBy: { addedAt: "desc" },
     select: {
       id: true,
@@ -105,7 +159,6 @@ export default async function RoomDetailPage({ params }: Props) {
     },
   });
 
-  // Check if there are more items
   const hasMore = roomItems.length > PAGE_SIZE;
   const paginatedRoomItems = hasMore
     ? roomItems.slice(0, PAGE_SIZE)
@@ -155,17 +208,14 @@ export default async function RoomDetailPage({ params }: Props) {
   }));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <DashboardHeader />
-
-      <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <RoomDetail
-          room={roomForClient}
-          initialItems={itemsForClient}
-          initialCursor={nextCursor}
-          initialHasMore={hasMore}
-        />
-      </div>
+    <div className="mx-auto w-full max-w-5xl px-4 py-8">
+      <RoomDetail
+        room={roomForClient}
+        initialItems={itemsForClient}
+        initialCursor={nextCursor}
+        initialHasMore={hasMore}
+        isOwner={isOwner}
+      />
     </div>
   );
 }

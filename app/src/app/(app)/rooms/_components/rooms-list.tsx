@@ -22,6 +22,7 @@ import type { Filter } from "@/lib/search/types";
 export type RoomForList = {
   id: string;
   name: string;
+  slug: string;
   type: RoomType;
   filters: Filter[] | null;
   visibility: RoomVisibility;
@@ -32,9 +33,10 @@ export type RoomForList = {
 
 type RoomsListProps = {
   initialRooms: RoomForList[];
+  username: string;
 };
 
-export function RoomsList({ initialRooms }: RoomsListProps) {
+export function RoomsList({ initialRooms, username }: RoomsListProps) {
   const [rooms, setRooms] = useState(initialRooms);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -100,7 +102,7 @@ export function RoomsList({ initialRooms }: RoomsListProps) {
           {rooms.map((room) => (
             <Link
               key={room.id}
-              href={`/rooms/${room.id}`}
+              href={`/@${username}/${room.slug}`}
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">

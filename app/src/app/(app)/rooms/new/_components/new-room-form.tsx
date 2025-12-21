@@ -59,7 +59,7 @@ export function NewRoomForm() {
         if (response.ok) {
           const room = await response.json();
           toast.success("Room created");
-          router.push(`/rooms/${room.id}`);
+          router.push(`/@${room.username}/${room.slug}`);
         } else {
           const data = await response.json();
           toast.error(data.message || "Failed to create room");

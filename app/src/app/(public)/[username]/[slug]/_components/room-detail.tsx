@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ItemCard } from "@/app/(app)/dashboard/item-card";
 import { RoomFilterEditor } from "@/components/rooms/room-filter-editor";
 import {
   AlertDialog,
@@ -24,7 +25,6 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { Filter } from "@/lib/search/types";
 import type { Item } from "@/lib/types/item";
-import { ItemCard } from "../../../dashboard/item-card";
 
 type RoomItem = Item & {
   roomItemId: string;
@@ -47,6 +47,8 @@ type RoomDetailProps = {
   initialItems: RoomItem[];
   initialCursor: string | null;
   initialHasMore: boolean;
+  /** Whether the current user owns this room. Defaults to true for backwards compatibility. */
+  isOwner?: boolean;
 };
 
 function formatBytes(bytes?: number | null) {
@@ -67,6 +69,7 @@ export function RoomDetail({
   initialItems,
   initialCursor,
   initialHasMore,
+  isOwner = true,
 }: RoomDetailProps) {
   const router = useRouter();
   const [roomName, setRoomName] = useState(room.name);
@@ -146,21 +149,27 @@ export function RoomDetail({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="space-y-2 flex-1">
-          <Link
-            href="/rooms"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Back to rooms
-          </Link>
+        <div className="flex-1 space-y-2">
+          {isOwner && (
+            <Link
+              href="/rooms"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" />
+              Back to rooms
+            </Link>
+          )}
           <div className="flex items-center gap-3">
-            <EditableTitle
-              value={roomName}
-              onSubmit={handleNameSubmit}
-              size="xl"
-              isSaving={isSavingName}
-            />
+            {isOwner ? (
+              <EditableTitle
+                value={roomName}
+                onSubmit={handleNameSubmit}
+                size="xl"
+                isSaving={isSavingName}
+              />
+            ) : (
+              <h1 className="font-serif text-3xl font-semibold">{roomName}</h1>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>
@@ -183,18 +192,20 @@ export function RoomDetail({
           </div>
         </div>
 
-        <Button
-          variant="destructive-outline"
-          size="sm"
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 className="size-4" />
-          Delete room
-        </Button>
+        {isOwner && (
+          <Button
+            variant="destructive-outline"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="size-4" />
+            Delete room
+          </Button>
+        )}
       </div>
 
-      {/* Filter editor for smart rooms */}
-      {room.type === "smart" && roomFilters && (
+      {/* Filter editor for smart rooms - only for owners */}
+      {isOwner && room.type === "smart" && roomFilters && (
         <RoomFilterEditor
           filters={roomFilters}
           onSave={async (newFilters) => {
@@ -238,7 +249,7 @@ export function RoomDetail({
           <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
             <SearchX className="size-14 text-muted-foreground" />
             <div className="space-y-2">
-              <h2 className="text-3xl font-serif font-semibold">
+              <h2 className="font-serif text-3xl font-semibold">
                 No items yet
               </h2>
               <p className="text-base text-muted-foreground">

@@ -124,6 +124,7 @@ function createTestRoom(
     id: "test-room-id",
     userId: "test-user-id",
     name: "Test Room",
+    slug: "test-room",
     type: "smart",
     filters,
     visibility: "private",
