@@ -1,8 +1,8 @@
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
-import { DashboardHeader } from "../_components/dashboard-header";
 import { RoomsList } from "./_components/rooms-list";
 
 export default async function RoomsPage() {

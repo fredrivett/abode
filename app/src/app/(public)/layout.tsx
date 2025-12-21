@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { AbodeLogo } from "@/components/abode-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Suspense } from "react";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 
 export default function PublicLayout({
   children,
@@ -9,16 +8,9 @@ export default function PublicLayout({
 }) {
   return (
     <>
-      <header className="flex w-full items-center justify-between p-4">
-        <Link
-          href="/"
-          className="opacity-50 transition-opacity hover:opacity-100"
-        >
-          <span className="sr-only">abode</span>
-          <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
-        </Link>
-        <ThemeToggle />
-      </header>
+      <Suspense fallback={<div className="h-16" />}>
+        <DashboardHeader />
+      </Suspense>
       {children}
     </>
   );

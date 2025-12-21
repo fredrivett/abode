@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
-import { DashboardHeader } from "../_components/dashboard-header";
 import { AvatarSettings } from "./_components/avatar-settings";
 import { UsernameSettings } from "./_components/username-settings";
 

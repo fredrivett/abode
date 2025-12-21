@@ -1,4 +1,4 @@
-import { DashboardHeader } from "../../_components/dashboard-header";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { NewRoomForm } from "./_components/new-room-form";
 
 export default async function NewRoomPage() {
