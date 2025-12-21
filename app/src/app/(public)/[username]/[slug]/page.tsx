@@ -1,6 +1,7 @@
 import type { RoomType, RoomVisibility } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
@@ -208,14 +209,19 @@ export default async function RoomPage({ params }: Props) {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      <RoomDetail
-        room={roomForClient}
-        initialItems={itemsForClient}
-        initialCursor={nextCursor}
-        initialHasMore={hasMore}
-        isOwner={isOwner}
-      />
-    </div>
+    <>
+      <Suspense fallback={<div className="h-16" />}>
+        <DashboardHeader showHomeLink />
+      </Suspense>
+      <div className="mx-auto w-full max-w-5xl px-4 py-8">
+        <RoomDetail
+          room={roomForClient}
+          initialItems={itemsForClient}
+          initialCursor={nextCursor}
+          initialHasMore={hasMore}
+          isOwner={isOwner}
+        />
+      </div>
+    </>
   );
 }
