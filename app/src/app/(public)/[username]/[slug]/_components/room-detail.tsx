@@ -2,12 +2,22 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { RoomType, RoomVisibility } from "@prisma/client";
-import { ArrowLeft, Loader2, SearchX, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Globe,
+  Loader2,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  SearchX,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { FilterBadges } from "@/components/rooms/filter-badges";
 import { RoomFilterEditor } from "@/components/rooms/room-filter-editor";
 import {
   AlertDialog,
@@ -21,7 +31,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EditableTitle } from "@/components/ui/editable-title";
+import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { Filter } from "@/lib/search/types";
 import type { Item } from "@/lib/types/item";
@@ -73,6 +99,7 @@ export function RoomDetail({
 }: RoomDetailProps) {
   const router = useRouter();
   const [roomName, setRoomName] = useState(room.name);
+  const [roomVisibility, setRoomVisibility] = useState(room.visibility);
   const [items, setItems] = useState(initialItems);
   const [roomFilters, setRoomFilters] = useState(room.filters);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
@@ -80,7 +107,13 @@ export function RoomDetail({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Edit dialog state
+  const [editName, setEditName] = useState(room.name);
+  const [editVisibility, setEditVisibility] = useState(room.visibility);
 
   const loadMoreItems = async () => {
     if (!hasMore || isLoadingMore || !cursor) return;
@@ -145,6 +178,50 @@ export function RoomDetail({
     }
   };
 
+  const handleOpenEditDialog = () => {
+    setEditName(roomName);
+    setEditVisibility(roomVisibility);
+    setShowEditDialog(true);
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const updates: { name?: string; visibility?: RoomVisibility } = {};
+
+      if (editName.trim() !== roomName) {
+        updates.name = editName.trim();
+      }
+      if (editVisibility !== roomVisibility) {
+        updates.visibility = editVisibility;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        setShowEditDialog(false);
+        return;
+      }
+
+      const response = await fetch(`/api/v1/rooms/${room.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        if (updates.name) setRoomName(updates.name);
+        if (updates.visibility) setRoomVisibility(updates.visibility);
+        toast.success("Room settings updated");
+        setShowEditDialog(false);
+      } else {
+        toast.error("Failed to update room settings");
+      }
+    } catch {
+      toast.error("Failed to update room settings");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -181,7 +258,7 @@ export function RoomDetail({
                 <span>Auto-updating</span>
               </>
             )}
-            {room.visibility === "public" && (
+            {roomVisibility === "public" && (
               <>
                 <span>·</span>
                 <Badge variant="secondary" className="text-xs">
@@ -193,14 +270,28 @@ export function RoomDetail({
         </div>
 
         {isOwner && (
-          <Button
-            variant="destructive-outline"
-            size="sm"
-            onClick={() => setShowDeleteDialog(true)}
-          >
-            <Trash2 className="size-4" />
-            Delete room
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreHorizontal className="size-4" />
+                <span className="sr-only">Room options</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleOpenEditDialog}>
+                <Pencil className="size-4" />
+                Edit room
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="size-4" />
+                Delete room
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -241,6 +332,13 @@ export function RoomDetail({
             }
           }}
         />
+      )}
+
+      {/* Show filters for visitors on smart rooms */}
+      {!isOwner && room.type === "smart" && roomFilters && (
+        <div className="flex flex-wrap gap-1.5">
+          <FilterBadges filters={roomFilters} />
+        </div>
       )}
 
       {/* Items grid */}
@@ -319,6 +417,89 @@ export function RoomDetail({
           )}
         </>
       )}
+
+      {/* Edit room dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit room</DialogTitle>
+            <DialogDescription>
+              Update your room's name and visibility settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="editRoomName" className="text-sm font-medium">
+                Room name
+              </label>
+              <Input
+                id="editRoomName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="My Collection"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Visibility</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditVisibility("private")}
+                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
+                    editVisibility === "private"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <Lock
+                    className={`size-4 ${editVisibility === "private" ? "text-primary" : "text-muted-foreground"}`}
+                  />
+                  <div>
+                    <div className="font-medium">Private</div>
+                    <div className="text-xs text-muted-foreground">
+                      Only you can view
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditVisibility("public")}
+                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
+                    editVisibility === "public"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <Globe
+                    className={`size-4 ${editVisibility === "public" ? "text-primary" : "text-muted-foreground"}`}
+                  />
+                  <div>
+                    <div className="font-medium">Public</div>
+                    <div className="text-xs text-muted-foreground">
+                      Anyone with link
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={isSavingSettings}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSettings} disabled={isSavingSettings}>
+              {isSavingSettings ? <IsLoading label="Saving" /> : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
