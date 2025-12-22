@@ -3,6 +3,8 @@
 import type { ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
+  Check,
+  Copy,
   ExternalLink,
   FileText,
   Loader2,
@@ -462,6 +464,7 @@ function ItemDetailDialog({
   const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
     null,
   );
+  const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
@@ -722,21 +725,36 @@ function ItemDetailDialog({
                         )}
                       </div>
                       {item.sourceUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          asChild
-                        >
-                          <a
-                            href={item.sourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <div className="mt-2 flex items-center gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <a
+                              href={item.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              View original article
+                            </a>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => {
+                              if (item.sourceUrl) {
+                                navigator.clipboard.writeText(item.sourceUrl);
+                                setHasCopiedUrl(true);
+                                setTimeout(() => setHasCopiedUrl(false), 2000);
+                              }
+                            }}
+                            aria-label="Copy URL"
                           >
-                            <ExternalLink className="size-3.5" />
-                            View original article
-                          </a>
-                        </Button>
+                            {hasCopiedUrl ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}
