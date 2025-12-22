@@ -3,7 +3,14 @@
 import type { ArticleHighlight } from "@prisma/client";
 import { Highlighter, Trash2 } from "lucide-react";
 import { useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   useDeleteHighlight,
   useItemHighlights,
@@ -25,52 +32,51 @@ export function HighlightsPanel({ itemId, onHighlightClick }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (isLoading) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        Loading highlights...
-      </div>
-    );
-  }
-
-  if (highlights.length === 0) {
-    return (
-      <div className="p-4 text-center">
-        <Highlighter className="size-8 mx-auto mb-2 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">No highlights yet</p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          Select text to create a highlight
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">
-          Highlights ({highlights.length})
-        </h3>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-2 space-y-2">
-          {highlights.map((highlight) => (
-            <HighlightCard
-              key={highlight.id}
-              highlight={highlight}
-              onClick={() => onHighlightClick?.(highlight)}
-              onDelete={() => {
-                setDeletingId(highlight.id);
-                deleteHighlight.mutate(highlight.id, {
-                  onSettled: () => setDeletingId(null),
-                });
-              }}
-              isDeleting={deletingId === highlight.id}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+    <Accordion type="single" collapsible>
+      <AccordionItem value="highlights" className="border-b-0">
+        <AccordionTrigger className="py-0 hover:no-underline cursor-pointer">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Highlights ({highlights.length})
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="pb-0">
+          {highlights.length === 0 ? (
+            <Card className="mt-2 py-4">
+              <CardContent className="text-center">
+                <Highlighter className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  No highlights yet
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  Select text to create a highlight
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2 pt-2">
+              {highlights.map((highlight) => (
+                <HighlightCard
+                  key={highlight.id}
+                  highlight={highlight}
+                  onClick={() => onHighlightClick?.(highlight)}
+                  onDelete={() => {
+                    setDeletingId(highlight.id);
+                    deleteHighlight.mutate(highlight.id, {
+                      onSettled: () => setDeletingId(null),
+                    });
+                  }}
+                  isDeleting={deletingId === highlight.id}
+                />
+              ))}
+            </div>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
 

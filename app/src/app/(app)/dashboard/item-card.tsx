@@ -557,11 +557,6 @@ function ItemDetailDialog({
                       />
                     </article>
                   </div>
-
-                  {/* Highlights panel - desktop only */}
-                  <div className="hidden lg:block w-64 border-l border-border overflow-y-auto">
-                    <HighlightsPanel itemId={item.id} />
-                  </div>
                 </motion.div>
               ) : previewUrl && !isArticle ? (
                 // Non-article image
@@ -959,6 +954,13 @@ function ItemDetailDialog({
                     </div>
                   )}
                 </div>
+
+                {/* Highlights - articles only */}
+                {isArticle && (
+                  <div className="pt-8 border-t border-gray-200 dark:border-gray-800">
+                    <HighlightsPanel itemId={item.id} />
+                  </div>
+                )}
 
                 {/* Privacy Setting */}
                 <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">

@@ -41,7 +41,7 @@ type SelectionState = {
 } | null;
 
 const HIGHLIGHT_CLASS =
-  "bg-yellow-200/50 dark:bg-yellow-500/30 rounded-sm cursor-pointer transition-colors data-[active]:bg-yellow-300/70 dark:data-[active]:bg-yellow-500/50";
+  "bg-yellow-200/50 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-300/70 dark:data-[active]:bg-yellow-500/50";
 
 /**
  * Article content with highlighting capabilities.
