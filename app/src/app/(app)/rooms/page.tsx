@@ -28,6 +28,7 @@ export default async function RoomsPage() {
         select: {
           id: true,
           name: true,
+          emoji: true,
           slug: true,
           type: true,
           filters: true,
@@ -59,6 +60,7 @@ export default async function RoomsPage() {
   const roomsForClient: RoomWithSlug[] = rooms.map((room) => ({
     id: room.id,
     name: room.name,
+    emoji: room.emoji,
     slug: room.slug as string, // We filtered for not null above
     type: room.type,
     filters: room.filters as Filter[] | null,

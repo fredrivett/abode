@@ -20,7 +20,10 @@ import type { Item } from "./item";
  * - Filters typed as Filter[] instead of Json
  * - itemCount added (computed from _count)
  */
-export type Room = Pick<PrismaRoom, "id" | "name" | "type" | "visibility"> & {
+export type Room = Pick<
+  PrismaRoom,
+  "id" | "name" | "emoji" | "type" | "visibility"
+> & {
   filters: Filter[] | null;
   createdAt: string;
   updatedAt: string;

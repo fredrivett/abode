@@ -189,7 +189,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers
     <div
-      className="relative"
+      className="flex-1 relative"
       onDragOver={(event) => {
         if (!hasFiles(event.dataTransfer)) return;
         event.preventDefault();

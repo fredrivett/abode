@@ -67,7 +67,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} antialiased min-h-screen flex flex-col`}
       >
         <QueryProvider>
-          <div className="flex-1">{children}</div>
+          <div className="flex flex-col flex-1">{children}</div>
           <Footer />
         </QueryProvider>
         <Toaster richColors />

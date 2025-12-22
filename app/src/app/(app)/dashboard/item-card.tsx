@@ -3,6 +3,8 @@
 import type { ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
+  Check,
+  Copy,
   ExternalLink,
   FileText,
   Loader2,
@@ -193,7 +195,7 @@ export function ItemCard({
 
   if (error) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-destructive">{error}</p>
       </div>
     );
@@ -205,7 +207,7 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
@@ -250,7 +252,7 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
@@ -290,7 +292,7 @@ export function ItemCard({
 
   if (!previewUrl) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Loading preview...
         </p>
@@ -300,7 +302,7 @@ export function ItemCard({
 
   if (!hasDisplayableImage) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <a
             href={previewUrl}
@@ -462,6 +464,7 @@ function ItemDetailDialog({
   const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
     null,
   );
+  const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
@@ -722,21 +725,36 @@ function ItemDetailDialog({
                         )}
                       </div>
                       {item.sourceUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          asChild
-                        >
-                          <a
-                            href={item.sourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <div className="mt-2 flex items-center gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <a
+                              href={item.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              View original article
+                            </a>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => {
+                              if (item.sourceUrl) {
+                                navigator.clipboard.writeText(item.sourceUrl);
+                                setHasCopiedUrl(true);
+                                setTimeout(() => setHasCopiedUrl(false), 2000);
+                              }
+                            }}
+                            aria-label="Copy URL"
                           >
-                            <ExternalLink className="size-3.5" />
-                            View original article
-                          </a>
-                        </Button>
+                            {hasCopiedUrl ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}

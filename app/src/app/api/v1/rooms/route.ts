@@ -34,6 +34,7 @@ export async function GET(_request: NextRequest) {
       select: {
         id: true,
         name: true,
+        emoji: true,
         type: true,
         filters: true,
         visibility: true,
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, type, filters, visibility } = body;
+    const { name, emoji, type, filters, visibility } = body;
 
     // Validate required fields
     if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         name: name.trim(),
+        emoji: emoji || null,
         slug,
         type,
         filters: type === "smart" ? filters : null,
@@ -148,6 +150,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        emoji: true,
         slug: true,
         type: true,
         filters: true,

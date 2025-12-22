@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import {
   AlertDialog,
@@ -78,6 +79,7 @@ export function RoomDetail({
   isOwner = true,
 }: RoomDetailProps) {
   const router = useRouter();
+  const [roomEmoji, setRoomEmoji] = useState(room.emoji);
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
   const [items, setItems] = useState(initialItems);
@@ -91,6 +93,7 @@ export function RoomDetail({
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Edit dialog state
+  const [editEmoji, setEditEmoji] = useState(room.emoji);
   const [editName, setEditName] = useState(room.name);
   const [editVisibility, setEditVisibility] = useState(room.visibility);
 
@@ -158,6 +161,7 @@ export function RoomDetail({
   };
 
   const handleOpenEditDialog = () => {
+    setEditEmoji(roomEmoji);
     setEditName(roomName);
     setEditVisibility(roomVisibility);
     setShowEditDialog(true);
@@ -166,8 +170,15 @@ export function RoomDetail({
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
-      const updates: { name?: string; visibility?: RoomVisibility } = {};
+      const updates: {
+        name?: string;
+        emoji?: string | null;
+        visibility?: RoomVisibility;
+      } = {};
 
+      if (editEmoji !== roomEmoji) {
+        updates.emoji = editEmoji;
+      }
       if (editName.trim() !== roomName) {
         updates.name = editName.trim();
       }
@@ -187,6 +198,7 @@ export function RoomDetail({
       });
 
       if (response.ok) {
+        if (updates.emoji !== undefined) setRoomEmoji(updates.emoji);
         if (updates.name) setRoomName(updates.name);
         if (updates.visibility) setRoomVisibility(updates.visibility);
         toast.success("Room settings updated");
@@ -216,6 +228,11 @@ export function RoomDetail({
             </Link>
           )}
           <div className="flex items-center gap-3">
+            {roomEmoji && (
+              <span className="text-3xl" aria-hidden>
+                {roomEmoji}
+              </span>
+            )}
             {isOwner ? (
               <EditableTitle
                 value={roomName}
@@ -367,12 +384,15 @@ export function RoomDetail({
               <label htmlFor="editRoomName" className="text-sm font-medium">
                 Room name
               </label>
-              <Input
-                id="editRoomName"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="My Collection"
-              />
+              <div className="flex items-center gap-2">
+                <EmojiPickerPopover value={editEmoji} onChange={setEditEmoji} />
+                <Input
+                  id="editRoomName"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="My Collection"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

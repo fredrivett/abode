@@ -40,6 +40,7 @@ const getRoom = cache(async (userId: string, slug: string) => {
     select: {
       id: true,
       name: true,
+      emoji: true,
       slug: true,
       type: true,
       filters: true,
@@ -178,6 +179,7 @@ export default async function RoomPage({ params }: Props) {
   const roomForClient = {
     id: room.id,
     name: room.name,
+    emoji: room.emoji,
     type: room.type as RoomType,
     filters: room.filters as Filter[] | null,
     visibility: room.visibility as RoomVisibility,

@@ -35,6 +35,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         name: true,
+        emoji: true,
         type: true,
         filters: true,
         visibility: true,
@@ -93,11 +94,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, filters, visibility } = body;
+    const { name, emoji, filters, visibility } = body;
 
     // Build update data
     const updateData: {
       name?: string;
+      emoji?: string | null;
       filters?: Filter[];
       visibility?: "private" | "public";
     } = {};
@@ -110,6 +112,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         );
       }
       updateData.name = name.trim();
+    }
+
+    if (emoji !== undefined) {
+      updateData.emoji = emoji || null;
     }
 
     if (visibility !== undefined) {
@@ -144,6 +150,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         name: true,
+        emoji: true,
         type: true,
         filters: true,
         visibility: true,
