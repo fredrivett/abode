@@ -3,7 +3,6 @@ import { Readability } from "@mozilla/readability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
-import { Defuddle } from "defuddle/node";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import db from "../src/lib/db";
@@ -147,87 +146,48 @@ export const classifyUrlTask = task({
       const html = await response.text();
       const metadata = extractArticleMetadata(html, url);
 
-      // Step 3.5: Extract article content
-      // Strategy: Try Defuddle first (produces markdown), fall back to Readability
-      // with hidden-div preprocessing if content is too short (< 500 chars).
-      // The hidden-div fix is needed for React streaming SSR sites but could
-      // expose intentionally hidden content on other sites, so we use it only as fallback.
+      // Step 3.5: Extract article content using Mozilla Readability
+      // Readability is battle-tested (powers Firefox Reader View) and produces
+      // clean article content without navigation, footers, or other page chrome.
       let articleContent: string | null = null;
       let readingTime: number | null = null;
 
-      // Minimum content length threshold - if extraction returns less than this,
-      // it likely failed to find the main content
-      const MIN_CONTENT_LENGTH = 500;
-
-      // First attempt: Defuddle on original HTML
       try {
-        const defuddled = await Defuddle(html, url, { markdown: true });
-        if (
-          defuddled?.content &&
-          defuddled.content.length >= MIN_CONTENT_LENGTH
-        ) {
-          articleContent = defuddled.content;
-          if (defuddled.wordCount > 0) {
-            readingTime = Math.ceil(defuddled.wordCount / 200);
+        // Pre-process HTML: Remove hidden attribute from divs
+        // Modern React/Next.js sites use streaming SSR which renders content into
+        // hidden divs that are revealed via JavaScript hydration. Readability
+        // ignores hidden elements, so we need to unhide them first.
+        const processedHtml = html.replace(
+          /<div([^>]*)\s+hidden([^>]*)>/gi,
+          "<div$1$2>",
+        );
+
+        const dom = new JSDOM(processedHtml, { url });
+        const reader = new Readability(dom.window.document);
+        const article = reader.parse();
+
+        if (article?.content) {
+          // Convert HTML to markdown for consistent storage and rendering
+          const turndown = new TurndownService({
+            headingStyle: "atx",
+            codeBlockStyle: "fenced",
+          });
+          articleContent = turndown.turndown(article.content);
+          const wordCount = articleContent.split(/\s+/).length;
+          if (wordCount > 0) {
+            readingTime = Math.ceil(wordCount / 200);
           }
-          logger.log("Content extracted with Defuddle", {
+          logger.log("Content extracted with Readability", {
             itemId,
             contentLength: articleContent.length,
+            wordCount,
           });
         }
-      } catch (defuddleError) {
-        logger.warn("Defuddle extraction failed", {
+      } catch (readabilityError) {
+        logger.warn("Failed to extract article content", {
           itemId,
-          error: defuddleError,
+          error: readabilityError,
         });
-      }
-
-      // Fallback: If content is too short, try with hidden-div preprocessing
-      // This handles React streaming SSR sites where content is in hidden divs
-      if (!articleContent || articleContent.length < MIN_CONTENT_LENGTH) {
-        logger.log("Defuddle returned insufficient content, trying fallback", {
-          itemId,
-          defuddleLength: articleContent?.length ?? 0,
-        });
-
-        try {
-          // Pre-process HTML: Remove hidden attribute from divs
-          // Modern React/Next.js sites use streaming SSR which renders content into
-          // hidden divs that are revealed via JavaScript hydration.
-          const processedHtml = html.replace(
-            /<div([^>]*)\s+hidden([^>]*)>/gi,
-            "<div$1$2>",
-          );
-
-          const dom = new JSDOM(processedHtml, { url });
-          const reader = new Readability(dom.window.document);
-          const article = reader.parse();
-
-          if (
-            article?.content &&
-            article.content.length >= MIN_CONTENT_LENGTH
-          ) {
-            // Convert HTML to markdown to match Defuddle's output format
-            const turndown = new TurndownService({
-              headingStyle: "atx",
-              codeBlockStyle: "fenced",
-            });
-            articleContent = turndown.turndown(article.content);
-            const wordCount = articleContent.split(/\s+/).length;
-            if (wordCount > 0) {
-              readingTime = Math.ceil(wordCount / 200);
-            }
-            logger.log("Content extracted with Readability fallback", {
-              itemId,
-              contentLength: articleContent.length,
-            });
-          }
-        } catch (readabilityError) {
-          logger.warn("Readability fallback failed", {
-            itemId,
-            error: readabilityError,
-          });
-        }
       }
 
       logger.log("Article content extraction result", {

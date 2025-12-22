@@ -21,7 +21,7 @@ export default defineConfig({
   },
   dirs: ["trigger"],
   build: {
-    external: ["@prisma/client", "defuddle"],
+    external: ["@prisma/client"],
     extensions: [
       prismaExtension({
         mode: "legacy",
