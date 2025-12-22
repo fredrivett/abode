@@ -2,7 +2,7 @@
 
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { DoorOpen, Filter, Home, Sparkles, Upload } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
-import { AvatarStep } from "./avatar-step";
+import { ProfileStep } from "./profile-step";
 
 type UserMetadata = {
   firstName?: string | null;
@@ -68,7 +68,8 @@ const ONBOARDING_STEPS = [
       <>
         Automatically group items into smart rooms for personal use or sharing.
         Create collections like{" "}
-        <Badge variant="secondary">Vancouver photos 2025</Badge> effortlessly.
+        <Badge variant="secondary">🇨🇦 Vancouver photos 2025</Badge> or{" "}
+        <Badge variant="secondary">📚 5 star reads</Badge> effortlessly.
       </>
     ),
   },
@@ -86,13 +87,22 @@ export function OnboardingDialog({
   userMetadata,
 }: OnboardingDialogProps) {
   const [isCompleting, setIsCompleting] = useState(false);
+  const firstNameRef = useRef(userMetadata?.firstName ?? "");
+  const lastNameRef = useRef(userMetadata?.lastName ?? "");
 
   const handleComplete = async () => {
     if (isCompleting) return;
     setIsCompleting(true);
 
     try {
-      await fetch("/api/v1/user/onboarding", { method: "PATCH" });
+      await fetch("/api/v1/user/onboarding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstNameRef.current,
+          lastName: lastNameRef.current,
+        }),
+      });
       onComplete();
     } catch {
       // Silently continue - onboarding should not block the user
@@ -117,15 +127,6 @@ export function OnboardingDialog({
           </DialogDescription>
         </VisuallyHidden.Root>
         <Stepper onComplete={handleComplete}>
-          <Step key="avatar">
-            <AvatarStep
-              firstName={userMetadata?.firstName}
-              lastName={userMetadata?.lastName}
-              username={userMetadata?.username}
-              email={userMetadata?.email}
-              initialAvatarUrl={userMetadata?.avatarUrl}
-            />
-          </Step>
           {ONBOARDING_STEPS.map((step) => (
             <Step key={step.title}>
               <StepContent
@@ -135,9 +136,24 @@ export function OnboardingDialog({
               />
             </Step>
           ))}
+          <Step key="profile">
+            <ProfileStep
+              firstName={userMetadata?.firstName}
+              lastName={userMetadata?.lastName}
+              username={userMetadata?.username}
+              email={userMetadata?.email}
+              initialAvatarUrl={userMetadata?.avatarUrl}
+              onFirstNameChange={(value) => {
+                firstNameRef.current = value;
+              }}
+              onLastNameChange={(value) => {
+                lastNameRef.current = value;
+              }}
+            />
+          </Step>
           <StepperNavigation
             nextLabel="Next"
-            completeLabel={isCompleting ? "Finishing..." : "Get started"}
+            completeLabel={isCompleting ? "Finishing..." : "That's me"}
             showKeyboardHints
           />
         </Stepper>
@@ -160,8 +176,12 @@ function StepContent({
       <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
         <Icon className="size-8 text-primary" />
       </div>
-      <h2 className="text-lg font-semibold leading-none">{title}</h2>
-      <p className="text-base text-muted-foreground">{description}</p>
+      <h2 className="text-pretty text-lg font-semibold leading-none">
+        {title}
+      </h2>
+      <p className="text-pretty text-base text-muted-foreground">
+        {description}
+      </p>
     </div>
   );
 }

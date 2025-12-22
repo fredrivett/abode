@@ -4,8 +4,8 @@ import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
-import { AvatarSettings } from "./_components/avatar-settings";
 import { DeleteAccountSettings } from "./_components/delete-account-settings";
+import { ProfileSettings } from "./_components/profile-settings";
 import { UsernameSettings } from "./_components/username-settings";
 
 export default async function SettingsPage() {
@@ -18,10 +18,19 @@ export default async function SettingsPage() {
 
   const dbUser = await db.user.findUnique({
     where: { id: user.id },
-    select: { username: true, previousUsernames: true, avatarUrl: true },
+    select: {
+      username: true,
+      previousUsernames: true,
+      avatarUrl: true,
+      firstName: true,
+      lastName: true,
+    },
   });
 
-  const { email, firstName, lastName } = metadata;
+  const { email } = metadata;
+  // Prefer DB values over OAuth metadata for firstName/lastName
+  const firstName = dbUser?.firstName ?? metadata.firstName;
+  const lastName = dbUser?.lastName ?? metadata.lastName;
 
   const previousUsernames =
     (dbUser?.previousUsernames as PreviousUsername[]) || [];
@@ -39,7 +48,7 @@ export default async function SettingsPage() {
         </header>
 
         <div className="mt-8 space-y-6">
-          <AvatarSettings
+          <ProfileSettings
             firstName={firstName}
             lastName={lastName}
             username={dbUser?.username}
