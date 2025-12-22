@@ -2,7 +2,7 @@
 
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { DoorOpen, Filter, Home, Sparkles, Upload } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -86,13 +86,22 @@ export function OnboardingDialog({
   userMetadata,
 }: OnboardingDialogProps) {
   const [isCompleting, setIsCompleting] = useState(false);
+  const firstNameRef = useRef(userMetadata?.firstName ?? "");
+  const lastNameRef = useRef(userMetadata?.lastName ?? "");
 
   const handleComplete = async () => {
     if (isCompleting) return;
     setIsCompleting(true);
 
     try {
-      await fetch("/api/v1/user/onboarding", { method: "PATCH" });
+      await fetch("/api/v1/user/onboarding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstNameRef.current,
+          lastName: lastNameRef.current,
+        }),
+      });
       onComplete();
     } catch {
       // Silently continue - onboarding should not block the user
@@ -124,6 +133,12 @@ export function OnboardingDialog({
               username={userMetadata?.username}
               email={userMetadata?.email}
               initialAvatarUrl={userMetadata?.avatarUrl}
+              onFirstNameChange={(value) => {
+                firstNameRef.current = value;
+              }}
+              onLastNameChange={(value) => {
+                lastNameRef.current = value;
+              }}
             />
           </Step>
           {ONBOARDING_STEPS.map((step) => (

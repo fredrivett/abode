@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
 
-export async function PATCH(_request: NextRequest) {
+const onboardingSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+});
+
+export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -17,10 +23,30 @@ export async function PATCH(_request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const parsed = onboardingSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const { firstName, lastName } = parsed.data;
+
     const updatedUser = await db.user.update({
       where: { id: user.id },
-      data: { onboardingCompletedAt: new Date() },
-      select: { onboardingCompletedAt: true },
+      data: {
+        onboardingCompletedAt: new Date(),
+        ...(firstName !== undefined && { firstName: firstName || null }),
+        ...(lastName !== undefined && { lastName: lastName || null }),
+      },
+      select: {
+        onboardingCompletedAt: true,
+        firstName: true,
+        lastName: true,
+      },
     });
 
     return NextResponse.json(updatedUser);
