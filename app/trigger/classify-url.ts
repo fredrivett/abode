@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { Readability } from "@mozilla/readability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
-import { Defuddle } from "defuddle/node";
+import { JSDOM } from "jsdom";
+import TurndownService from "turndown";
 import db from "../src/lib/db";
 import { extractArticleMetadata } from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
@@ -144,25 +146,47 @@ export const classifyUrlTask = task({
       const html = await response.text();
       const metadata = extractArticleMetadata(html, url);
 
-      // Step 3.5: Extract article content using Defuddle
-      // Note: Alternative library is @mozilla/readability which is more battle-tested
-      // but Defuddle provides better output for modern web pages
+      // Step 3.5: Extract article content using Mozilla Readability
+      // Readability is battle-tested (powers Firefox Reader View) and produces
+      // clean article content without navigation, footers, or other page chrome.
       let articleContent: string | null = null;
       let readingTime: number | null = null;
+
       try {
-        // Use markdown: true to get clean text output instead of HTML
-        const defuddled = await Defuddle(html, url, { markdown: true });
-        if (defuddled?.content) {
-          articleContent = defuddled.content;
-          // Calculate reading time (average 200 words per minute)
-          if (defuddled.wordCount > 0) {
-            readingTime = Math.ceil(defuddled.wordCount / 200);
+        // Pre-process HTML: Remove hidden attribute from divs
+        // Modern React/Next.js sites use streaming SSR which renders content into
+        // hidden divs that are revealed via JavaScript hydration. Readability
+        // ignores hidden elements, so we need to unhide them first.
+        const processedHtml = html.replace(
+          /<div([^>]*)\s+hidden([^>]*)>/gi,
+          "<div$1$2>",
+        );
+
+        const dom = new JSDOM(processedHtml, { url });
+        const reader = new Readability(dom.window.document);
+        const article = reader.parse();
+
+        if (article?.content) {
+          // Convert HTML to markdown for consistent storage and rendering
+          const turndown = new TurndownService({
+            headingStyle: "atx",
+            codeBlockStyle: "fenced",
+          });
+          articleContent = turndown.turndown(article.content);
+          const wordCount = articleContent.split(/\s+/).length;
+          if (wordCount > 0) {
+            readingTime = Math.ceil(wordCount / 200);
           }
+          logger.log("Content extracted with Readability", {
+            itemId,
+            contentLength: articleContent.length,
+            wordCount,
+          });
         }
-      } catch (defuddleError) {
-        logger.warn("Failed to extract article content with Defuddle", {
+      } catch (readabilityError) {
+        logger.warn("Failed to extract article content", {
           itemId,
-          error: defuddleError,
+          error: readabilityError,
         });
       }
 
