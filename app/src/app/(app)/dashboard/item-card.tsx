@@ -459,7 +459,19 @@ function ItemDetailDialog({
     item.excludeFromPublicRooms ?? false,
   );
   const [isSavingExclude, setIsSavingExclude] = useState(false);
+  const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
+    null,
+  );
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+
+  // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
+  useEffect(() => {
+    if (!scrollToHighlightId) return;
+    const timeout = setTimeout(() => {
+      setScrollToHighlightId(null);
+    }, 1600); // Slightly longer than animation duration (1500ms)
+    return () => clearTimeout(timeout);
+  }, [scrollToHighlightId]);
   const meta = item.meta || {};
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
@@ -554,6 +566,7 @@ function ItemDetailDialog({
                         itemId={item.id}
                         content={item.articleDetails.content}
                         className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none"
+                        scrollToHighlightId={scrollToHighlightId}
                       />
                     </article>
                   </div>
@@ -958,7 +971,12 @@ function ItemDetailDialog({
                 {/* Highlights - articles only */}
                 {isArticle && (
                   <div className="pt-8 border-t border-gray-200 dark:border-gray-800">
-                    <HighlightsPanel itemId={item.id} />
+                    <HighlightsPanel
+                      itemId={item.id}
+                      onHighlightClick={(highlight) =>
+                        setScrollToHighlightId(highlight.id)
+                      }
+                    />
                   </div>
                 )}
 

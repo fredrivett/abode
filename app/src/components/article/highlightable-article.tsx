@@ -32,6 +32,7 @@ type Props = {
   content: string;
   className?: string;
   onHighlightClick?: (highlight: HighlightData) => void;
+  scrollToHighlightId?: string | null;
 };
 
 type SelectionState = {
@@ -48,7 +49,7 @@ type ClickedHighlightState = {
 } | null;
 
 const HIGHLIGHT_CLASS =
-  "bg-yellow-200/50 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-300/70 dark:data-[active]:bg-yellow-500/50";
+  "bg-yellow-400/25 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-400/40 dark:data-[active]:bg-yellow-500/50 data-[flash]:animate-highlight-flash";
 
 /**
  * Article content with highlighting capabilities.
@@ -59,6 +60,7 @@ export function HighlightableArticle({
   content,
   className,
   onHighlightClick,
+  scrollToHighlightId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -106,6 +108,40 @@ export function HighlightableArticle({
       }
     }
   }, [highlights]);
+
+  // Scroll to highlight and flash it when scrollToHighlightId changes
+  useEffect(() => {
+    if (!scrollToHighlightId) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const marks = container.querySelectorAll(
+      `mark[data-highlight-id="${scrollToHighlightId}"]`,
+    );
+    if (marks.length === 0) return;
+
+    // Get the first mark element for scrolling
+    const firstMark = marks[0] as HTMLElement;
+
+    // Scroll into view
+    firstMark.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // Flash all marks with this highlight id
+    for (const mark of marks) {
+      const el = mark as HTMLElement;
+      el.dataset.flash = "";
+    }
+
+    // Remove flash after animation
+    const timeout = setTimeout(() => {
+      for (const mark of marks) {
+        const el = mark as HTMLElement;
+        delete el.dataset.flash;
+      }
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [scrollToHighlightId]);
 
   // Handle hover state for highlights
   useEffect(() => {
