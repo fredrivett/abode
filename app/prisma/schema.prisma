@@ -24,6 +24,7 @@ model User {
   lastName              String?   @map("last_name")
   avatarUrl             String?   @map("avatar_url")
   avatarSource          AvatarSource? @map("avatar_source")
+  memberNumber          Int?      @unique @map("member_number") // Sequential member number based on signup order
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")

@@ -23,6 +23,7 @@ const getUser = cache(async (username: string) => {
       lastName: true,
       avatarUrl: true,
       createdAt: true,
+      memberNumber: true,
     },
   });
 });
@@ -81,7 +82,8 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <p className="mt-4 text-sm text-muted-foreground">
-            Member since{" "}
+            {user.memberNumber && `Member #${user.memberNumber}, since `}
+            {!user.memberNumber && "Member since "}
             {new Intl.DateTimeFormat("en-US", {
               month: "long",
               year: "numeric",
