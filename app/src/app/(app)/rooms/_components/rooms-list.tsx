@@ -1,6 +1,5 @@
 "use client";
 
-import type { RoomType, RoomVisibility } from "@prisma/client";
 import { Blocks, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,24 +16,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Filter } from "@/lib/search/types";
-
-export type RoomForList = {
-  id: string;
-  name: string;
-  type: RoomType;
-  filters: Filter[] | null;
-  visibility: RoomVisibility;
-  createdAt: string;
-  updatedAt: string;
-  itemCount: number;
-};
+import type { RoomWithSlug } from "@/lib/types/room";
 
 type RoomsListProps = {
-  initialRooms: RoomForList[];
+  initialRooms: RoomWithSlug[];
+  username: string;
 };
 
-export function RoomsList({ initialRooms }: RoomsListProps) {
+export function RoomsList({ initialRooms, username }: RoomsListProps) {
   const [rooms, setRooms] = useState(initialRooms);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -100,7 +89,7 @@ export function RoomsList({ initialRooms }: RoomsListProps) {
           {rooms.map((room) => (
             <Link
               key={room.id}
-              href={`/rooms/${room.id}`}
+              href={`/@${username}/${room.slug}`}
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">

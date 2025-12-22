@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { OnboardingWrapper } from "@/components/onboarding";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
-import { DashboardHeader } from "../_components/dashboard-header";
 
 export default async function DashboardLayout({
   children,

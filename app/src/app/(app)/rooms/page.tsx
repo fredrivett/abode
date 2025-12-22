@@ -1,21 +1,34 @@
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
-import { DashboardHeader } from "../_components/dashboard-header";
+import type { RoomWithSlug } from "@/lib/types/room";
 import { RoomsList } from "./_components/rooms-list";
 
 export default async function RoomsPage() {
   const supabase = await createClient();
   const { user } = await getUserWithMetadata(supabase);
 
-  // Fetch rooms for the user
+  // Get the user's username
+  const dbUser = user
+    ? await db.user.findUnique({
+        where: { id: user.id },
+        select: { username: true },
+      })
+    : null;
+
+  // Fetch rooms for the user (only those with slugs)
   const rooms = user
     ? await db.room.findMany({
-        where: { userId: user.id },
+        where: {
+          userId: user.id,
+          slug: { not: null },
+        },
         select: {
           id: true,
           name: true,
+          slug: true,
           type: true,
           filters: true,
           visibility: true,
@@ -29,9 +42,24 @@ export default async function RoomsPage() {
       })
     : [];
 
-  const roomsForClient = rooms.map((room) => ({
+  const username = dbUser?.username;
+
+  // If no username, we can't show rooms with the new URL format
+  if (!username) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col bg-background">
+        <DashboardHeader />
+        <div className="mx-auto w-full max-w-5xl px-4 py-8">
+          <RoomsList initialRooms={[]} username="" />
+        </div>
+      </div>
+    );
+  }
+
+  const roomsForClient: RoomWithSlug[] = rooms.map((room) => ({
     id: room.id,
     name: room.name,
+    slug: room.slug as string, // We filtered for not null above
     type: room.type,
     filters: room.filters as Filter[] | null,
     visibility: room.visibility,
@@ -45,7 +73,7 @@ export default async function RoomsPage() {
       <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <RoomsList initialRooms={roomsForClient} />
+        <RoomsList initialRooms={roomsForClient} username={username} />
       </div>
     </div>
   );

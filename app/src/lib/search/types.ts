@@ -301,3 +301,32 @@ export function serializeSearchParams(state: SearchState): URLSearchParams {
 
   return params;
 }
+
+/**
+ * Check if two filter arrays are equivalent (ignoring IDs and order).
+ *
+ * Compares filters by their semantic content (type, value, negated, date fields)
+ * rather than by reference or ID. Useful for detecting unsaved changes.
+ */
+export function filtersEqual(a: Filter[], b: Filter[]): boolean {
+  if (a.length !== b.length) return false;
+
+  const normalize = (filters: Filter[]) =>
+    filters
+      .map((f) => ({
+        type: f.type,
+        value: f.value,
+        negated: f.negated,
+        dateOperator: f.dateOperator,
+        endDate: f.endDate,
+      }))
+      .sort((x, y) => {
+        if (x.type !== y.type) return x.type.localeCompare(y.type);
+        return x.value.localeCompare(y.value);
+      });
+
+  const normA = normalize(a);
+  const normB = normalize(b);
+
+  return JSON.stringify(normA) === JSON.stringify(normB);
+}

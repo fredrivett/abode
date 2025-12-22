@@ -49,6 +49,11 @@ type ItemCardProps = {
   name: string;
   size: string;
   mimeType?: string;
+  /**
+   * Use proxy URL instead of Supabase download.
+   * Required for public room pages where users may not be authenticated.
+   */
+  useProxyUrl?: boolean;
 };
 
 function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
@@ -90,7 +95,13 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
   );
 }
 
-export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
+export function ItemCard({
+  item,
+  name,
+  size,
+  mimeType,
+  useProxyUrl = false,
+}: ItemCardProps) {
   const supabase = createClient();
   const router = useRouter();
   const [itemName, setItemName] = useState(name);
@@ -125,18 +136,25 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
     const load = async () => {
       setError(null);
       try {
-        const { data, error: downloadError } = await supabase.storage
-          .from("items")
-          .download(imageFileKey);
+        if (useProxyUrl) {
+          // Use proxy URL for public rooms (no blob URL needed)
+          const proxyUrl = `/api/v1/images/${encodeURIComponent(imageFileKey)}`;
+          setPreviewUrl(proxyUrl);
+        } else {
+          // Download from Supabase and create blob URL
+          const { data, error: downloadError } = await supabase.storage
+            .from("items")
+            .download(imageFileKey);
 
-        if (downloadError || !data) {
-          setError(downloadError?.message || "Unable to load preview");
-          return;
+          if (downloadError || !data) {
+            setError(downloadError?.message || "Unable to load preview");
+            return;
+          }
+
+          const objectUrl = URL.createObjectURL(data);
+          revokedUrl = objectUrl;
+          setPreviewUrl(objectUrl);
         }
-
-        const objectUrl = URL.createObjectURL(data);
-        revokedUrl = objectUrl;
-        setPreviewUrl(objectUrl);
       } catch (err) {
         log.error({ error: err }, "Preview load error");
         setError("Unable to load preview");
@@ -150,7 +168,7 @@ export function ItemCard({ item, name, size, mimeType }: ItemCardProps) {
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [imageFileKey, isArticle, isProcessingUrl, supabase]);
+  }, [imageFileKey, isArticle, isProcessingUrl, supabase, useProxyUrl]);
 
   useEffect(() => {
     setItemName(name);

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { DashboardHeader } from "../_components/dashboard-header";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { HelpNav } from "./_components/help-nav";
 
 export default async function HelpLayout({

@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { UserAvatar } from "@/components/avatar/user-avatar";
+import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import { getDisplayName } from "@/lib/get-display-name";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
-import { DashboardHeader } from "../_components/dashboard-header";
 
 export default async function AccountPage() {
   const supabase = await createClient();

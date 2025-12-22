@@ -12,17 +12,18 @@ import {
 
 import { cn } from "@/lib/utils";
 
-const SIZE_STYLES: Record<"sm" | "md" | "lg" | "xl", string> = {
+const SIZE_STYLES: Record<"sm" | "md" | "lg" | "xl" | "2xl", string> = {
   sm: "text-base",
   md: "text-lg",
   lg: "text-xl",
   xl: "text-2xl",
+  "2xl": "text-3xl",
 };
 
 export interface EditableTitleProps {
   value: string;
   onSubmit?: (value: string) => void | Promise<void>;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
   disabled?: boolean;
   isSaving?: boolean;

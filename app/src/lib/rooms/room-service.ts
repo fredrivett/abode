@@ -4,11 +4,87 @@
 
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
+import { nameToSlug } from "@/lib/slug";
 import { itemMatchesRoom } from "./room-matcher";
 import type { ItemWithDetails, RoomWithFilters } from "./types";
 
 /** Maximum number of smart rooms per user */
 export const MAX_SMART_ROOMS_PER_USER = 5;
+
+/**
+ * Escape special regex characters in a string for safe use in RegExp constructor.
+ */
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Find the next available number suffix for a slug given existing similar slugs.
+ * Returns 2 if no numbered slugs exist, otherwise returns max + 1.
+ */
+export function findNextSlugNumber(
+  baseSlug: string,
+  existingSlugs: (string | null)[],
+): number {
+  const escapedSlug = escapeRegex(baseSlug);
+  const pattern = new RegExp(`^${escapedSlug}-(\\d+)$`, "i");
+
+  const numbers = existingSlugs
+    .map((slug) => {
+      const match = slug?.match(pattern);
+      return match ? Number.parseInt(match[1], 10) : 0;
+    })
+    .filter((n) => n > 0);
+
+  return numbers.length > 0 ? Math.max(...numbers) + 1 : 2;
+}
+
+/**
+ * Generate a unique slug from a room name for a given user.
+ * Uses nameToSlug for conversion, then ensures uniqueness by appending a number if needed.
+ */
+export async function generateRoomSlug(
+  name: string,
+  userId: string,
+): Promise<string> {
+  const slug = nameToSlug(name);
+
+  // Check if this slug already exists for this user
+  const existing = await db.room.findFirst({
+    where: {
+      userId,
+      slug: {
+        equals: slug,
+        mode: "insensitive",
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return slug;
+  }
+
+  // Find all slugs that start with this base slug for this user
+  const similarSlugs = await db.room.findMany({
+    where: {
+      userId,
+      slug: {
+        startsWith: slug,
+        mode: "insensitive",
+      },
+    },
+    select: { slug: true },
+  });
+
+  // Find next available number using the extracted helper
+  const nextNumber = findNextSlugNumber(
+    slug,
+    similarSlugs.map((r) => r.slug),
+  );
+
+  return `${slug}-${nextNumber}`;
+}
 
 /**
  * Get all smart rooms for a user.

@@ -81,6 +81,24 @@ Never use `npm` or `yarn`. Always install from the app directory.
 
 <!-- DEPENDENCIES END -->
 
+<!-- DATABASE START -->
+
+# Database Migrations
+
+**After making changes to `prisma/schema.prisma`, run migrations from the `./app` directory:**
+
+```bash
+cd ./app
+bun run prisma:migrate --name your_migration_name
+```
+
+**Important:**
+- Never use `prisma migrate reset` - this destroys all data
+- Never use `prisma db push` - this bypasses migration history
+- Always create proper migrations with `prisma:migrate`
+
+<!-- DATABASE END -->
+
 <!-- TRIGGER.DEV basic START -->
 
 # Trigger.dev Basic Tasks (v4)

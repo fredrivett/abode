@@ -222,6 +222,7 @@ model Room {
   id         String         @id @default(uuid()) @db.Uuid
   userId     String         @map("user_id") @db.Uuid
   name       String
+  slug       String?
   type       RoomType
   filters    Json?          // JSONB for smart room filters
   visibility RoomVisibility @default(private)
@@ -231,6 +232,7 @@ model Room {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   roomItems RoomItem[]
 
+  @@unique([userId, slug])
   @@index([userId])
   @@map("rooms")
 }

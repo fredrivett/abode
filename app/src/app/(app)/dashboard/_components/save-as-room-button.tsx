@@ -1,9 +1,12 @@
 "use client";
 
+import type { RoomVisibility } from "@prisma/client";
 import { Blocks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FilterBadges } from "@/components/rooms/filter-badges";
+import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +28,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [roomName, setRoomName] = useState("");
+  const [visibility, setVisibility] = useState<RoomVisibility>("private");
   const [isCreating, setIsCreating] = useState(false);
 
   // Only show if there are filters (not just a text query)
@@ -47,7 +51,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
           name: roomName.trim(),
           type: "smart",
           filters: searchState.filters,
-          visibility: "private",
+          visibility,
         }),
       });
 
@@ -55,7 +59,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         const room = await response.json();
         toast.success("Smart room created");
         setIsOpen(false);
-        router.push(`/rooms/${room.id}`);
+        router.push(`/@${room.username}/${room.slug}`);
       } else {
         const data = await response.json();
         toast.error(data.message || "Failed to create room");
@@ -109,18 +113,14 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
             </div>
 
             <div className="space-y-2">
+              <span className="text-sm font-medium">Visibility</span>
+              <VisibilityToggle value={visibility} onChange={setVisibility} />
+            </div>
+
+            <div className="space-y-2">
               <span className="text-sm font-medium">Filters</span>
-              <div className="flex flex-wrap gap-1.5 p-3 rounded-md bg-muted/50">
-                {searchState.filters.map((filter) => (
-                  <span
-                    key={filter.id}
-                    className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                  >
-                    {filter.negated && "!"}
-                    {filter.type}:{filter.value}
-                    {filter.endDate && `..${filter.endDate}`}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-1.5 rounded-md bg-muted/50 p-3">
+                <FilterBadges filters={searchState.filters} />
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import {
   canCreateSmartRoom,
+  generateRoomSlug,
   hasValidFilters,
   MAX_SMART_ROOMS_PER_USER,
 } from "@/lib/rooms";
@@ -125,11 +126,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate slug from room name
+    const slug = await generateRoomSlug(name.trim(), user.id);
+
+    // Get username for URL construction
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { username: true },
+    });
+
     // Create the room
     const room = await db.room.create({
       data: {
         userId: user.id,
         name: name.trim(),
+        slug,
         type,
         filters: type === "smart" ? filters : null,
         visibility: visibility || "private",
@@ -137,6 +148,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        slug: true,
         type: true,
         filters: true,
         visibility: true,
@@ -153,7 +165,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ...room, itemCount: 0 }, { status: 201 });
+    return NextResponse.json(
+      { ...room, itemCount: 0, username: dbUser?.username ?? null },
+      { status: 201 },
+    );
   } catch (error) {
     log.error({ error }, "Room creation error");
     return NextResponse.json(
