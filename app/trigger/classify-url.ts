@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { Readability } from "@mozilla/readability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { Defuddle } from "defuddle/node";
+import { JSDOM } from "jsdom";
+import TurndownService from "turndown";
 import db from "../src/lib/db";
 import { extractArticleMetadata } from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
@@ -144,26 +147,87 @@ export const classifyUrlTask = task({
       const html = await response.text();
       const metadata = extractArticleMetadata(html, url);
 
-      // Step 3.5: Extract article content using Defuddle
-      // Note: Alternative library is @mozilla/readability which is more battle-tested
-      // but Defuddle provides better output for modern web pages
+      // Step 3.5: Extract article content
+      // Strategy: Try Defuddle first (produces markdown), fall back to Readability
+      // with hidden-div preprocessing if content is too short (< 500 chars).
+      // The hidden-div fix is needed for React streaming SSR sites but could
+      // expose intentionally hidden content on other sites, so we use it only as fallback.
       let articleContent: string | null = null;
       let readingTime: number | null = null;
+
+      // Minimum content length threshold - if extraction returns less than this,
+      // it likely failed to find the main content
+      const MIN_CONTENT_LENGTH = 500;
+
+      // First attempt: Defuddle on original HTML
       try {
-        // Use markdown: true to get clean text output instead of HTML
         const defuddled = await Defuddle(html, url, { markdown: true });
-        if (defuddled?.content) {
+        if (
+          defuddled?.content &&
+          defuddled.content.length >= MIN_CONTENT_LENGTH
+        ) {
           articleContent = defuddled.content;
-          // Calculate reading time (average 200 words per minute)
           if (defuddled.wordCount > 0) {
             readingTime = Math.ceil(defuddled.wordCount / 200);
           }
+          logger.log("Content extracted with Defuddle", {
+            itemId,
+            contentLength: articleContent.length,
+          });
         }
       } catch (defuddleError) {
-        logger.warn("Failed to extract article content with Defuddle", {
+        logger.warn("Defuddle extraction failed", {
           itemId,
           error: defuddleError,
         });
+      }
+
+      // Fallback: If content is too short, try with hidden-div preprocessing
+      // This handles React streaming SSR sites where content is in hidden divs
+      if (!articleContent || articleContent.length < MIN_CONTENT_LENGTH) {
+        logger.log("Defuddle returned insufficient content, trying fallback", {
+          itemId,
+          defuddleLength: articleContent?.length ?? 0,
+        });
+
+        try {
+          // Pre-process HTML: Remove hidden attribute from divs
+          // Modern React/Next.js sites use streaming SSR which renders content into
+          // hidden divs that are revealed via JavaScript hydration.
+          const processedHtml = html.replace(
+            /<div([^>]*)\s+hidden([^>]*)>/gi,
+            "<div$1$2>",
+          );
+
+          const dom = new JSDOM(processedHtml, { url });
+          const reader = new Readability(dom.window.document);
+          const article = reader.parse();
+
+          if (
+            article?.content &&
+            article.content.length >= MIN_CONTENT_LENGTH
+          ) {
+            // Convert HTML to markdown to match Defuddle's output format
+            const turndown = new TurndownService({
+              headingStyle: "atx",
+              codeBlockStyle: "fenced",
+            });
+            articleContent = turndown.turndown(article.content);
+            const wordCount = articleContent.split(/\s+/).length;
+            if (wordCount > 0) {
+              readingTime = Math.ceil(wordCount / 200);
+            }
+            logger.log("Content extracted with Readability fallback", {
+              itemId,
+              contentLength: articleContent.length,
+            });
+          }
+        } catch (readabilityError) {
+          logger.warn("Readability fallback failed", {
+            itemId,
+            error: readabilityError,
+          });
+        }
       }
 
       logger.log("Article content extraction result", {

@@ -35,6 +35,7 @@
   "dependencies": {
     "@google-cloud/vision": "^5.3.4",
     "@masonry-grid/react": "^1.1.1",
+    "@mozilla/readability": "^0.6.0",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -50,6 +51,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.11",
     "@trigger.dev/sdk": "4.3.0",
+    "@types/turndown": "^5.0.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -75,6 +77,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "turndown": "^7.2.2",
     "tw-animate-css": "^1.4.0",
     "zustand": "^5.0.9"
   },
@@ -92,6 +95,7 @@
     "@storybook/nextjs-vite": "^9.1.10",
     "@testcontainers/postgresql": "^11.10.0",
     "@trigger.dev/build": "4.3.0",
+    "@types/jsdom": "21",
     "@types/node": "^24.10.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
