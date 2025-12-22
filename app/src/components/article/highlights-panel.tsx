@@ -91,17 +91,30 @@ function HighlightCard({
   onDelete: () => void;
   isDeleting: boolean;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   // Truncate text for display
   const displayText =
     highlight.text.length > 100
       ? `${highlight.text.slice(0, 100)}...`
       : highlight.text;
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmDelete) {
+      onDelete();
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
   return (
     <button
       type="button"
       className="group w-full text-left p-3 rounded-md border border-border hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10 transition-colors cursor-pointer"
       onClick={onClick}
+      onMouseLeave={() => setConfirmDelete(false)}
     >
       <div className="flex items-start justify-between gap-2">
         <blockquote className="text-sm border-l-2 border-yellow-400 pl-2 italic text-foreground/80 flex-1">
@@ -110,15 +123,17 @@ function HighlightCard({
 
         <Button
           variant="ghost"
-          size="icon"
-          className="size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
+          size={confirmDelete ? "sm" : "icon"}
+          className={
+            confirmDelete
+              ? "gap-1 text-destructive hover:text-destructive shrink-0"
+              : "size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          }
+          onClick={handleDeleteClick}
           disabled={isDeleting}
         >
-          <Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" />
+          <Trash2 className="size-3.5" />
+          {confirmDelete && "Confirm?"}
         </Button>
       </div>
 

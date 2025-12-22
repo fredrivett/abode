@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArticleHighlight } from "@prisma/client";
-import { Highlighter } from "lucide-react";
+import { Highlighter, Trash2 } from "lucide-react";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
 } from "@/lib/highlights/dom-anchoring";
 import {
   useCreateHighlight,
+  useDeleteHighlight,
   useItemHighlights,
 } from "@/lib/highlights/use-highlights";
 
@@ -40,6 +41,12 @@ type SelectionState = {
   anchorRect: DOMRect;
 } | null;
 
+type ClickedHighlightState = {
+  id: string;
+  anchorRect: DOMRect;
+  confirmDelete: boolean;
+} | null;
+
 const HIGHLIGHT_CLASS =
   "bg-yellow-200/50 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-300/70 dark:data-[active]:bg-yellow-500/50";
 
@@ -59,9 +66,12 @@ export function HighlightableArticle({
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(
     null,
   );
+  const [clickedHighlight, setClickedHighlight] =
+    useState<ClickedHighlightState>(null);
 
   const { data: highlights = [] } = useItemHighlights(itemId);
   const createHighlight = useCreateHighlight(itemId);
+  const deleteHighlight = useDeleteHighlight(itemId);
 
   // Apply highlights to the DOM after markdown renders
   useEffect(() => {
@@ -194,20 +204,34 @@ export function HighlightableArticle({
     [highlights, onHighlightClick],
   );
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      const mark = (e.target as Element).closest("mark[data-highlight-id]");
-      if (mark && onHighlightClick) {
-        const highlightId = (mark as HTMLElement).dataset.highlightId;
-        const highlight = highlights.find((h) => h.id === highlightId);
-        if (highlight) {
-          e.stopPropagation();
-          onHighlightClick(highlight);
-        }
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    // Don't show delete popover if user has selected text (they might want to create a new highlight)
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) {
+      return;
+    }
+
+    const mark = (e.target as Element).closest("mark[data-highlight-id]");
+    if (mark) {
+      const highlightId = (mark as HTMLElement).dataset.highlightId;
+      if (highlightId) {
+        e.stopPropagation();
+        const rect = mark.getBoundingClientRect();
+        // Always set fresh state to ensure position updates even if clicking a different highlight
+        setClickedHighlight((prev) => {
+          // If clicking the same highlight, just toggle it off
+          if (prev?.id === highlightId) {
+            return null;
+          }
+          return {
+            id: highlightId,
+            anchorRect: rect,
+            confirmDelete: false,
+          };
+        });
       }
-    },
-    [highlights, onHighlightClick],
-  );
+    }
+  }, []);
 
   const handleCreateHighlight = useCallback(async () => {
     if (!selection) return;
@@ -233,6 +257,28 @@ export function HighlightableArticle({
     setSelection(null);
     window.getSelection()?.removeAllRanges();
   }, []);
+
+  const handleCloseHighlightPopover = useCallback(() => {
+    setClickedHighlight(null);
+  }, []);
+
+  const handleDeleteClick = useCallback(() => {
+    setClickedHighlight((prev) =>
+      prev ? { ...prev, confirmDelete: true } : null,
+    );
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!clickedHighlight) return;
+
+    try {
+      await deleteHighlight.mutateAsync(clickedHighlight.id);
+      setClickedHighlight(null);
+      toast.success("Highlight deleted");
+    } catch {
+      toast.error("Failed to delete highlight");
+    }
+  }, [clickedHighlight, deleteHighlight]);
 
   return (
     <div ref={containerRef}>
@@ -281,6 +327,55 @@ export function HighlightableArticle({
             <Highlighter className="size-4" />
             Highlight
           </Button>
+        </PopoverContent>
+      </Popover>
+
+      {/* Delete highlight popover */}
+      <Popover
+        key={clickedHighlight?.id}
+        open={!!clickedHighlight}
+        onOpenChange={(open) => !open && handleCloseHighlightPopover()}
+      >
+        <PopoverAnchor
+          style={{
+            position: "fixed",
+            left: clickedHighlight
+              ? clickedHighlight.anchorRect.left +
+                clickedHighlight.anchorRect.width / 2
+              : 0,
+            top: clickedHighlight ? clickedHighlight.anchorRect.top - 8 : 0,
+            width: 0,
+            height: 0,
+          }}
+        />
+        <PopoverContent
+          side="top"
+          sideOffset={8}
+          className="w-auto p-1"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {clickedHighlight?.confirmDelete ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-destructive hover:text-destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleteHighlight.isPending}
+            >
+              <Trash2 className="size-4" />
+              Confirm delete?
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={handleDeleteClick}
+            >
+              <Trash2 className="size-4" />
+              Delete highlight
+            </Button>
+          )}
         </PopoverContent>
       </Popover>
     </div>
