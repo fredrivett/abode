@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
+import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { SearchInput } from "@/components/search";
@@ -148,7 +149,15 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-2">
+                <div className="flex items-center gap-2 px-2 py-2">
+                  <UserAvatar
+                    avatarUrl={avatarUrl}
+                    firstName={props.firstName}
+                    lastName={props.lastName}
+                    username={props.username}
+                    email={props.email}
+                    className="size-8"
+                  />
                   <span className="flex flex-col items-start leading-tight">
                     <span className="text-sm font-medium">{displayName}</span>
                     <span className="text-xs text-muted-foreground">
@@ -174,18 +183,16 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <form action={props.signOutAction}>
-                  <DropdownMenuItem asChild>
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      className="h-auto w-full justify-start gap-2 px-2 py-1.5"
-                    >
-                      <LogOut className="size-4" />
-                      Sign out
-                    </Button>
-                  </DropdownMenuItem>
-                </form>
+                <DropdownMenuItem asChild>
+                  <button
+                    type="submit"
+                    formAction={props.signOutAction}
+                    className="flex w-full items-center gap-2"
+                  >
+                    <LogOut className="size-4" />
+                    Sign out
+                  </button>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
@@ -207,13 +214,16 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
       ) : (
         showSearch &&
         isAuthenticated && (
-          <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-            <SearchInput
-              value={searchState}
-              onChange={setSearchState}
-              getFilterValues={getFilterValuesForType}
-              placeholder="Find..."
-            />
+          <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+            <div className="flex-1">
+              <SearchInput
+                value={searchState}
+                onChange={setSearchState}
+                getFilterValues={getFilterValuesForType}
+                placeholder="Find..."
+              />
+            </div>
+            <SaveAsRoomButton searchState={searchState} />
           </div>
         )
       )}
