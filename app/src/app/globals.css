@@ -188,3 +188,30 @@
 .dark .cursor-copy-check {
   cursor: url("/cursors/copy-check-dark.png") 2 30, crosshair;
 }
+
+/* Highlight flash animation - uses Tailwind yellow colors with opacity for overlapping highlights */
+@keyframes highlight-flash {
+  0%,
+  100% {
+    background-color: color-mix(in oklch, var(--color-yellow-400) 25%, transparent);
+  }
+  50% {
+    background-color: color-mix(in oklch, var(--color-yellow-400) 50%, transparent);
+  }
+}
+
+.dark {
+  @keyframes highlight-flash {
+    0%,
+    100% {
+      background-color: color-mix(in oklch, var(--color-yellow-500) 30%, transparent);
+    }
+    50% {
+      background-color: color-mix(in oklch, var(--color-yellow-500) 70%, transparent);
+    }
+  }
+}
+
+@utility animate-highlight-flash {
+  animation: highlight-flash 0.5s ease-in-out 3;
+}
