@@ -28,11 +28,12 @@ model User {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  items         Item[]
-  locations     ItemLocation[]
-  visualVectors ItemVisualVector[]
-  textVectors   ItemTextVector[]
-  rooms         Room[]
+  items             Item[]
+  locations         ItemLocation[]
+  visualVectors     ItemVisualVector[]
+  textVectors       ItemTextVector[]
+  rooms             Room[]
+  articleHighlights ArticleHighlight[]
 
   @@map("users")
 }
@@ -110,6 +111,7 @@ model Item {
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
   roomItems         RoomItem[]
+  highlights        ArticleHighlight[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, deletedAt])
@@ -250,4 +252,25 @@ model RoomItem {
   @@index([roomId])
   @@index([itemId])
   @@map("room_items")
+}
+
+model ArticleHighlight {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+
+  startOffset Int      @map("start_offset")
+  endOffset   Int      @map("end_offset")
+  text        String   // Denormalized for display/search
+  note        String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([userId])
+  @@map("article_highlights")
 }

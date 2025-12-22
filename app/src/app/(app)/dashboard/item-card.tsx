@@ -8,11 +8,12 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import Markdown from "markdown-to-jsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { HighlightableArticle } from "@/components/article/highlightable-article";
+import { HighlightsPanel } from "@/components/article/highlights-panel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -535,22 +536,32 @@ function ItemDetailDialog({
               {isArticle && item.articleDetails?.content ? (
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
-                  className="flex w-full h-full justify-center overflow-y-auto bg-background p-6 md:p-8 lg:p-12"
+                  className="flex w-full h-full bg-background"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  <article className="w-full max-w-prose">
-                    {/* Use meta.originalName for the article's original title (from HTML) */}
-                    {(meta.originalName as string | undefined) && (
-                      <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
-                        {decodeHtmlEntities(meta.originalName as string)}
-                      </h1>
-                    )}
-                    <Markdown className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none">
-                      {item.articleDetails.content}
-                    </Markdown>
-                  </article>
+                  {/* Article content */}
+                  <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
+                    <article className="w-full max-w-prose mx-auto">
+                      {/* Use meta.originalName for the article's original title (from HTML) */}
+                      {(meta.originalName as string | undefined) && (
+                        <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
+                          {decodeHtmlEntities(meta.originalName as string)}
+                        </h1>
+                      )}
+                      <HighlightableArticle
+                        itemId={item.id}
+                        content={item.articleDetails.content}
+                        className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none"
+                      />
+                    </article>
+                  </div>
+
+                  {/* Highlights panel - desktop only */}
+                  <div className="hidden lg:block w-64 border-l border-border overflow-y-auto">
+                    <HighlightsPanel itemId={item.id} />
+                  </div>
                 </motion.div>
               ) : previewUrl && !isArticle ? (
                 // Non-article image
