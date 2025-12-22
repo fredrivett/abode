@@ -1,7 +1,7 @@
 "use client";
 
 import type { RoomVisibility } from "@prisma/client";
-import { Blocks } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -82,7 +82,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         onClick={() => setIsOpen(true)}
         className="gap-1.5"
       >
-        <Blocks className="size-4" />
+        <DoorOpen className="size-4" />
         Save as Room
       </Button>
 
