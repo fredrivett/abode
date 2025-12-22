@@ -193,7 +193,7 @@ export function ItemCard({
 
   if (error) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-destructive">{error}</p>
       </div>
     );
@@ -205,7 +205,7 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
@@ -250,7 +250,7 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
@@ -290,7 +290,7 @@ export function ItemCard({
 
   if (!previewUrl) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Loading preview...
         </p>
@@ -300,7 +300,7 @@ export function ItemCard({
 
   if (!hasDisplayableImage) {
     return (
-      <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <a
             href={previewUrl}
