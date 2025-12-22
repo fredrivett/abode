@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Blocks, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, DoorOpen, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -143,7 +143,7 @@ export function NewRoomForm() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <Blocks
+                <DoorOpen
                   className={`size-5 ${roomType === "manual" ? "text-primary" : "text-muted-foreground"}`}
                 />
                 <span className="font-medium">Manual Room</span>

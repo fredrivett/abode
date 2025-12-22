@@ -1,7 +1,7 @@
 "use client";
 
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
-import { Blocks, Filter, Home, Sparkles, Upload } from "lucide-react";
+import { DoorOpen, Filter, Home, Sparkles, Upload } from "lucide-react";
 import { useState } from "react";
 import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ const ONBOARDING_STEPS = [
       "Organize your visual life in one place. Everything is private and secure by default.",
   },
   {
-    icon: Blocks,
+    icon: DoorOpen,
     title: "Smart rooms",
     description: (
       <>

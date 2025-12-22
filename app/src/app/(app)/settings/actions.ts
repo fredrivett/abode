@@ -1,13 +1,18 @@
 "use server";
 
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import db from "@/lib/db";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
   type PreviousUsername,
   validateUsername,
 } from "@/lib/username";
+
+const log = createLogger("settings/actions");
 
 export type ChangeUsernameResult = {
   error?: string;
@@ -99,4 +104,112 @@ export async function changeUsername(
 
   revalidatePath("/settings");
   return { success: true };
+}
+
+export type DeleteAccountResult = {
+  error?: string;
+  success?: boolean;
+};
+
+function getSupabaseAdminClient() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables for admin client");
+  }
+
+  return createSupabaseAdmin(url, key);
+}
+
+export async function deleteAccount(
+  _prevState: DeleteAccountResult,
+  formData: FormData,
+): Promise<DeleteAccountResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const password = formData.get("password") as string;
+
+  if (!password) {
+    return { error: "Password is required" };
+  }
+
+  if (!user.email) {
+    return { error: "User email not found" };
+  }
+
+  // Verify password by attempting to sign in
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+
+  if (signInError) {
+    return { error: "Incorrect password" };
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+
+  try {
+    // Delete all user's items first (CASCADE will handle locations, vectors, details, room items)
+    await db.item.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Delete all user's rooms
+    await db.room.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Delete the user record from the database
+    await db.user.delete({
+      where: { id: user.id },
+    });
+
+    // Delete avatar files from Supabase Storage
+    const { data: avatarFiles } = await supabaseAdmin.storage
+      .from("avatars")
+      .list(user.id);
+
+    if (avatarFiles && avatarFiles.length > 0) {
+      const filesToDelete = avatarFiles.map((f) => `${user.id}/${f.name}`);
+      await supabaseAdmin.storage.from("avatars").remove(filesToDelete);
+    }
+
+    // Delete item files from Supabase Storage
+    const { data: itemFiles } = await supabaseAdmin.storage
+      .from("items")
+      .list(user.id);
+
+    if (itemFiles && itemFiles.length > 0) {
+      const filesToDelete = itemFiles.map((f) => `${user.id}/${f.name}`);
+      await supabaseAdmin.storage.from("items").remove(filesToDelete);
+    }
+
+    // Delete the Supabase auth user
+    const { error: deleteAuthError } =
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+
+    if (deleteAuthError) {
+      log.error(
+        { error: deleteAuthError, userId: user.id },
+        "Failed to delete auth user",
+      );
+    }
+
+    // Sign out the user
+    await supabase.auth.signOut();
+  } catch (error) {
+    log.error({ error, userId: user.id }, "Account deletion error");
+    return { error: "Failed to delete account. Please try again." };
+  }
+
+  redirect("/");
 }

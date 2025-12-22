@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpLeft, Blocks, LogOut, Settings, User } from "lucide-react";
+import { ArrowUpLeft, DoorOpen, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -121,7 +121,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
               <TooltipTrigger asChild>
                 <Button asChild variant="ghost-subtle" size="icon">
                   <Link href="/rooms" aria-label="Rooms">
-                    <Blocks size={18} aria-hidden />
+                    <DoorOpen size={18} aria-hidden />
                   </Link>
                 </Button>
               </TooltipTrigger>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +35,7 @@ export function EmojiPickerPopover({
           className="size-10 shrink-0 text-xl"
           aria-label={value ? `Change emoji: ${value}` : "Add emoji"}
         >
-          {value ?? <Blocks className="size-5 text-muted-foreground" />}
+          {value ?? <DoorOpen className="size-5 text-muted-foreground" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-fit p-0" align="start">

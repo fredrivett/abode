@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, Plus, Trash2 } from "lucide-react";
+import { DoorOpen, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { FilterBadges } from "@/components/rooms/filter-badges";
@@ -65,7 +65,7 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
       {rooms.length === 0 ? (
         <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
           <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-            <Blocks className="size-14 text-muted-foreground" />
+            <DoorOpen className="size-14 text-muted-foreground" />
             <div className="space-y-2">
               <h2 className="text-3xl font-serif font-semibold">
                 No rooms yet
