@@ -93,7 +93,8 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-serif font-medium leading-none">
+                <h3 className="flex items-center gap-2 font-serif font-medium leading-none">
+                  {room.emoji && <span aria-hidden>{room.emoji}</span>}
                   {room.name}
                 </h3>
                 <div className="flex items-center gap-1">

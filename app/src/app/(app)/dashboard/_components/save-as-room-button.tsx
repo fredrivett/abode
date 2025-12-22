@@ -5,6 +5,7 @@ import { Blocks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { FilterBadges } from "@/components/rooms/filter-badges";
 import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ type SaveAsRoomButtonProps = {
 export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [emoji, setEmoji] = useState<string | null>(null);
   const [roomName, setRoomName] = useState("");
   const [visibility, setVisibility] = useState<RoomVisibility>("private");
   const [isCreating, setIsCreating] = useState(false);
@@ -49,6 +51,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: roomName.trim(),
+          emoji,
           type: "smart",
           filters: searchState.filters,
           visibility,
@@ -98,18 +101,21 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
               <label htmlFor="roomName" className="text-sm font-medium">
                 Room name
               </label>
-              <Input
-                id="roomName"
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                placeholder="My Collection"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void handleCreate();
-                  }
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <EmojiPickerPopover value={emoji} onChange={setEmoji} />
+                <Input
+                  id="roomName"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder="My Collection"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void handleCreate();
+                    }
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

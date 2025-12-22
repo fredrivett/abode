@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { SearchInput } from "@/components/search/search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { useFilterOptions } from "@/lib/search/use-filter-options";
 
 export function NewRoomForm() {
   const router = useRouter();
+  const [emoji, setEmoji] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [roomType, setRoomType] = useState<"smart" | "manual">("smart");
   const [searchState, setSearchState] = useState<SearchState>({
@@ -50,6 +52,7 @@ export function NewRoomForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name.trim(),
+            emoji,
             type: roomType,
             filters: roomType === "smart" ? filters : null,
             visibility: "private",
@@ -70,7 +73,7 @@ export function NewRoomForm() {
         setIsCreating(false);
       }
     },
-    [name, roomType, searchState.filters, router],
+    [emoji, name, roomType, searchState.filters, router],
   );
 
   return (
@@ -95,13 +98,15 @@ export function NewRoomForm() {
           <label htmlFor="name" className="text-sm font-medium">
             Room name
           </label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="My Collection"
-            className="max-w-md"
-          />
+          <div className="flex max-w-md items-center gap-2">
+            <EmojiPickerPopover value={emoji} onChange={setEmoji} />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Collection"
+            />
+          </div>
         </div>
 
         {/* Room Type */}

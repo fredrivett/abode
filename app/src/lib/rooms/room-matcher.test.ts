@@ -125,6 +125,7 @@ function createTestRoom(
     userId: "test-user-id",
     name: "Test Room",
     slug: "test-room",
+    emoji: null,
     type: "smart",
     filters,
     visibility: "private",

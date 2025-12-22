@@ -225,6 +225,7 @@ model Room {
   userId     String         @map("user_id") @db.Uuid
   name       String
   slug       String?
+  emoji      String?        // Optional emoji icon for the room
   type       RoomType
   filters    Json?          // JSONB for smart room filters
   visibility RoomVisibility @default(private)
