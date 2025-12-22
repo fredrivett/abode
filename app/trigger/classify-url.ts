@@ -172,6 +172,10 @@ export const classifyUrlTask = task({
             headingStyle: "atx",
             codeBlockStyle: "fenced",
           });
+          // Preserve SVG elements as raw HTML in markdown output
+          // This allows inline SVGs (like logos, icons, charts) to render properly
+          // Cast needed because Turndown types only include HTMLElementTagNameMap, not SVG
+          turndown.keep(["svg"] as unknown as (keyof HTMLElementTagNameMap)[]);
           articleContent = turndown.turndown(article.content);
           const wordCount = articleContent.split(/\s+/).length;
           if (wordCount > 0) {
