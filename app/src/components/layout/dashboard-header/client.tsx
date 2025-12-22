@@ -99,9 +99,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
             <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
           </Link>
         </h1>
-        {showHomeLink && isAuthenticated && (
+        {showHomeLink && (
           <Link
-            href="/dashboard"
+            href={isAuthenticated ? "/dashboard" : "/"}
             className="group/home absolute top-full left-2 mt-1 flex items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
           >
             <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />

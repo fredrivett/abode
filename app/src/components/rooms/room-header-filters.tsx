@@ -108,7 +108,7 @@ export function RoomHeaderFilters({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={6}>
-              Edit filters
+              edit filters
             </TooltipContent>
           </Tooltip>
         )}
@@ -141,7 +141,7 @@ export function RoomHeaderFilters({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
-            Cancel
+            cancel
           </TooltipContent>
         </Tooltip>
         <Tooltip>
@@ -161,7 +161,7 @@ export function RoomHeaderFilters({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
-            Save
+            save
           </TooltipContent>
         </Tooltip>
       </div>
