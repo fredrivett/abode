@@ -23,4 +23,4 @@ CREATE INDEX "article_highlights_user_id_idx" ON "article_highlights"("user_id")
 ALTER TABLE "article_highlights" ADD CONSTRAINT "article_highlights_item_id_fkey" FOREIGN KEY ("item_id") REFERENCES "items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "article_highlights" ADD CONSTRAINT "article_highlights_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "article_highlights" ADD CONSTRAINT "article_highlights_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

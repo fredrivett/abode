@@ -268,7 +268,7 @@ model ArticleHighlight {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
   @@index([userId])

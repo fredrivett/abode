@@ -83,9 +83,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         kind: true,
-        articleDetails: {
-          select: { content: true },
-        },
       },
     });
 
@@ -118,15 +115,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (startOffset < 0 || endOffset <= startOffset) {
       return NextResponse.json(
         { message: "Invalid offset range" },
-        { status: 400 },
-      );
-    }
-
-    // Validate offsets are within content bounds
-    const contentLength = item.articleDetails?.content?.length ?? 0;
-    if (endOffset > contentLength) {
-      return NextResponse.json(
-        { message: "Offset exceeds content length" },
         { status: 400 },
       );
     }

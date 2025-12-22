@@ -159,7 +159,8 @@ export function wrapRangeWithHighlight(
       marks.push(mark);
       return marks;
     } catch {
-      // Fall through to complex case
+      // surroundContents fails when range partially selects a non-Text node.
+      // Fall through to complex case which handles cross-element ranges.
     }
   }
 

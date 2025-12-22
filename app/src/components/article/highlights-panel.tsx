@@ -2,6 +2,7 @@
 
 import type { ArticleHighlight } from "@prisma/client";
 import { Highlighter, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   useDeleteHighlight,
@@ -21,6 +22,7 @@ type Props = {
 export function HighlightsPanel({ itemId, onHighlightClick }: Props) {
   const { data: highlights = [], isLoading } = useItemHighlights(itemId);
   const deleteHighlight = useDeleteHighlight(itemId);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -57,8 +59,13 @@ export function HighlightsPanel({ itemId, onHighlightClick }: Props) {
               key={highlight.id}
               highlight={highlight}
               onClick={() => onHighlightClick?.(highlight)}
-              onDelete={() => deleteHighlight.mutate(highlight.id)}
-              isDeleting={deleteHighlight.isPending}
+              onDelete={() => {
+                setDeletingId(highlight.id);
+                deleteHighlight.mutate(highlight.id, {
+                  onSettled: () => setDeletingId(null),
+                });
+              }}
+              isDeleting={deletingId === highlight.id}
             />
           ))}
         </div>

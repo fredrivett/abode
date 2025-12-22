@@ -39,6 +39,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { note } = body;
 
+    // Validate that at least one field is being updated
+    if (note === undefined) {
+      return NextResponse.json(
+        { message: "No fields to update" },
+        { status: 400 },
+      );
+    }
+
     const updatedHighlight = await db.articleHighlight.update({
       where: { id: highlightId },
       data: {

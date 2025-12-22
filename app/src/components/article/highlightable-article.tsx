@@ -70,13 +70,18 @@ export function HighlightableArticle({
 
     // Remove existing highlights first
     const existingMarks = container.querySelectorAll("mark[data-highlight-id]");
+    const parentsToNormalize = new Set<Node>();
     for (const mark of existingMarks) {
       const parent = mark.parentNode;
       if (parent) {
         const text = document.createTextNode(mark.textContent ?? "");
         parent.replaceChild(text, mark);
-        parent.normalize();
+        parentsToNormalize.add(parent);
       }
+    }
+    // Normalize after all marks are removed to merge adjacent text nodes
+    for (const parent of parentsToNormalize) {
+      (parent as Element).normalize();
     }
 
     // Apply each highlight
@@ -245,36 +250,39 @@ export function HighlightableArticle({
         <Markdown className={className}>{content}</Markdown>
       </div>
 
-      {selection && (
-        <Popover open onOpenChange={(open) => !open && handleClosePopover()}>
-          <PopoverAnchor
-            style={{
-              position: "fixed",
-              left: selection.anchorRect.left + selection.anchorRect.width / 2,
-              top: selection.anchorRect.top - 8,
-              width: 0,
-              height: 0,
-            }}
-          />
-          <PopoverContent
-            side="top"
-            sideOffset={8}
-            className="w-auto p-1"
-            onOpenAutoFocus={(e) => e.preventDefault()}
+      <Popover
+        open={!!selection}
+        onOpenChange={(open) => !open && handleClosePopover()}
+      >
+        <PopoverAnchor
+          style={{
+            position: "fixed",
+            left: selection
+              ? selection.anchorRect.left + selection.anchorRect.width / 2
+              : 0,
+            top: selection ? selection.anchorRect.top - 8 : 0,
+            width: 0,
+            height: 0,
+          }}
+        />
+        <PopoverContent
+          side="top"
+          sideOffset={8}
+          className="w-auto p-1"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={handleCreateHighlight}
+            disabled={createHighlight.isPending}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={handleCreateHighlight}
-              disabled={createHighlight.isPending}
-            >
-              <Highlighter className="size-4" />
-              Highlight
-            </Button>
-          </PopoverContent>
-        </Popover>
-      )}
+            <Highlighter className="size-4" />
+            Highlight
+          </Button>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
