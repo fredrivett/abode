@@ -2,6 +2,7 @@
 
 import { Camera } from "lucide-react";
 import { useState } from "react";
+import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { AvatarCropper } from "@/components/avatar/avatar-cropper";
 import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
 import { UserAvatar } from "@/components/avatar/user-avatar";
@@ -63,33 +64,66 @@ export function ProfileStep({
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <h2 className="text-lg font-semibold leading-none">
-        Set up your profile
+      <h2 className="text-pretty text-lg font-semibold leading-none">
+        Who's moving in?
       </h2>
-      <p className="text-base text-muted-foreground">
-        Add your name and a photo so others can recognize you.
+      <p className="text-pretty text-base text-muted-foreground">
+        Make <AbodeInline /> your own by completing your profile.
       </p>
 
-      <div className="relative mt-2">
-        <UserAvatar
-          avatarUrl={avatarUrl}
-          firstName={firstName || undefined}
-          lastName={lastName || undefined}
-          username={username}
-          email={email}
-          className="size-24 text-2xl"
-          fallbackClassName="text-2xl"
-        />
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          className="absolute -right-1 -bottom-1 size-8 rounded-full shadow-md"
-          onClick={openFilePicker}
-        >
-          <Camera className="size-4" />
-          <span className="sr-only">Upload photo</span>
-        </Button>
+      <div className="mt-2 flex w-full items-start gap-4">
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative">
+            <UserAvatar
+              avatarUrl={avatarUrl}
+              firstName={firstName || undefined}
+              lastName={lastName || undefined}
+              username={username}
+              email={email}
+              className="size-20 text-xl"
+              fallbackClassName="text-xl"
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="absolute -right-1 -bottom-1 size-7 rounded-full shadow-md"
+              onClick={openFilePicker}
+            >
+              <Camera className="size-3.5" />
+              <span className="sr-only">Upload avatar</span>
+            </Button>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openFilePicker}
+          >
+            Choose avatar
+          </Button>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-3 text-left">
+          <div className="space-y-1.5">
+            <Label htmlFor="firstName">First name</Label>
+            <Input
+              id="firstName"
+              value={firstName}
+              onChange={handleFirstNameChange}
+              placeholder="Jane"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="lastName">Last name</Label>
+            <Input
+              id="lastName"
+              value={lastName}
+              onChange={handleLastNameChange}
+              placeholder="Doe"
+            />
+          </div>
+        </div>
       </div>
 
       <input
@@ -99,36 +133,6 @@ export function ProfileStep({
         onChange={handleFileSelect}
         className="hidden"
       />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={openFilePicker}
-      >
-        Choose photo
-      </Button>
-
-      <div className="mt-2 grid w-full grid-cols-2 gap-3 text-left">
-        <div className="space-y-1.5">
-          <Label htmlFor="firstName">First name</Label>
-          <Input
-            id="firstName"
-            value={firstName}
-            onChange={handleFirstNameChange}
-            placeholder="Jane"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="lastName">Last name</Label>
-          <Input
-            id="lastName"
-            value={lastName}
-            onChange={handleLastNameChange}
-            placeholder="Doe"
-          />
-        </div>
-      </div>
 
       {selectedImage && (
         <AvatarCropper

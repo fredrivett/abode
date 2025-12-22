@@ -68,7 +68,8 @@ const ONBOARDING_STEPS = [
       <>
         Automatically group items into smart rooms for personal use or sharing.
         Create collections like{" "}
-        <Badge variant="secondary">Vancouver photos 2025</Badge> effortlessly.
+        <Badge variant="secondary">🇨🇦 Vancouver photos 2025</Badge> or{" "}
+        <Badge variant="secondary">📚 5 star reads</Badge> effortlessly.
       </>
     ),
   },
@@ -126,6 +127,15 @@ export function OnboardingDialog({
           </DialogDescription>
         </VisuallyHidden.Root>
         <Stepper onComplete={handleComplete}>
+          {ONBOARDING_STEPS.map((step) => (
+            <Step key={step.title}>
+              <StepContent
+                icon={step.icon}
+                title={step.title}
+                description={step.description}
+              />
+            </Step>
+          ))}
           <Step key="profile">
             <ProfileStep
               firstName={userMetadata?.firstName}
@@ -141,18 +151,9 @@ export function OnboardingDialog({
               }}
             />
           </Step>
-          {ONBOARDING_STEPS.map((step) => (
-            <Step key={step.title}>
-              <StepContent
-                icon={step.icon}
-                title={step.title}
-                description={step.description}
-              />
-            </Step>
-          ))}
           <StepperNavigation
             nextLabel="Next"
-            completeLabel={isCompleting ? "Finishing..." : "Get started"}
+            completeLabel={isCompleting ? "Finishing..." : "That's me"}
             showKeyboardHints
           />
         </Stepper>
@@ -175,8 +176,12 @@ function StepContent({
       <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
         <Icon className="size-8 text-primary" />
       </div>
-      <h2 className="text-lg font-semibold leading-none">{title}</h2>
-      <p className="text-base text-muted-foreground">{description}</p>
+      <h2 className="text-pretty text-lg font-semibold leading-none">
+        {title}
+      </h2>
+      <p className="text-pretty text-base text-muted-foreground">
+        {description}
+      </p>
     </div>
   );
 }
