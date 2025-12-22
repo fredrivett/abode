@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
-import { AvatarStep } from "./avatar-step";
+import { ProfileStep } from "./profile-step";
 
 type UserMetadata = {
   firstName?: string | null;
@@ -126,8 +126,8 @@ export function OnboardingDialog({
           </DialogDescription>
         </VisuallyHidden.Root>
         <Stepper onComplete={handleComplete}>
-          <Step key="avatar">
-            <AvatarStep
+          <Step key="profile">
+            <ProfileStep
               firstName={userMetadata?.firstName}
               lastName={userMetadata?.lastName}
               username={userMetadata?.username}

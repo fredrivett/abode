@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type AvatarStepProps = {
+type ProfileStepProps = {
   firstName?: string | null;
   lastName?: string | null;
   username?: string | null;
@@ -20,7 +20,7 @@ type AvatarStepProps = {
   onLastNameChange?: (lastName: string) => void;
 };
 
-export function AvatarStep({
+export function ProfileStep({
   firstName: initialFirstName,
   lastName: initialLastName,
   username,
@@ -29,7 +29,7 @@ export function AvatarStep({
   onAvatarChange,
   onFirstNameChange,
   onLastNameChange,
-}: AvatarStepProps) {
+}: ProfileStepProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
 
