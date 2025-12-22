@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { AvatarSettings } from "./_components/avatar-settings";
+import { DeleteAccountSettings } from "./_components/delete-account-settings";
 import { UsernameSettings } from "./_components/username-settings";
 
 export default async function SettingsPage() {
@@ -49,6 +50,7 @@ export default async function SettingsPage() {
             currentUsername={dbUser?.username || null}
             changesUsed={previousUsernames.length}
           />
+          <DeleteAccountSettings />
         </div>
       </div>
     </div>
