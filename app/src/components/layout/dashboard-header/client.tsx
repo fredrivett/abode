@@ -93,7 +93,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         <h1>
           <Link
             href={logoHref}
-            className="opacity-50 transition-opacity hover:opacity-100"
+            className="flex p-3 -m-3 opacity-50 transition-opacity hover:opacity-100"
           >
             <span className="sr-only">abode</span>
             <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
