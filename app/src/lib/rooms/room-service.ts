@@ -12,6 +12,34 @@ import type { ItemWithDetails, RoomWithFilters } from "./types";
 export const MAX_SMART_ROOMS_PER_USER = 5;
 
 /**
+ * Escape special regex characters in a string for safe use in RegExp constructor.
+ */
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Find the next available number suffix for a slug given existing similar slugs.
+ * Returns 2 if no numbered slugs exist, otherwise returns max + 1.
+ */
+export function findNextSlugNumber(
+  baseSlug: string,
+  existingSlugs: (string | null)[],
+): number {
+  const escapedSlug = escapeRegex(baseSlug);
+  const pattern = new RegExp(`^${escapedSlug}-(\\d+)$`, "i");
+
+  const numbers = existingSlugs
+    .map((slug) => {
+      const match = slug?.match(pattern);
+      return match ? Number.parseInt(match[1], 10) : 0;
+    })
+    .filter((n) => n > 0);
+
+  return numbers.length > 0 ? Math.max(...numbers) + 1 : 2;
+}
+
+/**
  * Generate a unique slug from a room name for a given user.
  * Uses nameToSlug for conversion, then ensures uniqueness by appending a number if needed.
  */
@@ -49,16 +77,11 @@ export async function generateRoomSlug(
     select: { slug: true },
   });
 
-  // Extract numbers from slugs like "my-room-2", "my-room-3"
-  const numbers = similarSlugs
-    .map((r) => {
-      const match = r.slug?.match(new RegExp(`^${slug}-(\\d+)$`, "i"));
-      return match ? Number.parseInt(match[1], 10) : 0;
-    })
-    .filter((n) => n > 0);
-
-  // Find next available number
-  const nextNumber = numbers.length > 0 ? Math.max(...numbers) + 1 : 2;
+  // Find next available number using the extracted helper
+  const nextNumber = findNextSlugNumber(
+    slug,
+    similarSlugs.map((r) => r.slug),
+  );
 
   return `${slug}-${nextNumber}`;
 }

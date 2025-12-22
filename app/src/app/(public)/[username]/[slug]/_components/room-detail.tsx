@@ -4,9 +4,7 @@ import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { RoomVisibility } from "@prisma/client";
 import {
   ArrowLeft,
-  Globe,
   Loader2,
-  Lock,
   MoreHorizontal,
   Pencil,
   SearchX,
@@ -17,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -378,46 +377,10 @@ export function RoomDetail({
 
             <div className="space-y-2">
               <span className="text-sm font-medium">Visibility</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditVisibility("private")}
-                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                    editVisibility === "private"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                >
-                  <Lock
-                    className={`size-4 ${editVisibility === "private" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <div>
-                    <div className="font-medium">Private</div>
-                    <div className="text-xs text-muted-foreground">
-                      Only you can view
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditVisibility("public")}
-                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                    editVisibility === "public"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                >
-                  <Globe
-                    className={`size-4 ${editVisibility === "public" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <div>
-                    <div className="font-medium">Public</div>
-                    <div className="text-xs text-muted-foreground">
-                      Anyone with link
-                    </div>
-                  </div>
-                </button>
-              </div>
+              <VisibilityToggle
+                value={editVisibility}
+                onChange={setEditVisibility}
+              />
             </div>
           </div>
 

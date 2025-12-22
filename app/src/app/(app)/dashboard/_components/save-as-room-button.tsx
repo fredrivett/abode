@@ -1,11 +1,12 @@
 "use client";
 
 import type { RoomVisibility } from "@prisma/client";
-import { Blocks, Globe, Lock } from "lucide-react";
+import { Blocks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FilterBadges } from "@/components/rooms/filter-badges";
+import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -113,46 +114,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
 
             <div className="space-y-2">
               <span className="text-sm font-medium">Visibility</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setVisibility("private")}
-                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                    visibility === "private"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                >
-                  <Lock
-                    className={`size-4 ${visibility === "private" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <div>
-                    <div className="font-medium">Private</div>
-                    <div className="text-xs text-muted-foreground">
-                      Only you can view
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVisibility("public")}
-                  className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                    visibility === "public"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                >
-                  <Globe
-                    className={`size-4 ${visibility === "public" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <div>
-                    <div className="font-medium">Public</div>
-                    <div className="text-xs text-muted-foreground">
-                      Anyone with link
-                    </div>
-                  </div>
-                </button>
-              </div>
+              <VisibilityToggle value={visibility} onChange={setVisibility} />
             </div>
 
             <div className="space-y-2">

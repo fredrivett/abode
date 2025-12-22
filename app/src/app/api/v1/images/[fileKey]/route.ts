@@ -9,6 +9,12 @@ const log = createLogger("api/v1/images");
 // Cache images for 1 hour in browser, 1 day on CDN
 const CACHE_CONTROL = "public, max-age=3600, s-maxage=86400";
 
+// Cache 404s briefly to avoid hammering DB for missing images
+const CACHE_CONTROL_NOT_FOUND = "public, max-age=60, s-maxage=300";
+
+// Cache 403s briefly - access may change if room visibility changes
+const CACHE_CONTROL_FORBIDDEN = "public, max-age=60, s-maxage=60";
+
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -72,7 +78,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     });
 
     if (!item) {
-      return NextResponse.json({ message: "Image not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Image not found" },
+        {
+          status: 404,
+          headers: { "Cache-Control": CACHE_CONTROL_NOT_FOUND },
+        },
+      );
     }
 
     // Check access permissions
@@ -88,7 +100,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const canAccess = isOwner || (isInPublicRoom && !isExcludedFromPublic);
 
     if (!canAccess) {
-      return NextResponse.json({ message: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { message: "Access denied" },
+        {
+          status: 403,
+          headers: { "Cache-Control": CACHE_CONTROL_FORBIDDEN },
+        },
+      );
     }
 
     // Fetch the image using admin client (bypasses RLS)
