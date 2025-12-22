@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
+import { ArrowUpLeft, Blocks, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -148,23 +148,23 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-2">
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-sm font-medium">{displayName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {displayEmail}
+                    </span>
+                  </span>
+                </div>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    className="h-auto w-full justify-start px-2 py-2"
+                  <Link
+                    href={`/${props.username}`}
+                    className="flex items-center gap-2"
                   >
-                    <Link href="/account">
-                      <span className="flex flex-col items-start leading-tight">
-                        <span className="text-sm font-medium">
-                          {displayName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {displayEmail}
-                        </span>
-                      </span>
-                    </Link>
-                  </Button>
+                    <User className="size-4" />
+                    View profile
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
