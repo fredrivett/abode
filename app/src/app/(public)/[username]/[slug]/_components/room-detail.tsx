@@ -1,7 +1,7 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
-import type { RoomType, RoomVisibility } from "@prisma/client";
+import type { RoomVisibility } from "@prisma/client";
 import {
   ArrowLeft,
   Globe,
@@ -17,8 +17,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
-import { FilterBadges } from "@/components/rooms/filter-badges";
-import { RoomFilterEditor } from "@/components/rooms/room-filter-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,24 +47,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
-import type { Filter } from "@/lib/search/types";
-import type { Item } from "@/lib/types/item";
-
-type RoomItem = Item & {
-  roomItemId: string;
-  addedAt: string;
-};
-
-type Room = {
-  id: string;
-  name: string;
-  type: RoomType;
-  filters: Filter[] | null;
-  visibility: RoomVisibility;
-  createdAt: string;
-  updatedAt: string;
-  itemCount: number;
-};
+import type { Room, RoomItem } from "@/lib/types/room";
 
 type RoomDetailProps = {
   room: Room;
@@ -101,7 +82,6 @@ export function RoomDetail({
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
   const [items, setItems] = useState(initialItems);
-  const [roomFilters, setRoomFilters] = useState(room.filters);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -241,7 +221,7 @@ export function RoomDetail({
               <EditableTitle
                 value={roomName}
                 onSubmit={handleNameSubmit}
-                size="xl"
+                size="2xl"
                 isSaving={isSavingName}
               />
             ) : (
@@ -294,52 +274,6 @@ export function RoomDetail({
           </DropdownMenu>
         )}
       </div>
-
-      {/* Filter editor for smart rooms - only for owners */}
-      {isOwner && room.type === "smart" && roomFilters && (
-        <RoomFilterEditor
-          filters={roomFilters}
-          onSave={async (newFilters) => {
-            // Save to API
-            const response = await fetch(`/api/v1/rooms/${room.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ filters: newFilters }),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to save filters");
-            }
-
-            // Update local state
-            setRoomFilters(newFilters);
-
-            // Refresh items after filter change
-            try {
-              const itemsResponse = await fetch(
-                `/api/v1/rooms/${room.id}/items`,
-              );
-              if (itemsResponse.ok) {
-                const data = await itemsResponse.json();
-                setItems(data.items);
-                setCursor(data.nextCursor);
-                setHasMore(data.hasMore);
-              } else {
-                toast.error("Failed to refresh items");
-              }
-            } catch {
-              toast.error("Failed to refresh items");
-            }
-          }}
-        />
-      )}
-
-      {/* Show filters for visitors on smart rooms */}
-      {!isOwner && room.type === "smart" && roomFilters && (
-        <div className="flex flex-wrap gap-1.5">
-          <FilterBadges filters={roomFilters} />
-        </div>
-      )}
 
       {/* Items grid */}
       {items.length === 0 ? (

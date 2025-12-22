@@ -2,6 +2,7 @@
 
 import { ArrowUpLeft, Blocks, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 
 import { AbodeLogo } from "@/components/abode-logo";
@@ -28,6 +29,8 @@ import { useUserStore } from "@/stores/user-store";
 type BaseProps = {
   showSearch?: boolean;
   showHomeLink?: boolean;
+  /** Optional custom content for the center slot (replaces search input) */
+  centerSlot?: ReactNode;
 };
 
 type AuthenticatedProps = BaseProps & {
@@ -49,7 +52,12 @@ export type DashboardHeaderClientProps =
   | UnauthenticatedProps;
 
 export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
-  const { showSearch = false, showHomeLink = false, isAuthenticated } = props;
+  const {
+    showSearch = false,
+    showHomeLink = false,
+    isAuthenticated,
+    centerSlot,
+  } = props;
 
   const { state: searchState, setState: setSearchState } = useSearch();
   const { getFilterValuesForType } = useFilterOptions();
@@ -191,15 +199,23 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         )}
       </div>
 
-      {showSearch && isAuthenticated && (
+      {/* Center slot: custom content, search input, or nothing */}
+      {centerSlot ? (
         <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-          <SearchInput
-            value={searchState}
-            onChange={setSearchState}
-            getFilterValues={getFilterValuesForType}
-            placeholder="Find..."
-          />
+          {centerSlot}
         </div>
+      ) : (
+        showSearch &&
+        isAuthenticated && (
+          <div className="order-3 w-full basis-full md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+            <SearchInput
+              value={searchState}
+              onChange={setSearchState}
+              getFilterValues={getFilterValuesForType}
+              placeholder="Find..."
+            />
+          </div>
+        )
       )}
     </header>
   );

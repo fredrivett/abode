@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
@@ -7,11 +8,14 @@ import { DashboardHeaderClient } from "./client";
 type DashboardHeaderProps = {
   showSearch?: boolean;
   showHomeLink?: boolean;
+  /** Optional custom content for the center slot (replaces search input) */
+  centerSlot?: ReactNode;
 };
 
 export async function DashboardHeader({
   showSearch = false,
   showHomeLink = false,
+  centerSlot,
 }: DashboardHeaderProps = {}) {
   const supabase = await createClient();
   const { user, metadata } = await getUserWithMetadata(supabase);
@@ -31,6 +35,7 @@ export async function DashboardHeader({
         isAuthenticated={false}
         showSearch={false}
         showHomeLink={showHomeLink}
+        centerSlot={centerSlot}
       />
     );
   }
@@ -46,6 +51,7 @@ export async function DashboardHeader({
       signOutAction={signOut}
       showSearch={showSearch}
       showHomeLink={showHomeLink}
+      centerSlot={centerSlot}
     />
   );
 }

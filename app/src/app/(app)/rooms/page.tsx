@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import type { RoomWithSlug } from "@/lib/types/room";
 import { RoomsList } from "./_components/rooms-list";
 
 export default async function RoomsPage() {
@@ -55,7 +56,7 @@ export default async function RoomsPage() {
     );
   }
 
-  const roomsForClient = rooms.map((room) => ({
+  const roomsForClient: RoomWithSlug[] = rooms.map((room) => ({
     id: room.id,
     name: room.name,
     slug: room.slug as string, // We filtered for not null above

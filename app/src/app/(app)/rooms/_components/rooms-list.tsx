@@ -1,6 +1,5 @@
 "use client";
 
-import type { RoomType, RoomVisibility } from "@prisma/client";
 import { Blocks, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,22 +16,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Filter } from "@/lib/search/types";
-
-export type RoomForList = {
-  id: string;
-  name: string;
-  slug: string;
-  type: RoomType;
-  filters: Filter[] | null;
-  visibility: RoomVisibility;
-  createdAt: string;
-  updatedAt: string;
-  itemCount: number;
-};
+import type { RoomWithSlug } from "@/lib/types/room";
 
 type RoomsListProps = {
-  initialRooms: RoomForList[];
+  initialRooms: RoomWithSlug[];
   username: string;
 };
 
