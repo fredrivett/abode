@@ -36,6 +36,10 @@ export const RATE_LIMITS = {
     maxRequests: 20,
     windowMs: 60 * 1000, // 1 minute
   },
+  waitlist: {
+    maxRequests: 5,
+    windowMs: 60 * 1000, // 1 minute - prevents signup spam
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;

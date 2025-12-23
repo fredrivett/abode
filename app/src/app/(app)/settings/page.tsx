@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
+import { getAvailableInvites } from "@/lib/invites";
 import { getMFAFactors } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { DeleteAccountSettings } from "./_components/delete-account-settings";
+import { InviteSettings } from "./_components/invite-settings";
 import { ProfileSettings } from "./_components/profile-settings";
 import { SecuritySettings } from "./_components/security-settings";
 import { UsernameSettings } from "./_components/username-settings";
@@ -18,16 +20,29 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.id },
-    select: {
-      username: true,
-      previousUsernames: true,
-      avatarUrl: true,
-      firstName: true,
-      lastName: true,
-    },
-  });
+  const [dbUser, availableInvites] = await Promise.all([
+    db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        username: true,
+        previousUsernames: true,
+        avatarUrl: true,
+        firstName: true,
+        lastName: true,
+        sentInvites: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            expiresAt: true,
+            acceptedAt: true,
+          },
+        },
+      },
+    }),
+    getAvailableInvites(user.id),
+  ]);
 
   const { email } = metadata;
   // Prefer DB values over OAuth metadata for firstName/lastName
@@ -59,6 +74,20 @@ export default async function SettingsPage() {
             username={dbUser?.username}
             email={email}
             initialAvatarUrl={dbUser?.avatarUrl}
+          />
+          <InviteSettings
+            invitesRemaining={availableInvites}
+            initialInvites={(dbUser?.sentInvites ?? []).map((invite) => ({
+              ...invite,
+              createdAt: invite.createdAt.toISOString(),
+              expiresAt: invite.expiresAt.toISOString(),
+              acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+              status: invite.acceptedAt
+                ? "accepted"
+                : invite.expiresAt < new Date()
+                  ? "expired"
+                  : "pending",
+            }))}
           />
           <SecuritySettings initialFactors={mfaFactors} />
           <UsernameSettings

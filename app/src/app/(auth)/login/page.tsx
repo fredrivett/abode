@@ -16,12 +16,12 @@ export default function LoginPage() {
         <LoginForm />
 
         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Don&apos;t have an account?{" "}
+          have an invite?{" "}
           <a
-            href="/signup"
+            href="/join"
             className="font-medium text-gray-900 hover:underline dark:text-gray-100"
           >
-            Sign up
+            join abode
           </a>
         </p>
       </div>
