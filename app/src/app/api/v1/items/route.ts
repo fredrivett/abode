@@ -1,8 +1,10 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { getFileSizeFromMeta } from "@/lib/utils";
 import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
@@ -122,30 +124,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the item initially with "processing" status
-    const item = await db.item.create({
-      data: {
-        kind: kind || null,
-        fileKey: fileKey || null,
-        meta: meta || null,
-        sourceType: sourceType || null,
-        sourceUrl: sourceUrl || null,
-        userId: user.id,
-        processingStatus: "processing",
-      },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        fileKey: true,
-        meta: true,
-        sourceType: true,
-        sourceUrl: true,
-        coverFileKey: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    // Get file size from meta for storage tracking
+    const fileSize = getFileSizeFromMeta(meta);
+
+    // Create the item and update user storage in a transaction
+    const item = await db.$transaction(async (tx) => {
+      const newItem = await tx.item.create({
+        data: {
+          kind: kind || null,
+          fileKey: fileKey || null,
+          meta: meta || null,
+          sourceType: sourceType || null,
+          sourceUrl: sourceUrl || null,
+          userId: user.id,
+          processingStatus: "processing",
+        },
+        select: {
+          id: true,
+          userId: true,
+          kind: true,
+          processingStatus: true,
+          fileKey: true,
+          meta: true,
+          sourceType: true,
+          sourceUrl: true,
+          coverFileKey: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Update user's storage usage
+      if (fileSize > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { storageUsedBytes: { increment: fileSize } },
+        });
+      }
+
+      return newItem;
     });
 
     // Trigger image analysis via Trigger.dev (returns immediately)
@@ -156,6 +173,9 @@ export async function POST(request: NextRequest) {
         fileKey,
       });
     }
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_create", { itemId: item.id, kind });
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
@@ -192,7 +212,7 @@ export async function DELETE(request: NextRequest) {
     // Find the item to ensure it exists and belongs to the user
     const item = await db.item.findUnique({
       where: { id },
-      select: { id: true, userId: true, fileKey: true },
+      select: { id: true, userId: true, fileKey: true, meta: true },
     });
 
     if (!item) {
@@ -218,10 +238,26 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Delete from database
-    await db.item.delete({
-      where: { id },
+    // Get file size for storage tracking
+    const fileSize = getFileSizeFromMeta(item.meta);
+
+    // Delete from database and update storage in a transaction
+    await db.$transaction(async (tx) => {
+      await tx.item.delete({
+        where: { id },
+      });
+
+      // Decrement user's storage usage
+      if (fileSize > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { storageUsedBytes: { decrement: fileSize } },
+        });
+      }
     });
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_delete", { itemId: id });
 
     return NextResponse.json({ message: "Item deleted" }, { status: 200 });
   } catch (error) {

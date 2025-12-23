@@ -1,5 +1,6 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -167,6 +168,9 @@ export async function POST(request: NextRequest) {
         userId: user.id,
       });
     }
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "room_create", { roomId: room.id, type });
 
     return NextResponse.json(
       { ...room, itemCount: 0, username: dbUser?.username ?? null },

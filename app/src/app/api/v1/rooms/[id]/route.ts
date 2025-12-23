@@ -1,5 +1,6 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { hasValidFilters } from "@/lib/rooms";
@@ -50,6 +51,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!room) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
     }
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "room_view", { roomId: id });
 
     return NextResponse.json({
       ...room,
@@ -170,6 +174,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "room_update", { roomId: id });
+
     return NextResponse.json({
       ...updatedRoom,
       itemCount: updatedRoom._count.roomItems,
@@ -216,6 +223,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     await db.room.delete({
       where: { id },
     });
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "room_delete", { roomId: id });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
