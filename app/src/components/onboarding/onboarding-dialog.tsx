@@ -63,11 +63,11 @@ const ONBOARDING_STEPS = [
   },
   {
     icon: DoorOpen,
-    title: "Smart rooms",
+    title: "Dynamic rooms",
     description: (
       <>
-        Automatically group items into smart rooms for personal use or sharing.
-        Create collections like{" "}
+        Automatically group items into dynamic rooms for personal use or
+        sharing. Create collections like{" "}
         <Badge variant="secondary">🇨🇦 Vancouver photos 2025</Badge> or{" "}
         <Badge variant="secondary">📚 5 star reads</Badge> effortlessly.
       </>

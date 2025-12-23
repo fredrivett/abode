@@ -9,6 +9,13 @@ import type { Filter } from "@/lib/search/types";
 import type { Room, RoomItem } from "@/lib/types/room";
 import { RoomDetail } from "./room-detail";
 
+type RoomOwner = {
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  avatarUrl: string | null;
+};
+
 type RoomPageClientProps = {
   room: Room;
   initialItems: RoomItem[];
@@ -23,6 +30,8 @@ type RoomPageClientProps = {
   username?: string | null;
   avatarUrl?: string | null;
   signOutAction?: () => Promise<void>;
+  // Room owner data
+  roomOwner: RoomOwner;
 };
 
 export function RoomPageClient({
@@ -38,6 +47,7 @@ export function RoomPageClient({
   username,
   avatarUrl,
   signOutAction,
+  roomOwner,
 }: RoomPageClientProps) {
   const [filters, setFilters] = useState<Filter[] | null>(room.filters);
   const [items, setItems] = useState(initialItems);
@@ -129,6 +139,7 @@ export function RoomPageClient({
           initialCursor={cursor}
           initialHasMore={hasMore}
           isOwner={isOwner}
+          roomOwner={roomOwner}
         />
       </div>
     </>

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       if (!canCreate) {
         return NextResponse.json(
           {
-            message: `You can only have ${MAX_SMART_ROOMS_PER_USER} smart rooms`,
+            message: `You can only have ${MAX_SMART_ROOMS_PER_USER} dynamic rooms`,
           },
           { status: 400 },
         );
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       const filterArray = filters as Filter[] | undefined;
       if (!hasValidFilters(filterArray ?? null)) {
         return NextResponse.json(
-          { message: "Smart rooms require at least one filter" },
+          { message: "Dynamic rooms require at least one filter" },
           { status: 400 },
         );
       }

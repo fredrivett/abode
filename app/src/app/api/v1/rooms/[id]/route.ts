@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const filterArray = filters as Filter[];
       if (!hasValidFilters(filterArray)) {
         return NextResponse.json(
-          { message: "Smart rooms require at least one filter" },
+          { message: "Dynamic rooms require at least one filter" },
           { status: 400 },
         );
       }

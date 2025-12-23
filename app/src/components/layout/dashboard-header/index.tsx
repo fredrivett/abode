@@ -20,11 +20,16 @@ export async function DashboardHeader({
   const supabase = await createClient();
   const { user, metadata } = await getUserWithMetadata(supabase);
 
-  // Get username and avatarUrl from DB (these take priority)
+  // Get user profile from DB (takes priority over OAuth metadata)
   const dbUser = user
     ? await db.user.findUnique({
         where: { id: user.id },
-        select: { username: true, avatarUrl: true },
+        select: {
+          username: true,
+          avatarUrl: true,
+          firstName: true,
+          lastName: true,
+        },
       })
     : null;
 
@@ -44,8 +49,8 @@ export async function DashboardHeader({
     <DashboardHeaderClient
       isAuthenticated
       email={metadata.email}
-      firstName={metadata.firstName}
-      lastName={metadata.lastName}
+      firstName={dbUser?.firstName ?? metadata.firstName}
+      lastName={dbUser?.lastName ?? metadata.lastName}
       username={dbUser?.username ?? metadata.username}
       avatarUrl={dbUser?.avatarUrl ?? metadata.avatarUrl}
       signOutAction={signOut}

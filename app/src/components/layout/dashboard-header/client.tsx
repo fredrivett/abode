@@ -23,7 +23,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getDisplayName } from "@/lib/get-display-name";
 import { useFilterOptions, useSearch } from "@/lib/search";
 import { useUserStore } from "@/stores/user-store";
 
@@ -76,14 +75,25 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   // Use store value (falls back to initial if store not yet hydrated)
   const avatarUrl = storeAvatarUrl ?? initialAvatarUrl;
 
-  const displayEmail = isAuthenticated ? props.email || "Account" : null;
-  const displayName = isAuthenticated
-    ? getDisplayName({
-        firstName: props.firstName,
-        lastName: props.lastName,
-        username: props.username,
-      })
+  // Compute display values for the user dropdown
+  // If user has a name (first and/or last), show name on line 1 and @username on line 2
+  // Otherwise, show @username on line 1 and email on line 2
+  const hasName = isAuthenticated && (props.firstName || props.lastName);
+  const fullName = isAuthenticated
+    ? [props.firstName, props.lastName].filter(Boolean).join(" ")
     : null;
+  const displayLine1 = hasName
+    ? fullName
+    : isAuthenticated && props.username
+      ? `@${props.username}`
+      : null;
+  const displayLine2 = hasName
+    ? props.username
+      ? `@${props.username}`
+      : null
+    : isAuthenticated
+      ? props.email || null
+      : null;
 
   // Determine logo link destination
   const logoHref = isAuthenticated ? "/dashboard" : "/";
@@ -159,10 +169,16 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     className="size-8"
                   />
                   <span className="flex flex-col items-start leading-tight">
-                    <span className="text-sm font-medium">{displayName}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {displayEmail}
-                    </span>
+                    {displayLine1 && (
+                      <span className="text-sm font-medium">
+                        {displayLine1}
+                      </span>
+                    )}
+                    {displayLine2 && (
+                      <span className="text-xs text-muted-foreground">
+                        {displayLine2}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <DropdownMenuSeparator />

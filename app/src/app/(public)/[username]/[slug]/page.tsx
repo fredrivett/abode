@@ -24,6 +24,9 @@ const getUser = cache(async (username: string) => {
     select: {
       id: true,
       username: true,
+      firstName: true,
+      lastName: true,
+      avatarUrl: true,
     },
   });
 });
@@ -231,6 +234,12 @@ export default async function RoomPage({ params }: Props) {
       username={currentDbUser?.username ?? metadata.username}
       avatarUrl={currentDbUser?.avatarUrl ?? metadata.avatarUrl}
       signOutAction={currentUser ? signOut : undefined}
+      roomOwner={{
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatarUrl: user.avatarUrl,
+      }}
     />
   );
 }
