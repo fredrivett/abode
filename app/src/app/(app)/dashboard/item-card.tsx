@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import {
@@ -467,8 +468,12 @@ function ItemDetailDialog({
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const notesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+
+  // Sync notes state when item.notes changes (e.g., from server refresh)
+  useEffect(() => {
+    setNotes(item.notes ?? "");
+  }, [item.notes]);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
   useEffect(() => {
@@ -527,36 +532,22 @@ function ItemDetailDialog({
     }
   };
 
+  const saveNotes = useDebouncedCallback(async (value: string) => {
+    setIsSavingNotes(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, { notes: value });
+    } catch (error) {
+      log.error({ error }, "Notes save error");
+      toast.error("Failed to save notes");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  }, 500);
+
   const handleNotesChange = (value: string) => {
     setNotes(value);
-
-    // Clear existing timeout
-    if (notesTimeoutRef.current) {
-      clearTimeout(notesTimeoutRef.current);
-    }
-
-    // Debounce the save
-    notesTimeoutRef.current = setTimeout(async () => {
-      setIsSavingNotes(true);
-      try {
-        await api.patch(`/api/v1/items/${item.id}`, { notes: value });
-      } catch (error) {
-        log.error({ error }, "Notes save error");
-        toast.error("Failed to save notes");
-      } finally {
-        setIsSavingNotes(false);
-      }
-    }, 500);
+    saveNotes(value);
   };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (notesTimeoutRef.current) {
-        clearTimeout(notesTimeoutRef.current);
-      }
-    };
-  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

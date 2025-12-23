@@ -132,6 +132,14 @@ export async function PATCH(
       notes,
     } = body;
 
+    // Validate notes field type (user-editable field)
+    if (notes !== undefined && notes !== null && typeof notes !== "string") {
+      return NextResponse.json(
+        { message: "Invalid notes field: must be a string or null" },
+        { status: 400 },
+      );
+    }
+
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
       where: {
