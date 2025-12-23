@@ -44,7 +44,7 @@ if (!parsed.success) {
   // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
   console.error("❌ Invalid environment variables:");
   // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
-  console.error(JSON.stringify(parsed.error.flatten(), null, 2));
+  console.error(JSON.stringify(z.flattenError(parsed.error), null, 2));
   throw new Error("Invalid environment variables");
 }
 
