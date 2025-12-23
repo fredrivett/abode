@@ -10,7 +10,7 @@ test.describe("Marketing page", () => {
     await expect(page.getByRole("heading", { name: "abode" })).toBeVisible();
 
     // Check the tagline
-    await expect(page.getByText("the home for your info")).toBeVisible();
+    await expect(page.getByText("your digital home")).toBeVisible();
 
     // Check theme toggle is present
     await expect(page.getByRole("button", { name: /theme/i })).toBeVisible();
