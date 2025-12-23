@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
+import { getMFAFactors } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { DeleteAccountSettings } from "./_components/delete-account-settings";
 import { ProfileSettings } from "./_components/profile-settings";
+import { SecuritySettings } from "./_components/security-settings";
 import { UsernameSettings } from "./_components/username-settings";
 
 export default async function SettingsPage() {
@@ -35,6 +37,9 @@ export default async function SettingsPage() {
   const previousUsernames =
     (dbUser?.previousUsernames as PreviousUsername[]) || [];
 
+  // Fetch MFA factors for security settings
+  const mfaFactors = await getMFAFactors(supabase);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader />
@@ -55,6 +60,7 @@ export default async function SettingsPage() {
             email={email}
             initialAvatarUrl={dbUser?.avatarUrl}
           />
+          <SecuritySettings initialFactors={mfaFactors} />
           <UsernameSettings
             currentUsername={dbUser?.username || null}
             changesUsed={previousUsernames.length}
