@@ -31,6 +31,16 @@ model User {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
+  // Referral tracking
+  referredById     String?       @map("referred_by_id") @db.Uuid
+  invitesRemaining Int           @default(3) @map("invites_remaining")
+  inviteSource     InviteSource? @map("invite_source")
+
+  // Relations
+  referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals         User[]  @relation("Referrals")
+  sentInvites       Invite[] @relation("SentInvites")
+
   items             Item[]
   locations         ItemLocation[]
   visualVectors     ItemVisualVector[]
@@ -308,4 +318,67 @@ model ActivityLog {
   @@index([userId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("activity_logs")
+}
+
+// ============================================================================
+// Invite & Waitlist System
+// ============================================================================
+
+// Tracks how user got access (derived from Invite.type at signup)
+enum InviteSource {
+  user      // Invited by another user
+  waitlist  // Promoted from waitlist by admin
+  admin     // Manually added by admin
+}
+
+enum InviteType {
+  user      // Invited by another user
+  waitlist  // Promoted from waitlist by admin
+  admin     // Manually created by admin
+}
+
+enum InviteStatus {
+  pending
+  accepted
+}
+
+// Single table for ALL invite tokens - user invites, waitlist promotions, admin invites
+model Invite {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String
+  token           String       @unique
+  type            InviteType
+  status          InviteStatus @default(pending)
+  expiresAt       DateTime     @map("expires_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  acceptedAt      DateTime?    @map("accepted_at")
+
+  // For user invites (type: user)
+  inviterId       String?      @map("inviter_id") @db.Uuid
+  inviter         User?        @relation("SentInvites", fields: [inviterId], references: [id], onDelete: SetNull)
+
+  // For waitlist invites (type: waitlist)
+  waitlistEntryId String?      @map("waitlist_entry_id") @db.Uuid
+  waitlistEntry   WaitlistEntry? @relation(fields: [waitlistEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([inviterId, email]) // User can't invite same email twice
+  @@index([token])
+  @@index([email])
+  @@index([inviterId])
+  @@map("invites")
+}
+
+// Waitlist entries - users waiting to be invited
+model WaitlistEntry {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique
+  position       Int?      // Queue position, nullable if not tracking
+  referralSource String?   @map("referral_source") // "twitter", "producthunt", etc.
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Invites created for this waitlist entry (usually 1, more if resent)
+  invites        Invite[]
+
+  @@index([createdAt])
+  @@map("waitlist_entries")
 }
