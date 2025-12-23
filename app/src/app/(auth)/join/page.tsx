@@ -1,3 +1,4 @@
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import { validateInviteToken } from "@/lib/invites";
 import { EnterCodeForm } from "./enter-code-form";
 import { JoinForm } from "./join-form";
@@ -70,10 +71,21 @@ export default async function JoinPage({ searchParams }: PageProps) {
       <div className="w-full max-w-sm space-y-6 px-4">
         {showInviterBanner && invite.inviter && (
           <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="flex items-center justify-center flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-300">
               you&apos;ve been invited by{" "}
-              <span className="font-medium text-gray-900 dark:text-gray-100">
-                @{invite.inviter.username}
+              <span className="flex items-center gap-1">
+                {invite.inviter.avatarUrl && (
+                  <UserAvatar
+                    avatarUrl={invite.inviter.avatarUrl}
+                    firstName={invite.inviter.firstName}
+                    lastName={invite.inviter.lastName}
+                    username={invite.inviter.username}
+                    className="size-6"
+                  />
+                )}
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  @{invite.inviter.username}
+                </span>
               </span>
             </p>
           </div>

@@ -50,7 +50,7 @@ export type InviteValidationResult =
       invite: Invite & {
         inviter: Pick<
           User,
-          "id" | "username" | "firstName" | "lastName"
+          "id" | "username" | "firstName" | "lastName" | "avatarUrl"
         > | null;
       };
     }
@@ -80,6 +80,7 @@ export async function validateInviteToken(
           username: true,
           firstName: true,
           lastName: true,
+          avatarUrl: true,
         },
       },
     },
