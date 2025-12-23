@@ -426,4 +426,102 @@ describe("preserveSocialEmbeds", () => {
     expect(result.html).toBe(html);
     expect(result.tweetIds).toEqual([]);
   });
+
+  it("detects onclick window.open twitter URLs", () => {
+    const html = `
+      <div class="tweet-card" onclick="window.open('https://twitter.com/taylorotwell/status/1704117079547257037', '_blank')">
+        <img src="avatar.jpg" alt="">
+        <div>Taylor Otwell</div>
+        <p>I'm interested in potentially bringing on someone...</p>
+      </div>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:1704117079547257037]]");
+    expect(result.tweetIds).toEqual(["1704117079547257037"]);
+  });
+
+  it("detects onclick with x.com URLs", () => {
+    const html = `
+      <div onclick="window.open('https://x.com/user/status/9876543210', '_blank')">
+        <p>Tweet content here</p>
+      </div>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:9876543210]]");
+    expect(result.tweetIds).toEqual(["9876543210"]);
+  });
+
+  it("handles complex onclick tweet card like Aaron Francis blog", () => {
+    const html = `
+      <p>Check out this tweet:</p>
+      <div class="relative mx-auto my-12 cursor-pointer overflow-hidden rounded-lg bg-gray-200/60 p-8 transition-colors lg:prose-lg hover:bg-gray-200 prose-p:text-lg prose-p:leading-normal dark:bg-gray-800 hover:dark:bg-gray-700/50" onclick="window.open('https://twitter.com/taylorotwell/status/1704117079547257037', '_blank')">
+        <div class="not-prose mb-4 flex items-center gap-4">
+          <img src="https://pbs.twimg.com/profile_images/1694737709166899200/EQkjv0gi_400x400.jpg" alt="" class="h-12 w-12 rounded-full">
+          <div>
+            <p class="text-lg font-semibold !leading-normal">Taylor Otwell</p>
+            <p class="text-sm !leading-normal text-gray-500 dark:text-gray-400">taylorotwell</p>
+          </div>
+        </div>
+        <div>I'm interested in potentially bringing on someone to focus on video and educational content at Laravel.</div>
+      </div>
+      <p>Pretty cool right?</p>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:1704117079547257037]]");
+    expect(result.html).toContain("Check out this tweet");
+    expect(result.html).toContain("Pretty cool right?");
+    expect(result.tweetIds).toEqual(["1704117079547257037"]);
+  });
+
+  it("handles both official embeds and onclick embeds in same HTML", () => {
+    const html = `
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/user1/status/111">Date</a>
+      </blockquote>
+      <p>Some text</p>
+      <div onclick="window.open('https://twitter.com/user2/status/222', '_blank')">
+        <p>Custom tweet card</p>
+      </div>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:111]]");
+    expect(result.html).toContain("[[TWEET:222]]");
+    expect(result.tweetIds).toEqual(["111", "222"]);
+  });
+
+  it("does not duplicate tweet IDs when same tweet appears multiple ways", () => {
+    const html = `
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/user/status/123">Date</a>
+      </blockquote>
+      <div onclick="window.open('https://twitter.com/user/status/123', '_blank')">
+        <p>Same tweet as card</p>
+      </div>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.tweetIds).toEqual(["123"]);
+  });
+
+  it("ignores onclick without twitter URLs", () => {
+    const html = `
+      <div onclick="window.open('https://example.com/page', '_blank')">
+        <p>Regular clickable div</p>
+      </div>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toBe(html);
+    expect(result.tweetIds).toEqual([]);
+  });
 });

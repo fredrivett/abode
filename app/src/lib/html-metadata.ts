@@ -216,9 +216,9 @@ export type SocialEmbedResult = {
  * Preserves social media embeds by replacing them with placeholder elements
  * that survive Readability processing.
  *
- * Twitter/X embeds are blockquotes with class="twitter-tweet" that contain
- * a link to the tweet. We extract the tweet URL and replace the entire
- * blockquote with a special div that Readability will preserve.
+ * Detects Twitter/X embeds in two formats:
+ * 1. Official embeds: blockquotes with class="twitter-tweet"
+ * 2. Custom onclick embeds: elements with onclick="window.open('https://twitter.com/...')"
  *
  * After Turndown converts to markdown, these divs become text that can be
  * rendered as embedded tweets on the frontend.
@@ -227,14 +227,14 @@ export type SocialEmbedResult = {
  */
 export function preserveSocialEmbeds(html: string): SocialEmbedResult {
   const tweetIds: string[] = [];
+  let processedHtml = html;
 
-  // Match Twitter/X blockquote embeds
+  // 1. Match Twitter/X blockquote embeds (official embeds)
   // These look like: <blockquote class="twitter-tweet" ...>...<a href="https://twitter.com/user/status/123">...</a>...</blockquote>
-  // The tweet URL is in an anchor tag, typically the last one before </blockquote>
   const twitterEmbedRegex =
     /<blockquote[^>]*class=["'][^"']*twitter-tweet[^"']*["'][^>]*>[\s\S]*?<\/blockquote>/gi;
 
-  const processedHtml = html.replace(twitterEmbedRegex, (blockquote) => {
+  processedHtml = processedHtml.replace(twitterEmbedRegex, (blockquote) => {
     // Find the tweet URL within the blockquote
     // Look for twitter.com or x.com status links
     const urlMatch = blockquote.match(
@@ -258,6 +258,26 @@ export function preserveSocialEmbeds(html: string): SocialEmbedResult {
     // It will be converted to a regular blockquote by Readability
     return blockquote;
   });
+
+  // 2. Match elements with onclick containing twitter/x.com URLs
+  // These look like: <div onclick="window.open('https://twitter.com/user/status/123', '_blank')">...</div>
+  // This pattern is used by some sites for custom tweet card styling
+  const onclickTweetRegex =
+    /<(\w+)[^>]*onclick=["'][^"']*(?:window\.open\s*\(\s*['"]|location\s*=\s*['"])(https?:\/\/(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
+
+  processedHtml = processedHtml.replace(
+    onclickTweetRegex,
+    (element, _tagName, tweetUrl) => {
+      const tweetId = extractTweetId(tweetUrl);
+
+      if (tweetId && !tweetIds.includes(tweetId)) {
+        tweetIds.push(tweetId);
+        return `<p data-embed-type="twitter" data-tweet-id="${tweetId}">[[TWEET:${tweetId}]]</p>`;
+      }
+
+      return element;
+    },
+  );
 
   return { html: processedHtml, tweetIds };
 }
