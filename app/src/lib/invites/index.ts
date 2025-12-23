@@ -312,6 +312,63 @@ export function getInviteUrl(token: string): string {
   return `${baseUrl}/join?token=${token}`;
 }
 
+export type RevokeInviteResult =
+  | { success: true }
+  | { success: false; error: string; code: string };
+
+/**
+ * Revoke (delete) an invite
+ * Only the inviter can revoke their own invites
+ * Can only revoke pending invites (not accepted ones)
+ */
+export async function revokeInvite(
+  inviteId: string,
+  userId: string,
+): Promise<RevokeInviteResult> {
+  // Find the invite and check ownership
+  const invite = await db.invite.findUnique({
+    where: { id: inviteId },
+    select: {
+      id: true,
+      inviterId: true,
+      status: true,
+    },
+  });
+
+  if (!invite) {
+    return {
+      success: false,
+      error: "Invite not found",
+      code: "INVITE_NOT_FOUND",
+    };
+  }
+
+  // Check if user owns this invite
+  if (invite.inviterId !== userId) {
+    return {
+      success: false,
+      error: "You can only revoke your own invites",
+      code: "UNAUTHORIZED",
+    };
+  }
+
+  // Don't allow revoking accepted invites
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "Cannot revoke an accepted invite",
+      code: "ALREADY_ACCEPTED",
+    };
+  }
+
+  // Delete the invite
+  await db.invite.delete({
+    where: { id: inviteId },
+  });
+
+  return { success: true };
+}
+
 /**
  * Create a waitlist invite (admin inviting from waitlist)
  */
