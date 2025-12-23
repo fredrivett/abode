@@ -1,5 +1,6 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -175,6 +176,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_create", { itemId: item.id, kind });
+
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     log.error({ error }, "Item creation error");
@@ -255,6 +259,9 @@ export async function DELETE(request: NextRequest) {
         });
       }
     });
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_delete", { itemId: id });
 
     return NextResponse.json({ message: "Item deleted" }, { status: 200 });
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthResult = {
@@ -20,10 +21,16 @@ export async function login(
     password: formData.get("password") as string,
   };
 
-  const { error } = await supabase.auth.signInWithPassword(data);
+  const { data: authData, error } =
+    await supabase.auth.signInWithPassword(data);
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Log login activity (fire-and-forget)
+  if (authData.user) {
+    void logActivity(authData.user.id, "user_login");
   }
 
   revalidatePath("/", "layout");

@@ -37,6 +37,7 @@ model User {
   textVectors       ItemTextVector[]
   rooms             Room[]
   articleHighlights ArticleHighlight[]
+  activityLogs      ActivityLog[]
 
   @@map("users")
 }
@@ -72,6 +73,19 @@ enum AvatarSource {
   upload
   oauth
   gravatar
+}
+
+enum ActivityType {
+  item_create
+  item_update
+  item_delete
+  item_view
+  room_create
+  room_update
+  room_delete
+  room_view
+  user_login
+  user_update
 }
 
 model Item {
@@ -280,4 +294,18 @@ model ArticleHighlight {
   @@index([itemId])
   @@index([userId])
   @@map("article_highlights")
+}
+
+model ActivityLog {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  type      ActivityType
+  metadata  Json?
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("activity_logs")
 }

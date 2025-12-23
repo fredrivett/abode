@@ -1,5 +1,6 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -81,6 +82,9 @@ export async function GET(
     if (!item) {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_view", { itemId: id });
 
     // Flatten imageDetails for backward compatibility with frontend
     const flattenedItem = {
@@ -238,6 +242,9 @@ export async function PATCH(
         userId: user.id,
       });
     }
+
+    // Log activity (fire-and-forget)
+    void logActivity(user.id, "item_update", { itemId: id });
 
     // Flatten imageDetails for backward compatibility with frontend
     const flattenedItem = {
