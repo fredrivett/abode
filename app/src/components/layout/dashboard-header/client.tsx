@@ -200,14 +200,15 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <button
-                    type="submit"
-                    formAction={props.signOutAction}
-                    className="flex w-full items-center gap-2"
-                  >
-                    <LogOut className="size-4" />
-                    Sign out
-                  </button>
+                  <form action={props.signOutAction}>
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2"
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </button>
+                  </form>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
