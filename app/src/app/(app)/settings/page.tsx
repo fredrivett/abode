@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { DeleteAccountSettings } from "./_components/delete-account-settings";
+import { InviteSettings } from "./_components/invite-settings";
 import { ProfileSettings } from "./_components/profile-settings";
 import { SecuritySettings } from "./_components/security-settings";
 import { UsernameSettings } from "./_components/username-settings";
@@ -26,6 +27,17 @@ export default async function SettingsPage() {
       avatarUrl: true,
       firstName: true,
       lastName: true,
+      invitesRemaining: true,
+      sentInvites: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          expiresAt: true,
+          acceptedAt: true,
+        },
+      },
     },
   });
 
@@ -59,6 +71,20 @@ export default async function SettingsPage() {
             username={dbUser?.username}
             email={email}
             initialAvatarUrl={dbUser?.avatarUrl}
+          />
+          <InviteSettings
+            invitesRemaining={dbUser?.invitesRemaining ?? 0}
+            initialInvites={(dbUser?.sentInvites ?? []).map((invite) => ({
+              ...invite,
+              createdAt: invite.createdAt.toISOString(),
+              expiresAt: invite.expiresAt.toISOString(),
+              acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+              status: invite.acceptedAt
+                ? "accepted"
+                : invite.expiresAt < new Date()
+                  ? "expired"
+                  : "pending",
+            }))}
           />
           <SecuritySettings initialFactors={mfaFactors} />
           <UsernameSettings
