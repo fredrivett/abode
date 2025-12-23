@@ -306,18 +306,28 @@ async function handleImageUrl(
     throw new Error("Failed to download image from URL");
   }
 
-  // Update item with image data
-  await db.item.update({
-    where: { id: itemId, userId },
-    data: {
-      kind: "image",
-      fileKey: imageResult.fileKey,
-      meta: {
-        size: imageResult.size,
-        type: imageResult.contentType,
-        originalUrl: url,
+  // Update item with image data and increment user storage
+  await db.$transaction(async (tx) => {
+    await tx.item.update({
+      where: { id: itemId, userId },
+      data: {
+        kind: "image",
+        fileKey: imageResult.fileKey,
+        meta: {
+          size: imageResult.size,
+          type: imageResult.contentType,
+          originalUrl: url,
+        },
       },
-    },
+    });
+
+    // Update user's storage usage
+    if (imageResult.size > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { storageUsedBytes: { increment: BigInt(imageResult.size) } },
+      });
+    }
   });
 
   // Trigger image analysis

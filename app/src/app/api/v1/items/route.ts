@@ -122,30 +122,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the item initially with "processing" status
-    const item = await db.item.create({
-      data: {
-        kind: kind || null,
-        fileKey: fileKey || null,
-        meta: meta || null,
-        sourceType: sourceType || null,
-        sourceUrl: sourceUrl || null,
-        userId: user.id,
-        processingStatus: "processing",
-      },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        fileKey: true,
-        meta: true,
-        sourceType: true,
-        sourceUrl: true,
-        coverFileKey: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    // Get file size from meta for storage tracking
+    const fileSize =
+      meta && typeof meta === "object" && "size" in meta
+        ? BigInt(meta.size as number)
+        : BigInt(0);
+
+    // Create the item and update user storage in a transaction
+    const item = await db.$transaction(async (tx) => {
+      const newItem = await tx.item.create({
+        data: {
+          kind: kind || null,
+          fileKey: fileKey || null,
+          meta: meta || null,
+          sourceType: sourceType || null,
+          sourceUrl: sourceUrl || null,
+          userId: user.id,
+          processingStatus: "processing",
+        },
+        select: {
+          id: true,
+          userId: true,
+          kind: true,
+          processingStatus: true,
+          fileKey: true,
+          meta: true,
+          sourceType: true,
+          sourceUrl: true,
+          coverFileKey: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Update user's storage usage
+      if (fileSize > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { storageUsedBytes: { increment: fileSize } },
+        });
+      }
+
+      return newItem;
     });
 
     // Trigger image analysis via Trigger.dev (returns immediately)
@@ -192,7 +210,7 @@ export async function DELETE(request: NextRequest) {
     // Find the item to ensure it exists and belongs to the user
     const item = await db.item.findUnique({
       where: { id },
-      select: { id: true, userId: true, fileKey: true },
+      select: { id: true, userId: true, fileKey: true, meta: true },
     });
 
     if (!item) {
@@ -218,9 +236,24 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Delete from database
-    await db.item.delete({
-      where: { id },
+    // Get file size for storage tracking
+    const meta = item.meta as { size?: number } | null;
+    const fileSize =
+      meta && typeof meta.size === "number" ? BigInt(meta.size) : BigInt(0);
+
+    // Delete from database and update storage in a transaction
+    await db.$transaction(async (tx) => {
+      await tx.item.delete({
+        where: { id },
+      });
+
+      // Decrement user's storage usage
+      if (fileSize > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { storageUsedBytes: { decrement: fileSize } },
+        });
+      }
     });
 
     return NextResponse.json({ message: "Item deleted" }, { status: 200 });
