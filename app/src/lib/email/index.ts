@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { env } from "@/env";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/email");
@@ -8,11 +9,7 @@ let resendClient: Resend | null = null;
 
 function getResendClient(): Resend {
   if (!resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resendClient = new Resend(apiKey);
+    resendClient = new Resend(env.RESEND_API_KEY);
   }
   return resendClient;
 }
@@ -21,8 +18,8 @@ function getResendClient(): Resend {
  * Email configuration
  */
 const EMAIL_CONFIG = {
-  from: process.env.RESEND_FROM_EMAIL || "fred <fred@abode.fyi>",
-  replyTo: process.env.RESEND_REPLY_TO_EMAIL,
+  from: env.RESEND_FROM_EMAIL || "fred <fred@abode.fyi>",
+  replyTo: env.RESEND_REPLY_TO_EMAIL,
 };
 
 export type SendEmailResult =
@@ -66,7 +63,8 @@ export async function sendEmail(options: {
 
 /**
  * Check if email sending is configured
+ * Note: RESEND_API_KEY is now required at build time, so this always returns true
  */
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return true;
 }

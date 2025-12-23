@@ -97,55 +97,63 @@ export function InviteSettings({
   };
 
   return (
-    <section className="rounded-xl border p-6">
-      <h3 className="text-lg font-semibold">Invites</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Invite friends to join abode. You have{" "}
-        <span className="font-medium text-foreground">{invitesRemaining}</span>{" "}
-        invite{invitesRemaining !== 1 ? "s" : ""} remaining.
-      </p>
-
-      {invitesRemaining > 0 ? (
-        <form onSubmit={handleSendInvite} className="mt-4">
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Label htmlFor="invite-email" className="sr-only">
-                Email address
-              </Label>
-              <Input
-                id="invite-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="friend@example.com"
-                required
-                disabled={isSending}
-              />
-            </div>
-            <Button type="submit" disabled={isSending || !email.trim()}>
-              {isSending ? "Sending..." : "Send invite"}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          You've used all your invites. Thanks for spreading the word!
+    <>
+      <section className="rounded-xl border p-6">
+        <h3 className="text-lg font-semibold">Invites</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Invite friends to join abode. You have{" "}
+          <span className="font-medium text-foreground">
+            {invitesRemaining}
+          </span>{" "}
+          invite{invitesRemaining !== 1 ? "s" : ""} remaining.
         </p>
-      )}
 
-      {invites.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-medium text-muted-foreground mb-3">
-            Sent invites
-          </h4>
+        {invitesRemaining > 0 ? (
+          <form onSubmit={handleSendInvite} className="mt-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="invite-email" className="sr-only">
+                  Email address
+                </Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="friend@example.com"
+                  required
+                  disabled={isSending}
+                />
+              </div>
+              <Button type="submit" disabled={isSending || !email.trim()}>
+                {isSending ? "Sending..." : "Send invite"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            You've used all your invites. Thanks for spreading the word!
+          </p>
+        )}
+      </section>
+
+      <div className="mt-6">
+        <h4 className="text-sm font-medium text-muted-foreground mb-3">
+          Sent invites
+        </h4>
+        {invites.length > 0 ? (
           <div className="space-y-2">
             {invites.map((invite) => (
               <InviteRow key={invite.id} invite={invite} />
             ))}
           </div>
-        </div>
-      )}
-    </section>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg">
+            No invites sent yet
+          </p>
+        )}
+      </div>
+    </>
   );
 }
 
