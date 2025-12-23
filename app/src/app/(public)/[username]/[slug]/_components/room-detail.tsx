@@ -4,12 +4,15 @@ import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { RoomVisibility } from "@prisma/client";
 import {
   ArrowLeft,
+  Hand,
   Loader2,
   MoreHorizontal,
   Pencil,
   SearchX,
+  Sparkles,
   Trash2,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -47,7 +50,15 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
+import { getDisplayName } from "@/lib/get-display-name";
 import type { Room, RoomItem } from "@/lib/types/room";
+
+type RoomOwner = {
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  avatarUrl: string | null;
+};
 
 type RoomDetailProps = {
   room: Room;
@@ -56,6 +67,8 @@ type RoomDetailProps = {
   initialHasMore: boolean;
   /** Whether the current user owns this room. Defaults to true for backwards compatibility. */
   isOwner?: boolean;
+  /** Room owner info for display (only shown when not owner) */
+  roomOwner?: RoomOwner;
 };
 
 function formatBytes(bytes?: number | null) {
@@ -77,6 +90,7 @@ export function RoomDetail({
   initialCursor,
   initialHasMore,
   isOwner = true,
+  roomOwner,
 }: RoomDetailProps) {
   const router = useRouter();
   const [roomEmoji, setRoomEmoji] = useState(room.emoji);
@@ -248,10 +262,21 @@ export function RoomDetail({
             <span>
               {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
             </span>
-            {room.type === "smart" && (
+            {room.type === "smart" ? (
               <>
                 <span>·</span>
-                <span>Auto-updating</span>
+                <span className="inline-flex items-center gap-1">
+                  <Sparkles className="size-3" />
+                  Dynamic
+                </span>
+              </>
+            ) : (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Hand className="size-3" />
+                  Static
+                </span>
               </>
             )}
             {roomVisibility === "public" && (
@@ -265,7 +290,7 @@ export function RoomDetail({
           </div>
         </div>
 
-        {isOwner && (
+        {isOwner ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -288,6 +313,41 @@ export function RoomDetail({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : (
+          roomOwner && (
+            <Link
+              href={`/@${roomOwner.username}`}
+              className="flex items-center gap-2 rounded-lg p-2 -m-2 transition-colors hover:bg-accent/50"
+            >
+              {roomOwner.avatarUrl ? (
+                <Image
+                  src={roomOwner.avatarUrl}
+                  alt={getDisplayName(roomOwner)}
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+                  {(
+                    roomOwner.firstName?.[0] ||
+                    roomOwner.username?.[0] ||
+                    "?"
+                  ).toUpperCase()}
+                </div>
+              )}
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-sm font-medium">
+                  {getDisplayName(roomOwner)}
+                </span>
+                {roomOwner.firstName !== null && (
+                  <span className="text-xs text-muted-foreground">
+                    @{roomOwner.username}
+                  </span>
+                )}
+              </span>
+            </Link>
+          )
         )}
       </div>
 
