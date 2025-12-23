@@ -3,6 +3,7 @@
 import type { ArticleHighlight } from "@prisma/client";
 import { Highlighter, Trash2 } from "lucide-react";
 import Markdown from "markdown-to-jsx";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   useDeleteHighlight,
   useItemHighlights,
 } from "@/lib/highlights/use-highlights";
+import { TweetEmbed } from "./tweet-embed";
 
 type HighlightData = Pick<
   ArticleHighlight,
@@ -50,6 +52,36 @@ type ClickedHighlightState = {
 
 const HIGHLIGHT_CLASS =
   "bg-yellow-400/25 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-400/40 dark:data-[active]:bg-yellow-500/50 data-[flash]:animate-highlight-flash";
+
+const TWEET_MARKER_REGEX = /^\[\[TWEET:(\d+)\]\]$/;
+
+/**
+ * Custom paragraph component that renders tweet embeds when the content
+ * matches the [[TWEET:id]] marker pattern.
+ */
+function TweetParagraph({ children }: { children?: ReactNode }) {
+  // Check if this paragraph contains only a tweet marker
+  if (typeof children === "string") {
+    const match = children.match(TWEET_MARKER_REGEX);
+    if (match) {
+      return <TweetEmbed tweetId={match[1]} />;
+    }
+  }
+
+  // Handle case where children is an array with a single string element
+  if (
+    Array.isArray(children) &&
+    children.length === 1 &&
+    typeof children[0] === "string"
+  ) {
+    const match = children[0].match(TWEET_MARKER_REGEX);
+    if (match) {
+      return <TweetEmbed tweetId={match[1]} />;
+    }
+  }
+
+  return <p>{children}</p>;
+}
 
 /**
  * Article content with highlighting capabilities.
@@ -329,7 +361,16 @@ export function HighlightableArticle({
         onClick={handleClick}
         onKeyDown={handleKeyDown}
       >
-        <Markdown className={className}>{content}</Markdown>
+        <Markdown
+          className={className}
+          options={{
+            overrides: {
+              p: TweetParagraph,
+            },
+          }}
+        >
+          {content}
+        </Markdown>
       </div>
 
       <Popover

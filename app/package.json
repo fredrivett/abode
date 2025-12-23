@@ -75,6 +75,7 @@
     "react-dom": "19.2.1",
     "react-hook-form": "^7.69.0",
     "react-image-crop": "^11.0.10",
+    "react-tweet": "^3.3.0",
     "replicate": "^1.4.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
