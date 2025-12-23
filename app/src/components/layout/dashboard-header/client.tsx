@@ -70,19 +70,33 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   const { state: searchState, setState: setSearchState } = useSearch();
   const { getFilterValuesForType } = useFilterOptions();
-  const { avatarUrl: storeAvatarUrl, setAvatarUrl } = useUserStore();
+  const {
+    avatarUrl: storeAvatarUrl,
+    setAvatarUrl,
+    invitesRemaining: storeInvitesRemaining,
+    setInvitesRemaining,
+  } = useUserStore();
 
   const initialAvatarUrl = isAuthenticated ? props.avatarUrl : null;
+  const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
 
-  // Initialize store with server-fetched value on mount
+  // Initialize store with server-fetched values on mount
   useEffect(() => {
     if (isAuthenticated) {
       setAvatarUrl(initialAvatarUrl ?? null);
+      setInvitesRemaining(initialInvitesRemaining);
     }
-  }, [initialAvatarUrl, setAvatarUrl, isAuthenticated]);
+  }, [
+    initialAvatarUrl,
+    setAvatarUrl,
+    initialInvitesRemaining,
+    setInvitesRemaining,
+    isAuthenticated,
+  ]);
 
-  // Use store value (falls back to initial if store not yet hydrated)
+  // Use store values (fall back to initial if store not yet hydrated)
   const avatarUrl = storeAvatarUrl ?? initialAvatarUrl;
+  const invitesRemaining = storeInvitesRemaining ?? initialInvitesRemaining;
 
   // Compute display values for the user dropdown
   // If user has a name (first and/or last), show name on line 1 and @username on line 2
@@ -157,12 +171,12 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     className="relative"
                   >
                     <UserPlus size={18} aria-hidden />
-                    {props.availableInvites > 0 && (
+                    {invitesRemaining > 0 && (
                       <Badge
                         variant="outline"
                         className="absolute top-0 right-0 min-w-4 h-4 px-1 py-0 text-[10px] leading-none border-muted-foreground/20 bg-muted text-muted-foreground rounded"
                       >
-                        {props.availableInvites}
+                        {invitesRemaining}
                       </Badge>
                     )}
                   </Link>
@@ -170,9 +184,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
                 <span className="font-mono">
-                  {props.availableInvites > 0
-                    ? `${props.availableInvites} invite${props.availableInvites !== 1 ? "s" : ""} available`
-                    : "No invites available"}
+                  {invitesRemaining > 0
+                    ? `${invitesRemaining} invite${invitesRemaining !== 1 ? "s" : ""} remaining`
+                    : "No invites remaining"}
                 </span>
               </TooltipContent>
             </Tooltip>
