@@ -3,7 +3,7 @@
 import { ArrowLeft, Hand, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { SearchInput } from "@/components/search/search-input";
@@ -12,6 +12,18 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
+import { cn } from "@/lib/utils";
+
+const ROOM_EXAMPLES = [
+  { emoji: null, name: "My Collection" },
+  { emoji: "🇨🇦", name: "Vancouver pics 2025" },
+  { emoji: "📚", name: "5 star reads" },
+  { emoji: "🎨", name: "Design inspiration" },
+  { emoji: "🏠", name: "Home renovation ideas" },
+] as const;
+
+const CYCLE_INTERVAL = 4000; // Time between cycles (ms)
+const FADE_DURATION = 300; // Fade transition duration (ms)
 
 export function NewRoomForm() {
   const router = useRouter();
@@ -23,6 +35,68 @@ export function NewRoomForm() {
     filters: [],
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Reset to default placeholder when user interacts
+  const handleInteraction = useCallback(() => {
+    if (!hasInteracted) {
+      setHasInteracted(true);
+      setPlaceholderIndex(0);
+      setIsTransitioning(false);
+    }
+  }, [hasInteracted]);
+
+  // Handle emoji change - reset on interaction, track when cleared
+  const handleEmojiChange = useCallback(
+    (newEmoji: string | null) => {
+      handleInteraction();
+      setEmoji(newEmoji);
+
+      // If emoji is cleared and name is empty, allow cycling again
+      if (newEmoji === null && !name) {
+        setHasInteracted(false);
+      }
+    },
+    [handleInteraction, name],
+  );
+
+  // Handle name change - reset on interaction, track when cleared
+  const handleNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newName = e.target.value;
+      handleInteraction();
+      setName(newName);
+
+      // If name is cleared and emoji is null, allow cycling again
+      if (newName === "" && !emoji) {
+        setHasInteracted(false);
+      }
+    },
+    [handleInteraction, emoji],
+  );
+
+  // Cycle through placeholder examples with fade transition
+  useEffect(() => {
+    // Only cycle if user hasn't interacted
+    if (hasInteracted) return;
+
+    const interval = setInterval(() => {
+      // Start fade out
+      setIsTransitioning(true);
+
+      // After fade out completes, change the content and fade back in
+      setTimeout(() => {
+        setPlaceholderIndex((prev) => (prev + 1) % ROOM_EXAMPLES.length);
+        setIsTransitioning(false);
+      }, FADE_DURATION);
+    }, CYCLE_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [hasInteracted]);
+
+  const currentExample = ROOM_EXAMPLES[placeholderIndex];
 
   // Get filter options for autocomplete
   const { getFilterValuesForType } = useFilterOptions();
@@ -99,13 +173,32 @@ export function NewRoomForm() {
             Room name
           </label>
           <div className="flex max-w-md items-center gap-2">
-            <EmojiPickerPopover value={emoji} onChange={setEmoji} />
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My Collection"
+            <EmojiPickerPopover
+              value={emoji}
+              onChange={handleEmojiChange}
+              placeholderEmoji={currentExample.emoji}
+              isTransitioning={isTransitioning}
             />
+            <div className="relative flex-1">
+              <Input
+                id="name"
+                value={name}
+                onChange={handleNameChange}
+                className="w-full"
+              />
+              {/* Custom animated placeholder overlay */}
+              {!name && (
+                <div
+                  className={cn(
+                    "pointer-events-none absolute inset-0 flex items-center px-3 text-muted-foreground transition-opacity",
+                    isTransitioning ? "opacity-0" : "opacity-100",
+                  )}
+                  style={{ transitionDuration: `${FADE_DURATION}ms` }}
+                >
+                  {currentExample.name}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
