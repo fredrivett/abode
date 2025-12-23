@@ -1,12 +1,14 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, Clock, Mail, X } from "lucide-react";
-import { useState } from "react";
+import { Check, Clock, Mail, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { useUserStore } from "@/stores/user-store";
 
 type Invite = {
   id: string;
@@ -28,8 +30,13 @@ export function InviteSettings({
 }: InviteSettingsProps) {
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [invitesRemaining, setInvitesRemaining] = useState(initialRemaining);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
+  const { invitesRemaining, setInvitesRemaining } = useUserStore();
+
+  // Initialize store with server-fetched value on mount
+  useEffect(() => {
+    setInvitesRemaining(initialRemaining);
+  }, [initialRemaining, setInvitesRemaining]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +103,31 @@ export function InviteSettings({
     }
   };
 
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      const response = await fetch(`/api/v1/invites/${inviteId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Failed to revoke invite");
+        return;
+      }
+
+      toast.success("Invite revoked");
+
+      // Update invites remaining from API response
+      setInvitesRemaining(data.invitesRemaining);
+
+      // Remove the invite from the list
+      setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
+    } catch {
+      toast.error("Failed to revoke invite");
+    }
+  };
+
   return (
     <>
       <section className="rounded-xl border p-6">
@@ -126,7 +158,7 @@ export function InviteSettings({
                 />
               </div>
               <Button type="submit" disabled={isSending || !email.trim()}>
-                {isSending ? "Sending..." : "Send invite"}
+                {isSending ? <IsLoading label="Sending" /> : "Send invite"}
               </Button>
             </div>
           </form>
@@ -144,7 +176,11 @@ export function InviteSettings({
         {invites.length > 0 ? (
           <div className="space-y-2">
             {invites.map((invite) => (
-              <InviteRow key={invite.id} invite={invite} />
+              <InviteRow
+                key={invite.id}
+                invite={invite}
+                onRevoke={handleRevokeInvite}
+              />
             ))}
           </div>
         ) : (
@@ -157,7 +193,16 @@ export function InviteSettings({
   );
 }
 
-function InviteRow({ invite }: { invite: Invite }) {
+function InviteRow({
+  invite,
+  onRevoke,
+}: {
+  invite: Invite;
+  onRevoke: (inviteId: string) => Promise<void>;
+}) {
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const statusIcon = {
     pending: <Clock className="size-4 text-yellow-500" />,
     accepted: <Check className="size-4 text-green-500" />,
@@ -174,15 +219,62 @@ function InviteRow({ invite }: { invite: Invite }) {
     return "expired";
   };
 
+  const handleClick = () => {
+    if (!showConfirm) {
+      setShowConfirm(true);
+    } else {
+      void handleRevoke();
+    }
+  };
+
+  const handleRevoke = async () => {
+    setIsRevoking(true);
+    try {
+      await onRevoke(invite.id);
+    } finally {
+      // Only reset if component is still mounted
+      // (if revoke succeeds, component will unmount)
+      setIsRevoking(false);
+      setShowConfirm(false);
+    }
+  };
+
+  const handleBlur = () => {
+    // Reset confirmation state when clicking away
+    if (!isRevoking) {
+      setShowConfirm(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between rounded-lg border px-3 py-2">
       <div className="flex items-center gap-2">
         <Mail className="size-4 text-muted-foreground" />
         <span className="text-sm">{invite.email}</span>
       </div>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {statusIcon[invite.status]}
-        <span>{getStatusText()}</span>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {statusIcon[invite.status]}
+          <span>{getStatusText()}</span>
+        </div>
+        {invite.status !== "accepted" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClick}
+            onBlur={handleBlur}
+            disabled={isRevoking}
+            className="h-7 px-2 text-muted-foreground hover:text-destructive"
+          >
+            {isRevoking ? (
+              <IsLoading label="Revoking" iconClassName="size-3" />
+            ) : showConfirm ? (
+              <span className="text-xs">Confirm revoke invite?</span>
+            ) : (
+              <Trash2 className="size-4" />
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
