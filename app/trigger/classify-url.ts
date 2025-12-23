@@ -6,7 +6,10 @@ import { logger, task, tasks } from "@trigger.dev/sdk";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import db from "../src/lib/db";
-import { extractArticleMetadata } from "../src/lib/html-metadata";
+import {
+  extractArticleMetadata,
+  preserveSocialEmbeds,
+} from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
@@ -157,10 +160,16 @@ export const classifyUrlTask = task({
         // Modern React/Next.js sites use streaming SSR which renders content into
         // hidden divs that are revealed via JavaScript hydration. Readability
         // ignores hidden elements, so we need to unhide them first.
-        const processedHtml = html.replace(
+        let processedHtml = html.replace(
           /<div([^>]*)\s+hidden([^>]*)>/gi,
           "<div$1$2>",
         );
+
+        // Pre-process HTML: Preserve social media embeds before Readability runs
+        // Twitter/X embeds are blockquotes that would be stripped of their structure.
+        // We replace them with placeholder divs containing the tweet URL, then convert
+        // these to markdown markers after Readability extracts the content.
+        processedHtml = preserveSocialEmbeds(processedHtml);
 
         const dom = new JSDOM(processedHtml, { url });
         const reader = new Readability(dom.window.document);
