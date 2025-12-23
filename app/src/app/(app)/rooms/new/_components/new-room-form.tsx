@@ -3,13 +3,18 @@
 import { ArrowLeft, Hand, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { SearchInput } from "@/components/search/search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
 import { cn } from "@/lib/utils";
@@ -22,14 +27,15 @@ const ROOM_EXAMPLES = [
   { emoji: "🏠", name: "Home renovation ideas" },
 ] as const;
 
-const CYCLE_INTERVAL = 4000; // Time between cycles (ms)
+const CYCLE_INTERVAL = 6000; // Time between cycles (ms)
 const FADE_DURATION = 300; // Fade transition duration (ms)
 
 export function NewRoomForm() {
   const router = useRouter();
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [emoji, setEmoji] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [roomType, setRoomType] = useState<"smart" | "manual">("smart");
+  const [roomType, setRoomType] = useState<"smart" | "manual">("manual");
   const [searchState, setSearchState] = useState<SearchState>({
     query: "",
     filters: [],
@@ -109,7 +115,7 @@ export function NewRoomForm() {
       e.preventDefault();
 
       if (!name.trim()) {
-        toast.error("Please enter a room name");
+        toast.error("Every room needs a name");
         return;
       }
 
@@ -161,8 +167,9 @@ export function NewRoomForm() {
           Back to rooms
         </Link>
         <h1 className="text-3xl font-serif font-semibold">Create a new room</h1>
-        <p className="text-muted-foreground">
-          Organize your items into dynamic or static collections
+        <p className="text-pretty text-muted-foreground">
+          Dynamic or static collections for personal use or to share some of
+          your home with others
         </p>
       </div>
 
@@ -178,9 +185,11 @@ export function NewRoomForm() {
               onChange={handleEmojiChange}
               placeholderEmoji={currentExample.emoji}
               isTransitioning={isTransitioning}
+              onSelect={() => nameInputRef.current?.focus()}
             />
             <div className="relative flex-1">
               <Input
+                ref={nameInputRef}
                 id="name"
                 value={name}
                 onChange={handleNameChange}
@@ -208,31 +217,11 @@ export function NewRoomForm() {
           <div className="grid gap-4 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => setRoomType("smart")}
-              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
-                roomType === "smart"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-muted-foreground/50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles
-                  className={`size-5 ${roomType === "smart" ? "text-amber-500" : "text-muted-foreground"}`}
-                />
-                <span className="font-medium">Dynamic Room</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Automatically collects items that match your filters
-              </p>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setRoomType("manual")}
-              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+              className={`group flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
                 roomType === "manual"
                   ? "border-primary bg-primary/5"
-                  : "border-border hover:border-muted-foreground/50"
+                  : "cursor-pointer border-border hover:border-muted-foreground/50"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -243,6 +232,30 @@ export function NewRoomForm() {
               </div>
               <p className="text-sm text-muted-foreground">
                 Hand-pick specific items to add to this room
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRoomType("smart")}
+              className={`group flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+                roomType === "smart"
+                  ? "border-amber-500 bg-amber-500/5"
+                  : "cursor-pointer border-border hover:border-amber-500/50"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles
+                  className={`size-5 transition-colors ${
+                    roomType === "smart"
+                      ? "text-amber-500"
+                      : "text-amber-500/50 group-hover:text-amber-500"
+                  }`}
+                />
+                <span className="font-medium">Dynamic Room</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Automatically collects items that match your filters
               </p>
             </button>
           </div>
@@ -276,24 +289,73 @@ export function NewRoomForm() {
 
         {/* Submit */}
         <div className="flex gap-3">
-          <Button
-            type="submit"
-            disabled={isCreating || (roomType === "smart" && !hasFilters)}
-          >
-            {isCreating ? (
-              <IsLoading label="Creating" />
-            ) : (
-              <>
-                <Plus className="size-4" />
-                Create room
-              </>
-            )}
-          </Button>
+          <CreateRoomButton
+            isCreating={isCreating}
+            hasName={!!name.trim()}
+            hasFilters={hasFilters}
+            roomType={roomType}
+          />
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+type CreateRoomButtonProps = {
+  isCreating: boolean;
+  hasName: boolean;
+  hasFilters: boolean;
+  roomType: "smart" | "manual";
+};
+
+function CreateRoomButton({
+  isCreating,
+  hasName,
+  hasFilters,
+  roomType,
+}: CreateRoomButtonProps) {
+  const missingName = !hasName;
+  const missingFilters = roomType === "smart" && !hasFilters;
+  const isDisabled = missingName || missingFilters;
+
+  // Determine tooltip message (prioritize name over filters)
+  const tooltipMessage = missingName
+    ? "Every room needs a name"
+    : missingFilters
+      ? "Dynamic rooms require at least one filter"
+      : null;
+
+  if (isDisabled && tooltipMessage) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <Button type="button" disabled>
+              <Plus className="size-4" />
+              Create room
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltipMessage}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Button type="submit" disabled={isCreating}>
+      {isCreating ? (
+        <IsLoading label="Creating" />
+      ) : (
+        <>
+          <Plus className="size-4" />
+          Create room
+        </>
+      )}
+    </Button>
   );
 }

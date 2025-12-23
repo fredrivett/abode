@@ -22,6 +22,8 @@ type EmojiPickerPopoverProps = {
   placeholderEmoji?: string | null;
   /** Whether the placeholder is currently transitioning (fading) */
   isTransitioning?: boolean;
+  /** Callback fired after an emoji is selected (not on remove) */
+  onSelect?: () => void;
 };
 
 export function EmojiPickerPopover({
@@ -29,6 +31,7 @@ export function EmojiPickerPopover({
   onChange,
   placeholderEmoji,
   isTransitioning = false,
+  onSelect,
 }: EmojiPickerPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -81,6 +84,7 @@ export function EmojiPickerPopover({
           onEmojiSelect={({ emoji }) => {
             onChange(emoji);
             setIsOpen(false);
+            onSelect?.();
           }}
         >
           <div className="flex items-center gap-2 border-b px-2 py-1.5">
