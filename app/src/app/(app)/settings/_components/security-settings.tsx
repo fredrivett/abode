@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, ShieldCheck, ShieldOff } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,6 +160,13 @@ function MFAEnrollDialog({
     }
   }, []);
 
+  // Start enrollment when dialog opens
+  useEffect(() => {
+    if (open && !qrCode && !isLoading && !error) {
+      void startEnrollment();
+    }
+  }, [open, qrCode, isLoading, error, startEnrollment]);
+
   const handleVerify = useCallback(async () => {
     if (!factorId || code.length !== 6) return;
 
@@ -182,12 +189,8 @@ function MFAEnrollDialog({
     }
   }, [factorId, code, onComplete]);
 
-  // Start enrollment when dialog opens
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
-      if (newOpen && !qrCode) {
-        void startEnrollment();
-      }
       if (!newOpen) {
         // Reset state when closing
         setStep("qr");
@@ -199,7 +202,7 @@ function MFAEnrollDialog({
       }
       onOpenChange(newOpen);
     },
-    [qrCode, startEnrollment, onOpenChange],
+    [onOpenChange],
   );
 
   return (
@@ -226,13 +229,14 @@ function MFAEnrollDialog({
           </div>
         ) : (
           <div className="space-y-6">
-            {step === "qr" && qrCode && (
+            {step === "qr" && qrCode ? (
               <>
                 <div className="flex flex-col items-center gap-4">
                   <div className="rounded-lg bg-white p-3">
-                    <div
-                      // biome-ignore lint/security/noDangerouslySetInnerHtml: QR code is SVG from Supabase auth API
-                      dangerouslySetInnerHTML={{ __html: qrCode }}
+                    {/* biome-ignore lint/performance/noImgElement: QR code is a data URI (base64), which Next.js Image doesn't support */}
+                    <img
+                      src={qrCode}
+                      alt="QR Code for two-factor authentication"
                       className="size-48"
                     />
                   </div>
@@ -251,7 +255,13 @@ function MFAEnrollDialog({
                   Continue
                 </Button>
               </>
-            )}
+            ) : step === "qr" && !qrCode ? (
+              <div className="py-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Waiting for QR code...
+                </p>
+              </div>
+            ) : null}
 
             {step === "verify" && (
               <>
