@@ -43,6 +43,7 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
+        notes: true,
         excludeFromPublicRooms: true,
         locations: {
           select: {
@@ -128,7 +129,16 @@ export async function PATCH(
       excludeFromPublicRooms,
       tags,
       title,
+      notes,
     } = body;
+
+    // Validate notes field type (user-editable field)
+    if (notes !== undefined && notes !== null && typeof notes !== "string") {
+      return NextResponse.json(
+        { message: "Invalid notes field: must be a string or null" },
+        { status: 400 },
+      );
+    }
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
@@ -169,6 +179,7 @@ export async function PATCH(
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
         ...(title !== undefined && { title }),
+        ...(notes !== undefined && { notes }),
       },
       select: {
         id: true,
@@ -185,6 +196,7 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
+        notes: true,
         excludeFromPublicRooms: true,
         locations: {
           select: {

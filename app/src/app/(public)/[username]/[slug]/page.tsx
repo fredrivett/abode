@@ -206,6 +206,7 @@ export default async function RoomPage({ params }: Props) {
     title: roomItem.item.title,
     description: roomItem.item.description,
     tags: roomItem.item.tags,
+    notes: null, // Notes are private, not exposed on public room pages
     objects: roomItem.item.imageDetails?.objects ?? [],
     colors: (roomItem.item.imageDetails?.colors as ImageColor[]) ?? [],
     ocrText: roomItem.item.imageDetails?.ocrText ?? null,

@@ -29,6 +29,7 @@ export default async function DashboardPage() {
           title: true,
           description: true,
           tags: true,
+          notes: true,
           excludeFromPublicRooms: true,
           locations: {
             select: {

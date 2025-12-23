@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import {
@@ -465,7 +466,14 @@ function ItemDetailDialog({
     null,
   );
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
+  const [notes, setNotes] = useState(item.notes ?? "");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+
+  // Sync notes state when item.notes changes (e.g., from server refresh)
+  useEffect(() => {
+    setNotes(item.notes ?? "");
+  }, [item.notes]);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
   useEffect(() => {
@@ -522,6 +530,23 @@ function ItemDetailDialog({
     } finally {
       setIsSavingExclude(false);
     }
+  };
+
+  const saveNotes = useDebouncedCallback(async (value: string) => {
+    setIsSavingNotes(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, { notes: value });
+    } catch (error) {
+      log.error({ error }, "Notes save error");
+      toast.error("Failed to save notes");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  }, 500);
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    saveNotes(value);
   };
 
   return (
@@ -984,6 +1009,26 @@ function ItemDetailDialog({
                       <p>No analysis available.</p>
                     </div>
                   )}
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Notes
+                    </h3>
+                    {isSavingNotes && (
+                      <span className="text-xs text-muted-foreground">
+                        Saving...
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => handleNotesChange(e.target.value)}
+                    placeholder="Add your notes..."
+                    className="w-full min-h-[100px] rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                  />
                 </div>
 
                 {/* Highlights - articles only */}
