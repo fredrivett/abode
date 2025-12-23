@@ -69,6 +69,7 @@ type RawItemRow = {
   title: string | null;
   description: string | null;
   tags: string[];
+  notes: string | null;
   created_at: Date;
   objects: string[] | null;
   colors: unknown;
@@ -119,6 +120,7 @@ function transformRawItemToItem(
     title: row.title,
     description: row.description,
     tags: row.tags || [],
+    notes: row.notes,
     objects: row.objects || [],
     colors: parseColors(row.colors) ?? [],
     ocrText: row.ocr_text,
@@ -683,6 +685,7 @@ async function executeRankedSearch(
       i.title,
       i.description,
       i.tags,
+      i.notes,
       i.created_at,
       iid.objects,
       iid.colors,

@@ -43,6 +43,7 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
+        notes: true,
         excludeFromPublicRooms: true,
         locations: {
           select: {
@@ -128,6 +129,7 @@ export async function PATCH(
       excludeFromPublicRooms,
       tags,
       title,
+      notes,
     } = body;
 
     // Check if item exists and belongs to user
@@ -169,6 +171,7 @@ export async function PATCH(
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
         ...(title !== undefined && { title }),
+        ...(notes !== undefined && { notes }),
       },
       select: {
         id: true,
@@ -185,6 +188,7 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
+        notes: true,
         excludeFromPublicRooms: true,
         locations: {
           select: {
