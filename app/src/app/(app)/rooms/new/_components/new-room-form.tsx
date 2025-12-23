@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, DoorOpen, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Hand, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -41,7 +41,7 @@ export function NewRoomForm() {
 
       const filters = searchState.filters;
       if (roomType === "smart" && filters.length === 0) {
-        toast.error("Smart rooms require at least one filter");
+        toast.error("Dynamic rooms require at least one filter");
         return;
       }
 
@@ -88,7 +88,7 @@ export function NewRoomForm() {
         </Link>
         <h1 className="text-3xl font-serif font-semibold">Create a new room</h1>
         <p className="text-muted-foreground">
-          Organize your items into smart or manual collections
+          Organize your items into dynamic or static collections
         </p>
       </div>
 
@@ -126,7 +126,7 @@ export function NewRoomForm() {
                 <Sparkles
                   className={`size-5 ${roomType === "smart" ? "text-amber-500" : "text-muted-foreground"}`}
                 />
-                <span className="font-medium">Smart Room</span>
+                <span className="font-medium">Dynamic Room</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Automatically collects items that match your filters
@@ -143,10 +143,10 @@ export function NewRoomForm() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <DoorOpen
+                <Hand
                   className={`size-5 ${roomType === "manual" ? "text-primary" : "text-muted-foreground"}`}
                 />
-                <span className="font-medium">Manual Room</span>
+                <span className="font-medium">Static Room</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Hand-pick specific items to add to this room

@@ -106,7 +106,7 @@ export const WithFiveSteps: Story = {
       <Step>
         <StepContent
           icon={Users}
-          title="Create smart rooms"
+          title="Create dynamic rooms"
           description="Group items into rooms for personal use or sharing."
         />
       </Step>

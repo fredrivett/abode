@@ -1,19 +1,8 @@
 "use client";
 
-import { DoorOpen, Plus, Trash2 } from "lucide-react";
+import { DoorOpen, Hand, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { FilterBadges } from "@/components/rooms/filter-badges";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { RoomWithSlug } from "@/lib/types/room";
@@ -24,34 +13,18 @@ type RoomsListProps = {
 };
 
 export function RoomsList({ initialRooms, username }: RoomsListProps) {
-  const [rooms, setRooms] = useState(initialRooms);
-  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async (roomId: string) => {
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/v1/rooms/${roomId}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        setRooms((prev) => prev.filter((r) => r.id !== roomId));
-      }
-    } finally {
-      setIsDeleting(false);
-      setDeletingRoomId(null);
-    }
-  };
-
-  const roomToDelete = rooms.find((r) => r.id === deletingRoomId);
+  const rooms = initialRooms;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-serif font-semibold">Rooms</h2>
+          <h2 className="flex items-center gap-2 text-2xl font-serif font-semibold">
+            <DoorOpen className="size-6 text-muted-foreground" />
+            Rooms
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Organize your items into smart or manual collections
+            Organize your items into dynamic or static collections
           </p>
         </div>
         <Button asChild>
@@ -71,9 +44,9 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
                 No rooms yet
               </h2>
               <p className="text-base text-muted-foreground">
-                Create your first room to start organizing your items. Smart
+                Create your first room to start organizing your items. Dynamic
                 rooms automatically collect items matching your filters, while
-                manual rooms let you hand-pick specific items.
+                static rooms let you hand-pick specific items.
               </p>
               <Button asChild className="mt-4">
                 <Link href="/rooms/new">
@@ -93,38 +66,35 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">
-                <h3 className="flex items-center gap-2 font-serif font-medium leading-none">
+                <h3 className="flex items-center gap-2 text-lg font-serif font-medium leading-none">
                   {room.emoji && <span aria-hidden>{room.emoji}</span>}
                   {room.name}
                 </h3>
-                <div className="flex items-center gap-1">
-                  {room.visibility === "public" && (
-                    <Badge variant="secondary" className="text-xs">
-                      Public
-                    </Badge>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDeletingRoomId(room.id);
-                    }}
-                  >
-                    <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
-                  </Button>
-                </div>
+                {room.visibility === "public" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Public
+                  </Badge>
+                )}
               </div>
               <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
                 </span>
-                {room.type === "smart" && (
+                {room.type === "smart" ? (
                   <>
                     <span>·</span>
-                    <span>Auto-updating</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Sparkles className="size-3" />
+                      Dynamic
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Hand className="size-3" />
+                      Static
+                    </span>
                   </>
                 )}
               </div>
@@ -137,31 +107,6 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
           ))}
         </div>
       )}
-
-      <AlertDialog
-        open={deletingRoomId !== null}
-        onOpenChange={(open) => !open && setDeletingRoomId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete room?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{roomToDelete?.name}"? This will
-              remove the room but won't delete the items in it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={() => deletingRoomId && handleDelete(deletingRoomId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

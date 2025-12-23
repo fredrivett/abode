@@ -1033,7 +1033,7 @@ function ItemDetailDialog({
                     </button>
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    When enabled, this item won't appear in public smart rooms
+                    When enabled, this item won't appear in public dynamic rooms
                   </p>
                 </div>
 

@@ -60,7 +60,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
 
       if (response.ok) {
         const room = await response.json();
-        toast.success("Smart room created");
+        toast.success("Dynamic room created");
         setIsOpen(false);
         router.push(`/@${room.username}/${room.slug}`);
       } else {
@@ -89,9 +89,9 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Save as Smart Room</DialogTitle>
+            <DialogTitle>Save as Dynamic Room</DialogTitle>
             <DialogDescription>
-              Create a smart room from your current filters. Items matching
+              Create a dynamic room from your current filters. Items matching
               these filters will be automatically added to the room.
             </DialogDescription>
           </DialogHeader>
@@ -139,7 +139,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
               {isCreating ? (
                 <IsLoading label="Creating" />
               ) : (
-                "Create Smart Room"
+                "Create Dynamic Room"
               )}
             </Button>
           </DialogFooter>
