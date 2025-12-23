@@ -131,7 +131,7 @@ export function ItemsGrid({
 
             return (
               <Frame key={item.id} width={width} height={height}>
-                <div className="h-full pb-4">
+                <div className="h-full">
                   <ItemCard
                     item={item}
                     name={name}
