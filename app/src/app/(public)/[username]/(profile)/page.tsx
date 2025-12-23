@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { Badge } from "@/components/ui/badge";
 import db from "@/lib/db";
+import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
 
 type Props = {
@@ -107,7 +108,8 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <p className="mt-4 text-sm text-muted-foreground">
-            {user.memberNumber && `Member #${user.memberNumber}, since `}
+            {user.memberNumber &&
+              `Member #${formatMemberNumber(user.memberNumber)}, since `}
             {!user.memberNumber && "Member since "}
             {new Intl.DateTimeFormat("en-US", {
               month: "long",
