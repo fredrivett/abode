@@ -15,10 +15,10 @@ import { signupWithInvite, verifyOtp } from "./actions";
 type JoinFormProps = {
   token: string;
   email: string;
-  inviteType: string;
+  inviteOrigin: string;
 };
 
-export function JoinForm({ token, email, inviteType }: JoinFormProps) {
+export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
   const [signupState, signupAction, isSigningUp] = useActionState(
     signupWithInvite,
     {},
@@ -137,7 +137,7 @@ export function JoinForm({ token, email, inviteType }: JoinFormProps) {
           create your account
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {inviteType === "waitlist"
+          {inviteOrigin === "waitlist"
             ? "you're off the waitlist! let's get you set up."
             : "just a few details to get started"}
         </p>

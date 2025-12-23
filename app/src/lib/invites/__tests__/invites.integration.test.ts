@@ -40,7 +40,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "accepted-token-123",
-          type: "user",
+          origin: "user",
           status: "accepted",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: user.id,
@@ -69,7 +69,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "pending-token-123",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: user.id,
@@ -97,7 +97,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "expired-token-123",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired yesterday
           inviterId: user.id,
@@ -137,7 +137,7 @@ describe("Invites Integration", () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.invite.email).toBe("friend@example.com");
-        expect(result.invite.type).toBe("user");
+        expect(result.invite.origin).toBe("user");
         expect(result.invite.inviterId).toBe(user.id);
       }
     });
@@ -234,7 +234,7 @@ describe("Invites Integration", () => {
         data: {
           email: "friend@example.com",
           token: "accepted-token",
-          type: "user",
+          origin: "user",
           status: "accepted",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: user.id,
@@ -267,7 +267,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "valid-token-123",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: "550e8400-e29b-41d4-a716-446655440020",
@@ -304,7 +304,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "already-accepted-token",
-          type: "user",
+          origin: "user",
           status: "accepted",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: "550e8400-e29b-41d4-a716-446655440021",
@@ -335,7 +335,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "expired-token",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired
           inviterId: "550e8400-e29b-41d4-a716-446655440022",
@@ -379,7 +379,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "valid-pending-token",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           inviterId: "550e8400-e29b-41d4-a716-446655440030",
@@ -410,7 +410,7 @@ describe("Invites Integration", () => {
         data: {
           email: "invited@example.com",
           token: "expired-validate-token",
-          type: "user",
+          origin: "user",
           status: "pending",
           expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
           inviterId: "550e8400-e29b-41d4-a716-446655440031",

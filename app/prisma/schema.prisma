@@ -32,9 +32,9 @@ model User {
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   // Referral tracking
-  referredById      String?       @map("referred_by_id") @db.Uuid
-  inviteAllocation  Int           @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
-  inviteSource      InviteSource? @map("invite_source")
+  referredById      String?        @map("referred_by_id") @db.Uuid
+  inviteAllocation  Int            @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
+  origin            InviteOrigin?  @map("origin")
 
   // Relations
   referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -324,17 +324,11 @@ model ActivityLog {
 // Invite & Waitlist System
 // ============================================================================
 
-// Tracks how user got access (derived from Invite.type at signup)
-enum InviteSource {
+// Origin of invite/user - how they got access
+enum InviteOrigin {
   user      // Invited by another user
   waitlist  // Promoted from waitlist by admin
   admin     // Manually added by admin
-}
-
-enum InviteType {
-  user      // Invited by another user
-  waitlist  // Promoted from waitlist by admin
-  admin     // Manually created by admin
 }
 
 enum InviteStatus {
@@ -347,7 +341,7 @@ model Invite {
   id              String       @id @default(uuid()) @db.Uuid
   email           String
   token           String       @unique
-  type            InviteType
+  origin          InviteOrigin @map("origin")
   status          InviteStatus @default(pending)
   expiresAt       DateTime     @map("expires_at")
   createdAt       DateTime     @default(now()) @map("created_at")
@@ -355,11 +349,11 @@ model Invite {
   acceptedAt      DateTime?    @map("accepted_at")
   sendCount       Int          @default(1) @map("send_count") // How many times this invite was (re)sent
 
-  // For user invites (type: user)
+  // For user invites (origin: user)
   inviterId       String?      @map("inviter_id") @db.Uuid
   inviter         User?        @relation("SentInvites", fields: [inviterId], references: [id], onDelete: SetNull)
 
-  // For waitlist invites (type: waitlist)
+  // For waitlist invites (origin: waitlist)
   waitlistEntryId String?      @map("waitlist_entry_id") @db.Uuid
   waitlistEntry   WaitlistEntry? @relation(fields: [waitlistEntryId], references: [id], onDelete: SetNull)
 

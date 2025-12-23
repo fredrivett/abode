@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       };
 
       return NextResponse.json(
-        { message: result.error, code: result.code },
+        { error: result.error, code: result.code },
         { status: statusMap[result.code] || 400 },
       );
     }

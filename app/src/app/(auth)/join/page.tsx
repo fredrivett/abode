@@ -63,7 +63,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
 
   // Valid token - show signup form
   const { invite } = result;
-  const showInviterBanner = invite.type === "user" && invite.inviter;
+  const showInviterBanner = invite.origin === "user" && invite.inviter;
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -79,7 +79,11 @@ export default async function JoinPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <JoinForm token={token} email={invite.email} inviteType={invite.type} />
+        <JoinForm
+          token={token}
+          email={invite.email}
+          inviteOrigin={invite.origin}
+        />
       </div>
     </div>
   );

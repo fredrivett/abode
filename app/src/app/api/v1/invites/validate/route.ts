@@ -7,7 +7,7 @@ const log = createLogger("api/v1/invites/validate");
 /**
  * GET /api/v1/invites/validate?token=xxx - Validate an invite token (public endpoint)
  *
- * Returns invite details if valid, including type and inviter info (if user invite)
+ * Returns invite details if valid, including origin and inviter info (if user invite)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -39,15 +39,15 @@ export async function GET(request: NextRequest) {
 
     const { invite } = result;
 
-    // Build response based on invite type
+    // Build response based on invite origin
     const response: Record<string, unknown> = {
       valid: true,
       email: invite.email,
-      type: invite.type,
+      origin: invite.origin,
     };
 
     // Only include inviter info for user invites
-    if (invite.type === "user" && invite.inviter) {
+    if (invite.origin === "user" && invite.inviter) {
       response.inviterUsername = invite.inviter.username;
       response.inviterDisplayName =
         invite.inviter.firstName && invite.inviter.lastName

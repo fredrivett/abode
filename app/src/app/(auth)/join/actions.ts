@@ -68,7 +68,7 @@ export async function signupWithInvite(
       data: {
         pending_username: username,
         invite_token: token,
-        invite_type: invite.type,
+        invite_origin: invite.origin,
         inviter_id: invite.inviterId,
       },
     },
@@ -116,7 +116,7 @@ export async function verifyOtp(
     return { error: "Failed to get user after verification" };
   }
 
-  // Get invite details for setting inviteSource and referredById
+  // Get invite details for setting origin and referredById
   // Note: We fetch the invite directly instead of using validateInviteToken
   // because the invite may have been accepted already (race condition with another
   // user using the same forwarded invite link). If it was accepted for THIS email,
@@ -126,7 +126,7 @@ export async function verifyOtp(
     select: {
       id: true,
       email: true,
-      type: true,
+      origin: true,
       status: true,
       inviterId: true,
       expiresAt: true,
@@ -157,19 +157,16 @@ export async function verifyOtp(
     (userMetadata?.avatar_url as string) ||
     null;
 
-  // Map invite type to invite source
-  const inviteSource = invite.type as "user" | "waitlist" | "admin";
-
-  // Update user with username, invite source, and referrer (if user invite)
+  // Update user with username, origin, and referrer (if user invite)
   await db.user.update({
     where: { id: user.id },
     data: {
       username,
-      inviteSource,
-      referredById: invite.type === "user" ? invite.inviterId : null,
+      origin: invite.origin,
+      referredById: invite.origin === "user" ? invite.inviterId : null,
       ...(oauthPicture && {
         avatarUrl: oauthPicture,
-        avatarSource: "oauth" as const,
+        avatarSource: "oauth",
       }),
     },
   });

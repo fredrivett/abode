@@ -113,6 +113,7 @@ export async function validateInviteToken(
 
 /**
  * Create a user-to-user invite
+ * Uses a transaction to prevent race conditions when checking/creating invites
  */
 export async function createUserInvite(
   inviterId: string,
@@ -120,7 +121,7 @@ export async function createUserInvite(
 ): Promise<CreateInviteResult> {
   const normalizedEmail = normalizeEmail(email);
 
-  // Validate email format and disposable check
+  // Validate email format and disposable check (outside transaction - no DB needed)
   const emailValidation = validateEmail(normalizedEmail);
   if (!emailValidation.valid) {
     return {
@@ -130,17 +131,15 @@ export async function createUserInvite(
     };
   }
 
-  // Check if user exists and has invites available
-  const availableInvites = await getAvailableInvites(inviterId);
-
-  if (availableInvites <= 0) {
-    // Check if user exists at all
-    const userExists = await db.user.findUnique({
+  // Use transaction to prevent race conditions
+  return db.$transaction(async (tx) => {
+    // Check if user exists and get allocation
+    const user = await tx.user.findUnique({
       where: { id: inviterId },
-      select: { id: true },
+      select: { id: true, inviteAllocation: true },
     });
 
-    if (!userExists) {
+    if (!user) {
       return {
         success: false,
         error: "User not found",
@@ -148,72 +147,89 @@ export async function createUserInvite(
       };
     }
 
-    return {
-      success: false,
-      error: "No invites remaining",
-      code: "NO_INVITES_REMAINING",
-    };
-  }
-
-  // Check if email already has an account
-  const existingUser = await db.user.findUnique({
-    where: { email: normalizedEmail },
-  });
-
-  if (existingUser) {
-    return {
-      success: false,
-      error: "This email already has an account",
-      code: "ALREADY_HAS_ACCOUNT",
-    };
-  }
-
-  // Check if this user already invited this email
-  const existingInvite = await db.invite.findUnique({
-    where: {
-      inviterId_email: {
+    // Count used invites within transaction
+    const usedInvites = await tx.invite.count({
+      where: {
         inviterId,
-        email: normalizedEmail,
+        OR: [
+          { status: "accepted" },
+          { status: "pending", expiresAt: { gt: new Date() } },
+        ],
       },
-    },
-  });
+    });
 
-  if (existingInvite) {
-    // If accepted, return error
-    if (existingInvite.status === "accepted") {
+    const availableInvites = Math.max(0, user.inviteAllocation - usedInvites);
+
+    // Check if email already has an account
+    const existingUser = await tx.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    if (existingUser) {
       return {
         success: false,
-        error: "This person has already joined",
-        code: "ALREADY_JOINED",
+        error: "This email already has an account",
+        code: "ALREADY_HAS_ACCOUNT",
       };
     }
 
-    // If pending (expired or not), refresh the invite with new token/expiry
-    // This is a re-send, so no invite credit cost
-    const invite = await db.invite.update({
-      where: { id: existingInvite.id },
+    // Check if this user already invited this email
+    const existingInvite = await tx.invite.findUnique({
+      where: {
+        inviterId_email: {
+          inviterId,
+          email: normalizedEmail,
+        },
+      },
+    });
+
+    if (existingInvite) {
+      // If accepted, return error
+      if (existingInvite.status === "accepted") {
+        return {
+          success: false,
+          error: "This person has already joined",
+          code: "ALREADY_JOINED",
+        };
+      }
+
+      // If pending (expired or not), refresh the invite with new token/expiry
+      // This is a re-send, so no invite credit cost
+      const invite = await tx.invite.update({
+        where: { id: existingInvite.id },
+        data: {
+          token: generateInviteToken(),
+          expiresAt: getInviteExpiryDate(),
+          sendCount: { increment: 1 },
+        },
+      });
+
+      return { success: true, invite };
+    }
+
+    // Check available invites (after re-send check, since re-sends don't cost)
+    if (availableInvites <= 0) {
+      return {
+        success: false,
+        error: "No invites remaining",
+        code: "NO_INVITES_REMAINING",
+      };
+    }
+
+    // Create new invite
+    const invite = await tx.invite.create({
       data: {
+        email: normalizedEmail,
         token: generateInviteToken(),
+        origin: "user",
         expiresAt: getInviteExpiryDate(),
-        sendCount: { increment: 1 },
+        inviterId,
       },
     });
 
     return { success: true, invite };
-  }
-
-  // Create new invite (available count is computed from invites table, no need to update user)
-  const invite = await db.invite.create({
-    data: {
-      email: normalizedEmail,
-      token: generateInviteToken(),
-      type: "user",
-      expiresAt: getInviteExpiryDate(),
-      inviterId,
-    },
   });
-
-  return { success: true, invite };
 }
 
 export type AcceptInviteResult =
@@ -360,7 +376,7 @@ export async function createWaitlistInvite(
     data: {
       email: entry.email,
       token: generateInviteToken(),
-      type: "waitlist",
+      origin: "waitlist",
       expiresAt: getInviteExpiryDate(),
       waitlistEntryId: entry.id,
     },

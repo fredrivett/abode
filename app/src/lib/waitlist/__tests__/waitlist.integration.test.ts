@@ -103,7 +103,7 @@ describe("Waitlist Integration", () => {
         data: {
           email: "invited@example.com",
           token: "active-invite-token",
-          type: "admin",
+          origin: "admin",
           status: "pending",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
