@@ -31,6 +31,8 @@ abode — ${ABODE_TAGLINE}
 export function getUserInviteEmail(options: {
   inviterName: string;
   inviteToken: string;
+  inviterUsername?: string;
+  inviterAvatarUrl?: string;
 }): { subject: string; text: string; html: string } {
   const inviteUrl = getInviteUrl(options.inviteToken);
   const websiteUrl = getAppBaseUrl();
@@ -55,7 +57,18 @@ ${EMAIL_FOOTER}
     htmlLink("abode", websiteUrl),
   );
 
-  const html = `<p>${options.inviterName} thinks you'd love abode!</p>
+  // Optional inviter profile section with avatar
+  const inviterProfile =
+    options.inviterAvatarUrl && options.inviterUsername
+      ? `<div style="margin-bottom: 1.5em; display: flex; align-items: center; gap: 0.75em;">
+  <img src="${options.inviterAvatarUrl}" alt="${options.inviterName}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />
+  <span style="font-weight: 500;">@${options.inviterUsername}</span>
+</div>
+
+`
+      : "";
+
+  const html = `${inviterProfile}<p>${options.inviterName} thinks you'd love abode!</p>
 
 <p>${descriptionWithLink}</p>
 
