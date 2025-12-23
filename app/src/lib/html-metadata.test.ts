@@ -7,7 +7,9 @@ import {
   extractMetaContent,
   extractOgImage,
   extractTitle,
+  extractTweetId,
   parsePublishedDate,
+  preserveSocialEmbeds,
 } from "./html-metadata";
 
 describe("extractMetaContent", () => {
@@ -290,5 +292,138 @@ describe("extractArticleMetadata", () => {
     expect(metadata.ogImage).toBe(
       "https://cdn.example.com/images/cover.jpg?size=large",
     );
+  });
+});
+
+describe("extractTweetId", () => {
+  it("extracts tweet ID from twitter.com URL", () => {
+    expect(
+      extractTweetId("https://twitter.com/taylorotwell/status/1234567890"),
+    ).toBe("1234567890");
+  });
+
+  it("extracts tweet ID from x.com URL", () => {
+    expect(extractTweetId("https://x.com/elonmusk/status/9876543210")).toBe(
+      "9876543210",
+    );
+  });
+
+  it("handles URLs with query params", () => {
+    expect(
+      extractTweetId(
+        "https://twitter.com/user/status/1234567890?ref_src=twsrc",
+      ),
+    ).toBe("1234567890");
+  });
+
+  it("returns null for non-tweet URLs", () => {
+    expect(extractTweetId("https://twitter.com/user")).toBe(null);
+    expect(extractTweetId("https://example.com/status/123")).toBe(null);
+  });
+});
+
+describe("preserveSocialEmbeds", () => {
+  it("replaces Twitter blockquote embeds with placeholder", () => {
+    const html = `
+      <p>Check out this tweet:</p>
+      <blockquote class="twitter-tweet">
+        <p>I'm interested in potentially bringing on someone to focus on video</p>
+        <a href="https://twitter.com/taylorotwell/status/1234567890">December 1, 2024</a>
+      </blockquote>
+      <p>Pretty cool right?</p>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:1234567890]]");
+    expect(result.html).not.toContain('class="twitter-tweet"');
+    expect(result.html).toContain("Check out this tweet");
+    expect(result.html).toContain("Pretty cool right?");
+    expect(result.tweetIds).toEqual(["1234567890"]);
+  });
+
+  it("handles x.com URLs", () => {
+    const html = `
+      <blockquote class="twitter-tweet">
+        <p>Some tweet content</p>
+        <a href="https://x.com/user/status/9876543210">Date</a>
+      </blockquote>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:9876543210]]");
+    expect(result.tweetIds).toEqual(["9876543210"]);
+  });
+
+  it("handles multiple embeds", () => {
+    const html = `
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/user1/status/111">Date</a>
+      </blockquote>
+      <p>Some text</p>
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/user2/status/222">Date</a>
+      </blockquote>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:111]]");
+    expect(result.html).toContain("[[TWEET:222]]");
+    expect(result.tweetIds).toEqual(["111", "222"]);
+  });
+
+  it("preserves non-twitter blockquotes", () => {
+    const html = `
+      <blockquote>This is a regular quote</blockquote>
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/user/status/123">Date</a>
+      </blockquote>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("This is a regular quote");
+    expect(result.html).toContain("[[TWEET:123]]");
+    expect(result.tweetIds).toEqual(["123"]);
+  });
+
+  it("leaves twitter blockquotes without valid URLs unchanged", () => {
+    const html = `
+      <blockquote class="twitter-tweet">
+        <p>Some content but no valid tweet link</p>
+        <a href="https://example.com/not-a-tweet">Link</a>
+      </blockquote>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    // Should keep the original blockquote since we couldn't extract a tweet ID
+    expect(result.html).toContain('class="twitter-tweet"');
+    expect(result.tweetIds).toEqual([]);
+  });
+
+  it("handles twitter-tweet class with other classes", () => {
+    const html = `
+      <blockquote class="twitter-tweet tw-align-center" data-lang="en">
+        <p>Tweet content</p>
+        <a href="https://twitter.com/user/status/456">Date</a>
+      </blockquote>
+    `;
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toContain("[[TWEET:456]]");
+    expect(result.tweetIds).toEqual(["456"]);
+  });
+
+  it("returns empty tweetIds array when no embeds found", () => {
+    const html = "<p>Just regular content, no tweets here.</p>";
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toBe(html);
+    expect(result.tweetIds).toEqual([]);
   });
 });

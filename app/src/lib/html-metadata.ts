@@ -193,3 +193,71 @@ export function decodeHtmlEntities(str: string): string {
     return match;
   });
 }
+
+/**
+ * Extracts the tweet ID from a Twitter/X URL
+ * Supports both twitter.com and x.com URLs
+ */
+export function extractTweetId(url: string): string | null {
+  // Match patterns like:
+  // https://twitter.com/user/status/1234567890
+  // https://x.com/user/status/1234567890
+  // With optional query params
+  const match = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/i);
+  return match ? match[1] : null;
+}
+
+export type SocialEmbedResult = {
+  html: string;
+  tweetIds: string[];
+};
+
+/**
+ * Preserves social media embeds by replacing them with placeholder elements
+ * that survive Readability processing.
+ *
+ * Twitter/X embeds are blockquotes with class="twitter-tweet" that contain
+ * a link to the tweet. We extract the tweet URL and replace the entire
+ * blockquote with a special div that Readability will preserve.
+ *
+ * After Turndown converts to markdown, these divs become text that can be
+ * rendered as embedded tweets on the frontend.
+ *
+ * Returns both the modified HTML and an array of extracted tweet IDs for logging.
+ */
+export function preserveSocialEmbeds(html: string): SocialEmbedResult {
+  const tweetIds: string[] = [];
+
+  // Match Twitter/X blockquote embeds
+  // These look like: <blockquote class="twitter-tweet" ...>...<a href="https://twitter.com/user/status/123">...</a>...</blockquote>
+  // The tweet URL is in an anchor tag, typically the last one before </blockquote>
+  const twitterEmbedRegex =
+    /<blockquote[^>]*class=["'][^"']*twitter-tweet[^"']*["'][^>]*>[\s\S]*?<\/blockquote>/gi;
+
+  const processedHtml = html.replace(twitterEmbedRegex, (blockquote) => {
+    // Find the tweet URL within the blockquote
+    // Look for twitter.com or x.com status links
+    const urlMatch = blockquote.match(
+      /href=["'](https?:\/\/(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+[^"']*)["']/i,
+    );
+
+    if (urlMatch) {
+      const tweetUrl = urlMatch[1];
+      const tweetId = extractTweetId(tweetUrl);
+
+      if (tweetId) {
+        tweetIds.push(tweetId);
+        // Replace with a div that Readability will preserve
+        // The special data attribute helps identify this during markdown conversion
+        // Using a paragraph tag to ensure it survives as block content
+        return `<p data-embed-type="twitter" data-tweet-id="${tweetId}">[[TWEET:${tweetId}]]</p>`;
+      }
+    }
+
+    // If we can't extract the tweet URL, leave the blockquote as-is
+    // It will be converted to a regular blockquote by Readability
+    return blockquote;
+  });
+
+  return { html: processedHtml, tweetIds };
+}

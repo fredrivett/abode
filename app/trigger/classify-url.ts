@@ -6,7 +6,10 @@ import { logger, task, tasks } from "@trigger.dev/sdk";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import db from "../src/lib/db";
-import { extractArticleMetadata } from "../src/lib/html-metadata";
+import {
+  extractArticleMetadata,
+  preserveSocialEmbeds,
+} from "../src/lib/html-metadata";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
@@ -157,10 +160,27 @@ export const classifyUrlTask = task({
         // Modern React/Next.js sites use streaming SSR which renders content into
         // hidden divs that are revealed via JavaScript hydration. Readability
         // ignores hidden elements, so we need to unhide them first.
-        const processedHtml = html.replace(
+        let processedHtml = html.replace(
           /<div([^>]*)\s+hidden([^>]*)>/gi,
           "<div$1$2>",
         );
+
+        // Pre-process HTML: Preserve social media embeds before Readability runs
+        // Twitter/X embeds are blockquotes that would be stripped of their structure.
+        // We replace them with placeholder divs containing the tweet URL, then convert
+        // these to markdown markers after Readability extracts the content.
+        const embedResult = preserveSocialEmbeds(processedHtml);
+        processedHtml = embedResult.html;
+
+        if (embedResult.tweetIds.length > 0) {
+          logger.log("Twitter embeds detected and preserved", {
+            itemId,
+            tweetCount: embedResult.tweetIds.length,
+            tweetIds: embedResult.tweetIds,
+          });
+        } else {
+          logger.log("No Twitter embeds found in article HTML", { itemId });
+        }
 
         const dom = new JSDOM(processedHtml, { url });
         const reader = new Readability(dom.window.document);
@@ -181,11 +201,30 @@ export const classifyUrlTask = task({
           if (wordCount > 0) {
             readingTime = Math.ceil(wordCount / 200);
           }
+
+          // Check if tweet markers survived the Readability + Turndown pipeline
+          const tweetMarkerMatches = articleContent.match(/\[\[TWEET:\d+\]\]/g);
+          const preservedTweetCount = tweetMarkerMatches?.length ?? 0;
+
           logger.log("Content extracted with Readability", {
             itemId,
             contentLength: articleContent.length,
             wordCount,
+            preservedTweetMarkers: preservedTweetCount,
+            tweetMarkersFound: tweetMarkerMatches ?? [],
           });
+
+          if (
+            embedResult.tweetIds.length > 0 &&
+            preservedTweetCount !== embedResult.tweetIds.length
+          ) {
+            logger.warn("Tweet markers may have been lost during processing", {
+              itemId,
+              originalTweetCount: embedResult.tweetIds.length,
+              preservedTweetCount,
+              originalTweetIds: embedResult.tweetIds,
+            });
+          }
         }
       } catch (readabilityError) {
         logger.warn("Failed to extract article content", {
