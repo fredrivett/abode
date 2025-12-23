@@ -53,20 +53,42 @@ export function InviteSettings({
 
       toast.success(`Invite sent to ${email}`);
       setEmail("");
-      setInvitesRemaining((prev) => prev - 1);
 
-      // Add the new invite to the list
-      setInvites((prev) => [
-        {
-          id: data.invite.id,
-          email: data.invite.email,
-          status: "pending",
-          createdAt: data.invite.createdAt,
-          expiresAt: data.invite.expiresAt,
-          acceptedAt: null,
-        },
-        ...prev,
-      ]);
+      // Use the computed invitesRemaining from the API response
+      setInvitesRemaining(data.invitesRemaining);
+
+      // Check if this was a re-send (email already in list) or new invite
+      const existingInviteIndex = invites.findIndex(
+        (inv) => inv.email.toLowerCase() === data.invite.email.toLowerCase(),
+      );
+
+      if (existingInviteIndex >= 0) {
+        // Re-send: update the existing invite in the list
+        setInvites((prev) =>
+          prev.map((inv, idx) =>
+            idx === existingInviteIndex
+              ? {
+                  ...inv,
+                  status: "pending" as const,
+                  expiresAt: data.invite.expiresAt,
+                }
+              : inv,
+          ),
+        );
+      } else {
+        // New invite: add to the list
+        setInvites((prev) => [
+          {
+            id: data.invite.id,
+            email: data.invite.email,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+            expiresAt: data.invite.expiresAt,
+            acceptedAt: null,
+          },
+          ...prev,
+        ]);
+      }
     } catch {
       toast.error("Failed to send invite");
     } finally {

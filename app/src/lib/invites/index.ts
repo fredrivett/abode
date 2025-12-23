@@ -15,6 +15,32 @@ export {
 } from "./token";
 
 /**
+ * Get the number of invites a user has available
+ * Available = allocation - (accepted + active pending)
+ */
+export async function getAvailableInvites(userId: string): Promise<number> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { inviteAllocation: true },
+  });
+
+  if (!user) return 0;
+
+  // Count invites that are "used" (accepted or still active/pending)
+  const usedInvites = await db.invite.count({
+    where: {
+      inviterId: userId,
+      OR: [
+        { status: "accepted" },
+        { status: "pending", expiresAt: { gt: new Date() } },
+      ],
+    },
+  });
+
+  return Math.max(0, user.inviteAllocation - usedInvites);
+}
+
+/**
  * Result types for invite operations
  */
 export type InviteValidationResult =
@@ -104,17 +130,24 @@ export async function createUserInvite(
     };
   }
 
-  // Check if user has invites remaining
-  const inviter = await db.user.findUnique({
-    where: { id: inviterId },
-    select: { invitesRemaining: true },
-  });
+  // Check if user exists and has invites available
+  const availableInvites = await getAvailableInvites(inviterId);
 
-  if (!inviter) {
-    return { success: false, error: "User not found", code: "USER_NOT_FOUND" };
-  }
+  if (availableInvites <= 0) {
+    // Check if user exists at all
+    const userExists = await db.user.findUnique({
+      where: { id: inviterId },
+      select: { id: true },
+    });
 
-  if (inviter.invitesRemaining <= 0) {
+    if (!userExists) {
+      return {
+        success: false,
+        error: "User not found",
+        code: "USER_NOT_FOUND",
+      };
+    }
+
     return {
       success: false,
       error: "No invites remaining",
@@ -146,17 +179,6 @@ export async function createUserInvite(
   });
 
   if (existingInvite) {
-    // If pending and not expired, return error
-    if (
-      existingInvite.status === "pending" &&
-      !isInviteExpired(existingInvite.expiresAt)
-    ) {
-      return {
-        success: false,
-        error: "You have already invited this email",
-        code: "ALREADY_INVITED",
-      };
-    }
     // If accepted, return error
     if (existingInvite.status === "accepted") {
       return {
@@ -165,37 +187,69 @@ export async function createUserInvite(
         code: "ALREADY_JOINED",
       };
     }
-    // If expired, we'll allow creating a new invite below
-  }
 
-  // Create invite and decrement user's invite count in a transaction
-  const invite = await db.$transaction(async (tx) => {
-    // Decrement invites remaining
-    await tx.user.update({
-      where: { id: inviterId },
-      data: { invitesRemaining: { decrement: 1 } },
-    });
-
-    // Create invite
-    return tx.invite.create({
+    // If pending (expired or not), refresh the invite with new token/expiry
+    // This is a re-send, so no invite credit cost
+    const invite = await db.invite.update({
+      where: { id: existingInvite.id },
       data: {
-        email: normalizedEmail,
         token: generateInviteToken(),
-        type: "user",
         expiresAt: getInviteExpiryDate(),
-        inviterId,
+        sendCount: { increment: 1 },
       },
     });
+
+    return { success: true, invite };
+  }
+
+  // Create new invite (available count is computed from invites table, no need to update user)
+  const invite = await db.invite.create({
+    data: {
+      email: normalizedEmail,
+      token: generateInviteToken(),
+      type: "user",
+      expiresAt: getInviteExpiryDate(),
+      inviterId,
+    },
   });
 
   return { success: true, invite };
 }
 
+export type AcceptInviteResult =
+  | { success: true; invite: Invite }
+  | { success: false; error: string; code: string };
+
 /**
  * Accept an invite (mark as accepted)
+ * Validates that the invite exists, is not expired, and hasn't been accepted
  */
-export async function acceptInvite(token: string): Promise<Invite | null> {
-  const invite = await db.invite.update({
+export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
+  const invite = await db.invite.findUnique({
+    where: { token },
+  });
+
+  if (!invite) {
+    return {
+      success: false,
+      error: "Invalid invite token",
+      code: "INVALID_TOKEN",
+    };
+  }
+
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "Invite already accepted",
+      code: "ALREADY_ACCEPTED",
+    };
+  }
+
+  if (isInviteExpired(invite.expiresAt)) {
+    return { success: false, error: "Invite has expired", code: "EXPIRED" };
+  }
+
+  const updatedInvite = await db.invite.update({
     where: { token },
     data: {
       status: "accepted",
@@ -203,7 +257,7 @@ export async function acceptInvite(token: string): Promise<Invite | null> {
     },
   });
 
-  return invite;
+  return { success: true, invite: updatedInvite };
 }
 
 /**

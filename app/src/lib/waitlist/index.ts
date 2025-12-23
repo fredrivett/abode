@@ -77,26 +77,34 @@ export async function joinWaitlist(
     };
   }
 
-  // Get current max position
-  const maxPosition = await db.waitlistEntry.aggregate({
-    _max: { position: true },
+  // Create waitlist entry with position assignment in a transaction
+  const entry = await db.$transaction(async (tx) => {
+    // Get current max position
+    const maxPosition = await tx.waitlistEntry.aggregate({
+      _max: { position: true },
+    });
+
+    const position = (maxPosition._max.position ?? 0) + 1;
+
+    // Create waitlist entry
+    return tx.waitlistEntry.create({
+      data: {
+        email: normalizedEmail,
+        position,
+        referralSource,
+      },
+    });
   });
 
-  const position = (maxPosition._max.position ?? 0) + 1;
-
-  // Create waitlist entry
-  const entry = await db.waitlistEntry.create({
-    data: {
-      email: normalizedEmail,
-      position,
-      referralSource,
-    },
-  });
-
-  log.info({ email: normalizedEmail, position }, "Added to waitlist");
+  log.info(
+    { email: normalizedEmail, position: entry.position },
+    "Added to waitlist",
+  );
 
   // Send confirmation email
-  const { subject, text } = getWaitlistConfirmationEmail({ position });
+  const { subject, text } = getWaitlistConfirmationEmail({
+    position: entry.position ?? undefined,
+  });
 
   const emailResult = await sendEmail({
     to: normalizedEmail,
@@ -111,7 +119,7 @@ export async function joinWaitlist(
     );
   }
 
-  return { success: true, position: entry.position ?? position };
+  return { success: true, position: entry.position ?? 0 };
 }
 
 /**

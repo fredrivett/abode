@@ -32,9 +32,9 @@ model User {
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   // Referral tracking
-  referredById     String?       @map("referred_by_id") @db.Uuid
-  invitesRemaining Int           @default(3) @map("invites_remaining")
-  inviteSource     InviteSource? @map("invite_source")
+  referredById      String?       @map("referred_by_id") @db.Uuid
+  inviteAllocation  Int           @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
+  inviteSource      InviteSource? @map("invite_source")
 
   // Relations
   referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -351,7 +351,9 @@ model Invite {
   status          InviteStatus @default(pending)
   expiresAt       DateTime     @map("expires_at")
   createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
   acceptedAt      DateTime?    @map("accepted_at")
+  sendCount       Int          @default(1) @map("send_count") // How many times this invite was (re)sent
 
   // For user invites (type: user)
   inviterId       String?      @map("inviter_id") @db.Uuid

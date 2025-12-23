@@ -3,7 +3,11 @@ import { z } from "zod";
 import db from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { getUserInviteEmail } from "@/lib/email/templates";
-import { createUserInvite, getUserInvites } from "@/lib/invites";
+import {
+  createUserInvite,
+  getAvailableInvites,
+  getUserInvites,
+} from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,18 +32,11 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's invite count
-    const dbUser = await db.user.findUnique({
-      where: { id: user.id },
-      select: { invitesRemaining: true },
-    });
-
-    if (!dbUser) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
-    // Get sent invites
-    const invites = await getUserInvites(user.id);
+    // Get available invites (computed) and sent invites
+    const [availableInvites, invites] = await Promise.all([
+      getAvailableInvites(user.id),
+      getUserInvites(user.id),
+    ]);
 
     // Format for response
     const sentInvites = invites.map((invite) => ({
@@ -52,7 +49,7 @@ export async function GET() {
     }));
 
     return NextResponse.json({
-      invitesRemaining: dbUser.invitesRemaining,
+      invitesRemaining: availableInvites,
       sentInvites,
     });
   } catch (error) {
@@ -112,16 +109,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get updated invites remaining and inviter info for email
-    const dbUser = await db.user.findUnique({
-      where: { id: user.id },
-      select: {
-        invitesRemaining: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
+    // Get updated available invites and inviter info for email
+    const [updatedAvailableInvites, dbUser] = await Promise.all([
+      getAvailableInvites(user.id),
+      db.user.findUnique({
+        where: { id: user.id },
+        select: {
+          username: true,
+          firstName: true,
+          lastName: true,
+        },
+      }),
+    ]);
 
     // Determine inviter name for email
     const inviterName =
@@ -155,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      invitesRemaining: dbUser?.invitesRemaining ?? 0,
+      invitesRemaining: updatedAvailableInvites,
       invite: {
         id: result.invite.id,
         email: result.invite.email,

@@ -5,9 +5,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { acceptInvite, validateInviteToken } from "@/lib/invites";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 import { validateUsername } from "@/lib/username";
 import type { checkGravatarTask } from "../../../../trigger/check-gravatar";
+
+const log = createLogger("auth/join/actions");
 
 export type AuthResult = {
   error?: string;
@@ -114,12 +117,36 @@ export async function verifyOtp(
   }
 
   // Get invite details for setting inviteSource and referredById
-  const inviteResult = await validateInviteToken(inviteToken);
-  if (!inviteResult.valid) {
+  // Note: We fetch the invite directly instead of using validateInviteToken
+  // because the invite may have been accepted already (race condition with another
+  // user using the same forwarded invite link). If it was accepted for THIS email,
+  // we allow the flow to continue.
+  const invite = await db.invite.findUnique({
+    where: { token: inviteToken },
+    select: {
+      id: true,
+      email: true,
+      type: true,
+      status: true,
+      inviterId: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!invite) {
     return { error: "Invalid invite token" };
   }
 
-  const { invite } = inviteResult;
+  // If invite was already accepted, check if it's for this email
+  // (allows retry after partial signup failure)
+  if (invite.status === "accepted" && invite.email !== email) {
+    return { error: "This invite has already been used by another user" };
+  }
+
+  // Check if expired (only matters if not already accepted)
+  if (invite.status !== "accepted" && invite.expiresAt < new Date()) {
+    return { error: "This invite has expired" };
+  }
 
   // Check for OAuth avatar in user metadata
   const userMetadata = user.user_metadata as
@@ -147,8 +174,17 @@ export async function verifyOtp(
     },
   });
 
-  // Mark the invite as accepted
-  await acceptInvite(inviteToken);
+  // Mark the invite as accepted (only if not already)
+  if (invite.status !== "accepted") {
+    const acceptResult = await acceptInvite(inviteToken);
+    if (!acceptResult.success) {
+      // Log but don't fail - user account is already created
+      log.warn(
+        { token: inviteToken, error: acceptResult.error },
+        "Failed to accept invite after OTP verification",
+      );
+    }
+  }
 
   // No OAuth avatar - trigger background Gravatar check
   if (!oauthPicture) {

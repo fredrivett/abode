@@ -3,7 +3,10 @@ import db from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
 import { createWaitlistInvite } from "@/lib/invites";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+
+const log = createLogger("api/v1/admin/waitlist/invite");
 
 /**
  * POST /api/v1/admin/waitlist/invite
@@ -54,14 +57,23 @@ export async function POST(request: NextRequest) {
       inviteToken: result.invite.token,
     });
 
-    await sendEmail({
+    const emailResult = await sendEmail({
       to: result.invite.email,
       subject,
       text,
     });
 
+    if (!emailResult.success) {
+      log.warn(
+        { email: result.invite.email, error: emailResult.error },
+        "Failed to send waitlist invite email",
+      );
+    }
+
     return NextResponse.json({
       success: true,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? undefined : emailResult.error,
       invite: {
         id: result.invite.id,
         email: result.invite.email,
