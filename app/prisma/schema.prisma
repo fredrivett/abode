@@ -26,6 +26,7 @@ model User {
   avatarSource          AvatarSource? @map("avatar_source")
   memberNumber          Int?      @unique @map("member_number") // Sequential member number based on signup order
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  isAdmin               Boolean   @default(false) @map("is_admin")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
