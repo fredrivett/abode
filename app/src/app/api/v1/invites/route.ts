@@ -1,0 +1,172 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import db from "@/lib/db";
+import { isEmailConfigured, sendEmail } from "@/lib/email";
+import { getUserInviteEmail } from "@/lib/email/templates";
+import { createUserInvite, getUserInvites } from "@/lib/invites";
+import { createLogger } from "@/lib/logger.server";
+import { createClient } from "@/lib/supabase/server";
+
+const log = createLogger("api/v1/invites");
+
+const sendInviteSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+/**
+ * GET /api/v1/invites - Get current user's invite status and sent invites
+ */
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get user's invite count
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { invitesRemaining: true },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+
+    // Get sent invites
+    const invites = await getUserInvites(user.id);
+
+    // Format for response
+    const sentInvites = invites.map((invite) => ({
+      id: invite.id,
+      email: invite.email,
+      status: invite.effectiveStatus,
+      createdAt: invite.createdAt.toISOString(),
+      expiresAt: invite.expiresAt.toISOString(),
+      acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+    }));
+
+    return NextResponse.json({
+      invitesRemaining: dbUser.invitesRemaining,
+      sentInvites,
+    });
+  } catch (error) {
+    log.error({ error }, "Failed to get invites");
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * POST /api/v1/invites - Send an invite to an email address
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const parsed = sendInviteSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "Invalid email address" },
+        { status: 400 },
+      );
+    }
+
+    const { email } = parsed.data;
+
+    // Create the invite
+    const result = await createUserInvite(user.id, email);
+
+    if (!result.success) {
+      // Map error codes to HTTP status codes
+      const statusMap: Record<string, number> = {
+        INVALID_EMAIL: 400,
+        NO_INVITES_REMAINING: 400,
+        ALREADY_HAS_ACCOUNT: 400,
+        ALREADY_INVITED: 400,
+        ALREADY_JOINED: 400,
+        USER_NOT_FOUND: 404,
+      };
+
+      return NextResponse.json(
+        { message: result.error, code: result.code },
+        { status: statusMap[result.code] || 400 },
+      );
+    }
+
+    // Get updated invites remaining and inviter info for email
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        invitesRemaining: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    // Determine inviter name for email
+    const inviterName =
+      dbUser?.firstName && dbUser?.lastName
+        ? `${dbUser.firstName} ${dbUser.lastName}`
+        : dbUser?.firstName || dbUser?.username || "Someone";
+
+    // Send invite email via Resend (if configured)
+    if (isEmailConfigured()) {
+      const { subject, text } = getUserInviteEmail({
+        inviterName,
+        inviteToken: result.invite.token,
+      });
+
+      const emailResult = await sendEmail({
+        to: email,
+        subject,
+        text,
+      });
+
+      if (!emailResult.success) {
+        log.warn(
+          { email, error: emailResult.error },
+          "Failed to send invite email",
+        );
+        // Don't fail the request - invite is created, email just didn't send
+      }
+    } else {
+      log.info({ email }, "Email not configured, skipping invite email");
+    }
+
+    return NextResponse.json({
+      success: true,
+      invitesRemaining: dbUser?.invitesRemaining ?? 0,
+      invite: {
+        id: result.invite.id,
+        email: result.invite.email,
+        expiresAt: result.invite.expiresAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    log.error({ error }, "Failed to send invite");
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
