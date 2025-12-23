@@ -1,5 +1,6 @@
 import type { Invite, User } from "@prisma/client";
 import db from "@/lib/db";
+import { getAppBaseUrl } from "@/lib/url";
 import { normalizeEmail, validateEmail } from "./email-validation";
 import {
   generateInviteToken,
@@ -307,7 +308,7 @@ function getEffectiveStatus(
  * Get the invite URL for a token
  */
 export function getInviteUrl(token: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3300";
+  const baseUrl = getAppBaseUrl();
   return `${baseUrl}/join?token=${token}`;
 }
 
