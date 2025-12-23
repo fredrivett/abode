@@ -102,7 +102,7 @@ export async function joinWaitlist(
   );
 
   // Send confirmation email
-  const { subject, text } = getWaitlistConfirmationEmail({
+  const { subject, text, html } = getWaitlistConfirmationEmail({
     position: entry.position ?? undefined,
   });
 
@@ -110,6 +110,7 @@ export async function joinWaitlist(
     to: normalizedEmail,
     subject,
     text,
+    html,
   });
 
   if (!emailResult.success) {

@@ -1,4 +1,5 @@
 import { getInviteUrl } from "@/lib/invites";
+import { getAppBaseUrl } from "@/lib/url";
 
 /**
  * Shared constants for email templates
@@ -12,13 +13,27 @@ const EMAIL_FOOTER = `---
 abode — ${ABODE_TAGLINE}`;
 
 /**
+ * HTML helper functions for consistent styling across all emails
+ */
+function htmlLink(text: string, url: string): string {
+  return `<a href="${url}" style="text-decoration: underline;">${text}</a>`;
+}
+
+function htmlFooter(): string {
+  return `<p style="color: #666; border-top: 1px solid #ddd; padding-top: 1em; margin-top: 2em;">
+abode — ${ABODE_TAGLINE}
+</p>`;
+}
+
+/**
  * Email template for user-to-user invites
  */
 export function getUserInviteEmail(options: {
   inviterName: string;
   inviteToken: string;
-}): { subject: string; text: string } {
+}): { subject: string; text: string; html: string } {
   const inviteUrl = getInviteUrl(options.inviteToken);
+  const websiteUrl = getAppBaseUrl();
 
   const subject = `${options.inviterName} invited you to join abode`;
 
@@ -34,7 +49,24 @@ this invite link expires in 7 days.
 ${EMAIL_FOOTER}
 `;
 
-  return { subject, text };
+  // HTML version with link on first "abode" in description
+  const descriptionWithLink = ABODE_DESCRIPTION.replace(
+    "abode",
+    htmlLink("abode", websiteUrl),
+  );
+
+  const html = `<p>${options.inviterName} thinks you'd love abode!</p>
+
+<p>${descriptionWithLink}</p>
+
+<p>click here to accept your invite and create your account:<br>
+${htmlLink(inviteUrl, inviteUrl)}</p>
+
+<p>this invite link expires in 7 days.</p>
+
+${htmlFooter()}`;
+
+  return { subject, text, html };
 }
 
 /**
@@ -43,12 +75,16 @@ ${EMAIL_FOOTER}
 export function getWaitlistConfirmationEmail(options: { position?: number }): {
   subject: string;
   text: string;
+  html: string;
 } {
   const subject = "you're on the abode waitlist";
+  const websiteUrl = getAppBaseUrl();
 
   let positionText = "";
+  let positionHtml = "";
   if (options.position && options.position >= 50) {
     positionText = `you're #${options.position} in line. `;
+    positionHtml = `<p>you're #${options.position} in line.</p>\n\n`;
   }
 
   const text = `you're on the list!
@@ -64,7 +100,23 @@ ${ABODE_DESCRIPTION}
 ${EMAIL_FOOTER}
 `;
 
-  return { subject, text };
+  const descriptionWithLink = ABODE_DESCRIPTION.replace(
+    "abode",
+    htmlLink("abode", websiteUrl),
+  );
+
+  const html = `<p>you're on the list!</p>
+
+${positionHtml}<p>we'll email you when it's your turn to join abode.</p>
+
+<p>in the meantime, ${htmlLink("follow us for updates", ABODE_TWITTER_URL)}.</p>
+
+<p>what is abode?<br>
+${descriptionWithLink}</p>
+
+${htmlFooter()}`;
+
+  return { subject, text, html };
 }
 
 /**
@@ -73,8 +125,10 @@ ${EMAIL_FOOTER}
 export function getWaitlistInviteEmail(options: { inviteToken: string }): {
   subject: string;
   text: string;
+  html: string;
 } {
   const inviteUrl = getInviteUrl(options.inviteToken);
+  const websiteUrl = getAppBaseUrl();
 
   const subject = "you're in! your abode invite is ready";
 
@@ -94,5 +148,19 @@ fred (founder @ abode)
 ${EMAIL_FOOTER}
 `;
 
-  return { subject, text };
+  const html = `<p>thanks for waiting — your exclusive access is ready!</p>
+
+<p>you've been invited to join ${htmlLink("abode", websiteUrl)}. ${htmlLink("click here", inviteUrl)} to create your account.</p>
+
+<p>this invite link expires in 7 days.</p>
+
+<p>we're in the early days and would love your feedback — just reply to this email with any thoughts.</p>
+
+<p>we're excited to have you!</p>
+
+<p>fred (founder @ abode)</p>
+
+${htmlFooter()}`;
+
+  return { subject, text, html };
 }

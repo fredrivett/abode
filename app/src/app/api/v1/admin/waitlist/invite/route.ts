@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send invite email
-    const { subject, text } = getWaitlistInviteEmail({
+    const { subject, text, html } = getWaitlistInviteEmail({
       inviteToken: result.invite.token,
     });
 
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       to: result.invite.email,
       subject,
       text,
+      html,
     });
 
     if (!emailResult.success) {

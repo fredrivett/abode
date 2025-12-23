@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     // Send invite email via Resend (if configured)
     if (isEmailConfigured()) {
-      const { subject, text } = getUserInviteEmail({
+      const { subject, text, html } = getUserInviteEmail({
         inviterName,
         inviteToken: result.invite.token,
       });
@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
         to: email,
         subject,
         text,
+        html,
       });
 
       if (!emailResult.success) {
