@@ -12,7 +12,12 @@ const envSchema = z.object({
   READ_REPLICA_DATABASE_URL: z.string().optional(),
 
   // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .min(1)
+    .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
+      message: "Must be a valid URL",
+    }),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
@@ -39,7 +44,7 @@ if (!parsed.success) {
   // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
   console.error("❌ Invalid environment variables:");
   // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
-  console.error(JSON.stringify(parsed.error.format(), null, 2));
+  console.error(JSON.stringify(parsed.error.flatten(), null, 2));
   throw new Error("Invalid environment variables");
 }
 
