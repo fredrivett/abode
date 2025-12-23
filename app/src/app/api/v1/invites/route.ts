@@ -118,7 +118,6 @@ export async function POST(request: NextRequest) {
           username: true,
           firstName: true,
           lastName: true,
-          avatarUrl: true,
         },
       }),
     ]);
@@ -134,8 +133,6 @@ export async function POST(request: NextRequest) {
       const { subject, text, html } = getUserInviteEmail({
         inviterName,
         inviteToken: result.invite.token,
-        inviterUsername: dbUser?.username ?? undefined,
-        inviterAvatarUrl: dbUser?.avatarUrl ?? undefined,
       });
 
       const emailResult = await sendEmail({
