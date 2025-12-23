@@ -47,9 +47,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Check MFA requirement for authenticated users accessing protected routes
+  if (user && isProtectedRoute) {
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (data && data.currentLevel === "aal1" && data.nextLevel === "aal2") {
+      // User has MFA enabled but hasn't completed the challenge
+      const url = request.nextUrl.clone();
+      url.pathname = "/login/verify-mfa";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Redirect logged-in users away from auth pages and homepage
+  // Exception: allow /login/verify-mfa for MFA challenge
   const isAuthRoute =
-    request.nextUrl.pathname.startsWith("/login") ||
+    (request.nextUrl.pathname.startsWith("/login") &&
+      !request.nextUrl.pathname.startsWith("/login/verify-mfa")) ||
     request.nextUrl.pathname.startsWith("/signup");
   const isHomePage = request.nextUrl.pathname === "/";
 
