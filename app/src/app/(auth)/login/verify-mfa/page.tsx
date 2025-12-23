@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { signOut } from "@/lib/actions/auth";
 import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { VerifyMFAForm } from "./verify-mfa-form";
@@ -49,12 +50,14 @@ export default async function VerifyMFAPage() {
         <VerifyMFAForm factorId={factor.id} />
 
         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          <a
-            href="/login"
-            className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-          >
-            Back to login
-          </a>
+          <form action={signOut} className="inline">
+            <button
+              type="submit"
+              className="font-medium text-gray-900 hover:underline dark:text-gray-100"
+            >
+              Back to login
+            </button>
+          </form>
         </p>
       </div>
     </div>
