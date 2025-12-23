@@ -335,10 +335,11 @@ describe("preserveSocialEmbeds", () => {
 
     const result = preserveSocialEmbeds(html);
 
-    expect(result).toContain("[[TWEET:1234567890]]");
-    expect(result).not.toContain('class="twitter-tweet"');
-    expect(result).toContain("Check out this tweet");
-    expect(result).toContain("Pretty cool right?");
+    expect(result.html).toContain("[[TWEET:1234567890]]");
+    expect(result.html).not.toContain('class="twitter-tweet"');
+    expect(result.html).toContain("Check out this tweet");
+    expect(result.html).toContain("Pretty cool right?");
+    expect(result.tweetIds).toEqual(["1234567890"]);
   });
 
   it("handles x.com URLs", () => {
@@ -351,7 +352,8 @@ describe("preserveSocialEmbeds", () => {
 
     const result = preserveSocialEmbeds(html);
 
-    expect(result).toContain("[[TWEET:9876543210]]");
+    expect(result.html).toContain("[[TWEET:9876543210]]");
+    expect(result.tweetIds).toEqual(["9876543210"]);
   });
 
   it("handles multiple embeds", () => {
@@ -367,8 +369,9 @@ describe("preserveSocialEmbeds", () => {
 
     const result = preserveSocialEmbeds(html);
 
-    expect(result).toContain("[[TWEET:111]]");
-    expect(result).toContain("[[TWEET:222]]");
+    expect(result.html).toContain("[[TWEET:111]]");
+    expect(result.html).toContain("[[TWEET:222]]");
+    expect(result.tweetIds).toEqual(["111", "222"]);
   });
 
   it("preserves non-twitter blockquotes", () => {
@@ -381,8 +384,9 @@ describe("preserveSocialEmbeds", () => {
 
     const result = preserveSocialEmbeds(html);
 
-    expect(result).toContain("This is a regular quote");
-    expect(result).toContain("[[TWEET:123]]");
+    expect(result.html).toContain("This is a regular quote");
+    expect(result.html).toContain("[[TWEET:123]]");
+    expect(result.tweetIds).toEqual(["123"]);
   });
 
   it("leaves twitter blockquotes without valid URLs unchanged", () => {
@@ -396,7 +400,8 @@ describe("preserveSocialEmbeds", () => {
     const result = preserveSocialEmbeds(html);
 
     // Should keep the original blockquote since we couldn't extract a tweet ID
-    expect(result).toContain('class="twitter-tweet"');
+    expect(result.html).toContain('class="twitter-tweet"');
+    expect(result.tweetIds).toEqual([]);
   });
 
   it("handles twitter-tweet class with other classes", () => {
@@ -409,6 +414,16 @@ describe("preserveSocialEmbeds", () => {
 
     const result = preserveSocialEmbeds(html);
 
-    expect(result).toContain("[[TWEET:456]]");
+    expect(result.html).toContain("[[TWEET:456]]");
+    expect(result.tweetIds).toEqual(["456"]);
+  });
+
+  it("returns empty tweetIds array when no embeds found", () => {
+    const html = "<p>Just regular content, no tweets here.</p>";
+
+    const result = preserveSocialEmbeds(html);
+
+    expect(result.html).toBe(html);
+    expect(result.tweetIds).toEqual([]);
   });
 });
