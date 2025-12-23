@@ -94,6 +94,9 @@ model Item {
   description      String?
   tags             String[]         @default([])  // General labels/keywords
 
+  // User-provided notes
+  notes            String?
+
   // Full-text search vector (generated column, managed via raw SQL)
   searchVector     Unsupported("tsvector")?  @map("search_vector")
 
