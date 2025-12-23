@@ -27,6 +27,7 @@ model User {
   memberNumber          Int?      @unique @map("member_number") // Sequential member number based on signup order
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   isAdmin               Boolean   @default(false) @map("is_admin")
+  storageUsedBytes      BigInt    @default(0) @map("storage_used_bytes")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
