@@ -240,3 +240,77 @@ export function getInviteUrl(token: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3300";
   return `${baseUrl}/join?token=${token}`;
 }
+
+/**
+ * Create a waitlist invite (admin inviting from waitlist)
+ */
+export async function createWaitlistInvite(
+  waitlistEntryId: string,
+): Promise<CreateInviteResult> {
+  // Get the waitlist entry
+  const entry = await db.waitlistEntry.findUnique({
+    where: { id: waitlistEntryId },
+    include: {
+      invites: {
+        where: {
+          OR: [
+            { acceptedAt: { not: null } },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!entry) {
+    return {
+      success: false,
+      error: "Waitlist entry not found",
+      code: "ENTRY_NOT_FOUND",
+    };
+  }
+
+  // Check if already invited or joined
+  if (entry.invites.length > 0) {
+    const invite = entry.invites[0];
+    if (invite.acceptedAt) {
+      return {
+        success: false,
+        error: "This person has already joined",
+        code: "ALREADY_JOINED",
+      };
+    }
+    return {
+      success: false,
+      error: "This person already has an active invite",
+      code: "ALREADY_INVITED",
+    };
+  }
+
+  // Check if email already has an account
+  const existingUser = await db.user.findUnique({
+    where: { email: entry.email },
+  });
+
+  if (existingUser) {
+    return {
+      success: false,
+      error: "This email already has an account",
+      code: "ALREADY_HAS_ACCOUNT",
+    };
+  }
+
+  // Create the invite
+  const invite = await db.invite.create({
+    data: {
+      email: entry.email,
+      token: generateInviteToken(),
+      type: "waitlist",
+      expiresAt: getInviteExpiryDate(),
+      waitlistEntryId: entry.id,
+    },
+  });
+
+  return { success: true, invite };
+}

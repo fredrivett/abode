@@ -55,12 +55,20 @@ export default async function AdminPage() {
               Overview of platform usage and activity.
             </p>
           </div>
-          <Link
-            href="/admin/users"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            View Users
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/waitlist"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Waitlist
+            </Link>
+            <Link
+              href="/admin/users"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              View Users
+            </Link>
+          </div>
         </header>
 
         <div className="mt-8 space-y-6">
