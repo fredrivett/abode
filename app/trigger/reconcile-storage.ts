@@ -14,45 +14,60 @@ export const reconcileStorageTask = schedules.task({
   run: async () => {
     logger.log("Starting storage reconciliation");
 
-    // Get all users who have items
+    // Calculate actual storage for all users in a single query
+    const storageByUser = await db.$queryRaw<
+      { user_id: string; total: bigint | null }[]
+    >`
+      SELECT u.id as user_id, COALESCE(SUM((i.meta->>'size')::bigint), 0) as total
+      FROM users u
+      LEFT JOIN items i ON i.user_id = u.id AND i.deleted_at IS NULL AND i.meta->>'size' IS NOT NULL
+      GROUP BY u.id
+    `;
+
+    // Get current storage values for all users
     const users = await db.user.findMany({
       select: { id: true, storageUsedBytes: true },
     });
 
+    // Create lookup map for actual storage
+    const actualStorageMap = new Map<string, bigint>();
+    for (const row of storageByUser) {
+      actualStorageMap.set(row.user_id, row.total ?? BigInt(0));
+    }
+
     let updated = 0;
     let skipped = 0;
 
-    for (const user of users) {
-      // Calculate actual storage from items
-      const result = await db.$queryRaw<[{ total: bigint | null }]>`
-        SELECT SUM((meta->>'size')::bigint) as total
-        FROM items
-        WHERE user_id = ${user.id}::uuid
-        AND deleted_at IS NULL
-        AND meta->>'size' IS NOT NULL
-      `;
+    // Batch updates for users with discrepancies
+    const updates: { id: string; actualBytes: bigint; currentBytes: bigint }[] =
+      [];
 
-      const actualBytes = result[0]?.total ?? BigInt(0);
+    for (const user of users) {
+      const actualBytes = actualStorageMap.get(user.id) ?? BigInt(0);
       const currentBytes = user.storageUsedBytes;
 
-      // Only update if there's a discrepancy
       if (actualBytes !== currentBytes) {
-        await db.user.update({
-          where: { id: user.id },
-          data: { storageUsedBytes: actualBytes },
-        });
-
-        logger.log("Fixed storage discrepancy", {
-          userId: user.id,
-          was: currentBytes.toString(),
-          now: actualBytes.toString(),
-          delta: (actualBytes - currentBytes).toString(),
-        });
-
-        updated++;
+        updates.push({ id: user.id, actualBytes, currentBytes });
       } else {
         skipped++;
       }
+    }
+
+    // Apply updates
+    for (const update of updates) {
+      await db.user.update({
+        where: { id: update.id },
+        data: { storageUsedBytes: update.actualBytes },
+      });
+
+      logger.log("Fixed storage discrepancy", {
+        userId: update.id,
+        was: update.currentBytes.toString(),
+        now: update.actualBytes.toString(),
+        delta: (update.actualBytes - update.currentBytes).toString(),
+      });
+
+      updated++;
     }
 
     logger.log("Storage reconciliation complete", {

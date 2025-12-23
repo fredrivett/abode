@@ -167,20 +167,30 @@ export async function unenrollMFA(
  * Get the current Authenticator Assurance Level (AAL)
  */
 export async function getAAL(supabase: SupabaseClient): Promise<AALInfo> {
-  const { data, error } =
-    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  // Fetch AAL and factors in parallel to reduce API calls
+  const [aalResult, factorsResult] = await Promise.all([
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    supabase.auth.mfa.listFactors(),
+  ]);
 
-  if (error) {
-    throw new Error(`Failed to get AAL: ${error.message}`);
+  if (aalResult.error) {
+    throw new Error(`Failed to get AAL: ${aalResult.error.message}`);
+  }
+
+  if (factorsResult.error) {
+    throw new Error(
+      `Failed to list MFA factors: ${factorsResult.error.message}`,
+    );
   }
 
   // Check if user has any verified factors
-  const factors = await getMFAFactors(supabase);
-  const hasVerifiedFactor = factors.some((f) => f.status === "verified");
+  const hasVerifiedFactor = factorsResult.data.totp.some(
+    (f) => f.status === "verified",
+  );
 
   return {
-    currentLevel: data.currentLevel,
-    nextLevel: data.nextLevel,
+    currentLevel: aalResult.data.currentLevel,
+    nextLevel: aalResult.data.nextLevel,
     hasVerifiedFactor,
   };
 }

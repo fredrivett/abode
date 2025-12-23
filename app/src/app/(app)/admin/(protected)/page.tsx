@@ -21,11 +21,11 @@ export default async function AdminPage() {
   const totalStorageBytes =
     totalStorageResult._sum.storageUsedBytes ?? BigInt(0);
 
-  // Get 14-day activity for chart
-  const dailyActivity = await getGlobalDailyActivity(14);
-
-  // Get 90-day activity overview for heatmap
+  // Get 90-day activity (includes 14-day data as subset)
   const activityOverview = await getGlobalDailyActivity(90);
+
+  // Slice the first 14 days for the chart (data is sorted by date descending)
+  const dailyActivity = activityOverview.slice(0, 14);
 
   const totals = {
     users: userCount,

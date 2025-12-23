@@ -16,7 +16,10 @@ export function ActivityChart({ dailyActivity }: ActivityChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Activity (Last 14 Days)</CardTitle>
+        <CardTitle className="text-base">
+          Activity (Last 14 Days){" "}
+          <span className="text-xs font-normal text-muted-foreground">UTC</span>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex h-40 items-end gap-1">

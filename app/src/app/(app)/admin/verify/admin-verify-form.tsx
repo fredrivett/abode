@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -19,24 +19,24 @@ export function AdminVerifyForm({ factorId }: AdminVerifyFormProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleVerify = async () => {
-    if (code.length !== 6) return;
+    if (code.length !== 6 || isLoading) return;
 
     setError(null);
+    setIsLoading(true);
 
-    startTransition(async () => {
-      try {
-        const supabase = createClient();
-        await challengeAndVerifyMFA(supabase, factorId, code);
-        router.push("/admin");
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Invalid code");
-        setCode("");
-      }
-    });
+    try {
+      const supabase = createClient();
+      await challengeAndVerifyMFA(supabase, factorId, code);
+      router.push("/admin");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+      setCode("");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,7 +47,7 @@ export function AdminVerifyForm({ factorId }: AdminVerifyFormProps) {
           value={code}
           onChange={setCode}
           onComplete={handleVerify}
-          disabled={isPending}
+          disabled={isLoading}
         >
           <InputOTPGroup>
             <InputOTPSlot index={0} />
@@ -64,10 +64,10 @@ export function AdminVerifyForm({ factorId }: AdminVerifyFormProps) {
 
       <Button
         onClick={handleVerify}
-        disabled={code.length !== 6 || isPending}
+        disabled={code.length !== 6 || isLoading}
         className="w-full"
       >
-        {isPending ? "Verifying..." : "Verify"}
+        {isLoading ? "Verifying..." : "Verify"}
       </Button>
     </div>
   );

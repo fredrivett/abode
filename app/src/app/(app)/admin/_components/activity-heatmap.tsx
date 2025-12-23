@@ -34,7 +34,10 @@ export function ActivityHeatmap({ activityOverview }: ActivityHeatmapProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Activity Overview (90 Days)</CardTitle>
+        <CardTitle className="text-base">
+          Activity Overview (90 Days){" "}
+          <span className="text-xs font-normal text-muted-foreground">UTC</span>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-1">

@@ -15,35 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type DailyActivityStats, getUserDailyActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { formatBytes, getUserInitials } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
-
-function formatBytes(bytes: bigint): string {
-  const units = ["B", "KB", "MB", "GB"];
-  let value = Number(bytes);
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex++;
-  }
-
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-function getInitials(
-  firstName: string | null,
-  lastName: string | null,
-  email: string,
-): string {
-  if (firstName && lastName) {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
-  }
-  if (firstName) {
-    return firstName.slice(0, 2).toUpperCase();
-  }
-  return email.slice(0, 2).toUpperCase();
-}
 
 function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
   // Calculate totals
@@ -237,7 +211,7 @@ export default async function AdminUserDetailPage({
             <Avatar className="size-12">
               <AvatarImage src={user.avatarUrl ?? undefined} />
               <AvatarFallback>
-                {getInitials(user.firstName, user.lastName, user.email)}
+                {getUserInitials(user.firstName, user.lastName, user.email)}
               </AvatarFallback>
             </Avatar>
             <div>

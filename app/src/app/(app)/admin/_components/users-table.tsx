@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatBytes, getUserInitials } from "@/lib/utils";
 
 type User = {
   id: string;
@@ -39,33 +40,6 @@ type UsersTableProps = {
   pagination: Pagination;
   search: string;
 };
-
-function formatBytes(bytes: bigint): string {
-  const units = ["B", "KB", "MB", "GB"];
-  let value = Number(bytes);
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex++;
-  }
-
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-function getInitials(
-  firstName: string | null,
-  lastName: string | null,
-  email: string,
-): string {
-  if (firstName && lastName) {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
-  }
-  if (firstName) {
-    return firstName.slice(0, 2).toUpperCase();
-  }
-  return email.slice(0, 2).toUpperCase();
-}
 
 export function UsersTable({ users, pagination, search }: UsersTableProps) {
   const { page, totalPages, totalCount } = pagination;
@@ -111,7 +85,11 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                     <Avatar className="size-8">
                       <AvatarImage src={user.avatarUrl ?? undefined} />
                       <AvatarFallback>
-                        {getInitials(user.firstName, user.lastName, user.email)}
+                        {getUserInitials(
+                          user.firstName,
+                          user.lastName,
+                          user.email,
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <div>

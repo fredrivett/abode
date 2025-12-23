@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { getFileSizeFromMeta } from "@/lib/utils";
 import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
@@ -124,10 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get file size from meta for storage tracking
-    const fileSize =
-      meta && typeof meta === "object" && "size" in meta
-        ? BigInt(meta.size as number)
-        : BigInt(0);
+    const fileSize = getFileSizeFromMeta(meta);
 
     // Create the item and update user storage in a transaction
     const item = await db.$transaction(async (tx) => {
@@ -241,9 +239,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get file size for storage tracking
-    const meta = item.meta as { size?: number } | null;
-    const fileSize =
-      meta && typeof meta.size === "number" ? BigInt(meta.size) : BigInt(0);
+    const fileSize = getFileSizeFromMeta(item.meta);
 
     // Delete from database and update storage in a transaction
     await db.$transaction(async (tx) => {

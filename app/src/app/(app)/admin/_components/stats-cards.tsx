@@ -2,6 +2,7 @@
 
 import { Box, HardDrive, Home, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatBytes } from "@/lib/utils";
 
 type StatsCardsProps = {
   totals: {
@@ -11,19 +12,6 @@ type StatsCardsProps = {
     storageBytes: string;
   };
 };
-
-function formatBytes(bytes: bigint): string {
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = Number(bytes);
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex++;
-  }
-
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
 
 export function StatsCards({ totals }: StatsCardsProps) {
   return (
