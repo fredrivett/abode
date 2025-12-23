@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
+import { getAvailableInvites } from "@/lib/invites";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
@@ -98,13 +99,16 @@ export default async function RoomPage({ params }: Props) {
   const { user: currentUser, metadata } = await getUserWithMetadata(supabase);
   const isOwner = currentUser?.id === room.userId;
 
-  // Get current user's DB info for header
-  const currentDbUser = currentUser
-    ? await db.user.findUnique({
-        where: { id: currentUser.id },
-        select: { username: true, avatarUrl: true },
-      })
-    : null;
+  // Get current user's DB info for header and available invites
+  const [currentDbUser, availableInvites] = currentUser
+    ? await Promise.all([
+        db.user.findUnique({
+          where: { id: currentUser.id },
+          select: { username: true, avatarUrl: true },
+        }),
+        getAvailableInvites(currentUser.id),
+      ])
+    : [null, 0];
 
   // Private rooms are only visible to owner
   if (room.visibility === "private" && !isOwner) {
@@ -234,6 +238,7 @@ export default async function RoomPage({ params }: Props) {
       lastName={metadata.lastName}
       username={currentDbUser?.username ?? metadata.username}
       avatarUrl={currentDbUser?.avatarUrl ?? metadata.avatarUrl}
+      availableInvites={availableInvites}
       signOutAction={currentUser ? signOut : undefined}
       roomOwner={{
         username: user.username,

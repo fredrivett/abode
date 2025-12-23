@@ -29,6 +29,7 @@ type RoomPageClientProps = {
   lastName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  availableInvites: number;
   signOutAction?: () => Promise<void>;
   // Room owner data
   roomOwner: RoomOwner;
@@ -46,6 +47,7 @@ export function RoomPageClient({
   lastName,
   username,
   avatarUrl,
+  availableInvites,
   signOutAction,
   roomOwner,
 }: RoomPageClientProps) {
@@ -121,6 +123,7 @@ export function RoomPageClient({
           lastName={lastName}
           username={username}
           avatarUrl={avatarUrl}
+          availableInvites={availableInvites}
           signOutAction={signOutAction}
           showHomeLink
           centerSlot={renderCenterSlot()}

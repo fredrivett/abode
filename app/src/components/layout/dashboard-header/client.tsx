@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowUpLeft, DoorOpen, LogOut, Settings, User } from "lucide-react";
+import {
+  ArrowUpLeft,
+  DoorOpen,
+  LogOut,
+  Settings,
+  User,
+  UserPlus,
+} from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -10,6 +17,7 @@ import { AbodeLogo } from "@/components/abode-logo";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { SearchInput } from "@/components/search";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,6 +48,7 @@ type AuthenticatedProps = BaseProps & {
   lastName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  availableInvites: number;
   signOutAction: () => Promise<void>;
 };
 
@@ -137,6 +146,34 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
                 <span className="font-mono">/rooms</span>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="ghost-subtle" size="icon">
+                  <Link
+                    href="/settings/invites"
+                    aria-label="Invites"
+                    className="relative"
+                  >
+                    <UserPlus size={18} aria-hidden />
+                    {props.availableInvites > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="absolute top-0 right-0 min-w-4 h-4 px-1 py-0 text-[10px] leading-none border-muted-foreground/20 bg-muted text-muted-foreground rounded"
+                      >
+                        {props.availableInvites}
+                      </Badge>
+                    )}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>
+                <span className="font-mono">
+                  {props.availableInvites > 0
+                    ? `${props.availableInvites} invite${props.availableInvites !== 1 ? "s" : ""} available`
+                    : "No invites available"}
+                </span>
               </TooltipContent>
             </Tooltip>
             <ThemeToggle />

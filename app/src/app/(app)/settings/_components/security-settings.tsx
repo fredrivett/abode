@@ -95,7 +95,7 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
                 onClick={handleDisableMFA}
                 disabled={isDisabling}
               >
-                <ShieldOff className="mr-2 size-4" />
+                <ShieldOff className="size-4" />
                 {isDisabling ? "Disabling..." : "Disable"}
               </Button>
             ) : (
@@ -104,7 +104,7 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
                 size="sm"
                 onClick={() => setIsEnrollDialogOpen(true)}
               >
-                <Shield className="mr-2 size-4" />
+                <Shield className="size-4" />
                 Enable
               </Button>
             )}
