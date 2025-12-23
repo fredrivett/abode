@@ -10,7 +10,7 @@ export type EmailValidationResult = {
 /**
  * Basic email format validation
  */
-function isValidEmailFormat(email: string): boolean {
+export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
@@ -18,7 +18,7 @@ function isValidEmailFormat(email: string): boolean {
 /**
  * Check if email domain is a known disposable email provider
  */
-function isDisposableEmail(email: string): boolean {
+export function isDisposableEmail(email: string): boolean {
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return false;
   return disposableDomainsSet.has(domain);
@@ -36,7 +36,7 @@ export function validateEmail(email: string): EmailValidationResult {
     return { valid: false, error: "Email is required" };
   }
 
-  if (!isValidEmailFormat(normalizedEmail)) {
+  if (!isValidEmail(normalizedEmail)) {
     return { valid: false, error: "Invalid email format" };
   }
 
