@@ -36,9 +36,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
 });
 
+// Skip validation during unit tests - they don't need real env vars
+// Integration tests that need the database should set these vars
+const isUnitTest = process.env.VITEST === "true" && !process.env.DATABASE_URL;
+
 // Validate and parse environment variables
 // This will throw a detailed error if validation fails
-const parsed = envSchema.safeParse(process.env);
+const parsed = isUnitTest
+  ? { success: true as const, data: process.env as z.infer<typeof envSchema> }
+  : envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
