@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/search/search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -176,9 +177,7 @@ export function NewRoomForm() {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Room Name */}
         <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium">
-            Room name
-          </label>
+          <Label htmlFor="name">Room name</Label>
           <div className="flex max-w-md items-center gap-2">
             <EmojiPickerPopover
               value={emoji}
@@ -213,7 +212,7 @@ export function NewRoomForm() {
 
         {/* Room Type */}
         <div className="space-y-3">
-          <span className="block text-sm font-medium">Room type</span>
+          <Label>Room type</Label>
           <div className="grid gap-4 sm:grid-cols-2">
             <button
               type="button"
@@ -265,7 +264,7 @@ export function NewRoomForm() {
         {roomType === "smart" && (
           <div className="space-y-4">
             <div>
-              <span className="block text-sm font-medium">Filters</span>
+              <Label>Filters</Label>
               <p className="text-sm text-muted-foreground mt-1">
                 Add filters to define which items belong in this room. Items
                 matching all filters will be automatically added.
