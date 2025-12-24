@@ -44,7 +44,7 @@ export default async function DashboardLayout({
           <Suspense fallback={<div className="h-16" />}>
             <DashboardHeader showSearch />
           </Suspense>
-          <div className="w-full px-4 py-8">{children}</div>
+          <div className="w-full px-4 pt-2 pb-8">{children}</div>
         </div>
       </DashboardDropzone>
     </OnboardingWrapper>
