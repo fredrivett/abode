@@ -40,6 +40,10 @@ export const RATE_LIMITS = {
     maxRequests: 5,
     windowMs: 60 * 1000, // 1 minute - prevents signup spam
   },
+  embed: {
+    maxRequests: 60,
+    windowMs: 60 * 1000, // 1 minute - public widget API
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;

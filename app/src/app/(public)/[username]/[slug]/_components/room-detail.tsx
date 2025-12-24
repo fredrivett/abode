@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Pencil,
   SearchX,
+  Share2,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
+import { ShareRoomDialog } from "@/components/rooms/share-room-dialog";
 import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import {
   AlertDialog,
@@ -103,6 +105,7 @@ export function RoomDetail({
   const [isSavingName, setIsSavingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -299,6 +302,10 @@ export function RoomDetail({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                <Share2 className="size-4" />
+                Share room
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleOpenEditDialog}>
                 <Pencil className="size-4" />
                 Edit room
@@ -501,6 +508,22 @@ export function RoomDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share room dialog */}
+      {roomOwner?.username && (
+        <ShareRoomDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          room={{
+            id: room.id,
+            name: roomName,
+            emoji: roomEmoji,
+            visibility: roomVisibility,
+            itemCount: room.itemCount,
+          }}
+          username={roomOwner.username}
+        />
+      )}
     </div>
   );
 }

@@ -14,7 +14,8 @@
       "!app/.next",
       "!dist",
       "!build",
-      "!**/*.css"
+      "!**/*.css",
+      "!public/embed.js"
     ]
   },
   "formatter": {
