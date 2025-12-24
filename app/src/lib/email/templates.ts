@@ -78,7 +78,6 @@ export function getWaitlistConfirmationEmail(options: { position?: number }): {
   html: string;
 } {
   const subject = "you're on the abode waitlist";
-  const websiteUrl = getAppBaseUrl();
 
   let positionText = "";
   let positionHtml = "";
@@ -96,11 +95,6 @@ ${ABODE_TWITTER_URL}
 
 ${EMAIL_FOOTER}
 `;
-
-  const descriptionWithLink = ABODE_DESCRIPTION.replace(
-    "abode",
-    htmlLink("abode", websiteUrl),
-  );
 
   const html = `<p>you're on the list!</p>
 

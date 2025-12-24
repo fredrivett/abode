@@ -229,7 +229,8 @@ describe("dom-anchoring", () => {
     test("wraps simple text selection", () => {
       container.textContent = "Hello world";
 
-      const range = toRange(container, 6, 11)!;
+      const range = toRange(container, 6, 11);
+      if (!range) throw new Error("Expected range to be non-null in test");
       const marks = wrapRangeWithHighlight(range, "test-id", "highlight");
 
       expect(marks).toHaveLength(1);
@@ -245,8 +246,10 @@ describe("dom-anchoring", () => {
     test("wraps partial text within element", () => {
       container.innerHTML = "<p>Hello world</p>";
 
-      const p = container.querySelector("p")!;
-      const range = toRange(p, 0, 5)!;
+      const p = container.querySelector("p");
+      if (!p) throw new Error("Expected p element to be non-null in test");
+      const range = toRange(p, 0, 5);
+      if (!range) throw new Error("Expected range to be non-null in test");
       const marks = wrapRangeWithHighlight(range, "partial", "hl");
 
       expect(marks).toHaveLength(1);
@@ -260,7 +263,8 @@ describe("dom-anchoring", () => {
       container.innerHTML = "Start <strong>middle</strong> end";
 
       // Select "art middle en" (across three text nodes)
-      const range = toRange(container, 2, 15)!;
+      const range = toRange(container, 2, 15);
+      if (!range) throw new Error("Expected range to be non-null in test");
       const marks = wrapRangeWithHighlight(range, "cross", "hl");
 
       expect(marks).toHaveLength(3);
@@ -277,7 +281,8 @@ describe("dom-anchoring", () => {
     test("preserves surrounding text when wrapping", () => {
       container.textContent = "prefix TARGET suffix";
 
-      const range = toRange(container, 7, 13)!;
+      const range = toRange(container, 7, 13);
+      if (!range) throw new Error("Expected range to be non-null in test");
       wrapRangeWithHighlight(range, "id", "hl");
 
       expect(container.textContent).toBe("prefix TARGET suffix");
@@ -290,7 +295,8 @@ describe("dom-anchoring", () => {
       container.innerHTML = "<em>italic</em><strong>bold</strong>";
 
       // Select just "bold"
-      const range = toRange(container, 6, 10)!;
+      const range = toRange(container, 6, 10);
+      if (!range) throw new Error("Expected range to be non-null in test");
       const marks = wrapRangeWithHighlight(range, "boundary", "hl");
 
       expect(marks).toHaveLength(1);
