@@ -35,7 +35,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
     if (state.error) {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state.error]);
 
   const isUsernameValid =
     usernameStatus.type === "available" ||

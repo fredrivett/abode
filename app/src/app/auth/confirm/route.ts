@@ -6,6 +6,18 @@ import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
 
+const VALID_OTP_TYPES = [
+  "email",
+  "signup",
+  "recovery",
+  "email_change",
+] as const;
+type OtpType = (typeof VALID_OTP_TYPES)[number];
+
+function isValidOtpType(value: string | null): value is OtpType {
+  return value !== null && VALID_OTP_TYPES.includes(value as OtpType);
+}
+
 /**
  * Auth callback route handler for Supabase email verification links.
  *
@@ -19,15 +31,13 @@ const log = createLogger("auth/confirm");
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as
-    | "email"
-    | "signup"
-    | "recovery"
-    | "email_change"
-    | null;
+  const type = searchParams.get("type");
 
-  if (!tokenHash || !type) {
-    log.warn("Missing token_hash or type in auth callback");
+  if (!tokenHash || !isValidOtpType(type)) {
+    log.warn(
+      { tokenHash: !!tokenHash, type },
+      "Invalid token_hash or type in auth callback",
+    );
     return NextResponse.redirect(
       new URL("/auth/error?reason=missing_params", origin),
     );

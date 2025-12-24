@@ -15,6 +15,30 @@ This command:
 
 If there are TypeScript errors that cannot be auto-fixed, address them before considering the task complete.
 
+## Type Safety
+
+- **Prefer type guards over type assertions** - Use runtime checks that narrow types instead of `as` casts
+- **Avoid `any`** - Use `unknown` with type guards, or define proper types
+
+```ts
+// ❌ Bad: type assertion
+const type = searchParams.get("type") as "email" | "signup";
+
+// ✅ Good: type guard
+const VALID_OTP_TYPES = ["email", "signup", "recovery", "email_change"] as const;
+type OtpType = (typeof VALID_OTP_TYPES)[number];
+
+function isValidOtpType(value: string | null): value is OtpType {
+  return value !== null && VALID_OTP_TYPES.includes(value as OtpType);
+}
+
+const type = searchParams.get("type");
+if (!isValidOtpType(type)) {
+  return { error: "Invalid type" };
+}
+// type is now narrowed to OtpType
+```
+
 <!-- CODE QUALITY END -->
 
 <!-- TESTING START -->
