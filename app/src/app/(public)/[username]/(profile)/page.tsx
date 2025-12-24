@@ -82,7 +82,7 @@ export default async function ProfilePage({ params }: Props) {
   const showUsername = user.firstName !== null;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-16">
         <div className="flex flex-col items-center text-center">
           {user.avatarUrl ? (

@@ -117,7 +117,7 @@ const RANDOM_COLORS = [
 
 export default function ColorsDevPage() {
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="flex-1 bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">Color Mapping Reference</h1>
         <p className="text-gray-600 mb-8">

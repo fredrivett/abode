@@ -5,7 +5,7 @@ import { XLink } from "@/components/x-link";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex flex-1 items-center justify-center">
       <main className="flex flex-col items-center text-center px-4">
         <h1 className="flex flex-col items-center mb-6">
           <span className="sr-only">abode</span>

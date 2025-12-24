@@ -13,7 +13,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
   // No token provided - show "enter invite code" form
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm space-y-6 px-4">
           <EnterCodeForm />
         </div>
@@ -27,7 +27,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
   // Invalid or expired token
   if (!result.valid) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm space-y-6 px-4">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -67,7 +67,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
   const showInviterBanner = invite.origin === "user" && invite.inviter;
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex flex-1 items-center justify-center">
       <div className="w-full max-w-sm space-y-6 px-4">
         {showInviterBanner && invite.inviter && (
           <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
