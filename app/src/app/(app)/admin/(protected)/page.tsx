@@ -63,6 +63,12 @@ export default async function AdminPage() {
               Waitlist
             </Link>
             <Link
+              href="/admin/invites"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Invites
+            </Link>
+            <Link
               href="/admin/users"
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
