@@ -15,10 +15,12 @@ type Props = {
 // Parse and validate the username from the route param
 // Returns the username without @ prefix, or null if invalid (missing @ prefix)
 function parseUsername(rawUsername: string): string | null {
-  if (!rawUsername.startsWith("@")) {
+  // Next.js passes URL-encoded params, so %40 needs to be decoded to @
+  const decoded = decodeURIComponent(rawUsername);
+  if (!decoded.startsWith("@")) {
     return null;
   }
-  return rawUsername.slice(1);
+  return decoded.slice(1);
 }
 
 const getUser = cache(async (username: string) => {
