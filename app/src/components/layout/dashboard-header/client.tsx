@@ -235,7 +235,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link
-                    href={`/${props.username}`}
+                    href={`/@${props.username}`}
                     className="flex items-center gap-2"
                   >
                     <User className="size-4" />
