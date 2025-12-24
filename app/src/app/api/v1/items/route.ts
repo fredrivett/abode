@@ -154,13 +154,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update user's storage usage
-      if (fileSize > 0) {
-        await tx.user.update({
-          where: { id: user.id },
-          data: { storageUsedBytes: { increment: fileSize } },
-        });
-      }
+      // Update user's storage usage and item count
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          itemCount: { increment: 1 },
+          ...(fileSize > 0 && { storageUsedBytes: { increment: fileSize } }),
+        },
+      });
 
       return newItem;
     });
@@ -247,13 +248,14 @@ export async function DELETE(request: NextRequest) {
         where: { id },
       });
 
-      // Decrement user's storage usage
-      if (fileSize > 0) {
-        await tx.user.update({
-          where: { id: user.id },
-          data: { storageUsedBytes: { decrement: fileSize } },
-        });
-      }
+      // Decrement user's storage usage and item count
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          itemCount: { decrement: 1 },
+          ...(fileSize > 0 && { storageUsedBytes: { decrement: fileSize } }),
+        },
+      });
     });
 
     // Log activity (fire-and-forget)

@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
         SELECT DISTINCT unnest(tags) as tag
         FROM items
         WHERE user_id = ${user.id}::uuid
-          AND deleted_at IS NULL
         ORDER BY tag
       `;
       return result.map((r) => r.tag);
@@ -73,7 +72,6 @@ export async function GET(request: NextRequest) {
         FROM item_image_details iid
         JOIN items i ON i.id = iid.item_id
         WHERE i.user_id = ${user.id}::uuid
-          AND i.deleted_at IS NULL
         ORDER BY object
       `;
       return result.map((r) => r.object);
@@ -93,7 +91,6 @@ export async function GET(request: NextRequest) {
           SELECT color_elem->>'name' AS name
         ) AS color_data
         WHERE i.user_id = ${user.id}::uuid
-          AND i.deleted_at IS NULL
           AND iid.colors IS NOT NULL
           AND color_data.name IS NOT NULL
         ORDER BY color_data.name
@@ -106,7 +103,6 @@ export async function GET(request: NextRequest) {
         SELECT DISTINCT source_type
         FROM items
         WHERE user_id = ${user.id}::uuid
-          AND deleted_at IS NULL
           AND source_type IS NOT NULL
         ORDER BY source_type
       `;
@@ -120,19 +116,19 @@ export async function GET(request: NextRequest) {
         FROM (
           SELECT neighborhood as location FROM item_locations il
           JOIN items i ON i.id = il.item_id
-          WHERE i.user_id = ${user.id}::uuid AND i.deleted_at IS NULL AND neighborhood IS NOT NULL
+          WHERE i.user_id = ${user.id}::uuid AND neighborhood IS NOT NULL
           UNION
           SELECT city as location FROM item_locations il
           JOIN items i ON i.id = il.item_id
-          WHERE i.user_id = ${user.id}::uuid AND i.deleted_at IS NULL AND city IS NOT NULL
+          WHERE i.user_id = ${user.id}::uuid AND city IS NOT NULL
           UNION
           SELECT region as location FROM item_locations il
           JOIN items i ON i.id = il.item_id
-          WHERE i.user_id = ${user.id}::uuid AND i.deleted_at IS NULL AND region IS NOT NULL
+          WHERE i.user_id = ${user.id}::uuid AND region IS NOT NULL
           UNION
           SELECT country as location FROM item_locations il
           JOIN items i ON i.id = il.item_id
-          WHERE i.user_id = ${user.id}::uuid AND i.deleted_at IS NULL AND country IS NOT NULL
+          WHERE i.user_id = ${user.id}::uuid AND country IS NOT NULL
         ) locations
         ORDER BY location
       `;
@@ -144,7 +140,6 @@ export async function GET(request: NextRequest) {
         SELECT DISTINCT kind
         FROM items
         WHERE user_id = ${user.id}::uuid
-          AND deleted_at IS NULL
           AND kind IS NOT NULL
         ORDER BY kind
       `;

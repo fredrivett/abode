@@ -28,6 +28,7 @@ model User {
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   isAdmin               Boolean   @default(false) @map("is_admin")
   storageUsedBytes      BigInt    @default(0) @map("storage_used_bytes")
+  itemCount             Int       @default(0) @map("item_count")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
@@ -128,7 +129,6 @@ model Item {
 
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
-  deletedAt        DateTime?        @map("deleted_at")
 
   // Smart rooms
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
@@ -144,7 +144,6 @@ model Item {
   highlights        ArticleHighlight[]
 
   @@index([userId, createdAt(sort: Desc)])
-  @@index([userId, deletedAt])
   @@index([tags])
   @@map("items")
 }

@@ -63,7 +63,7 @@ export async function vectorSearch(
   const queryEmbedding = await getQueryEmbedding(query);
 
   // Build WHERE conditions for filters
-  const conditions: string[] = ["i.user_id = $1::uuid", "i.deleted_at IS NULL"];
+  const conditions: string[] = ["i.user_id = $1::uuid"];
   const params: unknown[] = [userId];
   let paramIndex = 2;
 

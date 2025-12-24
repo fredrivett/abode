@@ -25,7 +25,6 @@ describe("Room Service Integration", () => {
       kind?: "image" | "article";
       tags?: string[];
       sourceType?: "upload" | "url";
-      deletedAt?: Date | null;
       excludeFromPublicRooms?: boolean;
     } = {},
   ) => {
@@ -36,7 +35,6 @@ describe("Room Service Integration", () => {
         kind: overrides.kind ?? "image",
         sourceType: overrides.sourceType ?? "upload",
         tags: overrides.tags ?? [],
-        deletedAt: overrides.deletedAt ?? null,
         excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
       },
     });
@@ -57,9 +55,7 @@ describe("Room Service Integration", () => {
         userId,
         name: overrides.name ?? "Test Room",
         type: overrides.type ?? "smart",
-        filters: overrides.filters ?? {
-          tag: [{ value: "test", negated: false }],
-        },
+        filters: overrides.filters ?? [{ type: "tag", value: "test", negated: false }],
         visibility: overrides.visibility ?? "private",
       },
     });
@@ -86,18 +82,18 @@ describe("Room Service Integration", () => {
       const { getUserSmartRooms } = await import("@/lib/rooms/room-service");
 
       await createTestRoom(user.id, {
-        filters: {
-          tag: [{ value: "travel", negated: false }],
-          type: [{ value: "image", negated: false }],
-        },
+        filters: [
+          { type: "tag", value: "travel", negated: false },
+          { type: "type", value: "image", negated: false },
+        ],
       });
 
       const rooms = await getUserSmartRooms(user.id);
 
-      expect(rooms[0].filters).toEqual({
-        tag: [{ value: "travel", negated: false }],
-        type: [{ value: "image", negated: false }],
-      });
+      expect(rooms[0].filters).toEqual([
+        { type: "tag", value: "travel", negated: false },
+        { type: "type", value: "image", negated: false },
+      ]);
     });
 
     it("returns empty array when user has no smart rooms", async () => {
@@ -223,22 +219,18 @@ describe("Room Service Integration", () => {
   });
 
   describe("loadUserItemsWithDetails", () => {
-    it("returns only non-deleted items", async () => {
+    it("returns all items for user", async () => {
       const user = await createTestUser();
       const { loadUserItemsWithDetails } = await import(
         "@/lib/rooms/room-service"
       );
 
-      await createTestItem(user.id, { tags: ["active"] });
-      await createTestItem(user.id, {
-        tags: ["deleted"],
-        deletedAt: new Date(),
-      });
+      await createTestItem(user.id, { tags: ["first"] });
+      await createTestItem(user.id, { tags: ["second"] });
 
       const items = await loadUserItemsWithDetails(user.id);
 
-      expect(items).toHaveLength(1);
-      expect(items[0].tags).toContain("active");
+      expect(items).toHaveLength(2);
     });
   });
 
@@ -250,7 +242,7 @@ describe("Room Service Integration", () => {
 
       // Create a room that filters for "travel" tag
       const room = await createTestRoom(user.id, {
-        filters: { tag: [{ value: "travel", negated: false }] },
+        filters: [{ type: "tag", value: "travel", negated: false }],
       });
 
       // Create an item with matching tag
@@ -276,7 +268,7 @@ describe("Room Service Integration", () => {
 
       // Create a room and item
       const room = await createTestRoom(user.id, {
-        filters: { tag: [{ value: "travel", negated: false }] },
+        filters: [{ type: "tag", value: "travel", negated: false }],
       });
       const item = await createTestItem(user.id, { tags: ["food"] });
 
@@ -351,7 +343,7 @@ describe("Room Service Integration", () => {
 
       // Create room filtering for "travel"
       const room = await createTestRoom(user.id, {
-        filters: { tag: [{ value: "travel", negated: false }] },
+        filters: [{ type: "tag", value: "travel", negated: false }],
       });
 
       const result = await syncRoomItems(room.id, user.id);
@@ -377,7 +369,7 @@ describe("Room Service Integration", () => {
 
       // Create room
       const room = await createTestRoom(user.id, {
-        filters: { tag: [{ value: "travel", negated: false }] },
+        filters: [{ type: "tag", value: "travel", negated: false }],
       });
 
       // Manually add both items to room
@@ -424,34 +416,6 @@ describe("Room Service Integration", () => {
 
       expect(result).toEqual({ added: 0, removed: 0 });
     });
-
-    it("excludes deleted items", async () => {
-      const user = await createTestUser();
-      const { read } = await import("@/lib/db");
-      const { syncRoomItems } = await import("@/lib/rooms/room-service");
-
-      // Create items (one active, one deleted)
-      await createTestItem(user.id, { tags: ["travel"] });
-      await createTestItem(user.id, {
-        tags: ["travel"],
-        deletedAt: new Date(),
-      });
-
-      // Create room filtering for "travel"
-      const room = await createTestRoom(user.id, {
-        filters: { tag: [{ value: "travel", negated: false }] },
-      });
-
-      const result = await syncRoomItems(room.id, user.id);
-
-      expect(result.added).toBe(1);
-
-      // Verify only non-deleted item in room
-      const roomItems = await read.roomItem.findMany({
-        where: { roomId: room.id },
-      });
-      expect(roomItems).toHaveLength(1);
-    });
   });
 
   describe("getRoomById", () => {
@@ -461,20 +425,20 @@ describe("Room Service Integration", () => {
 
       const room = await createTestRoom(user.id, {
         name: "Travel Photos",
-        filters: {
-          tag: [{ value: "travel", negated: false }],
-          type: [{ value: "image", negated: false }],
-        },
+        filters: [
+          { type: "tag", value: "travel", negated: false },
+          { type: "type", value: "image", negated: false },
+        ],
       });
 
       const fetchedRoom = await getRoomById(room.id, user.id);
 
       expect(fetchedRoom).not.toBeNull();
       expect(fetchedRoom?.name).toBe("Travel Photos");
-      expect(fetchedRoom?.filters).toEqual({
-        tag: [{ value: "travel", negated: false }],
-        type: [{ value: "image", negated: false }],
-      });
+      expect(fetchedRoom?.filters).toEqual([
+        { type: "tag", value: "travel", negated: false },
+        { type: "type", value: "image", negated: false },
+      ]);
     });
 
     it("returns null for non-existent room", async () => {
