@@ -97,6 +97,10 @@ enum ActivityType {
   room_view
   user_login
   user_update
+  admin_delete_user
+  admin_invite_waitlist
+  admin_grant_admin
+  admin_revoke_admin
 }
 
 model Item {

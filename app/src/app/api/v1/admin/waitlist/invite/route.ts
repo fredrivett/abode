@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
@@ -70,6 +71,14 @@ export async function POST(request: NextRequest) {
         "Failed to send waitlist invite email",
       );
     }
+
+    // Log admin action to database for audit trail
+    await logActivity(user.id, "admin_invite_waitlist", {
+      inviteId: result.invite.id,
+      inviteeEmail: result.invite.email,
+      waitlistEntryId,
+      emailSent: emailResult.success,
+    });
 
     return NextResponse.json({
       success: true,

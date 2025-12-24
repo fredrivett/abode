@@ -3,6 +3,7 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
@@ -109,6 +110,13 @@ export async function deleteUserAsAdmin(
         "Failed to delete auth user",
       );
     }
+
+    // Log admin action to database for audit trail
+    await logActivity(adminUser.id, "admin_delete_user", {
+      deletedUserId: userId,
+      deletedUserEmail: userToDelete.email,
+      deletedUserUsername: userToDelete.username,
+    });
 
     log.info(
       {
