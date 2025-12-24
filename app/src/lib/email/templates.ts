@@ -94,9 +94,6 @@ ${positionText}we'll email you when it's your turn to join abode.
 in the meantime, follow us for updates:
 ${ABODE_TWITTER_URL}
 
-what is abode?
-${ABODE_DESCRIPTION}
-
 ${EMAIL_FOOTER}
 `;
 
@@ -110,9 +107,6 @@ ${EMAIL_FOOTER}
 ${positionHtml}<p>we'll email you when it's your turn to join abode.</p>
 
 <p>in the meantime, ${htmlLink("follow us for updates", ABODE_TWITTER_URL)}.</p>
-
-<p>what is abode?<br>
-${descriptionWithLink}</p>
 
 ${htmlFooter()}`;
 

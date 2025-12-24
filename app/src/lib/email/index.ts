@@ -18,7 +18,7 @@ function getResendClient(): Resend {
  * Email configuration
  */
 const EMAIL_CONFIG = {
-  from: env.RESEND_FROM_EMAIL || "fred <fred@abode.fyi>",
+  from: env.RESEND_FROM_EMAIL || "fred @ abode <fred@abode.fyi>",
   replyTo: env.RESEND_REPLY_TO_EMAIL,
 };
 
