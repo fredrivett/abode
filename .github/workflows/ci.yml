@@ -113,8 +113,12 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     env:
+      # Placeholder values for build - e2e tests use a test database container
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key-for-ci
+      RESEND_API_KEY: re_placeholder_api_key_for_ci
     defaults:
       run:
         working-directory: ./app
@@ -176,6 +180,12 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     env:
+      # Placeholder values for build validation
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key-for-ci
+      RESEND_API_KEY: re_placeholder_api_key_for_ci
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     defaults:
       run:

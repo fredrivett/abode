@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   extractArticleMetadata,
@@ -11,6 +13,12 @@ import {
   parsePublishedDate,
   preserveSocialEmbeds,
 } from "./html-metadata";
+
+// Load test fixtures
+const aaronFrancisFixture = readFileSync(
+  join(__dirname, "__fixtures__/aaron-francis-tweet-embed.html"),
+  "utf-8",
+);
 
 describe("extractMetaContent", () => {
   it("extracts Open Graph meta tags (property before content)", () => {
@@ -523,5 +531,38 @@ describe("preserveSocialEmbeds", () => {
 
     expect(result.html).toBe(html);
     expect(result.tweetIds).toEqual([]);
+  });
+
+  describe("real-world fixtures", () => {
+    it("correctly processes Aaron Francis blog tweet embeds", () => {
+      // This fixture contains the onclick tweet embed pattern from aaronfrancis.com
+      // Source: https://aaronfrancis.com/2024/what-if-you-tried-hard-dac139a5
+      const result = preserveSocialEmbeds(aaronFrancisFixture);
+
+      // Should detect both tweet IDs
+      expect(result.tweetIds).toEqual([
+        "1704117079547257037",
+        "1770253702391026010",
+      ]);
+
+      // Should replace onclick divs with tweet markers
+      expect(result.html).toContain("[[TWEET:1704117079547257037]]");
+      expect(result.html).toContain("[[TWEET:1770253702391026010]]");
+
+      // Tweet content should be removed (it was inside the onclick divs)
+      expect(result.html).not.toContain(
+        "I'm interested in potentially bringing on someone",
+      );
+      expect(result.html).not.toContain(
+        "being willing to relocate is a massively underrated",
+      );
+
+      // Regular article content should remain
+      expect(result.html).toContain("What if you tried hard?");
+      expect(result.html).toContain(
+        "In this case, trying hard could be making a video",
+      );
+      expect(result.html).toContain("Trying hard is really not that hard.");
+    });
   });
 });

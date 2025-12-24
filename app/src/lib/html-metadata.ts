@@ -213,6 +213,52 @@ export type SocialEmbedResult = {
 };
 
 /**
+ * Finds the matching closing tag for an opening tag, handling nested same-name tags.
+ * Returns the index after the closing tag, or -1 if not found.
+ */
+function findMatchingCloseTag(
+  html: string,
+  tagName: string,
+  startIndex: number,
+): number {
+  let depth = 1;
+  let pos = startIndex;
+
+  const openTagRegex = new RegExp(`<${tagName}[^>]*>`, "gi");
+  const closeTagRegex = new RegExp(`</${tagName}>`, "gi");
+
+  while (depth > 0 && pos < html.length) {
+    // Find next open or close tag
+    openTagRegex.lastIndex = pos;
+    closeTagRegex.lastIndex = pos;
+
+    const openMatch = openTagRegex.exec(html);
+    const closeMatch = closeTagRegex.exec(html);
+
+    if (!closeMatch) {
+      // No more closing tags, can't find match
+      return -1;
+    }
+
+    // Determine which comes first
+    if (openMatch && openMatch.index < closeMatch.index) {
+      // Found another opening tag first
+      depth++;
+      pos = openMatch.index + openMatch[0].length;
+    } else {
+      // Found a closing tag
+      depth--;
+      pos = closeMatch.index + closeMatch[0].length;
+      if (depth === 0) {
+        return pos;
+      }
+    }
+  }
+
+  return -1;
+}
+
+/**
  * Preserves social media embeds by replacing them with placeholder elements
  * that survive Readability processing.
  *
@@ -220,7 +266,7 @@ export type SocialEmbedResult = {
  * 1. Official embeds: blockquotes with class="twitter-tweet"
  * 2. Custom onclick embeds: elements with onclick="window.open('https://twitter.com/...')"
  *
- * After Turndown converts to markdown, these divs become text that can be
+ * After Turndown converts to markdown, these become text that can be
  * rendered as embedded tweets on the frontend.
  *
  * Returns both the modified HTML and an array of extracted tweet IDs for logging.
@@ -247,37 +293,59 @@ export function preserveSocialEmbeds(html: string): SocialEmbedResult {
 
       if (tweetId) {
         tweetIds.push(tweetId);
-        // Replace with a div that Readability will preserve
-        // The special data attribute helps identify this during markdown conversion
-        // Using a paragraph tag to ensure it survives as block content
         return `<p data-embed-type="twitter" data-tweet-id="${tweetId}">[[TWEET:${tweetId}]]</p>`;
       }
     }
 
     // If we can't extract the tweet URL, leave the blockquote as-is
-    // It will be converted to a regular blockquote by Readability
     return blockquote;
   });
 
   // 2. Match elements with onclick containing twitter/x.com URLs
   // These look like: <div onclick="window.open('https://twitter.com/user/status/123', '_blank')">...</div>
-  // This pattern is used by some sites for custom tweet card styling
-  const onclickTweetRegex =
-    /<(\w+)[^>]*onclick=["'][^"']*(?:window\.open\s*\(\s*['"]|location\s*=\s*['"])(https?:\/\/(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
+  const onclickOpenTagRegex =
+    /<(\w+)([^>]*onclick=["'][^"']*(?:window\.open\s*\(\s*['"]|location\s*=\s*['"])(https?:\/\/(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+)[^"']*["'][^>]*)>/gi;
 
-  processedHtml = processedHtml.replace(
-    onclickTweetRegex,
-    (element, _tagName, tweetUrl) => {
-      const tweetId = extractTweetId(tweetUrl);
+  const replacements: Array<{
+    start: number;
+    end: number;
+    tweetId: string;
+  }> = [];
 
-      if (tweetId && !tweetIds.includes(tweetId)) {
+  let match = onclickOpenTagRegex.exec(processedHtml);
+  while (match !== null) {
+    const tagName = match[1];
+    const tweetUrl = match[3];
+    const tweetId = extractTweetId(tweetUrl);
+
+    if (tweetId && !tweetIds.includes(tweetId)) {
+      const openTagEnd = match.index + match[0].length;
+      const closeTagEnd = findMatchingCloseTag(
+        processedHtml,
+        tagName,
+        openTagEnd,
+      );
+
+      if (closeTagEnd !== -1) {
         tweetIds.push(tweetId);
-        return `<p data-embed-type="twitter" data-tweet-id="${tweetId}">[[TWEET:${tweetId}]]</p>`;
+        replacements.push({
+          start: match.index,
+          end: closeTagEnd,
+          tweetId,
+        });
       }
+    }
+    match = onclickOpenTagRegex.exec(processedHtml);
+  }
 
-      return element;
-    },
-  );
+  // Apply onclick replacements in reverse order to preserve indices
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const { start, end, tweetId } = replacements[i];
+    processedHtml =
+      processedHtml.slice(0, start) +
+      `<p data-embed-type="twitter" data-tweet-id="${tweetId}">[[TWEET:${tweetId}]]</p>` +
+      processedHtml.slice(end);
+  }
 
   return { html: processedHtml, tweetIds };
 }
