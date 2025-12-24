@@ -55,7 +55,9 @@ describe("Room Service Integration", () => {
         userId,
         name: overrides.name ?? "Test Room",
         type: overrides.type ?? "smart",
-        filters: overrides.filters ?? [{ type: "tag", value: "test", negated: false }],
+        filters: overrides.filters ?? [
+          { type: "tag", value: "test", negated: false },
+        ],
         visibility: overrides.visibility ?? "private",
       },
     });
