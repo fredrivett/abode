@@ -9,8 +9,13 @@ import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
 
 type Props = {
-  params: Promise<{ username: string }>;
+  params: Promise<{ "@username": string }>;
 };
+
+// Strip the @ prefix from the route param to get the actual username
+function parseUsername(atUsername: string): string {
+  return atUsername.startsWith("@") ? atUsername.slice(1) : atUsername;
+}
 
 const getUser = cache(async (username: string) => {
   return db.user.findFirst({
@@ -54,7 +59,8 @@ const getPublicRooms = cache(async (userId: string) => {
 });
 
 export async function generateMetadata({ params }: Props) {
-  const { username } = await params;
+  const { "@username": atUsername } = await params;
+  const username = parseUsername(atUsername);
   const user = await getUser(username);
 
   if (!user) {
@@ -70,7 +76,8 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function ProfilePage({ params }: Props) {
-  const { username } = await params;
+  const { "@username": atUsername } = await params;
+  const username = parseUsername(atUsername);
   const user = await getUser(username);
 
   if (!user) {
