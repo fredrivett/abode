@@ -1,12 +1,8 @@
 "use server";
 
-import { tasks } from "@trigger.dev/sdk";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { validateUsername } from "@/lib/username";
-import type { checkGravatarTask } from "../../../../trigger/check-gravatar";
 
 export type AuthResult = {
   error?: string;
@@ -64,66 +60,6 @@ export async function signup(
     success: true,
     email,
     username,
-    message: "Check your email for a confirmation code.",
+    message: "Check your email for a verification link.",
   };
-}
-
-export async function verifyOtp(
-  _prevState: AuthResult,
-  formData: FormData,
-): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
-  const token = formData.get("token") as string;
-  const username = formData.get("username") as string;
-
-  const { error } = await supabase.auth.verifyOtp({
-    email,
-    token,
-    type: "email",
-  });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  // Get the user after verification
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user && username) {
-    // Check for OAuth avatar in user metadata
-    const userMetadata = user.user_metadata as
-      | Record<string, unknown>
-      | undefined;
-    const oauthPicture =
-      (userMetadata?.picture as string) ||
-      (userMetadata?.avatar_url as string) ||
-      null;
-
-    // Set username (and OAuth avatar if present) in a single update
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        username,
-        ...(oauthPicture && {
-          avatarUrl: oauthPicture,
-          avatarSource: "oauth" as const,
-        }),
-      },
-    });
-
-    // No OAuth avatar - trigger background Gravatar check
-    if (!oauthPicture) {
-      await tasks.trigger<typeof checkGravatarTask>("check-gravatar", {
-        userId: user.id,
-        email,
-      });
-    }
-  }
-
-  revalidatePath("/", "layout");
-  redirect("/dashboard");
 }

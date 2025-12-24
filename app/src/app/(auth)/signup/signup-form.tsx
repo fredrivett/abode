@@ -1,32 +1,20 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { parseEmailToUsername } from "@/lib/username/generate-from-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
-import { signup, verifyOtp } from "./actions";
+import { signup } from "./actions";
 
 export function SignupForm() {
   const [signupState, signupAction, isSigningUp] = useActionState(signup, {});
-  const [verifyState, verifyAction, isVerifying] = useActionState(
-    verifyOtp,
-    {},
-  );
-  const [otp, setOtp] = useState("");
   const {
     username,
     status: usernameStatus,
     handleChange,
     useSuggestion,
   } = useUsernameAvailability();
-  const formRef = useRef<HTMLFormElement>(null);
-  const lastSubmittedOtp = useRef<string | null>(null);
   const hasAutoSuggestedRef = useRef(false);
 
   useEffect(() => {
@@ -34,26 +22,6 @@ export function SignupForm() {
       toast.error(signupState.error);
     }
   }, [signupState]);
-
-  useEffect(() => {
-    if (verifyState.error) {
-      toast.error(verifyState.error);
-    }
-  }, [verifyState]);
-
-  // Auto-submit when OTP is complete
-  useEffect(() => {
-    if (otp.length < 6) {
-      lastSubmittedOtp.current = null;
-      return;
-    }
-
-    if (!formRef.current || isVerifying) return;
-    if (lastSubmittedOtp.current === otp) return;
-
-    lastSubmittedOtp.current = otp;
-    formRef.current.requestSubmit();
-  }, [otp, isVerifying]);
 
   // Auto-suggest username from email
   const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -65,51 +33,20 @@ export function SignupForm() {
     }
   };
 
-  // Show OTP input after successful signup
+  // Show confirmation message after successful signup
   if (signupState.success && signupState.email) {
     return (
-      <>
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Check your email
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            We sent a code to {signupState.email}
-          </p>
-        </div>
-
-        <form ref={formRef} action={verifyAction} className="space-y-6">
-          <input type="hidden" name="email" value={signupState.email} />
-          <input type="hidden" name="token" value={otp} />
-          <input
-            type="hidden"
-            name="username"
-            value={signupState.username || ""}
-          />
-
-          <div className="flex justify-center">
-            <InputOTP maxLength={6} value={otp} onChange={setOtp} autoFocus>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={isVerifying || otp.length !== 6}
-          >
-            {isVerifying ? "Verifying..." : "Verify"}
-          </Button>
-        </form>
-      </>
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Check your email
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          We sent a verification link to {signupState.email}
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Click the link in the email to complete your signup
+        </p>
+      </div>
     );
   }
 
