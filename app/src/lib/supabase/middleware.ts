@@ -59,14 +59,19 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Redirect logged-in users away from auth pages and homepage
-  // Exception: allow /login/verify-mfa for MFA challenge
+  // Exception: allow /login/verify-mfa for MFA challenge and /complete-signup for profile completion
   const isAuthRoute =
     (request.nextUrl.pathname.startsWith("/login") &&
       !request.nextUrl.pathname.startsWith("/login/verify-mfa")) ||
-    request.nextUrl.pathname.startsWith("/signup");
+    request.nextUrl.pathname.startsWith("/signup") ||
+    request.nextUrl.pathname.startsWith("/join");
+  const isCompleteSignupRoute =
+    request.nextUrl.pathname.startsWith("/complete-signup");
   const isHomePage = request.nextUrl.pathname === "/";
 
-  if (user && (isAuthRoute || isHomePage)) {
+  // Allow authenticated users to access /complete-signup (for finishing profile setup)
+  // but redirect them away from other auth routes
+  if (user && (isAuthRoute || isHomePage) && !isCompleteSignupRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
