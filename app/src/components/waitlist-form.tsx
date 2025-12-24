@@ -1,7 +1,9 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card } from "./ui/card";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
@@ -43,7 +45,8 @@ export function WaitlistForm() {
 
   if (formState === "success") {
     return (
-      <div className="text-center space-y-2">
+      <Card className="p-6 text-center gap-2 items-center">
+        <Check className="text-muted-foreground size-8" />
         <p className="text-lg font-medium">you're on the list!</p>
         {position && position >= 50 && (
           <p className="text-sm text-muted-foreground">you're #{position}</p>
@@ -51,7 +54,7 @@ export function WaitlistForm() {
         <p className="text-sm text-muted-foreground">
           we'll email you when it's your turn.
         </p>
-      </div>
+      </Card>
     );
   }
 
