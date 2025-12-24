@@ -1,3 +1,22 @@
+<!-- APP URL START -->
+
+# App URL
+
+**Production URL:** `https://www.abode.fyi`
+
+Use `getAppBaseUrl()` from `@/lib/url` to get the environment-specific base URL:
+
+```ts
+import { getAppBaseUrl } from "@/lib/url";
+
+const baseUrl = getAppBaseUrl();
+// Local dev: http://localhost:<port>
+// Vercel preview: https://{VERCEL_URL}
+// Production: https://www.abode.fyi
+```
+
+<!-- APP URL END -->
+
 <!-- CODE QUALITY START -->
 
 # Code Quality
