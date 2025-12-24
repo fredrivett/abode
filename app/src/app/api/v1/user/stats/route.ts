@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest) {
 
     const [itemCount, roomCount] = await Promise.all([
       db.item.count({
-        where: { userId: user.id, deletedAt: null },
+        where: { userId: user.id },
       }),
       db.room.count({
         where: { userId: user.id },

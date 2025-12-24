@@ -150,7 +150,7 @@ export async function loadItemWithDetails(
 }
 
 /**
- * Load all non-deleted items for a user with details needed for room matching.
+ * Load all items for a user with details needed for room matching.
  */
 export async function loadUserItemsWithDetails(
   userId: string,
@@ -158,7 +158,6 @@ export async function loadUserItemsWithDetails(
   const items = await db.item.findMany({
     where: {
       userId,
-      deletedAt: null,
     },
     include: {
       imageDetails: true,

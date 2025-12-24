@@ -201,11 +201,6 @@ export function itemMatchesRoom(
   item: ItemWithDetails,
   room: RoomWithFilters,
 ): boolean {
-  // Soft-deleted items never match
-  if (item.deletedAt !== null) {
-    return false;
-  }
-
   // Check exclude flag for public rooms
   if (room.visibility === "public" && item.excludeFromPublicRooms) {
     return false;

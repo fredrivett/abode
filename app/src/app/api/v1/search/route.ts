@@ -301,7 +301,7 @@ async function executeFiltersOnlySearch(
   cursor: string | null,
 ): Promise<{ items: SearchItem[]; total: number; cursor?: string }> {
   // Build WHERE conditions
-  const conditions: string[] = ["user_id = $1::uuid", "deleted_at IS NULL"];
+  const conditions: string[] = ["user_id = $1::uuid"];
   const params: unknown[] = [userId];
   let paramIndex = 2;
 

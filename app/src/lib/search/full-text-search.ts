@@ -46,7 +46,7 @@ export async function fullTextSearch(
   limit = 100,
 ): Promise<FullTextResult[]> {
   // Build WHERE conditions for filters
-  const conditions: string[] = ["i.user_id = $1::uuid", "i.deleted_at IS NULL"];
+  const conditions: string[] = ["i.user_id = $1::uuid"];
   const params: unknown[] = [userId];
   let paramIndex = 2;
 
@@ -206,7 +206,7 @@ export async function ocrTextSearch(
 ): Promise<OcrSearchResult[]> {
   // Build WHERE conditions for filters
   // Filters are required here to ensure OCR-only matches respect user's filter criteria
-  const conditions: string[] = ["i.user_id = $1::uuid", "i.deleted_at IS NULL"];
+  const conditions: string[] = ["i.user_id = $1::uuid"];
   const params: unknown[] = [userId];
   let paramIndex = 2;
 

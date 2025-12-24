@@ -62,7 +62,6 @@ function createTestItem(
     tags?: string[];
     sourceType?: string | null;
     createdAt?: Date;
-    deletedAt?: Date | null;
     excludeFromPublicRooms?: boolean;
     imageDetails?: ItemImageDetails | null;
     locations?: ItemLocation[];
@@ -83,7 +82,6 @@ function createTestItem(
     title: null,
     description: null,
     tags: overrides.tags ?? [],
-    deletedAt: overrides.deletedAt ?? null,
     excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
     imageDetails: overrides.imageDetails ?? null,
     locations: overrides.locations ?? [],
@@ -163,12 +161,6 @@ describe("itemMatchesRoom", () => {
     it("returns false when room has no filters", () => {
       const item = createTestItem();
       const room = createTestRoom(null);
-      expect(itemMatchesRoom(item, room)).toBe(false);
-    });
-
-    it("returns false for soft-deleted items", () => {
-      const item = createTestItem({ deletedAt: new Date() });
-      const room = createTestRoom([createFilter("type", "image")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
