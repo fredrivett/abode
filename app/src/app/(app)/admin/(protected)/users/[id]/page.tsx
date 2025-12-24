@@ -10,11 +10,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteUserButton } from "@/app/(app)/admin/_components/delete-user-button";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type DailyActivityStats, getUserDailyActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { formatMemberNumber } from "@/lib/format-member-number";
 import { formatBytes, getUserInitials } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
@@ -176,6 +178,7 @@ export default async function AdminUserDetailPage({
       lastName: true,
       avatarUrl: true,
       isAdmin: true,
+      memberNumber: true,
       storageUsedBytes: true,
       createdAt: true,
       updatedAt: true,
@@ -199,35 +202,38 @@ export default async function AdminUserDetailPage({
       <DashboardHeader />
 
       <div className="mx-auto w-full max-w-7xl px-4 py-8">
-        <header className="flex items-center gap-4">
-          <Link
-            href="/admin/users"
-            className="rounded-md p-2 hover:bg-muted"
-            aria-label="Back to users list"
-          >
-            <ArrowLeft className="size-5" />
-          </Link>
+        <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Avatar className="size-12">
-              <AvatarImage src={user.avatarUrl ?? undefined} />
-              <AvatarFallback>
-                {getUserInitials(user.firstName, user.lastName, user.email)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                {user.firstName || user.lastName
-                  ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
-                  : user.email}
-                {user.isAdmin && (
-                  <span className="ml-2 rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                    Admin
-                  </span>
-                )}
-              </h2>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
+            <Link
+              href="/admin/users"
+              className="rounded-md p-2 hover:bg-muted"
+              aria-label="Back to users list"
+            >
+              <ArrowLeft className="size-5" />
+            </Link>
+            <div className="flex items-center gap-4">
+              <Avatar className="size-12">
+                <AvatarImage src={user.avatarUrl ?? undefined} />
+                <AvatarFallback>
+                  {getUserInitials(user.firstName, user.lastName, user.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  {user.firstName || user.lastName
+                    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+                    : user.email}
+                  {user.isAdmin && (
+                    <span className="ml-2 rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
+                      Admin
+                    </span>
+                  )}
+                </h2>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+              </div>
             </div>
           </div>
+          <DeleteUserButton userId={user.id} userEmail={user.email} />
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -278,6 +284,11 @@ export default async function AdminUserDetailPage({
                       day: "numeric",
                     })}
                   </p>
+                  {user.memberNumber && (
+                    <p className="text-xs text-muted-foreground">
+                      Member #{formatMemberNumber(user.memberNumber)}
+                    </p>
+                  )}
                 </div>
               </div>
 

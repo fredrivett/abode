@@ -1,6 +1,5 @@
 "use client";
 
-import { DoorOpen, Image, User } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { UserDeletionStats } from "@/components/user-deletion-stats";
 import { deleteAccount } from "../actions";
 
 type UserStats = {
@@ -84,35 +84,13 @@ export function DeleteAccountSettings() {
                     will be deleted immediately.
                   </p>
 
-                  {isLoadingStats ? (
-                    <p className="text-muted-foreground">Loading...</p>
-                  ) : stats ? (
-                    <div className="rounded-lg border bg-muted/50 p-4">
-                      <p className="text-sm font-medium text-foreground">
-                        This will permanently delete:
-                      </p>
-                      <div className="mt-3 space-y-2 pl-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Image className="size-4 text-muted-foreground" />
-                          <span>
-                            {stats.itemCount} item
-                            {stats.itemCount !== 1 && "s"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <DoorOpen className="size-4 text-muted-foreground" />
-                          <span>
-                            {stats.roomCount} room
-                            {stats.roomCount !== 1 && "s"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <User className="size-4 text-muted-foreground" />
-                          <span>Your profile and account data</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
+                  {stats && (
+                    <UserDeletionStats
+                      itemCount={stats.itemCount}
+                      roomCount={stats.roomCount}
+                      isLoading={isLoadingStats}
+                    />
+                  )}
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
