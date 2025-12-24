@@ -100,6 +100,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         name: true,
         emoji: true,
         slug: true,
+        filters: true,
         _count: {
           select: { roomItems: true },
         },
@@ -179,6 +180,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         emoji: room.emoji,
         slug: room.slug,
         itemCount: room._count.roomItems,
+        filters: room.filters ?? [],
       },
       owner: {
         username: room.user.username,

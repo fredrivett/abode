@@ -520,8 +520,10 @@ export function RoomDetail({
             emoji: roomEmoji,
             visibility: roomVisibility,
             itemCount: room.itemCount,
+            filters: room.filters,
           }}
           username={roomOwner.username}
+          items={items}
         />
       )}
     </div>

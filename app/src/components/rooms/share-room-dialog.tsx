@@ -1,7 +1,7 @@
 "use client";
 
 import type { RoomVisibility } from "@prisma/client";
-import { AlertCircle, Check, Code2, Copy, Eye } from "lucide-react";
+import { AlertCircle, BrickWall, Check, Code2, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { copyToClipboard } from "@/lib/copy";
+import type { Filter } from "@/lib/search/types";
 import { cn } from "@/lib/utils";
 import { WidgetPreview } from "./widget-preview";
 
@@ -21,6 +22,15 @@ type WidgetType = "badge" | "preview";
 type WidgetTheme = "auto" | "light" | "dark";
 type WidgetSize = "compact" | "standard";
 type ItemCount = 3 | 6 | 9;
+
+type RoomItem = {
+  id: string;
+  kind: string | null;
+  title: string | null;
+  fileKey: string | null;
+  coverFileKey: string | null;
+  meta: Record<string, unknown> | null;
+};
 
 type ShareRoomDialogProps = {
   open: boolean;
@@ -31,8 +41,10 @@ type ShareRoomDialogProps = {
     emoji: string | null;
     visibility: RoomVisibility;
     itemCount: number;
+    filters?: Filter[] | null;
   };
   username: string;
+  items: RoomItem[];
 };
 
 function generateEmbedCode(
@@ -42,6 +54,7 @@ function generateEmbedCode(
     theme: WidgetTheme;
     size: WidgetSize;
     items: ItemCount;
+    showFilters: boolean;
   },
 ): string {
   const attributes = [
@@ -52,6 +65,9 @@ function generateEmbedCode(
     config.type === "preview" &&
       config.items !== 6 &&
       `data-items="${config.items}"`,
+    config.type === "preview" &&
+      !config.showFilters &&
+      'data-show-filters="false"',
   ]
     .filter(Boolean)
     .join(" ");
@@ -66,15 +82,24 @@ export function ShareRoomDialog({
   onOpenChange,
   room,
   username,
+  items: roomItems,
 }: ShareRoomDialogProps) {
   const [type, setType] = useState<WidgetType>("badge");
   const [theme, setTheme] = useState<WidgetTheme>("auto");
   const [size, setSize] = useState<WidgetSize>("standard");
   const [items, setItems] = useState<ItemCount>(6);
+  const [showFilters, setShowFilters] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const isPublic = room.visibility === "public";
-  const embedCode = generateEmbedCode(room.id, { type, theme, size, items });
+  const hasFilters = (room.filters?.length ?? 0) > 0;
+  const embedCode = generateEmbedCode(room.id, {
+    type,
+    theme,
+    size,
+    items,
+    showFilters,
+  });
 
   const handleCopy = async () => {
     const success = await copyToClipboard(embedCode);
@@ -89,7 +114,7 @@ export function ShareRoomDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Share "{room.name}"</DialogTitle>
           <DialogDescription>
@@ -143,7 +168,7 @@ export function ShareRoomDialog({
                       : "border-border hover:border-muted-foreground/50",
                   )}
                 >
-                  <Eye
+                  <BrickWall
                     className={cn(
                       "size-4",
                       type === "preview"
@@ -200,7 +225,7 @@ export function ShareRoomDialog({
             {/* Items Count (preview only) */}
             {type === "preview" && (
               <div className="space-y-2">
-                <Label>Preview Items</Label>
+                <Label>Max Preview Items</Label>
                 <div className="flex gap-2">
                   {([3, 6, 9] as const).map((count) => (
                     <Button
@@ -217,6 +242,28 @@ export function ShareRoomDialog({
               </div>
             )}
 
+            {/* Show Filters (preview only, when room has filters) */}
+            {type === "preview" && hasFilters && (
+              <div className="space-y-2">
+                <Label>Show Filters</Label>
+                <div className="flex gap-2">
+                  {(["on", "off"] as const).map((opt) => (
+                    <Button
+                      key={opt}
+                      type="button"
+                      variant={
+                        (opt === "on") === showFilters ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setShowFilters(opt === "on")}
+                    >
+                      {opt === "on" ? "On" : "Off"}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Preview */}
             <div className="space-y-2">
               <Label>Preview</Label>
@@ -224,7 +271,8 @@ export function ShareRoomDialog({
                 <WidgetPreview
                   room={room}
                   username={username}
-                  config={{ type, theme, size, items }}
+                  config={{ type, theme, size, items, showFilters }}
+                  roomItems={roomItems}
                 />
               </div>
             </div>
@@ -233,7 +281,7 @@ export function ShareRoomDialog({
             <div className="space-y-2">
               <Label>Embed Code</Label>
               <div className="relative">
-                <pre className="overflow-x-auto rounded-lg border bg-muted/50 p-4 text-xs">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border bg-muted/50 p-4 pr-12 text-xs">
                   <code>{embedCode}</code>
                 </pre>
                 <Button
