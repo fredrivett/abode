@@ -9,12 +9,16 @@ import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
 
 type Props = {
-  params: Promise<{ "@username": string }>;
+  params: Promise<{ username: string }>;
 };
 
-// Strip the @ prefix from the route param to get the actual username
-function parseUsername(atUsername: string): string {
-  return atUsername.startsWith("@") ? atUsername.slice(1) : atUsername;
+// Parse and validate the username from the route param
+// Returns the username without @ prefix, or null if invalid (missing @ prefix)
+function parseUsername(rawUsername: string): string | null {
+  if (!rawUsername.startsWith("@")) {
+    return null;
+  }
+  return rawUsername.slice(1);
 }
 
 const getUser = cache(async (username: string) => {
@@ -59,8 +63,13 @@ const getPublicRooms = cache(async (userId: string) => {
 });
 
 export async function generateMetadata({ params }: Props) {
-  const { "@username": atUsername } = await params;
-  const username = parseUsername(atUsername);
+  const { username: rawUsername } = await params;
+  const username = parseUsername(rawUsername);
+
+  if (!username) {
+    return { title: "User not found" };
+  }
+
   const user = await getUser(username);
 
   if (!user) {
@@ -76,8 +85,14 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function ProfilePage({ params }: Props) {
-  const { "@username": atUsername } = await params;
-  const username = parseUsername(atUsername);
+  const { username: rawUsername } = await params;
+  const username = parseUsername(rawUsername);
+
+  // Only match URLs with @ prefix (e.g., /@fred, not /fred)
+  if (!username) {
+    notFound();
+  }
+
   const user = await getUser(username);
 
   if (!user) {

@@ -11,12 +11,16 @@ import type { ImageColor } from "@/lib/vision";
 import { RoomPageClient } from "./_components/room-page-client";
 
 type Props = {
-  params: Promise<{ "@username": string; slug: string }>;
+  params: Promise<{ username: string; slug: string }>;
 };
 
-// Strip the @ prefix from the route param to get the actual username
-function parseUsername(atUsername: string): string {
-  return atUsername.startsWith("@") ? atUsername.slice(1) : atUsername;
+// Parse and validate the username from the route param
+// Returns the username without @ prefix, or null if invalid (missing @ prefix)
+function parseUsername(rawUsername: string): string | null {
+  if (!rawUsername.startsWith("@")) {
+    return null;
+  }
+  return rawUsername.slice(1);
 }
 
 const getUser = cache(async (username: string) => {
@@ -65,8 +69,13 @@ const getRoom = cache(async (userId: string, slug: string) => {
 });
 
 export async function generateMetadata({ params }: Props) {
-  const { "@username": atUsername, slug } = await params;
-  const username = parseUsername(atUsername);
+  const { username: rawUsername, slug } = await params;
+  const username = parseUsername(rawUsername);
+
+  if (!username) {
+    return { title: "User not found" };
+  }
+
   const user = await getUser(username);
 
   if (!user) {
@@ -86,8 +95,13 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function RoomPage({ params }: Props) {
-  const { "@username": atUsername, slug } = await params;
-  const username = parseUsername(atUsername);
+  const { username: rawUsername, slug } = await params;
+  const username = parseUsername(rawUsername);
+
+  // Only match URLs with @ prefix (e.g., /@fred/room, not /fred/room)
+  if (!username) {
+    notFound();
+  }
 
   // Get the user by username
   const user = await getUser(username);
