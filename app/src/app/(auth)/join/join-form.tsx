@@ -1,5 +1,6 @@
 "use client";
 
+import { Mailbox } from "lucide-react";
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
   if (signupState.success && signupState.email) {
     return (
       <div className="space-y-2 text-center">
+        <Mailbox className="mx-auto size-12 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">
           check your email
         </h1>
