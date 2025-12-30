@@ -44,6 +44,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Item } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 import { ColorsBar } from "./_components/colors-bar";
+import { LocationDropzone } from "./_components/location-dropzone";
 import { LocationMap } from "./_components/location-map";
 
 const log = createLogger("dashboard/item-card");
@@ -908,63 +909,73 @@ function ItemDetailDialog({
                       )}
 
                       {/* Location */}
-                      {item.locations.length > 0 && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                            Location
-                          </h3>
-                          {item.locations.map((location) => {
-                            const hasLocationData =
-                              location.neighborhood ||
-                              location.city ||
-                              location.region ||
-                              location.country;
+                      {(() => {
+                        // Show manual override if exists, otherwise show exif/original location
+                        const manualLocation = item.locations.find(
+                          (l) => l.source === "manual",
+                        );
+                        const exifLocation = item.locations.find(
+                          (l) => l.source === "exif",
+                        );
+                        const displayLocation =
+                          manualLocation ?? exifLocation ?? null;
+                        const isManualOverride = manualLocation !== undefined;
 
-                            return (
-                              <div key={location.id} className="space-y-2">
-                                {hasLocationData && (
+                        return (
+                          <LocationDropzone
+                            itemId={item.id}
+                            displayLocation={displayLocation}
+                            originalExifLocation={exifLocation ?? null}
+                            isManualOverride={isManualOverride}
+                          >
+                            {displayLocation ? (
+                              <div className="space-y-2">
+                                {(displayLocation.neighborhood ||
+                                  displayLocation.city ||
+                                  displayLocation.region ||
+                                  displayLocation.country) && (
                                   <div className="space-y-1 text-sm">
-                                    {location.neighborhood && (
+                                    {displayLocation.neighborhood && (
                                       <div className="flex justify-between">
                                         <span className="text-zinc-500">
                                           Neighborhood
                                         </span>
                                         <span className="font-medium">
-                                          {location.neighborhood}
+                                          {displayLocation.neighborhood}
                                         </span>
                                       </div>
                                     )}
-                                    {location.city && (
+                                    {displayLocation.city && (
                                       <div className="flex justify-between">
                                         <span className="text-zinc-500">
                                           City
                                         </span>
                                         <span className="font-medium">
-                                          {location.city}
+                                          {displayLocation.city}
                                         </span>
                                       </div>
                                     )}
-                                    {location.region && (
+                                    {displayLocation.region && (
                                       <div className="flex justify-between">
                                         <span className="text-zinc-500">
                                           Region
                                         </span>
                                         <span className="font-medium">
-                                          {location.region}
+                                          {displayLocation.region}
                                         </span>
                                       </div>
                                     )}
-                                    {location.country && (
+                                    {displayLocation.country && (
                                       <div className="flex justify-between">
                                         <span className="text-zinc-500">
                                           Country
                                         </span>
                                         <span className="font-medium">
-                                          {location.countryCode && (
+                                          {displayLocation.countryCode && (
                                             <span className="mr-1">
                                               {String.fromCodePoint(
                                                 ...[
-                                                  ...location.countryCode.toUpperCase(),
+                                                  ...displayLocation.countryCode.toUpperCase(),
                                                 ].map(
                                                   (c) =>
                                                     127397 + c.charCodeAt(0),
@@ -972,29 +983,34 @@ function ItemDetailDialog({
                                               )}
                                             </span>
                                           )}
-                                          {location.country}
+                                          {displayLocation.country}
                                         </span>
                                       </div>
                                     )}
                                   </div>
                                 )}
-                                {location.latitude != null &&
-                                  location.longitude != null && (
+                                {displayLocation.latitude != null &&
+                                  displayLocation.longitude != null && (
                                     <LocationMap
-                                      latitude={location.latitude}
-                                      longitude={location.longitude}
+                                      latitude={displayLocation.latitude}
+                                      longitude={displayLocation.longitude}
                                       locationName={
-                                        location.city ||
-                                        location.country ||
+                                        displayLocation.city ||
+                                        displayLocation.country ||
                                         "Location"
                                       }
                                     />
                                   )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                            ) : (
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                Drop an image here to set location from EXIF
+                                data
+                              </p>
+                            )}
+                          </LocationDropzone>
+                        );
+                      })()}
                     </>
                   ) : item.processingStatus === "processing" ? (
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
