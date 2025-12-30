@@ -641,6 +641,7 @@ function ItemDetailDialog({
                   onSubmit={handleNameSubmit}
                   size="xl"
                   isSaving={isSavingName}
+                  multiline
                 />
               </DialogHeader>
 
