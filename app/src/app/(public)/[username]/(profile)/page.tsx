@@ -1,9 +1,10 @@
-import { DoorOpen, Hand, Sparkles } from "lucide-react";
+import { DoorOpen, Hand, Sparkles, UserPlus, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ProfileTag } from "@/components/user/profile-tag";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
@@ -39,6 +40,25 @@ const getUser = cache(async (username: string) => {
       avatarUrl: true,
       createdAt: true,
       memberNumber: true,
+      referredBy: {
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+        },
+      },
+      referrals: {
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+        },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 });
@@ -140,7 +160,29 @@ export default async function ProfilePage({ params }: Props) {
               year: "numeric",
             }).format(user.createdAt)}
           </p>
+
+          {user.referredBy && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <UserPlus className="size-4" />
+              <span>Invited by</span>
+              <ProfileTag user={user.referredBy} />
+            </div>
+          )}
         </div>
+
+        {user.referrals.length > 0 && (
+          <div className="mt-12">
+            <h2 className="flex items-center justify-center gap-2 font-serif text-xl font-semibold">
+              <Users className="size-5 text-muted-foreground" />
+              Invited
+            </h2>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {user.referrals.map((referral) => (
+                <ProfileTag key={referral.id} user={referral} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {publicRooms.length > 0 && (
           <div className="mt-12">
