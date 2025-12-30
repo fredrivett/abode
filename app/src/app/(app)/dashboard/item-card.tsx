@@ -553,20 +553,20 @@ function ItemDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-auto !max-h-[calc(100vh-2rem)] md:!h-[calc(100vh-2rem)] p-0 overflow-hidden !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
+        className="!max-w-[calc(100vw-2rem)] !w-[calc(100vw-2rem)] !h-[calc(100vh-2rem)] !max-h-[calc(100vh-2rem)] md:!h-[calc(100vh-2rem)] p-0 !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
       >
         <motion.div
-          className="w-full md:h-full rounded-lg border shadow-lg overflow-hidden"
+          className="w-full h-full rounded-lg border shadow-lg overflow-hidden"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
           transition={{ duration: 0.2 }}
           style={{ willChange: "opacity" }}
         >
-          <div className="flex flex-col md:flex-row md:h-full relative overflow-y-auto md:overflow-hidden">
+          <div className="flex flex-col md:flex-row h-full relative overflow-y-auto md:overflow-hidden">
             {/* Top (mobile) / Left (desktop) - Main content area */}
             <div
               className={cn(
@@ -641,6 +641,7 @@ function ItemDetailDialog({
                   onSubmit={handleNameSubmit}
                   size="xl"
                   isSaving={isSavingName}
+                  multiline
                 />
               </DialogHeader>
 
@@ -1121,7 +1122,7 @@ function ItemDetailDialog({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+              className="absolute top-4 right-4 z-10 cursor-pointer rounded-full p-1.5 bg-background/20 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

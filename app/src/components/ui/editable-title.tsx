@@ -28,6 +28,8 @@ export interface EditableTitleProps {
   disabled?: boolean;
   isSaving?: boolean;
   inputClassName?: string;
+  /** Allow multi-line text with wrapping */
+  multiline?: boolean;
 }
 
 export function EditableTitle({
@@ -38,14 +40,32 @@ export function EditableTitle({
   disabled = false,
   isSaving = false,
   inputClassName,
+  multiline = false,
 }: EditableTitleProps) {
   const canEdit = Boolean(onSubmit) && !disabled;
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measurementRef = useRef<HTMLSpanElement>(null);
   const [inputWidth, setInputWidth] = useState<number>();
+
+  // Auto-resize textarea
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, []);
+
+  // Resize on draft change for multiline
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft is intentionally included to resize when text changes
+  useLayoutEffect(() => {
+    if (multiline) {
+      resizeTextarea();
+    }
+  }, [multiline, draft, resizeTextarea]);
 
   const textClasses = useMemo(
     () =>
@@ -107,9 +127,87 @@ export function EditableTitle({
   }, [value]);
 
   if (!canEdit) {
-    return <h2 className={textClasses}>{value}</h2>;
+    return (
+      <h2 className={cn(textClasses, multiline && "whitespace-pre-wrap")}>
+        {value}
+      </h2>
+    );
   }
 
+  const sharedInputClasses = cn(
+    textClasses,
+    "border-none outline-none cursor-text transition-[background,padding,max-width] px-2.5 py-1.5",
+    isEditing
+      ? "bg-gray-100 dark:bg-gray-800 pr-2.5"
+      : "bg-transparent hover:bg-gray-100 hover:dark:bg-gray-800 hover:pr-9",
+    (isSaving || pending) && "pr-9",
+    inputClassName,
+  );
+
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    // For multiline, Enter creates a new line (default behavior), Cmd/Ctrl+Enter commits
+    if (multiline) {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        void handleCommit();
+      }
+    } else {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleCommit();
+      }
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancel();
+    }
+  };
+
+  // Multiline version with textarea
+  if (multiline) {
+    return (
+      <div
+        className={cn(
+          "group relative -mx-2.5 -my-1.5 w-full",
+          isEditing || isSaving || pending ? "mr-0" : "hover:mr-0",
+        )}
+      >
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => setIsEditing(true)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          disabled={disabled || isSaving || pending}
+          rows={1}
+          className={cn(
+            sharedInputClasses,
+            "w-full resize-none overflow-hidden",
+            !isEditing &&
+              "max-w-[calc(100%-26px)] hover:max-w-[calc(100%-46px)]",
+            (isSaving || pending) && "max-w-[calc(100%-46px)]",
+          )}
+        />
+
+        {/* Absolutely positioned icons - top aligned for multiline */}
+        {isSaving || pending ? (
+          <Loader2 className="absolute right-2.5 top-3.5 size-4 animate-spin text-muted-foreground" />
+        ) : (
+          <PenLine
+            className={cn(
+              "absolute right-2.5 top-3.5 size-4 text-muted-foreground pointer-events-none transition-opacity duration-150",
+              isEditing ? "opacity-0" : "opacity-0 group-hover:opacity-100",
+            )}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Single-line version with input
   return (
     <div
       className={cn(
@@ -129,35 +227,22 @@ export function EditableTitle({
         {(draft || "").replace(/\s/g, "\u00a0") || "\u00a0"}
       </span>
 
-      {/* Always-rendered input with padding for icons */}
       <input
         ref={inputRef}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onFocus={() => setIsEditing(true)}
         onBlur={handleCommit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            void handleCommit();
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            handleCancel();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         disabled={disabled || isSaving || pending}
         size={Math.max(draft.length, 1)}
         style={{ width: inputWidth }}
         className={cn(
-          textClasses,
+          sharedInputClasses,
           // max-width accounts for padding: 100% - px-2.5 (10px) - pr-2.5 or pr-9 (10px or 36px)
-          "box-content border-none outline-none cursor-text transition-[background,padding,max-width] px-2.5 py-1.5 max-w-[calc(100%-20px)]",
-          isEditing
-            ? "bg-gray-100 dark:bg-gray-800 pr-2.5"
-            : "bg-transparent hover:bg-gray-100 hover:dark:bg-gray-800 hover:pr-9 hover:max-w-[calc(100%-46px)]",
-          (isSaving || pending) && "pr-9 max-w-[calc(100%-46px)]",
-          inputClassName,
+          "box-content max-w-[calc(100%-20px)]",
+          !isEditing && "hover:max-w-[calc(100%-46px)]",
+          (isSaving || pending) && "max-w-[calc(100%-46px)]",
         )}
       />
 
