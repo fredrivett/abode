@@ -1122,7 +1122,7 @@ function ItemDetailDialog({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+              className="absolute top-4 right-4 z-10 cursor-pointer rounded-full p-1.5 bg-background/20 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
