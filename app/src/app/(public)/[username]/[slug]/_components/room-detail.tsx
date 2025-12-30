@@ -13,7 +13,6 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -52,7 +51,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
-import { getDisplayName } from "@/lib/get-display-name";
+import { ProfileTag } from "@/components/user/profile-tag";
 import type { Room, RoomItem } from "@/lib/types/room";
 
 type RoomOwner = {
@@ -321,40 +320,7 @@ export function RoomDetail({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          roomOwner && (
-            <Link
-              href={`/@${roomOwner.username}`}
-              className="flex items-center gap-2 rounded-lg p-2 -m-2 transition-colors hover:bg-accent/50"
-            >
-              {roomOwner.avatarUrl ? (
-                <Image
-                  src={roomOwner.avatarUrl}
-                  alt={getDisplayName(roomOwner)}
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                  {(
-                    roomOwner.firstName?.[0] ||
-                    roomOwner.username?.[0] ||
-                    "?"
-                  ).toUpperCase()}
-                </div>
-              )}
-              <span className="flex flex-col items-start leading-tight">
-                <span className="text-sm font-medium">
-                  {getDisplayName(roomOwner)}
-                </span>
-                {roomOwner.firstName !== null && (
-                  <span className="text-xs text-muted-foreground">
-                    @{roomOwner.username}
-                  </span>
-                )}
-              </span>
-            </Link>
-          )
+          roomOwner && <ProfileTag user={roomOwner} />
         )}
       </div>
 
