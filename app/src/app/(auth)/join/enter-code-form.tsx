@@ -83,7 +83,7 @@ export function EnterCodeForm() {
             href="/login"
             className="font-medium text-gray-900 hover:underline dark:text-gray-100"
           >
-            sign in
+            login
           </a>
         </p>
       </div>
