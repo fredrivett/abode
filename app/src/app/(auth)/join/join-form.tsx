@@ -197,7 +197,7 @@ export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
           href="/login"
           className="font-medium text-gray-900 hover:underline dark:text-gray-100"
         >
-          sign in
+          login
         </a>
       </p>
     </>

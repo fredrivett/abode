@@ -44,13 +44,13 @@ test.describe("Join page (invite-based signup)", () => {
     await expect(page.getByRole("button", { name: /continue/i })).toBeVisible();
 
     // Check link to login
-    await expect(page.getByRole("link", { name: /sign in/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /login/i })).toBeVisible();
   });
 
   test("should navigate to login page", async ({ page }) => {
     await page.goto("/join");
 
-    await page.getByRole("link", { name: /sign in/i }).click();
+    await page.getByRole("link", { name: /login/i }).click();
 
     await expect(page).toHaveURL("/login");
   });
