@@ -1,7 +1,14 @@
 "use client";
 
 import { Info, Upload } from "lucide-react";
-import { type FormEvent, useCallback, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useMediaQuery } from "usehooks-ts";
 import { useUpload } from "@/hooks/use-upload";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -18,7 +25,7 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { IsLoading } from "./ui/is-loading";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 interface UploadDialogProps {
   open: boolean;
@@ -28,13 +35,27 @@ interface UploadDialogProps {
 export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const [url, setUrl] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [infoPopoverOpen, setInfoPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const handleClose = useCallback(() => {
     setUrl("");
     setIsDragging(false);
     onOpenChange(false);
   }, [onOpenChange]);
+
+  // Autofocus input only on desktop
+  useEffect(() => {
+    if (open && isDesktop) {
+      // Small delay to ensure dialog is mounted
+      const timeout = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timeout);
+    }
+  }, [open, isDesktop]);
 
   const {
     handleUrlSubmit,
@@ -99,27 +120,44 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     }
   }, []);
 
+  const infoContent =
+    "You can also paste URLs or drag and drop images directly onto the dashboard";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent
+        className="sm:max-w-md"
+        onOpenAutoFocus={(e) => {
+          // Prevent default autofocus - we handle it manually
+          e.preventDefault();
+        }}
+      >
+        <DialogHeader className="text-left">
           <DialogTitle className="flex items-center gap-1.5">
             Add Item
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="size-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px]">
-                You can also paste URLs or drag and drop images directly onto
-                the dashboard
-              </TooltipContent>
-            </Tooltip>
+            <Popover open={infoPopoverOpen} onOpenChange={setInfoPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex"
+                  aria-label="More info"
+                >
+                  <Info className="size-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" className="max-w-[200px] text-sm">
+                {infoContent}
+              </PopoverContent>
+            </Popover>
           </DialogTitle>
-          <DialogDescription>Paste a URL or upload an image</DialogDescription>
+          <DialogDescription className="text-left">
+            Paste a URL or upload an image
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onUrlSubmit} className="flex gap-2">
           <Input
+            ref={inputRef}
             placeholder="Paste URL..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
