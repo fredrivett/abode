@@ -4,13 +4,14 @@ import {
   ArrowUpLeft,
   DoorOpen,
   LogOut,
+  Plus,
   Settings,
   User,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -31,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UploadDialog } from "@/components/upload-dialog";
 import { useFilterOptions, useSearch } from "@/lib/search";
 import { useUserStore } from "@/stores/user-store";
 
@@ -79,6 +81,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   const initialAvatarUrl = isAuthenticated ? props.avatarUrl : null;
   const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // Initialize store with server-fetched values on mount
   useEffect(() => {
@@ -150,6 +153,21 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
       <div className="order-2 ml-auto flex h-8 shrink-0 items-center gap-2 md:order-3">
         {isAuthenticated ? (
           <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost-subtle"
+                  size="icon"
+                  onClick={() => setUploadDialogOpen(true)}
+                  aria-label="Add item"
+                >
+                  <Plus size={18} aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>
+                add item
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button asChild variant="ghost-subtle" size="icon">
@@ -263,6 +281,10 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <UploadDialog
+              open={uploadDialogOpen}
+              onOpenChange={setUploadDialogOpen}
+            />
           </>
         ) : (
           <>

@@ -1,19 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api-client";
-import { createLogger } from "@/lib/logger.client";
-import { createClient } from "@/lib/supabase/client";
-import {
-  allowedImageMimeTypes,
-  MAX_IMAGE_UPLOAD_BYTES,
-  MAX_IMAGE_UPLOAD_LABEL,
-} from "@/lib/uploads";
+import { useUpload } from "@/hooks/use-upload";
+import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
-
-const log = createLogger("dashboard/dropzone");
 
 function hasFiles(dataTransfer?: DataTransfer | null) {
   if (!dataTransfer) return false;
@@ -26,50 +17,15 @@ function hasFiles(dataTransfer?: DataTransfer | null) {
   return false;
 }
 
-async function getImageDimensions(
-  file: File,
-): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: img.width, height: img.height });
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
-    };
-
-    img.src = url;
-  });
-}
-
 export function DashboardDropzone({ children }: { children: React.ReactNode }) {
-  const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmittingUrl, setIsSubmittingUrl] = useState(false);
-
-  const handleUrlSubmit = useCallback(
-    async (url: string) => {
-      setIsSubmittingUrl(true);
-      try {
-        await api.post("/api/v1/items/from-url", { url });
-        toast.success("URL added - processing in background");
-        router.refresh();
-      } catch (error) {
-        log.error({ error }, "URL submission error");
-        toast.error("Failed to add URL. Please try again.");
-      } finally {
-        setIsSubmittingUrl(false);
-      }
-    },
-    [router],
-  );
+  const {
+    handleUrlSubmit,
+    handleFileUpload,
+    isUrlLoading,
+    isFileLoading,
+    isLoading,
+  } = useUpload();
 
   // Listen for paste events globally
   useEffect(() => {
@@ -92,7 +48,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       // Prevent default paste behavior
       event.preventDefault();
 
-      if (isSubmittingUrl || isUploading) {
+      if (isLoading) {
         toast.error("Please wait for the current operation to complete");
         return;
       }
@@ -102,89 +58,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
 
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [handleUrlSubmit, isSubmittingUrl, isUploading]);
-
-  const handleUpload = useCallback(
-    async (file: File) => {
-      if (!allowedImageMimeTypes.has(file.type)) {
-        toast.error(
-          "Unsupported file type. Choose a jpg, png, gif, or webp image.",
-        );
-        return;
-      }
-
-      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-        toast.error(
-          `File is too large. Max size is ${MAX_IMAGE_UPLOAD_LABEL}.`,
-        );
-        return;
-      }
-
-      setIsUploading(true);
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          toast.error("You must be signed in to upload.");
-          return;
-        }
-
-        let dimensions: { width: number; height: number } | undefined;
-        try {
-          dimensions = await getImageDimensions(file);
-        } catch (error) {
-          log.warn({ error }, "Failed to get image dimensions");
-        }
-
-        const ext = file.name.includes(".")
-          ? file.name.split(".").pop()?.toLowerCase()
-          : undefined;
-        const objectPath = `${user.id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("items")
-          .upload(objectPath, file, {
-            contentType: file.type || "application/octet-stream",
-            upsert: false,
-          });
-
-        if (uploadError) {
-          toast.error(uploadError.message);
-          return;
-        }
-
-        try {
-          await api.post("/api/v1/items", {
-            kind: "image",
-            fileKey: objectPath,
-            meta: {
-              originalName: file.name,
-              size: file.size,
-              type: file.type,
-              width: dimensions?.width,
-              height: dimensions?.height,
-            },
-            sourceType: "upload",
-          });
-        } catch (itemError) {
-          await supabase.storage.from("items").remove([objectPath]);
-          throw itemError;
-        }
-
-        toast.success("Upload complete");
-        router.refresh();
-      } catch (error) {
-        log.error({ error }, "Drop upload error");
-        toast.error("Upload failed. Please try again.");
-      } finally {
-        setIsUploading(false);
-      }
-    },
-    [router, supabase],
-  );
+  }, [handleUrlSubmit, isLoading]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers
@@ -208,27 +82,27 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       onDrop={(event) => {
         event.preventDefault();
         setIsDragging(false);
-        if (isUploading) return;
+        if (isFileLoading) return;
 
         const file = event.dataTransfer?.files?.[0];
         if (!file) return;
 
-        void handleUpload(file);
+        void handleFileUpload(file);
       }}
     >
       {children}
 
-      {(isDragging || isUploading || isSubmittingUrl) && (
+      {(isDragging || isFileLoading || isUrlLoading) && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5">
           <div className="rounded-md bg-background/90 px-4 py-3 text-center shadow">
             <p className="text-sm font-medium text-primary">
-              {isUploading
+              {isFileLoading
                 ? "Uploading"
-                : isSubmittingUrl
+                : isUrlLoading
                   ? "Adding URL"
                   : "Drop your image to upload"}
             </p>
-            {!isUploading && !isSubmittingUrl ? (
+            {!isFileLoading && !isUrlLoading ? (
               <p className="text-xs text-muted-foreground">
                 JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
               </p>
