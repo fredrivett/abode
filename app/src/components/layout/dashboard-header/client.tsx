@@ -139,7 +139,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         {showHomeLink && (
           <Link
             href={isAuthenticated ? "/dashboard" : "/"}
-            className="group/home absolute top-full left-2 mt-1 flex items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100"
+            className="group/home absolute top-full left-2 mt-1 hidden items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100 xl:flex"
           >
             <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
             take me
