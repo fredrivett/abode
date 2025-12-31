@@ -44,16 +44,31 @@ function matchesSource(item: ItemWithDetails, value: string): boolean {
 }
 
 /**
+ * Get the effective location for an item.
+ * Uses manual override if exists, otherwise falls back to exif location.
+ */
+function getEffectiveLocation(
+  item: ItemWithDetails,
+): ItemWithDetails["locations"][0] | null {
+  const manualLocation = item.locations.find((l) => l.source === "manual");
+  const exifLocation = item.locations.find((l) => l.source === "exif");
+  return manualLocation ?? exifLocation ?? null;
+}
+
+/**
  * Check if item has a matching location (searches neighborhood, city, region, country).
+ * Uses the effective location (manual override takes priority over exif).
  */
 function matchesLocation(item: ItemWithDetails, value: string): boolean {
+  const location = getEffectiveLocation(item);
+  if (!location) return false;
+
   const lowerValue = value.toLowerCase();
-  return item.locations.some(
-    (loc) =>
-      loc.neighborhood?.toLowerCase() === lowerValue ||
-      loc.city?.toLowerCase() === lowerValue ||
-      loc.region?.toLowerCase() === lowerValue ||
-      loc.country?.toLowerCase() === lowerValue,
+  return (
+    location.neighborhood?.toLowerCase() === lowerValue ||
+    location.city?.toLowerCase() === lowerValue ||
+    location.region?.toLowerCase() === lowerValue ||
+    location.country?.toLowerCase() === lowerValue
   );
 }
 

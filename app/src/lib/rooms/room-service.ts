@@ -109,6 +109,19 @@ export async function getUserSmartRooms(
 }
 
 /**
+ * Get smart rooms for a user that have a location filter.
+ * Used to determine which rooms need re-syncing when an item's location changes.
+ */
+export async function getSmartRoomsWithLocationFilter(
+  userId: string,
+): Promise<RoomWithFilters[]> {
+  const rooms = await getUserSmartRooms(userId);
+  return rooms.filter((room) =>
+    room.filters?.some((filter) => filter.type === "location"),
+  );
+}
+
+/**
  * Get the count of smart rooms for a user.
  */
 export async function getSmartRoomCount(userId: string): Promise<number> {
@@ -230,12 +243,17 @@ export async function syncItemToRooms(
  * Re-sync all items for a room based on its filters.
  * Used when room filters are updated.
  *
- * @returns Object with counts of additions and removals
+ * @returns Object with arrays of added/removed itemIds and their counts
  */
 export async function syncRoomItems(
   roomId: string,
   userId: string,
-): Promise<{ added: number; removed: number }> {
+): Promise<{
+  addedItemIds: string[];
+  removedItemIds: string[];
+  added: number;
+  removed: number;
+}> {
   const room = await db.room.findUnique({
     where: {
       id: roomId,
@@ -244,7 +262,7 @@ export async function syncRoomItems(
   });
 
   if (!room || room.type !== "smart") {
-    return { added: 0, removed: 0 };
+    return { addedItemIds: [], removedItemIds: [], added: 0, removed: 0 };
   }
 
   const roomWithFilters: RoomWithFilters = {
@@ -297,6 +315,8 @@ export async function syncRoomItems(
   }
 
   return {
+    addedItemIds: itemsToAdd,
+    removedItemIds: itemsToRemove,
     added: itemsToAdd.length,
     removed: itemsToRemove.length,
   };

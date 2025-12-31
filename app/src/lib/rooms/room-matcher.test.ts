@@ -378,6 +378,80 @@ describe("itemMatchesRoom", () => {
       const room = createTestRoom([createFilter("location", "London")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
+
+    describe("manual vs exif location priority", () => {
+      it("uses manual location when both manual and exif exist", () => {
+        const item = createTestItem({
+          locations: [
+            createLocation({ source: "exif", city: "London" }),
+            createLocation({ source: "manual", city: "Paris" }),
+          ],
+        });
+        const room = createTestRoom([createFilter("location", "Paris")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match exif location when manual exists with different city", () => {
+        const item = createTestItem({
+          locations: [
+            createLocation({ source: "exif", city: "London" }),
+            createLocation({ source: "manual", city: "Paris" }),
+          ],
+        });
+        const room = createTestRoom([createFilter("location", "London")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+
+      it("uses exif location when no manual override exists", () => {
+        const item = createTestItem({
+          locations: [createLocation({ source: "exif", city: "London" })],
+        });
+        const room = createTestRoom([createFilter("location", "London")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("prioritizes manual over exif regardless of order in array", () => {
+        // Manual comes first
+        const item1 = createTestItem({
+          locations: [
+            createLocation({ source: "manual", city: "Tokyo" }),
+            createLocation({ source: "exif", city: "London" }),
+          ],
+        });
+        expect(
+          itemMatchesRoom(
+            item1,
+            createTestRoom([createFilter("location", "Tokyo")]),
+          ),
+        ).toBe(true);
+        expect(
+          itemMatchesRoom(
+            item1,
+            createTestRoom([createFilter("location", "London")]),
+          ),
+        ).toBe(false);
+
+        // Exif comes first
+        const item2 = createTestItem({
+          locations: [
+            createLocation({ source: "exif", city: "London" }),
+            createLocation({ source: "manual", city: "Tokyo" }),
+          ],
+        });
+        expect(
+          itemMatchesRoom(
+            item2,
+            createTestRoom([createFilter("location", "Tokyo")]),
+          ),
+        ).toBe(true);
+        expect(
+          itemMatchesRoom(
+            item2,
+            createTestRoom([createFilter("location", "London")]),
+          ),
+        ).toBe(false);
+      });
+    });
   });
 
   describe("color filter", () => {
