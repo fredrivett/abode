@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
@@ -110,7 +111,7 @@ export function LocationOverrideDialog({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? "Updating..." : "Confirm"}
+            {isSubmitting ? <IsLoading label="Updating" /> : "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

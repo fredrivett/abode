@@ -8,6 +8,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { IsLoading } from "@/components/ui/is-loading";
 import { challengeAndVerifyMFA } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/client";
 
@@ -67,7 +68,7 @@ export function VerifyMFAForm({ factorId }: VerifyMFAFormProps) {
         disabled={code.length !== 6 || isLoading}
         className="w-full"
       >
-        {isLoading ? "Verifying..." : "Verify"}
+        {isLoading ? <IsLoading label="Verifying" /> : "Verify"}
       </Button>
     </div>
   );

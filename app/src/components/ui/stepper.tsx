@@ -261,7 +261,7 @@ function StepperNavigation({
   className?: string;
   backLabel?: string;
   nextLabel?: string;
-  completeLabel?: string;
+  completeLabel?: React.ReactNode;
   showKeyboardHints?: boolean;
 }) {
   const { currentStep, totalSteps, handleNext, handleBack, handleComplete } =

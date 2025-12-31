@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 import { Card } from "./ui/card";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -74,7 +75,7 @@ export function WaitlistForm() {
           type="submit"
           disabled={formState === "submitting" || !email.trim()}
         >
-          {formState === "submitting" ? "joining..." : "join"}
+          {formState === "submitting" ? <IsLoading label="joining" /> : "join"}
         </Button>
       </div>
       {formState === "error" && errorMessage && (

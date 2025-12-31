@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import {
   Popover,
   PopoverContent,
@@ -214,7 +216,11 @@ export function LocationDropzone({
                         title="Restore original location"
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />
-                        {isRemoving ? "Restoring..." : "Restore"}
+                        {isRemoving ? (
+                          <IsLoading label="Restoring" />
+                        ) : (
+                          "Restore"
+                        )}
                       </Button>
                     </div>
                     <LocationPreview location={originalExifLocation} />
@@ -233,9 +239,14 @@ export function LocationDropzone({
             <div className="rounded-md bg-background/90 px-3 py-2 text-center shadow">
               <ImageIcon className="mx-auto mb-1 h-5 w-5 text-primary" />
               <p className="text-xs font-medium text-primary">
-                {isExtracting
-                  ? "Reading EXIF..."
-                  : "Drop image to set location"}
+                {isExtracting ? (
+                  <>
+                    Reading EXIF
+                    <LoadingEllipsis />
+                  </>
+                ) : (
+                  "Drop image to set location"
+                )}
               </p>
             </div>
           </div>

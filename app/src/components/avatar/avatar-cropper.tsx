@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { IsLoading } from "@/components/ui/is-loading";
 
 type AvatarCropperProps = {
   open: boolean;
@@ -165,7 +166,7 @@ export function AvatarCropper({
             onClick={handleCropComplete}
             disabled={!completedCrop || isUploading}
           >
-            {isUploading ? "Uploading..." : "Save"}
+            {isUploading ? <IsLoading label="Uploading" /> : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

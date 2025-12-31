@@ -51,6 +51,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { ProfileTag } from "@/components/user/profile-tag";
 import type { Room, RoomItem } from "@/lib/types/room";
 
@@ -391,7 +392,8 @@ export function RoomDetail({
                 {isLoadingMore ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Loading...
+                    Loading
+                    <LoadingEllipsis />
                   </>
                 ) : (
                   "Load more"
