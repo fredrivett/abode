@@ -64,8 +64,10 @@ function generateEmbedCode(
     theme: WidgetTheme;
     items: ItemCount;
     showFilters: boolean;
+    showEmoji: boolean;
     fontSize?: number;
     includeFontSize: boolean;
+    customText?: string;
   },
 ): string {
   const attributes = [
@@ -78,6 +80,10 @@ function generateEmbedCode(
     config.type === "preview" &&
       !config.showFilters &&
       'data-show-filters="false"',
+    !config.showEmoji && 'data-show-emoji="false"',
+    config.type === "badge" &&
+      config.customText &&
+      `data-text="${config.customText}"`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -87,8 +93,17 @@ function generateEmbedCode(
       ? ` style="font-size: ${config.fontSize}px;"`
       : "";
 
+  // Use span for badge (inline element), div for preview (block element)
+  const tag = config.type === "badge" ? "span" : "div";
+
+  // Badge doesn't need HTML comment since it's inline
+  if (config.type === "badge") {
+    return `<${tag} ${attributes}${fontSizeStyle}></${tag}>
+<script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
+  }
+
   return `<!-- Abode Room Widget -->
-<div ${attributes}${fontSizeStyle}></div>
+<${tag} ${attributes}${fontSizeStyle}></${tag}>
 <script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
 }
 
@@ -113,6 +128,8 @@ type EmbedPreviewProps = {
     theme: WidgetTheme;
     items: ItemCount;
     showFilters: boolean;
+    showEmoji: boolean;
+    customText?: string;
   };
   roomItems: RoomItem[];
 };
@@ -188,6 +205,13 @@ function EmbedPreview({
       config.showFilters ? "true" : "false",
     );
     newContainer.setAttribute(
+      "data-show-emoji",
+      config.showEmoji ? "true" : "false",
+    );
+    if (config.customText) {
+      newContainer.setAttribute("data-text", config.customText);
+    }
+    newContainer.setAttribute(
       "data-room-json",
       JSON.stringify(buildRoomData()),
     );
@@ -215,6 +239,8 @@ function EmbedPreview({
         data-theme={config.theme}
         data-items={config.items}
         data-show-filters={config.showFilters ? "true" : "false"}
+        data-show-emoji={config.showEmoji ? "true" : "false"}
+        data-text={config.customText || undefined}
         data-room-json={JSON.stringify(buildRoomData())}
       />
     </>
@@ -232,19 +258,24 @@ export function ShareRoomDialog({
   const [theme, setTheme] = useState<WidgetTheme>("auto");
   const [items, setItems] = useState<ItemCount>(6);
   const [showFilters, setShowFilters] = useState(true);
+  const [showEmoji, setShowEmoji] = useState(true);
   const [fontSize, setFontSize] = useState(16);
   const [includeFontSize, setIncludeFontSize] = useState(false);
+  const [customText, setCustomText] = useState("");
   const [copied, setCopied] = useState(false);
 
   const isPublic = room.visibility === "public";
   const hasFilters = (room.filters?.length ?? 0) > 0;
+  const hasEmoji = !!room.emoji;
   const embedCode = generateEmbedCode(room.id, {
     type,
     theme,
     items,
     showFilters,
+    showEmoji,
     fontSize,
     includeFontSize,
+    customText: customText.trim() || undefined,
   });
 
   const handleCopy = async () => {
@@ -357,6 +388,62 @@ export function ShareRoomDialog({
                 </div>
               </div>
 
+              {/* Badge options: Include emoji + Custom text */}
+              {type === "badge" && hasEmoji && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-emoji"
+                    checked={showEmoji}
+                    onCheckedChange={(checked) =>
+                      setShowEmoji(checked === true)
+                    }
+                  />
+                  <Label
+                    htmlFor="show-emoji"
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    Include emoji
+                  </Label>
+                </div>
+              )}
+
+              {/* Custom Text (badge only) */}
+              {type === "badge" && (
+                <div className="space-y-2">
+                  <Label htmlFor="custom-text">Custom Link Text</Label>
+                  <Input
+                    id="custom-text"
+                    type="text"
+                    value={customText}
+                    onChange={(e) => setCustomText(e.target.value)}
+                    placeholder={room.name}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to show the room name. Useful for inline text
+                    like &quot;check out my room&quot;.
+                  </p>
+                </div>
+              )}
+
+              {/* Show Emoji (preview, when room has emoji) */}
+              {type === "preview" && hasEmoji && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-emoji-preview"
+                    checked={showEmoji}
+                    onCheckedChange={(checked) =>
+                      setShowEmoji(checked === true)
+                    }
+                  />
+                  <Label
+                    htmlFor="show-emoji-preview"
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    Include emoji
+                  </Label>
+                </div>
+              )}
+
               {/* Items Count (preview only) */}
               {type === "preview" && (
                 <div className="space-y-2">
@@ -454,7 +541,14 @@ export function ShareRoomDialog({
                   <EmbedPreview
                     room={room}
                     username={username}
-                    config={{ type, theme, items, showFilters }}
+                    config={{
+                      type,
+                      theme,
+                      items,
+                      showFilters,
+                      showEmoji,
+                      customText: customText.trim() || undefined,
+                    }}
                     roomItems={roomItems}
                   />
                 </div>
