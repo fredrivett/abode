@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { parseEmailToUsername } from "@/lib/username/generate-from-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { completeProfile } from "./actions";
@@ -94,7 +96,8 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
           />
           {usernameStatus.type === "checking" && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-              checking...
+              checking
+              <LoadingEllipsis />
             </span>
           )}
           {usernameStatus.type === "available" && (
@@ -132,7 +135,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
         className="w-full"
         disabled={isPending || !isUsernameValid}
       >
-        {isPending ? "saving..." : "continue"}
+        {isPending ? <IsLoading label="saving" /> : "continue"}
       </Button>
     </form>
   );
