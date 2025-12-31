@@ -10,6 +10,8 @@ import { syncRoomItems } from "../src/lib/rooms";
 type SyncRoomItemsPayload = {
   roomId: string;
   userId: string;
+  /** Optional: The item that triggered this sync (e.g., when item location was updated) */
+  itemId?: string;
 };
 
 export const syncRoomItemsTask = task({
@@ -22,15 +24,18 @@ export const syncRoomItemsTask = task({
     maxTimeoutInMs: 60000,
   },
   run: async (payload: SyncRoomItemsPayload) => {
-    const { roomId, userId } = payload;
+    const { roomId, userId, itemId } = payload;
 
-    logger.log("Starting room items sync", { roomId, userId });
+    logger.log("Starting room items sync", { roomId, userId, itemId });
 
     const result = await syncRoomItems(roomId, userId);
 
     logger.log("Room items sync complete", {
       roomId,
       userId,
+      itemId,
+      addedItemIds: result.addedItemIds,
+      removedItemIds: result.removedItemIds,
       added: result.added,
       removed: result.removed,
     });
@@ -39,6 +44,7 @@ export const syncRoomItemsTask = task({
       success: true,
       roomId,
       userId,
+      itemId,
       ...result,
     };
   },

@@ -1,8 +1,11 @@
+import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { reverseGeocode } from "@/lib/reverse-geocode";
+import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
+import type { syncRoomItemsTask } from "../../../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/items/[id]/location");
 
@@ -109,6 +112,26 @@ export async function POST(
 
     log.info({ itemId: id, location }, "Manual location set");
 
+    // Trigger room sync for rooms with location filters
+    const roomsWithLocationFilter = await getSmartRoomsWithLocationFilter(
+      user.id,
+    );
+    if (roomsWithLocationFilter.length > 0) {
+      log.info(
+        { itemId: id, roomCount: roomsWithLocationFilter.length },
+        "Triggering room sync for rooms with location filter",
+      );
+      await Promise.all(
+        roomsWithLocationFilter.map((room) =>
+          tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
+            roomId: room.id,
+            userId: user.id,
+            itemId: id,
+          }),
+        ),
+      );
+    }
+
     return NextResponse.json(location);
   } catch (error) {
     log.error({ error }, "Location update error");
@@ -156,6 +179,26 @@ export async function DELETE(
     });
 
     log.info({ itemId: id }, "Manual location override removed");
+
+    // Trigger room sync for rooms with location filters
+    const roomsWithLocationFilter = await getSmartRoomsWithLocationFilter(
+      user.id,
+    );
+    if (roomsWithLocationFilter.length > 0) {
+      log.info(
+        { itemId: id, roomCount: roomsWithLocationFilter.length },
+        "Triggering room sync for rooms with location filter",
+      );
+      await Promise.all(
+        roomsWithLocationFilter.map((room) =>
+          tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
+            roomId: room.id,
+            userId: user.id,
+            itemId: id,
+          }),
+        ),
+      );
+    }
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
