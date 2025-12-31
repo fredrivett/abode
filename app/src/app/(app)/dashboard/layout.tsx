@@ -19,10 +19,16 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Fetch user from database to get onboarding status, username, and avatar
+  // Fetch user from database to get onboarding status, username, avatar, and name
   const dbUser = await db.user.findUnique({
     where: { id: user.id },
-    select: { onboardingCompletedAt: true, username: true, avatarUrl: true },
+    select: {
+      onboardingCompletedAt: true,
+      username: true,
+      avatarUrl: true,
+      firstName: true,
+      lastName: true,
+    },
   });
 
   const showOnboarding =
@@ -32,8 +38,8 @@ export default async function DashboardLayout({
     <OnboardingWrapper
       showOnboarding={showOnboarding}
       userMetadata={{
-        firstName: metadata.firstName,
-        lastName: metadata.lastName,
+        firstName: dbUser?.firstName ?? metadata.firstName,
+        lastName: dbUser?.lastName ?? metadata.lastName,
         username: dbUser?.username,
         email: metadata.email,
         avatarUrl: dbUser?.avatarUrl ?? metadata.avatarUrl,
