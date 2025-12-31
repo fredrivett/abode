@@ -127,15 +127,12 @@
     "}",
     ".abode-preview-header{",
     "  display:flex;",
-    "  align-items:center;",
+    "  align-items:flex-start;",
     "  gap:0.75rem;",
     "  flex:1;",
     "  min-width:0;",
-    "  text-decoration:none;",
-    "  color:var(--abode-text);",
     "}",
-    ".abode-preview-header:hover .abode-preview-name{text-decoration:underline;}",
-    ".abode-preview-emoji{font-size:1.5rem;}",
+    ".abode-preview-emoji{font-size:1.5rem;line-height:1;cursor:default;}",
     ".abode-preview-info{",
     "  display:flex;",
     "  flex-direction:column;",
@@ -143,12 +140,10 @@
     "  min-width:0;",
     "}",
     ".abode-preview-name{",
+    "  display:inline-block;",
     "  font-weight:600;",
     "  font-size:1rem;",
     "  line-height:1.25;",
-    "  white-space:nowrap;",
-    "  overflow:hidden;",
-    "  text-overflow:ellipsis;",
     "  color:var(--abode-text);",
     "  text-decoration:none;",
     "}",
@@ -157,6 +152,7 @@
     "  color:var(--abode-text-muted);",
     "  font-size:0.75rem;",
     "  line-height:1.25;",
+    "  cursor:default;",
     "}",
     ".abode-preview-username{",
     "  color:var(--abode-text-muted);",
@@ -213,9 +209,8 @@
     ".abode-filters{",
     "  display:flex;",
     "  flex-wrap:wrap;",
-    "  justify-content:flex-end;",
     "  gap:0.25rem;",
-    "  max-width:160px;",
+    "  margin-top:0.25rem;",
     "}",
     ".abode-filter{",
     "  display:inline-flex;",
@@ -226,6 +221,7 @@
     "  font-size:0.625rem;",
     "  color:var(--abode-text-muted);",
     "  background:rgba(0,0,0,0.03);",
+    "  cursor:default;",
     "}",
     ":host([data-theme='dark']) .abode-filter{background:rgba(255,255,255,0.08);}",
     "",
@@ -240,7 +236,6 @@
     ":host([data-size='compact']) .abode-preview-grid{column-gap:0.375rem;}",
     ":host([data-size='compact']) .abode-preview-item{margin-bottom:0.375rem;}",
     ":host([data-size='compact']) .abode-logo svg{height:0.625rem;}",
-    ":host([data-size='compact']) .abode-filters{max-width:120px;}",
     ":host([data-size='compact']) .abode-filter{font-size:0.5rem;padding:0.0625rem 0.25rem;}",
     "",
     "/* Loading state */",
@@ -480,7 +475,7 @@
       '  <div class="abode-preview-header-row">',
       '    <div class="abode-preview-header">',
       emojiHtml,
-      '      <span class="abode-preview-info">',
+      '      <div class="abode-preview-info">',
       '        <a class="abode-preview-name" href="' +
         roomUrl +
         '" target="_blank" rel="noopener noreferrer">' +
@@ -495,7 +490,8 @@
         " &middot; " +
         count +
         " items</span>",
-      "      </span>",
+      filtersHtml,
+      "      </div>",
       "    </div>",
       '    <div class="abode-preview-right">',
       '      <a class="abode-logo" href="https://www.abode.fyi" target="_blank" rel="noopener noreferrer" aria-label="Powered by Abode" style="color:' +
@@ -503,7 +499,6 @@
         '">' +
         logoSvg +
         "</a>",
-      filtersHtml,
       "    </div>",
       "  </div>",
       '  <a class="abode-preview-grid-link" href="' +
