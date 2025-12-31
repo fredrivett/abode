@@ -9,8 +9,8 @@
  * - data-abode-room (required): Room UUID
  * - data-type: "badge" | "preview" (default: "badge")
  * - data-theme: "light" | "dark" | "auto" (default: "auto")
- * - data-size: "compact" | "standard" (default: "standard")
  * - data-items: 3 | 6 | 9 (default: 6, preview only)
+ * - data-room-json: Pre-loaded room data JSON (skips API fetch if provided)
  */
 (() => {
   var ABODE_EMBED_VERSION = "1.0.0";
@@ -35,7 +35,6 @@
   var DEFAULTS = {
     type: "badge",
     theme: "auto",
-    size: "standard",
     items: 6,
     showFilters: true,
   };
@@ -78,84 +77,72 @@
     ".abode-badge{",
     "  display:inline-flex;",
     "  align-items:center;",
-    "  gap:0.5rem;",
-    "  padding:0.5rem 1rem;",
+    "  gap:0.5em;",
+    "  padding:0.5em 1em;",
     "  background:var(--abode-bg);",
     "  border:1px solid var(--abode-border);",
     "  border-radius:9999px;",
     "  color:var(--abode-text);",
     "  text-decoration:none;",
-    "  font-size:1rem;",
+    "  font-size:1em;",
     "  line-height:1.25;",
     "  transition:background-color 0.15s,border-color 0.15s;",
     "}",
     ".abode-badge:hover{",
     "  background:var(--abode-bg-hover);",
     "}",
-    ".abode-badge-emoji{font-size:1.125rem;}",
+    ".abode-badge-emoji{font-size:1.125em;}",
     ".abode-badge-name{",
     "  font-family:ui-serif,Georgia,Cambria,'Times New Roman',Times,serif;",
     "  font-weight:500;",
     "}",
     "",
-    "/* Badge compact size */",
-    ":host([data-size='compact']) .abode-badge{",
-    "  padding:0.375rem 0.75rem;",
-    "  font-size:0.875rem;",
-    "  gap:0.375rem;",
-    "}",
-    ":host([data-size='compact']) .abode-badge-emoji{font-size:1rem;}",
-    "",
     "/* Preview Widget */",
     ".abode-preview{",
     "  display:flex;",
     "  flex-direction:column;",
-    "  gap:0.75rem;",
+    "  gap:0.75em;",
     "  width:100%;",
     "  background:var(--abode-bg);",
     "  border:1px solid var(--abode-border);",
-    "  border-radius:0.75rem;",
-    "  padding:1rem;",
+    "  border-radius:0.75em;",
+    "  padding:1em;",
     "  font-family:var(--abode-font);",
     "}",
     ".abode-preview-header-row{",
     "  display:flex;",
     "  align-items:flex-start;",
     "  justify-content:space-between;",
-    "  gap:0.75rem;",
+    "  gap:0.75em;",
     "}",
     ".abode-preview-header{",
     "  display:flex;",
-    "  align-items:center;",
-    "  gap:0.75rem;",
+    "  align-items:flex-start;",
+    "  gap:0.75em;",
     "  flex:1;",
     "  min-width:0;",
-    "  text-decoration:none;",
-    "  color:var(--abode-text);",
     "}",
-    ".abode-preview-header:hover .abode-preview-name{text-decoration:underline;}",
-    ".abode-preview-emoji{font-size:1.5rem;}",
+    ".abode-preview-emoji{font-size:1.5em;line-height:1;cursor:default;}",
     ".abode-preview-info{",
     "  display:flex;",
     "  flex-direction:column;",
-    "  gap:0.125rem;",
+    "  gap:0.125em;",
     "  min-width:0;",
     "}",
     ".abode-preview-name{",
+    "  display:inline-block;",
     "  font-weight:600;",
-    "  font-size:1rem;",
+    "  font-size:1em;",
     "  line-height:1.25;",
-    "  white-space:nowrap;",
-    "  overflow:hidden;",
-    "  text-overflow:ellipsis;",
     "  color:var(--abode-text);",
     "  text-decoration:none;",
     "}",
     ".abode-preview-name:hover{text-decoration:underline;}",
     ".abode-preview-meta{",
     "  color:var(--abode-text-muted);",
-    "  font-size:0.75rem;",
+    "  font-size:0.75em;",
     "  line-height:1.25;",
+    "  cursor:default;",
     "}",
     ".abode-preview-username{",
     "  color:var(--abode-text-muted);",
@@ -168,16 +155,16 @@
     "}",
     ".abode-preview-grid{",
     "  column-count:3;",
-    "  column-gap:0.5rem;",
+    "  column-gap:0.5em;",
     "}",
     ".abode-preview-item{",
     "  display:block;",
     "  text-decoration:none;",
-    "  border-radius:0.375rem;",
+    "  border-radius:0.375em;",
     "  overflow:hidden;",
     "  background:var(--abode-border);",
     "  break-inside:avoid;",
-    "  margin-bottom:0.5rem;",
+    "  margin-bottom:0.5em;",
     "}",
     ".abode-preview-item img{",
     "  display:block;",
@@ -189,12 +176,12 @@
     "  background:var(--abode-border);",
     "}",
     "",
-    "/* Right Column (Logo + Filters) */",
+    "/* Right Column (Logo) */",
     ".abode-preview-right{",
     "  display:flex;",
     "  flex-direction:column;",
     "  align-items:flex-end;",
-    "  gap:0.5rem;",
+    "  gap:0.5em;",
     "  flex-shrink:0;",
     "}",
     ".abode-logo{",
@@ -203,7 +190,7 @@
     "}",
     ".abode-logo:hover{opacity:1;}",
     ".abode-logo svg{",
-    "  height:0.75rem;",
+    "  height:0.75em;",
     "  width:auto;",
     "  display:block;",
     "}",
@@ -212,49 +199,35 @@
     ".abode-filters{",
     "  display:flex;",
     "  flex-wrap:wrap;",
-    "  justify-content:flex-end;",
-    "  gap:0.25rem;",
-    "  max-width:160px;",
+    "  gap:0.25em;",
+    "  margin-top:0.25em;",
     "}",
     ".abode-filter{",
     "  display:inline-flex;",
     "  align-items:center;",
-    "  padding:0.125rem 0.375rem;",
+    "  padding:0.125em 0.375em;",
     "  border:1px solid var(--abode-border);",
     "  border-radius:9999px;",
-    "  font-size:0.625rem;",
+    "  font-size:0.625em;",
     "  color:var(--abode-text-muted);",
     "  background:rgba(0,0,0,0.03);",
+    "  cursor:default;",
     "}",
     ":host([data-theme='dark']) .abode-filter{background:rgba(255,255,255,0.08);}",
-    "",
-    "/* Preview compact size */",
-    ":host([data-size='compact']) .abode-preview{",
-    "  padding:0.75rem;",
-    "  gap:0.5rem;",
-    "}",
-    ":host([data-size='compact']) .abode-preview-emoji{font-size:1.25rem;}",
-    ":host([data-size='compact']) .abode-preview-name{font-size:0.875rem;}",
-    ":host([data-size='compact']) .abode-preview-meta{font-size:0.625rem;}",
-    ":host([data-size='compact']) .abode-preview-grid{column-gap:0.375rem;}",
-    ":host([data-size='compact']) .abode-preview-item{margin-bottom:0.375rem;}",
-    ":host([data-size='compact']) .abode-logo svg{height:0.625rem;}",
-    ":host([data-size='compact']) .abode-filters{max-width:120px;}",
-    ":host([data-size='compact']) .abode-filter{font-size:0.5rem;padding:0.0625rem 0.25rem;}",
     "",
     "/* Loading state */",
     ".abode-loading{",
     "  display:inline-flex;",
     "  align-items:center;",
-    "  gap:0.5rem;",
-    "  padding:0.5rem 0.875rem;",
+    "  gap:0.5em;",
+    "  padding:0.5em 0.875em;",
     "  color:var(--abode-text-muted);",
     "  font-family:var(--abode-font);",
-    "  font-size:0.875rem;",
+    "  font-size:0.875em;",
     "}",
     ".abode-loading-spinner{",
-    "  width:1rem;",
-    "  height:1rem;",
+    "  width:1em;",
+    "  height:1em;",
     "  border:2px solid var(--abode-border);",
     "  border-top-color:var(--abode-text-muted);",
     "  border-radius:50%;",
@@ -266,10 +239,10 @@
     ".abode-error{",
     "  display:inline-flex;",
     "  align-items:center;",
-    "  padding:0.5rem 0.875rem;",
+    "  padding:0.5em 0.875em;",
     "  color:var(--abode-text-muted);",
     "  font-family:var(--abode-font);",
-    "  font-size:0.75rem;",
+    "  font-size:0.75em;",
     "}",
   ].join("\n");
 
@@ -292,7 +265,6 @@
   function parseConfig(container) {
     var type = container.getAttribute("data-type") || DEFAULTS.type;
     var theme = container.getAttribute("data-theme") || DEFAULTS.theme;
-    var size = container.getAttribute("data-size") || DEFAULTS.size;
     var items =
       parseInt(container.getAttribute("data-items"), 10) || DEFAULTS.items;
     var showFiltersAttr = container.getAttribute("data-show-filters");
@@ -302,7 +274,6 @@
     // Validate values
     if (["badge", "preview"].indexOf(type) === -1) type = DEFAULTS.type;
     if (["light", "dark", "auto"].indexOf(theme) === -1) theme = DEFAULTS.theme;
-    if (["compact", "standard"].indexOf(size) === -1) size = DEFAULTS.size;
     if ([3, 6, 9].indexOf(items) === -1) items = DEFAULTS.items;
 
     // Resolve auto theme
@@ -311,7 +282,6 @@
     return {
       type: type,
       theme: resolvedTheme,
-      size: size,
       items: items,
       showFilters: showFilters,
     };
@@ -479,7 +449,7 @@
       '  <div class="abode-preview-header-row">',
       '    <div class="abode-preview-header">',
       emojiHtml,
-      '      <span class="abode-preview-info">',
+      '      <div class="abode-preview-info">',
       '        <a class="abode-preview-name" href="' +
         roomUrl +
         '" target="_blank" rel="noopener noreferrer">' +
@@ -494,7 +464,8 @@
         " &middot; " +
         count +
         " items</span>",
-      "      </span>",
+      filtersHtml,
+      "      </div>",
       "    </div>",
       '    <div class="abode-preview-right">',
       '      <a class="abode-logo" href="https://www.abode.fyi" target="_blank" rel="noopener noreferrer" aria-label="Powered by Abode" style="color:' +
@@ -502,7 +473,6 @@
         '">' +
         logoSvg +
         "</a>",
-      filtersHtml,
       "    </div>",
       "  </div>",
       '  <a class="abode-preview-grid-link" href="' +
@@ -532,7 +502,6 @@
 
     // Set theme attribute on container for CSS targeting
     container.setAttribute("data-theme", config.theme);
-    container.setAttribute("data-size", config.size);
 
     // Create shadow DOM
     var shadow;
@@ -542,6 +511,23 @@
       // Shadow DOM might already be attached or not supported
       console.warn("Abode widget: Could not attach shadow DOM", e);
       return;
+    }
+
+    // Check for pre-loaded data (used by in-app preview)
+    var preloadedJson = container.getAttribute("data-room-json");
+    if (preloadedJson) {
+      try {
+        var data = JSON.parse(preloadedJson);
+        if (config.type === "preview") {
+          shadow.innerHTML = createPreviewHTML(data, config);
+        } else {
+          shadow.innerHTML = createBadgeHTML(data);
+        }
+        return;
+      } catch (e) {
+        console.warn("Abode widget: Failed to parse pre-loaded data", e);
+        // Fall through to fetch
+      }
     }
 
     // Show loading state
@@ -581,4 +567,7 @@
 
   // Expose version for debugging
   window.ABODE_EMBED_VERSION = ABODE_EMBED_VERSION;
+
+  // Expose render function for dynamic widget creation (used by in-app preview)
+  window.ABODE_RENDER_WIDGET = renderWidget;
 })();

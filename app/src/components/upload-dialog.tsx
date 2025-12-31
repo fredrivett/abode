@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -155,73 +156,77 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onUrlSubmit} className="flex gap-2">
-          <Input
-            ref={inputRef}
-            placeholder="Paste URL..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={isLoading || !url.trim()}>
-            {isUrlLoading ? <IsLoading label="Adding" /> : "Add"}
-          </Button>
-        </form>
+        <DialogBody className="space-y-4">
+          <form onSubmit={onUrlSubmit} className="flex gap-2">
+            <Input
+              ref={inputRef}
+              placeholder="Paste URL..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isLoading || !url.trim()}>
+              {isUrlLoading ? <IsLoading label="Adding" /> : "Add"}
+            </Button>
+          </form>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                or
+              </span>
+            </div>
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
 
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
-        <div
-          className={cn(
-            "flex flex-col items-center gap-3 rounded-lg bg-gray-100 dark:bg-gray-900/50 border-2 border-dashed p-6 transition-colors",
-            isDragging
-              ? "border-primary/50 bg-primary/5"
-              : "border-muted-foreground/25",
-            isLoading && "pointer-events-none opacity-50",
-          )}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onDragEnter={onDragOver}
-          onDragLeave={onDragLeave}
-        >
-          <p className="text-sm text-muted-foreground">Drop image here or</p>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
-            onChange={onFileChange}
-            className="hidden"
-          />
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-          >
-            {isFileLoading ? (
-              <IsLoading label="Uploading" />
-            ) : (
-              <>
-                <Upload className="h-4 w-4" />
-                Choose Image
-              </>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
+          <div
+            className={cn(
+              "flex flex-col items-center gap-3 rounded-lg bg-gray-100 dark:bg-gray-900/50 border-2 border-dashed p-6 transition-colors",
+              isDragging
+                ? "border-primary/50 bg-primary/5"
+                : "border-muted-foreground/25",
+              isLoading && "pointer-events-none opacity-50",
             )}
-          </Button>
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragEnter={onDragOver}
+            onDragLeave={onDragLeave}
+          >
+            <p className="text-sm text-muted-foreground">Drop image here or</p>
 
-          <p className="text-xs text-muted-foreground">
-            JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
-          </p>
-        </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
+              onChange={onFileChange}
+              className="hidden"
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+            >
+              {isFileLoading ? (
+                <IsLoading label="Uploading" />
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Choose Image
+                </>
+              )}
+            </Button>
+
+            <p className="text-xs text-muted-foreground">
+              JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
+            </p>
+          </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );
