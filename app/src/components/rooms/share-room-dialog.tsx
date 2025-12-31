@@ -1,11 +1,13 @@
 "use client";
 
 import type { RoomVisibility } from "@prisma/client";
-import { AlertCircle, BrickWall, Check, Code2, Copy } from "lucide-react";
+import { AlertCircle, BrickWall, Check, Code2, Copy, Info } from "lucide-react";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { copyToClipboard } from "@/lib/copy";
 import type { Filter } from "@/lib/search/types";
 import { getAppBaseUrl } from "@/lib/url";
@@ -21,7 +29,6 @@ import { cn } from "@/lib/utils";
 
 type WidgetType = "badge" | "preview";
 type WidgetTheme = "auto" | "light" | "dark";
-type WidgetSize = "compact" | "standard";
 type ItemCount = 3 | 6 | 9;
 
 type RoomItem = {
@@ -54,16 +61,16 @@ function generateEmbedCode(
   config: {
     type: WidgetType;
     theme: WidgetTheme;
-    size: WidgetSize;
     items: ItemCount;
     showFilters: boolean;
+    fontSize?: number;
+    includeFontSize: boolean;
   },
 ): string {
   const attributes = [
     `data-abode-room="${roomId}"`,
     config.type !== "badge" && `data-type="${config.type}"`,
     config.theme !== "auto" && `data-theme="${config.theme}"`,
-    config.size !== "standard" && `data-size="${config.size}"`,
     config.type === "preview" &&
       config.items !== 6 &&
       `data-items="${config.items}"`,
@@ -74,8 +81,13 @@ function generateEmbedCode(
     .filter(Boolean)
     .join(" ");
 
+  const fontSizeStyle =
+    config.includeFontSize && config.fontSize
+      ? ` style="font-size: ${config.fontSize}px;"`
+      : "";
+
   return `<!-- Abode Room Widget -->
-<div ${attributes}></div>
+<div ${attributes}${fontSizeStyle}></div>
 <script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
 }
 
@@ -98,7 +110,6 @@ type EmbedPreviewProps = {
   config: {
     type: WidgetType;
     theme: WidgetTheme;
-    size: WidgetSize;
     items: ItemCount;
     showFilters: boolean;
   };
@@ -170,7 +181,6 @@ function EmbedPreview({
     newContainer.setAttribute("data-abode-room", room.id);
     newContainer.setAttribute("data-type", config.type);
     newContainer.setAttribute("data-theme", config.theme);
-    newContainer.setAttribute("data-size", config.size);
     newContainer.setAttribute("data-items", String(config.items));
     newContainer.setAttribute(
       "data-show-filters",
@@ -202,7 +212,6 @@ function EmbedPreview({
         data-abode-room={room.id}
         data-type={config.type}
         data-theme={config.theme}
-        data-size={config.size}
         data-items={config.items}
         data-show-filters={config.showFilters ? "true" : "false"}
         data-room-json={JSON.stringify(buildRoomData())}
@@ -220,9 +229,10 @@ export function ShareRoomDialog({
 }: ShareRoomDialogProps) {
   const [type, setType] = useState<WidgetType>("badge");
   const [theme, setTheme] = useState<WidgetTheme>("auto");
-  const [size, setSize] = useState<WidgetSize>("standard");
   const [items, setItems] = useState<ItemCount>(6);
   const [showFilters, setShowFilters] = useState(true);
+  const [fontSize, setFontSize] = useState(16);
+  const [includeFontSize, setIncludeFontSize] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const isPublic = room.visibility === "public";
@@ -230,9 +240,10 @@ export function ShareRoomDialog({
   const embedCode = generateEmbedCode(room.id, {
     type,
     theme,
-    size,
     items,
     showFilters,
+    fontSize,
+    includeFontSize,
   });
 
   const handleCopy = async () => {
@@ -250,7 +261,13 @@ export function ShareRoomDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Share "{room.name}"</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Share{" "}
+            <Badge variant="outline" className="text-sm font-semibold">
+              {room.emoji && <span>{room.emoji}</span>}
+              {room.name}
+            </Badge>
+          </DialogTitle>
           <DialogDescription>
             Embed this room on your website or blog.
           </DialogDescription>
@@ -338,24 +355,6 @@ export function ShareRoomDialog({
               </div>
             </div>
 
-            {/* Size */}
-            <div className="space-y-2">
-              <Label>Size</Label>
-              <div className="flex gap-2">
-                {(["compact", "standard"] as const).map((s) => (
-                  <Button
-                    key={s}
-                    type="button"
-                    variant={size === s ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSize(s)}
-                  >
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
             {/* Items Count (preview only) */}
             {type === "preview" && (
               <div className="space-y-2">
@@ -398,14 +397,62 @@ export function ShareRoomDialog({
               </div>
             )}
 
+            {/* Font Size */}
+            <div className="space-y-2">
+              <Label htmlFor="font-size">Preview Font Size</Label>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  id="font-size"
+                  type="number"
+                  min={8}
+                  max={32}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="w-16"
+                />
+                <span className="text-sm text-muted-foreground">px</span>
+                <div className="ml-3 flex items-center gap-2">
+                  <Checkbox
+                    id="include-font-size"
+                    checked={includeFontSize}
+                    onCheckedChange={(checked) =>
+                      setIncludeFontSize(checked === true)
+                    }
+                  />
+                  <Label
+                    htmlFor="include-font-size"
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    Include in embed code
+                  </Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="size-3.5 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      When enabled, the widget will use a fixed font size
+                      instead of inheriting from your page&apos;s styles.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Adjust to preview how the widget scales. Check the box to lock
+                the font size in the embed code.
+              </p>
+            </div>
+
             {/* Preview */}
             <div className="space-y-2">
               <Label>Preview</Label>
-              <div className="flex justify-center rounded-lg border bg-muted/30 p-6">
+              <div
+                className="flex justify-center rounded-lg border bg-muted/30 p-6"
+                style={{ fontSize: `${fontSize}px` }}
+              >
                 <EmbedPreview
                   room={room}
                   username={username}
-                  config={{ type, theme, size, items, showFilters }}
+                  config={{ type, theme, items, showFilters }}
                   roomItems={roomItems}
                 />
               </div>
