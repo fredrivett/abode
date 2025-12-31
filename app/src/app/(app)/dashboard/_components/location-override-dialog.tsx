@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -73,7 +74,7 @@ export function LocationOverrideDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div
+        <DialogBody
           className={
             showTwoColumns ? "grid grid-cols-2 gap-6" : "flex justify-center"
           }
@@ -98,7 +99,7 @@ export function LocationOverrideDialog({
               }}
             />
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button

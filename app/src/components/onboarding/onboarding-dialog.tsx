@@ -7,6 +7,7 @@ import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -126,37 +127,39 @@ export function OnboardingDialog({
             Learn how to use Abode to organize your digital life
           </DialogDescription>
         </VisuallyHidden.Root>
-        <Stepper onComplete={handleComplete}>
-          {ONBOARDING_STEPS.map((step) => (
-            <Step key={step.title}>
-              <StepContent
-                icon={step.icon}
-                title={step.title}
-                description={step.description}
+        <DialogBody>
+          <Stepper onComplete={handleComplete}>
+            {ONBOARDING_STEPS.map((step) => (
+              <Step key={step.title}>
+                <StepContent
+                  icon={step.icon}
+                  title={step.title}
+                  description={step.description}
+                />
+              </Step>
+            ))}
+            <Step key="profile">
+              <ProfileStep
+                firstName={userMetadata?.firstName}
+                lastName={userMetadata?.lastName}
+                username={userMetadata?.username}
+                email={userMetadata?.email}
+                initialAvatarUrl={userMetadata?.avatarUrl}
+                onFirstNameChange={(value) => {
+                  firstNameRef.current = value;
+                }}
+                onLastNameChange={(value) => {
+                  lastNameRef.current = value;
+                }}
               />
             </Step>
-          ))}
-          <Step key="profile">
-            <ProfileStep
-              firstName={userMetadata?.firstName}
-              lastName={userMetadata?.lastName}
-              username={userMetadata?.username}
-              email={userMetadata?.email}
-              initialAvatarUrl={userMetadata?.avatarUrl}
-              onFirstNameChange={(value) => {
-                firstNameRef.current = value;
-              }}
-              onLastNameChange={(value) => {
-                lastNameRef.current = value;
-              }}
+            <StepperNavigation
+              nextLabel="Next"
+              completeLabel={isCompleting ? "Finishing..." : "That's me"}
+              showKeyboardHints
             />
-          </Step>
-          <StepperNavigation
-            nextLabel="Next"
-            completeLabel={isCompleting ? "Finishing..." : "That's me"}
-            showKeyboardHints
-          />
-        </Stepper>
+          </Stepper>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

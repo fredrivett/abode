@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -273,214 +274,216 @@ export function ShareRoomDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!isPublic ? (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <p>This room is private. Make it public to enable embedding.</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {/* Widget Type */}
-            <div className="space-y-2">
-              <Label>Widget Type</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setType("badge")}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
-                    type === "badge"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50",
-                  )}
-                >
-                  <Code2
-                    className={cn(
-                      "size-4",
-                      type === "badge"
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <div>
-                    <div className="font-medium">Badge</div>
-                    <div className="text-xs text-muted-foreground">
-                      Simple link pill
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setType("preview")}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
-                    type === "preview"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50",
-                  )}
-                >
-                  <BrickWall
-                    className={cn(
-                      "size-4",
-                      type === "preview"
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <div>
-                    <div className="font-medium">Preview</div>
-                    <div className="text-xs text-muted-foreground">
-                      Card with thumbnails
-                    </div>
-                  </div>
-                </button>
-              </div>
+        <DialogBody>
+          {!isPublic ? (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <p>This room is private. Make it public to enable embedding.</p>
             </div>
-
-            {/* Theme */}
-            <div className="space-y-2">
-              <Label>Theme</Label>
-              <div className="flex gap-2">
-                {(["auto", "light", "dark"] as const).map((t) => (
-                  <Button
-                    key={t}
+          ) : (
+            <div className="space-y-5">
+              {/* Widget Type */}
+              <div className="space-y-2">
+                <Label>Widget Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
                     type="button"
-                    variant={theme === t ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTheme(t)}
+                    onClick={() => setType("badge")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
+                      type === "badge"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/50",
+                    )}
                   >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </Button>
-                ))}
+                    <Code2
+                      className={cn(
+                        "size-4",
+                        type === "badge"
+                          ? "text-primary"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    <div>
+                      <div className="font-medium">Badge</div>
+                      <div className="text-xs text-muted-foreground">
+                        Simple link pill
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setType("preview")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
+                      type === "preview"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/50",
+                    )}
+                  >
+                    <BrickWall
+                      className={cn(
+                        "size-4",
+                        type === "preview"
+                          ? "text-primary"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    <div>
+                      <div className="font-medium">Preview</div>
+                      <div className="text-xs text-muted-foreground">
+                        Card with thumbnails
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Items Count (preview only) */}
-            {type === "preview" && (
+              {/* Theme */}
               <div className="space-y-2">
-                <Label>Max Preview Items</Label>
+                <Label>Theme</Label>
                 <div className="flex gap-2">
-                  {([3, 6, 9] as const).map((count) => (
+                  {(["auto", "light", "dark"] as const).map((t) => (
                     <Button
-                      key={count}
+                      key={t}
                       type="button"
-                      variant={items === count ? "default" : "outline"}
+                      variant={theme === t ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setItems(count)}
+                      onClick={() => setTheme(t)}
                     >
-                      {count}
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
                     </Button>
                   ))}
                 </div>
               </div>
-            )}
 
-            {/* Show Filters (preview only, when room has filters) */}
-            {type === "preview" && hasFilters && (
-              <div className="space-y-2">
-                <Label>Show Filters</Label>
-                <div className="flex gap-2">
-                  {(["on", "off"] as const).map((opt) => (
-                    <Button
-                      key={opt}
-                      type="button"
-                      variant={
-                        (opt === "on") === showFilters ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => setShowFilters(opt === "on")}
-                    >
-                      {opt === "on" ? "On" : "Off"}
-                    </Button>
-                  ))}
+              {/* Items Count (preview only) */}
+              {type === "preview" && (
+                <div className="space-y-2">
+                  <Label>Max Preview Items</Label>
+                  <div className="flex gap-2">
+                    {([3, 6, 9] as const).map((count) => (
+                      <Button
+                        key={count}
+                        type="button"
+                        variant={items === count ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setItems(count)}
+                      >
+                        {count}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Font Size */}
-            <div className="space-y-2">
-              <Label htmlFor="font-size">Preview Font Size</Label>
-              <div className="flex items-center gap-1.5">
-                <Input
-                  id="font-size"
-                  type="number"
-                  min={8}
-                  max={32}
-                  value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-16"
-                />
-                <span className="text-sm text-muted-foreground">px</span>
-                <div className="ml-3 flex items-center gap-2">
-                  <Checkbox
-                    id="include-font-size"
-                    checked={includeFontSize}
-                    onCheckedChange={(checked) =>
-                      setIncludeFontSize(checked === true)
-                    }
+              {/* Show Filters (preview only, when room has filters) */}
+              {type === "preview" && hasFilters && (
+                <div className="space-y-2">
+                  <Label>Show Filters</Label>
+                  <div className="flex gap-2">
+                    {(["on", "off"] as const).map((opt) => (
+                      <Button
+                        key={opt}
+                        type="button"
+                        variant={
+                          (opt === "on") === showFilters ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => setShowFilters(opt === "on")}
+                      >
+                        {opt === "on" ? "On" : "Off"}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Font Size */}
+              <div className="space-y-2">
+                <Label htmlFor="font-size">Preview Font Size</Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    id="font-size"
+                    type="number"
+                    min={8}
+                    max={32}
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    className="w-16"
                   />
-                  <Label
-                    htmlFor="include-font-size"
-                    className="cursor-pointer text-sm font-normal"
-                  >
-                    Include in embed code
-                  </Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="size-3.5 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs">
-                      When enabled, the widget will use a fixed font size
-                      instead of inheriting from your page&apos;s styles.
-                    </TooltipContent>
-                  </Tooltip>
+                  <span className="text-sm text-muted-foreground">px</span>
+                  <div className="ml-3 flex items-center gap-2">
+                    <Checkbox
+                      id="include-font-size"
+                      checked={includeFontSize}
+                      onCheckedChange={(checked) =>
+                        setIncludeFontSize(checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor="include-font-size"
+                      className="cursor-pointer text-sm font-normal"
+                    >
+                      Include in embed code
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="size-3.5 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        When enabled, the widget will use a fixed font size
+                        instead of inheriting from your page&apos;s styles.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Adjust to preview how the widget scales. Check the box to lock
+                  the font size in the embed code.
+                </p>
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                <div
+                  className="flex justify-center rounded-lg border bg-muted/30 p-6"
+                  style={{ fontSize: `${fontSize}px` }}
+                >
+                  <EmbedPreview
+                    room={room}
+                    username={username}
+                    config={{ type, theme, items, showFilters }}
+                    roomItems={roomItems}
+                  />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Adjust to preview how the widget scales. Check the box to lock
-                the font size in the embed code.
-              </p>
-            </div>
 
-            {/* Preview */}
-            <div className="space-y-2">
-              <Label>Preview</Label>
-              <div
-                className="flex justify-center rounded-lg border bg-muted/30 p-6"
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                <EmbedPreview
-                  room={room}
-                  username={username}
-                  config={{ type, theme, items, showFilters }}
-                  roomItems={roomItems}
-                />
+              {/* Embed Code */}
+              <div className="space-y-2">
+                <Label>Embed Code</Label>
+                <div className="relative">
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border bg-muted/50 p-4 pr-12 text-xs">
+                    <code>{embedCode}</code>
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="absolute top-2 right-2"
+                    onClick={handleCopy}
+                  >
+                    {copied ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Copy className="size-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {/* Embed Code */}
-            <div className="space-y-2">
-              <Label>Embed Code</Label>
-              <div className="relative">
-                <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border bg-muted/50 p-4 pr-12 text-xs">
-                  <code>{embedCode}</code>
-                </pre>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="absolute top-2 right-2"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="size-4" />
-                  ) : (
-                    <Copy className="size-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );
