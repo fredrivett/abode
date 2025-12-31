@@ -482,6 +482,7 @@ export function RoomDetail({
           onOpenChange={setShowShareDialog}
           room={{
             id: room.id,
+            slug: room.slug,
             name: roomName,
             emoji: roomEmoji,
             visibility: roomVisibility,

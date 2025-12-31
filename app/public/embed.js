@@ -11,6 +11,7 @@
  * - data-theme: "light" | "dark" | "auto" (default: "auto")
  * - data-size: "compact" | "standard" (default: "standard")
  * - data-items: 3 | 6 | 9 (default: 6, preview only)
+ * - data-room-json: Pre-loaded room data JSON (skips API fetch if provided)
  */
 (() => {
   var ABODE_EMBED_VERSION = "1.0.0";
@@ -544,6 +545,23 @@
       return;
     }
 
+    // Check for pre-loaded data (used by in-app preview)
+    var preloadedJson = container.getAttribute("data-room-json");
+    if (preloadedJson) {
+      try {
+        var data = JSON.parse(preloadedJson);
+        if (config.type === "preview") {
+          shadow.innerHTML = createPreviewHTML(data, config);
+        } else {
+          shadow.innerHTML = createBadgeHTML(data);
+        }
+        return;
+      } catch (e) {
+        console.warn("Abode widget: Failed to parse pre-loaded data", e);
+        // Fall through to fetch
+      }
+    }
+
     // Show loading state
     shadow.innerHTML = createLoadingHTML();
 
@@ -581,4 +599,7 @@
 
   // Expose version for debugging
   window.ABODE_EMBED_VERSION = ABODE_EMBED_VERSION;
+
+  // Expose render function for dynamic widget creation (used by in-app preview)
+  window.ABODE_RENDER_WIDGET = renderWidget;
 })();

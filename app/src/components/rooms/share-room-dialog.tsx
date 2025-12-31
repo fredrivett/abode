@@ -2,7 +2,8 @@
 
 import type { RoomVisibility } from "@prisma/client";
 import { AlertCircle, BrickWall, Check, Code2, Copy } from "lucide-react";
-import { useState } from "react";
+import Script from "next/script";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +16,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { copyToClipboard } from "@/lib/copy";
 import type { Filter } from "@/lib/search/types";
+import { getAppBaseUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
-import { WidgetPreview } from "./widget-preview";
 
 type WidgetType = "badge" | "preview";
 type WidgetTheme = "auto" | "light" | "dark";
@@ -37,6 +38,7 @@ type ShareRoomDialogProps = {
   onOpenChange: (open: boolean) => void;
   room: {
     id: string;
+    slug: string | null;
     name: string;
     emoji: string | null;
     visibility: RoomVisibility;
@@ -75,6 +77,138 @@ function generateEmbedCode(
   return `<!-- Abode Room Widget -->
 <div ${attributes}></div>
 <script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
+}
+
+declare global {
+  interface Window {
+    ABODE_RENDER_WIDGET?: (container: HTMLElement) => void;
+  }
+}
+
+type EmbedPreviewProps = {
+  room: {
+    id: string;
+    slug: string | null;
+    name: string;
+    emoji: string | null;
+    itemCount: number;
+    filters?: Filter[] | null;
+  };
+  username: string;
+  config: {
+    type: WidgetType;
+    theme: WidgetTheme;
+    size: WidgetSize;
+    items: ItemCount;
+    showFilters: boolean;
+  };
+  roomItems: RoomItem[];
+};
+
+function EmbedPreview({
+  room,
+  username,
+  config,
+  roomItems,
+}: EmbedPreviewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(
+    typeof window !== "undefined" && !!window.ABODE_RENDER_WIDGET,
+  );
+
+  // Build the room data in the same format as the embed API
+  const buildRoomData = useCallback(() => {
+    const baseUrl = getAppBaseUrl();
+    const slugOrId = room.slug ?? room.id;
+    const roomUrl = `${baseUrl}/@${username}/${slugOrId}`;
+
+    // Transform items to match API format
+    const items = roomItems.slice(0, config.items).map((item) => {
+      const meta = item.meta || {};
+      const isArticle = item.kind === "article";
+      const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
+
+      return {
+        id: item.id,
+        kind: item.kind,
+        title: item.title,
+        imageUrl: imageFileKey
+          ? `/api/v1/images/${encodeURIComponent(imageFileKey)}`
+          : null,
+        width: isArticle ? 16 : ((meta.width as number) ?? 1),
+        height: isArticle ? 9 : ((meta.height as number) ?? 1),
+      };
+    });
+
+    return {
+      room: {
+        id: room.id,
+        name: room.name,
+        emoji: room.emoji,
+        slug: slugOrId,
+        itemCount: room.itemCount,
+        filters: room.filters ?? [],
+      },
+      owner: {
+        username,
+        displayName: username,
+      },
+      items,
+      roomUrl,
+    };
+  }, [room, username, config.items, roomItems]);
+
+  // Render the widget when config changes or script loads
+  useEffect(() => {
+    if (!containerRef.current || !scriptLoaded) return;
+
+    // Clear any existing shadow DOM by replacing the element
+    const parent = containerRef.current.parentElement;
+    if (!parent) return;
+
+    const newContainer = document.createElement("div");
+    newContainer.setAttribute("data-abode-room", room.id);
+    newContainer.setAttribute("data-type", config.type);
+    newContainer.setAttribute("data-theme", config.theme);
+    newContainer.setAttribute("data-size", config.size);
+    newContainer.setAttribute("data-items", String(config.items));
+    newContainer.setAttribute(
+      "data-show-filters",
+      config.showFilters ? "true" : "false",
+    );
+    newContainer.setAttribute(
+      "data-room-json",
+      JSON.stringify(buildRoomData()),
+    );
+
+    parent.replaceChild(newContainer, containerRef.current);
+    containerRef.current = newContainer;
+
+    // Render the widget
+    if (window.ABODE_RENDER_WIDGET) {
+      window.ABODE_RENDER_WIDGET(newContainer);
+    }
+  }, [room.id, config, scriptLoaded, buildRoomData]);
+
+  return (
+    <>
+      <Script
+        src="/embed.js"
+        strategy="lazyOnload"
+        onLoad={() => setScriptLoaded(true)}
+      />
+      <div
+        ref={containerRef}
+        data-abode-room={room.id}
+        data-type={config.type}
+        data-theme={config.theme}
+        data-size={config.size}
+        data-items={config.items}
+        data-show-filters={config.showFilters ? "true" : "false"}
+        data-room-json={JSON.stringify(buildRoomData())}
+      />
+    </>
+  );
 }
 
 export function ShareRoomDialog({
@@ -268,7 +402,7 @@ export function ShareRoomDialog({
             <div className="space-y-2">
               <Label>Preview</Label>
               <div className="flex justify-center rounded-lg border bg-muted/30 p-6">
-                <WidgetPreview
+                <EmbedPreview
                   room={room}
                   username={username}
                   config={{ type, theme, size, items, showFilters }}

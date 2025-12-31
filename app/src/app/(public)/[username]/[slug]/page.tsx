@@ -210,6 +210,7 @@ export default async function RoomPage({ params }: Props) {
     id: room.id,
     name: room.name,
     emoji: room.emoji,
+    slug: room.slug,
     type: room.type as RoomType,
     filters: room.filters as Filter[] | null,
     visibility: room.visibility as RoomVisibility,

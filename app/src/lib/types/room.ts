@@ -22,7 +22,7 @@ import type { Item } from "./item";
  */
 export type Room = Pick<
   PrismaRoom,
-  "id" | "name" | "emoji" | "type" | "visibility"
+  "id" | "name" | "emoji" | "slug" | "type" | "visibility"
 > & {
   filters: Filter[] | null;
   createdAt: string;
@@ -31,13 +31,9 @@ export type Room = Pick<
 };
 
 /**
- * Room with slug for list views.
- *
- * Extends Room with slug field needed for URL generation.
+ * @deprecated Use Room instead - slug is now included in the base type
  */
-export type RoomWithSlug = Room & {
-  slug: string;
-};
+export type RoomWithSlug = Room;
 
 /**
  * Item within a room, with room-specific metadata.
