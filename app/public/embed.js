@@ -2,7 +2,7 @@
  * Abode Room Widget Embed Script
  *
  * Usage:
- * <div data-abode-room="room-uuid" data-type="badge" data-theme="auto"></div>
+ * <span data-abode-room="room-uuid" data-type="badge" data-theme="auto"></span>
  * <script src="https://www.abode.fyi/embed.js" async></script>
  *
  * Configuration (data attributes):
@@ -10,6 +10,8 @@
  * - data-type: "badge" | "preview" (default: "badge")
  * - data-theme: "light" | "dark" | "auto" (default: "auto")
  * - data-items: 3 | 6 | 9 (default: 6, preview only)
+ * - data-show-emoji: "true" | "false" (default: "true")
+ * - data-text: Custom link text (badge only, overrides room name)
  * - data-room-json: Pre-loaded room data JSON (skips API fetch if provided)
  */
 (() => {
@@ -37,6 +39,7 @@
     theme: "auto",
     items: 6,
     showFilters: true,
+    showEmoji: true,
   };
 
   // Filter type icons for display
@@ -77,8 +80,8 @@
     ".abode-badge{",
     "  display:inline-flex;",
     "  align-items:center;",
-    "  gap:0.5em;",
-    "  padding:0.5em 1em;",
+    "  gap:0.375em;",
+    "  padding:0.375em 0.75em;",
     "  background:var(--abode-bg);",
     "  border:1px solid var(--abode-border);",
     "  border-radius:9999px;",
@@ -270,6 +273,10 @@
     var showFiltersAttr = container.getAttribute("data-show-filters");
     var showFilters =
       showFiltersAttr === null ? DEFAULTS.showFilters : showFiltersAttr !== "false";
+    var showEmojiAttr = container.getAttribute("data-show-emoji");
+    var showEmoji =
+      showEmojiAttr === null ? DEFAULTS.showEmoji : showEmojiAttr !== "false";
+    var text = container.getAttribute("data-text") || null;
 
     // Validate values
     if (["badge", "preview"].indexOf(type) === -1) type = DEFAULTS.type;
@@ -284,6 +291,8 @@
       theme: resolvedTheme,
       items: items,
       showFilters: showFilters,
+      showEmoji: showEmoji,
+      text: text,
     };
   }
 
@@ -341,10 +350,12 @@
   /**
    * Create badge widget HTML
    */
-  function createBadgeHTML(data) {
+  function createBadgeHTML(data, config) {
     var emoji = data.room.emoji;
     var name = escapeHtml(data.room.name);
     var url = escapeHtml(data.roomUrl);
+    var customText = config.text;
+    var showEmoji = config.showEmoji;
 
     var parts = [
       "<style>" + STYLES + "</style>",
@@ -352,10 +363,16 @@
         url +
         '" target="_blank" rel="noopener noreferrer">',
     ];
-    if (emoji) {
+    // Show emoji if enabled (regardless of custom text)
+    if (emoji && showEmoji) {
       parts.push('  <span class="abode-badge-emoji">' + emoji + "</span>");
     }
-    parts.push('  <span class="abode-badge-name">' + name + "</span>");
+    // Show custom text or room name
+    if (customText) {
+      parts.push('  <span class="abode-badge-name">' + escapeHtml(customText) + "</span>");
+    } else {
+      parts.push('  <span class="abode-badge-name">' + name + "</span>");
+    }
     parts.push("</a>");
     return parts.join("");
   }
@@ -395,7 +412,7 @@
       }
     }
 
-    var emojiHtml = emoji
+    var emojiHtml = emoji && config.showEmoji
       ? '<span class="abode-preview-emoji">' + emoji + "</span>"
       : "";
 
@@ -521,7 +538,7 @@
         if (config.type === "preview") {
           shadow.innerHTML = createPreviewHTML(data, config);
         } else {
-          shadow.innerHTML = createBadgeHTML(data);
+          shadow.innerHTML = createBadgeHTML(data, config);
         }
         return;
       } catch (e) {
@@ -539,7 +556,7 @@
         if (config.type === "preview") {
           shadow.innerHTML = createPreviewHTML(data, config);
         } else {
-          shadow.innerHTML = createBadgeHTML(data);
+          shadow.innerHTML = createBadgeHTML(data, config);
         }
       })
       .catch((error) => {
