@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import {
   Popover,
   PopoverAnchor,
@@ -206,7 +207,8 @@ export function FilterDropdown({
             currentFilterType &&
             (loadingValues ? (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                Loading...
+                Loading
+                <LoadingEllipsis />
               </div>
             ) : filteredValues.length === 0 ? (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">

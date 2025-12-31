@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 import {
   Table,
   TableBody,
@@ -148,9 +149,11 @@ export function WaitlistTable({ entries, pagination }: WaitlistTableProps) {
                         onClick={() => handleSendInvite(entry)}
                         disabled={sendingInvites.has(entry.id)}
                       >
-                        {sendingInvites.has(entry.id)
-                          ? "Sending..."
-                          : "Send Invite"}
+                        {sendingInvites.has(entry.id) ? (
+                          <IsLoading label="Sending" />
+                        ) : (
+                          "Send Invite"
+                        )}
                       </Button>
                     )}
                 </TableCell>

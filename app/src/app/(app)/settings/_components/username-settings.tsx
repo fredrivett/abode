@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { MAX_USERNAME_CHANGES } from "@/lib/username";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { changeUsername } from "../actions";
@@ -95,7 +97,8 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
             />
             {usernameStatus.type === "checking" && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                Checking...
+                Checking
+                <LoadingEllipsis />
               </span>
             )}
             {usernameStatus.type === "available" && (
@@ -108,7 +111,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
             type="submit"
             disabled={!canChange || !hasChanged || !isValid || isPending}
           >
-            {isPending ? "Saving..." : "Save"}
+            {isPending ? <IsLoading label="Saving" /> : "Save"}
           </Button>
         </div>
 

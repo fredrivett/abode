@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { useFilterPreview } from "@/lib/rooms/use-filter-preview";
 import type { Filter, SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
@@ -183,7 +184,8 @@ export function RoomFilterEditor({
                 {preview.isLoading ? (
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="size-3.5 animate-spin" />
-                    Loading preview...
+                    Loading preview
+                    <LoadingEllipsis />
                   </span>
                 ) : preview.total > 0 ? (
                   `${preview.total} ${preview.total === 1 ? "item" : "items"} match${preview.total === 1 ? "es" : ""}`

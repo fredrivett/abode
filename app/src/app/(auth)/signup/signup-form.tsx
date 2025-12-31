@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { parseEmailToUsername } from "@/lib/username/generate-from-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { signup } from "./actions";
@@ -118,7 +120,8 @@ export function SignupForm() {
             />
             {usernameStatus.type === "checking" && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                Checking...
+                Checking
+                <LoadingEllipsis />
               </span>
             )}
             {usernameStatus.type === "available" && (
@@ -173,7 +176,7 @@ export function SignupForm() {
           className="w-full"
           disabled={isSigningUp || !isUsernameValid}
         >
-          {isSigningUp ? "Creating account..." : "Sign up"}
+          {isSigningUp ? <IsLoading label="Creating account" /> : "Sign up"}
         </Button>
       </form>
 

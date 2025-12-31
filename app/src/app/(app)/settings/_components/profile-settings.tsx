@@ -8,7 +8,9 @@ import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { useUserStore } from "@/stores/user-store";
 
 type ProfileSettingsProps = {
@@ -133,7 +135,14 @@ export function ProfileSettings({
               onClick={openFilePicker}
               disabled={isUploading}
             >
-              {isUploading ? "Uploading..." : "Change"}
+              {isUploading ? (
+                <>
+                  Uploading
+                  <LoadingEllipsis />
+                </>
+              ) : (
+                "Change"
+              )}
             </Button>
             {avatarUrl && (
               <Button
@@ -146,7 +155,14 @@ export function ProfileSettings({
               >
                 <Trash2 className="size-4" />
                 <span className="sr-only">
-                  {isDeleting ? "Removing..." : "Remove"}
+                  {isDeleting ? (
+                    <>
+                      Removing
+                      <LoadingEllipsis />
+                    </>
+                  ) : (
+                    "Remove"
+                  )}
                 </span>
               </Button>
             )}
@@ -180,7 +196,7 @@ export function ProfileSettings({
               disabled={isSaving}
               className="self-start"
             >
-              {isSaving ? "Saving..." : "Save changes"}
+              {isSaving ? <IsLoading label="Saving" /> : "Save changes"}
             </Button>
           )}
         </div>

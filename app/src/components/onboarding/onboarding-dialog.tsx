@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { IsLoading } from "@/components/ui/is-loading";
 import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
 import { ProfileStep } from "./profile-step";
 
@@ -155,7 +156,9 @@ export function OnboardingDialog({
             </Step>
             <StepperNavigation
               nextLabel="Next"
-              completeLabel={isCompleting ? "Finishing..." : "That's me"}
+              completeLabel={
+                isCompleting ? <IsLoading label="Finishing" /> : "That's me"
+              }
               showKeyboardHints
             />
           </Stepper>

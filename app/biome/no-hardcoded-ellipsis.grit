@@ -1,0 +1,8 @@
+$str where {
+  $str <: r"\"[a-zA-Z ]*ing\.\.\.\"",
+  register_diagnostic(
+    span=$str,
+    message="Avoid hardcoded '...' ellipsis in loading states. Use LoadingEllipsis or IsLoading components instead.",
+    severity="error"
+  )
+}

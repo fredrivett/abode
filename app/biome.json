@@ -1,5 +1,6 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+  "plugins": ["./biome/no-hardcoded-ellipsis.grit"],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -21,7 +22,8 @@
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
-    "indentWidth": 2
+    "indentWidth": 2,
+    "includes": ["!biome/**/*.grit"]
   },
   "css": {
     "parser": {

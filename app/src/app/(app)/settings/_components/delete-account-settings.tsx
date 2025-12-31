@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
 import { UserDeletionStats } from "@/components/user-deletion-stats";
 import { deleteAccount } from "../actions";
@@ -121,7 +122,11 @@ export function DeleteAccountSettings() {
                   variant="destructive"
                   disabled={isPending || !password}
                 >
-                  {isPending ? "Deleting..." : "Delete Account"}
+                  {isPending ? (
+                    <IsLoading label="Deleting" />
+                  ) : (
+                    "Delete Account"
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </form>

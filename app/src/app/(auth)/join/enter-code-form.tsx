@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 
 export function EnterCodeForm() {
   const [code, setCode] = useState("");
@@ -51,7 +52,7 @@ export function EnterCodeForm() {
           className="w-full"
           disabled={isSubmitting || !code.trim()}
         >
-          {isSubmitting ? "checking..." : "continue"}
+          {isSubmitting ? <IsLoading label="checking" /> : "continue"}
         </Button>
       </form>
 

@@ -16,6 +16,8 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { IsLoading } from "@/components/ui/is-loading";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import {
   enrollMFA,
   getMFAFactors,
@@ -96,7 +98,7 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
                 disabled={isDisabling}
               >
                 <ShieldOff className="size-4" />
-                {isDisabling ? "Disabling..." : "Disable"}
+                {isDisabling ? <IsLoading label="Disabling" /> : "Disable"}
               </Button>
             ) : (
               <Button
@@ -258,7 +260,8 @@ function MFAEnrollDialog({
             ) : step === "qr" && !qrCode ? (
               <div className="py-4 text-center">
                 <p className="text-sm text-muted-foreground">
-                  Waiting for QR code...
+                  Waiting for QR code
+                  <LoadingEllipsis />
                 </p>
               </div>
             ) : null}
@@ -305,7 +308,7 @@ function MFAEnrollDialog({
                     disabled={code.length !== 6 || isVerifying}
                     className="flex-1"
                   >
-                    {isVerifying ? "Verifying..." : "Verify"}
+                    {isVerifying ? <IsLoading label="Verifying" /> : "Verify"}
                   </Button>
                 </div>
               </>
