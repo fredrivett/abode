@@ -82,14 +82,15 @@
     "  align-items:center;",
     "  gap:0.375em;",
     "  margin:-0.25em 0;",
-    "  padding:0.25em 0.625em;",
+    "  padding:0.175em 0.625em;",
     "  background:var(--abode-bg);",
     "  border:1px solid var(--abode-border);",
-    "  border-radius:0.375em;",
+    "  border-radius:999px;",
     "  color:var(--abode-text);",
     "  text-decoration:none;",
-    "  font-size:1em;",
+    "  font-size:0.95em;",
     "  line-height:1.25;",
+    "  vertical-align:middle;",
     "  transition:background-color 0.15s,border-color 0.15s;",
     "}",
     ".abode-badge:hover{",
@@ -273,7 +274,9 @@
       parseInt(container.getAttribute("data-items"), 10) || DEFAULTS.items;
     var showFiltersAttr = container.getAttribute("data-show-filters");
     var showFilters =
-      showFiltersAttr === null ? DEFAULTS.showFilters : showFiltersAttr !== "false";
+      showFiltersAttr === null
+        ? DEFAULTS.showFilters
+        : showFiltersAttr !== "false";
     var showEmojiAttr = container.getAttribute("data-show-emoji");
     var showEmoji =
       showEmojiAttr === null ? DEFAULTS.showEmoji : showEmojiAttr !== "false";
@@ -370,7 +373,11 @@
     }
     // Show custom text or room name
     if (customText) {
-      parts.push('  <span class="abode-badge-name">' + escapeHtml(customText) + "</span>");
+      parts.push(
+        '  <span class="abode-badge-name">' +
+          escapeHtml(customText) +
+          "</span>",
+      );
     } else {
       parts.push('  <span class="abode-badge-name">' + name + "</span>");
     }
@@ -413,9 +420,10 @@
       }
     }
 
-    var emojiHtml = emoji && config.showEmoji
-      ? '<span class="abode-preview-emoji">' + emoji + "</span>"
-      : "";
+    var emojiHtml =
+      emoji && config.showEmoji
+        ? '<span class="abode-preview-emoji">' + emoji + "</span>"
+        : "";
 
     // Inline SVG logo
     var logoSvg =
@@ -456,7 +464,8 @@
             "</span>",
         );
       }
-      filtersHtml = '<div class="abode-filters">' + filterChips.join("") + "</div>";
+      filtersHtml =
+        '<div class="abode-filters">' + filterChips.join("") + "</div>";
     }
 
     var mutedColor = config.theme === "dark" ? "#a3a3a3" : "#737373";
