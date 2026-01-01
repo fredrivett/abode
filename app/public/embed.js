@@ -252,9 +252,39 @@
   ].join("\n");
 
   /**
-   * Get preferred theme based on system settings
+   * Detect theme from page context (classes, attributes, styles)
+   */
+  function detectPageTheme() {
+    var html = document.documentElement;
+
+    // Check common class-based patterns
+    if (html.classList.contains("dark")) return "dark";
+    if (html.classList.contains("light")) return "light";
+
+    // Check data-theme attribute (used by many theme systems)
+    var dataTheme = html.getAttribute("data-theme");
+    if (dataTheme === "dark" || dataTheme === "light") return dataTheme;
+
+    // Check data-mode attribute (another common pattern)
+    var dataMode = html.getAttribute("data-mode");
+    if (dataMode === "dark" || dataMode === "light") return dataMode;
+
+    // Check color-scheme style property
+    var colorScheme = html.style.colorScheme;
+    if (colorScheme === "dark" || colorScheme === "light") return colorScheme;
+
+    return null;
+  }
+
+  /**
+   * Get preferred theme based on page context, then system settings
    */
   function getPreferredTheme() {
+    // First try to detect from page context
+    var pageTheme = detectPageTheme();
+    if (pageTheme) return pageTheme;
+
+    // Fall back to OS preference
     if (
       window.matchMedia &&
       window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -262,6 +292,49 @@
       return "dark";
     }
     return "light";
+  }
+
+  // Track widgets using auto theme for live updates
+  var autoThemeWidgets = [];
+
+  /**
+   * Update theme on all auto-theme widgets
+   */
+  function updateAutoThemeWidgets() {
+    var newTheme = getPreferredTheme();
+    for (var i = 0; i < autoThemeWidgets.length; i++) {
+      var container = autoThemeWidgets[i];
+      if (container.isConnected) {
+        container.setAttribute("data-theme", newTheme);
+      }
+    }
+  }
+
+  /**
+   * Set up MutationObserver for theme changes on document
+   */
+  function setupThemeObserver() {
+    if (typeof MutationObserver === "undefined") return;
+
+    var observer = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var attr = mutations[i].attributeName;
+        if (
+          attr === "class" ||
+          attr === "data-theme" ||
+          attr === "data-mode" ||
+          attr === "style"
+        ) {
+          updateAutoThemeWidgets();
+          break;
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme", "data-mode", "style"],
+    });
   }
 
   /**
@@ -527,6 +600,12 @@
 
     var config = parseConfig(container);
 
+    // Track auto-theme widgets for live updates
+    var requestedTheme = container.getAttribute("data-theme") || DEFAULTS.theme;
+    if (requestedTheme === "auto" && autoThemeWidgets.indexOf(container) === -1) {
+      autoThemeWidgets.push(container);
+    }
+
     // Set theme attribute on container for CSS targeting
     container.setAttribute("data-theme", config.theme);
 
@@ -583,6 +662,9 @@
     for (var i = 0; i < containers.length; i++) {
       renderWidget(containers[i]);
     }
+
+    // Set up observer for theme changes (only once)
+    setupThemeObserver();
   }
 
   // Run on DOMContentLoaded or immediately if already loaded
