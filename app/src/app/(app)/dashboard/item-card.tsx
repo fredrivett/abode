@@ -44,8 +44,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Item } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 import { ColorsBar } from "./_components/colors-bar";
+import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
-import { LocationMap } from "./_components/location-map";
 
 const log = createLogger("dashboard/item-card");
 
@@ -59,6 +59,12 @@ type ItemCardProps = {
    * Required for public room pages where users may not be authenticated.
    */
   useProxyUrl?: boolean;
+  /**
+   * Whether the current user can edit this item.
+   * When false, notes, privacy settings, delete button, and location editing are hidden.
+   * Defaults to true for backwards compatibility.
+   */
+  canEdit?: boolean;
 };
 
 function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
@@ -103,6 +109,7 @@ export function ItemCard({
   size,
   mimeType,
   useProxyUrl = false,
+  canEdit = true,
 }: ItemCardProps) {
   const supabase = createClient();
   const router = useRouter();
@@ -237,6 +244,7 @@ export function ItemCard({
               onDeleteOpenChange={setShowDeleteDialog}
               onDeleteConfirm={handleDelete}
               isDeleting={isDeleting}
+              canEdit={canEdit}
             />
           )}
         </AnimatePresence>
@@ -282,6 +290,7 @@ export function ItemCard({
               onDeleteOpenChange={setShowDeleteDialog}
               onDeleteConfirm={handleDelete}
               isDeleting={isDeleting}
+              canEdit={canEdit}
             />
           )}
         </AnimatePresence>
@@ -377,6 +386,7 @@ export function ItemCard({
             onDeleteOpenChange={setShowDeleteDialog}
             onDeleteConfirm={handleDelete}
             isDeleting={isDeleting}
+            canEdit={canEdit}
           />
         )}
       </AnimatePresence>
@@ -396,6 +406,11 @@ type ItemDetailDialogProps = {
   deleteOpen: boolean;
   onDeleteConfirm: () => Promise<void>;
   isDeleting: boolean;
+  /**
+   * Whether the current user can edit this item.
+   * When false, notes, privacy settings, delete button, and location editing are hidden.
+   */
+  canEdit: boolean;
 };
 
 type DeleteItemDialogProps = {
@@ -453,6 +468,7 @@ function ItemDetailDialog({
   onDeleteOpenChange,
   onDeleteConfirm,
   isDeleting,
+  canEdit,
 }: ItemDetailDialogProps) {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -678,6 +694,7 @@ function ItemDetailDialog({
                   size="xl"
                   isSaving={isSavingName}
                   multiline
+                  disabled={!canEdit}
                 />
               </DialogHeader>
 
@@ -958,6 +975,24 @@ function ItemDetailDialog({
                           manualLocation ?? exifLocation ?? null;
                         const isManualOverride = manualLocation !== undefined;
 
+                        // For read-only view (no edit access), only show if there's location data
+                        if (!canEdit) {
+                          if (!displayLocation) return null;
+
+                          return (
+                            <div className="space-y-2">
+                              <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                Location
+                              </h3>
+                              <LocationDisplay
+                                location={displayLocation}
+                                itemId={item.id}
+                              />
+                            </div>
+                          );
+                        }
+
+                        // Editable view with LocationDropzone
                         return (
                           <LocationDropzone
                             itemId={item.id}
@@ -966,79 +1001,10 @@ function ItemDetailDialog({
                             isManualOverride={isManualOverride}
                           >
                             {displayLocation ? (
-                              <div className="space-y-2">
-                                {(displayLocation.neighborhood ||
-                                  displayLocation.city ||
-                                  displayLocation.region ||
-                                  displayLocation.country) && (
-                                  <div className="space-y-1 text-sm">
-                                    {displayLocation.neighborhood && (
-                                      <div className="flex justify-between">
-                                        <span className="text-zinc-500">
-                                          Neighborhood
-                                        </span>
-                                        <span className="font-medium">
-                                          {displayLocation.neighborhood}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {displayLocation.city && (
-                                      <div className="flex justify-between">
-                                        <span className="text-zinc-500">
-                                          City
-                                        </span>
-                                        <span className="font-medium">
-                                          {displayLocation.city}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {displayLocation.region && (
-                                      <div className="flex justify-between">
-                                        <span className="text-zinc-500">
-                                          Region
-                                        </span>
-                                        <span className="font-medium">
-                                          {displayLocation.region}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {displayLocation.country && (
-                                      <div className="flex justify-between">
-                                        <span className="text-zinc-500">
-                                          Country
-                                        </span>
-                                        <span className="font-medium">
-                                          {displayLocation.countryCode && (
-                                            <span className="mr-1">
-                                              {String.fromCodePoint(
-                                                ...[
-                                                  ...displayLocation.countryCode.toUpperCase(),
-                                                ].map(
-                                                  (c) =>
-                                                    127397 + c.charCodeAt(0),
-                                                ),
-                                              )}
-                                            </span>
-                                          )}
-                                          {displayLocation.country}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                                {displayLocation.latitude != null &&
-                                  displayLocation.longitude != null && (
-                                    <LocationMap
-                                      latitude={displayLocation.latitude}
-                                      longitude={displayLocation.longitude}
-                                      locationName={
-                                        displayLocation.city ||
-                                        displayLocation.country ||
-                                        "Location"
-                                      }
-                                    />
-                                  )}
-                              </div>
+                              <LocationDisplay
+                                location={displayLocation}
+                                itemId={item.id}
+                              />
                             ) : (
                               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                                 Drop an image here to set location from EXIF
@@ -1064,27 +1030,32 @@ function ItemDetailDialog({
                   )}
                 </div>
 
-                {/* Notes */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Notes
-                    </h3>
-                    {isSavingNotes && (
-                      <IsLoading
-                        label="Saving"
-                        className="text-xs text-muted-foreground"
-                        iconClassName="size-3"
-                      />
-                    )}
+                {/* Notes - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Notes
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          (private)
+                        </span>
+                      </h3>
+                      {isSavingNotes && (
+                        <IsLoading
+                          label="Saving"
+                          className="text-xs text-muted-foreground"
+                          iconClassName="size-3"
+                        />
+                      )}
+                    </div>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => handleNotesChange(e.target.value)}
+                      placeholder="Add your notes..."
+                      className="w-full min-h-[100px] rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                    />
                   </div>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => handleNotesChange(e.target.value)}
-                    placeholder="Add your notes..."
-                    className="w-full min-h-[100px] rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
-                  />
-                </div>
+                )}
 
                 {/* Highlights - articles only */}
                 {isArticle && (
@@ -1094,81 +1065,88 @@ function ItemDetailDialog({
                       onHighlightClick={(highlight) =>
                         setScrollToHighlightId(highlight.id)
                       }
+                      canEdit={canEdit}
                     />
                   </div>
                 )}
 
-                {/* Privacy Setting */}
-                <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Privacy
-                  </h3>
-                  <label className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Exclude from public rooms
-                    </span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={excludeFromPublicRooms}
-                      onClick={handleExcludeToggle}
-                      disabled={isSavingExclude}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                        "disabled:cursor-not-allowed disabled:opacity-50",
-                        excludeFromPublicRooms
-                          ? "bg-primary"
-                          : "bg-gray-200 dark:bg-gray-700",
-                      )}
-                    >
-                      <span
+                {/* Privacy Setting - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Privacy
+                    </h3>
+                    <label className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Exclude from public rooms
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={excludeFromPublicRooms}
+                        onClick={handleExcludeToggle}
+                        disabled={isSavingExclude}
                         className={cn(
-                          "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
                           excludeFromPublicRooms
-                            ? "translate-x-5"
-                            : "translate-x-0",
+                            ? "bg-primary"
+                            : "bg-gray-200 dark:bg-gray-700",
                         )}
-                      />
-                    </button>
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    When enabled, this item won't appear in public dynamic rooms
-                  </p>
-                </div>
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                            excludeFromPublicRooms
+                              ? "translate-x-5"
+                              : "translate-x-0",
+                          )}
+                        />
+                      </button>
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      When enabled, this item won't appear in public dynamic
+                      rooms
+                    </p>
+                  </div>
+                )}
 
-                <div className="mt-auto flex justify-end gap-2">
-                  {item.fileKey && (
+                {/* Action buttons - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="mt-auto flex justify-end gap-2">
+                    {item.fileKey && (
+                      <Button
+                        variant="outline"
+                        onClick={handleDownload}
+                        disabled={isDownloading}
+                      >
+                        {isDownloading ? (
+                          <IsLoading label="Downloading" />
+                        ) : (
+                          <>
+                            <Download className="size-4" />
+                            Download
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
-                      onClick={handleDownload}
-                      disabled={isDownloading}
+                      variant="destructive-outline"
+                      onClick={() => onDeleteOpenChange(true)}
+                      disabled={isDeleting}
                     >
-                      {isDownloading ? (
-                        <IsLoading label="Downloading" />
+                      {isDeleting ? (
+                        <IsLoading label="Deleting" />
                       ) : (
                         <>
-                          <Download className="size-4" />
-                          Download
+                          <Trash2 className="size-4" />
+                          Delete item
                         </>
                       )}
                     </Button>
-                  )}
-                  <Button
-                    variant="destructive-outline"
-                    onClick={() => onDeleteOpenChange(true)}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <IsLoading label="Deleting" />
-                    ) : (
-                      <>
-                        <Trash2 className="size-4" />
-                        Delete item
-                      </>
-                    )}
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
