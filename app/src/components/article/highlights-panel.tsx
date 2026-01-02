@@ -24,9 +24,18 @@ type HighlightData = Pick<
 type Props = {
   itemId: string;
   onHighlightClick?: (highlight: HighlightData) => void;
+  /**
+   * Whether the current user can edit (delete) highlights.
+   * Defaults to true for backwards compatibility.
+   */
+  canEdit?: boolean;
 };
 
-export function HighlightsPanel({ itemId, onHighlightClick }: Props) {
+export function HighlightsPanel({
+  itemId,
+  onHighlightClick,
+  canEdit = true,
+}: Props) {
   const { data: highlights = [], isLoading } = useItemHighlights(itemId);
   const deleteHighlight = useDeleteHighlight(itemId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -70,6 +79,7 @@ export function HighlightsPanel({ itemId, onHighlightClick }: Props) {
                     });
                   }}
                   isDeleting={deletingId === highlight.id}
+                  canEdit={canEdit}
                 />
               ))}
             </div>
@@ -85,11 +95,13 @@ function HighlightCard({
   onClick,
   onDelete,
   isDeleting,
+  canEdit,
 }: {
   highlight: HighlightData;
   onClick?: () => void;
   onDelete: () => void;
   isDeleting: boolean;
+  canEdit: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -121,20 +133,22 @@ function HighlightCard({
           "{displayText}"
         </blockquote>
 
-        <Button
-          variant="ghost"
-          size={confirmDelete ? "sm" : "icon"}
-          className={
-            confirmDelete
-              ? "gap-1 text-destructive hover:text-destructive shrink-0"
-              : "size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-          }
-          onClick={handleDeleteClick}
-          disabled={isDeleting}
-        >
-          <Trash2 className="size-3.5" />
-          {confirmDelete && "Confirm?"}
-        </Button>
+        {canEdit && (
+          <Button
+            variant="ghost"
+            size={confirmDelete ? "sm" : "icon"}
+            className={
+              confirmDelete
+                ? "gap-1 text-destructive hover:text-destructive shrink-0"
+                : "size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            }
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+          >
+            <Trash2 className="size-3.5" />
+            {confirmDelete && "Confirm?"}
+          </Button>
+        )}
       </div>
 
       {highlight.note && (

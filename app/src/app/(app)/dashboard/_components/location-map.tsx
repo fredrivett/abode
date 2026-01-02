@@ -6,18 +6,22 @@ type LocationMapProps = {
   latitude: number;
   longitude: number;
   locationName: string;
+  /** Item ID for public access verification (required for unauthenticated users) */
+  itemId?: string;
 };
 
 export function LocationMap({
   latitude,
   longitude,
   locationName,
+  itemId,
 }: LocationMapProps) {
   const width = 368;
   const height = 200;
 
   // Use server-side proxy to keep Mapbox token secret
-  const mapUrl = `/api/v1/map-image?lat=${latitude}&lng=${longitude}&width=${width}&height=${height}`;
+  // Include itemId for public access verification when user is not authenticated
+  const mapUrl = `/api/v1/map-image?lat=${latitude}&lng=${longitude}&width=${width}&height=${height}${itemId ? `&itemId=${itemId}` : ""}`;
 
   return (
     <div className="space-y-2">

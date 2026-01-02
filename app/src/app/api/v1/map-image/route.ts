@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { read as prisma } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,18 +7,40 @@ const log = createLogger("api/v1/map-image");
 
 export async function GET(request: NextRequest) {
   try {
-    // Require authentication to prevent abuse
+    const searchParams = request.nextUrl.searchParams;
+    const itemId = searchParams.get("itemId");
+
+    // Check authentication
     const supabase = await createClient();
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    // If not authenticated, we need an itemId to verify public access
+    if (!user) {
+      if (!itemId) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      }
 
-    const searchParams = request.nextUrl.searchParams;
+      // Verify the item is in a public room
+      const publicItem = await prisma.item.findFirst({
+        where: {
+          id: itemId,
+          roomItems: {
+            some: {
+              room: {
+                visibility: "public",
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!publicItem) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      }
+    }
     const lat = searchParams.get("lat");
     const lng = searchParams.get("lng");
     const zoom = searchParams.get("zoom") ?? "10";
