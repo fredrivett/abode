@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { useUserStore } from "@/stores/user-store";
 
 type ProfileSettingsProps = {
@@ -135,14 +134,7 @@ export function ProfileSettings({
               onClick={openFilePicker}
               disabled={isUploading}
             >
-              {isUploading ? (
-                <>
-                  Uploading
-                  <LoadingEllipsis />
-                </>
-              ) : (
-                "Change"
-              )}
+              {isUploading ? <IsLoading label="Uploading" /> : "Change"}
             </Button>
             {avatarUrl && (
               <Button
@@ -155,14 +147,7 @@ export function ProfileSettings({
               >
                 <Trash2 className="size-4" />
                 <span className="sr-only">
-                  {isDeleting ? (
-                    <>
-                      Removing
-                      <LoadingEllipsis />
-                    </>
-                  ) : (
-                    "Remove"
-                  )}
+                  {isDeleting ? "Removing" : "Remove"}
                 </span>
               </Button>
             )}

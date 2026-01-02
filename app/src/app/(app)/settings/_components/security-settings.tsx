@@ -17,7 +17,6 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { IsLoading } from "@/components/ui/is-loading";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import {
   enrollMFA,
   getMFAFactors,
@@ -258,11 +257,11 @@ function MFAEnrollDialog({
                 </Button>
               </>
             ) : step === "qr" && !qrCode ? (
-              <div className="py-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Waiting for QR code
-                  <LoadingEllipsis />
-                </p>
+              <div className="flex justify-center py-4">
+                <IsLoading
+                  label="Waiting for QR code"
+                  className="text-sm text-muted-foreground"
+                />
               </div>
             ) : null}
 
