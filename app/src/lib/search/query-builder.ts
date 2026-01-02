@@ -22,9 +22,9 @@ import { NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE } from "./types";
  * Check if a filter value is a special null filter ((none) or !(none)).
  * Returns whether we want "empty/null" values after considering negation.
  */
-function isNullFilter(
+function checkNullFilter(
   filter: FilterValue,
-): { isNullFilter: true; wantEmpty: boolean } | { isNullFilter: false } {
+): { isNull: true; wantEmpty: boolean } | { isNull: false } {
   if (
     filter.value === NONE_FILTER_VALUE ||
     filter.value === NOT_NONE_FILTER_VALUE
@@ -32,9 +32,9 @@ function isNullFilter(
     const isNone = filter.value === NONE_FILTER_VALUE;
     // XOR: (none) + negated = want non-empty, !(none) + negated = want empty
     const wantEmpty = isNone !== filter.negated;
-    return { isNullFilter: true, wantEmpty };
+    return { isNull: true, wantEmpty };
   }
-  return { isNullFilter: false };
+  return { isNull: false };
 }
 
 export type FilterValue = { value: string; negated: boolean; orGroup?: number };
@@ -312,8 +312,8 @@ export function buildTagCondition(
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
     // Handle (none)/!(none) special values
-    const nullCheck = isNullFilter(filter);
-    if (nullCheck.isNullFilter) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
       return nullCheck.wantEmpty
         ? `(tags IS NULL OR tags = '{}')`
         : `(tags IS NOT NULL AND tags != '{}')`;
@@ -339,8 +339,8 @@ export function buildObjectCondition(
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
     // Handle (none)/!(none) special values
-    const nullCheck = isNullFilter(filter);
-    if (nullCheck.isNullFilter) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
       return nullCheck.wantEmpty
         ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.objects IS NOT NULL AND array_length(iid.objects, 1) > 0)`
         : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.objects IS NOT NULL AND array_length(iid.objects, 1) > 0)`;
@@ -368,10 +368,8 @@ export function buildSourceCondition(
   const nullFilters: FilterValue[] = [];
   const regularFilters: FilterValue[] = [];
   for (const filter of filters) {
-    if (
-      filter.value === NONE_FILTER_VALUE ||
-      filter.value === NOT_NONE_FILTER_VALUE
-    ) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
       nullFilters.push(filter);
     } else {
       regularFilters.push(filter);
@@ -388,8 +386,8 @@ export function buildSourceCondition(
     startParamIndex,
     (filter, ctx) => {
       // Handle (none)/!(none) special values
-      const nullCheck = isNullFilter(filter);
-      if (nullCheck.isNullFilter) {
+      const nullCheck = checkNullFilter(filter);
+      if (nullCheck.isNull) {
         return nullCheck.wantEmpty
           ? `source_type IS NULL`
           : `source_type IS NOT NULL`;
@@ -418,8 +416,8 @@ export function buildLocationCondition(
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
     // Handle (none)/!(none) special values
-    const nullCheck = isNullFilter(filter);
-    if (nullCheck.isNullFilter) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
       return nullCheck.wantEmpty
         ? `NOT EXISTS (SELECT 1 FROM item_locations il WHERE il.item_id = items.id)`
         : `EXISTS (SELECT 1 FROM item_locations il WHERE il.item_id = items.id)`;
@@ -518,8 +516,8 @@ export function buildColorCondition(
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
     // Handle (none)/!(none) special values
-    const nullCheck = isNullFilter(filter);
-    if (nullCheck.isNullFilter) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
       return nullCheck.wantEmpty
         ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.colors IS NOT NULL AND jsonb_array_length(iid.colors) > 0)`
         : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.colors IS NOT NULL AND jsonb_array_length(iid.colors) > 0)`;

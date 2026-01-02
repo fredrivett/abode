@@ -259,10 +259,9 @@ export function FilterDropdown({
                     ) : (
                       <span
                         className={cn(
-                          value === NONE_FILTER_VALUE ||
-                            value === NOT_NONE_FILTER_VALUE
-                            ? "italic"
-                            : "",
+                          (value === NONE_FILTER_VALUE ||
+                            value === NOT_NONE_FILTER_VALUE) &&
+                            "italic",
                         )}
                       >
                         {value}
