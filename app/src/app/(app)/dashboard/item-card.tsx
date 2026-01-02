@@ -7,7 +7,6 @@ import {
   Copy,
   ExternalLink,
   FileText,
-  Loader2,
   Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -37,7 +36,6 @@ import {
 } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { api } from "@/lib/api-client";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { createLogger } from "@/lib/logger.client";
@@ -86,10 +84,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
         )}
       >
         {isProcessing ? (
-          <>
-            <Loader2 className="size-3 animate-spin" />
-            <span>Analyzing</span>
-          </>
+          <IsLoading label="Analyzing" iconClassName="size-3" />
         ) : isFailed ? (
           <>
             <AlertCircle className="size-3" />
@@ -296,10 +291,10 @@ export function ItemCard({
   if (!previewUrl) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Loading preview
-          <LoadingEllipsis />
-        </p>
+        <IsLoading
+          label="Loading preview"
+          className="text-sm text-gray-500 dark:text-gray-400"
+        />
       </div>
     );
   }
@@ -1017,10 +1012,7 @@ function ItemDetailDialog({
                     </>
                   ) : item.processingStatus === "processing" ? (
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
-                      <p>
-                        Analyzing image
-                        <LoadingEllipsis />
-                      </p>
+                      <IsLoading label="Analyzing image" />
                     </div>
                   ) : item.processingStatus === "failed" ? (
                     <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
@@ -1040,10 +1032,11 @@ function ItemDetailDialog({
                       Notes
                     </h3>
                     {isSavingNotes && (
-                      <span className="text-xs text-muted-foreground">
-                        Saving
-                        <LoadingEllipsis />
-                      </span>
+                      <IsLoading
+                        label="Saving"
+                        className="text-xs text-muted-foreground"
+                        iconClassName="size-3"
+                      />
                     )}
                   </div>
                   <textarea

@@ -1,5 +1,5 @@
 import { DoorOpen, Image, User } from "lucide-react";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { IsLoading } from "@/components/ui/is-loading";
 
 type UserDeletionStatsProps = {
   itemCount: number;
@@ -13,12 +13,7 @@ export function UserDeletionStats({
   isLoading = false,
 }: UserDeletionStatsProps) {
   if (isLoading) {
-    return (
-      <p className="text-muted-foreground">
-        Loading
-        <LoadingEllipsis />
-      </p>
-    );
+    return <IsLoading label="Loading" className="text-muted-foreground" />;
   }
 
   return (

@@ -6,7 +6,6 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import {
   Popover,
   PopoverContent,
@@ -240,10 +239,7 @@ export function LocationDropzone({
               <ImageIcon className="mx-auto mb-1 h-5 w-5 text-primary" />
               <p className="text-xs font-medium text-primary">
                 {isExtracting ? (
-                  <>
-                    Reading EXIF
-                    <LoadingEllipsis />
-                  </>
+                  <IsLoading label="Reading EXIF" iconClassName="size-3" />
                 ) : (
                   "Drop image to set location"
                 )}

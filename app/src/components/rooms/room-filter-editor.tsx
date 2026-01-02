@@ -1,7 +1,7 @@
 "use client";
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
-import { Loader2, Pencil, SearchX } from "lucide-react";
+import { Pencil, SearchX } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SearchInput } from "@/components/search/search-input";
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
-import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { useFilterPreview } from "@/lib/rooms/use-filter-preview";
 import type { Filter, SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
@@ -182,11 +181,7 @@ export function RoomFilterEditor({
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 {preview.isLoading ? (
-                  <span className="flex items-center gap-1.5">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Loading preview
-                    <LoadingEllipsis />
-                  </span>
+                  <IsLoading label="Loading preview" iconClassName="size-3.5" />
                 ) : preview.total > 0 ? (
                   `${preview.total} ${preview.total === 1 ? "item" : "items"} match${preview.total === 1 ? "es" : ""}`
                 ) : searchState.filters.length === 0 ? (
