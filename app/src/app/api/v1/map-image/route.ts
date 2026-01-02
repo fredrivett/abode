@@ -40,7 +40,32 @@ export async function GET(request: NextRequest) {
       if (!publicItem) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       }
+    } else if (itemId) {
+      // Authenticated user - verify they own the item or it's in a public room
+      const accessibleItem = await prisma.item.findFirst({
+        where: {
+          id: itemId,
+          OR: [
+            { userId: user.id },
+            {
+              roomItems: {
+                some: {
+                  room: {
+                    visibility: "public",
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!accessibleItem) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      }
     }
+
     const lat = searchParams.get("lat");
     const lng = searchParams.get("lng");
     const zoom = searchParams.get("zoom") ?? "10";
