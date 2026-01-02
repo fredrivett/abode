@@ -24,6 +24,11 @@ export type FilterType =
   | "date"
   | "location";
 
+/** Special filter value for items with no value set */
+export const NONE_FILTER_VALUE = "(none)";
+/** Special filter value for items with any value set */
+export const NOT_NONE_FILTER_VALUE = "!(none)";
+
 export type DateOperator = "is" | "before" | "after" | "between";
 
 export type Filter = {
@@ -56,6 +61,8 @@ export const FILTER_TYPES: Record<
     icon: string;
     /** Whether multiple filters of this type can be added (based on schema cardinality). */
     multiple: boolean;
+    /** Whether items can have no value for this filter type. */
+    nullable: boolean;
   }
 > = {
   type: {
@@ -63,42 +70,49 @@ export const FILTER_TYPES: Record<
     placeholder: "e.g. image",
     icon: "✳️",
     multiple: false, // ItemKind is a single enum value
+    nullable: false, // Items always have a kind
   },
   tag: {
     label: "Tag",
     placeholder: "e.g. landscape",
     icon: "🏷️",
     multiple: true, // tags is String[]
+    nullable: true, // tags can be empty array
   },
   object: {
     label: "Object",
     placeholder: "e.g. tree",
     icon: "📦",
     multiple: true, // objects is String[]
+    nullable: true, // May not have image details with objects
   },
   color: {
     label: "Color",
     placeholder: "e.g. #FF5733",
     icon: "🎨",
     multiple: true, // colors is Json (can have multiple)
+    nullable: true, // May not have color analysis
   },
   source: {
     label: "Source",
     placeholder: "e.g. instagram",
     icon: "🔗",
     multiple: false, // sourceType is a single String
+    nullable: true, // source_type can be NULL
   },
   date: {
     label: "Date",
     placeholder: "e.g. 2024-01-15",
     icon: "📅",
     multiple: false, // createdAt is a single DateTime
+    nullable: false, // Items always have created_at
   },
   location: {
     label: "Location",
     placeholder: "e.g. paris",
     icon: "📍",
     multiple: true, // ItemLocation is a separate table, items can have multiple
+    nullable: true, // May have no associated locations
   },
 };
 

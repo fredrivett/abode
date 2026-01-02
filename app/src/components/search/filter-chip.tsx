@@ -7,6 +7,8 @@ import {
   FILTER_TYPES,
   type Filter,
   getFilterColorClass,
+  NONE_FILTER_VALUE,
+  NOT_NONE_FILTER_VALUE,
 } from "@/lib/search/types";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +40,16 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
           style={{ backgroundColor: filter.value }}
         />
       )}
-      <span className="font-medium">{displayValue}</span>
+      <span
+        className={cn(
+          "font-medium",
+          (filter.value === NONE_FILTER_VALUE ||
+            filter.value === NOT_NONE_FILTER_VALUE) &&
+            "italic",
+        )}
+      >
+        {displayValue}
+      </span>
       {onRemove && (
         <Button
           variant="ghost"

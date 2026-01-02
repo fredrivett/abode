@@ -7,7 +7,12 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { FILTER_TYPES, type FilterType } from "@/lib/search/types";
+import {
+  FILTER_TYPES,
+  type FilterType,
+  NONE_FILTER_VALUE,
+  NOT_NONE_FILTER_VALUE,
+} from "@/lib/search/types";
 import { cn } from "@/lib/utils";
 
 type FilterDropdownProps = {
@@ -52,13 +57,19 @@ export function FilterDropdown({
     );
   }, [searchText]);
 
-  // Filter values based on search text
+  // Filter values based on search text, prepending (none)/!(none) for nullable types
   const filteredValues = useMemo(() => {
-    if (!searchText) return filterValues;
-    return filterValues.filter((v) =>
+    // Prepend null options for nullable filter types
+    let values = filterValues;
+    if (currentFilterType && FILTER_TYPES[currentFilterType].nullable) {
+      values = [NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE, ...filterValues];
+    }
+
+    if (!searchText) return values;
+    return values.filter((v) =>
       v.toLowerCase().includes(searchText.toLowerCase()),
     );
-  }, [filterValues, searchText]);
+  }, [filterValues, searchText, currentFilterType]);
 
   const itemCount =
     mode === "types" ? filteredTypes.length : filteredValues.length;
@@ -246,7 +257,15 @@ export function FilterDropdown({
                         <span>{value}</span>
                       </>
                     ) : (
-                      <span>{value}</span>
+                      <span
+                        className={cn(
+                          (value === NONE_FILTER_VALUE ||
+                            value === NOT_NONE_FILTER_VALUE) &&
+                            "italic",
+                        )}
+                      >
+                        {value}
+                      </span>
                     )}
                   </button>
                 ))}

@@ -16,6 +16,26 @@ import {
   getNearestColorName,
   normalizeColor,
 } from "./color-utils";
+import { NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE } from "./types";
+
+/**
+ * Check if a filter value is a special null filter ((none) or !(none)).
+ * Returns whether we want "empty/null" values after considering negation.
+ */
+function checkNullFilter(
+  filter: FilterValue,
+): { isNull: true; wantEmpty: boolean } | { isNull: false } {
+  if (
+    filter.value === NONE_FILTER_VALUE ||
+    filter.value === NOT_NONE_FILTER_VALUE
+  ) {
+    const isNone = filter.value === NONE_FILTER_VALUE;
+    // XOR: (none) + negated = want non-empty, !(none) + negated = want empty
+    const wantEmpty = isNone !== filter.negated;
+    return { isNull: true, wantEmpty };
+  }
+  return { isNull: false };
+}
 
 export type FilterValue = { value: string; negated: boolean; orGroup?: number };
 
@@ -291,6 +311,14 @@ export function buildTagCondition(
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    // Handle (none)/!(none) special values
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
+      return nullCheck.wantEmpty
+        ? `(tags IS NULL OR tags = '{}')`
+        : `(tags IS NOT NULL AND tags != '{}')`;
+    }
+
     const condition = filter.negated
       ? `NOT EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`
       : `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`;
@@ -310,6 +338,14 @@ export function buildObjectCondition(
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    // Handle (none)/!(none) special values
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
+      return nullCheck.wantEmpty
+        ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.objects IS NOT NULL AND array_length(iid.objects, 1) > 0)`
+        : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.objects IS NOT NULL AND array_length(iid.objects, 1) > 0)`;
+    }
+
     const condition = filter.negated
       ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${ctx.paramIndex})))`
       : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND EXISTS (SELECT 1 FROM unnest(iid.objects) o WHERE lower(o) = lower($${ctx.paramIndex})))`;
@@ -328,12 +364,35 @@ export function buildSourceCondition(
   filters: FilterValue[],
   startParamIndex: number,
 ): { sql: string; params: unknown[]; invalid: InvalidFilterValue[] } {
-  const { valid: validFilters, invalid } = validateSourceFilters(filters);
+  // Separate null filters from regular filters (null filters don't need validation)
+  const nullFilters: FilterValue[] = [];
+  const regularFilters: FilterValue[] = [];
+  for (const filter of filters) {
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
+      nullFilters.push(filter);
+    } else {
+      regularFilters.push(filter);
+    }
+  }
+
+  const { valid: validFilters, invalid } = validateSourceFilters(regularFilters);
+
+  // Combine null filters with validated regular filters
+  const allFilters = [...nullFilters, ...validFilters];
 
   const { sql, params } = buildGroupedConditions(
-    validFilters,
+    allFilters,
     startParamIndex,
     (filter, ctx) => {
+      // Handle (none)/!(none) special values
+      const nullCheck = checkNullFilter(filter);
+      if (nullCheck.isNull) {
+        return nullCheck.wantEmpty
+          ? `source_type IS NULL`
+          : `source_type IS NOT NULL`;
+      }
+
       const condition = filter.negated
         ? `(source_type IS NULL OR source_type != $${ctx.paramIndex}::"SourceType")`
         : `source_type = $${ctx.paramIndex}::"SourceType"`;
@@ -356,6 +415,14 @@ export function buildLocationCondition(
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    // Handle (none)/!(none) special values
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
+      return nullCheck.wantEmpty
+        ? `NOT EXISTS (SELECT 1 FROM item_locations il WHERE il.item_id = items.id)`
+        : `EXISTS (SELECT 1 FROM item_locations il WHERE il.item_id = items.id)`;
+    }
+
     const locationMatch = `EXISTS (
       SELECT 1 FROM item_locations il
       WHERE il.item_id = items.id
@@ -448,6 +515,14 @@ export function buildColorCondition(
   startParamIndex: number,
 ): { sql: string; params: unknown[] } {
   return buildGroupedConditions(filters, startParamIndex, (filter, ctx) => {
+    // Handle (none)/!(none) special values
+    const nullCheck = checkNullFilter(filter);
+    if (nullCheck.isNull) {
+      return nullCheck.wantEmpty
+        ? `NOT EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.colors IS NOT NULL AND jsonb_array_length(iid.colors) > 0)`
+        : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.colors IS NOT NULL AND jsonb_array_length(iid.colors) > 0)`;
+    }
+
     const colorName = normalizeColorFilterValue(filter.value);
     if (!colorName) return null; // Skip invalid color values
 
