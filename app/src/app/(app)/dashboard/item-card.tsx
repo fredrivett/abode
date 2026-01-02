@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Check,
   Copy,
+  Download,
   ExternalLink,
   FileText,
   Trash2,
@@ -466,7 +467,9 @@ function ItemDetailDialog({
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const supabase = createClient();
 
   // Sync notes state when item.notes changes (e.g., from server refresh)
   useEffect(() => {
@@ -545,6 +548,42 @@ function ItemDetailDialog({
   const handleNotesChange = (value: string) => {
     setNotes(value);
     saveNotes(value);
+  };
+
+  const handleDownload = async () => {
+    if (!item.fileKey) {
+      toast.error("No file available to download");
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const { data, error: downloadError } = await supabase.storage
+        .from("items")
+        .download(item.fileKey);
+
+      if (downloadError || !data) {
+        toast.error(downloadError?.message || "Failed to download file");
+        return;
+      }
+
+      // Create a download link and trigger it
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Download started");
+    } catch (error) {
+      log.error({ error }, "Download error");
+      toast.error("Failed to download file");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -1098,7 +1137,23 @@ function ItemDetailDialog({
                   </p>
                 </div>
 
-                <div className="mt-auto flex justify-end">
+                <div className="mt-auto flex justify-end gap-2">
+                  {item.fileKey && (
+                    <Button
+                      variant="outline"
+                      onClick={handleDownload}
+                      disabled={isDownloading}
+                    >
+                      {isDownloading ? (
+                        <IsLoading label="Downloading" />
+                      ) : (
+                        <>
+                          <Download className="size-4" />
+                          Download
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button
                     variant="destructive-outline"
                     onClick={() => onDeleteOpenChange(true)}
