@@ -9,6 +9,7 @@ import type {
   ItemKind,
   ItemLocation as PrismaItemLocation,
   ProcessingStatus,
+  RoomType,
   SourceType,
 } from "@prisma/client";
 
@@ -66,6 +67,18 @@ export type MatchReason = {
 };
 
 /**
+ * Room information for an item.
+ * Used to display which rooms an item belongs to.
+ */
+export type ItemRoom = {
+  id: string;
+  name: string;
+  emoji: string | null;
+  slug: string;
+  type: RoomType;
+};
+
+/**
  * Core item type with all UI-needed fields.
  *
  * This is the canonical type for items throughout the application.
@@ -99,6 +112,7 @@ export type Item = {
   articleDetails: ArticleDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
+  rooms?: ItemRoom[];
 };
 
 /**

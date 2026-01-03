@@ -76,6 +76,19 @@ export async function GET(
             content: true,
           },
         },
+        roomItems: {
+          select: {
+            room: {
+              select: {
+                id: true,
+                name: true,
+                emoji: true,
+                slug: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -86,13 +99,15 @@ export async function GET(
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_view", { itemId: id });
 
-    // Flatten imageDetails for backward compatibility with frontend
+    // Flatten imageDetails and roomItems for backward compatibility with frontend
     const flattenedItem = {
       ...item,
       objects: item.imageDetails?.objects ?? [],
       colors: item.imageDetails?.colors ?? [],
       ocrText: item.imageDetails?.ocrText ?? null,
+      rooms: item.roomItems.map((ri) => ri.room),
       imageDetails: undefined,
+      roomItems: undefined,
     };
 
     return NextResponse.json(flattenedItem);

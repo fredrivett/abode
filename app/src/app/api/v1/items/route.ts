@@ -70,17 +70,32 @@ export async function GET(_request: NextRequest) {
             content: true,
           },
         },
+        roomItems: {
+          select: {
+            room: {
+              select: {
+                id: true,
+                name: true,
+                emoji: true,
+                slug: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Flatten imageDetails for backward compatibility with frontend
+    // Flatten imageDetails and roomItems for backward compatibility with frontend
     const flattenedItems = items.map((item) => ({
       ...item,
       objects: item.imageDetails?.objects ?? [],
       colors: item.imageDetails?.colors ?? [],
       ocrText: item.imageDetails?.ocrText ?? null,
+      rooms: item.roomItems.map((ri) => ri.room),
       imageDetails: undefined,
+      roomItems: undefined,
     }));
 
     return NextResponse.json(flattenedItems);
