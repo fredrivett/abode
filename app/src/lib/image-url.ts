@@ -7,8 +7,8 @@
 export type ImageSize = "grid" | "embed" | "detail" | "full";
 
 const SIZE_PRESETS = {
-  grid: { w: 300, q: 80 }, // Dashboard masonry grid (300px for retina support)
-  embed: { w: 200, q: 75 }, // Embed widget thumbnails
+  grid: { w: 500, q: 90 }, // Dashboard masonry grid
+  embed: { w: 500, q: 90 }, // Embed widget thumbnails
   detail: { w: 1800, q: 85 }, // Detail dialog full view
   full: { q: 90 }, // Original quality (no resize)
 } as const;
