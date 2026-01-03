@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -116,6 +117,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         },
       );
     }
+
+    // Track referrer (fire-and-forget, don't block response)
+    const referrer = request.nextUrl.searchParams.get("ref");
+    void trackEmbedReferrer(roomId, referrer);
 
     // Fetch room items for preview
     const roomItems = await db.roomItem.findMany({
