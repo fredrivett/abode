@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { detectPlatform } from "@/lib/platforms";
+import { detectPlatform, normalizeUrl } from "@/lib/platforms";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import type { ExternalLink } from "@/lib/types/item";
 
@@ -25,6 +26,18 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(user.id, "itemLinks");
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: "Too many requests" },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimitResult, "itemLinks"),
+        },
+      );
     }
 
     const body = await request.json();
@@ -66,17 +79,20 @@ export async function POST(
     // Parse existing links
     const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
 
-    // Check for duplicate URL
-    if (existingLinks.some((link) => link.url === url)) {
+    // Normalize URL for storage and comparison
+    const normalizedUrl = normalizeUrl(url);
+
+    // Check for duplicate URL (using normalized comparison)
+    if (existingLinks.some((link) => normalizeUrl(link.url) === normalizedUrl)) {
       return NextResponse.json(
         { message: "Link already exists" },
         { status: 409 },
       );
     }
 
-    // Detect platform and create new link
-    const platform = detectPlatform(url);
-    const newLink: ExternalLink = { url, platform };
+    // Detect platform and create new link (store normalized URL)
+    const platform = detectPlatform(normalizedUrl);
+    const newLink: ExternalLink = { url: normalizedUrl, platform };
 
     // Update item with new link
     const updatedItem = await db.item.update({
@@ -120,6 +136,18 @@ export async function DELETE(
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(user.id, "itemLinks");
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: "Too many requests" },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimitResult, "itemLinks"),
+        },
+      );
     }
 
     const body = await request.json();

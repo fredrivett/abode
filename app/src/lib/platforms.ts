@@ -67,6 +67,28 @@ export const PLATFORMS: PlatformInfo[] = [
 ];
 
 /**
+ * Normalize a URL for comparison purposes.
+ * Removes www prefix, trailing slashes, and lowercases the hostname.
+ */
+export function normalizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Lowercase hostname and remove www prefix
+    parsed.hostname = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    // Remove trailing slash from pathname (but keep "/" for root)
+    if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    // Return normalized URL without hash
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    // If URL is invalid, return as-is for comparison
+    return url;
+  }
+}
+
+/**
  * Detect platform from URL.
  * Returns the platform ID or "other" if not recognized.
  */
