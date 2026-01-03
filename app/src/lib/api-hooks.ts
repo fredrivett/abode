@@ -10,6 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api } from "./api-client";
 import { DEFAULT_PAGE_SIZE } from "./pagination";
 import type { Item } from "./types/item";
@@ -22,7 +23,10 @@ export const ITEMS_QUERY_KEY = ["items"] as const;
 // Helper to invalidate items query from anywhere
 export function useInvalidateItems() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY }),
+    [queryClient],
+  );
 }
 
 // Response type for paginated items

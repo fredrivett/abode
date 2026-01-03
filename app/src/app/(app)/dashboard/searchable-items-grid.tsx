@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useItemsInfinite } from "@/lib/api-hooks";
 import { useSearch, useSearchResults } from "@/lib/search";
@@ -39,9 +39,11 @@ export function SearchableItemsGrid({
   });
 
   // Show error toast if fetch fails
-  if (error) {
-    toast.error("Failed to load more items. Please try again.");
-  }
+  useEffect(() => {
+    if (error) {
+      toast.error("Failed to load more items. Please try again.");
+    }
+  }, [error]);
 
   // Flatten all pages into a single items array
   const items = useMemo(
@@ -65,11 +67,11 @@ export function SearchableItemsGrid({
   useProcessingPoll(processingItemIds);
 
   // Load more handler
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const searchItems = useMemo((): Item[] | null => {
     // No active search - use initial items
