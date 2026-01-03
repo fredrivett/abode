@@ -4,6 +4,7 @@ import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { acceptInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import type { adminNotificationTask } from "../../../trigger/admin-notification";
 import type { checkGravatarTask } from "../../../trigger/check-gravatar";
 
 const log = createLogger("auth/complete-signup");
@@ -33,6 +34,10 @@ export async function completeSignup(
 ): Promise<CompleteSignupResult> {
   const { userId, email, username, inviteToken, oauthPicture } = params;
 
+  // Track invite info for admin notification
+  let signupOrigin: "user" | "waitlist" | "admin" | "direct" = "direct";
+  let inviterInfo: { username: string; email: string } | undefined;
+
   // If we have an invite token, handle invite-based signup
   if (inviteToken) {
     const invite = await db.invite.findUnique({
@@ -44,6 +49,12 @@ export async function completeSignup(
         status: true,
         inviterId: true,
         expiresAt: true,
+        inviter: {
+          select: {
+            username: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -71,6 +82,15 @@ export async function completeSignup(
         success: false,
         error: "This invite has expired",
         code: "INVITE_EXPIRED",
+      };
+    }
+
+    // Track origin for notification
+    signupOrigin = invite.origin as "user" | "waitlist" | "admin";
+    if (invite.origin === "user" && invite.inviter) {
+      inviterInfo = {
+        username: invite.inviter.username ?? "unknown",
+        email: invite.inviter.email ?? "unknown",
       };
     }
 
@@ -126,6 +146,20 @@ export async function completeSignup(
   }
 
   log.info({ userId, username, hasInvite: !!inviteToken }, "Signup completed");
+
+  // Trigger admin notification for account creation
+  try {
+    await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+      type: "account_created",
+      email,
+      username,
+      origin: signupOrigin,
+      inviterUsername: inviterInfo?.username,
+      inviterEmail: inviterInfo?.email,
+    });
+  } catch (error) {
+    log.warn({ error }, "Failed to trigger admin notification for account creation");
+  }
 
   return { success: true };
 }

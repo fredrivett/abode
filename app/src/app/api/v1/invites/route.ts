@@ -1,3 +1,4 @@
+import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
@@ -10,6 +11,7 @@ import {
 } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
 const log = createLogger("api/v1/invites");
 
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
       db.user.findUnique({
         where: { id: user.id },
         select: {
+          email: true,
           username: true,
           firstName: true,
           lastName: true,
@@ -151,6 +154,18 @@ export async function POST(request: NextRequest) {
       }
     } else {
       log.info({ email }, "Email not configured, skipping invite email");
+    }
+
+    // Trigger admin notification
+    try {
+      await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+        type: "user_invited",
+        inviterEmail: dbUser?.email ?? user.email ?? "unknown",
+        inviterUsername: dbUser?.username ?? "unknown",
+        inviteeEmail: email,
+      });
+    } catch (error) {
+      log.warn({ error }, "Failed to trigger admin notification for user invite");
     }
 
     return NextResponse.json({

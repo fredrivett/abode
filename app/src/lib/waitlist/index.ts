@@ -1,3 +1,4 @@
+import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistConfirmationEmail } from "@/lib/email/templates";
@@ -6,6 +7,7 @@ import {
   isValidEmail,
 } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
+import type { adminNotificationTask } from "../../../trigger/admin-notification";
 
 const log = createLogger("lib/waitlist");
 
@@ -118,6 +120,18 @@ export async function joinWaitlist(
       { email: normalizedEmail, error: emailResult.error },
       "Failed to send waitlist confirmation email",
     );
+  }
+
+  // Trigger admin notification
+  try {
+    await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+      type: "waitlist_signup",
+      email: normalizedEmail,
+      position: entry.position ?? 0,
+      referralSource,
+    });
+  } catch (error) {
+    log.warn({ error }, "Failed to trigger admin notification for waitlist signup");
   }
 
   return { success: true, position: entry.position ?? 0 };

@@ -152,3 +152,181 @@ ${htmlFooter()}`;
 
   return { subject, text, html };
 }
+
+/**
+ * Admin notification types
+ */
+export type AdminNotificationType =
+  | "waitlist_signup"
+  | "user_invited"
+  | "account_created"
+  | "account_deleted";
+
+export type AdminNotificationData =
+  | {
+      type: "waitlist_signup";
+      email: string;
+      position: number;
+      referralSource?: string;
+    }
+  | {
+      type: "user_invited";
+      inviterEmail: string;
+      inviterUsername: string;
+      inviteeEmail: string;
+    }
+  | {
+      type: "account_created";
+      email: string;
+      username: string;
+      origin: "user" | "waitlist" | "admin" | "direct";
+      inviterUsername?: string;
+      inviterEmail?: string;
+    }
+  | {
+      type: "account_deleted";
+      email: string;
+      username: string;
+      deletedBy: "self" | "admin";
+      adminEmail?: string;
+    };
+
+/**
+ * Email template for admin notifications
+ */
+export function getAdminNotificationEmail(data: AdminNotificationData): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  switch (data.type) {
+    case "waitlist_signup": {
+      const subject = `[abode] waitlist signup: ${data.email}`;
+      const refInfo = data.referralSource
+        ? `\nreferral source: ${data.referralSource}`
+        : "";
+
+      const text = `new waitlist signup
+
+email: ${data.email}
+position: #${data.position}${refInfo}
+
+${EMAIL_FOOTER}
+`;
+
+      const html = `<p><strong>new waitlist signup</strong></p>
+
+<p>
+<strong>email:</strong> ${data.email}<br>
+<strong>position:</strong> #${data.position}${data.referralSource ? `<br><strong>referral source:</strong> ${data.referralSource}` : ""}
+</p>
+
+${htmlFooter()}`;
+
+      return { subject, text, html };
+    }
+
+    case "user_invited": {
+      const subject = `[abode] invite sent: ${data.inviterUsername} → ${data.inviteeEmail}`;
+
+      const text = `user invite sent
+
+${data.inviterUsername} (${data.inviterEmail}) invited:
+${data.inviteeEmail}
+
+${EMAIL_FOOTER}
+`;
+
+      const html = `<p><strong>user invite sent</strong></p>
+
+<p>
+<strong>${data.inviterUsername}</strong> (${data.inviterEmail}) invited:<br>
+${data.inviteeEmail}
+</p>
+
+${htmlFooter()}`;
+
+      return { subject, text, html };
+    }
+
+    case "account_created": {
+      const inviteInfo =
+        data.origin === "user" && data.inviterUsername
+          ? ` (invited by ${data.inviterUsername})`
+          : data.origin === "waitlist"
+            ? " (from waitlist)"
+            : data.origin === "admin"
+              ? " (admin invite)"
+              : "";
+
+      const subject = `[abode] new account: ${data.username}${inviteInfo}`;
+
+      let text = `new account created
+
+email: ${data.email}
+username: ${data.username}
+origin: ${data.origin}`;
+
+      if (data.origin === "user" && data.inviterUsername) {
+        text += `\ninvited by: ${data.inviterUsername} (${data.inviterEmail})`;
+      }
+
+      text += `\n\n${EMAIL_FOOTER}\n`;
+
+      let html = `<p><strong>new account created</strong></p>
+
+<p>
+<strong>email:</strong> ${data.email}<br>
+<strong>username:</strong> ${data.username}<br>
+<strong>origin:</strong> ${data.origin}`;
+
+      if (data.origin === "user" && data.inviterUsername) {
+        html += `<br><strong>invited by:</strong> ${data.inviterUsername} (${data.inviterEmail})`;
+      }
+
+      html += `</p>
+
+${htmlFooter()}`;
+
+      return { subject, text, html };
+    }
+
+    case "account_deleted": {
+      const deletedByInfo =
+        data.deletedBy === "admin" && data.adminEmail
+          ? ` by admin (${data.adminEmail})`
+          : " (self-deleted)";
+
+      const subject = `[abode] account deleted: ${data.username}${deletedByInfo}`;
+
+      let text = `account deleted
+
+email: ${data.email}
+username: ${data.username}
+deleted by: ${data.deletedBy}`;
+
+      if (data.deletedBy === "admin" && data.adminEmail) {
+        text += `\nadmin: ${data.adminEmail}`;
+      }
+
+      text += `\n\n${EMAIL_FOOTER}\n`;
+
+      let html = `<p><strong>account deleted</strong></p>
+
+<p>
+<strong>email:</strong> ${data.email}<br>
+<strong>username:</strong> ${data.username}<br>
+<strong>deleted by:</strong> ${data.deletedBy}`;
+
+      if (data.deletedBy === "admin" && data.adminEmail) {
+        html += `<br><strong>admin:</strong> ${data.adminEmail}`;
+      }
+
+      html += `</p>
+
+${htmlFooter()}`;
+
+      return { subject, text, html };
+    }
+  }
+}

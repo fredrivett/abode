@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { tasks } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
@@ -8,6 +9,7 @@ import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
 const log = createLogger("admin/actions");
 
@@ -127,6 +129,19 @@ export async function deleteUserAsAdmin(
       },
       "Admin deleted user",
     );
+
+    // Trigger admin notification for account deletion
+    try {
+      await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+        type: "account_deleted",
+        email: userToDelete.email ?? "unknown",
+        username: userToDelete.username ?? "unknown",
+        deletedBy: "admin",
+        adminEmail: adminUser.email,
+      });
+    } catch (notifyError) {
+      log.warn({ error: notifyError }, "Failed to trigger admin notification for account deletion");
+    }
 
     revalidatePath("/admin/users");
   } catch (error) {
