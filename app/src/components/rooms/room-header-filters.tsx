@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Loader2, Pencil, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { SearchInput } from "@/components/search/search-input";
@@ -154,7 +154,7 @@ export function RoomHeaderFilters({
               aria-label="Save filters"
             >
               {isSaving ? (
-                <IsLoading label="Saving" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Check className="size-4" />
               )}
