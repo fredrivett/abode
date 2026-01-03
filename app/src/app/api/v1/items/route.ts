@@ -1,8 +1,16 @@
+import type { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
+import {
+  DEFAULT_PAGE_SIZE,
+  decodeCursor,
+  encodeCursor,
+  MAX_PAGE_SIZE,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { getFileSizeFromMeta } from "@/lib/utils";
 import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
@@ -11,7 +19,13 @@ const log = createLogger("api/v1/items");
 
 const allowedKinds = new Set(["image", "article"]);
 
-export async function GET(_request: NextRequest) {
+/**
+ * GET /api/v1/items
+ *
+ * Supports cursor-based pagination with optional `cursor` and `limit` query params.
+ * Returns { items, cursor, hasMore, total } for paginated requests.
+ */
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -23,82 +37,74 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const items = await db.item.findMany({
-      where: { userId: user.id },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        fileKey: true,
-        meta: true,
-        sourceType: true,
-        sourceUrl: true,
-        coverFileKey: true,
-        createdAt: true,
-        updatedAt: true,
-        title: true,
-        description: true,
-        tags: true,
-        locations: {
-          select: {
-            id: true,
-            source: true,
-            latitude: true,
-            longitude: true,
-            neighborhood: true,
-            city: true,
-            region: true,
-            country: true,
-            countryCode: true,
-            formatted: true,
+    const { searchParams } = new URL(request.url);
+    const cursor = searchParams.get("cursor");
+    const limitParam = searchParams.get("limit");
+    const limit = Math.min(
+      Math.max(1, Number.parseInt(limitParam || String(DEFAULT_PAGE_SIZE), 10)),
+      MAX_PAGE_SIZE,
+    );
+
+    // Decode cursor if provided
+    const cursorData = cursor ? decodeCursor(cursor) : null;
+
+    // Build where clause - add cursor conditions if present
+    const baseWhere = { userId: user.id };
+    let whereClause: Prisma.ItemWhereInput;
+
+    if (cursorData) {
+      const cursorDate = new Date(cursorData.createdAt);
+      whereClause = {
+        ...baseWhere,
+        OR: [
+          { createdAt: { lt: cursorDate } },
+          {
+            createdAt: { equals: cursorDate },
+            id: { lt: cursorData.id },
           },
-        },
-        imageDetails: {
-          select: {
-            objects: true,
-            colors: true,
-            ocrText: true,
-          },
-        },
-        articleDetails: {
-          select: {
-            author: true,
-            domain: true,
-            publishedAt: true,
-            readingTime: true,
-            content: true,
-          },
-        },
-        roomItems: {
-          select: {
-            room: {
-              select: {
-                id: true,
-                name: true,
-                emoji: true,
-                slug: true,
-                type: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
+        ],
+      };
+    } else {
+      whereClause = baseWhere;
+    }
+
+    // Fetch one extra to check if there are more results
+    const fetchLimit = limit + 1;
+
+    // Only fetch total count on first page (no cursor)
+    const [items, total] = await Promise.all([
+      db.item.findMany({
+        where: whereClause,
+        select: itemSelect,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: fetchLimit,
+      }),
+      cursorData ? Promise.resolve(undefined) : db.item.count({ where: baseWhere }),
+    ]);
+
+    // Check if there are more results
+    const hasMore = items.length > limit;
+    const pageItems = items.slice(0, limit);
+
+    // Generate cursor for next page
+    let nextCursor: string | undefined;
+    if (hasMore && pageItems.length > 0) {
+      const lastItem = pageItems[pageItems.length - 1];
+      nextCursor = encodeCursor({
+        createdAt: lastItem.createdAt.toISOString(),
+        id: lastItem.id,
+      });
+    }
+
+    // Transform items for client
+    const transformedItems = pageItems.map(transformItem);
+
+    return NextResponse.json({
+      items: transformedItems,
+      cursor: nextCursor ?? null,
+      hasMore,
+      ...(total !== undefined && { total }),
     });
-
-    // Flatten imageDetails and roomItems for backward compatibility with frontend
-    const flattenedItems = items.map((item) => ({
-      ...item,
-      objects: item.imageDetails?.objects ?? [],
-      colors: item.imageDetails?.colors ?? [],
-      ocrText: item.imageDetails?.ocrText ?? null,
-      rooms: item.roomItems.map((ri) => ri.room),
-      imageDetails: undefined,
-      roomItems: undefined,
-    }));
-
-    return NextResponse.json(flattenedItems);
   } catch (error) {
     log.error({ error }, "Items fetch error");
     return NextResponse.json(

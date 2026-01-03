@@ -2,8 +2,11 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { ItemCard } from "./item-card";
@@ -25,13 +28,51 @@ type ItemsGridProps = {
   items: Item[];
   hasActiveSearch?: boolean;
   onClearSearch?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+  total?: number;
 };
 
 export function ItemsGrid({
   items,
   hasActiveSearch,
   onClearSearch,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+  total,
 }: ItemsGridProps) {
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer for infinite scroll
+  const handleIntersection = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasMore && !isLoadingMore && onLoadMore) {
+        onLoadMore();
+      }
+    },
+    [hasMore, isLoadingMore, onLoadMore],
+  );
+
+  useEffect(() => {
+    const element = loadMoreRef.current;
+    if (!element || !hasMore) return;
+
+    const observer = new IntersectionObserver(handleIntersection, {
+      root: null,
+      rootMargin: "200px", // Start loading 200px before reaching the bottom
+      threshold: 0,
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [handleIntersection, hasMore]);
+
   return (
     <div className="w-full space-y-3">
       {items.length === 0 ? (
@@ -144,6 +185,24 @@ export function ItemsGrid({
             );
           })}
           </BalancedMasonryGrid>
+        </div>
+      )}
+
+      {/* Infinite scroll trigger and loading indicator */}
+      {items.length > 0 && (
+        <div ref={loadMoreRef} className="flex justify-center py-8">
+          {isLoadingMore && (
+            <IsLoading
+              label="Loading more"
+              iconClassName="size-5"
+              className="text-muted-foreground"
+            />
+          )}
+          {!hasMore && items.length > 0 && total !== undefined && total > DEFAULT_PAGE_SIZE && (
+            <span className="text-sm italic text-muted-foreground/50">
+              Showing all {total} items
+            </span>
+          )}
         </div>
       )}
     </div>

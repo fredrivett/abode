@@ -15,9 +15,31 @@ const shouldLogQueries =
   process.env.NODE_ENV === "development" &&
   process.env.PRISMA_LOG_QUERIES === "true";
 
+/**
+ * Connection pool size per Prisma client.
+ * Keeps individual clients from consuming too many connections,
+ * leaving room for other serverless function instances.
+ * Configurable via DATABASE_CONNECTION_LIMIT env var.
+ */
+const CONNECTION_LIMIT = Number.parseInt(
+  process.env.DATABASE_CONNECTION_LIMIT || "5",
+  10,
+);
+
 function createWriteClient(): PrismaClient {
+  const baseUrl = process.env.DATABASE_URL || "";
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  const urlWithLimit = baseUrl.includes("connection_limit")
+    ? baseUrl
+    : `${baseUrl}${separator}connection_limit=${CONNECTION_LIMIT}`;
+
   return new PrismaClient({
     log: shouldLogQueries ? ["query"] : [],
+    datasources: {
+      db: {
+        url: urlWithLimit,
+      },
+    },
     transactionOptions: {
       timeout: 30_000,
       maxWait: 10_000,
@@ -28,12 +50,17 @@ function createWriteClient(): PrismaClient {
 function createReadClient(): PrismaClient {
   const readReplicaUrl = process.env.READ_REPLICA_DATABASE_URL?.trim();
   const primaryUrl = process.env.DATABASE_URL;
+  const baseUrl = readReplicaUrl || primaryUrl || "";
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  const urlWithLimit = baseUrl.includes("connection_limit")
+    ? baseUrl
+    : `${baseUrl}${separator}connection_limit=${CONNECTION_LIMIT}`;
 
   return new PrismaClient({
     log: shouldLogQueries ? ["query"] : [],
     datasources: {
       db: {
-        url: readReplicaUrl || primaryUrl,
+        url: urlWithLimit,
       },
     },
   });
