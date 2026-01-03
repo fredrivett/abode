@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { tasks } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
@@ -11,6 +12,7 @@ import {
   type PreviousUsername,
   validateUsername,
 } from "@/lib/username";
+import type { adminNotificationTask } from "../../../../trigger/admin-notification";
 
 const log = createLogger("settings/actions");
 
@@ -155,6 +157,12 @@ export async function deleteAccount(
     return { error: "Incorrect password" };
   }
 
+  // Get user info for notification before deletion
+  const userToDelete = await db.user.findUnique({
+    where: { id: user.id },
+    select: { email: true, username: true },
+  });
+
   const supabaseAdmin = getSupabaseAdminClient();
 
   try {
@@ -202,6 +210,18 @@ export async function deleteAccount(
         { error: deleteAuthError, userId: user.id },
         "Failed to delete auth user",
       );
+    }
+
+    // Trigger admin notification for account deletion
+    try {
+      await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+        type: "account_deleted",
+        email: userToDelete?.email ?? user.email ?? "unknown",
+        username: userToDelete?.username ?? "unknown",
+        deletedBy: "self",
+      });
+    } catch (notifyError) {
+      log.warn({ error: notifyError }, "Failed to trigger admin notification for account deletion");
     }
 
     // Sign out the user
