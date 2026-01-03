@@ -1,9 +1,9 @@
 "use client";
 
 import type { ProcessingStatus } from "@prisma/client";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { api } from "./api-client";
+import { useInvalidateItems } from "./api-hooks";
 import { createLogger } from "./logger.client";
 
 const log = createLogger("use-processing-poll");
@@ -19,12 +19,12 @@ const POLL_INTERVAL_MS = 1500; // Poll every 1.5 seconds
 
 /**
  * Hook that polls the server to check if processing items have completed.
- * When any item transitions from "processing" to another status, triggers a page refresh.
+ * When any item transitions from "processing" to another status, invalidates the items query.
  *
  * @param processingItemIds - Array of item IDs that are currently in "processing" status
  */
 export function useProcessingPoll(processingItemIds: string[]) {
-  const router = useRouter();
+  const invalidateItems = useInvalidateItems();
   const previousIdsRef = useRef<Set<string>>(new Set());
 
   const checkStatus = useCallback(async () => {
@@ -46,14 +46,14 @@ export function useProcessingPoll(processingItemIds: string[]) {
       if (completedOrFailed.length > 0) {
         log.info(
           { completedIds: completedOrFailed.map((i) => i.id) },
-          "Items finished processing, refreshing",
+          "Items finished processing, invalidating query",
         );
-        router.refresh();
+        invalidateItems();
       }
     } catch (error) {
       log.error({ error }, "Failed to check processing status");
     }
-  }, [processingItemIds, router]);
+  }, [processingItemIds, invalidateItems]);
 
   useEffect(() => {
     // Don't poll if no processing items

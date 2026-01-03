@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
+import { useInvalidateItems } from "@/lib/api-hooks";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
 import type { ItemLocation } from "@/lib/types/item";
@@ -39,7 +39,7 @@ export function LocationOverrideDialog({
   newGpsLocation,
   sourceFileName,
 }: LocationOverrideDialogProps) {
-  const router = useRouter();
+  const invalidateItems = useInvalidateItems();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -50,7 +50,7 @@ export function LocationOverrideDialog({
         longitude: newGpsLocation.longitude,
       });
       toast.success("Location updated");
-      router.refresh();
+      invalidateItems();
       onOpenChange(false);
     } catch (error) {
       log.error({ error }, "Failed to update location");

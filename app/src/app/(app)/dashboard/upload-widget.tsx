@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
+import { useInvalidateItems } from "@/lib/api-hooks";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -40,7 +40,7 @@ async function getImageDimensions(
 export function UploadWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
+  const invalidateItems = useInvalidateItems();
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -131,7 +131,7 @@ export function UploadWidget() {
 
       toast.success("Upload complete");
       resetFile();
-      router.refresh();
+      invalidateItems();
     } catch (error) {
       log.error({ error }, "Upload error");
       toast.error("Upload failed. Please try again.");

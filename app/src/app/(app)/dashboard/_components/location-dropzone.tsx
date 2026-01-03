@@ -1,7 +1,6 @@
 "use client";
 
 import { ImageIcon, Info, RotateCcw, Upload } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
+import { useInvalidateItems } from "@/lib/api-hooks";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { extractGpsFromFile } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
@@ -53,7 +53,7 @@ export function LocationDropzone({
   isManualOverride,
   children,
 }: LocationDropzoneProps) {
-  const router = useRouter();
+  const invalidateItems = useInvalidateItems();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -113,14 +113,14 @@ export function LocationDropzone({
       await api.delete(`/api/v1/items/${itemId}/location`);
       toast.success("Location override removed");
       setPopoverOpen(false);
-      router.refresh();
+      invalidateItems();
     } catch (error) {
       log.error({ error }, "Failed to remove location override");
       toast.error("Failed to remove location override");
     } finally {
       setIsRemoving(false);
     }
-  }, [itemId, router]);
+  }, [itemId, invalidateItems]);
 
   return (
     <>
