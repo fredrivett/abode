@@ -636,7 +636,9 @@ function ItemDetailDialog({
 
     setIsAddingLink(true);
     try {
-      const response = await api.post(`/api/v1/items/${item.id}/links`, { url });
+      const response = await api.post(`/api/v1/items/${item.id}/links`, {
+        url,
+      });
       const data = response as { externalLinks: ExternalLinkType[] };
       setExternalLinks(data.externalLinks);
       setNewLinkUrl("");
@@ -1134,13 +1136,25 @@ function ItemDetailDialog({
                 {/* External Links - only shown to users who can edit */}
                 {canEdit && (
                   <div className="space-y-2">
-                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      <Link2 className="size-4" />
-                      Links
-                      <span className="text-xs font-normal text-muted-foreground">
-                        (private)
-                      </span>
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        <Link2 className="size-4" />
+                        Links
+                        <span className="text-xs font-normal text-muted-foreground">
+                          (private)
+                        </span>
+                      </h3>
+                      {!showAddLinkInput && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddLinkInput(true)}
+                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Plus className="size-3.5" />
+                          Add link
+                        </button>
+                      )}
+                    </div>
                     {externalLinks.length > 0 && (
                       <ul className="space-y-1">
                         {externalLinks.map((link) => (
@@ -1172,7 +1186,7 @@ function ItemDetailDialog({
                         ))}
                       </ul>
                     )}
-                    {showAddLinkInput ? (
+                    {showAddLinkInput && (
                       <div className="flex items-center gap-2">
                         <input
                           type="url"
@@ -1198,7 +1212,7 @@ function ItemDetailDialog({
                           disabled={isAddingLink || !newLinkUrl.trim()}
                         >
                           {isAddingLink ? (
-                            <IsLoading label="" iconClassName="size-3" />
+                            <IsLoading label="Adding" iconClassName="size-3" />
                           ) : (
                             "Add"
                           )}
@@ -1215,15 +1229,6 @@ function ItemDetailDialog({
                           <X className="size-4" />
                         </Button>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddLinkInput(true)}
-                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Plus className="size-3.5" />
-                        Add link
-                      </button>
                     )}
                   </div>
                 )}
