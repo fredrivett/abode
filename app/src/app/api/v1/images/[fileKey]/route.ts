@@ -36,12 +36,27 @@ type RouteParams = {
  * Access rules:
  * 1. Authenticated users can access their own images
  * 2. Anyone can access images that are in public rooms (unless excludeFromPublicRooms is true)
+ *
+ * Query params for image transforms (requires Supabase Pro):
+ * - w: width in pixels
+ * - h: height in pixels
+ * - q: quality (1-100, default 80)
  */
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // fileKey comes URL-encoded, decode it (e.g., "userId%2Ffilename.jpg" -> "userId/filename.jpg")
     const { fileKey: encodedFileKey } = await params;
     const fileKey = decodeURIComponent(encodedFileKey);
+
+    // Parse transform query params
+    const searchParams = request.nextUrl.searchParams;
+    const widthParam = searchParams.get("w");
+    const heightParam = searchParams.get("h");
+    const qualityParam = searchParams.get("q");
+
+    const width = widthParam ? parseInt(widthParam, 10) || undefined : undefined;
+    const height = heightParam ? parseInt(heightParam, 10) || undefined : undefined;
+    const quality = qualityParam ? parseInt(qualityParam, 10) || 80 : 80;
 
     if (!fileKey) {
       return NextResponse.json(
@@ -111,9 +126,22 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     // Fetch the image using admin client (bypasses RLS)
     const supabaseAdmin = getSupabaseAdmin();
+
+    // Build transform options if width or height specified
+    // Note: Supabase automatically converts to WebP when transforms are applied
+    const transform =
+      width || height
+        ? {
+            width,
+            height,
+            quality,
+            resize: "contain" as const,
+          }
+        : undefined;
+
     const { data, error } = await supabaseAdmin.storage
       .from("items")
-      .download(fileKey);
+      .download(fileKey, { transform });
 
     if (error || !data) {
       log.error({ error, fileKey }, "Failed to download image from storage");
@@ -123,8 +151,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Get content type from the blob or infer from extension
-    const contentType = data.type || inferContentType(fileKey);
+    // Get content type from blob, fallback to webp if transformed or infer from extension
+    const contentType =
+      data.type || (transform ? "image/webp" : inferContentType(fileKey));
 
     // Return the image with appropriate headers
     return new NextResponse(data, {

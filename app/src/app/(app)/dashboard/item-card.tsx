@@ -47,6 +47,7 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
+import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
 import { getPlatformName } from "@/lib/platforms";
 import { createClient } from "@/lib/supabase/client";
@@ -63,11 +64,6 @@ type ItemCardProps = {
   name: string;
   size: string;
   mimeType?: string;
-  /**
-   * Use proxy URL instead of Supabase download.
-   * Required for public room pages where users may not be authenticated.
-   */
-  useProxyUrl?: boolean;
   /**
    * Whether the current user can edit this item.
    * When false, notes, privacy settings, delete button, and location editing are hidden.
@@ -117,10 +113,8 @@ export function ItemCard({
   name,
   size,
   mimeType,
-  useProxyUrl = false,
   canEdit = true,
 }: ItemCardProps) {
-  const supabase = createClient();
   const router = useRouter();
   const [itemName, setItemName] = useState(name);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -150,43 +144,11 @@ export function ItemCard({
       return;
     }
 
-    let revokedUrl: string | null = null;
-    const load = async () => {
-      setError(null);
-      try {
-        if (useProxyUrl) {
-          // Use proxy URL for public rooms (no blob URL needed)
-          const proxyUrl = `/api/v1/images/${encodeURIComponent(imageFileKey)}`;
-          setPreviewUrl(proxyUrl);
-        } else {
-          // Download from Supabase and create blob URL
-          const { data, error: downloadError } = await supabase.storage
-            .from("items")
-            .download(imageFileKey);
-
-          if (downloadError || !data) {
-            setError(downloadError?.message || "Unable to load preview");
-            return;
-          }
-
-          const objectUrl = URL.createObjectURL(data);
-          revokedUrl = objectUrl;
-          setPreviewUrl(objectUrl);
-        }
-      } catch (err) {
-        log.error({ error: err }, "Preview load error");
-        setError("Unable to load preview");
-      }
-    };
-
-    void load();
-
-    return () => {
-      if (revokedUrl) {
-        URL.revokeObjectURL(revokedUrl);
-      }
-    };
-  }, [imageFileKey, isArticle, isProcessingUrl, supabase, useProxyUrl]);
+    // Use optimized proxy URL for all users (CDN cached, WebP, sized for grid)
+    const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
+    setError(null);
+    setPreviewUrl(proxyUrl);
+  }, [imageFileKey, isArticle, isProcessingUrl]);
 
   useEffect(() => {
     setItemName(name);
@@ -245,6 +207,7 @@ export function ItemCard({
               item={item}
               size={size}
               previewUrl={null}
+              imageFileKey={imageFileKey}
               open={showDetailDialog}
               onOpenChange={setShowDetailDialog}
               name={itemName}
@@ -291,6 +254,7 @@ export function ItemCard({
               item={item}
               size={size}
               previewUrl={null}
+              imageFileKey={imageFileKey}
               open={showDetailDialog}
               onOpenChange={setShowDetailDialog}
               name={itemName}
@@ -387,6 +351,7 @@ export function ItemCard({
             item={item}
             size={size}
             previewUrl={previewUrl}
+            imageFileKey={imageFileKey}
             open={showDetailDialog}
             onOpenChange={setShowDetailDialog}
             name={itemName}
@@ -407,6 +372,8 @@ type ItemDetailDialogProps = {
   item: Item;
   size: string;
   previewUrl: string | null;
+  /** The file key for the image (used for progressive loading) */
+  imageFileKey: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   name: string;
@@ -469,6 +436,7 @@ function ItemDetailDialog({
   item,
   size,
   previewUrl,
+  imageFileKey,
   open,
   onOpenChange,
   name,
@@ -480,6 +448,7 @@ function ItemDetailDialog({
   canEdit,
 }: ItemDetailDialogProps) {
   const [isSavingName, setIsSavingName] = useState(false);
+  const [fullQualityUrl, setFullQualityUrl] = useState<string | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isDescriptionClamped, setIsDescriptionClamped] = useState(false);
   const [excludeFromPublicRooms, setExcludeFromPublicRooms] = useState(
@@ -501,6 +470,23 @@ function ItemDetailDialog({
   const [showAddLinkInput, setShowAddLinkInput] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const supabase = createClient();
+
+  // Progressive loading: load full quality image when dialog opens
+  useEffect(() => {
+    if (!open || !imageFileKey) {
+      setFullQualityUrl(null);
+      return;
+    }
+
+    const detailUrl = getProxyImageUrl(imageFileKey, "detail");
+    const img = new Image();
+    img.onload = () => setFullQualityUrl(detailUrl);
+    img.src = detailUrl;
+
+    return () => {
+      img.onload = null;
+    };
+  }, [open, imageFileKey]);
 
   // Sync notes state when item.notes changes (e.g., from server refresh)
   useEffect(() => {
@@ -729,9 +715,9 @@ function ItemDetailDialog({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 1 }}
                 >
-                  {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
+                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
                   <img
-                    src={previewUrl}
+                    src={fullQualityUrl || previewUrl}
                     alt={name}
                     className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
                   />
@@ -920,9 +906,9 @@ function ItemDetailDialog({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 1 }}
                       >
-                        {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
+                        {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
                         <img
-                          src={previewUrl}
+                          src={fullQualityUrl || previewUrl}
                           alt={name}
                           className="w-full object-cover"
                         />
