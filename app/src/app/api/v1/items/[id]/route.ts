@@ -247,6 +247,19 @@ export async function PATCH(
             content: true,
           },
         },
+        roomItems: {
+          select: {
+            room: {
+              select: {
+                id: true,
+                name: true,
+                emoji: true,
+                slug: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -261,13 +274,15 @@ export async function PATCH(
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_update", { itemId: id });
 
-    // Flatten imageDetails for backward compatibility with frontend
+    // Flatten imageDetails and roomItems for backward compatibility with frontend
     const flattenedItem = {
       ...updatedItem,
       objects: updatedItem.imageDetails?.objects ?? [],
       colors: updatedItem.imageDetails?.colors ?? [],
       ocrText: updatedItem.imageDetails?.ocrText ?? null,
+      rooms: updatedItem.roomItems.map((ri) => ri.room),
       imageDetails: undefined,
+      roomItems: undefined,
     };
 
     return NextResponse.json(flattenedItem);

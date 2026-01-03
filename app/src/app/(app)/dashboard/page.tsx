@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import type { ImageColor } from "@/lib/types/item";
+import type { ExternalLink, ImageColor } from "@/lib/types/item";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 export default async function DashboardPage() {
@@ -62,6 +62,20 @@ export default async function DashboardPage() {
               content: true,
             },
           },
+          roomItems: {
+            select: {
+              room: {
+                select: {
+                  id: true,
+                  name: true,
+                  emoji: true,
+                  slug: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          externalLinks: true,
         },
       })
     : [];
@@ -78,7 +92,10 @@ export default async function DashboardPage() {
           ocrText: item.imageDetails?.ocrText ?? null,
           captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
           excludeFromPublicRooms: item.excludeFromPublicRooms,
+          rooms: item.roomItems.map((ri) => ri.room),
+          externalLinks: (item.externalLinks as ExternalLink[] | null) ?? [],
           imageDetails: undefined,
+          roomItems: undefined,
           articleDetails: item.articleDetails
             ? {
                 ...item.articleDetails,

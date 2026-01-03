@@ -74,8 +74,17 @@ export type ItemRoom = {
   id: string;
   name: string;
   emoji: string | null;
-  slug: string;
+  slug: string | null;
   type: RoomType;
+};
+
+/**
+ * External link to where an item has been posted.
+ * Platform is auto-detected from the URL.
+ */
+export type ExternalLink = {
+  url: string;
+  platform: string;
 };
 
 /**
@@ -113,6 +122,7 @@ export type Item = {
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   rooms?: ItemRoom[];
+  externalLinks?: ExternalLink[];
 };
 
 /**
