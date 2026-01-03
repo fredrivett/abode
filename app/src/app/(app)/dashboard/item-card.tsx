@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -47,6 +46,7 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api-client";
+import { useInvalidateItems } from "@/lib/api-hooks";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
@@ -116,7 +116,7 @@ export function ItemCard({
   mimeType,
   canEdit = true,
 }: ItemCardProps) {
-  const router = useRouter();
+  const invalidateItems = useInvalidateItems();
   const [itemName, setItemName] = useState(name);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +163,7 @@ export function ItemCard({
       });
       toast.success("Item deleted");
       setShowDeleteDialog(false);
-      router.refresh();
+      invalidateItems();
     } catch (error) {
       log.error({ error }, "Delete error");
       toast.error("Failed to delete item");

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { useItemsInfinite } from "@/lib/api-hooks";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
@@ -24,11 +24,33 @@ export function SearchableItemsGrid({
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
 
-  // Pagination state for non-search mode
-  const [items, setItems] = useState<Item[]>(initialItems);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // Use React Query for items with SSR hydration
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    error,
+  } = useItemsInfinite({
+    items: initialItems,
+    cursor: initialCursor,
+    hasMore: initialHasMore,
+    total: initialTotal,
+  });
+
+  // Show error toast if fetch fails
+  if (error) {
+    toast.error("Failed to load more items. Please try again.");
+  }
+
+  // Flatten all pages into a single items array
+  const items = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? initialItems,
+    [data?.pages, initialItems],
+  );
+
+  // Get total from first page (only returned on initial fetch)
+  const total = data?.pages[0]?.total ?? initialTotal;
 
   // Get IDs of items that are still processing
   const processingItemIds = useMemo(
@@ -42,29 +64,12 @@ export function SearchableItemsGrid({
   // Poll for status updates on processing items
   useProcessingPoll(processingItemIds);
 
-  // Load more items
-  const loadMore = useCallback(async () => {
-    if (!cursor || isLoadingMore || !hasMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const response = await fetch(
-        `/api/v1/items?cursor=${cursor}&limit=${DEFAULT_PAGE_SIZE}`,
-      );
-      if (!response.ok) {
-        throw new Error("Failed to load more items");
-      }
-
-      const data = await response.json();
-      setItems((prev) => [...prev, ...data.items]);
-      setCursor(data.cursor);
-      setHasMore(data.hasMore);
-    } catch {
-      toast.error("Failed to load more items. Please try again.");
-    } finally {
-      setIsLoadingMore(false);
+  // Load more handler
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-  }, [cursor, isLoadingMore, hasMore]);
+  };
 
   const searchItems = useMemo((): Item[] | null => {
     // No active search - use initial items
@@ -88,7 +93,7 @@ export function SearchableItemsGrid({
 
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
-  const showLoadMore = !searchResults.hasActiveSearch && hasMore;
+  const showLoadMore = !searchResults.hasActiveSearch && hasNextPage;
 
   return (
     <ItemsGrid
@@ -96,9 +101,9 @@ export function SearchableItemsGrid({
       hasActiveSearch={searchResults.hasActiveSearch}
       onClearSearch={clearAll}
       hasMore={showLoadMore}
-      isLoadingMore={isLoadingMore}
+      isLoadingMore={isFetchingNextPage}
       onLoadMore={loadMore}
-      total={initialTotal}
+      total={total}
     />
   );
 }

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
+import { useInvalidateItems } from "@/lib/api-hooks";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -54,6 +55,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
+  const invalidateItems = useInvalidateItems();
   const [isUrlLoading, setIsUrlLoading] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(false);
 
@@ -77,7 +79,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         await api.post("/api/v1/items/from-url", { url });
         toast.success("URL added - processing in background");
         if (isOnDashboard) {
-          router.refresh();
+          invalidateItems();
         } else {
           router.push("/dashboard");
         }
@@ -93,7 +95,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         setIsUrlLoading(false);
       }
     },
-    [router, onSuccess, onError, isOnDashboard],
+    [router, invalidateItems, onSuccess, onError, isOnDashboard],
   );
 
   const handleFileUpload = useCallback(
@@ -172,7 +174,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
 
         toast.success("Upload complete");
         if (isOnDashboard) {
-          router.refresh();
+          invalidateItems();
         } else {
           router.push("/dashboard");
         }
@@ -188,7 +190,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         setIsFileLoading(false);
       }
     },
-    [router, supabase, onSuccess, onError, isOnDashboard],
+    [router, supabase, invalidateItems, onSuccess, onError, isOnDashboard],
   );
 
   return {

@@ -4,10 +4,67 @@ import type {
   ProcessingStatus,
   SourceType,
 } from "@prisma/client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "./api-client";
+import { DEFAULT_PAGE_SIZE } from "./pagination";
+import type { Item } from "./types/item";
 
 type ItemMeta = Prisma.JsonValue;
+
+// Query key constants for consistent invalidation
+export const ITEMS_QUERY_KEY = ["items"] as const;
+
+// Helper to invalidate items query from anywhere
+export function useInvalidateItems() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
+}
+
+// Response type for paginated items
+type ItemsPageResponse = {
+  items: Item[];
+  cursor: string | null;
+  hasMore: boolean;
+  total?: number;
+};
+
+// Initial data type for SSR hydration
+type ItemsInitialData = {
+  items: Item[];
+  cursor: string | null;
+  hasMore: boolean;
+  total: number;
+};
+
+/**
+ * Infinite query hook for paginated items list.
+ * Supports SSR hydration via initialData prop.
+ */
+export function useItemsInfinite(initialData?: ItemsInitialData) {
+  return useInfiniteQuery({
+    queryKey: ITEMS_QUERY_KEY,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (pageParam) params.set("cursor", pageParam);
+      params.set("limit", String(DEFAULT_PAGE_SIZE));
+      const url = `/api/v1/items${params.toString() ? `?${params.toString()}` : ""}`;
+      return api.get<ItemsPageResponse>(url);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.cursor : undefined),
+    initialData: initialData
+      ? {
+          pages: [initialData],
+          pageParams: [null],
+        }
+      : undefined,
+  });
+}
 
 // Example usage patterns for your API routes
 
