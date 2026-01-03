@@ -50,7 +50,7 @@ export default async function RoomsPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-background">
         <DashboardHeader />
-        <div className="w-full px-4 py-8">
+        <div className="mx-auto w-full max-w-5xl px-4 py-8">
           <RoomsList initialRooms={[]} username="" />
         </div>
       </div>
@@ -74,7 +74,7 @@ export default async function RoomsPage() {
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader />
 
-      <div className="w-full px-4 py-8">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <RoomsList initialRooms={roomsForClient} username={username} />
       </div>
     </div>
