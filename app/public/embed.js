@@ -159,7 +159,7 @@
     "}",
     ".abode-preview-grid-container{",
     "  position:relative;",
-    "  max-height:280px;",
+    "  max-height:360px;",
     "  overflow:hidden;",
     "}",
     ".abode-preview-grid{",
