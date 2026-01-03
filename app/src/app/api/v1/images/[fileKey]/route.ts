@@ -129,8 +129,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Build transform options if width or height specified
     // Note: Supabase automatically converts to WebP when transforms are applied
+    // Transforms are only supported in hosted Supabase (Pro), not in local dev
     const transform =
-      width || height
+      process.env.NODE_ENV === "production" && (width || height)
         ? {
             width,
             height,
