@@ -5,12 +5,16 @@ import {
   AlertCircle,
   Check,
   Copy,
+  DoorOpen,
   Download,
   ExternalLink,
   FileText,
+  Hand,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -1029,6 +1033,45 @@ function ItemDetailDialog({
                     </div>
                   )}
                 </div>
+
+                {/* Rooms - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="space-y-2">
+                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <DoorOpen className="size-4" />
+                      Rooms
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (private)
+                      </span>
+                    </h3>
+                    {item.rooms && item.rooms.length > 0 ? (
+                      <ul className="space-y-1">
+                        {item.rooms.map((room) => (
+                          <li key={room.id} className="flex items-center gap-1">
+                            <Link
+                              href={`/rooms/${room.id}`}
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              {room.emoji && (
+                                <span className="mr-1">{room.emoji}</span>
+                              )}
+                              {room.name}
+                            </Link>
+                            {room.type === "smart" ? (
+                              <Sparkles className="size-3 text-muted-foreground" />
+                            ) : (
+                              <Hand className="size-3 text-muted-foreground" />
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        This item isn't in any rooms yet.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Notes - only shown to users who can edit */}
                 {canEdit && (
