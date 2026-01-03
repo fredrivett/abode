@@ -91,12 +91,13 @@ export function ItemsGrid({
           </div>
         )
       ) : (
-        <BalancedMasonryGrid
-          frameWidth={250}
-          gap={16}
-          style={{ overflow: "visible !important" }}
-        >
-          {items.map((item) => {
+        <div className={items.length <= 4 ? "flex justify-center" : ""}>
+          <BalancedMasonryGrid
+            frameWidth={250}
+            gap={16}
+            style={{ overflow: "visible !important" }}
+          >
+            {items.map((item) => {
             const meta = item.meta || {};
             const isArticle = item.kind === "article";
             const isProcessingUrl =
@@ -142,7 +143,8 @@ export function ItemsGrid({
               </Frame>
             );
           })}
-        </BalancedMasonryGrid>
+          </BalancedMasonryGrid>
+        </div>
       )}
     </div>
   );

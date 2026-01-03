@@ -17,43 +17,47 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-serif font-semibold">
-            <DoorOpen className="size-6 text-muted-foreground" />
-            Rooms
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Organize your items into dynamic or static collections
-          </p>
+      <div className="mx-auto max-w-5xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-2xl font-serif font-semibold">
+              <DoorOpen className="size-6 text-muted-foreground" />
+              Rooms
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Organize your items into dynamic or static collections
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/rooms/new">
+              <Plus className="size-4" />
+              Create Room
+            </Link>
+          </Button>
         </div>
-        <Button asChild>
-          <Link href="/rooms/new">
-            <Plus className="size-4" />
-            Create Room
-          </Link>
-        </Button>
       </div>
 
       {rooms.length === 0 ? (
-        <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
-          <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-            <DoorOpen className="size-14 text-muted-foreground" />
-            <div className="space-y-2">
-              <h2 className="text-3xl font-serif font-semibold">
-                No rooms yet
-              </h2>
-              <p className="text-base text-muted-foreground">
-                Create your first room to start organizing your items. Dynamic
-                rooms automatically collect items matching your filters, while
-                static rooms let you hand-pick specific items.
-              </p>
-              <Button asChild className="mt-4">
-                <Link href="/rooms/new">
-                  <Plus className="size-4" />
-                  Create your first room
-                </Link>
-              </Button>
+        <div className="mx-auto max-w-5xl">
+          <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+            <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
+              <DoorOpen className="size-14 text-muted-foreground" />
+              <div className="space-y-2">
+                <h2 className="text-3xl font-serif font-semibold">
+                  No rooms yet
+                </h2>
+                <p className="text-base text-muted-foreground">
+                  Create your first room to start organizing your items. Dynamic
+                  rooms automatically collect items matching your filters, while
+                  static rooms let you hand-pick specific items.
+                </p>
+                <Button asChild className="mt-4">
+                  <Link href="/rooms/new">
+                    <Plus className="size-4" />
+                    Create your first room
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
