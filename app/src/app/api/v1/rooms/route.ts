@@ -100,15 +100,16 @@ export async function POST(request: NextRequest) {
 
     // For smart rooms, enforce limit and validate filters
     if (type === "smart") {
-      const canCreate = await canCreateSmartRoom(user.id);
-      if (!canCreate) {
-        return NextResponse.json(
-          {
-            message: `You can only have ${MAX_SMART_ROOMS_PER_USER} dynamic rooms`,
-          },
-          { status: 400 },
-        );
-      }
+      // TODO: Re-enable smart room limit after early access period
+      // const canCreate = await canCreateSmartRoom(user.id);
+      // if (!canCreate) {
+      //   return NextResponse.json(
+      //     {
+      //       message: `You can only have ${MAX_SMART_ROOMS_PER_USER} dynamic rooms`,
+      //     },
+      //     { status: 400 },
+      //   );
+      // }
 
       // Smart rooms must have at least one filter
       const filterArray = filters as Filter[] | undefined;
