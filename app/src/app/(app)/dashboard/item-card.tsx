@@ -10,8 +10,11 @@ import {
   ExternalLink,
   FileText,
   Hand,
+  Link2,
+  Plus,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -21,6 +24,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
+import { PlatformIcon } from "@/components/icons/platform-icons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,8 +48,9 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { createLogger } from "@/lib/logger.client";
+import { getPlatformName } from "@/lib/platforms";
 import { createClient } from "@/lib/supabase/client";
-import type { Item } from "@/lib/types/item";
+import type { ExternalLink as ExternalLinkType, Item } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationDisplay } from "./_components/location-display";
@@ -488,6 +493,12 @@ function ItemDetailDialog({
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [externalLinks, setExternalLinks] = useState<ExternalLinkType[]>(
+    item.externalLinks ?? [],
+  );
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [showAddLinkInput, setShowAddLinkInput] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const supabase = createClient();
 
@@ -495,6 +506,11 @@ function ItemDetailDialog({
   useEffect(() => {
     setNotes(item.notes ?? "");
   }, [item.notes]);
+
+  // Sync externalLinks state when item.externalLinks changes
+  useEffect(() => {
+    setExternalLinks(item.externalLinks ?? []);
+  }, [item.externalLinks]);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
   useEffect(() => {
@@ -603,6 +619,48 @@ function ItemDetailDialog({
       toast.error("Failed to download file");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleAddLink = async () => {
+    const url = newLinkUrl.trim();
+    if (!url) return;
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      toast.error("Please enter a valid URL");
+      return;
+    }
+
+    setIsAddingLink(true);
+    try {
+      const response = await api.post(`/api/v1/items/${item.id}/links`, { url });
+      const data = response as { externalLinks: ExternalLinkType[] };
+      setExternalLinks(data.externalLinks);
+      setNewLinkUrl("");
+      setShowAddLinkInput(false);
+      toast.success("Link added");
+    } catch (error) {
+      log.error({ error }, "Add link error");
+      toast.error("Failed to add link");
+    } finally {
+      setIsAddingLink(false);
+    }
+  };
+
+  const handleRemoveLink = async (url: string) => {
+    try {
+      const response = await api.delete(`/api/v1/items/${item.id}/links`, {
+        body: JSON.stringify({ url }),
+      });
+      const data = response as { externalLinks: ExternalLinkType[] };
+      setExternalLinks(data.externalLinks);
+      toast.success("Link removed");
+    } catch (error) {
+      log.error({ error }, "Remove link error");
+      toast.error("Failed to remove link");
     }
   };
 
@@ -1069,6 +1127,103 @@ function ItemDetailDialog({
                       <p className="text-sm text-muted-foreground">
                         This item isn't in any rooms yet.
                       </p>
+                    )}
+                  </div>
+                )}
+
+                {/* External Links - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="space-y-2">
+                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <Link2 className="size-4" />
+                      Links
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (private)
+                      </span>
+                    </h3>
+                    {externalLinks.length > 0 && (
+                      <ul className="space-y-1">
+                        {externalLinks.map((link) => (
+                          <li
+                            key={link.url}
+                            className="flex items-center gap-2 group"
+                          >
+                            <PlatformIcon
+                              platform={link.platform}
+                              className="size-4 text-muted-foreground shrink-0"
+                            />
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1"
+                            >
+                              {getPlatformName(link.platform, link.url)}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLink(link.url)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity"
+                              aria-label="Remove link"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {showAddLinkInput ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          value={newLinkUrl}
+                          onChange={(e) => setNewLinkUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void handleAddLink();
+                            } else if (e.key === "Escape") {
+                              setShowAddLinkInput(false);
+                              setNewLinkUrl("");
+                            }
+                          }}
+                          placeholder="Paste URL..."
+                          className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          autoFocus
+                          disabled={isAddingLink}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleAddLink}
+                          disabled={isAddingLink || !newLinkUrl.trim()}
+                        >
+                          {isAddingLink ? (
+                            <IsLoading label="" iconClassName="size-3" />
+                          ) : (
+                            "Add"
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowAddLinkInput(false);
+                            setNewLinkUrl("");
+                          }}
+                          disabled={isAddingLink}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddLinkInput(true)}
+                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Plus className="size-3.5" />
+                        Add link
+                      </button>
                     )}
                   </div>
                 )}

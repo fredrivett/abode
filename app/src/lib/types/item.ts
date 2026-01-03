@@ -79,6 +79,15 @@ export type ItemRoom = {
 };
 
 /**
+ * External link to where an item has been posted.
+ * Platform is auto-detected from the URL.
+ */
+export type ExternalLink = {
+  url: string;
+  platform: string;
+};
+
+/**
  * Core item type with all UI-needed fields.
  *
  * This is the canonical type for items throughout the application.
@@ -113,6 +122,7 @@ export type Item = {
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   rooms?: ItemRoom[];
+  externalLinks?: ExternalLink[];
 };
 
 /**

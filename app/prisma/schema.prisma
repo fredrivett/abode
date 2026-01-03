@@ -137,6 +137,10 @@ model Item {
   // Smart rooms
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
+  // External links (e.g. Unsplash, Flickr, Instagram posts of this item)
+  // Format: [{ url: string, platform: string }]
+  externalLinks    Json?            @default("[]") @map("external_links")
+
   // Relations
   user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   locations         ItemLocation[]
