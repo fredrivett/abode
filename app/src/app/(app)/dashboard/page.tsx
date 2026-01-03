@@ -1,6 +1,7 @@
 import db from "@/lib/db";
+import { itemSelect, transformItem } from "@/lib/items/query";
+import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
-import type { ExternalLink, ImageColor } from "@/lib/types/item";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 export default async function DashboardPage() {
@@ -12,98 +13,44 @@ export default async function DashboardPage() {
 
   const user = userData.user;
 
-  const itemsForClient = user
-    ? await db.item.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          kind: true,
-          processingStatus: true,
-          fileKey: true,
-          meta: true,
-          sourceType: true,
-          sourceUrl: true,
-          coverFileKey: true,
-          createdAt: true,
-          title: true,
-          description: true,
-          tags: true,
-          notes: true,
-          excludeFromPublicRooms: true,
-          locations: {
-            select: {
-              id: true,
-              source: true,
-              latitude: true,
-              longitude: true,
-              neighborhood: true,
-              city: true,
-              region: true,
-              country: true,
-              countryCode: true,
-              formatted: true,
-            },
-          },
-          imageDetails: {
-            select: {
-              objects: true,
-              colors: true,
-              ocrText: true,
-              captureDate: true,
-            },
-          },
-          articleDetails: {
-            select: {
-              author: true,
-              domain: true,
-              publishedAt: true,
-              readingTime: true,
-              content: true,
-            },
-          },
-          roomItems: {
-            select: {
-              room: {
-                select: {
-                  id: true,
-                  name: true,
-                  emoji: true,
-                  slug: true,
-                  type: true,
-                },
-              },
-            },
-          },
-          externalLinks: true,
-        },
-      })
-    : [];
+  // Fetch only first page + 1 to check if there are more
+  const fetchLimit = DEFAULT_PAGE_SIZE + 1;
+
+  const [rawItems, total] = user
+    ? await Promise.all([
+        db.item.findMany({
+          where: { userId: user.id },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: fetchLimit,
+          select: itemSelect,
+        }),
+        db.item.count({ where: { userId: user.id } }),
+      ])
+    : [[], 0];
+
+  // Check if there are more results
+  const hasMore = rawItems.length > DEFAULT_PAGE_SIZE;
+  const pageItems = rawItems.slice(0, DEFAULT_PAGE_SIZE);
+
+  // Generate cursor for next page
+  let initialCursor: string | null = null;
+  if (hasMore && pageItems.length > 0) {
+    const lastItem = pageItems[pageItems.length - 1];
+    initialCursor = encodeCursor({
+      createdAt: lastItem.createdAt.toISOString(),
+      id: lastItem.id,
+    });
+  }
+
+  const itemsForClient = pageItems.map(transformItem);
 
   return (
     <div className="flex flex-col gap-6">
       <SearchableItemsGrid
-        initialItems={itemsForClient.map((item) => ({
-          ...item,
-          createdAt: item.createdAt.toISOString(),
-          meta: (item.meta as Record<string, unknown> | null) ?? null,
-          objects: item.imageDetails?.objects ?? [],
-          colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
-          ocrText: item.imageDetails?.ocrText ?? null,
-          captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
-          excludeFromPublicRooms: item.excludeFromPublicRooms,
-          rooms: item.roomItems.map((ri) => ri.room),
-          externalLinks: (item.externalLinks as ExternalLink[] | null) ?? [],
-          imageDetails: undefined,
-          roomItems: undefined,
-          articleDetails: item.articleDetails
-            ? {
-                ...item.articleDetails,
-                publishedAt:
-                  item.articleDetails.publishedAt?.toISOString() ?? null,
-              }
-            : null,
-        }))}
+        initialItems={itemsForClient}
+        initialCursor={initialCursor}
+        initialHasMore={hasMore}
+        initialTotal={total}
       />
     </div>
   );
