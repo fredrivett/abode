@@ -62,6 +62,19 @@ export default async function DashboardPage() {
               content: true,
             },
           },
+          roomItems: {
+            select: {
+              room: {
+                select: {
+                  id: true,
+                  name: true,
+                  emoji: true,
+                  slug: true,
+                  type: true,
+                },
+              },
+            },
+          },
         },
       })
     : [];
@@ -78,7 +91,9 @@ export default async function DashboardPage() {
           ocrText: item.imageDetails?.ocrText ?? null,
           captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
           excludeFromPublicRooms: item.excludeFromPublicRooms,
+          rooms: item.roomItems.map((ri) => ri.room),
           imageDetails: undefined,
+          roomItems: undefined,
           articleDetails: item.articleDetails
             ? {
                 ...item.articleDetails,

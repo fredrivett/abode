@@ -1048,13 +1048,13 @@ function ItemDetailDialog({
                       <ul className="space-y-1">
                         {item.rooms.map((room) => (
                           <li key={room.id} className="flex items-center gap-1">
+                            {room.emoji && (
+                              <span className="text-sm">{room.emoji}</span>
+                            )}
                             <Link
                               href={`/rooms/${room.id}`}
                               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                             >
-                              {room.emoji && (
-                                <span className="mr-1">{room.emoji}</span>
-                              )}
                               {room.name}
                             </Link>
                             {room.type === "smart" ? (
