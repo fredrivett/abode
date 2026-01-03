@@ -9,7 +9,6 @@
  * - data-abode-room (required): Room UUID
  * - data-type: "badge" | "preview" (default: "badge")
  * - data-theme: "light" | "dark" | "auto" (default: "auto")
- * - data-items: 3 | 6 | 9 (default: 6, preview only)
  * - data-show-emoji: "true" | "false" (default: "true")
  * - data-text: Custom link text (badge only, overrides room name)
  * - data-room-json: Pre-loaded room data JSON (skips API fetch if provided)
@@ -37,7 +36,7 @@
   var DEFAULTS = {
     type: "badge",
     theme: "auto",
-    items: 6,
+    items: 12,
     showFilters: true,
     showEmoji: true,
   };
@@ -158,9 +157,23 @@
     "  display:block;",
     "  text-decoration:none;",
     "}",
+    ".abode-preview-grid-container{",
+    "  position:relative;",
+    "  max-height:280px;",
+    "  overflow:hidden;",
+    "}",
     ".abode-preview-grid{",
     "  column-count:3;",
     "  column-gap:0.5em;",
+    "}",
+    ".abode-preview-fade{",
+    "  position:absolute;",
+    "  bottom:0;",
+    "  left:0;",
+    "  right:0;",
+    "  height:160px;",
+    "  background:linear-gradient(to bottom, transparent, var(--abode-bg));",
+    "  pointer-events:none;",
     "}",
     ".abode-preview-item{",
     "  display:block;",
@@ -343,8 +356,7 @@
   function parseConfig(container) {
     var type = container.getAttribute("data-type") || DEFAULTS.type;
     var theme = container.getAttribute("data-theme") || DEFAULTS.theme;
-    var items =
-      parseInt(container.getAttribute("data-items"), 10) || DEFAULTS.items;
+    var items = DEFAULTS.items; // Always 12 items
     var showFiltersAttr = container.getAttribute("data-show-filters");
     var showFilters =
       showFiltersAttr === null
@@ -358,7 +370,6 @@
     // Validate values
     if (["badge", "preview"].indexOf(type) === -1) type = DEFAULTS.type;
     if (["light", "dark", "auto"].indexOf(theme) === -1) theme = DEFAULTS.theme;
-    if ([3, 6, 9].indexOf(items) === -1) items = DEFAULTS.items;
 
     // Resolve auto theme
     var resolvedTheme = theme === "auto" ? getPreferredTheme() : theme;
@@ -578,8 +589,11 @@
       '  <a class="abode-preview-grid-link" href="' +
         roomUrl +
         '" target="_blank" rel="noopener noreferrer">',
-      '    <div class="abode-preview-grid">',
-      "      " + gridItems.join("\n      "),
+      '    <div class="abode-preview-grid-container">',
+      '      <div class="abode-preview-grid">',
+      "        " + gridItems.join("\n        "),
+      "      </div>",
+      '      <div class="abode-preview-fade"></div>',
       "    </div>",
       "  </a>",
       "</div>",

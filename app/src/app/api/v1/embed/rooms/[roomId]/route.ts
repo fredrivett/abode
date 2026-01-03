@@ -40,10 +40,7 @@ export async function OPTIONS() {
 /**
  * GET /api/v1/embed/rooms/:roomId - Get public room data for embedding
  *
- * Query params:
- * - limit: number of items to return (3, 6, or 9, default: 6)
- *
- * Returns room metadata, owner info, and item thumbnails for public rooms only.
+ * Returns room metadata, owner info, and up to 12 item thumbnails for public rooms only.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -79,15 +76,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Parse limit param (3, 6, or 9)
-    const { searchParams } = new URL(request.url);
-    const limitParam = searchParams.get("limit");
-    const validLimits = [3, 6, 9];
-    const limit = limitParam
-      ? validLimits.includes(Number(limitParam))
-        ? Number(limitParam)
-        : 6
-      : 6;
+    // Fixed limit of 12 items for embed previews
+    const limit = 12;
 
     // Fetch room with owner info - only if public
     const room = await db.room.findFirst({
