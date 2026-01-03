@@ -385,7 +385,6 @@ export function RoomDetail({
                     name={name}
                     size={size}
                     mimeType={mimeType}
-                    useProxyUrl={!isOwner}
                     canEdit={isOwner}
                   />
                 </Frame>

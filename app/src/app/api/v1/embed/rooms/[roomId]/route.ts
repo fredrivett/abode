@@ -157,7 +157,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           kind: ri.item.kind,
           title: ri.item.title,
           imageUrl: imageFileKey
-            ? `/api/v1/images/${encodeURIComponent(imageFileKey)}`
+            ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
             : null,
           width: isArticle ? 16 : ((meta?.width as number) ?? 1),
           height: isArticle ? 9 : ((meta?.height as number) ?? 1),
