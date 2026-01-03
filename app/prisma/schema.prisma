@@ -269,8 +269,9 @@ model Room {
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roomItems RoomItem[]
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomItems      RoomItem[]
+  embedReferrers RoomEmbedReferrer[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -290,6 +291,22 @@ model RoomItem {
   @@index([roomId])
   @@index([itemId])
   @@map("room_items")
+}
+
+model RoomEmbedReferrer {
+  id             String   @id @default(uuid()) @db.Uuid
+  roomId         String   @map("room_id") @db.Uuid
+  referrerUrl    String   @map("referrer_url")
+  referrerDomain String?  @map("referrer_domain")
+  firstSeenAt    DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt     DateTime @default(now()) @map("last_seen_at")
+  viewCount      Int      @default(1) @map("view_count")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, referrerUrl])
+  @@index([roomId, lastSeenAt(sort: Desc)])
+  @@map("room_embed_referrers")
 }
 
 model ArticleHighlight {

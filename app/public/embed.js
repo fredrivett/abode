@@ -402,7 +402,13 @@
    */
   function fetchRoomData(roomId, itemLimit) {
     var url =
-      API_BASE + "/api/v1/embed/rooms/" + roomId + "?limit=" + itemLimit;
+      API_BASE +
+      "/api/v1/embed/rooms/" +
+      roomId +
+      "?limit=" +
+      itemLimit +
+      "&ref=" +
+      encodeURIComponent(window.location.origin + window.location.pathname);
 
     return fetch(url).then((response) => {
       if (!response.ok) {

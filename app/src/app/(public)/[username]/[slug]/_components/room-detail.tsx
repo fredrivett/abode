@@ -4,6 +4,7 @@ import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { RoomVisibility } from "@prisma/client";
 import {
   ArrowLeft,
+  BarChart3,
   Hand,
   MoreHorizontal,
   Pencil,
@@ -17,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { EmbedStatsDialog } from "@/components/rooms/embed-stats-dialog";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { ShareRoomDialog } from "@/components/rooms/share-room-dialog";
 import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
@@ -104,6 +106,7 @@ export function RoomDetail({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showEmbedStatsDialog, setShowEmbedStatsDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -305,6 +308,11 @@ export function RoomDetail({
                   <Share2 className="size-4" />
                   Share room
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowEmbedStatsDialog(true)}>
+                  <BarChart3 className="size-4" />
+                  View embed stats
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleOpenEditDialog}>
                   <Pencil className="size-4" />
                   Edit room
@@ -496,6 +504,15 @@ export function RoomDetail({
           items={items}
         />
       )}
+
+      {/* Embed stats dialog */}
+      <EmbedStatsDialog
+        open={showEmbedStatsDialog}
+        onOpenChange={setShowEmbedStatsDialog}
+        roomId={room.id}
+        roomName={roomName}
+        visibility={roomVisibility}
+      />
     </div>
   );
 }
