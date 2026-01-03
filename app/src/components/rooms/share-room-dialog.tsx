@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 
 type WidgetType = "badge" | "preview";
 type WidgetTheme = "auto" | "light" | "dark";
-type ItemCount = 3 | 6 | 9;
 
 type RoomItem = {
   id: string;
@@ -62,7 +61,6 @@ function generateEmbedCode(
   config: {
     type: WidgetType;
     theme: WidgetTheme;
-    items: ItemCount;
     showFilters: boolean;
     showEmoji: boolean;
     fontSize?: number;
@@ -74,9 +72,6 @@ function generateEmbedCode(
     `data-abode-room="${roomId}"`,
     config.type !== "badge" && `data-type="${config.type}"`,
     config.theme !== "auto" && `data-theme="${config.theme}"`,
-    config.type === "preview" &&
-      config.items !== 6 &&
-      `data-items="${config.items}"`,
     config.type === "preview" &&
       !config.showFilters &&
       'data-show-filters="false"',
@@ -126,7 +121,6 @@ type EmbedPreviewProps = {
   config: {
     type: WidgetType;
     theme: WidgetTheme;
-    items: ItemCount;
     showFilters: boolean;
     showEmoji: boolean;
     customText?: string;
@@ -151,8 +145,8 @@ function EmbedPreview({
     const slugOrId = room.slug ?? room.id;
     const roomUrl = `${baseUrl}/@${username}/${slugOrId}`;
 
-    // Transform items to match API format
-    const items = roomItems.slice(0, config.items).map((item) => {
+    // Transform items to match API format (hardcoded to 12 items max)
+    const items = roomItems.slice(0, 12).map((item) => {
       const meta = item.meta || {};
       const isArticle = item.kind === "article";
       const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
@@ -185,7 +179,7 @@ function EmbedPreview({
       items,
       roomUrl,
     };
-  }, [room, username, config.items, roomItems]);
+  }, [room, username, roomItems]);
 
   // Render the widget when config changes or script loads
   useEffect(() => {
@@ -199,7 +193,6 @@ function EmbedPreview({
     newContainer.setAttribute("data-abode-room", room.id);
     newContainer.setAttribute("data-type", config.type);
     newContainer.setAttribute("data-theme", config.theme);
-    newContainer.setAttribute("data-items", String(config.items));
     newContainer.setAttribute(
       "data-show-filters",
       config.showFilters ? "true" : "false",
@@ -237,7 +230,6 @@ function EmbedPreview({
         data-abode-room={room.id}
         data-type={config.type}
         data-theme={config.theme}
-        data-items={config.items}
         data-show-filters={config.showFilters ? "true" : "false"}
         data-show-emoji={config.showEmoji ? "true" : "false"}
         data-text={config.customText || undefined}
@@ -256,7 +248,6 @@ export function ShareRoomDialog({
 }: ShareRoomDialogProps) {
   const [type, setType] = useState<WidgetType>("badge");
   const [theme, setTheme] = useState<WidgetTheme>("auto");
-  const [items, setItems] = useState<ItemCount>(6);
   const [showFilters, setShowFilters] = useState(true);
   const [showEmoji, setShowEmoji] = useState(true);
   const [fontSize, setFontSize] = useState(16);
@@ -270,7 +261,6 @@ export function ShareRoomDialog({
   const embedCode = generateEmbedCode(room.id, {
     type,
     theme,
-    items,
     showFilters,
     showEmoji,
     fontSize,
@@ -444,26 +434,6 @@ export function ShareRoomDialog({
                 </div>
               )}
 
-              {/* Items Count (preview only) */}
-              {type === "preview" && (
-                <div className="space-y-2">
-                  <Label>Max Preview Items</Label>
-                  <div className="flex gap-2">
-                    {([3, 6, 9] as const).map((count) => (
-                      <Button
-                        key={count}
-                        type="button"
-                        variant={items === count ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setItems(count)}
-                      >
-                        {count}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Show Filters (preview only, when room has filters) */}
               {type === "preview" && hasFilters && (
                 <div className="space-y-2">
@@ -544,7 +514,6 @@ export function ShareRoomDialog({
                     config={{
                       type,
                       theme,
-                      items,
                       showFilters,
                       showEmoji,
                       customText: customText.trim() || undefined,
