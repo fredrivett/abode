@@ -125,7 +125,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   const logoHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
-    <header className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
+    <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
       <div className="relative order-1 flex h-8 shrink-0 items-center">
         <h1>
           <Link
