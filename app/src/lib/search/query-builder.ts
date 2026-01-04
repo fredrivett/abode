@@ -304,6 +304,7 @@ export function buildTypeCondition(filters: FilterValue[]): {
 /**
  * Build SQL WHERE conditions for tag filter.
  * Case-insensitive matching using array unnest.
+ * Searches both auto-generated tags and user-added tags.
  * Handles OR groups for pipe-separated values.
  */
 export function buildTagCondition(
@@ -315,13 +316,13 @@ export function buildTagCondition(
     const nullCheck = checkNullFilter(filter);
     if (nullCheck.isNull) {
       return nullCheck.wantEmpty
-        ? `(tags IS NULL OR tags = '{}')`
-        : `(tags IS NOT NULL AND tags != '{}')`;
+        ? `((tags IS NULL OR tags = '{}') AND (user_tags IS NULL OR user_tags = '{}'))`
+        : `((tags IS NOT NULL AND tags != '{}') OR (user_tags IS NOT NULL AND user_tags != '{}'))`;
     }
 
     const condition = filter.negated
-      ? `NOT EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`
-      : `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex}))`;
+      ? `NOT (EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex})) OR EXISTS (SELECT 1 FROM unnest(user_tags) t WHERE lower(t) = lower($${ctx.paramIndex})))`
+      : `(EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = lower($${ctx.paramIndex})) OR EXISTS (SELECT 1 FROM unnest(user_tags) t WHERE lower(t) = lower($${ctx.paramIndex})))`;
     ctx.params.push(filter.value);
     ctx.paramIndex++;
     return condition;

@@ -44,6 +44,7 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
+        userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
         locations: {
@@ -147,6 +148,7 @@ export async function PATCH(
       coverFileKey,
       excludeFromPublicRooms,
       tags,
+      userTags,
       title,
       notes,
     } = body;
@@ -178,12 +180,18 @@ export async function PATCH(
       JSON.stringify(tags.slice().sort()) !==
         JSON.stringify(existingItem.tags.slice().sort());
 
+    const userTagsChanged =
+      userTags !== undefined &&
+      JSON.stringify(userTags.slice().sort()) !==
+        JSON.stringify(existingItem.userTags.slice().sort());
+
     const filterRelevantFieldsChanged =
       (kind !== undefined && kind !== existingItem.kind) ||
       (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
       (excludeFromPublicRooms !== undefined &&
         excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
-      tagsChanged;
+      tagsChanged ||
+      userTagsChanged;
 
     const updatedItem = await db.item.update({
       where: { id },
@@ -197,6 +205,7 @@ export async function PATCH(
         ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
+        ...(userTags !== undefined && { userTags }),
         ...(title !== undefined && { title }),
         ...(notes !== undefined && { notes }),
       },
@@ -215,6 +224,7 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
+        userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
         locations: {

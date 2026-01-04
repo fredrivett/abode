@@ -20,9 +20,14 @@ function matchesType(item: ItemWithDetails, value: string): boolean {
 
 /**
  * Check if item has a matching tag (case-insensitive).
+ * Searches both auto-generated tags and user-added tags.
  */
 function matchesTag(item: ItemWithDetails, value: string): boolean {
-  return item.tags.some((tag) => tag.toLowerCase() === value.toLowerCase());
+  const lowerValue = value.toLowerCase();
+  return (
+    item.tags.some((tag) => tag.toLowerCase() === lowerValue) ||
+    item.userTags.some((tag) => tag.toLowerCase() === lowerValue)
+  );
 }
 
 /**

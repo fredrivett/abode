@@ -109,6 +109,7 @@ export type Item = {
   title: string | null;
   description: string | null;
   tags: string[];
+  userTags: string[];
   notes: string | null;
   createdAt: string;
   // Flattened from imageDetails
