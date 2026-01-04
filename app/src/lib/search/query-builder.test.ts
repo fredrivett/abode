@@ -358,20 +358,23 @@ describe("validateSourceFilters", () => {
 });
 
 describe("buildTagCondition", () => {
-  it("builds EXISTS condition for tag", () => {
+  it("builds EXISTS condition for tag searching both tags and user_tags", () => {
     const result = buildTagCondition(
       [{ value: "vacation", negated: false }],
       1,
     );
     expect(result.sql).toContain("EXISTS");
     expect(result.sql).toContain("unnest(tags)");
+    expect(result.sql).toContain("unnest(user_tags)");
     expect(result.sql).toContain("lower(t) = lower($1)");
     expect(result.params).toEqual(["vacation"]);
   });
 
-  it("builds NOT EXISTS condition for negated tag", () => {
+  it("builds negated condition for tag searching both tags and user_tags", () => {
     const result = buildTagCondition([{ value: "work", negated: true }], 1);
-    expect(result.sql).toContain("NOT EXISTS");
+    expect(result.sql).toContain("NOT");
+    expect(result.sql).toContain("unnest(tags)");
+    expect(result.sql).toContain("unnest(user_tags)");
     expect(result.params).toEqual(["work"]);
   });
 
