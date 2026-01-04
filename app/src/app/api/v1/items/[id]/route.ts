@@ -183,6 +183,12 @@ export async function PATCH(
             { status: 400 },
           );
         }
+        if (tag.length === 0) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags cannot be empty" },
+            { status: 400 },
+          );
+        }
         if (tag.length > 50) {
           return NextResponse.json(
             { message: "Invalid userTags field: tags must be 50 characters or less" },
