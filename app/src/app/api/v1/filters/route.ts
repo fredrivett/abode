@@ -57,10 +57,18 @@ export async function GET(request: NextRequest) {
 
     // Helper to fetch and sort unique values
     const fetchTags = async (): Promise<string[]> => {
+      // Fetch both auto-generated tags and user tags, combine and deduplicate
       const result = await db.$queryRaw<{ tag: string }[]>`
-        SELECT DISTINCT unnest(tags) as tag
-        FROM items
-        WHERE user_id = ${user.id}::uuid
+        SELECT DISTINCT tag
+        FROM (
+          SELECT unnest(tags) as tag
+          FROM items
+          WHERE user_id = ${user.id}::uuid
+          UNION
+          SELECT unnest(user_tags) as tag
+          FROM items
+          WHERE user_id = ${user.id}::uuid
+        ) all_tags
         ORDER BY tag
       `;
       return result.map((r) => r.tag);
