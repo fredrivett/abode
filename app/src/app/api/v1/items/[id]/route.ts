@@ -161,6 +161,43 @@ export async function PATCH(
       );
     }
 
+    // Validate userTags field
+    if (userTags !== undefined) {
+      if (!Array.isArray(userTags)) {
+        return NextResponse.json(
+          { message: "Invalid userTags field: must be an array" },
+          { status: 400 },
+        );
+      }
+      if (userTags.length > 100) {
+        return NextResponse.json(
+          { message: "Invalid userTags field: maximum 100 tags allowed" },
+          { status: 400 },
+        );
+      }
+      const tagRegex = /^[\w\s-]+$/u;
+      for (const tag of userTags) {
+        if (typeof tag !== "string") {
+          return NextResponse.json(
+            { message: "Invalid userTags field: all tags must be strings" },
+            { status: 400 },
+          );
+        }
+        if (tag.length > 50) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags must be 50 characters or less" },
+            { status: 400 },
+          );
+        }
+        if (!tagRegex.test(tag)) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags can only contain letters, numbers, spaces, hyphens, and underscores" },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
       where: {

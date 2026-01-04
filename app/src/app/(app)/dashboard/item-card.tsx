@@ -621,6 +621,25 @@ function ItemDetailDialog({
   const handleAddUserTag = () => {
     const tag = newTagInput.trim();
     if (!tag) return;
+
+    // Validation: max 100 tags
+    if (userTags.length >= 100) {
+      toast.error("Maximum of 100 tags allowed");
+      return;
+    }
+
+    // Validation: max 50 characters
+    if (tag.length > 50) {
+      toast.error("Tag must be 50 characters or less");
+      return;
+    }
+
+    // Validation: allowed characters (letters, numbers, spaces, hyphens, underscores)
+    if (!/^[\w\s-]+$/u.test(tag)) {
+      toast.error("Tag can only contain letters, numbers, spaces, hyphens, and underscores");
+      return;
+    }
+
     // Don't add duplicates (case-insensitive)
     if (userTags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
       toast.error("Tag already exists");
@@ -634,7 +653,10 @@ function ItemDetailDialog({
   };
 
   const handleRemoveUserTag = (tagToRemove: string) => {
-    const newTags = userTags.filter((t) => t !== tagToRemove);
+    const lowerTagToRemove = tagToRemove.toLowerCase();
+    const newTags = userTags.filter(
+      (t) => t.toLowerCase() !== lowerTagToRemove,
+    );
     setUserTags(newTags);
     void saveUserTags(newTags);
   };
