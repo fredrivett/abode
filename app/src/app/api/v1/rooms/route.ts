@@ -17,8 +17,10 @@ const log = createLogger("api/v1/rooms");
 
 /**
  * GET /api/v1/rooms - List all rooms for the current user
+ * Query params:
+ *   - type: Filter by room type ('smart' | 'manual')
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -30,8 +32,22 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const typeFilter = searchParams.get("type");
+
+    // Validate type filter if provided
+    if (typeFilter && !["smart", "manual"].includes(typeFilter)) {
+      return NextResponse.json(
+        { message: "Type must be 'smart' or 'manual'" },
+        { status: 400 },
+      );
+    }
+
     const rooms = await db.room.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(typeFilter && { type: typeFilter as "smart" | "manual" }),
+      },
       select: {
         id: true,
         name: true,

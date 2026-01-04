@@ -76,6 +76,7 @@ export type ItemRoom = {
   emoji: string | null;
   slug: string | null;
   type: RoomType;
+  username: string | null;
 };
 
 /**

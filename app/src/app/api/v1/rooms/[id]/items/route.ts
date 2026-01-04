@@ -140,3 +140,196 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+/**
+ * POST /api/v1/rooms/:id/items - Add an item to a manual room
+ */
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { itemId } = body;
+
+    if (!itemId || typeof itemId !== "string") {
+      return NextResponse.json(
+        { message: "Item ID is required" },
+        { status: 400 },
+      );
+    }
+
+    // Check if room exists, belongs to user, and is a manual room
+    const room = await db.room.findUnique({
+      where: {
+        id,
+        userId: user.id,
+      },
+      select: { id: true, type: true },
+    });
+
+    if (!room) {
+      return NextResponse.json({ message: "Room not found" }, { status: 404 });
+    }
+
+    if (room.type !== "manual") {
+      return NextResponse.json(
+        { message: "Can only add items to manual rooms" },
+        { status: 400 },
+      );
+    }
+
+    // Check if item exists and belongs to user
+    const item = await db.item.findUnique({
+      where: {
+        id: itemId,
+        userId: user.id,
+      },
+      select: { id: true },
+    });
+
+    if (!item) {
+      return NextResponse.json({ message: "Item not found" }, { status: 404 });
+    }
+
+    // Check if already in room
+    const existing = await db.roomItem.findUnique({
+      where: {
+        roomId_itemId: { roomId: id, itemId },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { message: "Item already in room" },
+        { status: 409 },
+      );
+    }
+
+    // Create the room item
+    const roomItem = await db.roomItem.create({
+      data: {
+        roomId: id,
+        itemId,
+      },
+      select: {
+        id: true,
+        addedAt: true,
+        room: {
+          select: {
+            id: true,
+            name: true,
+            emoji: true,
+            slug: true,
+            type: true,
+            user: {
+              select: {
+                username: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      {
+        roomItem: {
+          id: roomItem.id,
+          addedAt: roomItem.addedAt,
+        },
+        room: {
+          id: roomItem.room.id,
+          name: roomItem.room.name,
+          emoji: roomItem.room.emoji,
+          slug: roomItem.room.slug,
+          type: roomItem.room.type,
+          username: roomItem.room.user.username,
+        },
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    log.error({ error }, "Add item to room error");
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE /api/v1/rooms/:id/items - Remove an item from a manual room
+ */
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { itemId } = body;
+
+    if (!itemId || typeof itemId !== "string") {
+      return NextResponse.json(
+        { message: "Item ID is required" },
+        { status: 400 },
+      );
+    }
+
+    // Check if room exists, belongs to user, and is a manual room
+    const room = await db.room.findUnique({
+      where: {
+        id,
+        userId: user.id,
+      },
+      select: { id: true, type: true },
+    });
+
+    if (!room) {
+      return NextResponse.json({ message: "Room not found" }, { status: 404 });
+    }
+
+    if (room.type !== "manual") {
+      return NextResponse.json(
+        { message: "Can only remove items from manual rooms" },
+        { status: 400 },
+      );
+    }
+
+    // Delete the room item (returns count of deleted records)
+    const { count } = await db.roomItem.deleteMany({
+      where: {
+        roomId: id,
+        itemId,
+      },
+    });
+
+    if (count === 0) {
+      return NextResponse.json({ message: "Item not in room" }, { status: 404 });
+    }
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    log.error({ error }, "Remove item from room error");
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
