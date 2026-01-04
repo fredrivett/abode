@@ -299,20 +299,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Find and delete the room item
-    const roomItem = await db.roomItem.findUnique({
+    // Delete the room item (returns count of deleted records)
+    const { count } = await db.roomItem.deleteMany({
       where: {
-        roomId_itemId: { roomId: id, itemId },
+        roomId: id,
+        itemId,
       },
     });
 
-    if (!roomItem) {
+    if (count === 0) {
       return NextResponse.json({ message: "Item not in room" }, { status: 404 });
     }
-
-    await db.roomItem.delete({
-      where: { id: roomItem.id },
-    });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

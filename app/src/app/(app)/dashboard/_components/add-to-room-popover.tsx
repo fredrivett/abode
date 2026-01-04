@@ -1,7 +1,6 @@
 "use client";
 
-import type { RoomType } from "@prisma/client";
-import { Check, Plus } from "lucide-react";
+import { Check, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,7 +18,6 @@ type Room = {
   id: string;
   name: string;
   emoji: string | null;
-  type: RoomType;
   itemCount: number;
 };
 
@@ -39,25 +37,37 @@ export function AddToRoomPopover({
   const [manualRooms, setManualRooms] = useState<Room[]>([]);
   const [togglingRoomId, setTogglingRoomId] = useState<string | null>(null);
 
-  // Fetch manual rooms when popover opens
+  const [hasFetched, setHasFetched] = useState(false);
+
+  // Fetch static rooms when popover opens (only once)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || hasFetched) return;
+
+    const abortController = new AbortController();
 
     const fetchRooms = async () => {
       setIsLoading(true);
       try {
-        const rooms = await api.get<Room[]>("/api/v1/rooms");
-        // Filter to only manual rooms
-        setManualRooms(rooms.filter((r) => r.type === "manual"));
-      } catch {
+        const rooms = await api.get<Room[]>("/api/v1/rooms?type=manual", {
+          signal: abortController.signal,
+        });
+        setManualRooms(rooms);
+        setHasFetched(true);
+      } catch (error) {
+        // Don't show error toast if request was aborted
+        if (error instanceof Error && error.name === "AbortError") return;
         toast.error("Failed to load rooms");
       } finally {
-        setIsLoading(false);
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     void fetchRooms();
-  }, [isOpen]);
+
+    return () => abortController.abort();
+  }, [isOpen, hasFetched]);
 
   const isItemInRoom = useCallback(
     (roomId: string) => currentRooms.some((r) => r.id === roomId),
@@ -144,7 +154,7 @@ export function AddToRoomPopover({
                 >
                   <span className="flex size-4 items-center justify-center">
                     {isToggling ? (
-                      <IsLoading label="" iconClassName="size-3" />
+                      <Loader2 className="size-3.5 animate-spin" />
                     ) : inRoom ? (
                       <Check className="size-3.5" />
                     ) : null}
