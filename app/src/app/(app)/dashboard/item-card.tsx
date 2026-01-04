@@ -52,8 +52,13 @@ import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
 import { getPlatformName } from "@/lib/platforms";
 import { createClient } from "@/lib/supabase/client";
-import type { ExternalLink as ExternalLinkType, Item } from "@/lib/types/item";
+import type {
+  ExternalLink as ExternalLinkType,
+  Item,
+  ItemRoom,
+} from "@/lib/types/item";
 import { cn } from "@/lib/utils";
+import { AddToRoomPopover } from "./_components/add-to-room-popover";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
@@ -390,6 +395,54 @@ type ItemDetailDialogProps = {
   canEdit: boolean;
 };
 
+type RemoveFromRoomButtonProps = {
+  itemId: string;
+  room: ItemRoom;
+  onRemoved: () => void;
+};
+
+function RemoveFromRoomButton({
+  itemId,
+  room,
+  onRemoved,
+}: RemoveFromRoomButtonProps) {
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleRemove = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRemoving(true);
+
+    try {
+      await api.delete(`/api/v1/rooms/${room.id}/items`, {
+        body: JSON.stringify({ itemId }),
+      });
+      onRemoved();
+      toast.success(`Removed from ${room.name}`);
+    } catch {
+      toast.error("Failed to remove from room");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleRemove}
+      disabled={isRemoving}
+      className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity ml-auto"
+      aria-label={`Remove from ${room.name}`}
+    >
+      {isRemoving ? (
+        <IsLoading label="" iconClassName="size-3" />
+      ) : (
+        <X className="size-3.5" />
+      )}
+    </button>
+  );
+}
+
 type DeleteItemDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -471,6 +524,7 @@ function ItemDetailDialog({
   const [showAddLinkInput, setShowAddLinkInput] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+  const [itemRooms, setItemRooms] = useState<ItemRoom[]>(item.rooms ?? []);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const supabase = createClient();
 
@@ -519,6 +573,11 @@ function ItemDetailDialog({
   useEffect(() => {
     setExternalLinks(item.externalLinks ?? []);
   }, [item.externalLinks]);
+
+  // Sync itemRooms state when item.rooms changes
+  useEffect(() => {
+    setItemRooms(item.rooms ?? []);
+  }, [item.rooms]);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
   useEffect(() => {
@@ -1131,17 +1190,27 @@ function ItemDetailDialog({
                 {/* Rooms - only shown to users who can edit */}
                 {canEdit && (
                   <div className="space-y-2">
-                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      <DoorOpen className="size-4" />
-                      Rooms
-                      <span className="text-xs font-normal text-muted-foreground">
-                        (private)
-                      </span>
-                    </h3>
-                    {item.rooms && item.rooms.length > 0 ? (
+                    <div className="flex items-center justify-between">
+                      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        <DoorOpen className="size-4" />
+                        Rooms
+                        <span className="text-xs font-normal text-muted-foreground">
+                          (private)
+                        </span>
+                      </h3>
+                      <AddToRoomPopover
+                        itemId={item.id}
+                        currentRooms={itemRooms}
+                        onRoomsChange={setItemRooms}
+                      />
+                    </div>
+                    {itemRooms.length > 0 ? (
                       <ul className="space-y-1">
-                        {item.rooms.map((room) => (
-                          <li key={room.id} className="flex items-center gap-1">
+                        {itemRooms.map((room) => (
+                          <li
+                            key={room.id}
+                            className="flex items-center gap-1 group"
+                          >
                             {room.emoji && (
                               <span className="text-sm">{room.emoji}</span>
                             )}
@@ -1155,6 +1224,17 @@ function ItemDetailDialog({
                               <Sparkles className="size-3 text-muted-foreground" />
                             ) : (
                               <Hand className="size-3 text-muted-foreground" />
+                            )}
+                            {room.type === "manual" && (
+                              <RemoveFromRoomButton
+                                itemId={item.id}
+                                room={room}
+                                onRemoved={() => {
+                                  setItemRooms(
+                                    itemRooms.filter((r) => r.id !== room.id),
+                                  );
+                                }}
+                              />
                             )}
                           </li>
                         ))}
