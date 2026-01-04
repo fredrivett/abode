@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
@@ -112,6 +113,25 @@ export async function GET(request: NextRequest) {
         new URL(`/auth/error?reason=${result.code}`, origin),
       );
     }
+
+    // Track signup completion with PostHog
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.id,
+      event: "signup_completed",
+      properties: {
+        username: pendingUsername,
+        email: user.email,
+        via_invite: !!inviteToken,
+      },
+    });
+    posthog.identify({
+      distinctId: user.id,
+      properties: {
+        email: user.email,
+        username: pendingUsername,
+      },
+    });
 
     log.info(
       { userId: user.id, username: pendingUsername },

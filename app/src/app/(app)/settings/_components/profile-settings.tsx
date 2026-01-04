@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, Trash2 } from "lucide-react";
+import posthog from "posthog-js";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { AvatarCropper } from "@/components/avatar/avatar-cropper";
@@ -87,8 +88,14 @@ export function ProfileSettings({
         throw new Error("Failed to update profile");
       }
 
+      // Track profile update event
+      posthog.capture("profile_updated", {
+        updated_fields: ["first_name", "last_name"],
+      });
+
       toast.success("Profile updated");
-    } catch {
+    } catch (error) {
+      posthog.captureException(error);
       toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);

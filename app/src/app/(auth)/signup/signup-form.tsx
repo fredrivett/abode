@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,13 @@ export function SignupForm() {
 
   // Show confirmation message after successful signup
   if (signupState.success && signupState.email) {
+    // Track signup event and identify user
+    posthog.capture("user_signed_up", {
+      email: signupState.email,
+      username: signupState.username,
+      source: "direct",
+    });
+
     return (
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
@@ -211,6 +212,16 @@ export async function deleteAccount(
         "Failed to delete auth user",
       );
     }
+
+    // Track account deletion event with PostHog (churn event)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.id,
+      event: "account_deleted",
+      properties: {
+        deleted_by: "self",
+      },
+    });
 
     // Trigger admin notification for account deletion
     try {

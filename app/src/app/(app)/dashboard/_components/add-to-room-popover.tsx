@@ -2,6 +2,7 @@
 
 import { Check, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -93,9 +94,18 @@ export function AddToRoomPopover({
           { itemId },
         );
         onRoomsChange([...currentRooms, response.room]);
+
+        // Track item added to room event
+        posthog.capture("item_added_to_room", {
+          item_id: itemId,
+          room_id: room.id,
+          room_name: room.name,
+        });
+
         toast.success(`Added to ${room.name}`);
       }
-    } catch {
+    } catch (error) {
+      posthog.captureException(error);
       toast.error(
         isInRoom ? "Failed to remove from room" : "Failed to add to room",
       );

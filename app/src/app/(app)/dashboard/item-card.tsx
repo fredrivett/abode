@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -167,11 +168,20 @@ export function ItemCard({
       await api.delete("/api/v1/items", {
         body: JSON.stringify({ id: item.id }),
       });
+
+      // Track item deletion event
+      posthog.capture("item_deleted", {
+        item_id: item.id,
+        item_kind: item.kind,
+        source_type: item.sourceType,
+      });
+
       toast.success("Item deleted");
       setShowDeleteDialog(false);
       invalidateItems();
     } catch (error) {
       log.error({ error }, "Delete error");
+      posthog.captureException(error);
       toast.error("Failed to delete item");
       setIsDeleting(false);
     }
@@ -338,6 +348,13 @@ export function ItemCard({
           onClick={() => {
             setIsAnimating(true);
             setShowDetailDialog(true);
+
+            // Track item details viewed event
+            posthog.capture("item_details_viewed", {
+              item_id: item.id,
+              item_kind: item.kind,
+              source_type: item.sourceType,
+            });
           }}
           transition={{
             layout: { duration: 0.3 },
@@ -755,9 +772,16 @@ function ItemDetailDialog({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      // Track item download event
+      posthog.capture("item_downloaded", {
+        item_id: item.id,
+        item_kind: item.kind,
+      });
+
       toast.success("Download started");
     } catch (error) {
       log.error({ error }, "Download error");
+      posthog.captureException(error);
       toast.error("Failed to download file");
     } finally {
       setIsDownloading(false);
@@ -785,9 +809,17 @@ function ItemDetailDialog({
       setExternalLinks(data.externalLinks);
       setNewLinkUrl("");
       setShowAddLinkInput(false);
+
+      // Track external link added event
+      posthog.capture("external_link_added", {
+        item_id: item.id,
+        link_domain: new URL(url).hostname,
+      });
+
       toast.success("Link added");
     } catch (error) {
       log.error({ error }, "Add link error");
+      posthog.captureException(error);
       toast.error("Failed to add link");
     } finally {
       setIsAddingLink(false);

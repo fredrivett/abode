@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { getAAL } from "@/lib/mfa";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthResult = {
@@ -32,6 +33,23 @@ export async function login(
   // Log login activity (fire-and-forget)
   if (authData.user) {
     void logActivity(authData.user.id, "user_login");
+
+    // Track login event with PostHog
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: authData.user.id,
+      event: "user_logged_in",
+      properties: {
+        email: data.email,
+        source: "password",
+      },
+    });
+    posthog.identify({
+      distinctId: authData.user.id,
+      properties: {
+        email: data.email,
+      },
+    });
   }
 
   // Check if user has MFA enabled and needs to complete challenge

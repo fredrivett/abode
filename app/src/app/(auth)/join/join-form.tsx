@@ -1,6 +1,7 @@
 "use client";
 
 import { Mailbox } from "lucide-react";
+import posthog from "posthog-js";
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,14 @@ export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
 
   // Show confirmation message after successful signup
   if (signupState.success && signupState.email) {
+    // Track invite join event
+    posthog.capture("user_joined_via_invite", {
+      email: signupState.email,
+      username: signupState.username,
+      invite_origin: inviteOrigin,
+      source: "invite",
+    });
+
     return (
       <div className="space-y-2 text-center">
         <Mailbox className="mx-auto size-12 text-muted-foreground" />

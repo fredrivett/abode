@@ -3,6 +3,7 @@
 import { ArrowLeft, Hand, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
@@ -142,6 +143,15 @@ export function NewRoomForm() {
 
         if (response.ok) {
           const room = await response.json();
+
+          // Track room creation event
+          posthog.capture("room_created", {
+            room_id: room.id,
+            room_type: roomType,
+            has_emoji: !!emoji,
+            filter_count: roomType === "smart" ? filters.length : 0,
+          });
+
           toast.success("Room created");
           router.push(`/@${room.username}/${room.slug}`);
         } else {
@@ -149,7 +159,8 @@ export function NewRoomForm() {
           toast.error(data.message || "Failed to create room");
           setIsCreating(false);
         }
-      } catch {
+      } catch (error) {
+        posthog.captureException(error);
         toast.error("Failed to create room");
         setIsCreating(false);
       }

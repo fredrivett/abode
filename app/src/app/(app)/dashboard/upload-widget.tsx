@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -129,11 +130,21 @@ export function UploadWidget() {
         throw itemError;
       }
 
+      // Track item upload event
+      posthog.capture("item_uploaded", {
+        file_type: file.type,
+        file_size: file.size,
+        width: dimensions?.width,
+        height: dimensions?.height,
+        source: "upload_widget",
+      });
+
       toast.success("Upload complete");
       resetFile();
       invalidateItems();
     } catch (error) {
       log.error({ error }, "Upload error");
+      posthog.captureException(error);
       toast.error("Upload failed. Please try again.");
       resetFile();
     } finally {
