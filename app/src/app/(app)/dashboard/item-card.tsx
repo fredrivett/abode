@@ -530,6 +530,7 @@ function ItemDetailDialog({
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [showAddLinkInput, setShowAddLinkInput] = useState(false);
+  const [showAddTagInput, setShowAddTagInput] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
   const [itemRooms, setItemRooms] = useState<ItemRoom[]>(item.rooms ?? []);
@@ -699,7 +700,9 @@ function ItemDetailDialog({
 
     // Validation: allowed characters (letters, numbers, spaces, hyphens, underscores)
     if (!/^[\w\s-]+$/u.test(tag)) {
-      toast.error("Tag can only contain letters, numbers, spaces, hyphens, and underscores");
+      toast.error(
+        "Tag can only contain letters, numbers, spaces, hyphens, and underscores",
+      );
       return;
     }
 
@@ -712,6 +715,7 @@ function ItemDetailDialog({
     const newTags = [...userTags, tag];
     setUserTags(newTags);
     setNewTagInput("");
+    setShowAddTagInput(false);
     void saveUserTags(newTags);
   };
 
@@ -1158,53 +1162,60 @@ function ItemDetailDialog({
                       )}
 
                       {/* Tags - User Tags + Auto-generated Tags */}
-                      {(userTags.length > 0 || item.tags.length > 0 || canEdit) && (
+                      {(userTags.length > 0 ||
+                        item.tags.length > 0 ||
+                        canEdit) && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                               Tags
                             </h3>
-                            {isSavingUserTags && (
-                              <IsLoading
-                                label="Saving"
-                                className="text-xs text-muted-foreground"
-                                iconClassName="size-3"
-                              />
+                            {canEdit && !showAddTagInput && (
+                              <button
+                                type="button"
+                                onClick={() => setShowAddTagInput(true)}
+                                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <Plus className="size-3.5" />
+                                Add tag
+                              </button>
                             )}
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {/* User-added tags (primary styling, removable) */}
-                            {userTags.map((tag) => (
-                              <span
-                                key={`user-${tag}`}
-                                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20"
-                              >
-                                {tag}
-                                {canEdit && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveUserTag(tag)}
-                                    className="ml-0.5 hover:text-primary/70 focus:outline-none"
-                                    aria-label={`Remove tag ${tag}`}
-                                  >
-                                    <X className="size-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                            {/* Auto-generated tags (secondary/gray styling, read-only) */}
-                            {item.tags.map((tag) => (
-                              <span
-                                key={`auto-${tag}`}
-                                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
+                          {(userTags.length > 0 || item.tags.length > 0) && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {/* User-added tags (primary styling, removable) */}
+                              {userTags.map((tag) => (
+                                <span
+                                  key={`user-${tag}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20"
+                                >
+                                  {tag}
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveUserTag(tag)}
+                                      className="ml-0.5 hover:text-primary/70 focus:outline-none"
+                                      aria-label={`Remove tag ${tag}`}
+                                    >
+                                      <X className="size-3" />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                              {/* Auto-generated tags (secondary/gray styling, read-only) */}
+                              {item.tags.map((tag) => (
+                                <span
+                                  key={`auto-${tag}`}
+                                  className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {/* Tag input - only for users who can edit */}
-                          {canEdit && (
-                            <div className="flex gap-2">
+                          {canEdit && showAddTagInput && (
+                            <div className="flex items-center gap-2">
                               <input
                                 type="text"
                                 value={newTagInput}
@@ -1213,19 +1224,37 @@ function ItemDetailDialog({
                                   if (e.key === "Enter") {
                                     e.preventDefault();
                                     handleAddUserTag();
+                                  } else if (e.key === "Escape") {
+                                    setShowAddTagInput(false);
+                                    setNewTagInput("");
                                   }
                                 }}
                                 placeholder="Add a tag..."
-                                className="flex-1 rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                autoFocus
+                                disabled={isSavingUserTags}
                               />
                               <Button
-                                type="button"
                                 size="sm"
-                                variant="outline"
                                 onClick={handleAddUserTag}
-                                disabled={!newTagInput.trim() || isSavingUserTags}
+                                disabled={isSavingUserTags || !newTagInput.trim()}
                               >
-                                <Plus className="size-4" />
+                                {isSavingUserTags ? (
+                                  <IsLoading label="Adding" iconClassName="size-3" />
+                                ) : (
+                                  "Add"
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setShowAddTagInput(false);
+                                  setNewTagInput("");
+                                }}
+                                disabled={isSavingUserTags}
+                              >
+                                <X className="size-4" />
                               </Button>
                             </div>
                           )}
