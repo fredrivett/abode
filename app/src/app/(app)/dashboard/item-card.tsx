@@ -11,6 +11,7 @@ import {
   FileText,
   Hand,
   Link2,
+  Loader2,
   Plus,
   Sparkles,
   Trash2,
@@ -435,7 +436,7 @@ function RemoveFromRoomButton({
       aria-label={`Remove from ${room.name}`}
     >
       {isRemoving ? (
-        <IsLoading label="" iconClassName="size-3" />
+        <Loader2 className="size-3.5" />
       ) : (
         <X className="size-3.5" />
       )}
