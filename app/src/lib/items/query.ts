@@ -64,6 +64,11 @@ export const itemSelect = {
           emoji: true,
           slug: true,
           type: true,
+          user: {
+            select: {
+              username: true,
+            },
+          },
         },
       },
     },
@@ -90,7 +95,14 @@ export function transformItem(item: RawItem) {
     ocrText: item.imageDetails?.ocrText ?? null,
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
     excludeFromPublicRooms: item.excludeFromPublicRooms,
-    rooms: item.roomItems.map((ri) => ri.room),
+    rooms: item.roomItems.map((ri) => ({
+      id: ri.room.id,
+      name: ri.room.name,
+      emoji: ri.room.emoji,
+      slug: ri.room.slug,
+      type: ri.room.type,
+      username: ri.room.user.username,
+    })),
     externalLinks: (item.externalLinks as ExternalLink[] | null) ?? [],
     imageDetails: undefined,
     roomItems: undefined,

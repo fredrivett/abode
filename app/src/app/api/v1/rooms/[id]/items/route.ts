@@ -229,6 +229,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             emoji: true,
             slug: true,
             type: true,
+            user: {
+              select: {
+                username: true,
+              },
+            },
           },
         },
       },
@@ -240,7 +245,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           id: roomItem.id,
           addedAt: roomItem.addedAt,
         },
-        room: roomItem.room,
+        room: {
+          id: roomItem.room.id,
+          name: roomItem.room.name,
+          emoji: roomItem.room.emoji,
+          slug: roomItem.room.slug,
+          type: roomItem.room.type,
+          username: roomItem.room.user.username,
+        },
       },
       { status: 201 },
     );

@@ -1214,12 +1214,16 @@ function ItemDetailDialog({
                             {room.emoji && (
                               <span className="text-sm">{room.emoji}</span>
                             )}
-                            <Link
-                              href={`/rooms/${room.id}`}
-                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                              {room.name}
-                            </Link>
+                            {room.username && room.slug ? (
+                              <Link
+                                href={`/@${room.username}/${room.slug}`}
+                                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {room.name}
+                              </Link>
+                            ) : (
+                              <span className="text-sm">{room.name}</span>
+                            )}
                             {room.type === "smart" ? (
                               <Sparkles className="size-3 text-muted-foreground" />
                             ) : (
