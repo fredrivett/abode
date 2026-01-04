@@ -60,6 +60,7 @@ function createTestItem(
     kind?: ItemKind | null;
     processingStatus?: string;
     tags?: string[];
+    userTags?: string[];
     sourceType?: string | null;
     createdAt?: Date;
     excludeFromPublicRooms?: boolean;
@@ -82,6 +83,7 @@ function createTestItem(
     title: null,
     description: null,
     tags: overrides.tags ?? [],
+    userTags: overrides.userTags ?? [],
     excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
     imageDetails: overrides.imageDetails ?? null,
     locations: overrides.locations ?? [],

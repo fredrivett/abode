@@ -22,6 +22,7 @@ export const itemSelect = {
   title: true,
   description: true,
   tags: true,
+  userTags: true,
   notes: true,
   excludeFromPublicRooms: true,
   locations: {

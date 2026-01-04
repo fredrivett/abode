@@ -69,6 +69,7 @@ type RawItemRow = {
   title: string | null;
   description: string | null;
   tags: string[];
+  user_tags: string[];
   notes: string | null;
   created_at: Date;
   objects: string[] | null;
@@ -120,6 +121,7 @@ function transformRawItemToItem(
     title: row.title,
     description: row.description,
     tags: row.tags || [],
+    userTags: row.user_tags || [],
     notes: row.notes,
     objects: row.objects || [],
     colors: parseColors(row.colors) ?? [],
@@ -456,6 +458,7 @@ async function executeFiltersOnlySearch(
       items.title,
       items.description,
       items.tags,
+      items.user_tags,
       items.created_at,
       iid.objects,
       iid.colors,
@@ -685,6 +688,7 @@ async function executeRankedSearch(
       i.title,
       i.description,
       i.tags,
+      i.user_tags,
       i.notes,
       i.created_at,
       iid.objects,

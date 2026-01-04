@@ -44,6 +44,7 @@ export async function GET(
         title: true,
         description: true,
         tags: true,
+        userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
         locations: {
@@ -147,6 +148,7 @@ export async function PATCH(
       coverFileKey,
       excludeFromPublicRooms,
       tags,
+      userTags,
       title,
       notes,
     } = body;
@@ -157,6 +159,49 @@ export async function PATCH(
         { message: "Invalid notes field: must be a string or null" },
         { status: 400 },
       );
+    }
+
+    // Validate userTags field
+    if (userTags !== undefined) {
+      if (!Array.isArray(userTags)) {
+        return NextResponse.json(
+          { message: "Invalid userTags field: must be an array" },
+          { status: 400 },
+        );
+      }
+      if (userTags.length > 100) {
+        return NextResponse.json(
+          { message: "Invalid userTags field: maximum 100 tags allowed" },
+          { status: 400 },
+        );
+      }
+      const tagRegex = /^[\w\s-]+$/u;
+      for (const tag of userTags) {
+        if (typeof tag !== "string") {
+          return NextResponse.json(
+            { message: "Invalid userTags field: all tags must be strings" },
+            { status: 400 },
+          );
+        }
+        if (tag.length === 0) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags cannot be empty" },
+            { status: 400 },
+          );
+        }
+        if (tag.length > 50) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags must be 50 characters or less" },
+            { status: 400 },
+          );
+        }
+        if (!tagRegex.test(tag)) {
+          return NextResponse.json(
+            { message: "Invalid userTags field: tags can only contain letters, numbers, spaces, hyphens, and underscores" },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     // Check if item exists and belongs to user
@@ -178,12 +223,18 @@ export async function PATCH(
       JSON.stringify(tags.slice().sort()) !==
         JSON.stringify(existingItem.tags.slice().sort());
 
+    const userTagsChanged =
+      userTags !== undefined &&
+      JSON.stringify(userTags.slice().sort()) !==
+        JSON.stringify(existingItem.userTags.slice().sort());
+
     const filterRelevantFieldsChanged =
       (kind !== undefined && kind !== existingItem.kind) ||
       (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
       (excludeFromPublicRooms !== undefined &&
         excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
-      tagsChanged;
+      tagsChanged ||
+      userTagsChanged;
 
     const updatedItem = await db.item.update({
       where: { id },
@@ -197,6 +248,7 @@ export async function PATCH(
         ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
+        ...(userTags !== undefined && { userTags }),
         ...(title !== undefined && { title }),
         ...(notes !== undefined && { notes }),
       },
@@ -215,6 +267,7 @@ export async function PATCH(
         title: true,
         description: true,
         tags: true,
+        userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
         locations: {

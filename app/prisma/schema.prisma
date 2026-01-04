@@ -123,7 +123,8 @@ model Item {
   // AI-generated metadata (shared across all item types)
   title            String?
   description      String?
-  tags             String[]         @default([])  // General labels/keywords
+  tags             String[]         @default([])  // Auto-generated labels (Vision API)
+  userTags         String[]         @default([]) @map("user_tags") // User-added manual tags
 
   // User-provided notes
   notes            String?
@@ -153,6 +154,7 @@ model Item {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([tags])
+  @@index([userTags])
   @@map("items")
 }
 

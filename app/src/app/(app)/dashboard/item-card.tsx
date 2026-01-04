@@ -448,6 +448,7 @@ function ItemDetailDialog({
   isDeleting,
   canEdit,
 }: ItemDetailDialogProps) {
+  const invalidateItems = useInvalidateItems();
   const [isSavingName, setIsSavingName] = useState(false);
   const [fullQualityUrl, setFullQualityUrl] = useState<string | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -462,6 +463,9 @@ function ItemDetailDialog({
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [userTags, setUserTags] = useState<string[]>(item.userTags ?? []);
+  const [isSavingUserTags, setIsSavingUserTags] = useState(false);
+  const [newTagInput, setNewTagInput] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [externalLinks, setExternalLinks] = useState<ExternalLinkType[]>(
     item.externalLinks ?? [],
@@ -514,6 +518,11 @@ function ItemDetailDialog({
   useEffect(() => {
     setNotes(item.notes ?? "");
   }, [item.notes]);
+
+  // Sync userTags state when item.userTags changes
+  useEffect(() => {
+    setUserTags(item.userTags ?? []);
+  }, [item.userTags]);
 
   // Sync externalLinks state when item.externalLinks changes
   useEffect(() => {
@@ -592,6 +601,64 @@ function ItemDetailDialog({
   const handleNotesChange = (value: string) => {
     setNotes(value);
     saveNotes(value);
+  };
+
+  const saveUserTags = async (newTags: string[]) => {
+    setIsSavingUserTags(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, { userTags: newTags });
+      invalidateItems();
+    } catch (error) {
+      log.error({ error }, "User tags save error");
+      toast.error("Failed to save tags");
+      // Revert on error
+      setUserTags(item.userTags ?? []);
+    } finally {
+      setIsSavingUserTags(false);
+    }
+  };
+
+  const handleAddUserTag = () => {
+    const tag = newTagInput.trim();
+    if (!tag) return;
+
+    // Validation: max 100 tags
+    if (userTags.length >= 100) {
+      toast.error("Maximum of 100 tags allowed");
+      return;
+    }
+
+    // Validation: max 50 characters
+    if (tag.length > 50) {
+      toast.error("Tag must be 50 characters or less");
+      return;
+    }
+
+    // Validation: allowed characters (letters, numbers, spaces, hyphens, underscores)
+    if (!/^[\w\s-]+$/u.test(tag)) {
+      toast.error("Tag can only contain letters, numbers, spaces, hyphens, and underscores");
+      return;
+    }
+
+    // Don't add duplicates (case-insensitive)
+    if (userTags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+      toast.error("Tag already exists");
+      setNewTagInput("");
+      return;
+    }
+    const newTags = [...userTags, tag];
+    setUserTags(newTags);
+    setNewTagInput("");
+    void saveUserTags(newTags);
+  };
+
+  const handleRemoveUserTag = (tagToRemove: string) => {
+    const lowerTagToRemove = tagToRemove.toLowerCase();
+    const newTags = userTags.filter(
+      (t) => t.toLowerCase() !== lowerTagToRemove,
+    );
+    setUserTags(newTags);
+    void saveUserTags(newTags);
   };
 
   const handleDownload = async () => {
@@ -1027,22 +1094,78 @@ function ItemDetailDialog({
                         </div>
                       )}
 
-                      {/* Tags */}
-                      {item.tags.length > 0 && (
+                      {/* Tags - User Tags + Auto-generated Tags */}
+                      {(userTags.length > 0 || item.tags.length > 0 || canEdit) && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Tags
-                          </h3>
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                              Tags
+                            </h3>
+                            {isSavingUserTags && (
+                              <IsLoading
+                                label="Saving"
+                                className="text-xs text-muted-foreground"
+                                iconClassName="size-3"
+                              />
+                            )}
+                          </div>
                           <div className="flex flex-wrap gap-1.5">
+                            {/* User-added tags (primary styling, removable) */}
+                            {userTags.map((tag) => (
+                              <span
+                                key={`user-${tag}`}
+                                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20"
+                              >
+                                {tag}
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveUserTag(tag)}
+                                    className="ml-0.5 hover:text-primary/70 focus:outline-none"
+                                    aria-label={`Remove tag ${tag}`}
+                                  >
+                                    <X className="size-3" />
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                            {/* Auto-generated tags (secondary/gray styling, read-only) */}
                             {item.tags.map((tag) => (
                               <span
-                                key={tag}
+                                key={`auto-${tag}`}
                                 className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                               >
                                 {tag}
                               </span>
                             ))}
                           </div>
+                          {/* Tag input - only for users who can edit */}
+                          {canEdit && (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newTagInput}
+                                onChange={(e) => setNewTagInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddUserTag();
+                                  }
+                                }}
+                                placeholder="Add a tag..."
+                                className="flex-1 rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleAddUserTag}
+                                disabled={!newTagInput.trim() || isSavingUserTags}
+                              >
+                                <Plus className="size-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
 

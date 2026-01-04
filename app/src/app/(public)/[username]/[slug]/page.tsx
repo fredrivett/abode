@@ -162,6 +162,7 @@ export default async function RoomPage({ params }: Props) {
           title: true,
           description: true,
           tags: true,
+          userTags: true,
           locations: {
             select: {
               id: true,
@@ -234,6 +235,7 @@ export default async function RoomPage({ params }: Props) {
     title: roomItem.item.title,
     description: roomItem.item.description,
     tags: roomItem.item.tags,
+    userTags: roomItem.item.userTags,
     notes: null, // Notes are private, not exposed on public room pages
     objects: roomItem.item.imageDetails?.objects ?? [],
     colors: (roomItem.item.imageDetails?.colors as ImageColor[]) ?? [],

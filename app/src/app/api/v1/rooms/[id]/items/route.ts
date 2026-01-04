@@ -74,6 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             title: true,
             description: true,
             tags: true,
+            userTags: true,
             locations: {
               select: {
                 id: true,
