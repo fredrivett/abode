@@ -432,7 +432,10 @@ function RemoveFromRoomButton({
       type="button"
       onClick={handleRemove}
       disabled={isRemoving}
-      className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity ml-auto"
+      className={cn(
+        "opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground transition-opacity ml-auto",
+        isRemoving ? "hover:text-destructive" : "cursor-pointer",
+      )}
       aria-label={`Remove from ${room.name}`}
     >
       {isRemoving ? (
