@@ -36,7 +36,7 @@ export async function login(
 
     // Track login event with PostHog
     const posthog = getPostHogClient();
-    posthog.capture({
+    posthog?.capture({
       distinctId: authData.user.id,
       event: "user_logged_in",
       properties: {
@@ -44,7 +44,7 @@ export async function login(
         source: "password",
       },
     });
-    posthog.identify({
+    posthog?.identify({
       distinctId: authData.user.id,
       properties: {
         email: data.email,

@@ -215,7 +215,7 @@ export async function deleteAccount(
 
     // Track account deletion event with PostHog (churn event)
     const posthog = getPostHogClient();
-    posthog.capture({
+    posthog?.capture({
       distinctId: user.id,
       event: "account_deleted",
       properties: {

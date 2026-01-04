@@ -6,6 +6,10 @@ posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   defaults: "2025-05-24",
   // Enables capturing unhandled exceptions via Error Tracking
   capture_exceptions: true,
-  // Turn on debug in development mode
-  debug: process.env.NODE_ENV === "development",
+  loaded: (posthog) => {
+    if (process.env.NODE_ENV === "development") {
+      posthog.opt_out_capturing();
+      posthog.debug();
+    }
+  },
 });

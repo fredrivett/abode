@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Track signup completion with PostHog
     const posthog = getPostHogClient();
-    posthog.capture({
+    posthog?.capture({
       distinctId: user.id,
       event: "signup_completed",
       properties: {
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         via_invite: !!inviteToken,
       },
     });
-    posthog.identify({
+    posthog?.identify({
       distinctId: user.id,
       properties: {
         email: user.email,
