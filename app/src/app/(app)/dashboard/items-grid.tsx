@@ -44,16 +44,26 @@ export function ItemsGrid({
   total,
 }: ItemsGridProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef = useRef(false);
+
+  // Reset ref when loading completes
+  useEffect(() => {
+    if (!isLoadingMore) {
+      isLoadingRef.current = false;
+    }
+  }, [isLoadingMore]);
 
   // Intersection Observer for infinite scroll
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
-      if (entry.isIntersecting && hasMore && !isLoadingMore && onLoadMore) {
+      // Use ref for synchronous guard to prevent multiple rapid-fire calls
+      if (entry.isIntersecting && hasMore && !isLoadingRef.current && onLoadMore) {
+        isLoadingRef.current = true;
         onLoadMore();
       }
     },
-    [hasMore, isLoadingMore, onLoadMore],
+    [hasMore, onLoadMore],
   );
 
   useEffect(() => {
