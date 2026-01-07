@@ -7,6 +7,10 @@ import { getAvailableInvites } from "@/lib/invites";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import type {
+  TwitterDetails,
+  TwitterMedia,
+} from "@/lib/types/item";
 import type { ImageColor } from "@/lib/vision";
 import { RoomPageClient } from "./_components/room-page-client";
 
@@ -194,6 +198,19 @@ export default async function RoomPage({ params }: Props) {
               content: true,
             },
           },
+          twitterDetails: {
+            select: {
+              tweetId: true,
+              authorName: true,
+              authorUsername: true,
+              authorAvatarUrl: true,
+              text: true,
+              postedAt: true,
+              media: true,
+              quotedTweetId: true,
+              card: true,
+            },
+          },
         },
       },
     },
@@ -248,6 +265,19 @@ export default async function RoomPage({ params }: Props) {
           publishedAt:
             roomItem.item.articleDetails.publishedAt?.toISOString() ?? null,
         }
+      : null,
+    twitterDetails: roomItem.item.twitterDetails
+      ? ({
+          tweetId: roomItem.item.twitterDetails.tweetId,
+          authorName: roomItem.item.twitterDetails.authorName,
+          authorUsername: roomItem.item.twitterDetails.authorUsername,
+          authorAvatarUrl: roomItem.item.twitterDetails.authorAvatarUrl,
+          text: roomItem.item.twitterDetails.text,
+          postedAt: roomItem.item.twitterDetails.postedAt?.toISOString() ?? null,
+          media: roomItem.item.twitterDetails.media as TwitterMedia[] | null,
+          quotedTweetId: roomItem.item.twitterDetails.quotedTweetId,
+          card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
+        } satisfies TwitterDetails)
       : null,
   }));
 

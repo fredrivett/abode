@@ -26,6 +26,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
+import { TwitterCard } from "@/components/twitter/twitter-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,6 +134,7 @@ export function ItemCard({
   const [isAnimating, setIsAnimating] = useState(false);
 
   const isArticle = item.kind === "article";
+  const isTwitter = item.kind === "twitter";
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // For articles, use coverFileKey; for images, use fileKey
@@ -218,25 +220,21 @@ export function ItemCard({
           </div>
         </button>
 
-        <AnimatePresence>
-          {showDetailDialog && (
-            <ItemDetailDialog
-              item={item}
-              size={size}
-              previewUrl={null}
-              imageFileKey={imageFileKey}
-              open={showDetailDialog}
-              onOpenChange={setShowDetailDialog}
-              name={itemName}
-              onNameChange={setItemName}
-              deleteOpen={showDeleteDialog}
-              onDeleteOpenChange={setShowDeleteDialog}
-              onDeleteConfirm={handleDelete}
-              isDeleting={isDeleting}
-              canEdit={canEdit}
-            />
-          )}
-        </AnimatePresence>
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
       </>
     );
   }
@@ -265,25 +263,49 @@ export function ItemCard({
           </div>
         </button>
 
-        <AnimatePresence>
-          {showDetailDialog && (
-            <ItemDetailDialog
-              item={item}
-              size={size}
-              previewUrl={null}
-              imageFileKey={imageFileKey}
-              open={showDetailDialog}
-              onOpenChange={setShowDetailDialog}
-              name={itemName}
-              onNameChange={setItemName}
-              deleteOpen={showDeleteDialog}
-              onDeleteOpenChange={setShowDeleteDialog}
-              onDeleteConfirm={handleDelete}
-              isDeleting={isDeleting}
-              canEdit={canEdit}
-            />
-          )}
-        </AnimatePresence>
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Twitter items get the custom TwitterCard
+  if (isTwitter && item.twitterDetails) {
+    return (
+      <>
+        <TwitterCard
+          twitterDetails={item.twitterDetails}
+          onClick={() => setShowDetailDialog(true)}
+        />
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={null}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
       </>
     );
   }
@@ -369,25 +391,22 @@ export function ItemCard({
         </motion.div>
       </div>
 
-      <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
-        {showDetailDialog && (
-          <ItemDetailDialog
-            item={item}
-            size={size}
-            previewUrl={previewUrl}
-            imageFileKey={imageFileKey}
-            open={showDetailDialog}
-            onOpenChange={setShowDetailDialog}
-            name={itemName}
-            onNameChange={setItemName}
-            deleteOpen={showDeleteDialog}
-            onDeleteOpenChange={setShowDeleteDialog}
-            onDeleteConfirm={handleDelete}
-            isDeleting={isDeleting}
-            canEdit={canEdit}
-          />
-        )}
-      </AnimatePresence>
+      <ItemDetailDialogWrapper
+        show={showDetailDialog}
+        item={item}
+        size={size}
+        previewUrl={previewUrl}
+        imageFileKey={imageFileKey}
+        onOpenChange={setShowDetailDialog}
+        name={itemName}
+        onNameChange={setItemName}
+        deleteOpen={showDeleteDialog}
+        onDeleteOpenChange={setShowDeleteDialog}
+        onDeleteConfirm={handleDelete}
+        isDeleting={isDeleting}
+        canEdit={canEdit}
+        onExitComplete={() => setIsAnimating(false)}
+      />
     </>
   );
 }
@@ -471,6 +490,64 @@ type DeleteItemDialogProps = {
   isDeleting: boolean;
   itemName: string;
 };
+
+/**
+ * Wrapper component for the detail dialog with AnimatePresence.
+ * Reduces duplication across different item card types.
+ */
+function ItemDetailDialogWrapper({
+  show,
+  item,
+  size,
+  previewUrl,
+  imageFileKey,
+  onOpenChange,
+  name,
+  onNameChange,
+  deleteOpen,
+  onDeleteOpenChange,
+  onDeleteConfirm,
+  isDeleting,
+  canEdit,
+  onExitComplete,
+}: {
+  show: boolean;
+  item: Item;
+  size: string;
+  previewUrl: string | null;
+  imageFileKey: string | null;
+  onOpenChange: (open: boolean) => void;
+  name: string;
+  onNameChange: (value: string) => void;
+  deleteOpen: boolean;
+  onDeleteOpenChange: (open: boolean) => void;
+  onDeleteConfirm: () => Promise<void>;
+  isDeleting: boolean;
+  canEdit: boolean;
+  onExitComplete?: () => void;
+}) {
+  return (
+    <AnimatePresence onExitComplete={onExitComplete}>
+      {show && (
+        <ItemDetailDialog
+          item={item}
+          size={size}
+          previewUrl={previewUrl}
+          imageFileKey={imageFileKey}
+          open={show}
+          onOpenChange={onOpenChange}
+          name={name}
+          onNameChange={onNameChange}
+          deleteOpen={deleteOpen}
+          onDeleteOpenChange={onDeleteOpenChange}
+          onDeleteConfirm={onDeleteConfirm}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      )}
+    </AnimatePresence>
+  );
+}
 
 function DeleteItemDialog({
   open,

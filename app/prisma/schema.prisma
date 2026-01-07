@@ -56,6 +56,7 @@ model User {
 enum ItemKind {
   image
   article
+  twitter
 }
 
 enum SourceType {
@@ -149,6 +150,7 @@ model Item {
   textVectors       ItemTextVector[]
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
+  twitterDetails    ItemTwitterDetails?
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
@@ -257,6 +259,26 @@ model ItemImageDetails {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("item_image_details")
+}
+
+model ItemTwitterDetails {
+  itemId          String    @id @map("item_id") @db.Uuid
+  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  tweetId         String    @map("tweet_id")           // Twitter's ID for the tweet
+  authorName      String?   @map("author_name")        // Display name
+  authorUsername  String    @map("author_username")    // @handle
+  authorAvatarUrl String?   @map("author_avatar_url")
+  text            String?                               // Tweet text content
+  postedAt        DateTime? @map("posted_at")          // When tweet was posted
+  media           Json?     @map("media")              // Array of media objects with type, url, dimensions
+  quotedTweetId   String?   @map("quoted_tweet_id")    // If quoting another tweet
+  card            Json?     @map("card")               // Link card data (title, description, url, imageUrl)
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_twitter_details")
 }
 
 model Room {

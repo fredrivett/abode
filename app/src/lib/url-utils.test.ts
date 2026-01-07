@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getExtensionFromContentType,
+  getHostname,
   isImageUrl,
   isValidUrl,
 } from "./url-utils";
@@ -132,6 +133,31 @@ describe("isImageUrl", () => {
         false,
       );
     });
+  });
+});
+
+describe("getHostname", () => {
+  it("extracts hostname from valid URLs", () => {
+    expect(getHostname("https://example.com")).toBe("example.com");
+    expect(getHostname("https://example.com/path")).toBe("example.com");
+    expect(getHostname("https://example.com/path?query=1")).toBe("example.com");
+    expect(getHostname("http://sub.example.com/page")).toBe("sub.example.com");
+  });
+
+  it("handles URLs with ports", () => {
+    expect(getHostname("https://example.com:8080/path")).toBe("example.com");
+    expect(getHostname("http://localhost:3000")).toBe("localhost");
+  });
+
+  it("returns original string for malformed URLs", () => {
+    expect(getHostname("not a url")).toBe("not a url");
+    expect(getHostname("")).toBe("");
+    expect(getHostname("example.com")).toBe("example.com");
+  });
+
+  it("returns original string for relative URLs", () => {
+    expect(getHostname("/path/to/page")).toBe("/path/to/page");
+    expect(getHostname("./relative")).toBe("./relative");
   });
 });
 

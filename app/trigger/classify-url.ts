@@ -8,10 +8,13 @@ import TurndownService from "turndown";
 import db from "../src/lib/db";
 import {
   extractArticleMetadata,
+  extractTweetId,
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
+import { detectPlatform } from "../src/lib/platforms";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
+import { handleTwitterUrl } from "./handle-twitter-url";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type ClassifyUrlPayload = {
@@ -98,6 +101,18 @@ export const classifyUrlTask = task({
     logger.log("Starting URL classification", { itemId, userId, url });
 
     try {
+      // Step 0: Check if this is a Twitter/X URL before any fetching
+      const platform = detectPlatform(url);
+      if (platform === "twitter") {
+        const tweetId = extractTweetId(url);
+        if (tweetId) {
+          logger.log("URL classified as Twitter/X post", { itemId, url, tweetId });
+          return await handleTwitterUrl({ itemId, userId, url, tweetId });
+        }
+        // If we can't extract a tweet ID, fall through to article handling
+        logger.warn("Twitter URL without tweet ID, treating as article", { itemId, url });
+      }
+
       // Step 1: Fetch the URL with a HEAD request first to check content type
       logger.log("Checking URL content type", { itemId, url });
 

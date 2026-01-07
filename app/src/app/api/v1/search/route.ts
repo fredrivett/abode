@@ -24,7 +24,13 @@ import {
 import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
 import { createClient } from "@/lib/supabase/server";
-import type { ImageColor, MatchReason, SearchItem } from "@/lib/types/item";
+import type {
+  ImageColor,
+  MatchReason,
+  SearchItem,
+  TwitterDetails,
+  TwitterMedia,
+} from "@/lib/types/item";
 
 const log = createLogger("api/v1/search");
 
@@ -81,6 +87,15 @@ type RawItemRow = {
   article_published_at: Date | null;
   article_reading_time: number | null;
   article_content: string | null;
+  twitter_tweet_id: string | null;
+  twitter_author_name: string | null;
+  twitter_author_username: string | null;
+  twitter_author_avatar_url: string | null;
+  twitter_text: string | null;
+  twitter_posted_at: Date | null;
+  twitter_media: unknown;
+  twitter_quoted_tweet_id: string | null;
+  twitter_card: unknown;
 };
 
 type RawLocationRow = {
@@ -151,6 +166,20 @@ function transformRawItemToItem(
             readingTime: row.article_reading_time,
             content: row.article_content,
           }
+        : null,
+    twitterDetails:
+      row.twitter_tweet_id && row.twitter_author_username
+        ? ({
+            tweetId: row.twitter_tweet_id,
+            authorName: row.twitter_author_name,
+            authorUsername: row.twitter_author_username,
+            authorAvatarUrl: row.twitter_author_avatar_url,
+            text: row.twitter_text,
+            postedAt: row.twitter_posted_at?.toISOString() ?? null,
+            media: row.twitter_media as TwitterMedia[] | null,
+            quotedTweetId: row.twitter_quoted_tweet_id,
+            card: row.twitter_card as TwitterDetails["card"],
+          } satisfies TwitterDetails)
         : null,
     createdAt: row.created_at.toISOString(),
   };
@@ -468,10 +497,20 @@ async function executeFiltersOnlySearch(
       ad.domain as article_domain,
       ad.published_at as article_published_at,
       ad.reading_time as article_reading_time,
-      ad.content as article_content
+      ad.content as article_content,
+      td.tweet_id as twitter_tweet_id,
+      td.author_name as twitter_author_name,
+      td.author_username as twitter_author_username,
+      td.author_avatar_url as twitter_author_avatar_url,
+      td.text as twitter_text,
+      td.posted_at as twitter_posted_at,
+      td.media as twitter_media,
+      td.quoted_tweet_id as twitter_quoted_tweet_id,
+      td.card as twitter_card
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
+    LEFT JOIN item_twitter_details td ON td.item_id = items.id
     WHERE ${whereClause}
     ${cursorCondition}
     ORDER BY
@@ -699,10 +738,20 @@ async function executeRankedSearch(
       ad.domain as article_domain,
       ad.published_at as article_published_at,
       ad.reading_time as article_reading_time,
-      ad.content as article_content
+      ad.content as article_content,
+      td.tweet_id as twitter_tweet_id,
+      td.author_name as twitter_author_name,
+      td.author_username as twitter_author_username,
+      td.author_avatar_url as twitter_author_avatar_url,
+      td.text as twitter_text,
+      td.posted_at as twitter_posted_at,
+      td.media as twitter_media,
+      td.quoted_tweet_id as twitter_quoted_tweet_id,
+      td.card as twitter_card
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
     LEFT JOIN item_article_details ad ON ad.item_id = i.id
+    LEFT JOIN item_twitter_details td ON td.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,
     itemIds,

@@ -13,6 +13,12 @@ import type {
   SourceType,
 } from "@prisma/client";
 
+// Re-export Twitter types for convenience
+export type {
+  TwitterDetails,
+  TwitterMedia,
+} from "@/components/twitter/types";
+
 /**
  * Location data for an item, matching the Prisma ItemLocation model
  * but with only the fields needed for UI display.
@@ -121,6 +127,7 @@ export type Item = {
   // Relations
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
+  twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   rooms?: ItemRoom[];
