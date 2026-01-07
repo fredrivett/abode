@@ -163,9 +163,13 @@ export async function handleTwitterUrl(
         authorAvatarUrl: twitterDetails.authorAvatarUrl,
         text: twitterDetails.text,
         postedAt: twitterDetails.postedAt ? new Date(twitterDetails.postedAt) : null,
-        media: (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        media: twitterDetails.media
+          ? (twitterDetails.media as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         quotedTweetId: twitterDetails.quotedTweetId,
-        card: (twitterDetails.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        card: twitterDetails.card
+          ? (twitterDetails.card as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
     });
   });
