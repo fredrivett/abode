@@ -10,7 +10,7 @@ export function MarketingHeader() {
 
   return (
     <header className="w-full py-4 px-4">
-      <nav className="max-w-7xl mx-auto flex items-center justify-between">
+      <nav className="flex items-center justify-between">
         {isHomepage ? (
           <div />
         ) : (
