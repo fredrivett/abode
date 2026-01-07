@@ -48,7 +48,7 @@ export function WaitlistForm() {
     return (
       <Card className="p-6 text-center gap-2 items-center">
         <Check className="text-muted-foreground size-8" />
-        <p className="text-lg font-medium">you're on the list!</p>
+        <p className="text-lg font-medium">you're on the waitlist!</p>
         {position && position >= 50 && (
           <p className="text-sm text-muted-foreground">you're #{position}</p>
         )}
@@ -75,7 +75,11 @@ export function WaitlistForm() {
           type="submit"
           disabled={formState === "submitting" || !email.trim()}
         >
-          {formState === "submitting" ? <IsLoading label="joining" /> : "join"}
+          {formState === "submitting" ? (
+            <IsLoading label="joining waitlist" />
+          ) : (
+            "join waitlist"
+          )}
         </Button>
       </div>
       {formState === "error" && errorMessage && (
