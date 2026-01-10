@@ -13,6 +13,7 @@ import {
   Link2,
   Loader2,
   Plus,
+  RefreshCw,
   Sparkles,
   Trash2,
   X,
@@ -89,7 +90,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
   return (
     <div
       className={cn(
-        "absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2",
+        "absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2 pointer-events-none",
         isProcessing &&
           "bg-gradient-to-t from-black/60 via-transparent to-transparent",
         isFailed &&
@@ -551,6 +552,10 @@ function ItemDetailDialog({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
   const [itemRooms, setItemRooms] = useState<ItemRoom[]>(item.rooms ?? []);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [currentProcessingStatus, setCurrentProcessingStatus] = useState(
+    item.processingStatus,
+  );
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const supabase = createClient();
 
@@ -609,6 +614,11 @@ function ItemDetailDialog({
   useEffect(() => {
     setItemRooms(item.rooms ?? []);
   }, [item.rooms]);
+
+  // Sync processingStatus when item.processingStatus changes (e.g., from polling)
+  useEffect(() => {
+    setCurrentProcessingStatus(item.processingStatus);
+  }, [item.processingStatus]);
 
   // Reset scrollToHighlightId after animation completes so the same highlight can be clicked again
   useEffect(() => {
@@ -840,6 +850,32 @@ function ItemDetailDialog({
     }
   };
 
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const response = await api.post<{ processingStatus: ProcessingStatus }>(
+        `/api/v1/items/${item.id}/retry`,
+      );
+      setCurrentProcessingStatus(response.processingStatus);
+      invalidateItems();
+
+      // Track retry event
+      posthog.capture("item_retry", {
+        item_id: item.id,
+        item_kind: item.kind,
+        source_type: item.sourceType,
+      });
+
+      toast.success("Retrying analysis...");
+    } catch (error) {
+      log.error({ error }, "Retry error");
+      posthog.captureException(error);
+      toast.error("Failed to retry analysis");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -993,7 +1029,7 @@ function ItemDetailDialog({
                       <div className="flex justify-between">
                         <span className="text-gray-500">Status</span>
                         <span className="font-medium capitalize">
-                          {item.processingStatus}
+                          {currentProcessingStatus}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1131,7 +1167,7 @@ function ItemDetailDialog({
                   )}
 
                   {/* AI Analysis */}
-                  {item.processingStatus === "completed" ? (
+                  {currentProcessingStatus === "completed" ? (
                     <>
                       {/* Description */}
                       {item.description && (
@@ -1360,13 +1396,36 @@ function ItemDetailDialog({
                         );
                       })()}
                     </>
-                  ) : item.processingStatus === "processing" ? (
+                  ) : currentProcessingStatus === "processing" ? (
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
                       <IsLoading label="Analyzing image" />
                     </div>
-                  ) : item.processingStatus === "failed" ? (
-                    <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
-                      <p>Analysis failed. Please try re-uploading the image.</p>
+                  ) : currentProcessingStatus === "failed" ? (
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                          <p>Analysis failed. You can retry or delete the item.</p>
+                        </div>
+                      </div>
+                      {canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRetry}
+                          disabled={isRetrying}
+                          className="w-full"
+                        >
+                          {isRetrying ? (
+                            <IsLoading label="Retrying" iconClassName="size-3" />
+                          ) : (
+                            <>
+                              <RefreshCw className="size-3.5" />
+                              Retry analysis
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
