@@ -1,156 +1,16 @@
+import { transformTweetData } from "@app/trigger/handle-twitter-url";
+import type { Tweet } from "react-tweet/api";
 import { describe, expect, it } from "vitest";
-
-/**
- * Tests for the transformTweetData function from handle-twitter-url.ts
- *
- * Note: We're testing the transformation logic by re-implementing the pure
- * function here since the original is not exported. This tests the transform
- * logic in isolation without requiring database or network calls.
- */
-
-// Re-implement types matching those in handle-twitter-url.ts
-type TwitterMedia = {
-  type: "photo" | "video" | "animated_gif";
-  url: string;
-  width?: number;
-  height?: number;
-  posterUrl?: string;
-  variants?: Array<{
-    type: string;
-    src: string;
-    bitrate?: number;
-  }>;
-};
-
-type TwitterDetails = {
-  tweetId: string;
-  authorName: string | null;
-  authorUsername: string;
-  authorAvatarUrl: string | null;
-  text: string | null;
-  postedAt: string | null;
-  media: TwitterMedia[] | null;
-  quotedTweetId: string | null;
-  card: {
-    title: string;
-    description: string;
-    url: string;
-    imageUrl: string | null;
-  } | null;
-};
-
-type TweetUser = {
-  name?: string;
-  screen_name?: string;
-  profile_image_url_https?: string;
-};
-
-type TweetMediaDetail = {
-  type: string;
-  media_url_https: string;
-  original_info?: {
-    width?: number;
-    height?: number;
-  };
-  video_info?: {
-    variants: Array<{
-      content_type?: string;
-      url: string;
-      bitrate?: number;
-    }>;
-  };
-};
-
-type Tweet = {
-  id_str: string;
-  text?: string;
-  created_at?: string;
-  user?: TweetUser;
-  mediaDetails?: TweetMediaDetail[];
-  quoted_tweet?: { id_str: string };
-  card?: {
-    url?: string;
-    binding_values?: Record<
-      string,
-      { string_value?: string; image_value?: { url?: string } }
-    >;
-  };
-};
-
-function transformTweetData(tweet: Tweet): TwitterDetails {
-  // Transform media array
-  let media: TwitterMedia[] | null = null;
-  if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
-    media = tweet.mediaDetails.map((m): TwitterMedia => {
-      const base: TwitterMedia = {
-        type: m.type as "photo" | "video" | "animated_gif",
-        url: m.media_url_https,
-        width: m.original_info?.width,
-        height: m.original_info?.height,
-      };
-
-      // Add video-specific fields
-      if ("video_info" in m && m.video_info) {
-        base.posterUrl = m.media_url_https;
-        base.variants = m.video_info.variants
-          .filter((v) => v.content_type?.startsWith("video/"))
-          .map((v) => ({
-            type: v.content_type ?? "video/mp4",
-            src: v.url,
-            bitrate: v.bitrate,
-          }));
-      }
-
-      return base;
-    });
-  }
-
-  // Transform link card if present
-  let card: TwitterDetails["card"] = null;
-  if (tweet.card) {
-    const values = tweet.card.binding_values;
-
-    const title = values?.title?.string_value;
-    const description = values?.description?.string_value;
-    const cardUrl = values?.url?.string_value ?? tweet.card.url;
-    const imageUrl =
-      values?.thumbnail_image_large?.image_value?.url ??
-      values?.thumbnail_image?.image_value?.url ??
-      values?.player_image_large?.image_value?.url ??
-      null;
-
-    if (title || description) {
-      card = {
-        title: title ?? "",
-        description: description ?? "",
-        url: cardUrl ?? "",
-        imageUrl,
-      };
-    }
-  }
-
-  return {
-    tweetId: tweet.id_str,
-    authorName: tweet.user?.name ?? null,
-    authorUsername: tweet.user?.screen_name ?? "unknown",
-    authorAvatarUrl: tweet.user?.profile_image_url_https ?? null,
-    text: tweet.text ?? null,
-    postedAt: tweet.created_at ? new Date(tweet.created_at).toISOString() : null,
-    media,
-    quotedTweetId: tweet.quoted_tweet?.id_str ?? null,
-    card,
-  };
-}
 
 describe("transformTweetData", () => {
   describe("basic tweet fields", () => {
     it("transforms a minimal tweet with required fields", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123456789",
         user: {
           screen_name: "testuser",
         },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -168,7 +28,7 @@ describe("transformTweetData", () => {
     });
 
     it("transforms a complete tweet with all user fields", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "987654321",
         text: "Hello, world!",
         created_at: "Wed Oct 26 18:45:58 +0000 2022",
@@ -177,7 +37,7 @@ describe("transformTweetData", () => {
           screen_name: "testuser",
           profile_image_url_https: "https://pbs.twimg.com/profile_images/123.jpg",
         },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -191,20 +51,31 @@ describe("transformTweetData", () => {
       expect(result.postedAt).toBe("2022-10-26T18:45:58.000Z");
     });
 
-    it("defaults username to 'unknown' when user is missing", () => {
-      const tweet: Tweet = {
+    it("throws error when user is missing screen_name", () => {
+      const tweet = {
         id_str: "123",
-      };
+        user: {},
+      } as Tweet;
 
-      const result = transformTweetData(tweet);
+      expect(() => transformTweetData(tweet)).toThrow(
+        "Tweet 123 is missing author username",
+      );
+    });
 
-      expect(result.authorUsername).toBe("unknown");
+    it("throws error when user is missing entirely", () => {
+      const tweet = {
+        id_str: "123",
+      } as Tweet;
+
+      expect(() => transformTweetData(tweet)).toThrow(
+        "Tweet 123 is missing author username",
+      );
     });
   });
 
   describe("media handling", () => {
     it("transforms photo media", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         mediaDetails: [
@@ -217,7 +88,7 @@ describe("transformTweetData", () => {
             },
           },
         ],
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -231,7 +102,7 @@ describe("transformTweetData", () => {
     });
 
     it("transforms video media with variants", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         mediaDetails: [
@@ -262,7 +133,7 @@ describe("transformTweetData", () => {
             },
           },
         ],
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -279,7 +150,7 @@ describe("transformTweetData", () => {
     });
 
     it("transforms multiple photos", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         mediaDetails: [
@@ -296,7 +167,7 @@ describe("transformTweetData", () => {
             media_url_https: "https://pbs.twimg.com/media/image3.jpg",
           },
         ],
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -309,11 +180,11 @@ describe("transformTweetData", () => {
     });
 
     it("returns null media when mediaDetails is empty", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         mediaDetails: [],
-      };
+      } as unknown as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -323,13 +194,13 @@ describe("transformTweetData", () => {
 
   describe("quoted tweet handling", () => {
     it("extracts quoted tweet ID when present", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         quoted_tweet: {
           id_str: "456789",
         },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -337,10 +208,10 @@ describe("transformTweetData", () => {
     });
 
     it("returns null when no quoted tweet", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -350,7 +221,7 @@ describe("transformTweetData", () => {
 
   describe("card handling", () => {
     it("transforms link card with all fields", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         card: {
@@ -364,7 +235,7 @@ describe("transformTweetData", () => {
             },
           },
         },
-      };
+      } as unknown as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -377,7 +248,7 @@ describe("transformTweetData", () => {
     });
 
     it("uses card.url fallback when binding_values.url is missing", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         card: {
@@ -386,7 +257,7 @@ describe("transformTweetData", () => {
             title: { string_value: "Title" },
           },
         },
-      };
+      } as unknown as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -394,7 +265,7 @@ describe("transformTweetData", () => {
     });
 
     it("falls back to alternative image fields", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         card: {
@@ -405,7 +276,7 @@ describe("transformTweetData", () => {
             },
           },
         },
-      };
+      } as unknown as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -413,14 +284,14 @@ describe("transformTweetData", () => {
     });
 
     it("returns null card when no title or description", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         card: {
           url: "https://example.com",
           binding_values: {},
         },
-      };
+      } as unknown as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -428,10 +299,10 @@ describe("transformTweetData", () => {
     });
 
     it("returns null card when card is missing", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -441,11 +312,11 @@ describe("transformTweetData", () => {
 
   describe("date handling", () => {
     it("converts various Twitter date formats to ISO", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
         created_at: "Mon Aug 13 00:06:09 +0000 2017",
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 
@@ -453,10 +324,10 @@ describe("transformTweetData", () => {
     });
 
     it("returns null for missing date", () => {
-      const tweet: Tweet = {
+      const tweet = {
         id_str: "123",
         user: { screen_name: "user" },
-      };
+      } as Tweet;
 
       const result = transformTweetData(tweet);
 

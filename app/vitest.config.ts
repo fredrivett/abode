@@ -50,6 +50,7 @@ export default defineConfig({
         resolve: {
           alias: {
             "@": path.resolve(dirname, "./src"),
+            "@app": path.resolve(dirname, "."),
             "server-only": path.resolve(
               dirname,
               "./node_modules/next/dist/compiled/server-only/empty.js",

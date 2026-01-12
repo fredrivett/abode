@@ -21,8 +21,9 @@ type HandleTwitterUrlResult = {
 
 /**
  * Transform raw tweet data from react-tweet/api into our TwitterDetails format.
+ * Exported for testing purposes.
  */
-function transformTweetData(tweet: Tweet): TwitterDetails {
+export function transformTweetData(tweet: Tweet): TwitterDetails {
   // Transform media array
   let media: TwitterMedia[] | null = null;
   if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
@@ -163,13 +164,9 @@ export async function handleTwitterUrl(
         authorAvatarUrl: twitterDetails.authorAvatarUrl,
         text: twitterDetails.text,
         postedAt: twitterDetails.postedAt ? new Date(twitterDetails.postedAt) : null,
-        media: twitterDetails.media
-          ? (twitterDetails.media as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+        media: (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         quotedTweetId: twitterDetails.quotedTweetId,
-        card: twitterDetails.card
-          ? (twitterDetails.card as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+        card: (twitterDetails.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
     });
   });
