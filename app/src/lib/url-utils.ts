@@ -66,6 +66,18 @@ export function isImageUrl(url: string, contentType?: string | null): boolean {
 }
 
 /**
+ * Safely extracts the hostname from a URL string.
+ * Returns the original string if parsing fails (malformed URL).
+ */
+export function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Gets file extension from a content type
  */
 export function getExtensionFromContentType(contentType: string): string {

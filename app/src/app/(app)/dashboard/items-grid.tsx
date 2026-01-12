@@ -151,6 +151,7 @@ export function ItemsGrid({
             {items.map((item) => {
             const meta = item.meta || {};
             const isArticle = item.kind === "article";
+            const isTwitter = item.kind === "twitter";
             const isProcessingUrl =
               item.sourceType === "url" &&
               item.processingStatus === "processing";
@@ -171,15 +172,25 @@ export function ItemsGrid({
             const size = formatBytes(meta.size as number | undefined);
             const mimeType = meta.type as string | undefined;
 
-            // For articles and processing URLs, use 16:9 aspect ratio; for images use actual dimensions or 3:4
-            const width =
-              isArticle || isProcessingUrl
-                ? 16
-                : ((meta.width as number | undefined) ?? 3);
-            const height =
-              isArticle || isProcessingUrl
-                ? 9
-                : ((meta.height as number | undefined) ?? 4);
+            // Calculate aspect ratio based on item type
+            // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
+            // - Articles and processing URLs: 16:9
+            // - Images: actual dimensions or 3:4 default
+            let width: number;
+            let height: number;
+            if (isTwitter) {
+              const hasVisualContent =
+                item.twitterDetails?.media?.length ||
+                item.twitterDetails?.card?.imageUrl;
+              width = 16;
+              height = hasVisualContent ? 18 : 12;
+            } else if (isArticle || isProcessingUrl) {
+              width = 16;
+              height = 9;
+            } else {
+              width = (meta.width as number | undefined) ?? 3;
+              height = (meta.height as number | undefined) ?? 4;
+            }
 
             return (
               <Frame key={item.id} width={width} height={height}>

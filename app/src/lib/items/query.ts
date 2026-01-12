@@ -3,7 +3,12 @@
  */
 
 import type { Prisma } from "@prisma/client";
-import type { ExternalLink, ImageColor } from "@/lib/types/item";
+import type {
+  ExternalLink,
+  ImageColor,
+  TwitterDetails,
+  TwitterMedia,
+} from "@/lib/types/item";
 
 /**
  * The select clause for fetching items - shared between initial load and pagination.
@@ -54,6 +59,19 @@ export const itemSelect = {
       publishedAt: true,
       readingTime: true,
       content: true,
+    },
+  },
+  twitterDetails: {
+    select: {
+      tweetId: true,
+      authorName: true,
+      authorUsername: true,
+      authorAvatarUrl: true,
+      text: true,
+      postedAt: true,
+      media: true,
+      quotedTweetId: true,
+      card: true,
     },
   },
   roomItems: {
@@ -112,6 +130,19 @@ export function transformItem(item: RawItem) {
           ...item.articleDetails,
           publishedAt: item.articleDetails.publishedAt?.toISOString() ?? null,
         }
+      : null,
+    twitterDetails: item.twitterDetails
+      ? ({
+          tweetId: item.twitterDetails.tweetId,
+          authorName: item.twitterDetails.authorName,
+          authorUsername: item.twitterDetails.authorUsername,
+          authorAvatarUrl: item.twitterDetails.authorAvatarUrl,
+          text: item.twitterDetails.text,
+          postedAt: item.twitterDetails.postedAt?.toISOString() ?? null,
+          media: item.twitterDetails.media as TwitterMedia[] | null,
+          quotedTweetId: item.twitterDetails.quotedTweetId,
+          card: item.twitterDetails.card as TwitterDetails["card"],
+        } satisfies TwitterDetails)
       : null,
   };
 }

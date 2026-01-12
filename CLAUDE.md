@@ -39,6 +39,10 @@ If there are TypeScript errors that cannot be auto-fixed, address them before co
 - **Prefer type guards over type assertions** - Use runtime checks that narrow types instead of `as` casts
 - **Avoid `any`** - Use `unknown` with type guards, or define proper types
 
+## Code Style
+
+- **Avoid unnecessary comments** - Don't leave behind comments explaining refactoring history, what was moved where, or other transitional notes. Code should stand on its own without commentary about its evolution.
+
 ```ts
 // ❌ Bad: type assertion
 const type = searchParams.get("type") as "email" | "signup";
