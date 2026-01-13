@@ -1004,51 +1004,31 @@ function ItemDetailDialog({
                   </div>
                 </motion.div>
               ) : previewUrl && !isArticle ? (
-                // Non-article image with explicit dimensions for smooth transition
-                (() => {
-                  // Calculate target dimensions based on aspect ratio and viewport constraints
-                  // This ensures the container animates to the correct size immediately,
-                  // so the preview image stretches to fill it (pixelated) until full quality loads
-                  const aspectRatio = width && height ? width / height : 4 / 3;
-                  const maxHeightVh = 80; // md:max-h-[80vh]
-                  const maxWidthVw = 60; // Approximate available width (100vw - 400px sidebar - padding)
-
-                  return (
-                    <motion.div
-                      layoutId={`item-image-${item.id}`}
-                      className="relative overflow-hidden"
-                      transition={{
-                        layout: { duration: 0.3 },
-                        opacity: { duration: 0 },
-                      }}
-                      initial={false}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 1 }}
-                      style={{
-                        // Set explicit dimensions using CSS clamp to respect viewport constraints
-                        // Height: min of 80vh or width-based height from aspect ratio
-                        // Width: height * aspectRatio, clamped to available width
-                        maxHeight: `${maxHeightVh}vh`,
-                        maxWidth: `${maxWidthVw}vw`,
-                        aspectRatio: `${aspectRatio}`,
-                      }}
-                    >
-                      {/* Loading progress bar */}
-                      {showProgress && (
-                        <Progress
-                          value={loadingProgress}
-                          className="absolute top-0 left-0 right-0 z-10 h-0.5 rounded-none bg-transparent"
-                        />
-                      )}
-                      {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-                      <img
-                        src={fullQualityUrl || previewUrl}
-                        alt={name}
-                        className="h-full w-full object-contain"
-                      />
-                    </motion.div>
-                  );
-                })()
+                <motion.div
+                  layoutId={`item-image-${item.id}`}
+                  className="relative"
+                  transition={{
+                    layout: { duration: 0.3 },
+                    opacity: { duration: 0 },
+                  }}
+                  initial={false}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 1 }}
+                >
+                  {/* Loading progress bar */}
+                  {showProgress && (
+                    <Progress
+                      value={loadingProgress}
+                      className="absolute top-0 left-0 right-0 z-10 h-0.5 rounded-none bg-transparent"
+                    />
+                  )}
+                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
+                  <img
+                    src={fullQualityUrl || previewUrl}
+                    alt={name}
+                    className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
+                  />
+                </motion.div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
