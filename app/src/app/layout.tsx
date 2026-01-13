@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "sonner";
@@ -21,9 +21,19 @@ const hedvigSerif = Hedvig_Letters_Serif({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#1f1f1f" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "abode",
   description: "the home for your info",
+  applicationName: "abode",
   icons: {
     icon: [
       {
@@ -37,6 +47,15 @@ export const metadata: Metadata = {
         media: "(prefers-color-scheme: dark)",
       },
     ],
+    apple: "/icons/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "abode",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
