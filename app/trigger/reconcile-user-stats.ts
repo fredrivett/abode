@@ -17,9 +17,9 @@ export const reconcileUserStatsTask = schedules.task({
     // Calculate actual storage and item count for all users in parallel queries
     const [storageByUser, itemCountByUser] = await Promise.all([
       db.$queryRaw<{ user_id: string; total: bigint | null }[]>`
-        SELECT u.id as user_id, COALESCE(SUM((i.meta->>'size')::bigint), 0) as total
+        SELECT u.id as user_id, COALESCE(SUM((i.meta->>'size')::numeric::bigint), 0) as total
         FROM users u
-        LEFT JOIN items i ON i.user_id = u.id AND i.meta->>'size' IS NOT NULL
+        LEFT JOIN items i ON i.user_id = u.id AND jsonb_typeof(i.meta->'size') = 'number'
         GROUP BY u.id
       `,
       db.$queryRaw<{ user_id: string; total: bigint }[]>`
