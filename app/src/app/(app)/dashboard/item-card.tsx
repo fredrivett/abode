@@ -290,7 +290,12 @@ export function ItemCard({
 
   // Failed URL items (processing failed before classification) show a failure placeholder
   if (isFailedUrl && !previewUrl) {
-    const domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
+    let domain: string | null = null;
+    try {
+      domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
+    } catch {
+      // Malformed URL, leave domain as null
+    }
     return (
       <>
         <button
