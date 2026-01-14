@@ -1456,7 +1456,11 @@ function ItemDetailDialog({
                     </>
                   ) : currentProcessingStatus === "processing" ? (
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
-                      <IsLoading label="Analyzing image" />
+                      <IsLoading
+                        label={
+                          item.sourceType === "url" ? "Analyzing URL" : "Analyzing image"
+                        }
+                      />
                     </div>
                   ) : currentProcessingStatus === "failed" ? (
                     <div className="space-y-3">
