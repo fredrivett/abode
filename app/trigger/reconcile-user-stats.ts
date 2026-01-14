@@ -15,11 +15,15 @@ export const reconcileUserStatsTask = schedules.task({
     logger.log("Starting user stats reconciliation");
 
     // Calculate actual storage and item count for all users in parallel queries
+    // Storage calculation includes both meta.size (for images) and meta.coverSize (for article covers)
     const [storageByUser, itemCountByUser] = await Promise.all([
       db.$queryRaw<{ user_id: string; total: bigint | null }[]>`
-        SELECT u.id as user_id, COALESCE(SUM((i.meta->>'size')::numeric::bigint), 0) as total
+        SELECT u.id as user_id, COALESCE(SUM(
+          COALESCE(CASE WHEN jsonb_typeof(i.meta->'size') = 'number' THEN (i.meta->>'size')::numeric::bigint ELSE 0 END, 0) +
+          COALESCE(CASE WHEN jsonb_typeof(i.meta->'coverSize') = 'number' THEN (i.meta->>'coverSize')::numeric::bigint ELSE 0 END, 0)
+        ), 0) as total
         FROM users u
-        LEFT JOIN items i ON i.user_id = u.id AND jsonb_typeof(i.meta->'size') = 'number'
+        LEFT JOIN items i ON i.user_id = u.id
         GROUP BY u.id
       `,
       db.$queryRaw<{ user_id: string; total: bigint }[]>`

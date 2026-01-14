@@ -40,6 +40,10 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
+/**
+ * Downloads an image from a URL and stores it in Supabase storage.
+ * Returns the file key, content type, and size for the caller to handle.
+ */
 async function downloadAndStoreImage(
   imageUrl: string,
   userId: string,
@@ -265,39 +269,49 @@ export const classifyUrlTask = task({
       });
 
       // Step 4: Download cover image if available
-      let coverFileKey: string | null = null;
+      let coverResult: { fileKey: string; size: number } | null = null;
       if (metadata.ogImage) {
         logger.log("Downloading cover image", {
           itemId,
           ogImage: metadata.ogImage,
         });
 
-        const coverResult = await downloadAndStoreImage(
+        const result = await downloadAndStoreImage(
           metadata.ogImage,
           userId,
           supabase,
         );
 
-        if (coverResult) {
-          coverFileKey = coverResult.fileKey;
-          logger.log("Cover image stored", { itemId, coverFileKey });
+        if (result) {
+          coverResult = { fileKey: result.fileKey, size: result.size };
+          logger.log("Cover image stored", { itemId, coverFileKey: result.fileKey });
         }
       }
 
-      // Step 5: Update item with article data
-      // Store original extracted title in meta.originalName for reference
-      await db.item.update({
-        where: { id: itemId, userId },
-        data: {
-          kind: "article",
-          title: metadata.title,
-          description: metadata.description,
-          coverFileKey,
-          processingStatus: "completed",
-          meta: {
-            originalName: metadata.title,
+      // Step 5: Update item with article data and track cover image storage
+      await db.$transaction(async (tx) => {
+        await tx.item.update({
+          where: { id: itemId, userId },
+          data: {
+            kind: "article",
+            title: metadata.title,
+            description: metadata.description,
+            processingStatus: "completed",
+            ...(coverResult && { coverFileKey: coverResult.fileKey }),
+            meta: {
+              originalName: metadata.title,
+              ...(coverResult && { coverSize: coverResult.size }),
+            },
           },
-        },
+        });
+
+        // Update storage accounting for cover image
+        if (coverResult && coverResult.size > 0) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
+          });
+        }
       });
 
       // Step 6: Create article details record
@@ -328,7 +342,7 @@ export const classifyUrlTask = task({
         metadata: {
           title: metadata.title,
           domain: metadata.domain,
-          hascover: !!coverFileKey,
+          hasCover: !!coverResult,
         },
       };
     } catch (error) {
@@ -360,7 +374,7 @@ async function handleImageUrl(
     throw new Error("Failed to download image from URL");
   }
 
-  // Update item with image data and increment user storage
+  // Update item with image data and track storage
   await db.$transaction(async (tx) => {
     await tx.item.update({
       where: { id: itemId, userId },
@@ -375,7 +389,7 @@ async function handleImageUrl(
       },
     });
 
-    // Update user's storage usage
+    // Update storage accounting
     if (imageResult.size > 0) {
       await tx.user.update({
         where: { id: userId },
