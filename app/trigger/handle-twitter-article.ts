@@ -1,0 +1,83 @@
+import { logger, tasks } from "@trigger.dev/sdk";
+import db from "../src/lib/db";
+import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
+
+type HandleTwitterArticlePayload = {
+  itemId: string;
+  userId: string;
+  url: string;
+  articleId: string;
+};
+
+type HandleTwitterArticleResult = {
+  success: true;
+  itemId: string;
+  kind: "article";
+  twitterArticleId: string;
+};
+
+/**
+ * Handle a Twitter/X Article URL.
+ * Twitter Articles cannot be fetched programmatically (returns 403/500),
+ * so we store them with minimal metadata as an article type.
+ */
+export async function handleTwitterArticle(
+  payload: HandleTwitterArticlePayload,
+): Promise<HandleTwitterArticleResult> {
+  const { itemId, userId, url, articleId } = payload;
+
+  logger.log("Processing Twitter Article", { itemId, url, articleId });
+
+  // Extract domain from URL
+  let domain = "x.com";
+  try {
+    domain = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    // Use default
+  }
+
+  // Update item as an article with Twitter Article metadata
+  // We can't fetch the actual content due to Twitter's restrictions,
+  // but we can store the URL and basic info
+  await db.item.update({
+    where: { id: itemId, userId },
+    data: {
+      kind: "article",
+      title: "Twitter Article",
+      description: "Twitter Article (content not available for preview)",
+      processingStatus: "completed",
+      meta: {
+        twitterArticleId: articleId,
+        originalUrl: url,
+      },
+    },
+  });
+
+  // Create article details record with minimal info
+  await db.itemArticleDetails.create({
+    data: {
+      itemId,
+      domain,
+      content: null,
+      readingTime: null,
+      author: null,
+      publishedAt: null,
+    },
+  });
+
+  logger.log("Twitter Article saved", { itemId, articleId });
+
+  // Trigger smart room sync
+  logger.log("Triggering smart room sync", { itemId, userId });
+  await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+    itemId,
+    userId,
+  });
+
+  return {
+    success: true,
+    itemId,
+    kind: "article",
+    twitterArticleId: articleId,
+  };
+}

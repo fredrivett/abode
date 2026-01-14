@@ -37,7 +37,7 @@ export const PLATFORMS: PlatformInfo[] = [
   {
     id: "twitter",
     name: "X",
-    hostnames: ["twitter.com", "x.com"],
+    hostnames: ["twitter.com", "x.com", "t.co"],
   },
   {
     id: "behance",

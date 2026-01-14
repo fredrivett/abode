@@ -10,6 +10,7 @@ import {
   extractOgImage,
   extractTitle,
   extractTweetId,
+  extractTwitterArticleId,
   parsePublishedDate,
   preserveSocialEmbeds,
 } from "./html-metadata";
@@ -327,6 +328,45 @@ describe("extractTweetId", () => {
   it("returns null for non-tweet URLs", () => {
     expect(extractTweetId("https://twitter.com/user")).toBe(null);
     expect(extractTweetId("https://example.com/status/123")).toBe(null);
+  });
+});
+
+describe("extractTwitterArticleId", () => {
+  it("extracts article ID from twitter.com URL", () => {
+    expect(
+      extractTwitterArticleId("https://twitter.com/i/article/1234567890"),
+    ).toBe("1234567890");
+  });
+
+  it("extracts article ID from x.com URL", () => {
+    expect(extractTwitterArticleId("https://x.com/i/article/9876543210")).toBe(
+      "9876543210",
+    );
+  });
+
+  it("handles URLs with query params", () => {
+    expect(
+      extractTwitterArticleId(
+        "https://twitter.com/i/article/1234567890?ref=share",
+      ),
+    ).toBe("1234567890");
+  });
+
+  it("returns null for tweet URLs", () => {
+    expect(
+      extractTwitterArticleId("https://twitter.com/user/status/1234567890"),
+    ).toBe(null);
+  });
+
+  it("returns null for profile URLs", () => {
+    expect(extractTwitterArticleId("https://twitter.com/user")).toBe(null);
+    expect(extractTwitterArticleId("https://x.com/user")).toBe(null);
+  });
+
+  it("returns null for non-twitter URLs", () => {
+    expect(extractTwitterArticleId("https://example.com/i/article/123")).toBe(
+      null,
+    );
   });
 });
 

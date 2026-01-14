@@ -9,11 +9,13 @@ import db from "../src/lib/db";
 import {
   extractArticleMetadata,
   extractTweetId,
+  extractTwitterArticleId,
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { detectPlatform } from "../src/lib/platforms";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
+import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
@@ -106,23 +108,62 @@ export const classifyUrlTask = task({
 
     try {
       // Step 0: Check if this is a Twitter/X URL before any fetching
+      // For short URLs (like t.co), we need to resolve them first to get the actual destination
+      let resolvedUrl = url;
       const platform = detectPlatform(url);
+
       if (platform === "twitter") {
-        const tweetId = extractTweetId(url);
-        if (tweetId) {
-          logger.log("URL classified as Twitter/X post", { itemId, url, tweetId });
-          return await handleTwitterUrl({ itemId, userId, url, tweetId });
+        let twitterUrl = url;
+
+        // If t.co short URL, resolve it first to get the destination
+        if (new URL(url).hostname === "t.co") {
+          logger.log("Resolving t.co short URL", { itemId, url });
+          try {
+            // Use a simple User-Agent for t.co resolution.
+            // With browser-like User-Agents, t.co returns a JavaScript redirect instead of HTTP redirect,
+            // which Node.js fetch can't follow. Simple User-Agents get proper HTTP 301/302 redirects.
+            const resolveResponse = await fetch(url, {
+              method: "HEAD",
+              redirect: "follow",
+              headers: {
+                "User-Agent": "AbodeBot/1.0",
+              },
+            });
+            twitterUrl = resolveResponse.url;
+            resolvedUrl = twitterUrl;
+            logger.log("Resolved t.co URL", { itemId, originalUrl: url, resolvedUrl: twitterUrl });
+          } catch (resolveError) {
+            logger.warn("Failed to resolve t.co URL, will try fetching directly", { itemId, url, error: resolveError });
+          }
         }
-        // If we can't extract a tweet ID, fall through to article handling
-        logger.warn("Twitter URL without tweet ID, treating as article", { itemId, url });
+
+        // Check if it's a tweet
+        const tweetId = extractTweetId(twitterUrl);
+        if (tweetId) {
+          logger.log("URL classified as Twitter/X post", { itemId, url: twitterUrl, tweetId });
+          return await handleTwitterUrl({ itemId, userId, url: twitterUrl, tweetId });
+        }
+
+        // Check if it's a Twitter Article
+        const articleId = extractTwitterArticleId(twitterUrl);
+        if (articleId) {
+          logger.log("URL classified as Twitter Article", { itemId, url: twitterUrl, articleId });
+          return await handleTwitterArticle({ itemId, userId, url: twitterUrl, articleId });
+        }
+
+        // Twitter URL without tweet/article ID (could be a profile or other page)
+        logger.warn("Twitter URL without tweet ID, treating as article", { itemId, url: twitterUrl });
       }
 
+      // Use resolvedUrl for all subsequent operations (may differ from original if t.co was resolved)
+      const fetchUrl = resolvedUrl;
+
       // Step 1: Fetch the URL with a HEAD request first to check content type
-      logger.log("Checking URL content type", { itemId, url });
+      logger.log("Checking URL content type", { itemId, url: fetchUrl });
 
       let contentType: string | null = null;
       try {
-        const headResponse = await fetch(url, {
+        const headResponse = await fetch(fetchUrl, {
           method: "HEAD",
           headers: {
             "User-Agent":
@@ -131,19 +172,19 @@ export const classifyUrlTask = task({
         });
         contentType = headResponse.headers.get("content-type");
       } catch {
-        logger.log("HEAD request failed, will try GET", { itemId, url });
+        logger.log("HEAD request failed, will try GET", { itemId, url: fetchUrl });
       }
 
       // Check if it's a direct image URL
-      if (isImageUrl(url, contentType ?? undefined)) {
-        logger.log("URL classified as direct image", { itemId, url });
-        return await handleImageUrl(itemId, userId, url, supabase);
+      if (isImageUrl(fetchUrl, contentType ?? undefined)) {
+        logger.log("URL classified as direct image", { itemId, url: fetchUrl });
+        return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
       // Step 2: Fetch the full page content
-      logger.log("Fetching page content", { itemId, url });
+      logger.log("Fetching page content", { itemId, url: fetchUrl });
 
-      const response = await fetch(url, {
+      const response = await fetch(fetchUrl, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://abode.dev)",
@@ -159,14 +200,14 @@ export const classifyUrlTask = task({
       const finalContentType = response.headers.get("content-type");
 
       // Double-check if it's actually an image (some servers don't respond to HEAD)
-      if (isImageUrl(url, finalContentType ?? undefined)) {
-        logger.log("URL classified as image after GET", { itemId, url });
-        return await handleImageUrl(itemId, userId, url, supabase);
+      if (isImageUrl(fetchUrl, finalContentType ?? undefined)) {
+        logger.log("URL classified as image after GET", { itemId, url: fetchUrl });
+        return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
       // Step 3: Parse as article
       const html = await response.text();
-      const metadata = extractArticleMetadata(html, url);
+      const metadata = extractArticleMetadata(html, fetchUrl);
 
       // Step 3.5: Extract article content using Mozilla Readability
       // Readability is battle-tested (powers Firefox Reader View) and produces
@@ -201,7 +242,7 @@ export const classifyUrlTask = task({
           logger.log("No Twitter embeds found in article HTML", { itemId });
         }
 
-        const dom = new JSDOM(processedHtml, { url });
+        const dom = new JSDOM(processedHtml, { url: fetchUrl });
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
 

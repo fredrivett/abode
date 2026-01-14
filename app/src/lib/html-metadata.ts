@@ -207,6 +207,18 @@ export function extractTweetId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Extracts the Twitter Article ID from a Twitter/X URL
+ * Twitter Articles use a different URL pattern than tweets
+ */
+export function extractTwitterArticleId(url: string): string | null {
+  // Match patterns like:
+  // https://twitter.com/i/article/1234567890
+  // https://x.com/i/article/1234567890
+  const match = url.match(/(?:twitter\.com|x\.com)\/i\/article\/(\d+)/i);
+  return match ? match[1] : null;
+}
+
 export type SocialEmbedResult = {
   html: string;
   tweetIds: string[];
