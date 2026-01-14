@@ -40,9 +40,10 @@ export const reconcileUserStatsTask = schedules.task({
     });
 
     // Create lookup maps for actual values
+    // Note: Prisma $queryRaw returns bigint as Decimal, so we must convert explicitly
     const actualStorageMap = new Map<string, bigint>();
     for (const row of storageByUser) {
-      actualStorageMap.set(row.user_id, row.total ?? BigInt(0));
+      actualStorageMap.set(row.user_id, BigInt(row.total?.toString() ?? "0"));
     }
 
     const actualItemCountMap = new Map<string, number>();
