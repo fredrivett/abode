@@ -147,9 +147,10 @@ export function ItemCard({
   useEffect(() => {
     // Articles without a cover image don't need to load anything
     // URL items that are still processing don't have a file yet - that's expected
+    // Twitter items use TwitterCard which displays tweet content, not an image file
     if (!imageFileKey) {
       setPreviewUrl(null);
-      if (!isArticle && !isProcessingUrl) {
+      if (!isArticle && !isProcessingUrl && !isTwitter) {
         setError("Missing file");
       }
       return;
@@ -159,7 +160,7 @@ export function ItemCard({
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
     setPreviewUrl(proxyUrl);
-  }, [imageFileKey, isArticle, isProcessingUrl]);
+  }, [imageFileKey, isArticle, isProcessingUrl, isTwitter]);
 
   useEffect(() => {
     setItemName(name);
