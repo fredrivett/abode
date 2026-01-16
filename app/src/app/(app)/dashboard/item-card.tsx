@@ -28,6 +28,7 @@ import { HighlightableArticle } from "@/components/article/highlightable-article
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { TwitterCard } from "@/components/twitter/twitter-card";
+import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -762,6 +763,7 @@ function ItemDetailDialog({
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
   const isArticle = item.kind === "article";
+  const isTwitter = item.kind === "twitter";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1055,6 +1057,19 @@ function ItemDetailDialog({
                       />
                     </article>
                   </div>
+                </motion.div>
+              ) : isTwitter && item.twitterDetails ? (
+                <motion.div
+                  className="flex w-full h-full bg-background overflow-y-auto"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <TwitterDetailView
+                    twitterDetails={item.twitterDetails}
+                    sourceUrl={item.sourceUrl}
+                    className="py-8"
+                  />
                 </motion.div>
               ) : previewUrl && !isArticle ? (
                 <motion.div
