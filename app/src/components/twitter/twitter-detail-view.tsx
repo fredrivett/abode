@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
+import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getHostname } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
@@ -36,18 +37,24 @@ export function TwitterDetailView({
 
   const tweetUrl =
     sourceUrl ?? `https://x.com/${authorUsername}/status/${tweetId}`;
+  const profileUrl = `https://x.com/${authorUsername}`;
 
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col bg-background p-6 md:p-8",
+        "flex h-full w-full flex-col items-center justify-center bg-background p-6 md:p-8",
         className,
       )}
     >
       <article className="mx-auto w-full max-w-xl space-y-4">
         {/* Author header */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             {authorAvatarUrl ? (
               // biome-ignore lint/a11y/useAltText: author avatar
               <img
@@ -59,21 +66,28 @@ export function TwitterDetailView({
               <div className="size-12 rounded-full bg-gray-200 dark:bg-gray-700" />
             )}
             <div className="flex flex-col">
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
+              <span className="font-semibold text-gray-900 hover:underline dark:text-gray-100">
                 {authorName ?? authorUsername}
               </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 @{authorUsername}
               </span>
             </div>
-          </div>
-          <TwitterIcon className="size-6 text-gray-400 dark:text-gray-500" />
+          </a>
+          <a
+            href={tweetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition-opacity"
+          >
+            <TwitterIcon className="size-6 text-gray-400 dark:text-gray-500" />
+          </a>
         </div>
 
         {/* Tweet text */}
         {text && (
           <p className="whitespace-pre-wrap text-lg text-gray-900 dark:text-gray-100">
-            {text}
+            {parseTweetText(text)}
           </p>
         )}
 
@@ -151,19 +165,17 @@ export function TwitterDetailView({
           </a>
         )}
 
-        {/* Posted date */}
-        {postedAt && (
-          <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+        {/* Posted date and View on X */}
+        <div className="flex items-center justify-between pt-4">
+          {postedAt ? (
             <DateTime
               date={postedAt}
               className="text-sm text-gray-500 dark:text-gray-400"
             />
-          </div>
-        )}
-
-        {/* View on X button */}
-        <div className="flex justify-center pt-2">
-          <Button variant="outline" asChild>
+          ) : (
+            <div />
+          )}
+          <Button variant="outline" size="sm" asChild>
             <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="size-4" />
               View on X
