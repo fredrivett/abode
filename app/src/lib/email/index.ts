@@ -4,6 +4,17 @@ import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/email");
 
+/**
+ * Custom error thrown when trying to send email in test environment
+ * Callers should catch this and treat as success in tests
+ */
+export class EmailBlockedInTestError extends Error {
+  constructor(to: string) {
+    super(`Email to ${to} blocked in test environment`);
+    this.name = "EmailBlockedInTestError";
+  }
+}
+
 // Lazy initialization of Resend client
 let resendClient: Resend | null = null;
 
@@ -35,6 +46,11 @@ export async function sendEmail(options: {
   text: string;
   html?: string;
 }): Promise<SendEmailResult> {
+  // Block emails in test environment
+  if (process.env.VITEST) {
+    throw new EmailBlockedInTestError(options.to);
+  }
+
   try {
     const resend = getResendClient();
 

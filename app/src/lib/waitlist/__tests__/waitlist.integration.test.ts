@@ -1,15 +1,11 @@
 /// <reference types="vitest/globals" />
 import { resetTestDatabase } from "@app/vitest.setup.db";
 
-// Mock the email module to prevent actual email sending
-vi.mock("@/lib/email", () => ({
-  sendEmail: vi.fn().mockResolvedValue({ success: true, id: "mock-id" }),
-}));
+// Email mock is provided globally by vitest.setup.db.ts
 
 describe("Waitlist Integration", () => {
   beforeEach(async () => {
     await resetTestDatabase();
-    vi.clearAllMocks();
   });
 
   describe("joinWaitlist", () => {
