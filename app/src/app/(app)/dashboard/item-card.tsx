@@ -1094,7 +1094,7 @@ function ItemDetailDialog({
                   <img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
-                    className="max-h-[40vh] md:max-h-[80vh] max-w-full object-contain"
+                    className="max-h-[40vh] md:max-h-none max-w-full object-contain"
                   />
                 </motion.div>
               ) : (
