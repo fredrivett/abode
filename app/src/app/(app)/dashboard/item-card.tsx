@@ -101,7 +101,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
     >
       <div
         className={cn(
-          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm",
+          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm pointer-events-auto cursor-default",
           isProcessing && "bg-white/20 text-white",
           isFailed && "bg-red-500/30 text-red-100",
         )}
@@ -1788,7 +1788,7 @@ function ItemDetailDialog({
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           "disabled:cursor-not-allowed disabled:opacity-50",
                           excludeFromPublicRooms
-                            ? "bg-primary"
+                            ? "bg-green-700"
                             : "bg-gray-200 dark:bg-gray-700",
                         )}
                       >
