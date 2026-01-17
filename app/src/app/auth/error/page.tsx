@@ -4,14 +4,21 @@ type Props = {
   searchParams: Promise<{ reason?: string }>;
 };
 
-const errorMessages: Record<string, { title: string; description: string }> = {
+type ErrorInfo = {
+  title: string;
+  description: string;
+  primaryCta?: "login" | "waitlist";
+};
+
+const errorMessages: Record<string, ErrorInfo> = {
   missing_params: {
     title: "invalid link",
     description: "this verification link is invalid or incomplete.",
   },
   verification_failed: {
     title: "verification failed",
-    description: "we couldn't verify your email. the link may have expired.",
+    description:
+      "we couldn't verify your email. the email link may have expired - try signing up again.",
   },
   no_user: {
     title: "something went wrong",
@@ -19,15 +26,19 @@ const errorMessages: Record<string, { title: string; description: string }> = {
   },
   INVALID_TOKEN: {
     title: "invalid invite",
-    description: "the invite token is invalid or has been used.",
+    description: "the invite token is invalid or doesn't exist.",
   },
   INVITE_USED: {
-    title: "invite already used",
-    description: "this invite has already been used by another user.",
+    title: "you've already joined",
+    description:
+      "this invite was used to create your account. try logging in instead.",
+    primaryCta: "login",
   },
   INVITE_EXPIRED: {
     title: "invite expired",
-    description: "this invite has expired. please request a new one.",
+    description:
+      "your invite expired before you could verify your email. ask the person who invited you for a new one.",
+    primaryCta: "waitlist",
   },
 };
 
@@ -37,6 +48,8 @@ export default async function AuthErrorPage({ searchParams }: Props) {
     title: "something went wrong",
     description: "an unexpected error occurred during authentication.",
   };
+
+  const showWaitlistCta = error.primaryCta === "waitlist";
 
   return (
     <div className="flex flex-1 items-center justify-center">
@@ -51,21 +64,43 @@ export default async function AuthErrorPage({ searchParams }: Props) {
         </div>
 
         <div className="space-y-3">
-          <Link
-            href="/login"
-            className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-          >
-            go to login
-          </Link>
-          <p className="text-sm text-gray-500">
-            or{" "}
-            <Link
-              href="/join"
-              className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-            >
-              try a different invite code
-            </Link>
-          </p>
+          {showWaitlistCta ? (
+            <>
+              <Link
+                href="/"
+                className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+              >
+                join the waitlist
+              </Link>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                or{" "}
+                <Link
+                  href="/join"
+                  className="font-medium text-gray-900 hover:underline dark:text-gray-100"
+                >
+                  enter a different code
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+              >
+                go to login
+              </Link>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                or{" "}
+                <Link
+                  href="/join"
+                  className="font-medium text-gray-900 hover:underline dark:text-gray-100"
+                >
+                  try a different invite code
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

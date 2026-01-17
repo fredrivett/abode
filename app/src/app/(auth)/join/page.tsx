@@ -1,6 +1,11 @@
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { validateInviteToken } from "@/lib/invites";
 import { EnterCodeForm } from "./enter-code-form";
+import {
+  InviteAlreadyUsedError,
+  InviteExpiredError,
+  InviteInvalidError,
+} from "./invite-errors";
 import { JoinForm } from "./join-form";
 
 type PageProps = {
@@ -24,42 +29,24 @@ export default async function JoinPage({ searchParams }: PageProps) {
   // Validate the token
   const result = await validateInviteToken(token);
 
-  // Invalid or expired token
-  if (!result.valid) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="w-full max-w-sm space-y-6 px-4">
-          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {result.code === "EXPIRED" ? "invite expired" : "invalid invite"}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {result.code === "EXPIRED"
-                ? "this invite link has expired. ask your friend for a new one."
-                : "this invite link is invalid or has already been used."}
-            </p>
-          </div>
+  // Invalid token (doesn't exist)
+  if (!result.valid && result.code === "INVALID_TOKEN") {
+    return <InviteInvalidError />;
+  }
 
-          <div className="space-y-3">
-            <a
-              href="/"
-              className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-            >
-              join the waitlist
-            </a>
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              or{" "}
-              <a
-                href="/join"
-                className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-              >
-                enter a different code
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  // Expired token
+  if (!result.valid && result.code === "EXPIRED") {
+    return <InviteExpiredError invite={result.invite} />;
+  }
+
+  // Already accepted (user already signed up with this invite)
+  if (!result.valid && result.code === "ALREADY_ACCEPTED") {
+    return <InviteAlreadyUsedError invite={result.invite} />;
+  }
+
+  // Guard for TypeScript - at this point result must be valid
+  if (!result.valid) {
+    return <InviteInvalidError />;
   }
 
   // Valid token - show signup form
