@@ -405,7 +405,12 @@ describe("Room Service Integration", () => {
         user.id,
       );
 
-      expect(result).toEqual({ added: 0, removed: 0 });
+      expect(result).toEqual({
+        addedItemIds: [],
+        removedItemIds: [],
+        added: 0,
+        removed: 0,
+      });
     });
 
     it("returns zeros for manual room", async () => {
@@ -416,7 +421,12 @@ describe("Room Service Integration", () => {
 
       const result = await syncRoomItems(room.id, user.id);
 
-      expect(result).toEqual({ added: 0, removed: 0 });
+      expect(result).toEqual({
+        addedItemIds: [],
+        removedItemIds: [],
+        added: 0,
+        removed: 0,
+      });
     });
   });
 

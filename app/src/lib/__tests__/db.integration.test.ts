@@ -124,7 +124,7 @@ describe("Database Integration", () => {
       expect(items[0].user.email).toBe("relationship-test@example.com");
     });
 
-    it("cascades delete from user to items", async () => {
+    it("restricts delete of user with items", async () => {
       const { write } = await import("@/lib/db");
 
       // Create user and item
@@ -135,7 +135,7 @@ describe("Database Integration", () => {
         },
       });
 
-      const item = await write.item.create({
+      await write.item.create({
         data: {
           userId: user.id,
           kind: "article",
@@ -144,22 +144,12 @@ describe("Database Integration", () => {
         },
       });
 
-      // Verify item exists
-      const itemsBefore = await write.item.findMany({
-        where: { id: item.id },
-      });
-      expect(itemsBefore).toHaveLength(1);
-
-      // Delete user - should cascade to items
-      await write.user.delete({
-        where: { id: user.id },
-      });
-
-      // Verify item was deleted via cascade
-      const itemsAfter = await write.item.findMany({
-        where: { id: item.id },
-      });
-      expect(itemsAfter).toHaveLength(0);
+      // Delete user should fail due to Restrict constraint on items
+      await expect(
+        write.user.delete({
+          where: { id: user.id },
+        }),
+      ).rejects.toThrow();
     });
 
     it("can query items by processing status", async () => {
