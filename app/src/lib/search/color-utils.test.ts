@@ -5,7 +5,10 @@ import {
   deltaE,
   getColorNames,
   getNearestColorName,
+  hexToLab,
+  hexToRgb,
   normalizeColor,
+  rgbToLab,
 } from "./color-utils";
 
 describe("normalizeColor", () => {
@@ -313,6 +316,155 @@ describe("getNearestColorName", () => {
       expect(getNearestColorName("#f00")).toBe("red");
       expect(getNearestColorName("#0f0")).toBe("green");
       expect(getNearestColorName("#00f")).toBe("blue");
+    });
+  });
+});
+
+describe("hexToRgb", () => {
+  describe("valid hex colors", () => {
+    it("parses primary colors", () => {
+      expect(hexToRgb("#FF0000")).toEqual({ r: 255, g: 0, b: 0 });
+      expect(hexToRgb("#00FF00")).toEqual({ r: 0, g: 255, b: 0 });
+      expect(hexToRgb("#0000FF")).toEqual({ r: 0, g: 0, b: 255 });
+    });
+
+    it("parses black and white", () => {
+      expect(hexToRgb("#000000")).toEqual({ r: 0, g: 0, b: 0 });
+      expect(hexToRgb("#FFFFFF")).toEqual({ r: 255, g: 255, b: 255 });
+    });
+
+    it("parses mixed colors", () => {
+      expect(hexToRgb("#808080")).toEqual({ r: 128, g: 128, b: 128 });
+      expect(hexToRgb("#FFA500")).toEqual({ r: 255, g: 165, b: 0 });
+    });
+
+    it("handles lowercase hex", () => {
+      expect(hexToRgb("#ff0000")).toEqual({ r: 255, g: 0, b: 0 });
+      expect(hexToRgb("#aabbcc")).toEqual({ r: 170, g: 187, b: 204 });
+    });
+
+    it("handles 3-char hex", () => {
+      expect(hexToRgb("#f00")).toEqual({ r: 255, g: 0, b: 0 });
+      expect(hexToRgb("#abc")).toEqual({ r: 170, g: 187, b: 204 });
+    });
+
+    it("handles named colors", () => {
+      expect(hexToRgb("red")).toEqual({ r: 255, g: 0, b: 0 });
+      expect(hexToRgb("blue")).toEqual({ r: 0, g: 0, b: 255 });
+    });
+  });
+
+  describe("error handling", () => {
+    it("returns null for invalid hex", () => {
+      expect(hexToRgb("invalid")).toBeNull();
+      expect(hexToRgb("#GGGGGG")).toBeNull();
+      expect(hexToRgb("")).toBeNull();
+    });
+  });
+});
+
+describe("rgbToLab", () => {
+  describe("primary colors", () => {
+    it("converts red to LAB", () => {
+      const lab = rgbToLab({ r: 255, g: 0, b: 0 });
+      // Red in LAB: L ~53, a ~80, b ~67
+      expect(lab.l).toBeCloseTo(53.23, 0);
+      expect(lab.a).toBeCloseTo(80.11, 0);
+      expect(lab.b).toBeCloseTo(67.22, 0);
+    });
+
+    it("converts green to LAB", () => {
+      const lab = rgbToLab({ r: 0, g: 255, b: 0 });
+      // Green in LAB: L ~87, a ~-86, b ~83
+      expect(lab.l).toBeCloseTo(87.74, 0);
+      expect(lab.a).toBeCloseTo(-86.18, 0);
+      expect(lab.b).toBeCloseTo(83.18, 0);
+    });
+
+    it("converts blue to LAB", () => {
+      const lab = rgbToLab({ r: 0, g: 0, b: 255 });
+      // Blue in LAB: L ~32, a ~79, b ~-108
+      expect(lab.l).toBeCloseTo(32.30, 0);
+      expect(lab.a).toBeCloseTo(79.20, 0);
+      expect(lab.b).toBeCloseTo(-107.86, 0);
+    });
+  });
+
+  describe("black and white", () => {
+    it("converts black to LAB", () => {
+      const lab = rgbToLab({ r: 0, g: 0, b: 0 });
+      // Black in LAB: L=0, a=0, b=0
+      expect(lab.l).toBeCloseTo(0, 0);
+      expect(lab.a).toBeCloseTo(0, 0);
+      expect(lab.b).toBeCloseTo(0, 0);
+    });
+
+    it("converts white to LAB", () => {
+      const lab = rgbToLab({ r: 255, g: 255, b: 255 });
+      // White in LAB: L=100, a~0, b~0
+      expect(lab.l).toBeCloseTo(100, 0);
+      expect(lab.a).toBeCloseTo(0, 0);
+      expect(lab.b).toBeCloseTo(0, 0);
+    });
+  });
+
+  describe("gray colors", () => {
+    it("converts mid-gray to LAB", () => {
+      const lab = rgbToLab({ r: 128, g: 128, b: 128 });
+      // Gray should have a=0 and b=0
+      expect(lab.l).toBeGreaterThan(0);
+      expect(lab.l).toBeLessThan(100);
+      expect(lab.a).toBeCloseTo(0, 0);
+      expect(lab.b).toBeCloseTo(0, 0);
+    });
+  });
+});
+
+describe("hexToLab", () => {
+  describe("convenience function", () => {
+    it("combines hexToRgb and rgbToLab", () => {
+      const lab = hexToLab("#FF0000");
+      expect(lab).not.toBeNull();
+      // Red in LAB: L ~53, a ~80, b ~67
+      expect(lab!.l).toBeCloseTo(53.23, 0);
+      expect(lab!.a).toBeCloseTo(80.11, 0);
+      expect(lab!.b).toBeCloseTo(67.22, 0);
+    });
+
+    it("handles named colors", () => {
+      const lab = hexToLab("red");
+      expect(lab).not.toBeNull();
+      expect(lab!.l).toBeCloseTo(53.23, 0);
+    });
+
+    it("handles 3-char hex", () => {
+      const lab = hexToLab("#f00");
+      expect(lab).not.toBeNull();
+      expect(lab!.l).toBeCloseTo(53.23, 0);
+    });
+  });
+
+  describe("error handling", () => {
+    it("returns null for invalid input", () => {
+      expect(hexToLab("invalid")).toBeNull();
+      expect(hexToLab("#GGGGGG")).toBeNull();
+      expect(hexToLab("")).toBeNull();
+    });
+  });
+
+  describe("consistency with direct conversion", () => {
+    it("produces same result as hexToRgb + rgbToLab", () => {
+      const hex = "#FFA500"; // Orange
+      const rgb = hexToRgb(hex);
+      const labDirect = hexToLab(hex);
+
+      expect(rgb).not.toBeNull();
+      expect(labDirect).not.toBeNull();
+
+      const labManual = rgbToLab(rgb!);
+      expect(labDirect!.l).toBeCloseTo(labManual.l, 10);
+      expect(labDirect!.a).toBeCloseTo(labManual.a, 10);
+      expect(labDirect!.b).toBeCloseTo(labManual.b, 10);
     });
   });
 });

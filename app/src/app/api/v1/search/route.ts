@@ -6,6 +6,7 @@ import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
 import {
   buildColorCondition,
+  buildColorRelevanceCte,
   buildDateCondition,
   buildLocationCondition,
   buildObjectCondition,
@@ -421,12 +422,24 @@ async function executeFiltersOnlySearch(
   }
 
   // Color filter - now uses SQL filtering by color name
+  // Also build colour relevance CTE for hex-based ranking
+  let colorRelevanceCte = "";
+  let hasColorRelevanceRanking: boolean = false;
   if (filters.color && filters.color.length > 0) {
     const colorCondition = buildColorCondition(filters.color, paramIndex);
     if (colorCondition.sql) {
       conditions.push(colorCondition.sql);
       params.push(...colorCondition.params);
       paramIndex += colorCondition.params.length;
+    }
+
+    // Build colour relevance CTE for ranking (uses separate params)
+    const relevanceCte = buildColorRelevanceCte(filters.color, paramIndex);
+    if (relevanceCte.hasHexFilters) {
+      colorRelevanceCte = relevanceCte.cte;
+      params.push(...relevanceCte.params);
+      paramIndex += relevanceCte.params.length;
+      hasColorRelevanceRanking = true;
     }
   }
 
@@ -473,8 +486,27 @@ async function executeFiltersOnlySearch(
   // Fetch one extra to check if there are more results
   const fetchLimit = PAGE_SIZE + 1;
 
+  // Build ORDER BY clause - prioritize colour relevance when hex search is active
+  const orderByClause = hasColorRelevanceRanking
+    ? `ORDER BY
+        COALESCE(cr.relevance, 0) DESC,
+        COALESCE(iid.capture_date, items.created_at) DESC,
+        items.created_at DESC,
+        items.id DESC`
+    : `ORDER BY
+        COALESCE(iid.capture_date, items.created_at) DESC,
+        items.created_at DESC,
+        items.id DESC`;
+
+  // Build the query with optional colour relevance CTE
+  const cteClause = hasColorRelevanceRanking ? `WITH ${colorRelevanceCte}` : "";
+  const colorRelevanceJoin = hasColorRelevanceRanking
+    ? "LEFT JOIN color_relevance cr ON cr.item_id = items.id"
+    : "";
+
   // Query items with all fields needed for display
   const itemsQuery = `
+    ${cteClause}
     SELECT
       items.id,
       items.kind,
@@ -511,12 +543,10 @@ async function executeFiltersOnlySearch(
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
+    ${colorRelevanceJoin}
     WHERE ${whereClause}
     ${cursorCondition}
-    ORDER BY
-      COALESCE(iid.capture_date, items.created_at) DESC,
-      items.created_at DESC,
-      items.id DESC
+    ${orderByClause}
     LIMIT ${fetchLimit}
   `;
 

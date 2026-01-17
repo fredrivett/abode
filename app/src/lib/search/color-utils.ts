@@ -68,7 +68,9 @@ export function normalizeColor(color: string): string | null {
 /**
  * Parse hex color to RGB components.
  */
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+export function hexToRgb(
+  hex: string,
+): { r: number; g: number; b: number } | null {
   const normalized = normalizeColor(hex);
   if (!normalized) return null;
 
@@ -85,7 +87,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 /**
  * Convert RGB to LAB color space for perceptual comparison.
  */
-function rgbToLab(rgb: { r: number; g: number; b: number }): {
+export function rgbToLab(rgb: { r: number; g: number; b: number }): {
   l: number;
   a: number;
   b: number;
@@ -122,6 +124,18 @@ function rgbToLab(rgb: { r: number; g: number; b: number }): {
     a: 500 * (xr - yr),
     b: 200 * (yr - zr),
   };
+}
+
+/**
+ * Convert hex color directly to LAB color space.
+ * Convenience function combining hexToRgb and rgbToLab.
+ */
+export function hexToLab(
+  hex: string,
+): { l: number; a: number; b: number } | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  return rgbToLab(rgb);
 }
 
 /**

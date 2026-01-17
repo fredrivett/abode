@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildColorCondition,
+  buildColorRelevanceCte,
   buildDateCondition,
   buildLocationCondition,
   buildObjectCondition,
@@ -584,12 +585,18 @@ describe("buildColorCondition", () => {
     expect(result.params).toEqual(["blue"]);
   });
 
-  it("converts hex values to color names", () => {
+  it("uses deltaE matching for hex values", () => {
     const result = buildColorCondition(
       [{ value: "#FF0000", negated: false }],
       1,
     );
-    expect(result.params).toEqual(["red"]);
+    // Hex values now use deltaE_lab with LAB params (l, a, b)
+    expect(result.sql).toContain("delta_e_lab");
+    expect(result.params).toHaveLength(3);
+    // Verify params are numbers (LAB values)
+    expect(typeof result.params[0]).toBe("number");
+    expect(typeof result.params[1]).toBe("number");
+    expect(typeof result.params[2]).toBe("number");
   });
 
   it("handles multiple color filters", () => {
@@ -705,5 +712,126 @@ describe("remapParamIndices", () => {
     const result = remapParamIndices(sql, 1, 3);
     expect(result).toContain("$3");
     expect(result).not.toContain("$1");
+  });
+});
+
+describe("buildColorRelevanceCte", () => {
+  describe("hex filter handling", () => {
+    it("returns empty for no hex filters", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "red", negated: false }],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(false);
+      expect(result.cte).toBe("");
+      expect(result.params).toEqual([]);
+    });
+
+    it("returns empty for empty filters array", () => {
+      const result = buildColorRelevanceCte([], 1);
+      expect(result.hasHexFilters).toBe(false);
+      expect(result.cte).toBe("");
+      expect(result.params).toEqual([]);
+    });
+
+    it("builds CTE for valid hex filter", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#FF0000", negated: false }],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(true);
+      expect(result.cte).toContain("color_relevance AS");
+      expect(result.cte).toContain("delta_e_lab");
+      expect(result.cte).toContain("$1");
+      expect(result.cte).toContain("$2");
+      expect(result.cte).toContain("$3");
+      expect(result.params).toHaveLength(3);
+      // Verify params are LAB values (numbers)
+      expect(typeof result.params[0]).toBe("number");
+      expect(typeof result.params[1]).toBe("number");
+      expect(typeof result.params[2]).toBe("number");
+    });
+
+    it("ignores negated hex filters", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#FF0000", negated: true }],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(false);
+      expect(result.cte).toBe("");
+    });
+
+    it("uses correct starting param index", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#00FF00", negated: false }],
+        5,
+      );
+      expect(result.hasHexFilters).toBe(true);
+      expect(result.cte).toContain("$5");
+      expect(result.cte).toContain("$6");
+      expect(result.cte).toContain("$7");
+    });
+
+    it("returns empty for invalid hex", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#GGGGGG", negated: false }],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(false);
+      expect(result.cte).toBe("");
+    });
+
+    it("uses first hex filter when multiple present", () => {
+      const result = buildColorRelevanceCte(
+        [
+          { value: "#FF0000", negated: false },
+          { value: "#00FF00", negated: false },
+        ],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(true);
+      // Should only have 3 params (for the first hex)
+      expect(result.params).toHaveLength(3);
+    });
+
+    it("handles mix of hex and named color filters", () => {
+      const result = buildColorRelevanceCte(
+        [
+          { value: "red", negated: false },
+          { value: "#0000FF", negated: false },
+        ],
+        1,
+      );
+      expect(result.hasHexFilters).toBe(true);
+      expect(result.cte).toContain("color_relevance AS");
+    });
+  });
+
+  describe("CTE structure", () => {
+    it("includes relevance calculation with score", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#FF0000", negated: false }],
+        1,
+      );
+      expect(result.cte).toContain("relevance");
+      expect(result.cte).toContain("score");
+      expect(result.cte).toContain("MAX(");
+    });
+
+    it("includes proper GROUP BY", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#FF0000", negated: false }],
+        1,
+      );
+      expect(result.cte).toContain("GROUP BY iid.item_id");
+    });
+
+    it("filters by LAB values presence", () => {
+      const result = buildColorRelevanceCte(
+        [{ value: "#FF0000", negated: false }],
+        1,
+      );
+      expect(result.cte).toContain("(c->>'l') IS NOT NULL");
+    });
   });
 });

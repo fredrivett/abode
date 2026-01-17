@@ -14,6 +14,7 @@ import {
 import {
   getColorNames,
   getNearestColorName,
+  hexToLab,
   normalizeColor,
 } from "./color-utils";
 import { NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE } from "./types";
@@ -505,10 +506,30 @@ export function normalizeColorFilterValue(value: string): string | null {
   return null;
 }
 
+// Fixed threshold for "similar" colours in deltaE units
+// deltaE 0-5 = nearly identical, 5-15 = very similar, 15-25 = similar, 25+ = different
+const COLOR_DELTA_E_THRESHOLD = 25;
+
+/**
+ * Generate deltaE_lab SQL call fragment.
+ * Compares target LAB values (from params) against stored LAB values in JSONB.
+ *
+ * @param paramIndex - Starting parameter index for target L, a, b values
+ * @returns SQL fragment for deltaE_lab function call
+ */
+function deltaELabSql(paramIndex: number): string {
+  return `delta_e_lab(
+    $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2},
+    (c->>'l')::float, (c->>'a')::float, (c->>'b')::float
+  )`;
+}
+
 /**
  * Build SQL WHERE conditions for color filter.
- * Filters by the `name` field in the JSONB colors array.
- * This is much more efficient than post-query filtering.
+ *
+ * For named colors (e.g., "red"): filters by the `name` field in the JSONB colors array.
+ * For hex colors (e.g., "#FF5733"): uses deltaE_lab for perceptual color matching.
+ *
  * Handles OR groups for pipe-separated values.
  */
 export function buildColorCondition(
@@ -524,6 +545,35 @@ export function buildColorCondition(
         : `EXISTS (SELECT 1 FROM item_image_details iid WHERE iid.item_id = items.id AND iid.colors IS NOT NULL AND jsonb_array_length(iid.colors) > 0)`;
     }
 
+    const trimmed = filter.value.trim();
+
+    // Check if input is a hex value (starts with #)
+    const isHexInput = trimmed.startsWith("#");
+
+    if (isHexInput) {
+      // Hex input: use deltaE_lab for perceptual color matching
+      const normalizedHex = normalizeColor(trimmed);
+      if (!normalizedHex) return null; // Invalid hex
+
+      const lab = hexToLab(normalizedHex);
+      if (!lab) return null; // Shouldn't happen if normalizeColor succeeded
+
+      const deltaE = deltaELabSql(ctx.paramIndex);
+      const existsBody = `SELECT 1 FROM item_image_details iid
+            CROSS JOIN LATERAL jsonb_array_elements(iid.colors) AS c
+            WHERE iid.item_id = items.id
+            AND (c->>'l') IS NOT NULL
+            AND ${deltaE} <= ${COLOR_DELTA_E_THRESHOLD}`;
+      const condition = filter.negated
+        ? `NOT EXISTS (${existsBody})`
+        : `EXISTS (${existsBody})`;
+
+      ctx.params.push(lab.l, lab.a, lab.b);
+      ctx.paramIndex += 3;
+      return condition;
+    }
+
+    // Named color: use exact name matching (faster)
     const colorName = normalizeColorFilterValue(filter.value);
     if (!colorName) return null; // Skip invalid color values
 
@@ -548,6 +598,68 @@ export function buildColorCondition(
     ctx.paramIndex++;
     return condition;
   });
+}
+
+/**
+ * Build a CTE for colour relevance ranking when searching by hex colour.
+ *
+ * Returns relevance score combining:
+ * - Colour proximity (lower deltaE = higher relevance)
+ * - Colour dominance (higher score = more prominent in image)
+ *
+ * Formula: (1 - deltaE/threshold) * score
+ *
+ * @param filters - Colour filter values (only hex values are considered)
+ * @param startParamIndex - Starting parameter index
+ * @returns CTE SQL, params, and whether there are any hex filters
+ */
+export function buildColorRelevanceCte(
+  filters: FilterValue[],
+  startParamIndex: number,
+): { cte: string; params: unknown[]; hasHexFilters: boolean } {
+  // Find hex colour filters (non-negated only for ranking)
+  const hexFilters = filters.filter((f) => {
+    const trimmed = f.value.trim();
+    return trimmed.startsWith("#") && !f.negated;
+  });
+
+  if (hexFilters.length === 0) {
+    return { cte: "", params: [], hasHexFilters: false };
+  }
+
+  // For simplicity, use the first hex filter for ranking
+  // (multiple hex filters in OR groups would need more complex logic)
+  const firstHex = hexFilters[0].value.trim();
+  const normalizedHex = normalizeColor(firstHex);
+  if (!normalizedHex) {
+    return { cte: "", params: [], hasHexFilters: false };
+  }
+
+  const lab = hexToLab(normalizedHex);
+  if (!lab) {
+    return { cte: "", params: [], hasHexFilters: false };
+  }
+
+  const deltaE = deltaELabSql(startParamIndex);
+  const cte = `
+    color_relevance AS (
+      SELECT
+        iid.item_id,
+        MAX(
+          (1 - ${deltaE} / ${COLOR_DELTA_E_THRESHOLD}.0) * COALESCE((c->>'score')::float, 0.5)
+        ) AS relevance
+      FROM item_image_details iid
+      CROSS JOIN LATERAL jsonb_array_elements(iid.colors) AS c
+      WHERE (c->>'l') IS NOT NULL
+        AND ${deltaE} <= ${COLOR_DELTA_E_THRESHOLD}
+      GROUP BY iid.item_id
+    )`;
+
+  return {
+    cte,
+    params: [lab.l, lab.a, lab.b],
+    hasHexFilters: true,
+  };
 }
 
 /**
