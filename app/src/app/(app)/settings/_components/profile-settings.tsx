@@ -1,17 +1,13 @@
 "use client";
 
-import { Camera, Trash2 } from "lucide-react";
 import posthog from "posthog-js";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { AvatarCropper } from "@/components/avatar/avatar-cropper";
-import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
-import { UserAvatar } from "@/components/avatar/user-avatar";
+import { UserAvatarSetting } from "@/components/avatar/user-avatar-setting";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
-import { useUserStore } from "@/stores/user-store";
 
 type ProfileSettingsProps = {
   firstName?: string | null;
@@ -28,7 +24,6 @@ export function ProfileSettings({
   email,
   initialAvatarUrl,
 }: ProfileSettingsProps) {
-  const setAvatarUrl = useUserStore((state) => state.setAvatarUrl);
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -36,44 +31,6 @@ export function ProfileSettings({
   const hasNameChanges =
     firstName !== (initialFirstName ?? "") ||
     lastName !== (initialLastName ?? "");
-
-  const handleSuccess = useCallback(
-    (newAvatarUrl: string) => {
-      toast.success("Avatar updated");
-      setAvatarUrl(newAvatarUrl);
-    },
-    [setAvatarUrl],
-  );
-
-  const handleError = useCallback((error: Error) => {
-    toast.error(error.message);
-  }, []);
-
-  const {
-    avatarUrl,
-    selectedImage,
-    isCropperOpen,
-    isUploading,
-    isDeleting,
-    fileInputRef,
-    openFilePicker,
-    handleFileSelect,
-    handleCropComplete,
-    handleCropperClose,
-    handleDelete,
-  } = useAvatarUpload({
-    initialAvatarUrl,
-    onSuccess: handleSuccess,
-    onError: handleError,
-  });
-
-  const onDelete = useCallback(async () => {
-    const success = await handleDelete();
-    if (success) {
-      toast.success("Avatar removed");
-      setAvatarUrl(null);
-    }
-  }, [handleDelete, setAvatarUrl]);
 
   const handleSaveName = async () => {
     setIsSaving(true);
@@ -110,56 +67,13 @@ export function ProfileSettings({
       </p>
 
       <div className="mt-4 flex items-start gap-4">
-        <div className="flex flex-col items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={openFilePicker}
-              disabled={isUploading}
-              className="cursor-pointer disabled:cursor-not-allowed"
-            >
-              <UserAvatar
-                avatarUrl={avatarUrl}
-                firstName={firstName || undefined}
-                lastName={lastName || undefined}
-                username={username}
-                email={email}
-                className="size-20 text-xl"
-                fallbackClassName="text-xl"
-              />
-              <span className="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full bg-secondary shadow-md">
-                <Camera className="size-3.5" />
-                <span className="sr-only">Upload avatar</span>
-              </span>
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={openFilePicker}
-              disabled={isUploading}
-            >
-              {isUploading ? <IsLoading label="Uploading" /> : "Change"}
-            </Button>
-            {avatarUrl && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={onDelete}
-                disabled={isDeleting}
-                className="size-8 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="size-4" />
-                <span className="sr-only">
-                  {isDeleting ? "Removing" : "Remove"}
-                </span>
-              </Button>
-            )}
-          </div>
-        </div>
+        <UserAvatarSetting
+          firstName={firstName || undefined}
+          lastName={lastName || undefined}
+          username={username}
+          email={email}
+          initialAvatarUrl={initialAvatarUrl}
+        />
 
         <div className="flex flex-1 flex-col gap-3">
           <div className="space-y-1.5">
@@ -193,24 +107,6 @@ export function ProfileSettings({
           )}
         </div>
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-
-      {selectedImage && (
-        <AvatarCropper
-          open={isCropperOpen}
-          onOpenChange={handleCropperClose}
-          imageSrc={selectedImage}
-          onCropComplete={handleCropComplete}
-          isUploading={isUploading}
-        />
-      )}
     </section>
   );
 }

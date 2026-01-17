@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import ReactCrop, {
   type Crop,
   centerCrop,
+  convertToPixelCrop,
   makeAspectCrop,
   type PixelCrop,
 } from "react-image-crop";
@@ -32,12 +33,14 @@ function centerAspectCrop(
   mediaHeight: number,
   aspect: number,
 ) {
+  // For a square crop, maximize the initial selection based on the constraining dimension
+  const isLandscape = mediaWidth > mediaHeight;
+
   return centerCrop(
     makeAspectCrop(
-      {
-        unit: "%",
-        width: 90,
-      },
+      isLandscape
+        ? { unit: "%", height: 100 }
+        : { unit: "%", width: 100 },
       aspect,
       mediaWidth,
       mediaHeight,
@@ -101,27 +104,35 @@ export function AvatarCropper({
   isUploading = false,
 }: AvatarCropperProps) {
   const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const imgRef = useRef<HTMLImageElement>(null);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       const { width, height } = e.currentTarget;
-      setCrop(centerAspectCrop(width, height, 1));
+      const initialCrop = centerAspectCrop(width, height, 1);
+      setCrop(initialCrop);
     },
     [],
   );
 
   const handleCropComplete = useCallback(async () => {
-    if (!completedCrop || !imgRef.current) return;
+    if (!crop || !imgRef.current) return;
+
+    // Convert the percent crop to pixel crop ourselves
+    // ReactCrop's onComplete reports incorrect values due to internal padding
+    const pixelCrop = convertToPixelCrop(
+      crop,
+      imgRef.current.width,
+      imgRef.current.height,
+    );
 
     try {
-      const croppedBlob = await getCroppedImg(imgRef.current, completedCrop);
+      const croppedBlob = await getCroppedImg(imgRef.current, pixelCrop);
       onCropComplete(croppedBlob);
     } catch {
       // Silently fail - crop errors are not actionable for the user
     }
-  }, [completedCrop, onCropComplete]);
+  }, [crop, onCropComplete]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -137,7 +148,6 @@ export function AvatarCropper({
           <ReactCrop
             crop={crop}
             onChange={(_, percentCrop) => setCrop(percentCrop)}
-            onComplete={(c) => setCompletedCrop(c)}
             aspect={1}
             className="max-h-[60vh]"
           >
@@ -164,7 +174,7 @@ export function AvatarCropper({
           <Button
             type="button"
             onClick={handleCropComplete}
-            disabled={!completedCrop || isUploading}
+            disabled={!crop || isUploading}
           >
             {isUploading ? <IsLoading label="Uploading" /> : "Save"}
           </Button>

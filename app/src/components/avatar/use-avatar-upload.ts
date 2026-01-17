@@ -1,6 +1,17 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
+
+function validateAvatarFile(file: File): string | null {
+  if (!isAllowedAvatarType(file.type)) {
+    return "Invalid file type. Allowed: JPEG, PNG, WebP";
+  }
+  if (file.size > MAX_AVATAR_SIZE) {
+    return "File too large. Maximum size is 2MB";
+  }
+  return null;
+}
 
 type UseAvatarUploadOptions = {
   initialAvatarUrl?: string | null;
@@ -26,19 +37,42 @@ export function useAvatarUpload({
     fileInputRef.current?.click();
   }, []);
 
+  const processFile = useCallback((file: File) => {
+    const objectUrl = URL.createObjectURL(file);
+    setSelectedImage(objectUrl);
+    setIsCropperOpen(true);
+  }, []);
+
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      const objectUrl = URL.createObjectURL(file);
-      setSelectedImage(objectUrl);
-      setIsCropperOpen(true);
+      const error = validateAvatarFile(file);
+      if (error) {
+        onError?.(new Error(error));
+        e.target.value = "";
+        return;
+      }
+
+      processFile(file);
 
       // Reset input so same file can be selected again
       e.target.value = "";
     },
-    [],
+    [processFile, onError],
+  );
+
+  const handleFileDrop = useCallback(
+    (file: File) => {
+      const error = validateAvatarFile(file);
+      if (error) {
+        onError?.(new Error(error));
+        return;
+      }
+      processFile(file);
+    },
+    [processFile, onError],
   );
 
   const handleCropComplete = useCallback(
@@ -120,6 +154,7 @@ export function useAvatarUpload({
     fileInputRef,
     openFilePicker,
     handleFileSelect,
+    handleFileDrop,
     handleCropComplete,
     handleCropperClose,
     handleDelete,

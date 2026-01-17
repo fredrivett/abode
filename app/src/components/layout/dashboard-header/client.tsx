@@ -83,22 +83,31 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Initialize store with server-fetched values on mount
+  // Initialize store with server-fetched values on mount (only when undefined = not yet hydrated)
+  // This prevents overwriting client-side updates (like avatar uploads) with stale server values
   useEffect(() => {
     if (isAuthenticated) {
-      setAvatarUrl(initialAvatarUrl ?? null);
-      setInvitesRemaining(initialInvitesRemaining);
+      if (storeAvatarUrl === undefined) {
+        setAvatarUrl(initialAvatarUrl ?? null);
+      }
+      if (storeInvitesRemaining === 0 && initialInvitesRemaining > 0) {
+        setInvitesRemaining(initialInvitesRemaining);
+      }
     }
   }, [
     initialAvatarUrl,
     setAvatarUrl,
+    storeAvatarUrl,
     initialInvitesRemaining,
     setInvitesRemaining,
+    storeInvitesRemaining,
     isAuthenticated,
   ]);
 
-  // Use store values (fall back to initial if store not yet hydrated)
-  const avatarUrl = storeAvatarUrl ?? initialAvatarUrl;
+  // Use store value if hydrated (not undefined), otherwise fall back to initial
+  // Note: null means "explicitly no avatar", undefined means "not yet hydrated"
+  const avatarUrl =
+    storeAvatarUrl !== undefined ? storeAvatarUrl : (initialAvatarUrl ?? null);
   const invitesRemaining = storeInvitesRemaining ?? initialInvitesRemaining;
 
   // Compute display values for the user dropdown

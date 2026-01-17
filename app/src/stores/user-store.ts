@@ -3,14 +3,14 @@
 import { create } from "zustand";
 
 type UserState = {
-  avatarUrl: string | null;
+  avatarUrl: string | null | undefined;
   setAvatarUrl: (url: string | null) => void;
   invitesRemaining: number;
   setInvitesRemaining: (count: number) => void;
 };
 
 export const useUserStore = create<UserState>((set) => ({
-  avatarUrl: null,
+  avatarUrl: undefined,
   setAvatarUrl: (url) => set({ avatarUrl: url }),
   invitesRemaining: 0,
   setInvitesRemaining: (count) => set({ invitesRemaining: count }),
