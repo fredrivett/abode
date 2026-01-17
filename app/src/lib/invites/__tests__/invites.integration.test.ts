@@ -424,5 +424,132 @@ describe("Invites Integration", () => {
         expect(result.code).toBe("EXPIRED");
       }
     });
+
+    it("returns invite context with inviter for expired user invite", async () => {
+      const { write } = await import("@/lib/db");
+      const { validateInviteToken } = await import("@/lib/invites");
+
+      const expiresAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      const createdAt = new Date(Date.now() - 9 * 24 * 60 * 60 * 1000);
+
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440040",
+          email: "inviter@example.com",
+          username: "janedoe",
+          avatarUrl: "https://example.com/avatar.png",
+        },
+      });
+
+      await write.invite.create({
+        data: {
+          email: "invited@example.com",
+          token: "expired-context-token",
+          origin: "user",
+          status: "pending",
+          expiresAt,
+          createdAt,
+          inviterId: "550e8400-e29b-41d4-a716-446655440040",
+        },
+      });
+
+      const result = await validateInviteToken("expired-context-token");
+
+      expect(result.valid).toBe(false);
+      if (!result.valid && result.code === "EXPIRED") {
+        expect(result.invite).toBeDefined();
+        expect(result.invite.email).toBe("invited@example.com");
+        expect(result.invite.origin).toBe("user");
+        expect(result.invite.expiresAt).toEqual(expiresAt);
+        expect(result.invite.createdAt).toEqual(createdAt);
+        expect(result.invite.inviter).not.toBeNull();
+        expect(result.invite.inviter?.username).toBe("janedoe");
+        expect(result.invite.inviter?.avatarUrl).toBe(
+          "https://example.com/avatar.png",
+        );
+      }
+    });
+
+    it("returns invite context without inviter for expired waitlist invite", async () => {
+      const { write } = await import("@/lib/db");
+      const { validateInviteToken } = await import("@/lib/invites");
+
+      const expiresAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      await write.invite.create({
+        data: {
+          email: "waitlisted@example.com",
+          token: "expired-waitlist-token",
+          origin: "waitlist",
+          status: "pending",
+          expiresAt,
+        },
+      });
+
+      const result = await validateInviteToken("expired-waitlist-token");
+
+      expect(result.valid).toBe(false);
+      if (!result.valid && result.code === "EXPIRED") {
+        expect(result.invite).toBeDefined();
+        expect(result.invite.email).toBe("waitlisted@example.com");
+        expect(result.invite.origin).toBe("waitlist");
+        expect(result.invite.inviter).toBeNull();
+      }
+    });
+
+    it("returns invite context for already accepted invite", async () => {
+      const { write } = await import("@/lib/db");
+      const { validateInviteToken } = await import("@/lib/invites");
+
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440041",
+          email: "inviter@example.com",
+          username: "johndoe",
+          avatarUrl: null,
+        },
+      });
+
+      const createdAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      await write.invite.create({
+        data: {
+          email: "already-joined@example.com",
+          token: "already-accepted-context-token",
+          origin: "user",
+          status: "accepted",
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          createdAt,
+          inviterId: "550e8400-e29b-41d4-a716-446655440041",
+          acceptedAt: new Date(),
+        },
+      });
+
+      const result = await validateInviteToken("already-accepted-context-token");
+
+      expect(result.valid).toBe(false);
+      if (!result.valid && result.code === "ALREADY_ACCEPTED") {
+        expect(result.invite).toBeDefined();
+        expect(result.invite.email).toBe("already-joined@example.com");
+        expect(result.invite.origin).toBe("user");
+        expect(result.invite.createdAt).toEqual(createdAt);
+        expect(result.invite.inviter).not.toBeNull();
+        expect(result.invite.inviter?.username).toBe("johndoe");
+        expect(result.invite.inviter?.avatarUrl).toBeNull();
+      }
+    });
+
+    it("does not return invite context for invalid token", async () => {
+      const { validateInviteToken } = await import("@/lib/invites");
+
+      const result = await validateInviteToken("non-existent-token");
+
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.code).toBe("INVALID_TOKEN");
+        // INVALID_TOKEN should not have invite context
+        expect("invite" in result).toBe(false);
+      }
+    });
   });
 });
