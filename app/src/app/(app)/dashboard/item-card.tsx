@@ -101,7 +101,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
     >
       <div
         className={cn(
-          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm",
+          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm pointer-events-auto cursor-default",
           isProcessing && "bg-white/20 text-white",
           isFailed && "bg-red-500/30 text-red-100",
         )}
