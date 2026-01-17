@@ -55,7 +55,6 @@ export function UserAvatarSetting({
   }, []);
 
   const {
-    avatarUrl: hookAvatarUrl,
     selectedImage,
     isCropperOpen,
     isUploading,
@@ -68,13 +67,10 @@ export function UserAvatarSetting({
     handleCropperClose,
     handleDelete,
   } = useAvatarUpload({
-    initialAvatarUrl: avatarUrl,
+    avatarUrl,
     onSuccess: handleSuccess,
     onError: handleError,
   });
-
-  // Use hook's local state (updated during upload) or fall back to computed value
-  const displayAvatarUrl = hookAvatarUrl ?? avatarUrl;
 
   const handleDeleteClick = useCallback(async () => {
     const success = await handleDelete();
@@ -92,7 +88,7 @@ export function UserAvatarSetting({
       if (isUploading) return;
 
       const file = e.dataTransfer?.files?.[0];
-      if (file?.type.startsWith("image/")) {
+      if (file) {
         handleFileDrop(file);
       }
     },
@@ -132,7 +128,7 @@ export function UserAvatarSetting({
             className="cursor-pointer disabled:cursor-not-allowed"
           >
             <UserAvatar
-              avatarUrl={displayAvatarUrl}
+              avatarUrl={avatarUrl}
               firstName={firstName}
               lastName={lastName}
               username={username}
@@ -144,7 +140,7 @@ export function UserAvatarSetting({
               fallbackClassName="text-xl"
             />
           </button>
-          {displayAvatarUrl && (
+          {avatarUrl && (
             <button
               type="button"
               onClick={handleDeleteClick}
@@ -171,7 +167,7 @@ export function UserAvatarSetting({
         >
           {isUploading ? (
             <IsLoading label="Uploading" />
-          ) : displayAvatarUrl ? (
+          ) : avatarUrl ? (
             "Change"
           ) : (
             "Upload"

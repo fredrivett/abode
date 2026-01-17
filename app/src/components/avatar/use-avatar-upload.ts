@@ -14,19 +14,16 @@ function validateAvatarFile(file: File): string | null {
 }
 
 type UseAvatarUploadOptions = {
-  initialAvatarUrl?: string | null;
+  avatarUrl?: string | null;
   onSuccess?: (avatarUrl: string) => void;
   onError?: (error: Error) => void;
 };
 
 export function useAvatarUpload({
-  initialAvatarUrl,
+  avatarUrl,
   onSuccess,
   onError,
 }: UseAvatarUploadOptions = {}) {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(
-    initialAvatarUrl ?? null,
-  );
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -94,7 +91,6 @@ export function useAvatarUpload({
         }
 
         const data = await response.json();
-        setAvatarUrl(data.avatarUrl);
         setIsCropperOpen(false);
         onSuccess?.(data.avatarUrl);
       } catch (error) {
@@ -135,7 +131,6 @@ export function useAvatarUpload({
         throw new Error("Failed to delete avatar");
       }
 
-      setAvatarUrl(null);
       return true;
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error("Delete failed"));
@@ -146,7 +141,6 @@ export function useAvatarUpload({
   }, [avatarUrl, onError]);
 
   return {
-    avatarUrl,
     selectedImage,
     isCropperOpen,
     isUploading,
