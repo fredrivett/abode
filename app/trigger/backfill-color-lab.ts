@@ -9,18 +9,7 @@
 import { logger, task } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { hexToLab } from "@/lib/search/color-utils";
-
-type ColorWithoutLab = {
-  hex: string;
-  name: string;
-  score: number;
-};
-
-type ColorWithLab = ColorWithoutLab & {
-  l: number;
-  a: number;
-  b: number;
-};
+import type { ImageColor } from "@/lib/types/item";
 
 export const backfillColorLabTask = task({
   id: "backfill-color-lab",
@@ -50,26 +39,23 @@ export const backfillColorLabTask = task({
 
     for (const item of itemsToUpdate) {
       try {
-        const colors = item.colors as ColorWithoutLab[];
+        const colors = item.colors as ImageColor[];
 
-        // Add LAB values to each color
-        const colorsWithLab: ColorWithLab[] = colors
-          .map((color) => {
-            const lab = hexToLab(color.hex);
-            if (!lab) {
-              // Skip colors with invalid hex (shouldn't happen but be safe)
-              return null;
-            }
-            return {
-              hex: color.hex,
-              name: color.name,
-              score: color.score,
-              l: lab.l,
-              a: lab.a,
-              b: lab.b,
-            };
-          })
-          .filter((c): c is ColorWithLab => c !== null);
+        // Add LAB values to each color, preserving all existing fields
+        const colorsWithLab: ImageColor[] = [];
+        for (const color of colors) {
+          const lab = hexToLab(color.hex);
+          if (!lab) {
+            // Skip colors with invalid hex (shouldn't happen but be safe)
+            continue;
+          }
+          colorsWithLab.push({
+            ...color,
+            l: lab.l,
+            a: lab.a,
+            b: lab.b,
+          });
+        }
 
         // Update the record
         await db.itemImageDetails.update({

@@ -823,7 +823,7 @@ describe("buildColorRelevanceCte", () => {
         [{ value: "#FF0000", negated: false }],
         1,
       );
-      expect(result.cte).toContain("GROUP BY iid.item_id");
+      expect(result.cte).toContain("GROUP BY item_id");
     });
 
     it("filters by LAB values presence", () => {

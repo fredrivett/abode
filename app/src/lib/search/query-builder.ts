@@ -641,18 +641,25 @@ export function buildColorRelevanceCte(
   }
 
   const deltaE = deltaELabSql(startParamIndex);
+  // Compute deltaE once per color using a subquery, then filter and aggregate
   const cte = `
     color_relevance AS (
       SELECT
-        iid.item_id,
+        item_id,
         MAX(
-          (1 - ${deltaE} / ${COLOR_DELTA_E_THRESHOLD}.0) * COALESCE((c->>'score')::float, 0.5)
+          (1 - delta_e / ${COLOR_DELTA_E_THRESHOLD}.0) * COALESCE(score, 0.5)
         ) AS relevance
-      FROM item_image_details iid
-      CROSS JOIN LATERAL jsonb_array_elements(iid.colors) AS c
-      WHERE (c->>'l') IS NOT NULL
-        AND ${deltaE} <= ${COLOR_DELTA_E_THRESHOLD}
-      GROUP BY iid.item_id
+      FROM (
+        SELECT
+          iid.item_id,
+          (c->>'score')::float AS score,
+          ${deltaE} AS delta_e
+        FROM item_image_details iid
+        CROSS JOIN LATERAL jsonb_array_elements(iid.colors) AS c
+        WHERE (c->>'l') IS NOT NULL
+      ) color_distances
+      WHERE delta_e <= ${COLOR_DELTA_E_THRESHOLD}
+      GROUP BY item_id
     )`;
 
   return {
