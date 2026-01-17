@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { UserAvatar } from "@/components/avatar/user-avatar";
+import { Button } from "@/components/ui/button";
 import type { InviteErrorContext } from "@/lib/invites";
 
 type InviteErrorLayoutProps = {
@@ -43,6 +44,30 @@ function InviterBanner({ inviter }: InviterBannerProps) {
   );
 }
 
+type InviteErrorActionsProps = {
+  primaryHref: string;
+  primaryLabel: string;
+};
+
+function InviteErrorActions({ primaryHref, primaryLabel }: InviteErrorActionsProps) {
+  return (
+    <div className="space-y-3 pt-4">
+      <Button asChild size="lg" className="w-full">
+        <Link href={primaryHref}>{primaryLabel}</Link>
+      </Button>
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        or{" "}
+        <Link
+          href="/join"
+          className="font-medium text-gray-900 hover:underline dark:text-gray-100"
+        >
+          enter a different code
+        </Link>
+      </p>
+    </div>
+  );
+}
+
 type InviteExpiredErrorProps = {
   invite: InviteErrorContext;
 };
@@ -67,24 +92,7 @@ export function InviteExpiredError({ invite }: InviteExpiredErrorProps) {
         <InviterBanner inviter={invite.inviter} />
       )}
       <p className="text-sm text-gray-500 dark:text-gray-400">{getMessage()}</p>
-
-      <div className="space-y-3 pt-4">
-        <Link
-          href="/"
-          className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          join the waitlist
-        </Link>
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          or{" "}
-          <Link
-            href="/join"
-            className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-          >
-            enter a different code
-          </Link>
-        </p>
-      </div>
+      <InviteErrorActions primaryHref="/" primaryLabel="join the waitlist" />
     </InviteErrorLayout>
   );
 }
@@ -102,24 +110,7 @@ export function InviteAlreadyUsedError({ invite }: InviteAlreadyUsedErrorProps) 
       <p className="text-sm text-gray-500 dark:text-gray-400">
         this invite was used to create your account.
       </p>
-
-      <div className="space-y-3 pt-4">
-        <Link
-          href="/login"
-          className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          login
-        </Link>
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          or{" "}
-          <Link
-            href="/join"
-            className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-          >
-            enter a different code
-          </Link>
-        </p>
-      </div>
+      <InviteErrorActions primaryHref="/login" primaryLabel="login" />
     </InviteErrorLayout>
   );
 }
@@ -130,24 +121,7 @@ export function InviteInvalidError() {
       <p className="text-sm text-gray-500 dark:text-gray-400">
         this invite link is invalid or doesn&apos;t exist.
       </p>
-
-      <div className="space-y-3 pt-4">
-        <Link
-          href="/"
-          className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          join the waitlist
-        </Link>
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          or{" "}
-          <Link
-            href="/join"
-            className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-          >
-            enter a different code
-          </Link>
-        </p>
-      </div>
+      <InviteErrorActions primaryHref="/" primaryLabel="join the waitlist" />
     </InviteErrorLayout>
   );
 }

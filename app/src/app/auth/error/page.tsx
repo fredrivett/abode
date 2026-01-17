@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   searchParams: Promise<{ reason?: string }>;
@@ -7,7 +8,7 @@ type Props = {
 type ErrorInfo = {
   title: string;
   description: string;
-  primaryCta?: "login" | "waitlist";
+  primaryCta?: "waitlist";
 };
 
 const errorMessages: Record<string, ErrorInfo> = {
@@ -32,7 +33,6 @@ const errorMessages: Record<string, ErrorInfo> = {
     title: "you've already joined",
     description:
       "this invite was used to create your account. try logging in instead.",
-    primaryCta: "login",
   },
   INVITE_EXPIRED: {
     title: "invite expired",
@@ -66,12 +66,9 @@ export default async function AuthErrorPage({ searchParams }: Props) {
         <div className="space-y-3">
           {showWaitlistCta ? (
             <>
-              <Link
-                href="/"
-                className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-              >
-                join the waitlist
-              </Link>
+              <Button asChild size="lg" className="w-full">
+                <Link href="/">join the waitlist</Link>
+              </Button>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 or{" "}
                 <Link
@@ -84,12 +81,9 @@ export default async function AuthErrorPage({ searchParams }: Props) {
             </>
           ) : (
             <>
-              <Link
-                href="/login"
-                className="flex h-10 w-full items-center justify-center rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
-              >
-                go to login
-              </Link>
+              <Button asChild size="lg" className="w-full">
+                <Link href="/login">go to login</Link>
+              </Button>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 or{" "}
                 <Link
