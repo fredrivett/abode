@@ -54,12 +54,21 @@ export type ArticleDetails = {
  * This type supports colors from both:
  * - Google Vision API: returns score (0-1) for dominance
  * - Legacy data: may have percentage instead of score
+ *
+ * LAB color space values (l, a, b) are pre-computed from hex
+ * for efficient perceptual color matching during search.
  */
 export type ImageColor = {
   hex: string;
   name: string;
   score?: number;
   percentage?: number;
+  /** LAB lightness (0-100) */
+  l?: number;
+  /** LAB green-red axis (-128 to +128) */
+  a?: number;
+  /** LAB blue-yellow axis (-128 to +128) */
+  b?: number;
 };
 
 /**

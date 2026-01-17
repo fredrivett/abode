@@ -2,7 +2,7 @@ import vision from "@google-cloud/vision";
 import type { Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { createLogger } from "./logger.server";
-import { getNearestColorName } from "./search/color-utils";
+import { getNearestColorName, hexToLab } from "./search/color-utils";
 import type { ImageColor } from "./types/item";
 
 const log = createLogger("lib/vision");
@@ -87,7 +87,7 @@ export async function analyzeImage(
   // Extract OCR text
   const ocrText = result.textAnnotations?.[0]?.description || null;
 
-  // Extract dominant colors with nearest named color
+  // Extract dominant colors with nearest named color and pre-computed LAB values
   const colors: ImageColor[] =
     result.imagePropertiesAnnotation?.dominantColors?.colors
       ?.map((color) => {
@@ -97,10 +97,13 @@ export async function analyzeImage(
           color.color?.blue || 0,
         );
         const name = getNearestColorName(hex);
+        const lab = hexToLab(hex);
         return {
           hex,
           name: name || "unknown",
           score: color.score || 0,
+          // Pre-compute LAB for efficient perceptual color matching during search
+          ...(lab && { l: lab.l, a: lab.a, b: lab.b }),
         };
       })
       .filter((c) => c.name !== "unknown") || [];
