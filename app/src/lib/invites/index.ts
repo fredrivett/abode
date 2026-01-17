@@ -1,4 +1,4 @@
-import type { Invite, User } from "@prisma/client";
+import type { Invite, InviteOrigin, User } from "@prisma/client";
 import db from "@/lib/db";
 import { getAppBaseUrl } from "@/lib/url";
 import { normalizeEmail, validateEmail } from "./email-validation";
@@ -42,6 +42,18 @@ export async function getAvailableInvites(userId: string): Promise<number> {
 }
 
 /**
+ * Invite context returned on validation errors (for EXPIRED and ALREADY_ACCEPTED)
+ * Allows UI to show helpful context like who invited them
+ */
+export type InviteErrorContext = {
+  email: string;
+  origin: InviteOrigin;
+  expiresAt: Date;
+  createdAt: Date;
+  inviter: Pick<User, "username" | "avatarUrl"> | null;
+};
+
+/**
  * Result types for invite operations
  */
 export type InviteValidationResult =
@@ -57,7 +69,13 @@ export type InviteValidationResult =
   | {
       valid: false;
       error: string;
-      code: "INVALID_TOKEN" | "EXPIRED" | "ALREADY_ACCEPTED";
+      code: "INVALID_TOKEN";
+    }
+  | {
+      valid: false;
+      error: string;
+      code: "EXPIRED" | "ALREADY_ACCEPTED";
+      invite: InviteErrorContext;
     };
 
 export type CreateInviteResult =
@@ -66,7 +84,7 @@ export type CreateInviteResult =
 
 /**
  * Validate an invite token
- * Returns invite details if valid, error if not
+ * Returns invite details if valid, error with context if not
  */
 export async function validateInviteToken(
   token: string,
@@ -94,11 +112,26 @@ export async function validateInviteToken(
     };
   }
 
+  // Build invite context for error responses
+  const inviteContext: InviteErrorContext = {
+    email: invite.email,
+    origin: invite.origin,
+    expiresAt: invite.expiresAt,
+    createdAt: invite.createdAt,
+    inviter: invite.inviter
+      ? {
+          username: invite.inviter.username,
+          avatarUrl: invite.inviter.avatarUrl,
+        }
+      : null,
+  };
+
   if (invite.status === "accepted") {
     return {
       valid: false,
       error: "This invite has already been used",
       code: "ALREADY_ACCEPTED",
+      invite: inviteContext,
     };
   }
 
@@ -107,6 +140,7 @@ export async function validateInviteToken(
       valid: false,
       error: "This invite has expired",
       code: "EXPIRED",
+      invite: inviteContext,
     };
   }
 

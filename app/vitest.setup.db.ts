@@ -4,6 +4,8 @@ import { startTestDatabase, stopTestDatabase } from "./test/db-container";
 // Re-export for use in tests
 export { resetTestDatabase } from "./test/db-container";
 
+// Note: Email sending is disabled in test environment via check in src/lib/email/index.ts
+
 // Global setup/teardown hooks for integration tests
 beforeAll(async () => {
   const connectionString = await startTestDatabase();
