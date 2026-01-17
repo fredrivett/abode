@@ -1,12 +1,8 @@
 "use client";
 
-import { Camera } from "lucide-react";
 import { useState } from "react";
 import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
-import { AvatarCropper } from "@/components/avatar/avatar-cropper";
-import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
-import { UserAvatar } from "@/components/avatar/user-avatar";
-import { Button } from "@/components/ui/button";
+import { UserAvatarSetting } from "@/components/avatar/user-avatar-setting";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -16,7 +12,6 @@ type ProfileStepProps = {
   username?: string | null;
   email?: string | null;
   initialAvatarUrl?: string | null;
-  onAvatarChange?: (avatarUrl: string) => void;
   onFirstNameChange?: (firstName: string) => void;
   onLastNameChange?: (lastName: string) => void;
 };
@@ -27,28 +22,11 @@ export function ProfileStep({
   username,
   email,
   initialAvatarUrl,
-  onAvatarChange,
   onFirstNameChange,
   onLastNameChange,
 }: ProfileStepProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
-
-  const {
-    avatarUrl,
-    selectedImage,
-    isCropperOpen,
-    isUploading,
-    fileInputRef,
-    openFilePicker,
-    handleFileSelect,
-    handleCropComplete,
-    handleCropperClose,
-  } = useAvatarUpload({
-    initialAvatarUrl,
-    onSuccess: onAvatarChange,
-    // Silent errors in onboarding - don't block user from continuing
-  });
 
   const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -72,37 +50,13 @@ export function ProfileStep({
       </p>
 
       <div className="mt-2 flex w-full items-start gap-4">
-        <div className="flex flex-col items-center gap-2">
-          <div className="relative">
-            <UserAvatar
-              avatarUrl={avatarUrl}
-              firstName={firstName || undefined}
-              lastName={lastName || undefined}
-              username={username}
-              email={email}
-              className="size-20 text-xl"
-              fallbackClassName="text-xl"
-            />
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className="absolute -right-1 -bottom-1 size-7 rounded-full shadow-md"
-              onClick={openFilePicker}
-            >
-              <Camera className="size-3.5" />
-              <span className="sr-only">Upload avatar</span>
-            </Button>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={openFilePicker}
-          >
-            Choose avatar
-          </Button>
-        </div>
+        <UserAvatarSetting
+          firstName={firstName || undefined}
+          lastName={lastName || undefined}
+          username={username}
+          email={email}
+          initialAvatarUrl={initialAvatarUrl}
+        />
 
         <div className="flex flex-1 flex-col gap-3 text-left">
           <div className="space-y-1.5">
@@ -125,24 +79,6 @@ export function ProfileStep({
           </div>
         </div>
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-
-      {selectedImage && (
-        <AvatarCropper
-          open={isCropperOpen}
-          onOpenChange={handleCropperClose}
-          imageSrc={selectedImage}
-          onCropComplete={handleCropComplete}
-          isUploading={isUploading}
-        />
-      )}
     </div>
   );
 }
