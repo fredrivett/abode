@@ -38,7 +38,7 @@ export function ProfileViewTracker({
       });
     }
 
-    trackView();
+    void trackView();
   }, []);
 
   return null;
