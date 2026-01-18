@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import posthog from "posthog-js";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DashboardHeaderClient } from "@/components/layout/dashboard-header/client";
 import { FilterBadges } from "@/components/rooms/filter-badges";
@@ -55,6 +56,19 @@ export function RoomPageClient({
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialHasMore);
+
+  // Track public room view (only once on mount)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally tracking only on initial page load
+  useEffect(() => {
+    posthog.capture("public_room_viewed", {
+      room_id: room.id,
+      room_type: room.type,
+      room_owner_username: roomOwner.username,
+      is_owner: isOwner,
+      is_authenticated: isAuthenticated,
+      item_count: room.itemCount,
+    });
+  }, []);
 
   const handleSaveFilters = useCallback(
     async (newFilters: Filter[]) => {

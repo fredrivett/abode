@@ -67,6 +67,15 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Track password recovery completion
+  if (type === "recovery" && user) {
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "password_recovery_completed",
+    });
+  }
+
   if (!user || !user.email) {
     log.error("No user found after OTP verification");
     return NextResponse.redirect(new URL("/auth/error?reason=no_user", origin));

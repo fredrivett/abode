@@ -2,6 +2,7 @@ import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
 import {
@@ -305,6 +306,25 @@ export async function GET(request: NextRequest) {
     // Check for slow query
     if (Date.now() - startTime > 3000) {
       warnings.push("slow_query");
+    }
+
+    // Track search usage (only on first page, not cursor pagination)
+    if (!cursor) {
+      const posthog = getPostHogClient();
+      posthog?.capture({
+        distinctId: user.id,
+        event: "search_performed",
+        properties: {
+          has_query: !!query,
+          query_length: query?.length ?? 0,
+          filter_count: Object.values(filters).filter(Boolean).length,
+          filter_types: Object.keys(filters).filter(
+            (key) => filters[key as keyof typeof filters],
+          ),
+          result_count: results.total,
+          duration_ms: Date.now() - startTime,
+        },
+      });
     }
 
     const response: SearchResponse = {

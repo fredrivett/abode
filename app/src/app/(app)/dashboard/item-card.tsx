@@ -669,6 +669,7 @@ function ItemDetailDialog({
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const hasTrackedNotesUpdate = useRef(false);
   const [userTags, setUserTags] = useState<string[]>(item.userTags ?? []);
   const [isSavingUserTags, setIsSavingUserTags] = useState(false);
   const [newTagInput, setNewTagInput] = useState("");
@@ -781,6 +782,13 @@ function ItemDetailDialog({
       // Update item.title directly - it's the single source of truth for display name
       await api.patch(`/api/v1/items/${item.id}`, { title: trimmed });
       onNameChange(trimmed);
+
+      // Track item title update
+      posthog.capture("item_title_updated", {
+        item_id: item.id,
+        item_kind: item.kind,
+      });
+
       toast.success("Name updated");
     } catch (error) {
       log.error({ error }, "Name update error");
@@ -798,6 +806,13 @@ function ItemDetailDialog({
         excludeFromPublicRooms: newValue,
       });
       setExcludeFromPublicRooms(newValue);
+
+      // Track item privacy change
+      posthog.capture("item_privacy_updated", {
+        item_id: item.id,
+        exclude_from_public: newValue,
+      });
+
       toast.success(
         newValue ? "Excluded from public rooms" : "Included in public rooms",
       );
@@ -813,6 +828,14 @@ function ItemDetailDialog({
     setIsSavingNotes(true);
     try {
       await api.patch(`/api/v1/items/${item.id}`, { notes: value });
+
+      // Track notes update (once per mount)
+      if (!hasTrackedNotesUpdate.current) {
+        hasTrackedNotesUpdate.current = true;
+        posthog.capture("item_notes_updated", {
+          item_id: item.id,
+        });
+      }
     } catch (error) {
       log.error({ error }, "Notes save error");
       toast.error("Failed to save notes");
@@ -826,11 +849,22 @@ function ItemDetailDialog({
     saveNotes(value);
   };
 
-  const saveUserTags = async (newTags: string[]) => {
+  const saveUserTags = async (
+    newTags: string[],
+    action: "added" | "removed",
+    tag: string,
+  ) => {
     setIsSavingUserTags(true);
     try {
       await api.patch(`/api/v1/items/${item.id}`, { userTags: newTags });
       invalidateItems();
+
+      // Track tag change
+      posthog.capture(action === "added" ? "item_tag_added" : "item_tag_removed", {
+        item_id: item.id,
+        tag,
+        tag_count: newTags.length,
+      });
     } catch (error) {
       log.error({ error }, "User tags save error");
       toast.error("Failed to save tags");
@@ -875,7 +909,7 @@ function ItemDetailDialog({
     setUserTags(newTags);
     setNewTagInput("");
     setShowAddTagInput(false);
-    void saveUserTags(newTags);
+    void saveUserTags(newTags, "added", tag);
   };
 
   const handleRemoveUserTag = (tagToRemove: string) => {
@@ -884,7 +918,7 @@ function ItemDetailDialog({
       (t) => t.toLowerCase() !== lowerTagToRemove,
     );
     setUserTags(newTags);
-    void saveUserTags(newTags);
+    void saveUserTags(newTags, "removed", tagToRemove);
   };
 
   const handleDownload = async () => {

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/highlights");
@@ -137,6 +138,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         note: true,
         createdAt: true,
         updatedAt: true,
+      },
+    });
+
+    // Track highlight creation
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "article_highlight_created",
+      properties: {
+        item_id: itemId,
+        highlight_id: highlight.id,
+        text_length: text.length,
+        has_note: !!note,
       },
     });
 
