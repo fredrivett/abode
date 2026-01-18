@@ -1319,7 +1319,7 @@ function ItemDetailDialog({
                         <img
                           src={fullQualityUrl || previewUrl}
                           alt={name}
-                          className="w-full object-cover"
+                          className="w-full object-contain"
                         />
                       </motion.div>
                     </div>
