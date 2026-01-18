@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { classifyUrlTask } from "../../../../../../trigger/classify-url";
 
@@ -66,6 +67,17 @@ export async function POST(request: NextRequest) {
       itemId: item.id,
       userId: user.id,
       url: parsedUrl.href,
+    });
+
+    // Track URL import
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "item_imported_from_url",
+      properties: {
+        item_id: item.id,
+        url_domain: parsedUrl.hostname,
+      },
     });
 
     return NextResponse.json(item, { status: 201 });

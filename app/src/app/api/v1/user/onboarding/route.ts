@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
@@ -46,6 +47,17 @@ export async function PATCH(request: NextRequest) {
         onboardingCompletedAt: true,
         firstName: true,
         lastName: true,
+      },
+    });
+
+    // Track onboarding completion
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "onboarding_completed",
+      properties: {
+        has_first_name: !!firstName,
+        has_last_name: !!lastName,
       },
     });
 

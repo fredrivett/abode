@@ -105,6 +105,17 @@ export async function changeUsername(
     },
   });
 
+  // Track username change
+  const posthog = getPostHogClient();
+  posthog?.capture({
+    distinctId: user.id,
+    event: "username_changed",
+    properties: {
+      is_case_only_change: isCaseOnlyChange,
+      previous_username_count: previousUsernames.length,
+    },
+  });
+
   revalidatePath("/settings");
   return { success: true };
 }

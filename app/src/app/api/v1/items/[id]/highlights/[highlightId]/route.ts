@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/highlights/[highlightId]");
@@ -64,6 +65,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Track highlight update
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "article_highlight_updated",
+      properties: {
+        item_id: itemId,
+        highlight_id: highlightId,
+        has_note: !!note,
+      },
+    });
+
     return NextResponse.json(updatedHighlight);
   } catch (error) {
     log.error({ error }, "Highlight update error");
@@ -105,6 +118,17 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
     await db.articleHighlight.delete({
       where: { id: highlightId },
+    });
+
+    // Track highlight deletion
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "article_highlight_deleted",
+      properties: {
+        item_id: itemId,
+        highlight_id: highlightId,
+      },
     });
 
     return new NextResponse(null, { status: 204 });

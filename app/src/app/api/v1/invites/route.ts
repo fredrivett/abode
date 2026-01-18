@@ -10,6 +10,7 @@ import {
   getUserInvites,
 } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
@@ -167,6 +168,17 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       log.warn({ error }, "Failed to trigger admin notification for user invite");
     }
+
+    // Track invite sent
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "invite_sent",
+      properties: {
+        invites_remaining: updatedAvailableInvites,
+        invite_id: result.invite.id,
+      },
+    });
 
     return NextResponse.json({
       success: true,

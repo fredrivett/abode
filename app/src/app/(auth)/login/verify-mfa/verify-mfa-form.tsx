@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,9 +32,20 @@ export function VerifyMFAForm({ factorId }: VerifyMFAFormProps) {
     try {
       const supabase = createClient();
       await challengeAndVerifyMFA(supabase, factorId, code);
+
+      // Track MFA verification success
+      posthog.capture("mfa_verified", {
+        factor_type: "totp",
+      });
+
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
+      // Track MFA verification failure
+      posthog.capture("mfa_verification_failed", {
+        factor_type: "totp",
+      });
+
       setError(err instanceof Error ? err.message : "Invalid code");
       setCode("");
       setIsLoading(false);

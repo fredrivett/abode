@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
@@ -177,6 +178,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Log activity (fire-and-forget)
     void logActivity(user.id, "room_update", { roomId: id });
 
+    // Track room update with PostHog
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "room_updated",
+      properties: {
+        room_id: id,
+        room_type: existingRoom.type,
+        updated_name: name !== undefined,
+        updated_emoji: emoji !== undefined,
+        updated_visibility: visibility !== undefined,
+        updated_filters: shouldSyncRoom,
+        new_visibility: visibility,
+        old_visibility:
+          visibility !== undefined ? existingRoom.visibility : undefined,
+      },
+    });
+
     return NextResponse.json({
       ...updatedRoom,
       itemCount: updatedRoom._count.roomItems,
@@ -226,6 +245,18 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "room_delete", { roomId: id });
+
+    // Track room deletion with PostHog
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "room_deleted",
+      properties: {
+        room_id: id,
+        room_type: existingRoom.type,
+        room_visibility: existingRoom.visibility,
+      },
+    });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
