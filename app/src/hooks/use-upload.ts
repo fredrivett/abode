@@ -77,7 +77,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
       setIsUrlLoading(true);
       try {
         await api.post("/api/v1/items/from-url", { url });
-        toast.success("URL added - processing in background");
+        toast.success("URL added — processing in background");
         if (isOnDashboard) {
           invalidateItems();
         } else {
