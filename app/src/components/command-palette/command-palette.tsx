@@ -22,7 +22,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RoomIcon } from "@/components/rooms/room-icon";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -72,6 +72,8 @@ export function CommandPalette() {
   const [page, setPage] = useState<"main" | "theme">("main");
   const [showAllRooms, setShowAllRooms] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("auto");
+  const [selectedValue, setSelectedValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Fetch user profile
   const { data: profile } = useQuery<UserProfile>({
@@ -141,8 +143,8 @@ export function CommandPalette() {
     applyThemePreference(theme);
     storeThemePreference(theme);
     setCurrentTheme(theme);
-    setPage("main");
-  }, []);
+    setOpen(false);
+  }, [setOpen]);
 
   // Sign out handler
   const handleSignOut = useCallback(async () => {
@@ -157,11 +159,16 @@ export function CommandPalette() {
       if (value === "theme") {
         setPage("theme");
         setInputValue("");
+        setSelectedValue("theme-light");
+        // Focus input after page change (clicking with mouse moves focus away)
+        requestAnimationFrame(() => inputRef.current?.focus());
         return;
       }
       if (value === "theme-back") {
         setPage("main");
         setInputValue("");
+        setSelectedValue(""); // Let cmdk auto-select first item
+        requestAnimationFrame(() => inputRef.current?.focus());
         return;
       }
       if (value.startsWith("theme-")) {
@@ -215,8 +222,11 @@ export function CommandPalette() {
         onOpenChange={setOpen}
         title="Command Palette"
         description="Search for commands or items..."
+        value={selectedValue}
+        onValueChange={setSelectedValue}
       >
         <CommandInput
+          ref={inputRef}
           placeholder={
             page === "theme" ? "Select theme..." : "Type a command or search..."
           }
