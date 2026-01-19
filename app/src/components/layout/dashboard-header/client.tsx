@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -32,8 +32,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UploadDialog } from "@/components/upload-dialog";
 import { useFilterOptions, useSearch } from "@/lib/search";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
 
 type BaseProps = {
@@ -81,7 +81,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   const initialAvatarUrl = isAuthenticated ? props.avatarUrl : null;
   const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const { setUploadDialogOpen } = useCommandPaletteStore();
 
   // Initialize store with server-fetched values on mount (only when undefined = not yet hydrated)
   // This prevents overwriting client-side updates (like avatar uploads) with stale server values
@@ -290,10 +290,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <UploadDialog
-              open={uploadDialogOpen}
-              onOpenChange={setUploadDialogOpen}
-            />
           </>
         ) : (
           <>

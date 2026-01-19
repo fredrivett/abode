@@ -215,3 +215,20 @@
 @utility animate-highlight-flash {
   animation: highlight-flash 0.5s ease-in-out 3;
 }
+
+/* Scroll shadow - shows gradient at bottom when more content is scrollable */
+@utility scroll-shadow-bottom {
+  background:
+    /* Cover: scrolls with content, solid for 30% then fades */
+    linear-gradient(to top, oklch(1 0 0) 50%, transparent) bottom / 100% 60px local,
+    /* Shadow: fixed at bottom of container */
+    linear-gradient(to top, oklch(0 0 0 / 15%), transparent) bottom / 100% 40px scroll;
+  background-repeat: no-repeat;
+}
+
+.dark .scroll-shadow-bottom {
+  background:
+    linear-gradient(to top, oklch(0.205 0 0) 50%, transparent) bottom / 100% 60px local,
+    linear-gradient(to top, oklch(1 0 0 / 12%), transparent) bottom / 100% 40px scroll;
+  background-repeat: no-repeat;
+}
