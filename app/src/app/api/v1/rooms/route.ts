@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         emoji: true,
+        slug: true,
         type: true,
         filters: true,
         visibility: true,

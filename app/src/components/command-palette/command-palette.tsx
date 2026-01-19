@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Check,
   DoorOpen,
   FolderPlus,
@@ -31,6 +32,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
@@ -154,10 +156,12 @@ export function CommandPalette() {
       // Handle special values
       if (value === "theme") {
         setPage("theme");
+        setInputValue("");
         return;
       }
       if (value === "theme-back") {
         setPage("main");
+        setInputValue("");
         return;
       }
       if (value.startsWith("theme-")) {
@@ -225,29 +229,42 @@ export function CommandPalette() {
 
           {page === "theme" ? (
             // Theme submenu
-            <CommandGroup heading="Theme">
-              <CommandItem value="theme-light" onSelect={handleSelect}>
-                <Sun className="size-4" />
-                <span>Light</span>
-                {currentTheme === "light" && (
-                  <Check className="ml-auto size-4" />
-                )}
-              </CommandItem>
-              <CommandItem value="theme-dark" onSelect={handleSelect}>
-                <Moon className="size-4" />
-                <span>Dark</span>
-                {currentTheme === "dark" && (
-                  <Check className="ml-auto size-4" />
-                )}
-              </CommandItem>
-              <CommandItem value="theme-auto" onSelect={handleSelect}>
-                <SunMoon className="size-4" />
-                <span>System</span>
-                {currentTheme === "auto" && (
-                  <Check className="ml-auto size-4" />
-                )}
-              </CommandItem>
-            </CommandGroup>
+            <>
+              <CommandGroup heading="Theme">
+                <CommandItem value="theme-light" onSelect={handleSelect}>
+                  <Sun className="size-4" />
+                  <span>Light</span>
+                  {currentTheme === "light" && (
+                    <Check className="ml-auto size-4" />
+                  )}
+                </CommandItem>
+                <CommandItem value="theme-dark" onSelect={handleSelect}>
+                  <Moon className="size-4" />
+                  <span>Dark</span>
+                  {currentTheme === "dark" && (
+                    <Check className="ml-auto size-4" />
+                  )}
+                </CommandItem>
+                <CommandItem value="theme-auto" onSelect={handleSelect}>
+                  <SunMoon className="size-4" />
+                  <span>System</span>
+                  {currentTheme === "auto" && (
+                    <Check className="ml-auto size-4" />
+                  )}
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  value="theme-back"
+                  keywords={["back", "return", "go back"]}
+                  onSelect={handleSelect}
+                >
+                  <ArrowLeft className="size-4" />
+                  <span>Back</span>
+                </CommandItem>
+              </CommandGroup>
+            </>
           ) : (
             // Main view
             <>
