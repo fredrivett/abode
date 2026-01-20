@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/command";
 import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
+import { getModifierKey } from "@/lib/keyboard";
 import { useSearch } from "@/lib/search";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
@@ -163,11 +164,8 @@ export function CommandPalette() {
   // Register keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      const modifier = isMac ? e.metaKey : e.ctrlKey;
-
-      // cmd+k / ctrl+k - Open command palette
-      if (modifier && e.key === "k") {
+      // cmd+k / ctrl+k - Open command palette (but not cmd+shift+k which focuses search)
+      if (getModifierKey(e) && !e.shiftKey && e.key === "k") {
         e.preventDefault();
         setOpen(!open);
         return;
@@ -673,7 +671,7 @@ export function CommandPalette() {
               </CommandGroup>
 
               {/* Rooms (authenticated only) */}
-              {isAuthenticated && rooms && rooms.length > 0 && (
+              {isAuthenticated && profile?.username && rooms && rooms.length > 0 && (
                 <CommandGroup heading="Rooms">
                   {displayRooms?.map((room) => (
                     <CommandItem

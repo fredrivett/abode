@@ -1,9 +1,11 @@
 "use client";
 
-import { Filter as FilterIcon, RefreshCw } from "lucide-react";
+import { Command, Filter as FilterIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { getModifierKey } from "@/lib/keyboard";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
@@ -25,6 +27,8 @@ type SearchInputProps = {
   className?: string;
   /** When true, input and filters are disabled (view-only mode). */
   disabled?: boolean;
+  /** When true, registers cmd+shift+k to focus this input and shows the shortcut hint. */
+  focusShortcut?: boolean;
 };
 
 export function SearchInput({
@@ -34,10 +38,14 @@ export function SearchInput({
   placeholder = "Find...",
   className,
   disabled = false,
+  focusShortcut = false,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dateFilterAppliedRef = useRef(false);
+
+  // Track focus state for showing shortcut hint
+  const [isFocused, setIsFocused] = useState(false);
 
   // Values loaded from API
   const [filterValues, setFilterValues] = useState<string[]>([]);
@@ -71,6 +79,21 @@ export function SearchInput({
       setFilterValues([]);
     }
   }, [filterContext.mode, filterContext.filterType, getFilterValues]);
+
+  // Register cmd+shift+k to focus this input (when focusShortcut is enabled)
+  useEffect(() => {
+    if (!focusShortcut) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (getModifierKey(e) && e.shiftKey && e.key === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [focusShortcut]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...value, query: e.target.value });
@@ -182,6 +205,15 @@ export function SearchInput({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
+
+    // Escape blurs the input
+    if (e.key === "Escape") {
+      e.preventDefault();
+      input.blur();
+      return;
+    }
+
+    // Backspace at start removes last filter
     const cursorAtStart =
       input.selectionStart === 0 && input.selectionEnd === 0;
     const isBackspaceAtStart = e.key === "Backspace" && cursorAtStart;
@@ -268,14 +300,29 @@ export function SearchInput({
               value={value.query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               disabled={disabled}
               placeholder={placeholder}
               aria-label="Search"
               className={cn(
-                "w-full rounded-none border-0 border-b bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg",
+                "w-full rounded-none border-0 border-b-2 bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-foreground/30 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg",
                 disabled && "cursor-not-allowed opacity-50",
+                focusShortcut && "pr-16",
               )}
             />
+            {/* Keyboard shortcut hint (shown when not focused, hidden on mobile) */}
+            {focusShortcut && !isFocused && (
+              <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2">
+                <KbdGroup className="hidden md:inline-flex">
+                  <Kbd>
+                    <Command className="size-3" />
+                  </Kbd>
+                  <Kbd>⇧</Kbd>
+                  <Kbd>K</Kbd>
+                </KbdGroup>
+              </div>
+            )}
           </div>
 
           {/* Mobile filter button */}

@@ -186,7 +186,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
-                <span className="font-mono">/rooms</span>
+                <span className="font-mono">rooms</span>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -316,6 +316,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 onChange={setSearchState}
                 getFilterValues={getFilterValuesForType}
                 placeholder="Find..."
+                focusShortcut
               />
             </div>
             <SaveAsRoomButton searchState={searchState} />
