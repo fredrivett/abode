@@ -36,6 +36,30 @@ import { useFilterOptions, useSearch } from "@/lib/search";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
 
+/**
+ * Search section component - separated to avoid calling useSearchParams
+ * on pages that don't need search functionality.
+ */
+function HeaderSearchSection() {
+  const { state: searchState, setState: setSearchState } = useSearch();
+  const { getFilterValuesForType } = useFilterOptions();
+
+  return (
+    <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+      <div className="flex-1">
+        <SearchInput
+          value={searchState}
+          onChange={setSearchState}
+          getFilterValues={getFilterValuesForType}
+          placeholder="Find..."
+          focusShortcut
+        />
+      </div>
+      <SaveAsRoomButton searchState={searchState} />
+    </div>
+  );
+}
+
 type BaseProps = {
   showSearch?: boolean;
   showHomeLink?: boolean;
@@ -70,8 +94,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     centerSlot,
   } = props;
 
-  const { state: searchState, setState: setSearchState } = useSearch();
-  const { getFilterValuesForType } = useFilterOptions();
   const {
     avatarUrl: storeAvatarUrl,
     setAvatarUrl,
@@ -307,21 +329,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
           {centerSlot}
         </div>
       ) : (
-        showSearch &&
-        isAuthenticated && (
-          <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-            <div className="flex-1">
-              <SearchInput
-                value={searchState}
-                onChange={setSearchState}
-                getFilterValues={getFilterValuesForType}
-                placeholder="Find..."
-                focusShortcut
-              />
-            </div>
-            <SaveAsRoomButton searchState={searchState} />
-          </div>
-        )
+        showSearch && isAuthenticated && <HeaderSearchSection />
       )}
     </header>
   );
