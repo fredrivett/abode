@@ -1,16 +1,29 @@
 import { cache } from "react";
+import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { getAvailableInvites } from "@/lib/invites";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 
-export type AuthenticatedUser = {
+// Fields we fetch from the Prisma User model
+const userSelect = {
+  username: true,
+  avatarUrl: true,
+  firstName: true,
+  lastName: true,
+} satisfies Prisma.UserSelect;
+
+// AuthenticatedUser is a composite from 3 sources:
+// 1. Prisma DB query via userSelect (firstName, lastName, username, avatarUrl)
+// 2. Supabase auth session/metadata (no need to fetch from Prisma):
+//    - id: already have from auth session, used as the Prisma lookup key
+//    - email: auth is source of truth for login credentials
+// 3. Computed (availableInvites - not a DB field, calculated at runtime)
+export type AuthenticatedUser = Prisma.UserGetPayload<{
+  select: typeof userSelect;
+}> & {
   id: string;
   email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  username: string | null;
-  avatarUrl: string | null;
   availableInvites: number;
 };
 
@@ -32,12 +45,7 @@ export const getAuthenticatedUser = cache(
     const [dbUser, availableInvites] = await Promise.all([
       db.user.findUnique({
         where: { id: user.id },
-        select: {
-          username: true,
-          avatarUrl: true,
-          firstName: true,
-          lastName: true,
-        },
+        select: userSelect,
       }),
       getAvailableInvites(user.id),
     ]);
