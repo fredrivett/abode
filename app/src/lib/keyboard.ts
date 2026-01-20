@@ -47,11 +47,10 @@ export function isApplePlatform(): boolean {
 
   // Deprecated but widely supported (Safari, Firefox, older browsers)
   // Returns "MacIntel", "MacPPC", "iPhone", "iPad", etc.
-  if (navigator.platform) {
+  const platform = navigator.platform;
+  if (platform) {
     return (
-      navigator.platform.startsWith("Mac") ||
-      navigator.platform === "iPhone" ||
-      navigator.platform === "iPad"
+      platform.startsWith("Mac") || platform === "iPhone" || platform === "iPad"
     );
   }
 
