@@ -140,6 +140,7 @@ export function CommandPalette() {
       setSearchState({ query: "", filters: [] });
       setShowAllRooms(false);
       setFilterValues([]);
+      setSelectedValue(""); // Reset selection to first item
     }
   }, [open]);
 
