@@ -31,12 +31,19 @@ export function InviteSettings({
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
-  const { availableInvites, setAvailableInvites } = useUserStore();
+  const { availableInvites: storeAvailableInvites, setAvailableInvites } =
+    useUserStore();
 
   // Initialize store with server-fetched value on mount
   useEffect(() => {
     setAvailableInvites(initialAvailableInvites);
   }, [initialAvailableInvites, setAvailableInvites]);
+
+  // Use store value if hydrated, otherwise fall back to prop
+  const availableInvites =
+    storeAvailableInvites !== undefined
+      ? storeAvailableInvites
+      : initialAvailableInvites;
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -14,7 +14,7 @@ type UserState = {
   username: string | null | undefined;
   email: string | null | undefined;
   avatarUrl: string | null | undefined;
-  availableInvites: number;
+  availableInvites: number | undefined;
 
   // Individual setters for mutations
   setFirstName: (name: string | null) => void;
@@ -34,7 +34,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   username: undefined,
   email: undefined,
   avatarUrl: undefined,
-  availableInvites: 0,
+  availableInvites: undefined,
 
   setFirstName: (name) => set({ firstName: name }),
   setLastName: (name) => set({ lastName: name }),
@@ -63,11 +63,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (state.avatarUrl === undefined && data.avatarUrl !== undefined) {
       updates.avatarUrl = data.avatarUrl ?? null;
     }
-    if (
-      state.availableInvites === 0 &&
-      data.availableInvites !== undefined &&
-      data.availableInvites > 0
-    ) {
+    if (state.availableInvites === undefined && data.availableInvites !== undefined) {
       updates.availableInvites = data.availableInvites;
     }
 

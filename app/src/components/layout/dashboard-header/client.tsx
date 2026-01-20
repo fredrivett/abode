@@ -145,7 +145,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
       ? storeAvatarUrl
       : (authProps?.avatarUrl ?? null);
   const availableInvites =
-    storeAvailableInvites > 0
+    storeAvailableInvites !== undefined
       ? storeAvailableInvites
       : (authProps?.availableInvites ?? 0);
 
