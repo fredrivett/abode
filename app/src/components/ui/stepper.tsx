@@ -13,7 +13,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { getModifierKeySymbol } from "@/lib/keyboard";
+import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 type StepperContextValue = {
@@ -280,7 +280,7 @@ function StepperNavigation({
       } else if (e.key === "ArrowRight" && !isLastStep) {
         e.preventDefault();
         handleNext();
-      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && isLastStep) {
+      } else if (matchesShortcut(e, { key: "Enter", modifier: true }) && isLastStep) {
         e.preventDefault();
         handleComplete();
       }

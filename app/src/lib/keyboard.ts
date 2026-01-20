@@ -77,3 +77,67 @@ export function getModifierKey(
 export function getModifierKeySymbol(): string {
   return isApplePlatform() ? "⌘" : "Ctrl";
 }
+
+/**
+ * Shortcut definition for matchesShortcut.
+ */
+export type Shortcut = {
+  /** The key to match (case-insensitive, e.g., "k", "Enter", "Escape") */
+  key: string;
+  /** Whether the platform modifier (Cmd on Mac, Ctrl on others) must be pressed */
+  modifier?: boolean;
+  /** Whether the Shift key must be pressed */
+  shift?: boolean;
+  /** Whether the Alt/Option key must be pressed */
+  alt?: boolean;
+};
+
+/**
+ * Checks if a keyboard event matches a shortcut definition.
+ *
+ * This provides a reliable, cross-platform way to check keyboard shortcuts:
+ * - Key comparison is case-insensitive (handles Shift changing "k" to "K")
+ * - Uses platform-appropriate modifier key (Cmd on Mac, Ctrl on others)
+ *
+ * @example
+ * // Cmd/Ctrl+K
+ * if (matchesShortcut(e, { key: 'k', modifier: true })) { ... }
+ *
+ * // Cmd/Ctrl+Shift+K
+ * if (matchesShortcut(e, { key: 'k', modifier: true, shift: true })) { ... }
+ *
+ * // Just Enter key
+ * if (matchesShortcut(e, { key: 'Enter' })) { ... }
+ */
+export function matchesShortcut(
+  event: KeyboardEvent | React.KeyboardEvent,
+  shortcut: Shortcut,
+): boolean {
+  // Case-insensitive key comparison (Shift changes "k" to "K")
+  if (event.key.toLowerCase() !== shortcut.key.toLowerCase()) {
+    return false;
+  }
+
+  // Check platform modifier (Cmd on Mac, Ctrl on others)
+  if (shortcut.modifier !== undefined) {
+    if (shortcut.modifier !== getModifierKey(event)) {
+      return false;
+    }
+  }
+
+  // Check shift key
+  if (shortcut.shift !== undefined) {
+    if (shortcut.shift !== event.shiftKey) {
+      return false;
+    }
+  }
+
+  // Check alt/option key
+  if (shortcut.alt !== undefined) {
+    if (shortcut.alt !== event.altKey) {
+      return false;
+    }
+  }
+
+  return true;
+}
