@@ -240,8 +240,15 @@ function MFAEnrollDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <div className="size-54 animate-pulse rounded-lg bg-white" />
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+            <div className="h-9 w-full animate-pulse rounded-md bg-muted" />
           </div>
         ) : error && !qrCode ? (
           <div className="py-4 text-center">
