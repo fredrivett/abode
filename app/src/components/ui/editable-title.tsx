@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { matchesShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 const SIZE_STYLES: Record<"sm" | "md" | "lg" | "xl" | "2xl", string> = {
@@ -149,7 +150,7 @@ export function EditableTitle({
   ) => {
     // For multiline, Enter creates a new line (default behavior), Cmd/Ctrl+Enter commits
     if (multiline) {
-      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      if (matchesShortcut(event, { key: "Enter", modifier: true })) {
         event.preventDefault();
         void handleCommit();
       }

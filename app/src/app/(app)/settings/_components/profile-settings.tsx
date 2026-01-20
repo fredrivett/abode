@@ -27,14 +27,15 @@ export function ProfileSettings({
 }: ProfileSettingsProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
+  const [savedFirstName, setSavedFirstName] = useState(initialFirstName ?? "");
+  const [savedLastName, setSavedLastName] = useState(initialLastName ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   const { setFirstName: setStoreFirstName, setLastName: setStoreLastName } =
     useUserStore();
 
   const hasNameChanges =
-    firstName !== (initialFirstName ?? "") ||
-    lastName !== (initialLastName ?? "");
+    firstName !== savedFirstName || lastName !== savedLastName;
 
   const handleSaveName = async () => {
     setIsSaving(true);
@@ -48,6 +49,10 @@ export function ProfileSettings({
       if (!response.ok) {
         throw new Error("Failed to update profile");
       }
+
+      // Update local saved state to track changes
+      setSavedFirstName(firstName);
+      setSavedLastName(lastName);
 
       // Update zustand store so header reflects changes immediately
       setStoreFirstName(firstName || null);

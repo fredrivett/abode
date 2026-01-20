@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/command";
 import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
-import { getModifierKey } from "@/lib/keyboard";
+import { matchesShortcut } from "@/lib/keyboard";
 import { useSearch } from "@/lib/search";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
@@ -166,7 +166,7 @@ export function CommandPalette() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // cmd+k / ctrl+k - Open command palette (but not cmd+shift+k which focuses search)
-      if (getModifierKey(e) && !e.shiftKey && e.key === "k") {
+      if (matchesShortcut(e, { key: "k", modifier: true, shift: false })) {
         e.preventDefault();
         setOpen(!open);
         return;

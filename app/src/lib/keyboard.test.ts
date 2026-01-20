@@ -3,6 +3,7 @@ import {
   getModifierKey,
   getModifierKeySymbol,
   isApplePlatform,
+  matchesShortcut,
 } from "./keyboard";
 
 describe("keyboard utilities", () => {
@@ -263,6 +264,192 @@ describe("keyboard utilities", () => {
       });
 
       expect(getModifierKeySymbol()).toBe("Ctrl");
+    });
+  });
+
+  describe("matchesShortcut", () => {
+    describe("key matching", () => {
+      it("matches lowercase key", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k" })).toBe(true);
+      });
+
+      it("matches uppercase key (case-insensitive)", () => {
+        const event = { key: "K", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k" })).toBe(true);
+      });
+
+      it("matches when shortcut key is uppercase", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "K" })).toBe(true);
+      });
+
+      it("does not match different keys", () => {
+        const event = { key: "j", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k" })).toBe(false);
+      });
+
+      it("matches special keys like Enter", () => {
+        const event = { key: "Enter", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "Enter" })).toBe(true);
+      });
+
+      it("matches Escape key", () => {
+        const event = { key: "Escape", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "Escape" })).toBe(true);
+      });
+    });
+
+    describe("modifier key on macOS", () => {
+      beforeEach(() => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "macOS" },
+        });
+      });
+
+      it("matches Cmd+K", () => {
+        const event = { key: "k", metaKey: true, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true })).toBe(true);
+      });
+
+      it("does not match Ctrl+K on macOS (expects Cmd)", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true })).toBe(false);
+      });
+
+      it("matches when modifier: false and no Cmd pressed", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: false })).toBe(true);
+      });
+
+      it("does not match when modifier: false but Cmd is pressed", () => {
+        const event = { key: "k", metaKey: true, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: false })).toBe(false);
+      });
+    });
+
+    describe("modifier key on Windows", () => {
+      beforeEach(() => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "Windows" },
+        });
+      });
+
+      it("matches Ctrl+K", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true })).toBe(true);
+      });
+
+      it("does not match Win+K on Windows (expects Ctrl)", () => {
+        const event = { key: "k", metaKey: true, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true })).toBe(false);
+      });
+
+      it("matches when modifier: false and no Ctrl pressed", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: false })).toBe(true);
+      });
+    });
+
+    describe("shift key", () => {
+      beforeEach(() => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "Windows" },
+        });
+      });
+
+      it("matches Ctrl+Shift+K (with uppercase K from shift)", () => {
+        const event = { key: "K", metaKey: false, ctrlKey: true, shiftKey: true, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, shift: true })).toBe(true);
+      });
+
+      it("does not match Ctrl+K when shift: true is required", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, shift: true })).toBe(false);
+      });
+
+      it("matches Ctrl+K when shift: false is specified", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, shift: false })).toBe(true);
+      });
+
+      it("does not match Ctrl+Shift+K when shift: false is specified", () => {
+        const event = { key: "K", metaKey: false, ctrlKey: true, shiftKey: true, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, shift: false })).toBe(false);
+      });
+    });
+
+    describe("alt key", () => {
+      beforeEach(() => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "Windows" },
+        });
+      });
+
+      it("matches Ctrl+Alt+K", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: true } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, alt: true })).toBe(true);
+      });
+
+      it("does not match Ctrl+K when alt: true is required", () => {
+        const event = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, alt: true })).toBe(false);
+      });
+    });
+
+    describe("undefined modifiers (ignore)", () => {
+      beforeEach(() => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "Windows" },
+        });
+      });
+
+      it("ignores modifier key when not specified", () => {
+        const eventWithCtrl = { key: "k", metaKey: false, ctrlKey: true, shiftKey: false, altKey: false } as KeyboardEvent;
+        const eventWithoutCtrl = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(eventWithCtrl, { key: "k" })).toBe(true);
+        expect(matchesShortcut(eventWithoutCtrl, { key: "k" })).toBe(true);
+      });
+
+      it("ignores shift key when not specified", () => {
+        const eventWithShift = { key: "K", metaKey: false, ctrlKey: false, shiftKey: true, altKey: false } as KeyboardEvent;
+        const eventWithoutShift = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(eventWithShift, { key: "k" })).toBe(true);
+        expect(matchesShortcut(eventWithoutShift, { key: "k" })).toBe(true);
+      });
+
+      it("ignores alt key when not specified", () => {
+        const eventWithAlt = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: true } as KeyboardEvent;
+        const eventWithoutAlt = { key: "k", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(eventWithAlt, { key: "k" })).toBe(true);
+        expect(matchesShortcut(eventWithoutAlt, { key: "k" })).toBe(true);
+      });
+    });
+
+    describe("complex shortcuts", () => {
+      it("matches Cmd+Shift+K on macOS", () => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "macOS" },
+        });
+        const event = { key: "K", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "k", modifier: true, shift: true })).toBe(true);
+      });
+
+      it("matches Ctrl+Shift+Enter on Windows", () => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "Windows" },
+        });
+        const event = { key: "Enter", metaKey: false, ctrlKey: true, shiftKey: true, altKey: false } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "Enter", modifier: true, shift: true })).toBe(true);
+      });
+
+      it("matches Cmd+Alt+S on macOS", () => {
+        vi.stubGlobal("navigator", {
+          userAgentData: { platform: "macOS" },
+        });
+        const event = { key: "s", metaKey: true, ctrlKey: false, shiftKey: false, altKey: true } as KeyboardEvent;
+        expect(matchesShortcut(event, { key: "s", modifier: true, alt: true })).toBe(true);
+      });
     });
   });
 });

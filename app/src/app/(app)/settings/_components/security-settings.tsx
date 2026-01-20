@@ -147,6 +147,16 @@ function MFAEnrollDialog({
     setError(null);
     try {
       const supabase = createClient();
+
+      // Clean up any existing unverified factors first (handles edge cases)
+      const existingFactors = await getMFAFactors(supabase);
+      const unverifiedFactor = existingFactors.find(
+        (f) => f.status === "unverified" && f.factorType === "totp",
+      );
+      if (unverifiedFactor) {
+        await unenrollMFA(supabase, unverifiedFactor.id);
+      }
+
       const result = await enrollMFA(supabase);
       setQrCode(result.qrCode);
       setSecret(result.secret);
@@ -191,7 +201,16 @@ function MFAEnrollDialog({
   }, [factorId, code, onComplete]);
 
   const handleOpenChange = useCallback(
-    (newOpen: boolean) => {
+    async (newOpen: boolean) => {
+      if (!newOpen && factorId) {
+        // Clean up unverified factor when closing without completing verification
+        try {
+          const supabase = createClient();
+          await unenrollMFA(supabase, factorId);
+        } catch {
+          // Ignore cleanup errors - will be handled on next enrollment attempt
+        }
+      }
       if (!newOpen) {
         // Reset state when closing
         setStep("qr");
@@ -203,12 +222,15 @@ function MFAEnrollDialog({
       }
       onOpenChange(newOpen);
     },
-    [onOpenChange],
+    [onOpenChange, factorId],
   );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Set up two-factor authentication</DialogTitle>
           <DialogDescription>
@@ -218,8 +240,15 @@ function MFAEnrollDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <div className="size-54 animate-pulse rounded-lg bg-white" />
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+            <div className="h-9 w-full animate-pulse rounded-md bg-muted" />
           </div>
         ) : error && !qrCode ? (
           <div className="py-4 text-center">
