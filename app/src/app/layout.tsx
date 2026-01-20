@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
 import { QueryProvider } from "@/lib/query-client";
 
@@ -87,6 +89,9 @@ export default function RootLayout({
       >
         <QueryProvider>
           <div className="flex flex-col flex-1">{children}</div>
+          <Suspense>
+            <CommandPalette />
+          </Suspense>
           <Footer />
         </QueryProvider>
         <Toaster richColors />

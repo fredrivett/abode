@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -32,9 +32,33 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UploadDialog } from "@/components/upload-dialog";
 import { useFilterOptions, useSearch } from "@/lib/search";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
+
+/**
+ * Search section component - separated to avoid calling useSearchParams
+ * on pages that don't need search functionality.
+ */
+function HeaderSearchSection() {
+  const { state: searchState, setState: setSearchState } = useSearch();
+  const { getFilterValuesForType } = useFilterOptions();
+
+  return (
+    <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+      <div className="flex-1">
+        <SearchInput
+          value={searchState}
+          onChange={setSearchState}
+          getFilterValues={getFilterValuesForType}
+          placeholder="Find..."
+          focusShortcut
+        />
+      </div>
+      <SaveAsRoomButton searchState={searchState} />
+    </div>
+  );
+}
 
 type BaseProps = {
   showSearch?: boolean;
@@ -70,8 +94,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     centerSlot,
   } = props;
 
-  const { state: searchState, setState: setSearchState } = useSearch();
-  const { getFilterValuesForType } = useFilterOptions();
   const {
     avatarUrl: storeAvatarUrl,
     setAvatarUrl,
@@ -81,7 +103,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   const initialAvatarUrl = isAuthenticated ? props.avatarUrl : null;
   const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const { setUploadDialogOpen } = useCommandPaletteStore();
 
   // Initialize store with server-fetched values on mount (only when undefined = not yet hydrated)
   // This prevents overwriting client-side updates (like avatar uploads) with stale server values
@@ -186,7 +208,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
-                <span className="font-mono">/rooms</span>
+                <span className="font-mono">rooms</span>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -290,10 +312,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <UploadDialog
-              open={uploadDialogOpen}
-              onOpenChange={setUploadDialogOpen}
-            />
           </>
         ) : (
           <>
@@ -311,20 +329,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
           {centerSlot}
         </div>
       ) : (
-        showSearch &&
-        isAuthenticated && (
-          <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
-            <div className="flex-1">
-              <SearchInput
-                value={searchState}
-                onChange={setSearchState}
-                getFilterValues={getFilterValuesForType}
-                placeholder="Find..."
-              />
-            </div>
-            <SaveAsRoomButton searchState={searchState} />
-          </div>
-        )
+        showSearch && isAuthenticated && <HeaderSearchSection />
       )}
     </header>
   );

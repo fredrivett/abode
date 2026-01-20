@@ -1,7 +1,8 @@
 "use client";
 
-import { DoorOpen, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState } from "react";
+import { RoomIcon } from "@/components/rooms/room-icon";
 import { Button } from "@/components/ui/button";
 import {
   EmojiPicker,
@@ -54,7 +55,7 @@ export function EmojiPickerPopover({
         )}
       >
         {placeholderEmoji ?? (
-          <DoorOpen className="size-5 text-muted-foreground" />
+          <RoomIcon className="size-5 text-muted-foreground" />
         )}
       </span>
     );
