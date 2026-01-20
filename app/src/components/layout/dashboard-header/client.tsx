@@ -95,62 +95,75 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   } = props;
 
   const {
+    firstName: storeFirstName,
+    lastName: storeLastName,
+    username: storeUsername,
+    email: storeEmail,
     avatarUrl: storeAvatarUrl,
-    setAvatarUrl,
-    invitesRemaining: storeInvitesRemaining,
-    setInvitesRemaining,
+    availableInvites: storeAvailableInvites,
+    hydrateUser,
   } = useUserStore();
 
-  const initialAvatarUrl = isAuthenticated ? props.avatarUrl : null;
-  const initialInvitesRemaining = isAuthenticated ? props.availableInvites : 0;
   const { setUploadDialogOpen } = useCommandPaletteStore();
 
-  // Initialize store with server-fetched values on mount (only when undefined = not yet hydrated)
-  // This prevents overwriting client-side updates (like avatar uploads) with stale server values
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (storeAvatarUrl === undefined) {
-        setAvatarUrl(initialAvatarUrl ?? null);
-      }
-      if (storeInvitesRemaining === 0 && initialInvitesRemaining > 0) {
-        setInvitesRemaining(initialInvitesRemaining);
-      }
-    }
-  }, [
-    initialAvatarUrl,
-    setAvatarUrl,
-    storeAvatarUrl,
-    initialInvitesRemaining,
-    setInvitesRemaining,
-    storeInvitesRemaining,
-    isAuthenticated,
-  ]);
+  // Extract authenticated props for hydration (with type narrowing)
+  const authProps = isAuthenticated ? props : null;
 
-  // Use store value if hydrated (not undefined), otherwise fall back to initial
-  // Note: null means "explicitly no avatar", undefined means "not yet hydrated"
+  // Hydrate store with server-fetched values on mount
+  useEffect(() => {
+    if (authProps) {
+      hydrateUser({
+        firstName: authProps.firstName,
+        lastName: authProps.lastName,
+        username: authProps.username,
+        email: authProps.email,
+        avatarUrl: authProps.avatarUrl,
+        availableInvites: authProps.availableInvites,
+      });
+    }
+  }, [authProps, hydrateUser]);
+
+  // Use store value if hydrated, otherwise fall back to prop.
+  // Props are used during SSR and initial client render (before useEffect hydrates the store).
+  // After hydration, store values take over so mutations (e.g., name changes) reflect immediately.
+  const firstName =
+    storeFirstName !== undefined
+      ? storeFirstName
+      : (authProps?.firstName ?? null);
+  const lastName =
+    storeLastName !== undefined
+      ? storeLastName
+      : (authProps?.lastName ?? null);
+  const username =
+    storeUsername !== undefined
+      ? storeUsername
+      : (authProps?.username ?? null);
+  const email =
+    storeEmail !== undefined ? storeEmail : (authProps?.email ?? null);
   const avatarUrl =
-    storeAvatarUrl !== undefined ? storeAvatarUrl : (initialAvatarUrl ?? null);
-  const invitesRemaining = storeInvitesRemaining ?? initialInvitesRemaining;
+    storeAvatarUrl !== undefined
+      ? storeAvatarUrl
+      : (authProps?.avatarUrl ?? null);
+  const availableInvites =
+    storeAvailableInvites > 0
+      ? storeAvailableInvites
+      : (authProps?.availableInvites ?? 0);
 
   // Compute display values for the user dropdown
   // If user has a name (first and/or last), show name on line 1 and @username on line 2
   // Otherwise, show @username on line 1 and email on line 2
-  const hasName = isAuthenticated && (props.firstName || props.lastName);
-  const fullName = isAuthenticated
-    ? [props.firstName, props.lastName].filter(Boolean).join(" ")
-    : null;
+  const hasName = firstName || lastName;
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
   const displayLine1 = hasName
     ? fullName
-    : isAuthenticated && props.username
-      ? `@${props.username}`
+    : username
+      ? `@${username}`
       : null;
   const displayLine2 = hasName
-    ? props.username
-      ? `@${props.username}`
+    ? username
+      ? `@${username}`
       : null
-    : isAuthenticated
-      ? props.email || null
-      : null;
+    : email || null;
 
   // Determine logo link destination
   const logoHref = isAuthenticated ? "/dashboard" : "/";
@@ -220,12 +233,12 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     className="relative"
                   >
                     <UserPlus size={18} aria-hidden />
-                    {invitesRemaining > 0 && (
+                    {availableInvites > 0 && (
                       <Badge
                         variant="outline"
                         className="absolute top-0 right-0 min-w-4 h-4 px-1 py-0 text-[10px] leading-none border-muted-foreground/20 bg-muted text-muted-foreground rounded"
                       >
-                        {invitesRemaining}
+                        {availableInvites}
                       </Badge>
                     )}
                   </Link>
@@ -233,8 +246,8 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
                 <span className="font-mono">
-                  {invitesRemaining > 0
-                    ? `${invitesRemaining} invite${invitesRemaining !== 1 ? "s" : ""} remaining`
+                  {availableInvites > 0
+                    ? `${availableInvites} invite${availableInvites !== 1 ? "s" : ""} remaining`
                     : "No invites remaining"}
                 </span>
               </TooltipContent>
@@ -250,10 +263,10 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 >
                   <UserAvatar
                     avatarUrl={avatarUrl}
-                    firstName={props.firstName}
-                    lastName={props.lastName}
-                    username={props.username}
-                    email={props.email}
+                    firstName={firstName}
+                    lastName={lastName}
+                    username={username}
+                    email={email}
                     className="size-8"
                   />
                 </Button>
@@ -262,10 +275,10 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <div className="flex items-center gap-2 px-2 py-2">
                   <UserAvatar
                     avatarUrl={avatarUrl}
-                    firstName={props.firstName}
-                    lastName={props.lastName}
-                    username={props.username}
-                    email={props.email}
+                    firstName={firstName}
+                    lastName={lastName}
+                    username={username}
+                    email={email}
                     className="size-8"
                   />
                   <span className="flex flex-col items-start leading-tight">
@@ -284,7 +297,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link
-                    href={`/@${props.username}`}
+                    href={`/@${username}`}
                     className="flex items-center gap-2"
                   >
                     <User className="size-4" />

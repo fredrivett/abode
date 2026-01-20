@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { useUserStore } from "@/stores/user-store";
 
 type ProfileSettingsProps = {
   firstName?: string | null;
@@ -28,6 +29,9 @@ export function ProfileSettings({
   const [lastName, setLastName] = useState(initialLastName ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
+  const { setFirstName: setStoreFirstName, setLastName: setStoreLastName } =
+    useUserStore();
+
   const hasNameChanges =
     firstName !== (initialFirstName ?? "") ||
     lastName !== (initialLastName ?? "");
@@ -44,6 +48,10 @@ export function ProfileSettings({
       if (!response.ok) {
         throw new Error("Failed to update profile");
       }
+
+      // Update zustand store so header reflects changes immediately
+      setStoreFirstName(firstName || null);
+      setStoreLastName(lastName || null);
 
       // Track profile update event
       posthog.capture("profile_updated", {
@@ -93,6 +101,19 @@ export function ProfileSettings({
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Doe"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email ?? ""}
+              disabled
+              className="bg-muted text-muted-foreground"
+            />
+            <p className="text-xs text-muted-foreground">
+              Please contact support to change your email address.
+            </p>
           </div>
           {hasNameChanges && (
             <Button

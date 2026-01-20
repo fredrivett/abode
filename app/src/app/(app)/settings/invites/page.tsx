@@ -35,7 +35,7 @@ export default async function InvitesSettingsPage() {
   return (
     <div className="space-y-6">
       <InviteSettings
-        invitesRemaining={availableInvites}
+        availableInvites={availableInvites}
         initialInvites={(dbUser?.sentInvites ?? []).map((invite) => ({
           ...invite,
           createdAt: invite.createdAt.toISOString(),
