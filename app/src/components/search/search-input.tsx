@@ -1,11 +1,11 @@
 "use client";
 
-import { Command, Filter as FilterIcon, RefreshCw } from "lucide-react";
+import { Filter as FilterIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { getModifierKey } from "@/lib/keyboard";
+import { getModifierKey, getModifierKeySymbol } from "@/lib/keyboard";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
@@ -315,9 +315,7 @@ export function SearchInput({
             {focusShortcut && !isFocused && (
               <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2">
                 <KbdGroup className="hidden md:inline-flex">
-                  <Kbd>
-                    <Command className="size-3" />
-                  </Kbd>
+                  <Kbd>{getModifierKeySymbol()}</Kbd>
                   <Kbd>⇧</Kbd>
                   <Kbd>K</Kbd>
                 </KbdGroup>

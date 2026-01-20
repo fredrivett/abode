@@ -13,6 +13,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 type StepperContextValue = {
@@ -305,7 +306,7 @@ function StepperNavigation({
             {completeLabel}
             {showKeyboardHints && (
               <>
-                <Kbd variant="primary">⌘</Kbd>
+                <Kbd variant="primary">{getModifierKeySymbol()}</Kbd>
                 <Kbd variant="primary">↵</Kbd>
               </>
             )}
