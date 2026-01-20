@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { getModifierKey, getModifierKeySymbol } from "@/lib/keyboard";
+import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
@@ -85,7 +85,7 @@ export function SearchInput({
     if (!focusShortcut) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (getModifierKey(e) && e.shiftKey && e.key === "k") {
+      if (matchesShortcut(e, { key: "k", modifier: true, shift: true })) {
         e.preventDefault();
         inputRef.current?.focus();
       }
