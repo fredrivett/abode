@@ -37,6 +37,8 @@ function CommandDialog({
   showCloseButton = true,
   value,
   onValueChange,
+  onInteractOutside,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string;
@@ -45,6 +47,8 @@ function CommandDialog({
   showCloseButton?: boolean;
   value?: string;
   onValueChange?: (value: string) => void;
+  onInteractOutside?: (event: Event) => void;
+  onPointerDownOutside?: (event: Event) => void;
 }) {
   return (
     <Dialog {...props}>
@@ -55,6 +59,8 @@ function CommandDialog({
       <DialogContent
         className={cn("overflow-hidden p-0", className)}
         showCloseButton={showCloseButton}
+        onInteractOutside={onInteractOutside}
+        onPointerDownOutside={onPointerDownOutside}
       >
         <Command
           value={value}

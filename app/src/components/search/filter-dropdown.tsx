@@ -90,7 +90,7 @@ export function FilterDropdown({
     }
   }, [selectedIndex]);
 
-  // Keyboard navigation
+  // Keyboard navigation - use capture phase to intercept before cmdk
   useEffect(() => {
     if (!open) return;
 
@@ -98,14 +98,17 @@ export function FilterDropdown({
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
+          e.stopPropagation();
           setSelectedIndex((prev) => Math.min(prev + 1, itemCount - 1));
           break;
         case "ArrowUp":
           e.preventDefault();
+          e.stopPropagation();
           setSelectedIndex((prev) => Math.max(prev - 1, 0));
           break;
         case "Enter":
           e.preventDefault();
+          e.stopPropagation();
           if (mode === "types" && filteredTypes[selectedIndex]) {
             onSelectType(filteredTypes[selectedIndex][0]);
           } else if (mode === "values") {
@@ -119,11 +122,13 @@ export function FilterDropdown({
           break;
         case "Escape":
           e.preventDefault();
+          e.stopPropagation();
           onClose();
           break;
         case "Tab":
           // Select the highlighted value (like Enter) before moving focus
           e.preventDefault();
+          e.stopPropagation();
           if (mode === "types" && filteredTypes[selectedIndex]) {
             onSelectType(filteredTypes[selectedIndex][0]);
           } else if (mode === "values") {
@@ -137,8 +142,10 @@ export function FilterDropdown({
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    // Use capture phase to intercept events before they reach cmdk
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [
     open,
     mode,

@@ -4,6 +4,7 @@ import { Filter as FilterIcon, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
   FILTER_TYPES,
@@ -25,64 +26,6 @@ type SearchInputProps = {
   /** When true, input and filters are disabled (view-only mode). */
   disabled?: boolean;
 };
-
-// Parse the current filter context from the query string
-function parseFilterContext(query: string): {
-  mode: "none" | "types" | "values";
-  filterType: FilterType | null;
-  searchText: string;
-  prefixEnd: number; // position where the @ starts
-} {
-  // Find the last @ that starts a filter
-  const lastAtIndex = query.lastIndexOf("@");
-
-  if (lastAtIndex === -1) {
-    return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
-  }
-
-  const isAtStartOfQuery = lastAtIndex === 0;
-  const isAfterSpace = query[lastAtIndex - 1] === " ";
-  const isValidFilterStart = isAtStartOfQuery || isAfterSpace;
-  if (!isValidFilterStart) {
-    return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
-  }
-
-  const afterAt = query.slice(lastAtIndex + 1);
-
-  // Check if there's a colon (filter type selected)
-  const colonIndex = afterAt.indexOf(":");
-
-  if (colonIndex === -1) {
-    const filterAbandoned = afterAt.includes(" ");
-    if (filterAbandoned) {
-      return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
-    }
-    return {
-      mode: "types",
-      filterType: null,
-      searchText: afterAt,
-      prefixEnd: lastAtIndex,
-    };
-  }
-
-  const typePart = afterAt.slice(0, colonIndex);
-  const valuePart = afterAt.slice(colonIndex + 1);
-  const filterAbandoned = valuePart.includes(" ");
-  if (filterAbandoned) {
-    return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
-  }
-
-  if (typePart in FILTER_TYPES) {
-    return {
-      mode: "values",
-      filterType: typePart as FilterType,
-      searchText: valuePart,
-      prefixEnd: lastAtIndex,
-    };
-  }
-
-  return { mode: "none", filterType: null, searchText: "", prefixEnd: 0 };
-}
 
 export function SearchInput({
   value,
