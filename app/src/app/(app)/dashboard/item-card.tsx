@@ -860,11 +860,14 @@ function ItemDetailDialog({
       invalidateItems();
 
       // Track tag change
-      posthog.capture(action === "added" ? "item_tag_added" : "item_tag_removed", {
-        item_id: item.id,
-        tag,
-        tag_count: newTags.length,
-      });
+      posthog.capture(
+        action === "added" ? "item_tag_added" : "item_tag_removed",
+        {
+          item_id: item.id,
+          tag,
+          tag_count: newTags.length,
+        },
+      );
     } catch (error) {
       log.error({ error }, "User tags save error");
       toast.error("Failed to save tags");
@@ -1045,7 +1048,7 @@ function ItemDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!max-w-[calc(100vw-1rem)] !w-[calc(100vw-1rem)] !h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] md:!h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] md:!max-h-[calc(100vh-2rem)] p-0 !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
+        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] p-0 !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
@@ -1128,7 +1131,7 @@ function ItemDetailDialog({
                   <img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
-                    className="max-h-[40vh] md:max-h-none max-w-full object-contain"
+                    className="max-h-[calc(100vh-2rem)] md:h-full w-full object-contain"
                   />
                 </motion.div>
               ) : (
@@ -1319,7 +1322,7 @@ function ItemDetailDialog({
                         <img
                           src={fullQualityUrl || previewUrl}
                           alt={name}
-                          className="w-full object-contain"
+                          className="w-full max-h-[300px] object-contain"
                         />
                       </motion.div>
                     </div>
@@ -1464,10 +1467,15 @@ function ItemDetailDialog({
                               <Button
                                 size="sm"
                                 onClick={handleAddUserTag}
-                                disabled={isSavingUserTags || !newTagInput.trim()}
+                                disabled={
+                                  isSavingUserTags || !newTagInput.trim()
+                                }
                               >
                                 {isSavingUserTags ? (
-                                  <IsLoading label="Adding" iconClassName="size-3" />
+                                  <IsLoading
+                                    label="Adding"
+                                    iconClassName="size-3"
+                                  />
                                 ) : (
                                   "Add"
                                 )}
@@ -1559,7 +1567,9 @@ function ItemDetailDialog({
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
                       <IsLoading
                         label={
-                          item.sourceType === "url" ? "Analyzing URL" : "Analyzing image"
+                          item.sourceType === "url"
+                            ? "Analyzing URL"
+                            : "Analyzing image"
                         }
                       />
                     </div>
@@ -1568,7 +1578,9 @@ function ItemDetailDialog({
                       <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
                         <div className="flex items-start gap-2">
                           <AlertCircle className="size-4 mt-0.5 shrink-0" />
-                          <p>Analysis failed. You can retry or delete the item.</p>
+                          <p>
+                            Analysis failed. You can retry or delete the item.
+                          </p>
                         </div>
                       </div>
                       {canEdit && (
@@ -1580,7 +1592,10 @@ function ItemDetailDialog({
                           className="w-full"
                         >
                           {isRetrying ? (
-                            <IsLoading label="Retrying" iconClassName="size-3" />
+                            <IsLoading
+                              label="Retrying"
+                              iconClassName="size-3"
+                            />
                           ) : (
                             <>
                               <RefreshCw className="size-3.5" />
