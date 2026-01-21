@@ -21,7 +21,7 @@ export const reconcileUserDataTask = schedules.task({
     >`
       SELECT u.id, u.email as db_email, au.email as auth_email
       FROM users u
-      JOIN auth.users au ON u.id = au.id::uuid
+      JOIN auth.users au ON u.id = au.id
       WHERE LOWER(u.email) != LOWER(au.email)
     `;
 
