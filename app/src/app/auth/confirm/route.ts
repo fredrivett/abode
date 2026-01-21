@@ -76,6 +76,40 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Handle email change completion
+  if (type === "email_change" && user?.email) {
+    // Sync database email with the new Supabase auth email
+    // Auth is the source of truth - if this fails, daily reconcile task will fix it
+    let dbSyncSuccess = false;
+    try {
+      await db.user.update({
+        where: { id: user.id },
+        data: { email: user.email.toLowerCase() },
+      });
+      dbSyncSuccess = true;
+    } catch (dbError) {
+      log.error(
+        { error: dbError, userId: user.id, newEmail: user.email },
+        "Failed to sync email to database - daily reconcile task will fix",
+      );
+    }
+
+    const posthog = getPostHogClient();
+    posthog?.capture({
+      distinctId: user.id,
+      event: "email_change_completed",
+      properties: {
+        new_email_domain: user.email.split("@")[1],
+        db_sync_success: dbSyncSuccess,
+      },
+    });
+
+    log.info({ userId: user.id }, "Email change completed");
+    return NextResponse.redirect(
+      new URL("/settings/account?email_changed=true", origin),
+    );
+  }
+
   if (!user || !user.email) {
     log.error("No user found after OTP verification");
     return NextResponse.redirect(new URL("/auth/error?reason=no_user", origin));
