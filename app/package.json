@@ -109,7 +109,7 @@
     "@storybook/nextjs": "^9.1.10",
     "@storybook/nextjs-vite": "^9.1.10",
     "@testcontainers/postgresql": "^11.10.0",
-    "@trigger.dev/build": "4.3.1",
+    "@trigger.dev/build": "4.3.2",
     "@types/jsdom": "21",
     "@types/node": "^24.10.1",
     "@types/react": "^19",
