@@ -493,7 +493,7 @@ export function CommandPalette() {
           </div>
         )}
 
-        <CommandList className="scroll-shadow-bottom lg:max-h-[calc(100vh-8rem)]">
+        <CommandList className="scroll-shadow-y max-h-[calc(100vh-8rem)]">
           {/* Only show empty state for unauthenticated users - authenticated users always have search */}
           {!isAuthenticated && <CommandEmpty>No results found.</CommandEmpty>}
 

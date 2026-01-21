@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, ShieldCheck, ShieldOff } from "lucide-react";
+import { Shield, ShieldOff } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -75,27 +75,23 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="text-lg font-semibold">Security</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <h3 className="flex items-center gap-2 text-xl font-semibold">
+        <Shield className="size-5 text-muted-foreground" />
+        Security
+      </h3>
+      <p className="mt-1 font-mono text-sm text-muted-foreground">
         Manage your account security settings.
       </p>
 
       <div className="mt-4">
-        <div className="flex items-center justify-between rounded-lg border p-4">
-          <div className="flex items-center gap-3">
-            {hasMFA ? (
-              <ShieldCheck className="size-5 text-green-600" />
-            ) : (
-              <Shield className="size-5 text-muted-foreground" />
-            )}
-            <div>
-              <p className="font-medium">Two-factor authentication</p>
-              <p className="text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
+          <div>
+            <p className="font-medium">Two-factor authentication</p>
+              <p className="font-mono text-sm text-muted-foreground">
                 {hasMFA
                   ? "Your account is protected with an authenticator app"
                   : "Add an extra layer of security to your account"}
               </p>
-            </div>
           </div>
           <div>
             {hasMFA ? (

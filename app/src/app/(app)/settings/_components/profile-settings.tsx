@@ -1,5 +1,6 @@
 "use client";
 
+import { User } from "lucide-react";
 import posthog from "posthog-js";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -74,8 +75,11 @@ export function ProfileSettings({
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="text-lg font-semibold">Profile</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <h3 className="flex items-center gap-2 text-xl font-semibold">
+        <User className="size-5 text-muted-foreground" />
+        Profile
+      </h3>
+      <p className="mt-1 font-mono text-sm text-muted-foreground">
         Your avatar and name appear in shared or public rooms.
       </p>
 

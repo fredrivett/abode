@@ -4,6 +4,7 @@ import { getMFAFactors } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
+import { AccountStats } from "../_components/account-stats";
 import { DeleteAccountSettings } from "../_components/delete-account-settings";
 import { ProfileSettings } from "../_components/profile-settings";
 import { SecuritySettings } from "../_components/security-settings";
@@ -25,6 +26,8 @@ export default async function AccountSettingsPage() {
       avatarUrl: true,
       firstName: true,
       lastName: true,
+      storageUsedBytes: true,
+      itemCount: true,
     },
   });
 
@@ -51,6 +54,10 @@ export default async function AccountSettingsPage() {
       <UsernameSettings
         currentUsername={dbUser?.username || null}
         changesUsed={previousUsernames.length}
+      />
+      <AccountStats
+        storageUsedBytes={dbUser?.storageUsedBytes ?? BigInt(0)}
+        itemCount={dbUser?.itemCount ?? 0}
       />
       <SecuritySettings initialFactors={mfaFactors} />
       <DeleteAccountSettings />
