@@ -3,7 +3,7 @@ import { cache } from "react";
 import db from "@/lib/db";
 import { getAvailableInvites } from "@/lib/invites";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 
 // Fields we fetch from the Prisma User model
 const userSelect = {
@@ -38,7 +38,7 @@ export type AuthenticatedUser = Prisma.UserGetPayload<{
 export const getAuthenticatedUser = cache(
   async (): Promise<AuthenticatedUser | null> => {
     const supabase = await createClient();
-    const { user, metadata } = await getUserWithMetadata(supabase);
+    const { user, metadata } = await getOAuthMetadata(supabase);
 
     if (!user) return null;
 
@@ -55,8 +55,8 @@ export const getAuthenticatedUser = cache(
       email: metadata.email,
       firstName: dbUser?.firstName ?? metadata.firstName,
       lastName: dbUser?.lastName ?? metadata.lastName,
-      username: dbUser?.username ?? metadata.username,
-      avatarUrl: dbUser?.avatarUrl ?? metadata.avatarUrl,
+      username: dbUser?.username ?? null,
+      avatarUrl: dbUser?.avatarUrl ?? null,
       availableInvites,
     };
   },
