@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { IsLoading } from "@/components/ui/is-loading";
 import { useUpload } from "@/hooks/use-upload";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
@@ -96,11 +97,13 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5">
           <div className="rounded-md bg-background/90 px-4 py-3 text-center shadow">
             <p className="text-sm font-medium text-primary">
-              {isFileLoading
-                ? "Uploading"
-                : isUrlLoading
-                  ? "Adding URL"
-                  : "Drop your image to upload"}
+              {isFileLoading ? (
+                <IsLoading label="Uploading" />
+              ) : isUrlLoading ? (
+                <IsLoading label="Adding URL" />
+              ) : (
+                "Drop your image to upload"
+              )}
             </p>
             {!isFileLoading && !isUrlLoading ? (
               <p className="text-xs text-muted-foreground">
