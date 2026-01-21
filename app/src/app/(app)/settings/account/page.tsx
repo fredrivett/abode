@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { getMFAFactors } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 import type { PreviousUsername } from "@/lib/username";
 import { DeleteAccountSettings } from "../_components/delete-account-settings";
 import { ProfileSettings } from "../_components/profile-settings";
@@ -11,7 +11,7 @@ import { UsernameSettings } from "../_components/username-settings";
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient();
-  const { user, metadata } = await getUserWithMetadata(supabase);
+  const { user, metadata } = await getOAuthMetadata(supabase);
 
   if (!user) {
     redirect("/login");

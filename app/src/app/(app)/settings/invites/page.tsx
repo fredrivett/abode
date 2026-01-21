@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { getAvailableInvites } from "@/lib/invites";
-import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getAuthUser } from "@/lib/supabase/server";
 import { InviteSettings } from "../_components/invite-settings";
 
 export default async function InvitesSettingsPage() {
-  const supabase = await createClient();
-  const { user } = await getUserWithMetadata(supabase);
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");

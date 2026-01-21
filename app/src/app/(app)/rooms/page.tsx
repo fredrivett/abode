@@ -1,14 +1,12 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getAuthUser } from "@/lib/supabase/server";
 import type { RoomWithSlug } from "@/lib/types/room";
 import { RoomsList } from "./_components/rooms-list";
 
 export default async function RoomsPage() {
-  const supabase = await createClient();
-  const { user } = await getUserWithMetadata(supabase);
+  const user = await getAuthUser();
 
   // Get the user's username
   const dbUser = user

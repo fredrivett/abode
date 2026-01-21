@@ -31,3 +31,15 @@ export async function createClient() {
     },
   });
 }
+
+/**
+ * Get the authenticated user from Supabase auth.
+ * Returns null if not authenticated.
+ */
+export async function getAuthUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
