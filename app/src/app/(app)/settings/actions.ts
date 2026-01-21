@@ -4,7 +4,9 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { tasks } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -254,4 +256,82 @@ export async function deleteAccount(
   }
 
   redirect("/");
+}
+
+export type RequestEmailChangeResult = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function requestEmailChange(
+  _prevState: RequestEmailChangeResult,
+  formData: FormData,
+): Promise<RequestEmailChangeResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const emailValue = formData.get("email");
+  if (typeof emailValue !== "string" || !emailValue) {
+    return { error: "Email is required" };
+  }
+  const newEmail = emailValue;
+
+  // Validate email format and check for disposable domains
+  const validation = validateEmail(newEmail);
+  if (!validation.valid) {
+    return { error: validation.error };
+  }
+
+  const normalizedEmail = newEmail.trim().toLowerCase();
+
+  // Check if same as current email
+  if (normalizedEmail === user.email?.toLowerCase()) {
+    return { error: "This is already your email address" };
+  }
+
+  // Check if email is already in use by another user
+  const existingUser = await db.user.findFirst({
+    where: {
+      email: { equals: normalizedEmail, mode: "insensitive" },
+      id: { not: user.id },
+    },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    return { error: "This email is already in use" };
+  }
+
+  // Request email change via Supabase (triggers verification emails to both addresses)
+  const { error } = await supabase.auth.updateUser({
+    email: normalizedEmail,
+  });
+
+  if (error) {
+    log.error({ error, userId: user.id }, "Failed to request email change");
+    return { error: error.message };
+  }
+
+  // Track event
+  const posthog = getPostHogClient();
+  posthog?.capture({
+    distinctId: user.id,
+    event: "email_change_requested",
+    properties: {
+      new_email_domain: normalizedEmail.split("@")[1],
+    },
+  });
+
+  // Log activity
+  void logActivity(user.id, "user_update", {
+    action: "email_change_requested",
+  });
+
+  return { success: true };
 }

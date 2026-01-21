@@ -9,7 +9,14 @@ import { ProfileSettings } from "../_components/profile-settings";
 import { SecuritySettings } from "../_components/security-settings";
 import { UsernameSettings } from "../_components/username-settings";
 
-export default async function AccountSettingsPage() {
+type AccountSettingsPageProps = {
+  searchParams: Promise<{ email_changed?: string }>;
+};
+
+export default async function AccountSettingsPage({
+  searchParams,
+}: AccountSettingsPageProps) {
+  const { email_changed } = await searchParams;
   const supabase = await createClient();
   const { user, metadata } = await getOAuthMetadata(supabase);
 
@@ -47,6 +54,7 @@ export default async function AccountSettingsPage() {
         username={dbUser?.username}
         email={email}
         initialAvatarUrl={dbUser?.avatarUrl}
+        emailChanged={email_changed === "true"}
       />
       <UsernameSettings
         currentUsername={dbUser?.username || null}
