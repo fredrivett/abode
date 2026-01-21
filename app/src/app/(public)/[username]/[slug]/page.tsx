@@ -7,6 +7,7 @@ import type { Filter } from "@/lib/search/types";
 import type {
   TwitterDetails,
   TwitterMedia,
+  VideoDetails,
 } from "@/lib/types/item";
 import { getAuthenticatedUser } from "@/lib/user";
 import type { ImageColor } from "@/lib/vision";
@@ -197,6 +198,17 @@ export default async function RoomPage({ params }: Props) {
               card: true,
             },
           },
+          videoDetails: {
+            select: {
+              platform: true,
+              videoId: true,
+              channelName: true,
+              channelUrl: true,
+              duration: true,
+              embedUrl: true,
+              thumbnailUrl: true,
+            },
+          },
         },
       },
     },
@@ -264,6 +276,17 @@ export default async function RoomPage({ params }: Props) {
           quotedTweetId: roomItem.item.twitterDetails.quotedTweetId,
           card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
         } satisfies TwitterDetails)
+      : null,
+    videoDetails: roomItem.item.videoDetails
+      ? ({
+          platform: roomItem.item.videoDetails.platform as VideoDetails["platform"],
+          videoId: roomItem.item.videoDetails.videoId,
+          channelName: roomItem.item.videoDetails.channelName,
+          channelUrl: roomItem.item.videoDetails.channelUrl,
+          duration: roomItem.item.videoDetails.duration,
+          embedUrl: roomItem.item.videoDetails.embedUrl,
+          thumbnailUrl: roomItem.item.videoDetails.thumbnailUrl,
+        } satisfies VideoDetails)
       : null,
   }));
 

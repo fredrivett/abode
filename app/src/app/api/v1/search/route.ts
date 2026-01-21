@@ -32,6 +32,7 @@ import type {
   SearchItem,
   TwitterDetails,
   TwitterMedia,
+  VideoDetails,
 } from "@/lib/types/item";
 
 const log = createLogger("api/v1/search");
@@ -98,6 +99,13 @@ type RawItemRow = {
   twitter_media: unknown;
   twitter_quoted_tweet_id: string | null;
   twitter_card: unknown;
+  video_platform: string | null;
+  video_video_id: string | null;
+  video_channel_name: string | null;
+  video_channel_url: string | null;
+  video_duration: number | null;
+  video_embed_url: string | null;
+  video_thumbnail_url: string | null;
 };
 
 type RawLocationRow = {
@@ -182,6 +190,18 @@ function transformRawItemToItem(
             quotedTweetId: row.twitter_quoted_tweet_id,
             card: row.twitter_card as TwitterDetails["card"],
           } satisfies TwitterDetails)
+        : null,
+    videoDetails:
+      row.video_platform && row.video_video_id
+        ? ({
+            platform: row.video_platform as VideoDetails["platform"],
+            videoId: row.video_video_id,
+            channelName: row.video_channel_name,
+            channelUrl: row.video_channel_url,
+            duration: row.video_duration,
+            embedUrl: row.video_embed_url,
+            thumbnailUrl: row.video_thumbnail_url,
+          } satisfies VideoDetails)
         : null,
     createdAt: row.created_at.toISOString(),
   };
@@ -558,11 +578,19 @@ async function executeFiltersOnlySearch(
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
-      td.card as twitter_card
+      td.card as twitter_card,
+      vd.platform as video_platform,
+      vd.video_id as video_video_id,
+      vd.channel_name as video_channel_name,
+      vd.channel_url as video_channel_url,
+      vd.duration as video_duration,
+      vd.embed_url as video_embed_url,
+      vd.thumbnail_url as video_thumbnail_url
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
+    LEFT JOIN item_video_details vd ON vd.item_id = items.id
     ${colorRelevanceJoin}
     WHERE ${whereClause}
     ${cursorCondition}
@@ -797,11 +825,19 @@ async function executeRankedSearch(
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
-      td.card as twitter_card
+      td.card as twitter_card,
+      vd.platform as video_platform,
+      vd.video_id as video_video_id,
+      vd.channel_name as video_channel_name,
+      vd.channel_url as video_channel_url,
+      vd.duration as video_duration,
+      vd.embed_url as video_embed_url,
+      vd.thumbnail_url as video_thumbnail_url
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
     LEFT JOIN item_article_details ad ON ad.item_id = i.id
     LEFT JOIN item_twitter_details td ON td.item_id = i.id
+    LEFT JOIN item_video_details vd ON vd.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,
     itemIds,

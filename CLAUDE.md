@@ -139,10 +139,20 @@ cd ./app
 bun run prisma:migrate --name your_migration_name
 ```
 
-**Important:**
-- Never use `prisma migrate reset` - this destroys all data
-- Never use `prisma db push` - this bypasses migration history
-- Always create proper migrations with `prisma:migrate`
+## Migration Workflow
+
+1. **Edit the Prisma schema** (`prisma/schema.prisma`)
+2. **Run the migrate command** - this generates the SQL migration automatically
+3. **Review the generated SQL** in `prisma/migrations/` if needed
+
+## Critical Rules
+
+- **ALWAYS generate migrations from the schema** - Never hand-write migration SQL files. Prisma generates migrations by comparing your schema to the database state.
+- **Never use `prisma migrate reset`** - This destroys all data
+- **Never use `prisma db push`** - This bypasses migration history and can cause drift
+- **Never manually create migration folders/files** - The `prisma:migrate` command creates properly timestamped folders and SQL files
+
+If a migration cannot be generated from schema changes (extremely rare), discuss with the team before manually writing SQL.
 
 <!-- DATABASE END -->
 

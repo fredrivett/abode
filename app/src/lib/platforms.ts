@@ -35,6 +35,16 @@ export const PLATFORMS: PlatformInfo[] = [
     hostnames: ["instagram.com", "instagr.am"],
   },
   {
+    id: "youtube",
+    name: "YouTube",
+    hostnames: ["youtube.com", "youtu.be", "youtube-nocookie.com"],
+  },
+  {
+    id: "vimeo",
+    name: "Vimeo",
+    hostnames: ["vimeo.com", "player.vimeo.com"],
+  },
+  {
     id: "twitter",
     name: "X",
     hostnames: ["twitter.com", "x.com", "t.co"],

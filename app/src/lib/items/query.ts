@@ -8,6 +8,7 @@ import type {
   ImageColor,
   TwitterDetails,
   TwitterMedia,
+  VideoDetails,
 } from "@/lib/types/item";
 
 /**
@@ -72,6 +73,17 @@ export const itemSelect = {
       media: true,
       quotedTweetId: true,
       card: true,
+    },
+  },
+  videoDetails: {
+    select: {
+      platform: true,
+      videoId: true,
+      channelName: true,
+      channelUrl: true,
+      duration: true,
+      embedUrl: true,
+      thumbnailUrl: true,
     },
   },
   roomItems: {
@@ -143,6 +155,17 @@ export function transformItem(item: RawItem) {
           quotedTweetId: item.twitterDetails.quotedTweetId,
           card: item.twitterDetails.card as TwitterDetails["card"],
         } satisfies TwitterDetails)
+      : null,
+    videoDetails: item.videoDetails
+      ? ({
+          platform: item.videoDetails.platform as VideoDetails["platform"],
+          videoId: item.videoDetails.videoId,
+          channelName: item.videoDetails.channelName,
+          channelUrl: item.videoDetails.channelUrl,
+          duration: item.videoDetails.duration,
+          embedUrl: item.videoDetails.embedUrl,
+          thumbnailUrl: item.videoDetails.thumbnailUrl,
+        } satisfies VideoDetails)
       : null,
   };
 }
