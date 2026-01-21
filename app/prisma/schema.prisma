@@ -49,6 +49,7 @@ model User {
   rooms             Room[]
   articleHighlights ArticleHighlight[]
   activityLogs      ActivityLog[]
+  milestones        UserMilestone[]
 
   @@map("users")
 }
@@ -57,6 +58,7 @@ enum ItemKind {
   image
   article
   twitter
+  video
 }
 
 enum SourceType {
@@ -102,6 +104,20 @@ enum ActivityType {
   admin_invite_waitlist
   admin_grant_admin
   admin_revoke_admin
+}
+
+enum MilestoneType {
+  complete_profile
+  upload_first_image
+  save_first_url
+  see_ai_analysis
+  search_items
+  add_first_tag
+  highlight_article
+  create_first_room
+  create_dynamic_room
+  share_room
+  invite_friend
 }
 
 model Item {
@@ -151,6 +167,7 @@ model Item {
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
   twitterDetails    ItemTwitterDetails?
+  videoDetails      ItemVideoDetails?
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
@@ -281,6 +298,24 @@ model ItemTwitterDetails {
   @@map("item_twitter_details")
 }
 
+model ItemVideoDetails {
+  itemId       String    @id @map("item_id") @db.Uuid
+  item         Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  platform     String                                  // "youtube" | "vimeo"
+  videoId      String    @map("video_id")             // Platform-specific video ID
+  channelName  String?   @map("channel_name")         // Channel/uploader name
+  channelUrl   String?   @map("channel_url")          // Link to channel
+  duration     Int?                                    // Duration in seconds (Vimeo only via oEmbed)
+  embedUrl     String?   @map("embed_url")            // Privacy-respecting embed URL
+  thumbnailUrl String?   @map("thumbnail_url")        // Original thumbnail URL from oEmbed
+
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_video_details")
+}
+
 model Room {
   id         String         @id @default(uuid()) @db.Uuid
   userId     String         @map("user_id") @db.Uuid
@@ -366,6 +401,19 @@ model ActivityLog {
   @@index([userId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("activity_logs")
+}
+
+model UserMilestone {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  type        MilestoneType
+  completedAt DateTime      @default(now()) @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("user_milestones")
 }
 
 // ============================================================================

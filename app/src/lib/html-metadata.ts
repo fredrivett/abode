@@ -219,6 +219,108 @@ export function extractTwitterArticleId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Extracts the video ID from a YouTube URL
+ * Supports various URL formats:
+ * - https://www.youtube.com/watch?v=VIDEO_ID
+ * - https://youtu.be/VIDEO_ID
+ * - https://www.youtube.com/embed/VIDEO_ID
+ * - https://www.youtube.com/shorts/VIDEO_ID
+ * - https://www.youtube.com/live/VIDEO_ID
+ * - https://www.youtube-nocookie.com/embed/VIDEO_ID
+ */
+export function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+
+    // Check if it's a YouTube domain
+    if (
+      hostname !== "youtube.com" &&
+      hostname !== "youtu.be" &&
+      hostname !== "youtube-nocookie.com"
+    ) {
+      return null;
+    }
+
+    // youtu.be/VIDEO_ID format
+    if (hostname === "youtu.be") {
+      const videoId = parsed.pathname.slice(1).split(/[?#]/)[0];
+      return videoId || null;
+    }
+
+    // youtube.com/watch?v=VIDEO_ID format
+    const vParam = parsed.searchParams.get("v");
+    if (vParam) {
+      return vParam;
+    }
+
+    // youtube.com/embed/VIDEO_ID, /shorts/VIDEO_ID, /live/VIDEO_ID formats
+    const pathMatch = parsed.pathname.match(
+      /^\/(embed|shorts|live|v)\/([a-zA-Z0-9_-]+)/,
+    );
+    if (pathMatch) {
+      return pathMatch[2];
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts the video ID from a Vimeo URL
+ * Supports various URL formats:
+ * - https://vimeo.com/VIDEO_ID
+ * - https://vimeo.com/VIDEO_ID/HASH (unlisted videos)
+ * - https://player.vimeo.com/video/VIDEO_ID
+ * - https://vimeo.com/channels/CHANNEL/VIDEO_ID
+ * - https://vimeo.com/groups/GROUP/videos/VIDEO_ID
+ */
+export function extractVimeoVideoId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+
+    // Check if it's a Vimeo domain
+    if (hostname !== "vimeo.com" && hostname !== "player.vimeo.com") {
+      return null;
+    }
+
+    // player.vimeo.com/video/VIDEO_ID format
+    if (hostname === "player.vimeo.com") {
+      const match = parsed.pathname.match(/^\/video\/(\d+)/);
+      return match ? match[1] : null;
+    }
+
+    // vimeo.com patterns
+    const pathname = parsed.pathname;
+
+    // vimeo.com/channels/CHANNEL/VIDEO_ID
+    const channelMatch = pathname.match(/^\/channels\/[^/]+\/(\d+)/);
+    if (channelMatch) {
+      return channelMatch[1];
+    }
+
+    // vimeo.com/groups/GROUP/videos/VIDEO_ID
+    const groupMatch = pathname.match(/^\/groups\/[^/]+\/videos\/(\d+)/);
+    if (groupMatch) {
+      return groupMatch[1];
+    }
+
+    // vimeo.com/VIDEO_ID or vimeo.com/VIDEO_ID/HASH (unlisted)
+    const directMatch = pathname.match(/^\/(\d+)/);
+    if (directMatch) {
+      return directMatch[1];
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export type SocialEmbedResult = {
   html: string;
   tweetIds: string[];

@@ -49,6 +49,19 @@ export type ArticleDetails = {
 };
 
 /**
+ * Video-specific details for YouTube/Vimeo embeds.
+ */
+export type VideoDetails = {
+  platform: "youtube" | "vimeo";
+  videoId: string;
+  channelName: string | null;
+  channelUrl: string | null;
+  duration: number | null;
+  embedUrl: string | null;
+  thumbnailUrl: string | null;
+};
+
+/**
  * Color information from image analysis.
  *
  * This type supports colors from both:
@@ -137,6 +150,7 @@ export type Item = {
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
   twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
+  videoDetails: VideoDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   rooms?: ItemRoom[];

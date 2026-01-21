@@ -10,6 +10,8 @@ import {
   extractArticleMetadata,
   extractTweetId,
   extractTwitterArticleId,
+  extractVimeoVideoId,
+  extractYouTubeVideoId,
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { detectPlatform } from "../src/lib/platforms";
@@ -17,6 +19,7 @@ import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
+import { handleVideoUrl } from "./handle-video-url";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type ClassifyUrlPayload = {
@@ -55,7 +58,7 @@ async function downloadAndStoreImage(
     const response = await fetch(imageUrl, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://abode.dev)",
+          "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
       },
     });
 
@@ -155,6 +158,34 @@ export const classifyUrlTask = task({
         logger.warn("Twitter URL without tweet ID, treating as article", { itemId, url: twitterUrl });
       }
 
+      // Check for YouTube video
+      const youtubeVideoId = extractYouTubeVideoId(resolvedUrl);
+      if (youtubeVideoId) {
+        logger.log("URL classified as YouTube video", {
+          itemId,
+          url: resolvedUrl,
+          videoId: youtubeVideoId,
+        });
+        return await handleVideoUrl(
+          { itemId, userId, url: resolvedUrl, platform: "youtube", videoId: youtubeVideoId },
+          supabase,
+        );
+      }
+
+      // Check for Vimeo video
+      const vimeoVideoId = extractVimeoVideoId(resolvedUrl);
+      if (vimeoVideoId) {
+        logger.log("URL classified as Vimeo video", {
+          itemId,
+          url: resolvedUrl,
+          videoId: vimeoVideoId,
+        });
+        return await handleVideoUrl(
+          { itemId, userId, url: resolvedUrl, platform: "vimeo", videoId: vimeoVideoId },
+          supabase,
+        );
+      }
+
       // Use resolvedUrl for all subsequent operations (may differ from original if t.co was resolved)
       const fetchUrl = resolvedUrl;
 
@@ -167,7 +198,7 @@ export const classifyUrlTask = task({
           method: "HEAD",
           headers: {
             "User-Agent":
-              "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://abode.dev)",
+              "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
           },
         });
         contentType = headResponse.headers.get("content-type");
@@ -187,7 +218,7 @@ export const classifyUrlTask = task({
       const response = await fetch(fetchUrl, {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://abode.dev)",
+            "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
           Accept:
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },

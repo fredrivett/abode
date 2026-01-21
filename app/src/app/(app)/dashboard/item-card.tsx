@@ -50,6 +50,8 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
+import { VideoCard } from "@/components/video/video-card";
+import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
@@ -137,6 +139,7 @@ export function ItemCard({
 
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
+  const isVideo = item.kind === "video";
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
@@ -152,10 +155,11 @@ export function ItemCard({
     // Articles without a cover image don't need to load anything
     // URL items that are still processing don't have a file yet - that's expected
     // Twitter items use TwitterCard which displays tweet content, not an image file
+    // Video items use VideoCard which handles its own thumbnail display
     // Failed URL items won't have a file - they'll show a failed state placeholder
     if (!imageFileKey) {
       setPreviewUrl(null);
-      if (!isArticle && !isProcessingUrl && !isTwitter && !isFailedUrl) {
+      if (!isArticle && !isProcessingUrl && !isTwitter && !isVideo && !isFailedUrl) {
         setError("Missing file");
       }
       return;
@@ -165,7 +169,7 @@ export function ItemCard({
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
     setPreviewUrl(proxyUrl);
-  }, [imageFileKey, isArticle, isProcessingUrl, isTwitter, isFailedUrl]);
+  }, [imageFileKey, isArticle, isProcessingUrl, isTwitter, isVideo, isFailedUrl]);
 
   useEffect(() => {
     setItemName(name);
@@ -343,6 +347,35 @@ export function ItemCard({
       <>
         <TwitterCard
           twitterDetails={item.twitterDetails}
+          onClick={() => setShowDetailDialog(true)}
+        />
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={null}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Video items get the custom VideoCard
+  if (isVideo && item.videoDetails) {
+    return (
+      <>
+        <VideoCard
+          videoDetails={item.videoDetails}
+          coverFileKey={item.coverFileKey}
           onClick={() => setShowDetailDialog(true)}
         />
 
@@ -765,6 +798,7 @@ function ItemDetailDialog({
   const height = (meta.height as number | undefined) ?? 0;
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
+  const isVideo = item.kind === "video";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1104,6 +1138,21 @@ function ItemDetailDialog({
                 >
                   <TwitterDetailView
                     twitterDetails={item.twitterDetails}
+                    sourceUrl={item.sourceUrl}
+                    className="py-8"
+                  />
+                </motion.div>
+              ) : isVideo && item.videoDetails ? (
+                <motion.div
+                  className="flex w-full h-full bg-background overflow-y-auto"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <VideoDetailView
+                    videoDetails={item.videoDetails}
+                    coverFileKey={item.coverFileKey}
+                    title={item.title}
                     sourceUrl={item.sourceUrl}
                     className="py-8"
                   />
