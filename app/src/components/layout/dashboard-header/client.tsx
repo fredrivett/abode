@@ -306,7 +306,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center gap-2">
+                  <Link href="/settings/account" className="flex items-center gap-2">
                     <Settings className="size-4" />
                     Settings
                   </Link>
