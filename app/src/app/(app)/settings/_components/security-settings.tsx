@@ -34,27 +34,36 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
   const [factors, setFactors] = useState<MFAFactor[]>(initialFactors);
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
   const [isDisabling, setIsDisabling] = useState(false);
+  const [isConfirmingDisable, setIsConfirmingDisable] = useState(false);
 
   const verifiedFactor = factors.find((f) => f.status === "verified");
   const hasMFA = !!verifiedFactor;
 
-  const handleDisableMFA = useCallback(async () => {
+  const handleDisableClick = useCallback(() => {
+    if (!isConfirmingDisable) {
+      setIsConfirmingDisable(true);
+      return;
+    }
+
     if (!verifiedFactor) return;
 
     setIsDisabling(true);
-    try {
-      const supabase = createClient();
-      await unenrollMFA(supabase, verifiedFactor.id);
-      setFactors([]);
-      toast.success("Two-factor authentication disabled");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to disable MFA",
-      );
-    } finally {
-      setIsDisabling(false);
-    }
-  }, [verifiedFactor]);
+    const supabase = createClient();
+    unenrollMFA(supabase, verifiedFactor.id)
+      .then(() => {
+        setFactors([]);
+        toast.success("Two-factor authentication disabled");
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to disable MFA",
+        );
+      })
+      .finally(() => {
+        setIsDisabling(false);
+        setIsConfirmingDisable(false);
+      });
+  }, [verifiedFactor, isConfirmingDisable]);
 
   const handleEnrollComplete = useCallback(async () => {
     const supabase = createClient();
@@ -91,13 +100,20 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
           <div>
             {hasMFA ? (
               <Button
-                variant="outline"
+                variant={isConfirmingDisable ? "destructive" : "outline"}
                 size="sm"
-                onClick={handleDisableMFA}
+                onClick={handleDisableClick}
+                onBlur={() => setIsConfirmingDisable(false)}
                 disabled={isDisabling}
               >
                 <ShieldOff className="size-4" />
-                {isDisabling ? <IsLoading label="Disabling" /> : "Disable"}
+                {isDisabling ? (
+                  <IsLoading label="Disabling" />
+                ) : isConfirmingDisable ? (
+                  "Confirm disable 2FA?"
+                ) : (
+                  "Disable"
+                )}
               </Button>
             ) : (
               <Button
