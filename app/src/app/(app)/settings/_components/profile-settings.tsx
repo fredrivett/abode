@@ -158,7 +158,7 @@ export function ProfileSettings({
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="email@example.com"
                 className="flex-1"
-                disabled={!!pendingEmail}
+                disabled={!!pendingEmail || isEmailPending}
               />
               {hasEmailChanged && !pendingEmail && (
                 <Button type="submit" size="sm" disabled={isEmailPending}>
