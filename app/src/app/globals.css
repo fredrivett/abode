@@ -216,20 +216,66 @@
   animation: highlight-flash 0.5s ease-in-out 3;
 }
 
-/* Scroll shadow - shows gradient at bottom when more content is scrollable */
-@utility scroll-shadow-bottom {
+/* Scroll shadow vertical - shows gradient at top/bottom when more content is scrollable */
+@utility scroll-shadow-y {
   --scroll-shadow-cover: oklch(1 0 0);
   --scroll-shadow-fade: oklch(0 0 0 / 15%);
 
   background:
-    /* Cover: scrolls with content, solid for 50% then fades */
-    linear-gradient(to top, var(--scroll-shadow-cover) 50%, transparent) bottom / 100% 60px local,
-    /* Shadow: fixed at bottom of container */
-    linear-gradient(to top, var(--scroll-shadow-fade), transparent) bottom / 100% 40px scroll;
+    /* Top cover: scrolls with content */
+    linear-gradient(to bottom, var(--scroll-shadow-cover) 50%, transparent) top center / 100% 60px local,
+    /* Bottom cover: scrolls with content */
+    linear-gradient(to top, var(--scroll-shadow-cover) 50%, transparent) bottom center / 100% 60px local,
+    /* Top shadow: fixed at top edge */
+    linear-gradient(to bottom, var(--scroll-shadow-fade), transparent) top center / 100% 40px scroll,
+    /* Bottom shadow: fixed at bottom edge */
+    linear-gradient(to top, var(--scroll-shadow-fade), transparent) bottom center / 100% 40px scroll;
   background-repeat: no-repeat;
 }
 
-.dark .scroll-shadow-bottom {
+.dark .scroll-shadow-y {
   --scroll-shadow-cover: oklch(0.205 0 0);
   --scroll-shadow-fade: oklch(1 0 0 / 12%);
+}
+
+/* Scroll shadow horizontal - fades content at left/right edges using pseudo-element overlays.
+   Fades from page background color to transparent, creating a soft edge effect.
+   Usage: Apply to a NON-SCROLLING wrapper element. The scrollable content should be a child.
+   Example: <div class="scroll-shadow-x"><div class="overflow-x-auto">...content...</div></div> */
+@utility scroll-shadow-x {
+  --scroll-shadow-x-bg: var(--background);
+  position: relative;
+}
+
+.scroll-shadow-x::before,
+.scroll-shadow-x::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.scroll-shadow-x::before {
+  left: 0;
+  background: linear-gradient(to right, var(--scroll-shadow-x-bg), transparent);
+}
+
+.scroll-shadow-x::after {
+  right: 0;
+  background: linear-gradient(to left, var(--scroll-shadow-x-bg), transparent);
+}
+
+/* Utility to hide scroll-shadow-x on md: screens - use alongside scroll-shadow-x when shadows should only show on mobile */
+@utility scroll-shadow-x-mobile {
+  --_scroll-shadow-x-mobile: 1;
+}
+
+@media (min-width: 768px) {
+  .scroll-shadow-x-mobile::before,
+  .scroll-shadow-x-mobile::after {
+    display: none;
+  }
 }

@@ -15,12 +15,12 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           </p>
         </header>
 
-        <div className="mt-8 flex gap-8">
-          <aside className="w-48 shrink-0">
+        <div className="mt-6 md:mt-8 md:flex md:gap-8">
+          <aside className="md:w-48 md:shrink-0">
             <SettingsNav />
           </aside>
 
-          <main className="flex-1 min-w-0">{children}</main>
+          <main className="mt-6 min-w-0 flex-1 md:mt-0">{children}</main>
         </div>
       </div>
     </div>
