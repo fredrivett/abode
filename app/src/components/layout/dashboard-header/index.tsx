@@ -1,10 +1,7 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { signOut } from "@/lib/actions/auth";
-import db from "@/lib/db";
-import { getAvailableInvites } from "@/lib/invites";
-import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getAuthenticatedUser } from "@/lib/user";
 import { DashboardHeaderClient } from "./client";
 
 type DashboardHeaderProps = {
@@ -19,26 +16,8 @@ export async function DashboardHeader({
   showHomeLink = false,
   centerSlot,
 }: DashboardHeaderProps = {}) {
-  const supabase = await createClient();
-  const { user, metadata } = await getUserWithMetadata(supabase);
+  const user = await getAuthenticatedUser();
 
-  // Get user profile from DB (takes priority over OAuth metadata)
-  const [dbUser, availableInvites] = user
-    ? await Promise.all([
-        db.user.findUnique({
-          where: { id: user.id },
-          select: {
-            username: true,
-            avatarUrl: true,
-            firstName: true,
-            lastName: true,
-          },
-        }),
-        getAvailableInvites(user.id),
-      ])
-    : [null, 0];
-
-  // If no user, show unauthenticated header
   if (!user) {
     return (
       <Suspense>
@@ -52,16 +31,18 @@ export async function DashboardHeader({
     );
   }
 
+  // Pass user data as props for SSR (zustand stores return initial values during SSR).
+  // The client component hydrates these into the store for client-side reactivity.
   return (
     <Suspense>
       <DashboardHeaderClient
         isAuthenticated
-        email={metadata.email}
-        firstName={dbUser?.firstName ?? metadata.firstName}
-        lastName={dbUser?.lastName ?? metadata.lastName}
-        username={dbUser?.username ?? metadata.username}
-        avatarUrl={dbUser?.avatarUrl ?? metadata.avatarUrl}
-        availableInvites={availableInvites}
+        email={user.email}
+        firstName={user.firstName}
+        lastName={user.lastName}
+        username={user.username}
+        avatarUrl={user.avatarUrl}
+        availableInvites={user.availableInvites}
         signOutAction={signOut}
         showSearch={showSearch}
         showHomeLink={showHomeLink}

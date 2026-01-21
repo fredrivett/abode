@@ -1,17 +1,6 @@
 /// <reference types="vitest/globals" />
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getUserMetadata, getUserWithMetadata } from "./user-metadata";
-
-// Mock the db module
-vi.mock("@/lib/db", () => ({
-  default: {
-    user: {
-      findUnique: vi.fn(),
-    },
-  },
-}));
-
-import db from "@/lib/db";
+import { getOAuthMetadata } from "./user-metadata";
 
 function createMockSupabase(options: {
   claims?: Record<string, unknown>;
@@ -33,30 +22,15 @@ function createMockSupabase(options: {
   } as unknown as SupabaseClient;
 }
 
-function mockDbUser(
-  dbUser: { username?: string | null; avatarUrl?: string | null } | null,
-) {
-  vi.mocked(db.user.findUnique).mockResolvedValue(
-    dbUser as ReturnType<typeof db.user.findUnique> extends Promise<infer T>
-      ? T
-      : never,
-  );
-}
-
-describe("getUserMetadata", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDbUser(null);
-  });
-
+describe("getOAuthMetadata", () => {
   it("extracts email from claims", async () => {
     const supabase = createMockSupabase({
       claims: { email: "test@example.com" },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.email).toBe("test@example.com");
+    expect(result.metadata.email).toBe("test@example.com");
   });
 
   it("falls back to user email when claims email is missing", async () => {
@@ -65,9 +39,9 @@ describe("getUserMetadata", () => {
       user: { email: "user@example.com" },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.email).toBe("user@example.com");
+    expect(result.metadata.email).toBe("user@example.com");
   });
 
   it("extracts firstName from user_metadata.first_name", async () => {
@@ -75,9 +49,9 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { first_name: "John" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.firstName).toBe("John");
+    expect(result.metadata.firstName).toBe("John");
   });
 
   it("extracts firstName from user_metadata.given_name", async () => {
@@ -85,9 +59,9 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { given_name: "Jane" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.firstName).toBe("Jane");
+    expect(result.metadata.firstName).toBe("Jane");
   });
 
   it("extracts firstName from claims.given_name", async () => {
@@ -95,9 +69,9 @@ describe("getUserMetadata", () => {
       claims: { given_name: "Alice" },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.firstName).toBe("Alice");
+    expect(result.metadata.firstName).toBe("Alice");
   });
 
   it("extracts firstName from claims.user_metadata.given_name", async () => {
@@ -105,9 +79,9 @@ describe("getUserMetadata", () => {
       claims: { user_metadata: { given_name: "Bob" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.firstName).toBe("Bob");
+    expect(result.metadata.firstName).toBe("Bob");
   });
 
   it("extracts lastName from user_metadata.last_name", async () => {
@@ -115,9 +89,9 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { last_name: "Doe" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.lastName).toBe("Doe");
+    expect(result.metadata.lastName).toBe("Doe");
   });
 
   it("extracts lastName from user_metadata.family_name", async () => {
@@ -125,59 +99,20 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { family_name: "Smith" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.lastName).toBe("Smith");
-  });
-
-  it("extracts avatarUrl from database", async () => {
-    mockDbUser({ username: null, avatarUrl: "https://example.com/avatar.jpg" });
-    const supabase = createMockSupabase({
-      user: { id: "user-123" },
-    });
-
-    const result = await getUserMetadata(supabase);
-
-    expect(result.avatarUrl).toBe("https://example.com/avatar.jpg");
-  });
-
-  it("returns null avatarUrl when not in database", async () => {
-    mockDbUser({ username: null, avatarUrl: null });
-    const supabase = createMockSupabase({
-      user: {
-        id: "user-123",
-        user_metadata: { picture: "https://oauth.com/pic.jpg" },
-      },
-    });
-
-    const result = await getUserMetadata(supabase);
-
-    // OAuth picture is no longer used - only DB avatar
-    expect(result.avatarUrl).toBe(null);
-  });
-
-  it("returns null avatarUrl when user not found in database", async () => {
-    mockDbUser(null);
-    const supabase = createMockSupabase({
-      user: { id: "user-123" },
-    });
-
-    const result = await getUserMetadata(supabase);
-
-    expect(result.avatarUrl).toBe(null);
+    expect(result.metadata.lastName).toBe("Smith");
   });
 
   it("returns null for all fields when no data is available", async () => {
     const supabase = createMockSupabase({});
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result).toEqual({
+    expect(result.metadata).toEqual({
       email: null,
       firstName: null,
       lastName: null,
-      username: null,
-      avatarUrl: null,
     });
   });
 
@@ -187,10 +122,10 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { first_name: "" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.email).toBe(null);
-    expect(result.firstName).toBe(null);
+    expect(result.metadata.email).toBe(null);
+    expect(result.metadata.firstName).toBe(null);
   });
 
   it("trims whitespace from values", async () => {
@@ -199,10 +134,10 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { first_name: "  John  " } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.email).toBe("test@example.com");
-    expect(result.firstName).toBe("John");
+    expect(result.metadata.email).toBe("test@example.com");
+    expect(result.metadata.firstName).toBe("John");
   });
 
   it("prioritizes user_metadata over claims for firstName", async () => {
@@ -211,19 +146,12 @@ describe("getUserMetadata", () => {
       user: { user_metadata: { first_name: "UserFirst" } },
     });
 
-    const result = await getUserMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
-    expect(result.firstName).toBe("UserFirst");
-  });
-});
-
-describe("getUserWithMetadata", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDbUser(null);
+    expect(result.metadata.firstName).toBe("UserFirst");
   });
 
-  it("returns user object and metadata", async () => {
+  it("returns user object along with metadata", async () => {
     const supabase = createMockSupabase({
       claims: { email: "test@example.com" },
       user: {
@@ -233,7 +161,7 @@ describe("getUserWithMetadata", () => {
       },
     });
 
-    const result = await getUserWithMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
     expect(result.user).toEqual({
       id: "user-123",
@@ -244,8 +172,6 @@ describe("getUserWithMetadata", () => {
       email: "test@example.com",
       firstName: "John",
       lastName: "Doe",
-      username: null,
-      avatarUrl: null,
     });
   });
 
@@ -254,7 +180,7 @@ describe("getUserWithMetadata", () => {
       user: null,
     });
 
-    const result = await getUserWithMetadata(supabase);
+    const result = await getOAuthMetadata(supabase);
 
     expect(result.user).toBe(null);
   });

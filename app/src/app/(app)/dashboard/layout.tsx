@@ -4,7 +4,7 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { OnboardingWrapper } from "@/components/onboarding";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
+import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
 
 export default async function DashboardLayout({
@@ -13,7 +13,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { user, metadata } = await getUserWithMetadata(supabase);
+  const { user, metadata } = await getOAuthMetadata(supabase);
 
   if (!user) {
     redirect("/login");
@@ -42,7 +42,7 @@ export default async function DashboardLayout({
         lastName: dbUser?.lastName ?? metadata.lastName,
         username: dbUser?.username,
         email: metadata.email,
-        avatarUrl: dbUser?.avatarUrl ?? metadata.avatarUrl,
+        avatarUrl: dbUser?.avatarUrl ?? null,
       }}
     >
       <DashboardDropzone>

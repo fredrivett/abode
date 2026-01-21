@@ -3,14 +3,12 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
-import { getAvailableInvites } from "@/lib/invites";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
-import { getUserWithMetadata } from "@/lib/supabase/user-metadata";
 import type {
   TwitterDetails,
   TwitterMedia,
 } from "@/lib/types/item";
+import { getAuthenticatedUser } from "@/lib/user";
 import type { ImageColor } from "@/lib/vision";
 import { RoomPageClient } from "./_components/room-page-client";
 
@@ -121,21 +119,9 @@ export default async function RoomPage({ params }: Props) {
     notFound();
   }
 
-  // Check if current user is the owner and get user metadata for header
-  const supabase = await createClient();
-  const { user: currentUser, metadata } = await getUserWithMetadata(supabase);
+  // Get current user for header (uses cached fetcher)
+  const currentUser = await getAuthenticatedUser();
   const isOwner = currentUser?.id === room.userId;
-
-  // Get current user's DB info for header and available invites
-  const [currentDbUser, availableInvites] = currentUser
-    ? await Promise.all([
-        db.user.findUnique({
-          where: { id: currentUser.id },
-          select: { username: true, avatarUrl: true },
-        }),
-        getAvailableInvites(currentUser.id),
-      ])
-    : [null, 0];
 
   // Private rooms are only visible to owner
   if (room.visibility === "private" && !isOwner) {
@@ -289,12 +275,12 @@ export default async function RoomPage({ params }: Props) {
       initialHasMore={hasMore}
       isOwner={isOwner}
       isAuthenticated={!!currentUser}
-      email={metadata.email}
-      firstName={metadata.firstName}
-      lastName={metadata.lastName}
-      username={currentDbUser?.username ?? metadata.username}
-      avatarUrl={currentDbUser?.avatarUrl ?? metadata.avatarUrl}
-      availableInvites={availableInvites}
+      email={currentUser?.email ?? null}
+      firstName={currentUser?.firstName ?? null}
+      lastName={currentUser?.lastName ?? null}
+      username={currentUser?.username ?? null}
+      avatarUrl={currentUser?.avatarUrl ?? null}
+      availableInvites={currentUser?.availableInvites ?? 0}
       signOutAction={currentUser ? signOut : undefined}
       roomOwner={{
         username: user.username,

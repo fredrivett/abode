@@ -20,27 +20,34 @@ type Invite = {
 };
 
 type InviteSettingsProps = {
-  invitesRemaining: number;
+  availableInvites: number;
   initialInvites: Invite[];
 };
 
 export function InviteSettings({
-  invitesRemaining: initialRemaining,
+  availableInvites: initialAvailableInvites,
   initialInvites,
 }: InviteSettingsProps) {
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
-  const { invitesRemaining, setInvitesRemaining } = useUserStore();
+  const { availableInvites: storeAvailableInvites, setAvailableInvites } =
+    useUserStore();
 
   // Initialize store with server-fetched value on mount
   useEffect(() => {
-    setInvitesRemaining(initialRemaining);
-  }, [initialRemaining, setInvitesRemaining]);
+    setAvailableInvites(initialAvailableInvites);
+  }, [initialAvailableInvites, setAvailableInvites]);
+
+  // Use store value if hydrated, otherwise fall back to prop
+  const availableInvites =
+    storeAvailableInvites !== undefined
+      ? storeAvailableInvites
+      : initialAvailableInvites;
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || invitesRemaining <= 0) return;
+    if (!email.trim() || availableInvites <= 0) return;
 
     setIsSending(true);
 
@@ -62,7 +69,7 @@ export function InviteSettings({
       setEmail("");
 
       // Use the computed invitesRemaining from the API response
-      setInvitesRemaining(data.invitesRemaining);
+      setAvailableInvites(data.invitesRemaining);
 
       // Check if this was a re-send (email already in list) or new invite
       const existingInviteIndex = invites.findIndex(
@@ -119,7 +126,7 @@ export function InviteSettings({
       toast.success("Invite revoked");
 
       // Update invites remaining from API response
-      setInvitesRemaining(data.invitesRemaining);
+      setAvailableInvites(data.invitesRemaining);
 
       // Remove the invite from the list
       setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
@@ -135,12 +142,12 @@ export function InviteSettings({
         <p className="mt-1 text-sm text-muted-foreground">
           Invite friends to join abode. You have{" "}
           <span className="font-medium text-foreground">
-            {invitesRemaining}
+            {availableInvites}
           </span>{" "}
-          invite{invitesRemaining !== 1 ? "s" : ""} remaining.
+          invite{availableInvites !== 1 ? "s" : ""} remaining.
         </p>
 
-        {invitesRemaining > 0 ? (
+        {availableInvites > 0 ? (
           <form onSubmit={handleSendInvite} className="mt-4">
             <div className="flex gap-2">
               <div className="flex-1">
