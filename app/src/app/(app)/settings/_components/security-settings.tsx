@@ -75,11 +75,11 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-lg font-semibold">
+      <h3 className="flex items-center gap-2 text-xl font-semibold">
         <Shield className="size-5 text-muted-foreground" />
         Security
       </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-sm text-muted-foreground">
         Manage your account security settings.
       </p>
 
@@ -87,7 +87,7 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
           <div>
             <p className="font-medium">Two-factor authentication</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-mono text-sm text-muted-foreground">
                 {hasMFA
                   ? "Your account is protected with an authenticator app"
                   : "Add an extra layer of security to your account"}

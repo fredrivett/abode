@@ -48,11 +48,11 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-lg font-semibold">
+      <h3 className="flex items-center gap-2 text-xl font-semibold">
         <AtSign className="size-5 text-muted-foreground" />
         Username
       </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-sm text-muted-foreground">
         {hasMeaningfulChange ? (
           <>
             Your public profile URL will be{" "}

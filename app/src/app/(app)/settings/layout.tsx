@@ -10,13 +10,13 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <header>
           <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
             Manage your account settings.
           </p>
         </header>
 
-        <div className="mt-6 md:mt-8 md:flex md:gap-8">
-          <aside className="md:w-48 md:shrink-0">
+        <div className="mt-6 md:mt-8 md:flex md:items-start md:gap-8">
+          <aside className="md:sticky md:top-20 md:w-48 md:shrink-0">
             <SettingsNav />
           </aside>
 

@@ -11,11 +11,11 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-lg font-semibold">
+      <h3 className="flex items-center gap-2 text-xl font-semibold">
         <BarChart3 className="size-5 text-muted-foreground" />
         Account
       </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-sm text-muted-foreground">
         Your account usage and storage.
       </p>
 
@@ -28,7 +28,7 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
             <p className="text-2xl font-semibold tabular-nums">
               {itemCount.toLocaleString()}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="font-mono text-sm text-muted-foreground">
               {itemCount === 1 ? "Item" : "Items"}
             </p>
           </div>
@@ -45,7 +45,7 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
                 {storage.unit}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">Storage used</p>
+            <p className="font-mono text-sm text-muted-foreground">Storage used</p>
           </div>
         </div>
       </div>
