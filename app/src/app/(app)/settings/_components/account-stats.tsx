@@ -1,5 +1,5 @@
-import { HardDrive, Image } from "lucide-react";
-import { formatBytes } from "@/lib/utils";
+import { BarChart3, HardDrive, Image } from "lucide-react";
+import { formatBytesParts } from "@/lib/utils";
 
 type Props = {
   storageUsedBytes: bigint;
@@ -7,9 +7,14 @@ type Props = {
 };
 
 export function AccountStats({ storageUsedBytes, itemCount }: Props) {
+  const storage = formatBytesParts(storageUsedBytes);
+
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="text-lg font-semibold">Account</h3>
+      <h3 className="flex items-center gap-2 text-lg font-semibold">
+        <BarChart3 className="size-5 text-muted-foreground" />
+        Account
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Your account usage and storage.
       </p>
@@ -35,7 +40,10 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
           </div>
           <div>
             <p className="text-2xl font-semibold tabular-nums">
-              {formatBytes(storageUsedBytes)}
+              {storage.value}
+              <span className="text-base font-normal small-caps">
+                {storage.unit}
+              </span>
             </p>
             <p className="text-sm text-muted-foreground">Storage used</p>
           </div>

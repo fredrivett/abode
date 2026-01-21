@@ -1,5 +1,6 @@
 "use client";
 
+import { AtSign } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -47,7 +48,10 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="text-lg font-semibold">Username</h3>
+      <h3 className="flex items-center gap-2 text-lg font-semibold">
+        <AtSign className="size-5 text-muted-foreground" />
+        Username
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         {hasMeaningfulChange ? (
           <>

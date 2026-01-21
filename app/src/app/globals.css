@@ -279,3 +279,8 @@
     display: none;
   }
 }
+
+/* Small caps text */
+@utility small-caps {
+  font-variant: small-caps;
+}

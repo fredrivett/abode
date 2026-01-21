@@ -9,16 +9,30 @@ export function cn(...inputs: ClassValue[]) {
  * Format bytes as a human-readable string (e.g., "1.5 GB")
  */
 export function formatBytes(bytes: bigint | number): string {
+  const { value, unit } = formatBytesParts(bytes);
+  return `${value} ${unit}`;
+}
+
+/**
+ * Format bytes and return value and unit separately for custom styling
+ */
+export function formatBytesParts(bytes: bigint | number): {
+  value: string;
+  unit: string;
+} {
   const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = typeof bytes === "bigint" ? Number(bytes) : bytes;
+  let num = typeof bytes === "bigint" ? Number(bytes) : bytes;
   let unitIndex = 0;
 
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
+  while (num >= 1024 && unitIndex < units.length - 1) {
+    num /= 1024;
     unitIndex++;
   }
 
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+  return {
+    value: num.toFixed(unitIndex === 0 ? 0 : 1),
+    unit: units[unitIndex],
+  };
 }
 
 /**
