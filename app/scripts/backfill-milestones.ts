@@ -1,4 +1,3 @@
-// biome-ignore-all lint/suspicious/noConsole: CLI script requires console output
 /**
  * Backfill milestones for existing users
  *
@@ -25,8 +24,19 @@
 
 import type { MilestoneType } from "@prisma/client";
 import { PrismaClient } from "@prisma/client";
+import pino from "pino";
+import pinoPretty from "pino-pretty";
 
 const prisma = new PrismaClient();
+
+const logger = pino(
+  { level: "info" },
+  pinoPretty({
+    colorize: true,
+    translateTime: "HH:MM:ss",
+    ignore: "pid,hostname",
+  }),
+);
 
 type MilestoneToCreate = {
   userId: string;
@@ -34,7 +44,7 @@ type MilestoneToCreate = {
 };
 
 async function backfillMilestones() {
-  console.log("Starting milestone backfill...\n");
+  logger.info("Starting milestone backfill...");
 
   const milestonesToCreate: MilestoneToCreate[] = [];
 
@@ -48,7 +58,7 @@ async function backfillMilestones() {
     },
   });
 
-  console.log(`Found ${users.length} users to process\n`);
+  logger.info({ userCount: users.length }, "Found users to process");
 
   // Get existing milestones to avoid duplicates
   const existingMilestones = await prisma.userMilestone.findMany({
@@ -158,18 +168,15 @@ async function backfillMilestones() {
   }
 
   // Summary before creating
-  console.log("Milestones to create:");
   const countByType: Record<string, number> = {};
   for (const m of milestonesToCreate) {
     countByType[m.type] = (countByType[m.type] || 0) + 1;
   }
-  for (const [type, count] of Object.entries(countByType).sort()) {
-    console.log(`  ${type}: ${count}`);
-  }
-  console.log(`\nTotal: ${milestonesToCreate.length} milestones\n`);
+
+  logger.info({ countByType, total: milestonesToCreate.length }, "Milestones to create");
 
   if (milestonesToCreate.length === 0) {
-    console.log("No milestones to create. All users are up to date.");
+    logger.info("No milestones to create. All users are up to date.");
     return;
   }
 
@@ -186,15 +193,15 @@ async function backfillMilestones() {
     });
 
     created += batch.length;
-    console.log(`Progress: ${created}/${milestonesToCreate.length}`);
+    logger.info({ created, total: milestonesToCreate.length }, "Progress");
   }
 
-  console.log(`\nBackfill complete. Created ${created} milestones.`);
+  logger.info({ created }, "Backfill complete");
 }
 
 backfillMilestones()
   .catch((error) => {
-    console.error("Backfill failed:", error);
+    logger.error({ error }, "Backfill failed");
     process.exit(1);
   })
   .finally(async () => {
