@@ -8,7 +8,7 @@ type TweetEmbedProps = {
 
 export function TweetEmbed({ tweetId }: TweetEmbedProps) {
   return (
-    <div className="my-4 flex justify-center not-prose">
+    <div className="not-prose my-4 flex justify-center">
       <Tweet id={tweetId} />
     </div>
   );

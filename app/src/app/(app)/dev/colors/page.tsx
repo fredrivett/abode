@@ -118,25 +118,25 @@ const RANDOM_COLORS = [
 export default function ColorsDevPage() {
   return (
     <div className="flex-1 bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">Color Mapping Reference</h1>
-        <p className="text-gray-600 mb-8">
+      <div className="mx-auto max-w-6xl">
+        <h1 className="mb-2 font-bold text-3xl">Color Mapping Reference</h1>
+        <p className="mb-8 text-gray-600">
           This page shows how hex colors map to named colors using the
           getNearestColorName function (CIE76 deltaE).
         </p>
 
         {/* Named Colors Reference */}
         <section className="mb-12">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="mb-4 font-semibold text-xl">
             Canonical Named Colors ({Object.keys(NAMED_COLORS).length})
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {Object.entries(NAMED_COLORS)
               .filter(([name]) => name !== "grey")
               .map(([name, hex]) => (
                 <div
                   key={name}
-                  className="bg-white rounded-lg shadow-sm overflow-hidden"
+                  className="overflow-hidden rounded-lg bg-white shadow-sm"
                 >
                   <div
                     className="h-16 w-full"
@@ -144,7 +144,7 @@ export default function ColorsDevPage() {
                   />
                   <div className="p-2 text-center">
                     <div className="font-medium text-sm">{name}</div>
-                    <div className="text-xs text-gray-500">{hex}</div>
+                    <div className="text-gray-500 text-xs">{hex}</div>
                   </div>
                 </div>
               ))}
@@ -153,13 +153,13 @@ export default function ColorsDevPage() {
 
         {/* Test Colors */}
         <section className="mb-12">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="mb-4 font-semibold text-xl">
             Standard Test Colors ({TEST_COLORS.length})
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="mb-4 text-gray-600">
             Colors that are close to the named color palette.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {TEST_COLORS.map((hex) => {
               const mappedName = getNearestColorName(hex);
               const mappedHex = mappedName
@@ -168,11 +168,11 @@ export default function ColorsDevPage() {
               return (
                 <div
                   key={hex}
-                  className="bg-white rounded-lg shadow-sm overflow-hidden"
+                  className="overflow-hidden rounded-lg bg-white shadow-sm"
                 >
                   <div className="flex h-20">
                     <div
-                      className="w-1/2 flex items-center justify-center text-xs font-mono"
+                      className="flex w-1/2 items-center justify-center font-mono text-xs"
                       style={{
                         backgroundColor: hex,
                         color: isLightColor(hex) ? "#000" : "#fff",
@@ -181,7 +181,7 @@ export default function ColorsDevPage() {
                       {hex}
                     </div>
                     <div
-                      className="w-1/2 flex items-center justify-center text-xs font-mono"
+                      className="flex w-1/2 items-center justify-center font-mono text-xs"
                       style={{
                         backgroundColor: mappedHex,
                         color: isLightColor(mappedHex) ? "#000" : "#fff",
@@ -190,7 +190,7 @@ export default function ColorsDevPage() {
                       {mappedName}
                     </div>
                   </div>
-                  <div className="p-2 text-center border-t">
+                  <div className="border-t p-2 text-center">
                     <div className="text-sm">
                       <span className="font-mono">{hex}</span>
                       <span className="mx-2">→</span>
@@ -205,14 +205,14 @@ export default function ColorsDevPage() {
 
         {/* Random/Unusual Colors */}
         <section>
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="mb-4 font-semibold text-xl">
             Random/Unusual Colors ({RANDOM_COLORS.length})
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="mb-4 text-gray-600">
             Muted, desaturated, and unusual colors that don&apos;t closely match
             named colors. These test how well the algorithm handles edge cases.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {RANDOM_COLORS.map((hex) => {
               const mappedName = getNearestColorName(hex);
               const mappedHex = mappedName
@@ -221,11 +221,11 @@ export default function ColorsDevPage() {
               return (
                 <div
                   key={hex}
-                  className="bg-white rounded-lg shadow-sm overflow-hidden"
+                  className="overflow-hidden rounded-lg bg-white shadow-sm"
                 >
                   <div className="flex h-20">
                     <div
-                      className="w-1/2 flex items-center justify-center text-xs font-mono"
+                      className="flex w-1/2 items-center justify-center font-mono text-xs"
                       style={{
                         backgroundColor: hex,
                         color: isLightColor(hex) ? "#000" : "#fff",
@@ -234,7 +234,7 @@ export default function ColorsDevPage() {
                       {hex}
                     </div>
                     <div
-                      className="w-1/2 flex items-center justify-center text-xs font-mono"
+                      className="flex w-1/2 items-center justify-center font-mono text-xs"
                       style={{
                         backgroundColor: mappedHex,
                         color: isLightColor(mappedHex) ? "#000" : "#fff",
@@ -243,7 +243,7 @@ export default function ColorsDevPage() {
                       {mappedName}
                     </div>
                   </div>
-                  <div className="p-2 text-center border-t">
+                  <div className="border-t p-2 text-center">
                     <div className="text-sm">
                       <span className="font-mono">{hex}</span>
                       <span className="mx-2">→</span>

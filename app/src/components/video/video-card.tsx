@@ -68,7 +68,7 @@ export function VideoCard({
 
         {/* Duration badge (bottom-right) */}
         {duration && duration > 0 && (
-          <div className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium text-white">
+          <div className="absolute right-2 bottom-2 rounded bg-black/80 px-1.5 py-0.5 font-medium text-white text-xs">
             {formatDuration(duration)}
           </div>
         )}
@@ -76,7 +76,7 @@ export function VideoCard({
         {/* Platform badge (top-right) */}
         <div
           className={cn(
-            "absolute right-2 top-2 rounded-full p-1.5 backdrop-blur-sm",
+            "absolute top-2 right-2 rounded-full p-1.5 backdrop-blur-sm",
             platform === "youtube" ? "bg-red-600/90" : "bg-[#1ab7ea]/90",
           )}
         >
@@ -87,7 +87,7 @@ export function VideoCard({
       {/* Channel info (fixed size footer) */}
       {channelName && (
         <div className="shrink-0 p-3">
-          <p className="truncate text-left text-sm text-gray-700 dark:text-gray-300">
+          <p className="truncate text-left text-gray-700 text-sm dark:text-gray-300">
             {channelName}
           </p>
         </div>

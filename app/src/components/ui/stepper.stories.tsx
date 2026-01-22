@@ -35,8 +35,8 @@ function StepContent({
       <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
         <Icon className="size-8 text-primary" />
       </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <h3 className="font-semibold text-lg">{title}</h3>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   );
 }

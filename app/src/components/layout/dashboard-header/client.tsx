@@ -174,7 +174,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         <h1>
           <Link
             href={logoHref}
-            className="flex p-3 -m-3 opacity-50 transition-opacity hover:opacity-100"
+            className="-m-3 flex p-3 opacity-50 transition-opacity hover:opacity-100"
           >
             <span className="sr-only">abode</span>
             <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
@@ -183,9 +183,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         {showHomeLink && (
           <Link
             href={isAuthenticated ? "/dashboard" : "/"}
-            className="group/home absolute top-full left-2 mt-1 hidden items-center whitespace-nowrap pl-5 text-sm text-foreground opacity-30 transition-opacity hover:opacity-100 xl:flex"
+            className="group/home absolute top-full left-2 mt-1 hidden items-center whitespace-nowrap pl-5 text-foreground text-sm opacity-30 transition-opacity hover:opacity-100 xl:flex"
           >
-            <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
+            <ArrowUpLeft className="group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 absolute left-0 size-3.5 transition-transform group-hover/home:scale-150" />
             take me
             <span className="ml-1 transition-all group-hover/home:font-serif">
               home
@@ -236,7 +236,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     {availableInvites > 0 && (
                       <Badge
                         variant="outline"
-                        className="absolute top-0 right-0 min-w-4 h-4 px-1 py-0 text-[10px] leading-none border-muted-foreground/20 bg-muted text-muted-foreground rounded"
+                        className="absolute top-0 right-0 h-4 min-w-4 rounded border-muted-foreground/20 bg-muted px-1 py-0 text-[10px] text-muted-foreground leading-none"
                       >
                         {availableInvites}
                       </Badge>
@@ -283,12 +283,12 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                   />
                   <span className="flex flex-col items-start leading-tight">
                     {displayLine1 && (
-                      <span className="text-sm font-medium">
+                      <span className="font-medium text-sm">
                         {displayLine1}
                       </span>
                     )}
                     {displayLine2 && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-muted-foreground text-xs">
                         {displayLine2}
                       </span>
                     )}

@@ -39,14 +39,14 @@ export const Default: Story = {
         </DialogHeader>
         <DialogBody className="grid gap-4">
           <div className="grid gap-2">
-            <label className="text-sm font-medium leading-none" htmlFor="name">
+            <label className="font-medium text-sm leading-none" htmlFor="name">
               Name
             </label>
             <Input id="name" defaultValue="Aubrey Collins" />
           </div>
           <div className="grid gap-2">
             <label
-              className="text-sm font-medium leading-none"
+              className="font-medium text-sm leading-none"
               htmlFor="username"
             >
               Username
@@ -78,7 +78,7 @@ export const WithoutCloseButton: Story = {
             Take a minute to finish setting up your workspace
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="grid gap-3 text-sm text-muted-foreground">
+        <DialogBody className="grid gap-3 text-muted-foreground text-sm">
           <p>
             Invite teammates, set your notification preferences, and connect
             integrations.

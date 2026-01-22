@@ -146,12 +146,12 @@ export default async function ProfilePage({ params }: Props) {
                 className="h-24 w-24 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-3xl font-medium text-muted-foreground">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted font-medium text-3xl text-muted-foreground">
                 {(user.firstName?.[0] || user.username?.[0] || "?").toUpperCase()}
               </div>
             )}
 
-            <h1 className="mt-6 font-serif text-3xl font-semibold tracking-tight">
+            <h1 className="mt-6 font-semibold font-serif text-3xl tracking-tight">
               {displayName}
             </h1>
 
@@ -159,7 +159,7 @@ export default async function ProfilePage({ params }: Props) {
               <p className="mt-1 text-muted-foreground">@{user.username}</p>
             )}
 
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-4 text-muted-foreground text-sm">
               {user.memberNumber &&
                 `Member #${formatMemberNumber(user.memberNumber)}, since `}
               {!user.memberNumber && "Member since "}
@@ -170,7 +170,7 @@ export default async function ProfilePage({ params }: Props) {
             </p>
 
             {user.referredBy && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
                 <UserPlus className="size-4" />
                 <span>Invited by</span>
                 <ProfileTag user={user.referredBy} />
@@ -180,7 +180,7 @@ export default async function ProfilePage({ params }: Props) {
 
           {user.referrals.length > 0 && (
             <div className="mt-12">
-              <h2 className="flex items-center justify-center gap-2 font-serif text-xl font-semibold">
+              <h2 className="flex items-center justify-center gap-2 font-semibold font-serif text-xl">
                 <Users className="size-5 text-muted-foreground" />
                 Invited
               </h2>
@@ -194,7 +194,7 @@ export default async function ProfilePage({ params }: Props) {
 
           {publicRooms.length > 0 && (
             <div className="mt-12">
-              <h2 className="flex items-center justify-center gap-2 font-serif text-xl font-semibold">
+              <h2 className="flex items-center justify-center gap-2 font-semibold font-serif text-xl">
                 <DoorOpen className="size-5 text-muted-foreground" />
                 Rooms
               </h2>
@@ -206,7 +206,7 @@ export default async function ProfilePage({ params }: Props) {
                     className="flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="flex items-center gap-2 text-lg font-serif font-medium leading-none">
+                      <h3 className="flex items-center gap-2 font-medium font-serif text-lg leading-none">
                         {room.emoji && <span aria-hidden>{room.emoji}</span>}
                         {room.name}
                       </h3>
@@ -214,7 +214,7 @@ export default async function ProfilePage({ params }: Props) {
                         Public
                       </Badge>
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="mt-2 flex items-center gap-2 text-muted-foreground text-sm">
                       <span>
                         {room._count.roomItems}{" "}
                         {room._count.roomItems === 1 ? "item" : "items"}

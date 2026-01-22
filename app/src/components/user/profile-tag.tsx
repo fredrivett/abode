@@ -23,7 +23,7 @@ export function ProfileTag({ user, className }: ProfileTagProps) {
     <Link
       href={`/@${user.username}`}
       className={cn(
-        "flex items-center gap-2 rounded-lg p-2 -m-2 transition-colors hover:bg-accent/50",
+        "-m-2 flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-accent/50",
         className,
       )}
     >
@@ -36,9 +36,9 @@ export function ProfileTag({ user, className }: ProfileTagProps) {
         fallbackClassName="text-sm"
       />
       <span className="flex flex-col items-start leading-tight">
-        <span className="text-sm font-medium">{displayName}</span>
+        <span className="font-medium text-sm">{displayName}</span>
         {showUsername && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-muted-foreground text-xs">
             @{user.username}
           </span>
         )}

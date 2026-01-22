@@ -173,12 +173,12 @@ export function NewRoomForm() {
       <div className="space-y-2">
         <Link
           href="/rooms"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Back to rooms
         </Link>
-        <h1 className="text-3xl font-serif font-semibold">Create a new room</h1>
+        <h1 className="font-semibold font-serif text-3xl">Create a new room</h1>
         <p className="text-pretty text-muted-foreground">
           Dynamic or static collections for personal use or to share some of
           your home with others
@@ -240,7 +240,7 @@ export function NewRoomForm() {
                 />
                 <span className="font-medium">Static Room</span>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Hand-pick specific items to add to this room
               </p>
             </button>
@@ -264,7 +264,7 @@ export function NewRoomForm() {
                 />
                 <span className="font-medium">Dynamic Room</span>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Automatically collects items that match your filters
               </p>
             </button>
@@ -276,7 +276,7 @@ export function NewRoomForm() {
           <div className="space-y-4">
             <div>
               <Label>Filters</Label>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="mt-1 text-muted-foreground text-sm">
                 Add filters to define which items belong in this room. Items
                 matching all filters will be automatically added.
               </p>
@@ -290,7 +290,7 @@ export function NewRoomForm() {
             />
 
             {!hasFilters && (
-              <p className="text-sm text-muted-foreground italic">
+              <p className="text-muted-foreground text-sm italic">
                 Type @ to add a filter, or click the filter button on mobile
               </p>
             )}

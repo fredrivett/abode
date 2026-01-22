@@ -19,11 +19,11 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-2xl font-serif font-semibold">
+          <h2 className="flex items-center gap-2 font-semibold font-serif text-2xl">
             <DoorOpen className="size-6 text-muted-foreground" />
             Rooms
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Organize your items into dynamic or static collections
           </p>
         </div>
@@ -36,11 +36,11 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
       </div>
 
       {rooms.length === 0 ? (
-        <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+        <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
           <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
             <DoorOpen className="size-14 text-muted-foreground" />
             <div className="space-y-2">
-              <h2 className="text-3xl font-serif font-semibold">
+              <h2 className="font-semibold font-serif text-3xl">
                 No rooms yet
               </h2>
               <p className="text-base text-muted-foreground">
@@ -66,7 +66,7 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
               className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-lg font-serif font-medium leading-none">
+                <h3 className="flex items-center gap-2 font-medium font-serif text-lg leading-none">
                   {room.emoji && <span aria-hidden>{room.emoji}</span>}
                   {room.name}
                 </h3>
@@ -76,7 +76,7 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
                   </Badge>
                 )}
               </div>
-              <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="mt-2 flex items-center gap-2 text-muted-foreground text-sm">
                 <span>
                   {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
                 </span>

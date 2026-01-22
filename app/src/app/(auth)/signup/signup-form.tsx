@@ -47,13 +47,13 @@ export function SignupForm() {
 
     return (
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-semibold text-2xl tracking-tight">
           Check your email
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-gray-500 text-sm dark:text-gray-400">
           We sent a verification link to {signupState.email}
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-gray-500 text-sm dark:text-gray-400">
           Click the link in the email to complete your signup
         </p>
       </div>
@@ -71,17 +71,17 @@ export function SignupForm() {
   return (
     <>
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-semibold text-2xl tracking-tight">
           Create an account
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-gray-500 text-sm dark:text-gray-400">
           Enter your details to get started
         </p>
       </div>
 
       <form action={signupAction} className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium leading-none">
+          <label htmlFor="email" className="font-medium text-sm leading-none">
             Email
           </label>
           <input
@@ -98,12 +98,12 @@ export function SignupForm() {
         <div className="space-y-2">
           <label
             htmlFor="username"
-            className="text-sm font-medium leading-none"
+            className="font-medium text-sm leading-none"
           >
             Username
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 text-gray-400">
               @
             </span>
             <input
@@ -114,7 +114,7 @@ export function SignupForm() {
               required
               value={username}
               onChange={handleUsernameChange}
-              className={`flex h-10 w-full rounded-md border bg-white py-2 pl-7 pr-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
+              className={`flex h-10 w-full rounded-md border bg-white py-2 pr-3 pl-7 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
                 usernameStatus.type === "available"
                   ? "border-green-500 focus:ring-green-500"
                   : usernameStatus.type === "invalid" ||
@@ -127,20 +127,20 @@ export function SignupForm() {
               maxLength={15}
             />
             {usernameStatus.type === "checking" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+              <span className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 text-xs">
                 Checking
                 <LoadingEllipsis />
               </span>
             )}
             {usernameStatus.type === "available" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600">
+              <span className="-translate-y-1/2 absolute top-1/2 right-3 text-green-600 text-xs">
                 Available
               </span>
             )}
           </div>
           {(usernameStatus.type === "invalid" ||
             usernameStatus.type === "unavailable") && (
-            <p className="text-xs text-red-600">
+            <p className="text-red-600 text-xs">
               {usernameStatus.error}
               {usernameStatus.type === "unavailable" &&
                 usernameStatus.suggestion && (
@@ -164,7 +164,7 @@ export function SignupForm() {
         <div className="space-y-2">
           <label
             htmlFor="password"
-            className="text-sm font-medium leading-none"
+            className="font-medium text-sm leading-none"
           >
             Password
           </label>
@@ -188,7 +188,7 @@ export function SignupForm() {
         </Button>
       </form>
 
-      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-center text-gray-500 text-sm dark:text-gray-400">
         Already have an account?{" "}
         <a
           href="/login"

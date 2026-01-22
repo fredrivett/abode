@@ -6,16 +6,16 @@ import { XLink } from "@/components/x-link";
 export default function Home() {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <main className="flex flex-col items-center text-center px-4">
-        <h1 className="flex flex-col items-center mb-6">
+      <main className="flex flex-col items-center px-4 text-center">
+        <h1 className="mb-6 flex flex-col items-center">
           <span className="sr-only">abode</span>
           <AbodeLogo className="h-14 w-auto text-foreground" aria-hidden />
         </h1>
-        <p className="text-xl font-serif font-semibold text-muted-foreground mb-8">
+        <p className="mb-8 font-semibold font-serif text-muted-foreground text-xl">
           your digital home
         </p>
         <WaitlistForm />
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="mt-4 text-muted-foreground text-sm">
           already have an invite?{" "}
           <a
             href="/join"

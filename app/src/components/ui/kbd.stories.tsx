@@ -86,12 +86,12 @@ export const AllVariants: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Default:</span>
+        <span className="text-muted-foreground text-sm">Default:</span>
         <Kbd>⌘</Kbd>
         <Kbd>K</Kbd>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           Primary (in button):
         </span>
         <Button>

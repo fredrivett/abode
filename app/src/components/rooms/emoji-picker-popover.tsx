@@ -99,7 +99,7 @@ export function EmojiPickerPopover({
                 variant="ghost"
                 size="sm"
                 onClick={handleRemove}
-                className="h-7 shrink-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                className="h-7 shrink-0 gap-1 px-2 text-muted-foreground text-xs hover:text-foreground"
               >
                 <X className="size-3" />
                 Remove

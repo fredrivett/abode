@@ -53,12 +53,12 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: decorative hover animation
     <footer
-      className="w-full py-6 px-4 mt-auto"
+      className="mt-auto w-full px-4 py-6"
       onMouseEnter={startAnimation}
       onMouseLeave={resetAnimation}
     >
-      <div className="flex items-center justify-center gap-1 text-muted-foreground select-none opacity-50 transition-opacity duration-300 hover:opacity-100 whitespace-nowrap">
-        <span className="font-serif text-lg leading-none relative">
+      <div className="flex select-none items-center justify-center gap-1 whitespace-nowrap text-muted-foreground opacity-50 transition-opacity duration-300 hover:opacity-100">
+        <span className="relative font-serif text-lg leading-none">
           {/* Base text always visible */}
           <span className={isAnimating ? "invisible" : ""}>{TEXT}</span>
           {/* Animated overlay - only shown during animation */}
@@ -79,7 +79,7 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
         </span>
         <Link href={logoHref}>
           <AbodeLogo
-            className={`h-4 w-auto mb-[0.2em] transition-opacity duration-300 ${
+            className={`mb-[0.2em] h-4 w-auto transition-opacity duration-300 ${
               isAnimating && !showLogo ? "opacity-0" : "opacity-100"
             }`}
             aria-label="abode"

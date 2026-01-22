@@ -22,7 +22,7 @@ export const WithLabel: Story = {
   render: () => (
     <div className="flex items-center gap-2">
       <Checkbox id="terms" />
-      <Label htmlFor="terms" className="cursor-pointer text-sm font-normal">
+      <Label htmlFor="terms" className="cursor-pointer font-normal text-sm">
         Accept terms and conditions
       </Label>
     </div>
@@ -33,7 +33,7 @@ export const Checked: Story = {
   render: () => (
     <div className="flex items-center gap-2">
       <Checkbox id="checked" defaultChecked />
-      <Label htmlFor="checked" className="cursor-pointer text-sm font-normal">
+      <Label htmlFor="checked" className="cursor-pointer font-normal text-sm">
         This is checked by default
       </Label>
     </div>
@@ -47,7 +47,7 @@ export const Disabled: Story = {
         <Checkbox id="disabled-unchecked" disabled />
         <Label
           htmlFor="disabled-unchecked"
-          className="text-sm font-normal opacity-50"
+          className="font-normal text-sm opacity-50"
         >
           Disabled unchecked
         </Label>
@@ -56,7 +56,7 @@ export const Disabled: Story = {
         <Checkbox id="disabled-checked" disabled defaultChecked />
         <Label
           htmlFor="disabled-checked"
-          className="text-sm font-normal opacity-50"
+          className="font-normal text-sm opacity-50"
         >
           Disabled checked
         </Label>

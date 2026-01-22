@@ -169,8 +169,8 @@ export default async function AdminInvitesPage(props: {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Invites</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="font-semibold text-2xl tracking-tight">Invites</h2>
+            <p className="mt-1 text-muted-foreground text-sm">
               View and manage all invites across the platform.
             </p>
           </div>
@@ -180,28 +180,28 @@ export default async function AdminInvitesPage(props: {
           {/* Stats */}
           <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Pending</p>
-              <p className="text-2xl font-semibold">{pendingCount}</p>
+              <p className="text-muted-foreground text-sm">Pending</p>
+              <p className="font-semibold text-2xl">{pendingCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Accepted</p>
-              <p className="text-2xl font-semibold">{acceptedCount}</p>
+              <p className="text-muted-foreground text-sm">Accepted</p>
+              <p className="font-semibold text-2xl">{acceptedCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Expired</p>
-              <p className="text-2xl font-semibold">{expiredCount}</p>
+              <p className="text-muted-foreground text-sm">Expired</p>
+              <p className="font-semibold text-2xl">{expiredCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">From Users</p>
-              <p className="text-2xl font-semibold">{userOriginCount}</p>
+              <p className="text-muted-foreground text-sm">From Users</p>
+              <p className="font-semibold text-2xl">{userOriginCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">From Waitlist</p>
-              <p className="text-2xl font-semibold">{waitlistOriginCount}</p>
+              <p className="text-muted-foreground text-sm">From Waitlist</p>
+              <p className="font-semibold text-2xl">{waitlistOriginCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">From Admin</p>
-              <p className="text-2xl font-semibold">{adminOriginCount}</p>
+              <p className="text-muted-foreground text-sm">From Admin</p>
+              <p className="font-semibold text-2xl">{adminOriginCount}</p>
             </div>
           </div>
 
@@ -212,7 +212,7 @@ export default async function AdminInvitesPage(props: {
               method="GET"
               className="relative max-w-sm flex-1"
             >
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-muted-foreground" />
               <Input
                 type="search"
                 name="search"
@@ -229,7 +229,7 @@ export default async function AdminInvitesPage(props: {
             </form>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Status:</span>
+              <span className="text-muted-foreground text-sm">Status:</span>
               <div className="flex rounded-md border">
                 <Link
                   href={`/admin/invites?${new URLSearchParams({ search, origin: originFilter }).toString()}`}
@@ -259,7 +259,7 @@ export default async function AdminInvitesPage(props: {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Origin:</span>
+              <span className="text-muted-foreground text-sm">Origin:</span>
               <div className="flex rounded-md border">
                 <Link
                   href={`/admin/invites?${new URLSearchParams({ search, status: statusFilter === "all" ? "" : statusFilter }).toString()}`}

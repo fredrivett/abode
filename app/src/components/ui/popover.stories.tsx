@@ -33,13 +33,13 @@ export const Default: Story = {
           <h4 className="font-medium leading-none">Dimensions</h4>
           <div className="space-y-2">
             <div className="space-y-1">
-              <label htmlFor="width" className="text-sm font-medium">
+              <label htmlFor="width" className="font-medium text-sm">
                 Width
               </label>
               <Input id="width" placeholder="100" />
             </div>
             <div className="space-y-1">
-              <label htmlFor="height" className="text-sm font-medium">
+              <label htmlFor="height" className="font-medium text-sm">
                 Height
               </label>
               <Input id="height" placeholder="25" />
@@ -60,16 +60,16 @@ export const WithCustomWidth: Story = {
       <PopoverContent className="w-80">
         <div className="space-y-4">
           <h4 className="font-semibold text-sm">Preferences</h4>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Adjust your settings and preferences here.
           </p>
           <div className="space-y-2">
             <label className="flex items-center gap-2">
-              <input type="checkbox" defaultChecked className="w-4 h-4" />
+              <input type="checkbox" defaultChecked className="h-4 w-4" />
               <span className="text-sm">Enable notifications</span>
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="w-4 h-4" />
+              <input type="checkbox" className="h-4 w-4" />
               <span className="text-sm">Dark mode</span>
             </label>
           </div>
@@ -96,7 +96,7 @@ export const AlignmentTop: Story = {
 
 export const AlignmentRight: Story = {
   render: () => (
-    <div className="flex justify-center items-center min-h-64">
+    <div className="flex min-h-64 items-center justify-center">
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="secondary">Right Aligned</Button>
@@ -122,18 +122,18 @@ export const WithForm: Story = {
           <div className="space-y-4">
             <h4 className="font-medium text-sm">Add New Filter</h4>
             <div className="space-y-2">
-              <label htmlFor="filter-name" className="text-sm font-medium">
+              <label htmlFor="filter-name" className="font-medium text-sm">
                 Filter Name
               </label>
               <Input id="filter-name" placeholder="e.g., Active Users" />
             </div>
             <div className="space-y-2">
-              <label htmlFor="filter-value" className="text-sm font-medium">
+              <label htmlFor="filter-value" className="font-medium text-sm">
                 Filter Value
               </label>
               <Input id="filter-value" placeholder="e.g., status:active" />
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -165,7 +165,7 @@ export const ControlledPopover: Story = {
           >
             Toggle Popover
           </Button>
-          <span className="text-sm text-muted-foreground pt-2">
+          <span className="pt-2 text-muted-foreground text-sm">
             {open ? "Open" : "Closed"}
           </span>
         </div>

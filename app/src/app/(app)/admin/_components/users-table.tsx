@@ -98,12 +98,12 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                           ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
                           : user.email}
                         {user.isAdmin && (
-                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-[10px] text-primary">
                             Admin
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-muted-foreground text-sm">
                         {user.email}
                       </div>
                     </div>
@@ -129,7 +129,7 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Showing {(page - 1) * pagination.pageSize + 1} to{" "}
             {Math.min(page * pagination.pageSize, totalCount)} of {totalCount}{" "}
             users
@@ -153,7 +153,7 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                 </>
               )}
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               Page {page} of {totalPages}
             </span>
             <Button

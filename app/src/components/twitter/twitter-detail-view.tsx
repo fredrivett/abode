@@ -53,7 +53,7 @@ export function TwitterDetailView({
             href={profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-3 transition-opacity hover:opacity-80"
           >
             {authorAvatarUrl ? (
               // biome-ignore lint/a11y/useAltText: author avatar
@@ -70,7 +70,7 @@ export function TwitterDetailView({
               <span className="font-semibold text-gray-900 hover:underline dark:text-gray-100">
                 {authorName ?? authorUsername}
               </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-gray-500 text-sm dark:text-gray-400">
                 @{authorUsername}
               </span>
             </div>
@@ -79,7 +79,7 @@ export function TwitterDetailView({
             href={tweetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
+            className="transition-opacity hover:opacity-80"
           >
             <TwitterIcon className="size-6 text-gray-400 dark:text-gray-500" />
           </a>
@@ -87,7 +87,7 @@ export function TwitterDetailView({
 
         {/* Tweet text */}
         {text && (
-          <p className="whitespace-pre-wrap text-lg text-gray-900 dark:text-gray-100">
+          <p className="whitespace-pre-wrap text-gray-900 text-lg dark:text-gray-100">
             {parseTweetText(text)}
           </p>
         )}
@@ -153,14 +153,14 @@ export function TwitterDetailView({
               />
             )}
             <div className="p-3">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-gray-500 text-sm dark:text-gray-400">
                 {getHostname(card.url)}
               </p>
               <p className="font-medium text-gray-900 dark:text-gray-100">
                 {card.title}
               </p>
               {card.description && (
-                <p className="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                <p className="line-clamp-2 text-gray-600 text-sm dark:text-gray-300">
                   {card.description}
                 </p>
               )}
@@ -173,7 +173,7 @@ export function TwitterDetailView({
           {postedAt ? (
             <DateTime
               date={postedAt}
-              className="text-sm text-gray-500 dark:text-gray-400"
+              className="text-gray-500 text-sm dark:text-gray-400"
             />
           ) : (
             <div />

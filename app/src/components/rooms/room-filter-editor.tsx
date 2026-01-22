@@ -179,7 +179,7 @@ export function RoomFilterEditor({
           {/* Preview section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 {preview.isLoading ? (
                   <IsLoading label="Loading preview" iconClassName="size-3.5" />
                 ) : preview.total > 0 ? (
@@ -205,7 +205,7 @@ export function RoomFilterEditor({
                   ))}
                 </BalancedMasonryGrid>
                 {preview.total > PREVIEW_LIMIT && (
-                  <p className="mt-3 text-center text-sm text-muted-foreground">
+                  <p className="mt-3 text-center text-muted-foreground text-sm">
                     +{preview.total - PREVIEW_LIMIT} more items
                   </p>
                 )}
@@ -218,7 +218,7 @@ export function RoomFilterEditor({
               searchState.filters.length > 0 && (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center">
                   <SearchX className="size-8 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  <p className="mt-2 text-muted-foreground text-sm">
                     No items match these filters
                   </p>
                 </div>

@@ -182,7 +182,7 @@ function StepContent({
       <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
         <Icon className="size-8 text-primary" />
       </div>
-      <h2 className="text-pretty text-lg font-semibold leading-none">
+      <h2 className="text-pretty font-semibold text-lg leading-none">
         {title}
       </h2>
       <p className="text-pretty text-base text-muted-foreground">

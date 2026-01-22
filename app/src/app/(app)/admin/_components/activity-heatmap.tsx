@@ -36,7 +36,7 @@ export function ActivityHeatmap({ activityOverview }: ActivityHeatmapProps) {
       <CardHeader>
         <CardTitle className="text-base">
           Activity Overview (90 Days){" "}
-          <span className="text-xs font-normal text-muted-foreground">UTC</span>
+          <span className="font-normal text-muted-foreground text-xs">UTC</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -50,7 +50,7 @@ export function ActivityHeatmap({ activityOverview }: ActivityHeatmapProps) {
                   title={`${day.date}: ${day.totalActions} actions, ${day.activeUsers} users`}
                 >
                   {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded bg-popover px-2 py-1 text-xs shadow-md group-hover:block whitespace-nowrap">
+                  <div className="-translate-x-1/2 absolute bottom-full left-1/2 z-10 mb-2 hidden whitespace-nowrap rounded bg-popover px-2 py-1 text-xs shadow-md group-hover:block">
                     <div className="font-medium">{day.date}</div>
                     <div>{day.totalActions} actions</div>
                     <div>{day.activeUsers} users</div>
@@ -62,7 +62,7 @@ export function ActivityHeatmap({ activityOverview }: ActivityHeatmapProps) {
         </div>
 
         {/* Legend */}
-        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 text-muted-foreground text-xs">
           <span>Less</span>
           <div className="flex gap-1">
             <div className="size-3 rounded-sm bg-muted" />

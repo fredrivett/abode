@@ -42,7 +42,7 @@ export function ProfileStep({
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <h2 className="text-pretty text-lg font-semibold leading-none">
+      <h2 className="text-pretty font-semibold text-lg leading-none">
         Who's moving in?
       </h2>
       <p className="text-pretty text-base text-muted-foreground">

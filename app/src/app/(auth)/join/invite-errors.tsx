@@ -14,7 +14,7 @@ function InviteErrorLayout({ title, children }: InviteErrorLayoutProps) {
     <div className="flex flex-1 items-center justify-center">
       <div className="w-full max-w-sm space-y-6 px-4">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
           {children}
         </div>
       </div>
@@ -34,7 +34,7 @@ function InviterBanner({ inviter }: InviterBannerProps) {
         username={inviter.username}
         className="size-6"
       />
-      <span className="text-sm text-gray-600 dark:text-gray-300">
+      <span className="text-gray-600 text-sm dark:text-gray-300">
         invited by{" "}
         <span className="font-medium text-gray-900 dark:text-gray-100">
           @{inviter.username}
@@ -55,7 +55,7 @@ function InviteErrorActions({ primaryHref, primaryLabel }: InviteErrorActionsPro
       <Button asChild size="lg" className="w-full">
         <Link href={primaryHref}>{primaryLabel}</Link>
       </Button>
-      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-center text-gray-500 text-sm dark:text-gray-400">
         or{" "}
         <Link
           href="/join"
@@ -91,7 +91,7 @@ export function InviteExpiredError({ invite }: InviteExpiredErrorProps) {
       {invite.origin === "user" && invite.inviter && (
         <InviterBanner inviter={invite.inviter} />
       )}
-      <p className="text-sm text-gray-500 dark:text-gray-400">{getMessage()}</p>
+      <p className="text-gray-500 text-sm dark:text-gray-400">{getMessage()}</p>
       <InviteErrorActions primaryHref="/" primaryLabel="join the waitlist" />
     </InviteErrorLayout>
   );
@@ -107,7 +107,7 @@ export function InviteAlreadyUsedError({ invite }: InviteAlreadyUsedErrorProps) 
       {invite.origin === "user" && invite.inviter && (
         <InviterBanner inviter={invite.inviter} />
       )}
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-gray-500 text-sm dark:text-gray-400">
         this invite was used to create your account.
       </p>
       <InviteErrorActions primaryHref="/login" primaryLabel="login" />
@@ -118,7 +118,7 @@ export function InviteAlreadyUsedError({ invite }: InviteAlreadyUsedErrorProps) 
 export function InviteInvalidError() {
   return (
     <InviteErrorLayout title="invalid invite">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-gray-500 text-sm dark:text-gray-400">
         this invite link is invalid or doesn&apos;t exist.
       </p>
       <InviteErrorActions primaryHref="/" primaryLabel="join the waitlist" />

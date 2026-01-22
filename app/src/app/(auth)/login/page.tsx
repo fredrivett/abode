@@ -5,17 +5,17 @@ export default function LoginPage() {
     <div className="flex flex-1 items-center justify-center">
       <div className="w-full max-w-sm space-y-6 px-4">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-semibold text-2xl tracking-tight">
             Welcome back
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-gray-500 text-sm dark:text-gray-400">
             Sign in to your account
           </p>
         </div>
 
         <LoginForm />
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center text-gray-500 text-sm dark:text-gray-400">
           have an invite?{" "}
           <a
             href="/join"

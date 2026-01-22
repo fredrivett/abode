@@ -52,7 +52,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
       <input type="hidden" name="inviteToken" value={inviteToken || ""} />
 
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium leading-none">
+        <label htmlFor="email" className="font-medium text-sm leading-none">
           email
         </label>
         <input
@@ -62,16 +62,16 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
           value={email}
           readOnly
           disabled
-          className="flex h-10 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+          className="flex h-10 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-500 text-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
         />
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="username" className="text-sm font-medium leading-none">
+        <label htmlFor="username" className="font-medium text-sm leading-none">
           username
         </label>
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <span className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 text-gray-400">
             @
           </span>
           <input
@@ -82,7 +82,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
             required
             value={username}
             onChange={handleUsernameChange}
-            className={`flex h-10 w-full rounded-md border bg-white py-2 pl-7 pr-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
+            className={`flex h-10 w-full rounded-md border bg-white py-2 pr-3 pl-7 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
               usernameStatus.type === "available"
                 ? "border-green-500 focus:ring-green-500"
                 : usernameStatus.type === "invalid" ||
@@ -95,20 +95,20 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
             maxLength={15}
           />
           {usernameStatus.type === "checking" && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+            <span className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 text-xs">
               checking
               <LoadingEllipsis />
             </span>
           )}
           {usernameStatus.type === "available" && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600">
+            <span className="-translate-y-1/2 absolute top-1/2 right-3 text-green-600 text-xs">
               available
             </span>
           )}
         </div>
         {(usernameStatus.type === "invalid" ||
           usernameStatus.type === "unavailable") && (
-          <p className="text-xs text-red-600">
+          <p className="text-red-600 text-xs">
             {usernameStatus.error}
             {usernameStatus.type === "unavailable" &&
               usernameStatus.suggestion && (

@@ -285,7 +285,7 @@ export function ShareRoomDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Share{" "}
-            <Badge variant="outline" className="text-sm font-semibold">
+            <Badge variant="outline" className="font-semibold text-sm">
               {room.emoji && <span>{room.emoji}</span>}
               {room.name}
             </Badge>
@@ -297,7 +297,7 @@ export function ShareRoomDialog({
 
         <DialogBody>
           {!isPublic ? (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <p>This room is private. Make it public to enable embedding.</p>
             </div>
@@ -327,7 +327,7 @@ export function ShareRoomDialog({
                     />
                     <div>
                       <div className="font-medium">Badge</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         Simple link pill
                       </div>
                     </div>
@@ -352,7 +352,7 @@ export function ShareRoomDialog({
                     />
                     <div>
                       <div className="font-medium">Preview</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         Card with thumbnails
                       </div>
                     </div>
@@ -390,7 +390,7 @@ export function ShareRoomDialog({
                   />
                   <Label
                     htmlFor="show-emoji"
-                    className="cursor-pointer text-sm font-normal"
+                    className="cursor-pointer font-normal text-sm"
                   >
                     Include emoji
                   </Label>
@@ -408,7 +408,7 @@ export function ShareRoomDialog({
                     onChange={(e) => setCustomText(e.target.value)}
                     placeholder={room.name}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Leave empty to show the room name. Useful for inline text
                     like &quot;check out my room&quot;.
                   </p>
@@ -427,7 +427,7 @@ export function ShareRoomDialog({
                   />
                   <Label
                     htmlFor="show-emoji-preview"
-                    className="cursor-pointer text-sm font-normal"
+                    className="cursor-pointer font-normal text-sm"
                   >
                     Include emoji
                   </Label>
@@ -469,7 +469,7 @@ export function ShareRoomDialog({
                     onChange={(e) => setFontSize(Number(e.target.value))}
                     className="w-16"
                   />
-                  <span className="text-sm text-muted-foreground">px</span>
+                  <span className="text-muted-foreground text-sm">px</span>
                   <div className="ml-3 flex items-center gap-2">
                     <Checkbox
                       id="include-font-size"
@@ -480,7 +480,7 @@ export function ShareRoomDialog({
                     />
                     <Label
                       htmlFor="include-font-size"
-                      className="cursor-pointer text-sm font-normal"
+                      className="cursor-pointer font-normal text-sm"
                     >
                       Include in embed code
                     </Label>
@@ -495,7 +495,7 @@ export function ShareRoomDialog({
                     </Tooltip>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Adjust to preview how the widget scales. Check the box to lock
                   the font size in the embed code.
                 </p>

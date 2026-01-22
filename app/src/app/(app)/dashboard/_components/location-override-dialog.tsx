@@ -82,7 +82,7 @@ export function LocationOverrideDialog({
         >
           {hasExistingLocation && (
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <h4 className="font-medium text-sm text-zinc-700 dark:text-zinc-300">
                 Current Location
               </h4>
               <LocationPreview location={existingLocation} />
@@ -90,7 +90,7 @@ export function LocationOverrideDialog({
           )}
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <h4 className="font-medium text-sm text-zinc-700 dark:text-zinc-300">
               New Location
             </h4>
             <LocationPreview

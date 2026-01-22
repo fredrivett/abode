@@ -666,7 +666,7 @@ export function CommandPalette() {
                 >
                   <Palette className="size-4" />
                   <span>Change theme</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="ml-auto text-muted-foreground text-xs">
                     {themeLabels[currentTheme]}
                   </span>
                 </CommandItem>
@@ -690,7 +690,7 @@ export function CommandPalette() {
                         <RoomIcon className="size-4 text-muted-foreground" />
                       )}
                       <span>{room.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
+                      <span className="ml-auto text-muted-foreground text-xs">
                         {room.itemCount} item{room.itemCount !== 1 ? "s" : ""}
                       </span>
                     </CommandItem>
