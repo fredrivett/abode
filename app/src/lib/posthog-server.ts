@@ -1,5 +1,6 @@
 import { PostHog } from "posthog-node";
 import { isDevelopment } from "@/env";
+import { env } from "@/env.server";
 
 let posthogClient: PostHog | null = null;
 
@@ -10,8 +11,13 @@ export function getPostHogClient() {
   }
 
   if (!posthogClient) {
-    posthogClient = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    const key = env.NEXT_PUBLIC_POSTHOG_KEY;
+    if (!key) {
+      return null;
+    }
+
+    posthogClient = new PostHog(key, {
+      host: env.NEXT_PUBLIC_POSTHOG_HOST,
       // Because server-side functions in Next.js can be short-lived,
       // we set flushAt to 1 and flushInterval to 0 to ensure events are sent immediately
       flushAt: 1,

@@ -7,20 +7,15 @@
 import "server-only";
 
 import { z } from "zod";
+import { clientEnvSchema } from "./env";
 
-const envSchema = z.object({
+// Server-only env vars (secrets that should never be exposed to the client)
+const serverEnvSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
   READ_REPLICA_DATABASE_URL: z.string().optional(),
 
-  // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z
-    .string()
-    .min(1)
-    .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
-      message: "Must be a valid URL",
-    }),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  // Supabase (server-only)
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
   // Email
@@ -37,6 +32,21 @@ const envSchema = z.object({
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
 });
+
+// Merge client schema (NEXT_PUBLIC_* vars) with server schema
+// On the server, client vars are required (not optional like on client)
+const envSchema = serverEnvSchema.merge(
+  clientEnvSchema.extend({
+    // Override to make these required on the server
+    NEXT_PUBLIC_SUPABASE_URL: z
+      .string()
+      .min(1)
+      .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
+        message: "Must be a valid URL",
+      }),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  }),
+);
 
 // Skip validation during unit tests - they don't need real env vars
 // Integration tests that need the database should set these vars
