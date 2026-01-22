@@ -80,7 +80,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
       ref={headingRef}
       id={id}
       className={cn(
-        "group relative -mx-2.5 -my-1.5 rounded-md px-2.5 py-1.5 transition-all duration-500",
+        "group relative -mx-2.5 -my-1.5 scroll-mt-20 rounded-md px-2.5 py-1.5 transition-all duration-500",
         isHighlighted && "scale-[1.075] bg-muted shadow-xl",
       )}
     >
