@@ -115,62 +115,62 @@ export function ItemsGrid({
             style={{ overflow: "visible !important" }}
           >
             {items.map((item) => {
-            const meta = item.meta || {};
-            const isArticle = item.kind === "article";
-            const isTwitter = item.kind === "twitter";
-            const isProcessingUrl =
-              item.sourceType === "url" &&
-              item.processingStatus === "processing";
+              const meta = item.meta || {};
+              const isArticle = item.kind === "article";
+              const isTwitter = item.kind === "twitter";
+              const isProcessingUrl =
+                item.sourceType === "url" &&
+                item.processingStatus === "processing";
 
-            // Derive display name - item.title is the single source of truth
-            let name: string;
-            if (isProcessingUrl && item.sourceUrl) {
-              // For processing URLs, show the domain as the name
-              try {
-                name = new URL(item.sourceUrl).hostname;
-              } catch {
-                name = "Processing URL";
+              // Derive display name - item.title is the single source of truth
+              let name: string;
+              if (isProcessingUrl && item.sourceUrl) {
+                // For processing URLs, show the domain as the name
+                try {
+                  name = new URL(item.sourceUrl).hostname;
+                } catch {
+                  name = "Processing URL";
+                }
+              } else {
+                name = item.title ?? "Untitled";
               }
-            } else {
-              name = item.title ?? "Untitled";
-            }
 
-            const size = formatBytes(meta.size as number | undefined);
-            const mimeType = meta.type as string | undefined;
+              const size = formatBytes(meta.size as number | undefined);
+              const mimeType = meta.type as string | undefined;
 
-            // Calculate aspect ratio based on item type
-            // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
-            // - Articles and processing URLs: 16:9
-            // - Images: actual dimensions or 3:4 default
-            let width: number;
-            let height: number;
-            if (isTwitter) {
-              const hasVisualContent =
-                item.twitterDetails?.media?.length ||
-                item.twitterDetails?.card?.imageUrl;
-              width = 16;
-              height = hasVisualContent ? 18 : 12;
-            } else if (isArticle || isProcessingUrl) {
-              width = 16;
-              height = 9;
-            } else {
-              width = (meta.width as number | undefined) ?? 3;
-              height = (meta.height as number | undefined) ?? 4;
-            }
+              // Calculate aspect ratio based on item type
+              // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
+              // - Articles and processing URLs: 16:9
+              // - Images: actual dimensions or 3:4 default
+              let width: number;
+              let height: number;
+              if (isTwitter) {
+                const hasVisualContent =
+                  item.twitterDetails?.media?.length ||
+                  item.twitterDetails?.card?.imageUrl;
+                width = 16;
+                height = hasVisualContent ? 18 : 12;
+              } else if (isArticle || isProcessingUrl) {
+                width = 16;
+                height = 9;
+              } else {
+                width = (meta.width as number | undefined) ?? 3;
+                height = (meta.height as number | undefined) ?? 4;
+              }
 
-            return (
-              <Frame key={item.id} width={width} height={height}>
-                <div className="h-full">
-                  <ItemCard
-                    item={item}
-                    name={name}
-                    size={size}
-                    mimeType={mimeType}
-                  />
-                </div>
-              </Frame>
-            );
-          })}
+              return (
+                <Frame key={item.id} width={width} height={height}>
+                  <div className="h-full">
+                    <ItemCard
+                      item={item}
+                      name={name}
+                      size={size}
+                      mimeType={mimeType}
+                    />
+                  </div>
+                </Frame>
+              );
+            })}
           </BalancedMasonryGrid>
         </div>
       )}
@@ -185,13 +185,19 @@ export function ItemsGrid({
               className="text-muted-foreground"
             />
           )}
-          {!hasMore && items.length > 0 && total !== undefined && (hasActiveSearch || total > DEFAULT_PAGE_SIZE) && (
-            <span className="text-muted-foreground/50 text-sm italic">
-              {hasActiveSearch
-                ? `Showing ${total > 1 ? "all " : ""}${total} ${total === 1 ? "result" : "results"}`
-                : `Showing all ${total} items`}
-            </span>
-          )}
+          {!hasMore &&
+            items.length > 0 &&
+            total !== undefined &&
+            (hasActiveSearch || total > DEFAULT_PAGE_SIZE) && (
+              <div className="text-center font-serif text-muted-foreground/50 text-base italic">
+                {hasActiveSearch
+                  ? `Showing ${total > 1 ? "all " : ""}${total} ${total === 1 ? "result" : "results"}`
+                  : `Showing all ${total} items`}
+                <div className="cursor-default mt-6 text-2xl text-muted-foreground/25">
+                  ~~~
+                </div>
+              </div>
+            )}
         </div>
       )}
     </div>
