@@ -41,6 +41,7 @@ export function TwitterCard({
       {previewImage ? (
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
           {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
+          {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
             src={previewImage}
             className="h-full w-full object-cover"
@@ -75,6 +76,7 @@ export function TwitterCard({
         <div className="flex items-center gap-2">
           {authorAvatarUrl ? (
             // biome-ignore lint/a11y/useAltText: decorative avatar
+            // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
             <img
               src={authorAvatarUrl}
               className="size-5 shrink-0 rounded-full"

@@ -426,21 +426,21 @@ describe("hexToLab", () => {
       const lab = hexToLab("#FF0000");
       expect(lab).not.toBeNull();
       // Red in LAB: L ~53, a ~80, b ~67
-      expect(lab!.l).toBeCloseTo(53.23, 0);
-      expect(lab!.a).toBeCloseTo(80.11, 0);
-      expect(lab!.b).toBeCloseTo(67.22, 0);
+      expect(lab?.l).toBeCloseTo(53.23, 0);
+      expect(lab?.a).toBeCloseTo(80.11, 0);
+      expect(lab?.b).toBeCloseTo(67.22, 0);
     });
 
     it("handles named colors", () => {
       const lab = hexToLab("red");
       expect(lab).not.toBeNull();
-      expect(lab!.l).toBeCloseTo(53.23, 0);
+      expect(lab?.l).toBeCloseTo(53.23, 0);
     });
 
     it("handles 3-char hex", () => {
       const lab = hexToLab("#f00");
       expect(lab).not.toBeNull();
-      expect(lab!.l).toBeCloseTo(53.23, 0);
+      expect(lab?.l).toBeCloseTo(53.23, 0);
     });
   });
 
@@ -461,10 +461,11 @@ describe("hexToLab", () => {
       expect(rgb).not.toBeNull();
       expect(labDirect).not.toBeNull();
 
+      // biome-ignore lint/style/noNonNullAssertion: verified not null above
       const labManual = rgbToLab(rgb!);
-      expect(labDirect!.l).toBeCloseTo(labManual.l, 10);
-      expect(labDirect!.a).toBeCloseTo(labManual.a, 10);
-      expect(labDirect!.b).toBeCloseTo(labManual.b, 10);
+      expect(labDirect?.l).toBeCloseTo(labManual.l, 10);
+      expect(labDirect?.a).toBeCloseTo(labManual.a, 10);
+      expect(labDirect?.b).toBeCloseTo(labManual.b, 10);
     });
   });
 });

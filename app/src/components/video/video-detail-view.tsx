@@ -83,6 +83,7 @@ export function VideoDetailView({
             >
               {thumbnailUrl ? (
                 // biome-ignore lint/a11y/useAltText: decorative video thumbnail
+                // biome-ignore lint/performance/noImgElement: external video thumbnail URL
                 <img
                   src={thumbnailUrl}
                   className="h-full w-full object-cover"

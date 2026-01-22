@@ -57,6 +57,7 @@ export function TwitterDetailView({
           >
             {authorAvatarUrl ? (
               // biome-ignore lint/a11y/useAltText: author avatar
+              // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
               <img
                 src={authorAvatarUrl}
                 className="size-12 rounded-full"
@@ -122,6 +123,7 @@ export function TwitterDetailView({
                   </video>
                 ) : (
                   // biome-ignore lint/a11y/useAltText: tweet media
+                  // biome-ignore lint/performance/noImgElement: external Twitter media URL
                   <img
                     src={item.url}
                     className="h-full w-full object-cover"
@@ -143,6 +145,7 @@ export function TwitterDetailView({
           >
             {card.imageUrl && (
               // biome-ignore lint/a11y/useAltText: link card preview
+              // biome-ignore lint/performance/noImgElement: external link card URL
               <img
                 src={card.imageUrl}
                 className="aspect-video w-full object-cover"
