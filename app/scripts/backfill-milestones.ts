@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noConsole: CLI script requires console output
 /**
  * Backfill milestones for existing users
  *

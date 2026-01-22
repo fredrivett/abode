@@ -2,6 +2,7 @@
 
 import type { MilestoneType } from "@prisma/client";
 import { ListTodo, UserRoundCheck } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -84,7 +85,7 @@ export function ChecklistPopover() {
               {pendingCount > 0 && (
                 <Badge
                   variant="outline"
-                  className="absolute top-0 right-0 min-w-4 h-4 px-1 py-0 text-[10px] leading-none border-muted-foreground/20 bg-muted text-muted-foreground rounded"
+                  className="absolute top-0 right-0 h-4 min-w-4 rounded border-muted-foreground/20 bg-muted px-1 py-0 text-[10px] text-muted-foreground leading-none"
                 >
                   {pendingCount}
                 </Badge>
@@ -102,17 +103,17 @@ export function ChecklistPopover() {
       </Tooltip>
 
       <PopoverContent align="end" className="w-72 p-2">
-        <div className="mb-2 px-2 py-1 flex items-center gap-3">
+        <div className="mb-2 flex items-center gap-3 px-2 py-1">
           <UserRoundCheck className="size-4 shrink-0 text-muted-foreground" />
-          <h3 className="text-sm font-medium">Get started</h3>
+          <h3 className="font-medium text-sm">Get started</h3>
         </div>
 
-        <p className="mb-2 px-2 text-xs text-muted-foreground">
+        <p className="mb-2 px-2 text-muted-foreground text-xs">
           Welcome home. There's a lot to explore. Here's a few options to get
           started, complete them at your own pace, make yourself at home.
         </p>
 
-        <p className="mb-2 px-2 text-xs text-muted-foreground">
+        <p className="mb-2 px-2 text-muted-foreground text-xs">
           If you're ever confused, you've got my email:{" "}
           <a href="mailto:fred@abode.fyi" className="underline">
             fred@abode.fyi
@@ -120,12 +121,14 @@ export function ChecklistPopover() {
           , feel free to say hi anytime.
         </p>
 
-        <p className="mb-3 px-2 text-xs text-muted-foreground flex items-center gap-1.5">
+        <p className="mb-3 flex items-center gap-1.5 px-2 text-muted-foreground text-xs">
           <span>—</span>
           <Link href="/@fr" className="shrink-0">
-            <img
+            <Image
               src="/avatars/fr.jpg"
               alt="Fred Rivett's avatar"
+              width={16}
+              height={16}
               className="size-4 rounded-full"
             />
           </Link>
@@ -157,7 +160,7 @@ export function ChecklistPopover() {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 px-2 py-1.5 animate-pulse"
+                  className="flex animate-pulse items-center gap-3 px-2 py-1.5"
                 >
                   <div className="size-4 shrink-0 rounded-full bg-muted" />
                   <div
