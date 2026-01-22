@@ -149,6 +149,9 @@ export async function getMilestoneStatus(
  * Mark a milestone as complete for a user.
  * This is idempotent - calling it multiple times for the same milestone has no effect.
  * Errors are logged but not thrown to avoid breaking the main flow.
+ *
+ * Note: This upsert runs on every trigger (e.g., every item view for see_ai_analysis).
+ * At 50K+ DAU, consider optimizing with read-first or caching to reduce write load.
  */
 export async function markMilestoneComplete(
   userId: string,
@@ -164,17 +167,4 @@ export async function markMilestoneComplete(
     // Log but don't rethrow - milestone tracking should never break main flow
     logger.error({ err, userId, type }, `Failed to mark milestone ${type}`);
   }
-}
-
-/**
- * Check if a user has completed a specific milestone
- */
-export async function hasMilestoneCompleted(
-  userId: string,
-  type: MilestoneType,
-): Promise<boolean> {
-  const milestone = await db.userMilestone.findUnique({
-    where: { userId_type: { userId, type } },
-  });
-  return milestone !== null;
 }

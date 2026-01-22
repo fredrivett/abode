@@ -262,16 +262,22 @@ export function ShareRoomDialog({
   const { completed, markComplete } = useMilestoneStore();
   useEffect(() => {
     if (open && isPublic && !completed.includes("share_room")) {
-      markComplete("share_room");
       fetch("/api/v1/user/milestones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "share_room" }),
-      }).catch(() => {
-        // Silently fail - milestone tracking should not break main flow
-      });
+      })
+        .then((res) => {
+          if (res.ok) {
+            markComplete("share_room");
+          }
+        })
+        .catch(() => {
+          // Silently fail - milestone tracking should not break main flow
+        });
     }
   }, [open, isPublic, completed, markComplete]);
+
   const hasFilters = (room.filters?.length ?? 0) > 0;
   const hasEmoji = !!room.emoji;
   const embedCode = generateEmbedCode(room.id, {

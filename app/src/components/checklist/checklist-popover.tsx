@@ -124,8 +124,8 @@ export function ChecklistPopover() {
           <span>—</span>
           <Link href="/@fr" className="shrink-0">
             <img
-              src="https://unavatar.io/x/fredrivett"
-              alt=""
+              src="/avatars/fr.jpg"
+              alt="Fred Rivett's avatar"
               className="size-4 rounded-full"
             />
           </Link>
