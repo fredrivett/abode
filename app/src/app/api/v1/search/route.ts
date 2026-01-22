@@ -2,6 +2,7 @@ import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
@@ -345,6 +346,9 @@ export async function GET(request: NextRequest) {
           duration_ms: Date.now() - startTime,
         },
       });
+
+      // Mark milestone for searching items
+      void markMilestoneComplete(user.id, "search_items");
     }
 
     const response: SearchResponse = {

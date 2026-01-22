@@ -3,6 +3,7 @@ import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/profile");
@@ -88,6 +89,7 @@ export async function PATCH(request: NextRequest) {
       select: {
         firstName: true,
         lastName: true,
+        avatarUrl: true,
       },
     });
 
@@ -95,6 +97,12 @@ export async function PATCH(request: NextRequest) {
     void logActivity(user.id, "user_update", {
       fields: ["firstName", "lastName"],
     });
+
+    // Check if profile is now complete: (firstName OR lastName) AND avatarUrl
+    const hasName = updatedUser.firstName || updatedUser.lastName;
+    if (hasName && updatedUser.avatarUrl) {
+      void markMilestoneComplete(user.id, "complete_profile");
+    }
 
     return NextResponse.json(updatedUser);
   } catch (error) {

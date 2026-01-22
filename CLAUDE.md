@@ -148,6 +148,7 @@ bun run prisma:migrate --name your_migration_name
 ## Critical Rules
 
 - **ALWAYS generate migrations from the schema** - Never hand-write migration SQL files. Prisma generates migrations by comparing your schema to the database state.
+- **Never edit existing migrations** - Migrations are immutable once created. If you need additional database changes, create a NEW migration. Editing existing migrations breaks the migration chain and causes conflicts.
 - **Never use `prisma migrate reset`** - This destroys all data
 - **Never use `prisma db push`** - This bypasses migration history and can cause drift
 - **Never manually create migration folders/files** - The `prisma:migrate` command creates properly timestamped folders and SQL files

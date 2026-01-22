@@ -16,6 +16,7 @@ import { useEffect } from "react";
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
 import { UserAvatar } from "@/components/avatar/user-avatar";
+import { ChecklistPopover } from "@/components/checklist";
 import { SearchInput } from "@/components/search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -252,6 +253,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </span>
               </TooltipContent>
             </Tooltip>
+            <ChecklistPopover />
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

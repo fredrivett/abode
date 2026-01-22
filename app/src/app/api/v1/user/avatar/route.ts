@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
@@ -104,16 +105,26 @@ export async function POST(request: NextRequest) {
       "Avatar upload - URLs generated",
     );
 
-    // Update user record
-    await db.user.update({
+    // Update user record and get name fields for milestone check
+    const updatedUser = await db.user.update({
       where: { id: user.id },
       data: {
         avatarUrl: avatarUrlWithCacheBust,
         avatarSource: "upload",
       },
+      select: {
+        firstName: true,
+        lastName: true,
+      },
     });
 
     log.info({ userId: user.id }, "Avatar uploaded successfully");
+
+    // Check if profile is now complete: (firstName OR lastName) AND avatarUrl
+    const hasName = updatedUser.firstName || updatedUser.lastName;
+    if (hasName) {
+      void markMilestoneComplete(user.id, "complete_profile");
+    }
 
     return NextResponse.json({ avatarUrl: avatarUrlWithCacheBust });
   } catch (error) {
