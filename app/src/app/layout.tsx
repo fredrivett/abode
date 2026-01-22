@@ -89,7 +89,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >
         <QueryProvider>
-          <div className="flex flex-1 flex-col">{children}</div>
+          <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
           <Suspense>
             <CommandPalette />
           </Suspense>
