@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
+import { isDevelopment } from "@/env";
 import { QueryProvider } from "@/lib/query-client";
 
 const geistSans = Geist({
@@ -69,7 +70,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {process.env.NODE_ENV === "development" && (
+        {isDevelopment && (
           <>
             <Script
               src="//unpkg.com/react-grab@0.0.88/dist/index.global.js"
@@ -85,10 +86,10 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >
         <QueryProvider>
-          <div className="flex flex-col flex-1">{children}</div>
+          <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
           <Suspense>
             <CommandPalette />
           </Suspense>

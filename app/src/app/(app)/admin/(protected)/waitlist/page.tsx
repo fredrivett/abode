@@ -106,8 +106,8 @@ export default async function AdminWaitlistPage(props: {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Waitlist</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="font-semibold text-2xl tracking-tight">Waitlist</h2>
+            <p className="mt-1 text-muted-foreground text-sm">
               Manage waitlist entries and send invites.
             </p>
           </div>
@@ -117,16 +117,16 @@ export default async function AdminWaitlistPage(props: {
           {/* Stats */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Waiting</p>
-              <p className="text-2xl font-semibold">{waitingCount}</p>
+              <p className="text-muted-foreground text-sm">Waiting</p>
+              <p className="font-semibold text-2xl">{waitingCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Invited</p>
-              <p className="text-2xl font-semibold">{invitedCount}</p>
+              <p className="text-muted-foreground text-sm">Invited</p>
+              <p className="font-semibold text-2xl">{invitedCount}</p>
             </div>
             <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">Joined</p>
-              <p className="text-2xl font-semibold">{joinedCount}</p>
+              <p className="text-muted-foreground text-sm">Joined</p>
+              <p className="font-semibold text-2xl">{joinedCount}</p>
             </div>
           </div>
 

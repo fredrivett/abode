@@ -113,11 +113,11 @@ export function ProfileSettings({
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-xl font-semibold">
+      <h3 className="flex items-center gap-2 font-semibold text-xl">
         <User className="size-5 text-muted-foreground" />
         Profile
       </h3>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-muted-foreground text-sm">
         Your avatar and name appear in shared or public rooms.
       </p>
 
@@ -171,11 +171,11 @@ export function ProfileSettings({
               )}
             </div>
             {pendingEmail ? (
-              <p className="text-xs text-amber-600">
+              <p className="text-amber-600 text-xs">
                 Pending verification — check your inbox
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Changing your email requires verification from both addresses.
               </p>
             )}

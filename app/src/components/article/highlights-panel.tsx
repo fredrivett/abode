@@ -47,8 +47,8 @@ export function HighlightsPanel({
   return (
     <Accordion type="single" collapsible>
       <AccordionItem value="highlights" className="border-b-0">
-        <AccordionTrigger className="py-0 hover:no-underline cursor-pointer">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <AccordionTrigger className="cursor-pointer py-0 hover:no-underline">
+          <span className="font-semibold text-gray-700 text-sm dark:text-gray-300">
             Highlights ({highlights.length})
           </span>
         </AccordionTrigger>
@@ -56,11 +56,11 @@ export function HighlightsPanel({
           {highlights.length === 0 ? (
             <Card className="mt-2 py-4">
               <CardContent className="text-center">
-                <Highlighter className="size-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
+                <Highlighter className="mx-auto mb-2 size-8 text-muted-foreground/50" />
+                <p className="text-muted-foreground text-sm">
                   No highlights yet
                 </p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
+                <p className="mt-1 text-muted-foreground/70 text-xs">
                   Select text to create a highlight
                 </p>
               </CardContent>
@@ -124,12 +124,12 @@ function HighlightCard({
   return (
     <button
       type="button"
-      className="group w-full text-left p-3 rounded-md border border-border hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10 transition-colors cursor-pointer"
+      className="group w-full cursor-pointer rounded-md border border-border p-3 text-left transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10"
       onClick={onClick}
       onMouseLeave={() => setConfirmDelete(false)}
     >
       <div className="flex items-start justify-between gap-2">
-        <blockquote className="text-sm border-l-2 border-yellow-400 pl-2 italic text-foreground/80 flex-1">
+        <blockquote className="flex-1 border-yellow-400 border-l-2 pl-2 text-foreground/80 text-sm italic">
           "{displayText}"
         </blockquote>
 
@@ -139,8 +139,8 @@ function HighlightCard({
             size={confirmDelete ? "sm" : "icon"}
             className={
               confirmDelete
-                ? "gap-1 text-destructive hover:text-destructive shrink-0"
-                : "size-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                ? "shrink-0 gap-1 text-destructive hover:text-destructive"
+                : "size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
             }
             onClick={handleDeleteClick}
             disabled={isDeleting}
@@ -152,7 +152,7 @@ function HighlightCard({
       </div>
 
       {highlight.note && (
-        <p className="text-xs text-muted-foreground mt-2 pl-2">
+        <p className="mt-2 pl-2 text-muted-foreground text-xs">
           {highlight.note}
         </p>
       )}

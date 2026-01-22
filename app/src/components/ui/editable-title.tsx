@@ -171,7 +171,7 @@ export function EditableTitle({
     return (
       <div
         className={cn(
-          "group relative -mx-2.5 -my-1.5 w-full",
+          "group -mx-2.5 -my-1.5 relative w-full",
           isEditing || isSaving || pending ? "mr-0" : "hover:mr-0",
         )}
       >
@@ -195,11 +195,11 @@ export function EditableTitle({
 
         {/* Absolutely positioned icons - top aligned for multiline */}
         {isSaving || pending ? (
-          <Loader2 className="absolute right-2.5 top-3.5 size-4 animate-spin text-muted-foreground" />
+          <Loader2 className="absolute top-3.5 right-2.5 size-4 animate-spin text-muted-foreground" />
         ) : (
           <PenLine
             className={cn(
-              "absolute right-2.5 top-3.5 size-4 text-muted-foreground pointer-events-none transition-opacity duration-150",
+              "pointer-events-none absolute top-3.5 right-2.5 size-4 text-muted-foreground transition-opacity duration-150",
               isEditing ? "opacity-0" : "opacity-0 group-hover:opacity-100",
             )}
           />
@@ -212,7 +212,7 @@ export function EditableTitle({
   return (
     <div
       className={cn(
-        "group relative inline-block -mx-2.5 -my-1.5 max-w-full",
+        "group -mx-2.5 -my-1.5 relative inline-block max-w-full",
         isEditing || isSaving || pending ? "mr-0" : "hover:mr-0",
       )}
     >
@@ -221,7 +221,7 @@ export function EditableTitle({
         ref={measurementRef}
         className={cn(
           textClasses,
-          "pointer-events-none absolute opacity-0 whitespace-pre -z-10",
+          "-z-10 pointer-events-none absolute whitespace-pre opacity-0",
         )}
         aria-hidden="true"
       >
@@ -249,11 +249,11 @@ export function EditableTitle({
 
       {/* Absolutely positioned icons */}
       {isSaving || pending ? (
-        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+        <Loader2 className="-translate-y-1/2 absolute top-1/2 right-2.5 size-4 animate-spin text-muted-foreground" />
       ) : (
         <PenLine
           className={cn(
-            "absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none transition-opacity duration-150",
+            "-translate-y-1/2 pointer-events-none absolute top-1/2 right-2.5 size-4 text-muted-foreground transition-opacity duration-150",
             isEditing ? "opacity-0" : "opacity-0 group-hover:opacity-100",
           )}
         />

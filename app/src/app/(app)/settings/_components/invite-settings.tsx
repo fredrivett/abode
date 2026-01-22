@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, Clock, Mail, Trash2, X } from "lucide-react";
+import { Check, Clock, Handshake, Mail, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -138,8 +138,11 @@ export function InviteSettings({
   return (
     <>
       <section className="rounded-xl border p-6">
-        <h3 className="text-lg font-semibold">Invites</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h3 className="flex items-center gap-2 font-semibold text-xl">
+          <Handshake className="size-5 text-muted-foreground" />
+          Invites
+        </h3>
+        <p className="mt-1 font-mono text-muted-foreground text-sm">
           Invite friends to join abode. You have{" "}
           <span className="font-medium text-foreground">
             {availableInvites}
@@ -170,14 +173,14 @@ export function InviteSettings({
             </div>
           </form>
         ) : (
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 text-muted-foreground text-sm">
             You've used all your invites. Thanks for spreading the word!
           </p>
         )}
       </section>
 
       <div className="mt-6">
-        <h4 className="text-sm font-medium text-muted-foreground mb-3">
+        <h4 className="mb-3 font-medium text-muted-foreground text-sm">
           Sent invites
         </h4>
         {invites.length > 0 ? (
@@ -191,7 +194,7 @@ export function InviteSettings({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg">
+          <p className="rounded-lg border py-4 text-center text-muted-foreground text-sm">
             No invites sent yet
           </p>
         )}
@@ -260,7 +263,7 @@ function InviteRow({
         <span className="text-sm">{invite.email}</span>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           {statusIcon[invite.status]}
           <span>{getStatusText()}</span>
         </div>

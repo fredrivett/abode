@@ -98,7 +98,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label htmlFor="roomName" className="text-sm font-medium">
+              <label htmlFor="roomName" className="font-medium text-sm">
                 Room name
               </label>
               <div className="flex items-center gap-2">
@@ -119,12 +119,12 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-medium">Visibility</span>
+              <span className="font-medium text-sm">Visibility</span>
               <VisibilityToggle value={visibility} onChange={setVisibility} />
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-medium">Filters</span>
+              <span className="font-medium text-sm">Filters</span>
               <div className="flex flex-wrap gap-1.5 rounded-md bg-muted/50 p-3">
                 <FilterBadges filters={searchState.filters} />
               </div>

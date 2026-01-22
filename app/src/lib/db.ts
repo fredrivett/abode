@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { isDevelopment } from "@/env";
 
 /**
  * Primary prisma client (write) and optional read-replica client.
@@ -12,8 +13,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const shouldLogQueries =
-  process.env.NODE_ENV === "development" &&
-  process.env.PRISMA_LOG_QUERIES === "true";
+  isDevelopment && process.env.PRISMA_LOG_QUERIES === "true";
 
 /**
  * Connection pool size per Prisma client.

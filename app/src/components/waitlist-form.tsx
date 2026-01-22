@@ -46,13 +46,13 @@ export function WaitlistForm() {
 
   if (formState === "success") {
     return (
-      <Card className="p-6 text-center gap-2 items-center">
-        <Check className="text-muted-foreground size-8" />
-        <p className="text-lg font-medium">you're on the waitlist!</p>
+      <Card className="items-center gap-2 p-6 text-center">
+        <Check className="size-8 text-muted-foreground" />
+        <p className="font-medium text-lg">you're on the waitlist!</p>
         {position && position >= 50 && (
-          <p className="text-sm text-muted-foreground">you're #{position}</p>
+          <p className="text-muted-foreground text-sm">you're #{position}</p>
         )}
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           we'll email you when it's your turn.
         </p>
       </Card>
@@ -68,7 +68,7 @@ export function WaitlistForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="enter your email"
           required
-          className="flex-1 h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
+          className="h-10 flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
           disabled={formState === "submitting"}
         />
         <Button
@@ -83,7 +83,7 @@ export function WaitlistForm() {
         </Button>
       </div>
       {formState === "error" && errorMessage && (
-        <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+        <p className="text-red-600 text-sm dark:text-red-400">{errorMessage}</p>
       )}
     </form>
   );

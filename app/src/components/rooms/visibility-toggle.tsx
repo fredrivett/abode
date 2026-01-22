@@ -37,7 +37,7 @@ export function VisibilityToggle({
         />
         <div>
           <div className="font-medium">Private</div>
-          <div className="text-xs text-muted-foreground">Only you can view</div>
+          <div className="text-muted-foreground text-xs">Only you can view</div>
         </div>
       </button>
       <button
@@ -60,7 +60,7 @@ export function VisibilityToggle({
         />
         <div>
           <div className="font-medium">Public</div>
-          <div className="text-xs text-muted-foreground">Anyone with link</div>
+          <div className="text-muted-foreground text-xs">Anyone with link</div>
         </div>
       </button>
     </div>

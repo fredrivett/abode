@@ -37,7 +37,7 @@ export const WithDescription: Story = {
         placeholder="Password"
         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Must be at least 8 characters
       </p>
     </div>

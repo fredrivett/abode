@@ -18,7 +18,7 @@ function Abode() {
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-2xl">
-      <article className="prose prose-neutral dark:prose-invert prose-headings:font-serif prose-h1:text-3xl prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4 prose-p:text-base">
+      <article className="prose prose-neutral dark:prose-invert prose-h2:mt-8 prose-h2:mb-4 prose-headings:font-serif prose-h1:text-3xl prose-h2:text-2xl prose-p:text-base">
         <h1>Help</h1>
         <p>
           Welcome to <Abode /> help. Here you'll find guides and documentation

@@ -1,0 +1,67 @@
+/**
+ * Server-only environment variable validation with zod
+ * This file is imported during the build process to ensure required env vars are set
+ * TypeScript automatically infers the correct types from the zod schema
+ */
+
+import "server-only";
+
+import { z } from "zod";
+
+// Server environment validation schema
+// Includes both server-only secrets and public vars (to ensure they're set at build time)
+const envSchema = z.object({
+  // Database
+  DATABASE_URL: z.string().min(1),
+  READ_REPLICA_DATABASE_URL: z.string().optional(),
+
+  // Supabase (public vars validated here to ensure they're set)
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .min(1)
+    .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
+      message: "Must be a valid URL",
+    }),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), // server-only secret
+
+  // Email (server-only)
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().optional(),
+  RESEND_REPLY_TO_EMAIL: z.string().optional(),
+
+  // AI (server-only)
+  OPENAI_API_KEY: z.string().optional(),
+
+  // Maps (server-only)
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
+
+  // PostHog (optional analytics)
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),
+
+  // Node environment
+  NODE_ENV: z.enum(["development", "test", "production"]).optional(),
+});
+
+// Skip validation during unit tests - they don't need real env vars
+// Integration tests that need the database should set these vars
+const isUnitTest = process.env.VITEST === "true" && !process.env.DATABASE_URL;
+
+// Validate and parse environment variables
+// This will throw a detailed error if validation fails
+const parsed = isUnitTest
+  ? { success: true as const, data: process.env as z.infer<typeof envSchema> }
+  : envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
+  console.error("❌ Invalid environment variables:");
+  // biome-ignore lint/suspicious/noConsole: needed for build-time error reporting
+  console.error(JSON.stringify(z.flattenError(parsed.error), null, 2));
+  throw new Error("Invalid environment variables");
+}
+
+// Export validated and typed environment variables
+// TypeScript now knows the exact types without any assertions!
+export const env = parsed.data;

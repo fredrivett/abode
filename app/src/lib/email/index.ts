@@ -1,5 +1,7 @@
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
-import { env } from "@/env";
+import { isDevelopment } from "@/env";
+import { env } from "@/env.server";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/email");
@@ -25,6 +27,21 @@ function getResendClient(): Resend {
   return resendClient;
 }
 
+// Lazy initialization of local SMTP transport (Inbucket)
+// Port must match smtp_port in supabase/config.toml
+let localTransport: nodemailer.Transporter | null = null;
+
+function getLocalTransport(): nodemailer.Transporter {
+  if (!localTransport) {
+    localTransport = nodemailer.createTransport({
+      host: "localhost",
+      port: 54325,
+      secure: false,
+    });
+  }
+  return localTransport;
+}
+
 /**
  * Email configuration
  */
@@ -38,19 +55,47 @@ export type SendEmailResult =
   | { success: false; error: string };
 
 /**
- * Send an email using Resend
+ * Send an email via SMTP to local Inbucket instance
  */
-export async function sendEmail(options: {
+async function sendEmailLocal(options: {
   to: string;
   subject: string;
   text: string;
   html?: string;
 }): Promise<SendEmailResult> {
-  // Block emails in test environment
-  if (process.env.VITEST) {
-    throw new EmailBlockedInTestError(options.to);
-  }
+  try {
+    const transport = getLocalTransport();
 
+    const info = await transport.sendMail({
+      from: EMAIL_CONFIG.from,
+      replyTo: EMAIL_CONFIG.replyTo,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+    });
+
+    log.info(
+      { id: info.messageId, to: options.to },
+      "Email sent to Inbucket (local dev)",
+    );
+    return { success: true, id: info.messageId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    log.error({ error, to: options.to }, "Failed to send email to Inbucket");
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Send an email via Resend (production)
+ */
+async function sendEmailResend(options: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}): Promise<SendEmailResult> {
   try {
     const resend = getResendClient();
 
@@ -75,6 +120,31 @@ export async function sendEmail(options: {
     log.error({ error, to: options.to }, "Failed to send email");
     return { success: false, error: message };
   }
+}
+
+/**
+ * Send an email
+ * - In local development: routes to Inbucket via SMTP
+ * - In production: uses Resend API
+ */
+export async function sendEmail(options: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}): Promise<SendEmailResult> {
+  // Block emails in test environment
+  if (process.env.VITEST) {
+    throw new EmailBlockedInTestError(options.to);
+  }
+
+  // Local development: send to Inbucket via SMTP
+  if (isDevelopment) {
+    return sendEmailLocal(options);
+  }
+
+  // Production: use Resend
+  return sendEmailResend(options);
 }
 
 /**

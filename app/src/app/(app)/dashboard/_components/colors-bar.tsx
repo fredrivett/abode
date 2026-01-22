@@ -138,7 +138,7 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     <fieldset
       ref={containerRef}
       aria-label="Colors"
-      className="m-0 flex h-4 min-w-0 overflow-hidden rounded-md border border-gray-200 p-0 hover:h-8 dark:border-gray-700 transition-[height] duration-200 ease-out"
+      className="m-0 flex h-4 min-w-0 overflow-hidden rounded-md border border-gray-200 p-0 transition-[height] duration-200 ease-out hover:h-8 dark:border-gray-700"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -159,7 +159,7 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={`h-full appearance-none border-0 bg-transparent p-0 transition-[width] duration-200 ease-out outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
+                className={`h-full appearance-none border-0 bg-transparent p-0 outline-none transition-[width] duration-200 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
                 style={
                   sliceWidthsPx
                     ? {

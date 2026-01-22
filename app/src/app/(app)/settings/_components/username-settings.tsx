@@ -48,11 +48,11 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-xl font-semibold">
+      <h3 className="flex items-center gap-2 font-semibold text-xl">
         <AtSign className="size-5 text-muted-foreground" />
         Username
       </h3>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-muted-foreground text-sm">
         {hasMeaningfulChange ? (
           <>
             Your public profile URL will be{" "}
@@ -75,7 +75,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
       <form action={action} className="mt-4">
         <div className="flex gap-3">
           <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <span className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 text-muted-foreground">
               @
             </span>
             <input
@@ -87,7 +87,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               disabled={!canChange}
-              className={`flex h-10 w-full rounded-md border bg-background py-2 pl-7 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`flex h-10 w-full rounded-md border bg-background py-2 pr-3 pl-7 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
                 usernameStatus.type === "available"
                   ? "border-green-500 focus:ring-green-500"
                   : usernameStatus.type === "invalid" ||
@@ -100,13 +100,13 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
               maxLength={15}
             />
             {usernameStatus.type === "checking" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              <span className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground text-xs">
                 Checking
                 <LoadingEllipsis />
               </span>
             )}
             {usernameStatus.type === "available" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600">
+              <span className="-translate-y-1/2 absolute top-1/2 right-3 text-green-600 text-xs">
                 Available
               </span>
             )}
@@ -121,7 +121,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
 
         {(usernameStatus.type === "invalid" ||
           usernameStatus.type === "unavailable") && (
-          <p className="mt-2 text-xs text-red-600">
+          <p className="mt-2 text-red-600 text-xs">
             {usernameStatus.error}
             {usernameStatus.type === "unavailable" &&
               usernameStatus.suggestion && (
@@ -150,7 +150,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
         }`}
       >
         <div className="overflow-hidden">
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-4 text-muted-foreground text-xs">
             {canChange ? (
               <>
                 You can change your username{" "}

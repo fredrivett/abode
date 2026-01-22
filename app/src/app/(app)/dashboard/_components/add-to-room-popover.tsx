@@ -119,7 +119,7 @@ export function AddToRoomPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
         >
           <Plus className="size-3.5" />
           Add to room
@@ -132,12 +132,12 @@ export function AddToRoomPopover({
           </div>
         ) : manualRooms.length === 0 ? (
           <div className="py-4 text-center">
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="mb-2 text-muted-foreground text-sm">
               No static rooms yet
             </p>
             <Link
               href="/rooms/new"
-              className="text-sm text-primary hover:underline"
+              className="text-primary text-sm hover:underline"
             >
               Create a room
             </Link>
@@ -158,7 +158,7 @@ export function AddToRoomPopover({
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                     inRoom
                       ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted text-foreground",
+                      : "text-foreground hover:bg-muted",
                     isToggling && "opacity-50",
                   )}
                 >

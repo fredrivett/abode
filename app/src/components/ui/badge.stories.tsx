@@ -64,7 +64,7 @@ export const WithIcon: Story = {
 
 export const AllVariants: Story = {
   render: () => (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex flex-wrap gap-2">
       <Badge variant="default">Default</Badge>
       <Badge variant="secondary">Secondary</Badge>
       <Badge variant="destructive">Destructive</Badge>

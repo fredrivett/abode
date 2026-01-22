@@ -18,11 +18,11 @@ export function StatsCards({ totals }: StatsCardsProps) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+          <CardTitle className="font-medium text-sm">Total Users</CardTitle>
           <Users className="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="font-bold text-2xl">
             {totals.users.toLocaleString()}
           </div>
         </CardContent>
@@ -30,11 +30,11 @@ export function StatsCards({ totals }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+          <CardTitle className="font-medium text-sm">Total Items</CardTitle>
           <Box className="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="font-bold text-2xl">
             {totals.items.toLocaleString()}
           </div>
         </CardContent>
@@ -42,11 +42,11 @@ export function StatsCards({ totals }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Rooms</CardTitle>
+          <CardTitle className="font-medium text-sm">Total Rooms</CardTitle>
           <Home className="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="font-bold text-2xl">
             {totals.rooms.toLocaleString()}
           </div>
         </CardContent>
@@ -54,11 +54,11 @@ export function StatsCards({ totals }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+          <CardTitle className="font-medium text-sm">Storage Used</CardTitle>
           <HardDrive className="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="font-bold text-2xl">
             {formatBytes(BigInt(totals.storageBytes))}
           </div>
         </CardContent>

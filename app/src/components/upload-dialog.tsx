@@ -185,7 +185,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
           {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
           <div
             className={cn(
-              "flex flex-col items-center gap-3 rounded-lg bg-gray-100 dark:bg-gray-900/50 border-2 border-dashed p-6 transition-colors",
+              "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed bg-gray-100 p-6 transition-colors dark:bg-gray-900/50",
               isDragging
                 ? "border-primary/50 bg-primary/5"
                 : "border-muted-foreground/25",
@@ -196,7 +196,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             onDragEnter={onDragOver}
             onDragLeave={onDragLeave}
           >
-            <p className="text-sm text-muted-foreground">Drop image here or</p>
+            <p className="text-muted-foreground text-sm">Drop image here or</p>
 
             <input
               ref={fileInputRef}
@@ -222,7 +222,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               )}
             </Button>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
             </p>
           </div>

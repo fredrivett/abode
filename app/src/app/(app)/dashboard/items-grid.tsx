@@ -2,10 +2,10 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
@@ -43,56 +43,22 @@ export function ItemsGrid({
   onLoadMore,
   total,
 }: ItemsGridProps) {
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const isLoadingRef = useRef(false);
-
-  // Reset ref when loading completes
-  useEffect(() => {
-    if (!isLoadingMore) {
-      isLoadingRef.current = false;
-    }
-  }, [isLoadingMore]);
-
-  // Intersection Observer for infinite scroll
-  const handleIntersection = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [entry] = entries;
-      // Use ref for synchronous guard to prevent multiple rapid-fire calls
-      if (entry.isIntersecting && hasMore && !isLoadingRef.current && onLoadMore) {
-        isLoadingRef.current = true;
-        onLoadMore();
-      }
-    },
-    [hasMore, onLoadMore],
-  );
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element || !hasMore) return;
-
-    const observer = new IntersectionObserver(handleIntersection, {
-      root: null,
-      rootMargin: "200px", // Start loading 200px before reaching the bottom
-      threshold: 0,
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleIntersection, hasMore]);
+  const { ref: loadMoreRef } = useInfiniteScroll({
+    hasMore: hasMore ?? false,
+    isLoading: isLoadingMore ?? false,
+    onLoadMore: onLoadMore ?? (() => {}),
+  });
 
   return (
-    <div className="w-full space-y-3">
+    <div className="flex w-full flex-1 flex-col space-y-3">
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="text-3xl font-serif font-semibold">
+                <h2 className="font-semibold font-serif text-3xl">
                   No results found
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -113,11 +79,11 @@ export function ItemsGrid({
           </div>
         ) : (
           // Empty state for no items at all
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <Home className="size-14 text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="text-3xl font-serif font-semibold">
+                <h2 className="font-semibold font-serif text-3xl">
                   Welcome home
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -134,7 +100,7 @@ export function ItemsGrid({
                   organize later.
                 </p>
                 <div className="mx-auto my-4 h-px w-36 bg-border" />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
                 </p>
               </div>
@@ -149,69 +115,69 @@ export function ItemsGrid({
             style={{ overflow: "visible !important" }}
           >
             {items.map((item) => {
-            const meta = item.meta || {};
-            const isArticle = item.kind === "article";
-            const isTwitter = item.kind === "twitter";
-            const isProcessingUrl =
-              item.sourceType === "url" &&
-              item.processingStatus === "processing";
+              const meta = item.meta || {};
+              const isArticle = item.kind === "article";
+              const isTwitter = item.kind === "twitter";
+              const isProcessingUrl =
+                item.sourceType === "url" &&
+                item.processingStatus === "processing";
 
-            // Derive display name - item.title is the single source of truth
-            let name: string;
-            if (isProcessingUrl && item.sourceUrl) {
-              // For processing URLs, show the domain as the name
-              try {
-                name = new URL(item.sourceUrl).hostname;
-              } catch {
-                name = "Processing URL";
+              // Derive display name - item.title is the single source of truth
+              let name: string;
+              if (isProcessingUrl && item.sourceUrl) {
+                // For processing URLs, show the domain as the name
+                try {
+                  name = new URL(item.sourceUrl).hostname;
+                } catch {
+                  name = "Processing URL";
+                }
+              } else {
+                name = item.title ?? "Untitled";
               }
-            } else {
-              name = item.title ?? "Untitled";
-            }
 
-            const size = formatBytes(meta.size as number | undefined);
-            const mimeType = meta.type as string | undefined;
+              const size = formatBytes(meta.size as number | undefined);
+              const mimeType = meta.type as string | undefined;
 
-            // Calculate aspect ratio based on item type
-            // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
-            // - Articles and processing URLs: 16:9
-            // - Images: actual dimensions or 3:4 default
-            let width: number;
-            let height: number;
-            if (isTwitter) {
-              const hasVisualContent =
-                item.twitterDetails?.media?.length ||
-                item.twitterDetails?.card?.imageUrl;
-              width = 16;
-              height = hasVisualContent ? 18 : 12;
-            } else if (isArticle || isProcessingUrl) {
-              width = 16;
-              height = 9;
-            } else {
-              width = (meta.width as number | undefined) ?? 3;
-              height = (meta.height as number | undefined) ?? 4;
-            }
+              // Calculate aspect ratio based on item type
+              // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
+              // - Articles and processing URLs: 16:9
+              // - Images: actual dimensions or 3:4 default
+              let width: number;
+              let height: number;
+              if (isTwitter) {
+                const hasVisualContent =
+                  item.twitterDetails?.media?.length ||
+                  item.twitterDetails?.card?.imageUrl;
+                width = 16;
+                height = hasVisualContent ? 18 : 12;
+              } else if (isArticle || isProcessingUrl) {
+                width = 16;
+                height = 9;
+              } else {
+                width = (meta.width as number | undefined) ?? 3;
+                height = (meta.height as number | undefined) ?? 4;
+              }
 
-            return (
-              <Frame key={item.id} width={width} height={height}>
-                <div className="h-full">
-                  <ItemCard
-                    item={item}
-                    name={name}
-                    size={size}
-                    mimeType={mimeType}
-                  />
-                </div>
-              </Frame>
-            );
-          })}
+              return (
+                <Frame key={item.id} width={width} height={height}>
+                  <div className="h-full">
+                    <ItemCard
+                      item={item}
+                      name={name}
+                      size={size}
+                      mimeType={mimeType}
+                    />
+                  </div>
+                </Frame>
+              );
+            })}
           </BalancedMasonryGrid>
         </div>
       )}
 
       {/* Infinite scroll trigger and loading indicator */}
       {items.length > 0 && (
-        <div ref={loadMoreRef} className="flex justify-center py-8">
+        <div ref={loadMoreRef} className="mt-auto flex justify-center pt-18">
           {isLoadingMore && (
             <IsLoading
               label="Loading more"
@@ -219,11 +185,19 @@ export function ItemsGrid({
               className="text-muted-foreground"
             />
           )}
-          {!hasMore && items.length > 0 && total !== undefined && total > DEFAULT_PAGE_SIZE && (
-            <span className="text-sm italic text-muted-foreground/50">
-              Showing all {total} items
-            </span>
-          )}
+          {!hasMore &&
+            items.length > 0 &&
+            total !== undefined &&
+            (hasActiveSearch || total > DEFAULT_PAGE_SIZE) && (
+              <div className="text-center font-serif text-base text-muted-foreground/50 italic">
+                {hasActiveSearch
+                  ? `Showing ${total > 1 ? "all " : ""}${total} ${total === 1 ? "result" : "results"}`
+                  : `Showing all ${total} items`}
+                <div className="mt-6 cursor-default text-2xl text-muted-foreground/25">
+                  ~~~
+                </div>
+              </div>
+            )}
         </div>
       )}
     </div>

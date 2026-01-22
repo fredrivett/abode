@@ -52,7 +52,7 @@ const EmojiPickerDemo = ({
         {showFooter && <EmojiPickerFooter />}
       </EmojiPicker>
       {selectedEmoji && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Selected: {selectedEmoji}
         </p>
       )}
@@ -95,7 +95,7 @@ export const InPopover: Story = {
           </PopoverContent>
         </Popover>
         {selectedEmoji && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Selected: {selectedEmoji}
           </p>
         )}

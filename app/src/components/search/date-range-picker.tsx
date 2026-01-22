@@ -112,7 +112,7 @@ export function DateRangePicker({
         sideOffset={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="p-3 space-y-3">
+        <div className="space-y-3 p-3">
           {/* Mode selector */}
           <div className="flex gap-1">
             <Button
@@ -165,7 +165,7 @@ export function DateRangePicker({
 
           {/* Summary and apply */}
           <div className="flex items-center justify-between border-t pt-3">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-muted-foreground text-sm">
               {mode === "range" && dateRange?.from && (
                 <>
                   {format(dateRange.from, "MMM d, yyyy")}

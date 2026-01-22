@@ -36,7 +36,7 @@ export const OnText: Story = {
   render: () => (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="underline decoration-dotted cursor-help">
+        <span className="cursor-help underline decoration-dotted">
           Hover this text
         </span>
       </TooltipTrigger>

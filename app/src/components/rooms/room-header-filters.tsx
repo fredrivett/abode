@@ -5,7 +5,6 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { SearchInput } from "@/components/search/search-input";
 import { Button } from "@/components/ui/button";
-import { IsLoading } from "@/components/ui/is-loading";
 import {
   Tooltip,
   TooltipContent,

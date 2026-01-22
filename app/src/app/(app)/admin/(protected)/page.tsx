@@ -48,29 +48,29 @@ export default async function AdminPage() {
       <div className="mx-auto w-full max-w-7xl px-4 py-8">
         <header className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="font-semibold text-2xl tracking-tight">
               Admin Dashboard
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-muted-foreground text-sm">
               Overview of platform usage and activity.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/admin/waitlist"
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
             >
               Waitlist
             </Link>
             <Link
               href="/admin/invites"
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
             >
               Invites
             </Link>
             <Link
               href="/admin/users"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
             >
               View Users
             </Link>

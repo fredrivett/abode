@@ -30,7 +30,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <div className="border rounded-md w-72">
+    <div className="w-72 rounded-md border">
       <Command>
         <CommandInput placeholder="Search commands..." />
         <CommandList>
@@ -66,7 +66,7 @@ export const Default: Story = {
 
 export const WithGroups: Story = {
   render: () => (
-    <div className="border rounded-md w-72">
+    <div className="w-72 rounded-md border">
       <Command>
         <CommandInput placeholder="Search..." />
         <CommandList>
@@ -129,7 +129,7 @@ export const Dialog: Story = {
 
 export const WithShortcuts: Story = {
   render: () => (
-    <div className="border rounded-md w-72">
+    <div className="w-72 rounded-md border">
       <Command>
         <CommandInput placeholder="Search..." />
         <CommandList>

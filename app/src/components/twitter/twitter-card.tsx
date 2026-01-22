@@ -41,6 +41,7 @@ export function TwitterCard({
       {previewImage ? (
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
           {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
+          {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
             src={previewImage}
             className="h-full w-full object-cover"
@@ -75,6 +76,7 @@ export function TwitterCard({
         <div className="flex items-center gap-2">
           {authorAvatarUrl ? (
             // biome-ignore lint/a11y/useAltText: decorative avatar
+            // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
             <img
               src={authorAvatarUrl}
               className="size-5 shrink-0 rounded-full"
@@ -83,24 +85,24 @@ export function TwitterCard({
           ) : (
             <div className="size-5 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700" />
           )}
-          <span className="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
+          <span className="truncate font-medium text-gray-900 text-xs dark:text-gray-100">
             {authorName ?? authorUsername}
           </span>
-          <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+          <span className="truncate text-gray-500 text-xs dark:text-gray-400">
             @{authorUsername}
           </span>
         </div>
 
         {/* Tweet text preview */}
         {text && (
-          <p className="line-clamp-3 text-left text-sm text-gray-700 dark:text-gray-300">
+          <p className="line-clamp-3 text-left text-gray-700 text-sm dark:text-gray-300">
             {text}
           </p>
         )}
       </div>
 
       {/* X badge */}
-      <div className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 backdrop-blur-sm">
+      <div className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 backdrop-blur-sm">
         <TwitterIcon className="size-3 text-white" />
       </div>
     </button>

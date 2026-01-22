@@ -21,17 +21,17 @@ export function EnterCodeForm() {
   return (
     <>
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-semibold text-2xl tracking-tight">
           enter your invite code
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-gray-500 text-sm dark:text-gray-400">
           paste the invite code from your email
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="code" className="text-sm font-medium leading-none">
+          <label htmlFor="code" className="font-medium text-sm leading-none">
             invite code
           </label>
           <input
@@ -59,7 +59,7 @@ export function EnterCodeForm() {
       <div className="space-y-3">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-200 dark:border-gray-800" />
+            <span className="w-full border-gray-200 border-t dark:border-gray-800" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-background px-2 text-gray-500 dark:text-gray-400">
@@ -68,7 +68,7 @@ export function EnterCodeForm() {
           </div>
         </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center text-gray-500 text-sm dark:text-gray-400">
           don&apos;t have an invite?{" "}
           <a
             href="/"
@@ -78,7 +78,7 @@ export function EnterCodeForm() {
           </a>
         </p>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center text-gray-500 text-sm dark:text-gray-400">
           already have an account?{" "}
           <a
             href="/login"
