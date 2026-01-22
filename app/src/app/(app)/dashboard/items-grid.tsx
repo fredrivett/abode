@@ -177,7 +177,7 @@ export function ItemsGrid({
 
       {/* Infinite scroll trigger and loading indicator */}
       {items.length > 0 && (
-        <div ref={loadMoreRef} className="flex justify-center py-8">
+        <div ref={loadMoreRef} className="flex justify-center pt-18">
           {isLoadingMore && (
             <IsLoading
               label="Loading more"
