@@ -2,10 +2,10 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
@@ -43,45 +43,11 @@ export function ItemsGrid({
   onLoadMore,
   total,
 }: ItemsGridProps) {
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const isLoadingRef = useRef(false);
-
-  // Reset ref when loading completes
-  useEffect(() => {
-    if (!isLoadingMore) {
-      isLoadingRef.current = false;
-    }
-  }, [isLoadingMore]);
-
-  // Intersection Observer for infinite scroll
-  const handleIntersection = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [entry] = entries;
-      // Use ref for synchronous guard to prevent multiple rapid-fire calls
-      if (entry.isIntersecting && hasMore && !isLoadingRef.current && onLoadMore) {
-        isLoadingRef.current = true;
-        onLoadMore();
-      }
-    },
-    [hasMore, onLoadMore],
-  );
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element || !hasMore) return;
-
-    const observer = new IntersectionObserver(handleIntersection, {
-      root: null,
-      rootMargin: "200px", // Start loading 200px before reaching the bottom
-      threshold: 0,
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleIntersection, hasMore]);
+  const { ref: loadMoreRef } = useInfiniteScroll({
+    hasMore: hasMore ?? false,
+    isLoading: isLoadingMore ?? false,
+    onLoadMore: onLoadMore ?? (() => {}),
+  });
 
   return (
     <div className="w-full space-y-3">
