@@ -3,11 +3,11 @@
 import {
   ArrowUpLeft,
   DoorOpen,
+  Handshake,
   LogOut,
   Plus,
   Settings,
   User,
-  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -232,7 +232,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     aria-label="Invites"
                     className="relative"
                   >
-                    <UserPlus size={18} aria-hidden />
+                    <Handshake size={18} aria-hidden />
                     {availableInvites > 0 && (
                       <Badge
                         variant="outline"

@@ -6,6 +6,7 @@ import {
   Check,
   DoorOpen,
   FolderPlus,
+  Handshake,
   HelpCircle,
   Home,
   LayoutDashboard,
@@ -574,7 +575,7 @@ export function CommandPalette() {
                       keywords={["invites"]}
                       onSelect={handleSelect}
                     >
-                      <UserPlus className="size-4" />
+                      <Handshake className="size-4" />
                       <span>Invites</span>
                     </CommandItem>
                     {profile?.username && (
