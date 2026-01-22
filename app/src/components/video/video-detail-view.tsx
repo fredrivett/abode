@@ -83,6 +83,7 @@ export function VideoDetailView({
             >
               {thumbnailUrl ? (
                 // biome-ignore lint/a11y/useAltText: decorative video thumbnail
+                // biome-ignore lint/performance/noImgElement: external video thumbnail URL
                 <img
                   src={thumbnailUrl}
                   className="h-full w-full object-cover"
@@ -103,7 +104,7 @@ export function VideoDetailView({
 
               {/* Duration badge (bottom-right) */}
               {duration && duration > 0 && (
-                <div className="absolute bottom-3 right-3 rounded bg-black/80 px-2 py-1 text-sm font-medium text-white">
+                <div className="absolute right-3 bottom-3 rounded bg-black/80 px-2 py-1 font-medium text-sm text-white">
                   {formatDuration(duration)}
                 </div>
               )}
@@ -111,7 +112,7 @@ export function VideoDetailView({
               {/* Platform badge (top-right) */}
               <div
                 className={cn(
-                  "absolute right-3 top-3 rounded-full p-2",
+                  "absolute top-3 right-3 rounded-full p-2",
                   platform === "youtube" ? "bg-red-600" : "bg-[#1ab7ea]",
                 )}
               >
@@ -125,7 +126,7 @@ export function VideoDetailView({
         <div className="space-y-3">
           {/* Title */}
           {title && (
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="font-semibold text-gray-900 text-lg dark:text-gray-100">
               {title}
             </h2>
           )}
@@ -138,12 +139,12 @@ export function VideoDetailView({
                   href={channelUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-gray-600 text-sm hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   {channelName}
                 </a>
               ) : (
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-gray-600 text-sm dark:text-gray-400">
                   {channelName}
                 </span>
               )}

@@ -126,7 +126,7 @@ export function LocationDropzone({
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
       <div
-        className="relative p-2 -m-2"
+        className="-m-2 relative p-2"
         onDragOver={(event) => {
           if (!hasFiles(event.dataTransfer)) return;
           event.preventDefault();
@@ -160,7 +160,7 @@ export function LocationDropzone({
         <div className="space-y-2">
           {/* Header with title and actions */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
               Location
             </h3>
             <div className="flex items-center gap-1">
@@ -202,8 +202,8 @@ export function LocationDropzone({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent side="bottom" align="end" className="w-80">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="font-medium text-xs text-zinc-700 dark:text-zinc-300">
                         Original image location:
                       </p>
                       <Button
@@ -214,7 +214,7 @@ export function LocationDropzone({
                         className="h-6 px-2 text-xs"
                         title="Restore original location"
                       >
-                        <RotateCcw className="h-3 w-3 mr-1" />
+                        <RotateCcw className="mr-1 h-3 w-3" />
                         {isRemoving ? (
                           <IsLoading label="Restoring" />
                         ) : (
@@ -234,10 +234,10 @@ export function LocationDropzone({
         </div>
 
         {(isDragging || isExtracting) && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-primary/60 border-dashed bg-primary/5">
             <div className="rounded-md bg-background/90 px-3 py-2 text-center shadow">
               <ImageIcon className="mx-auto mb-1 h-5 w-5 text-primary" />
-              <p className="text-xs font-medium text-primary">
+              <p className="font-medium text-primary text-xs">
                 {isExtracting ? (
                   <IsLoading label="Reading EXIF" iconClassName="size-3" />
                 ) : (

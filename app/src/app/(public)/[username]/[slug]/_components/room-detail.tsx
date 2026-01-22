@@ -240,7 +240,7 @@ export function RoomDetail({
             {isOwner && (
               <Link
                 href="/rooms"
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
               >
                 <ArrowLeft className="size-4" />
                 Back to rooms
@@ -260,10 +260,10 @@ export function RoomDetail({
                   isSaving={isSavingName}
                 />
               ) : (
-                <h1 className="font-serif text-3xl font-semibold">{roomName}</h1>
+                <h1 className="font-semibold font-serif text-3xl">{roomName}</h1>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <span>
                 {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
               </span>
@@ -336,11 +336,11 @@ export function RoomDetail({
       {/* Items grid */}
       {items.length === 0 ? (
         <div className="mx-auto max-w-5xl">
-          <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="font-serif text-3xl font-semibold">
+                <h2 className="font-semibold font-serif text-3xl">
                   No items yet
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -424,7 +424,7 @@ export function RoomDetail({
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label htmlFor="editRoomName" className="text-sm font-medium">
+              <label htmlFor="editRoomName" className="font-medium text-sm">
                 Room name
               </label>
               <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ export function RoomDetail({
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-medium">Visibility</span>
+              <span className="font-medium text-sm">Visibility</span>
               <VisibilityToggle
                 value={editVisibility}
                 onChange={setEditVisibility}

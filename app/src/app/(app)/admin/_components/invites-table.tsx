@@ -79,7 +79,7 @@ export function InvitesTable({
   const getStatusBadge = (invite: Invite) => {
     if (invite.status === "accepted") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs dark:bg-green-900/30 dark:text-green-400">
           <Check className="size-3" />
           Accepted
         </span>
@@ -87,14 +87,14 @@ export function InvitesTable({
     }
     if (invite.status === "expired") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400">
           <XCircle className="size-3" />
           Expired
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-700 text-xs dark:bg-blue-900/30 dark:text-blue-400">
         <Clock className="size-3" />
         Pending
       </span>
@@ -104,7 +104,7 @@ export function InvitesTable({
   const getOriginBadge = (invite: Invite) => {
     if (invite.origin === "user") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 font-medium text-purple-700 text-xs dark:bg-purple-900/30 dark:text-purple-400">
           <User className="size-3" />
           User
         </span>
@@ -112,14 +112,14 @@ export function InvitesTable({
     }
     if (invite.origin === "waitlist") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-xs text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
           <Users className="size-3" />
           Waitlist
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs dark:bg-gray-900/30 dark:text-gray-400">
         <Mail className="size-3" />
         Admin
       </span>
@@ -131,7 +131,7 @@ export function InvitesTable({
       return (
         <Link
           href={`/admin/users/${invite.inviter.id}`}
-          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          className="text-muted-foreground text-sm hover:text-foreground hover:underline"
         >
           {invite.inviter.displayName}
         </Link>
@@ -139,12 +139,12 @@ export function InvitesTable({
     }
     if (invite.origin === "waitlist" && invite.waitlistEntryId) {
       return (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           {invite.referralSource || "Direct"}
         </span>
       );
     }
-    return <span className="text-sm text-muted-foreground">-</span>;
+    return <span className="text-muted-foreground text-sm">-</span>;
   };
 
   return (
@@ -204,7 +204,7 @@ export function InvitesTable({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Showing {(page - 1) * pagination.pageSize + 1} to{" "}
             {Math.min(page * pagination.pageSize, totalCount)} of {totalCount}{" "}
             invites
@@ -228,7 +228,7 @@ export function InvitesTable({
                 </>
               )}
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               Page {page} of {totalPages}
             </span>
             <Button

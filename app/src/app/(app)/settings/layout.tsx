@@ -9,8 +9,8 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <header>
-          <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-          <p className="mt-1 font-mono text-sm text-muted-foreground">
+          <h2 className="font-semibold text-2xl tracking-tight">Settings</h2>
+          <p className="mt-1 font-mono text-muted-foreground text-sm">
             Manage your account settings.
           </p>
         </header>

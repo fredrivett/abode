@@ -4,10 +4,10 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import {
-  canCreateSmartRoom,
+  // canCreateSmartRoom,
   generateRoomSlug,
   hasValidFilters,
-  MAX_SMART_ROOMS_PER_USER,
+  // MAX_SMART_ROOMS_PER_USER,
 } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";

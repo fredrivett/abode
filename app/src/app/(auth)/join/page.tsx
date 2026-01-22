@@ -58,7 +58,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
       <div className="w-full max-w-sm space-y-6 px-4">
         {showInviterBanner && invite.inviter && (
           <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
-            <p className="flex items-center justify-center flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <p className="flex flex-wrap items-center justify-center gap-2 text-gray-600 text-sm dark:text-gray-300">
               you&apos;ve been invited by{" "}
               <span className="flex items-center gap-1">
                 {invite.inviter.avatarUrl && (

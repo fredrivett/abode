@@ -32,7 +32,7 @@ const EditableTitleDemo = ({
         }}
         isSaving={isSaving}
       />
-      <p className="text-sm text-muted-foreground mt-2">
+      <p className="mt-2 text-muted-foreground text-sm">
         Current value: <span className="font-medium">{value}</span>
       </p>
     </div>
@@ -84,8 +84,8 @@ export const LongTitleInFixedContainer: Story = {
     const [isSaving, setIsSaving] = useState(false);
 
     return (
-      <div className="w-[400px] border border-gray-200 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-950">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+      <div className="w-[400px] rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+        <h3 className="mb-4 font-semibold text-gray-700 text-sm dark:text-gray-300">
           Fixed Width Container (400px)
         </h3>
         <EditableTitle
@@ -100,7 +100,7 @@ export const LongTitleInFixedContainer: Story = {
           }}
           isSaving={isSaving}
         />
-        <p className="text-sm text-muted-foreground mt-4">
+        <p className="mt-4 text-muted-foreground text-sm">
           Current value: <span className="font-medium">{value}</span>
         </p>
       </div>
@@ -128,8 +128,8 @@ export const MultilineWithLongText: Story = {
     const [isSaving, setIsSaving] = useState(false);
 
     return (
-      <div className="w-[400px] border border-gray-200 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-950">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+      <div className="w-[400px] rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+        <h3 className="mb-4 font-semibold text-gray-700 text-sm dark:text-gray-300">
           Fixed Width Container (400px) - Multiline
         </h3>
         <EditableTitle
@@ -145,7 +145,7 @@ export const MultilineWithLongText: Story = {
           }}
           isSaving={isSaving}
         />
-        <p className="text-sm text-muted-foreground mt-4">
+        <p className="mt-4 text-muted-foreground text-sm">
           Press Enter to add new lines, Cmd/Ctrl+Enter to save
         </p>
       </div>

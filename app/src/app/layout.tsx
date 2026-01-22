@@ -86,10 +86,10 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >
         <QueryProvider>
-          <div className="flex flex-col flex-1">{children}</div>
+          <div className="flex flex-1 flex-col">{children}</div>
           <Suspense>
             <CommandPalette />
           </Suspense>

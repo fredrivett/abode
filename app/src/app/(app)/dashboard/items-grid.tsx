@@ -88,11 +88,11 @@ export function ItemsGrid({
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="text-3xl font-serif font-semibold">
+                <h2 className="font-semibold font-serif text-3xl">
                   No results found
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -113,11 +113,11 @@ export function ItemsGrid({
           </div>
         ) : (
           // Empty state for no items at all
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <Home className="size-14 text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="text-3xl font-serif font-semibold">
+                <h2 className="font-semibold font-serif text-3xl">
                   Welcome home
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -134,7 +134,7 @@ export function ItemsGrid({
                   organize later.
                 </p>
                 <div className="mx-auto my-4 h-px w-36 bg-border" />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
                 </p>
               </div>
@@ -220,7 +220,7 @@ export function ItemsGrid({
             />
           )}
           {!hasMore && items.length > 0 && total !== undefined && total > DEFAULT_PAGE_SIZE && (
-            <span className="text-sm italic text-muted-foreground/50">
+            <span className="text-muted-foreground/50 text-sm italic">
               Showing all {total} items
             </span>
           )}

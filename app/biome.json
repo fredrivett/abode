@@ -42,13 +42,20 @@
       "recommended": true,
       "suspicious": {
         "noUnknownAtRules": "off",
-        "noConsole": "warn"
+        "noConsole": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error"
       },
       "nursery": {
         "noFloatingPromises": "error",
-        "noMisusedPromises": "warn",
-        "noUnnecessaryConditions": "warn",
-        "useReactFunctionComponents": "warn"
+        "noMisusedPromises": "error",
+        "noUnnecessaryConditions": "error",
+        "useReactFunctionComponents": "error",
+        "useSortedClasses": "error"
       }
     },
     "domains": {

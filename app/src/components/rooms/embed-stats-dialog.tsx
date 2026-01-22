@@ -68,7 +68,7 @@ export function EmbedStatsDialog({
 
         <DialogBody className="space-y-4">
           {!isPublic ? (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <p>
                 This room is private. Make it public to enable embedding and
@@ -80,20 +80,20 @@ export function EmbedStatsDialog({
               <IsLoading label="Loading stats" />
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
+            <div className="py-8 text-center text-muted-foreground text-sm">
               {error.message}
             </div>
           ) : referrers.length === 0 ? (
             <div className="py-8 text-center">
               <Globe className="mx-auto mb-3 size-10 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 No embeds tracked yet. Share your room&apos;s embed code to see
                 where it&apos;s being used.
               </p>
             </div>
           ) : (
             <>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 {referrers.length} {referrers.length === 1 ? "site" : "sites"} ·{" "}
                 {totalViews} total {totalViews === 1 ? "view" : "views"}
                 {referrers.length === 50 && " · Showing top 50 referrers"}
@@ -117,7 +117,7 @@ export function EmbedStatsDialog({
                         </span>
                         <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                       </a>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="truncate text-muted-foreground text-xs">
                         {referrer.url}
                       </p>
                     </div>
@@ -126,7 +126,7 @@ export function EmbedStatsDialog({
                         {referrer.viewCount}{" "}
                         {referrer.viewCount === 1 ? "view" : "views"}
                       </div>
-                      <div className="text-xs text-muted-foreground/70">
+                      <div className="text-muted-foreground/70 text-xs">
                         <DateTime date={referrer.lastSeenAt} />
                       </div>
                     </div>

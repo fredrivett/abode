@@ -91,8 +91,8 @@ export default async function AdminUsersPage(props: {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Users</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="font-semibold text-2xl tracking-tight">Users</h2>
+            <p className="mt-1 text-muted-foreground text-sm">
               Manage and view user accounts.
             </p>
           </div>
@@ -105,7 +105,7 @@ export default async function AdminUsersPage(props: {
             method="GET"
             className="relative max-w-sm"
           >
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-muted-foreground" />
             <Input
               type="search"
               name="search"

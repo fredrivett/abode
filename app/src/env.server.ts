@@ -8,12 +8,14 @@ import "server-only";
 
 import { z } from "zod";
 
+// Server environment validation schema
+// Includes both server-only secrets and public vars (to ensure they're set at build time)
 const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
   READ_REPLICA_DATABASE_URL: z.string().optional(),
 
-  // Supabase
+  // Supabase (public vars validated here to ensure they're set)
   NEXT_PUBLIC_SUPABASE_URL: z
     .string()
     .min(1)
@@ -21,18 +23,22 @@ const envSchema = z.object({
       message: "Must be a valid URL",
     }),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), // server-only secret
 
-  // Email
+  // Email (server-only)
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().optional(),
   RESEND_REPLY_TO_EMAIL: z.string().optional(),
 
-  // AI
+  // AI (server-only)
   OPENAI_API_KEY: z.string().optional(),
 
-  // Maps
+  // Maps (server-only)
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+
+  // PostHog (optional analytics)
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),
 
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),

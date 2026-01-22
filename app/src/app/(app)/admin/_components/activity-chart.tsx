@@ -18,7 +18,7 @@ export function ActivityChart({ dailyActivity }: ActivityChartProps) {
       <CardHeader>
         <CardTitle className="text-base">
           Activity (Last 14 Days){" "}
-          <span className="text-xs font-normal text-muted-foreground">UTC</span>
+          <span className="font-normal text-muted-foreground text-xs">UTC</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -36,7 +36,7 @@ export function ActivityChart({ dailyActivity }: ActivityChartProps) {
                 className="group relative flex flex-1 flex-col items-center"
               >
                 <div
-                  className="w-full min-h-1 rounded-t bg-primary transition-all group-hover:bg-primary/80"
+                  className="min-h-1 w-full rounded-t bg-primary transition-all group-hover:bg-primary/80"
                   style={{ height: `${Math.max(height, 2)}%` }}
                 />
                 <span className="mt-1 text-[10px] text-muted-foreground">

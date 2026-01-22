@@ -66,11 +66,11 @@ export function DeleteAccountSettings() {
 
   return (
     <section className="rounded-xl border border-destructive/50 p-6">
-      <h3 className="flex items-center gap-2 text-xl font-semibold text-destructive">
+      <h3 className="flex items-center gap-2 font-semibold text-destructive text-xl">
         <AlertTriangle className="size-5 text-destructive/70" />
         Danger Zone
       </h3>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-muted-foreground text-sm">
         Permanently delete your account and all associated data.
       </p>
 

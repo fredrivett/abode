@@ -9,7 +9,7 @@ export function MarketingHeader() {
   const isHomepage = pathname === "/";
 
   return (
-    <header className="w-full py-4 px-4">
+    <header className="w-full px-4 py-4">
       <nav className="flex items-center justify-between">
         {isHomepage ? (
           <div />
@@ -20,7 +20,7 @@ export function MarketingHeader() {
         )}
         <Link
           href="/login"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
         >
           login
         </Link>

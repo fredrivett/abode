@@ -61,7 +61,7 @@ export function AdminVerifyForm({ factorId }: AdminVerifyFormProps) {
         </InputOTP>
       </div>
 
-      {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      {error && <p className="text-center text-destructive text-sm">{error}</p>}
 
       <Button
         onClick={handleVerify}

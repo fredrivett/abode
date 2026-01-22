@@ -47,9 +47,9 @@ type ItemsInitialData = {
 
 /**
  * Infinite query hook for paginated items list.
- * Supports SSR hydration via initialData prop.
+ * Supports SSR hydration via ssrData prop.
  */
-export function useItemsInfinite(initialData?: ItemsInitialData) {
+export function useItemsInfinite(ssrData?: ItemsInitialData) {
   return useInfiniteQuery({
     queryKey: ITEMS_QUERY_KEY,
     queryFn: async ({ pageParam }) => {
@@ -61,12 +61,13 @@ export function useItemsInfinite(initialData?: ItemsInitialData) {
     },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.cursor : undefined),
-    initialData: initialData
-      ? {
-          pages: [initialData],
-          pageParams: [null],
-        }
-      : undefined,
+    initialData:
+      ssrData !== undefined
+        ? {
+            pages: [ssrData],
+            pageParams: [null],
+          }
+        : undefined,
   });
 }
 

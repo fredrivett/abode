@@ -85,7 +85,7 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
       <CardContent>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Summary</h4>
+            <h4 className="font-medium text-sm">Summary</h4>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total actions</span>
@@ -103,7 +103,7 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Items</h4>
+            <h4 className="font-medium text-sm">Items</h4>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Created</span>
@@ -125,7 +125,7 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Rooms</h4>
+            <h4 className="font-medium text-sm">Rooms</h4>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Created</span>
@@ -147,7 +147,7 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Account</h4>
+            <h4 className="font-medium text-sm">Account</h4>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Profile updates</span>
@@ -219,17 +219,17 @@ export default async function AdminUserDetailPage({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">
+                <h2 className="font-semibold text-2xl tracking-tight">
                   {user.firstName || user.lastName
                     ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
                     : user.email}
                   {user.isAdmin && (
-                    <span className="ml-2 rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
+                    <span className="ml-2 rounded bg-primary/10 px-2 py-1 font-medium text-primary text-sm">
                       Admin
                     </span>
                   )}
                 </h2>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <p className="text-muted-foreground text-sm">{user.email}</p>
               </div>
             </div>
           </div>
@@ -246,7 +246,7 @@ export default async function AdminUserDetailPage({
               <div className="flex items-center gap-3">
                 <Mail className="size-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-muted-foreground text-xs">Email</p>
                   <p className="text-sm">{user.email}</p>
                 </div>
               </div>
@@ -255,7 +255,7 @@ export default async function AdminUserDetailPage({
                 <div className="flex items-center gap-3">
                   <AtSign className="size-4 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Username</p>
+                    <p className="text-muted-foreground text-xs">Username</p>
                     <p className="text-sm">@{user.username}</p>
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export default async function AdminUserDetailPage({
                 <div className="flex items-center gap-3">
                   <User className="size-4 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="text-muted-foreground text-xs">Name</p>
                     <p className="text-sm">
                       {`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()}
                     </p>
@@ -276,7 +276,7 @@ export default async function AdminUserDetailPage({
               <div className="flex items-center gap-3">
                 <Calendar className="size-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Joined</p>
+                  <p className="text-muted-foreground text-xs">Joined</p>
                   <p className="text-sm">
                     {new Date(user.createdAt).toLocaleDateString("en-US", {
                       year: "numeric",
@@ -285,7 +285,7 @@ export default async function AdminUserDetailPage({
                     })}
                   </p>
                   {user.memberNumber && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Member #{formatMemberNumber(user.memberNumber)}
                     </p>
                   )}
@@ -297,24 +297,24 @@ export default async function AdminUserDetailPage({
               <div className="flex items-center gap-3">
                 <Box className="size-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Items</p>
-                  <p className="text-sm font-medium">{user._count.items}</p>
+                  <p className="text-muted-foreground text-xs">Items</p>
+                  <p className="font-medium text-sm">{user._count.items}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Home className="size-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Rooms</p>
-                  <p className="text-sm font-medium">{user._count.rooms}</p>
+                  <p className="text-muted-foreground text-xs">Rooms</p>
+                  <p className="font-medium text-sm">{user._count.rooms}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <HardDrive className="size-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Storage Used</p>
-                  <p className="text-sm font-medium">
+                  <p className="text-muted-foreground text-xs">Storage Used</p>
+                  <p className="font-medium text-sm">
                     {formatBytes(user.storageUsedBytes)}
                   </p>
                 </div>

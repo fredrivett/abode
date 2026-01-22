@@ -64,7 +64,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers
     <div
-      className="flex-1 relative"
+      className="relative flex-1"
       onDragOver={(event) => {
         if (!hasFiles(event.dataTransfer)) return;
         event.preventDefault();
@@ -94,9 +94,9 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       {children}
 
       {(isDragging || isFileLoading || isUrlLoading) && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-primary/60 border-dashed bg-primary/5">
           <div className="rounded-md bg-background/90 px-4 py-3 text-center shadow">
-            <p className="text-sm font-medium text-primary">
+            <p className="font-medium text-primary text-sm">
               {isFileLoading ? (
                 <IsLoading label="Uploading" />
               ) : isUrlLoading ? (
@@ -106,7 +106,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
               )}
             </p>
             {!isFileLoading && !isUrlLoading ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
               </p>
             ) : null}

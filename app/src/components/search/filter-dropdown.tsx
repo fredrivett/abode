@@ -186,12 +186,12 @@ export function FilterDropdown({
         <div ref={listRef} className="max-h-64 overflow-y-auto">
           {mode === "types" &&
             (filteredTypes.length === 0 ? (
-              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+              <div className="px-2 py-4 text-center text-muted-foreground text-sm">
                 No filter types match "{searchText}"
               </div>
             ) : (
               <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
                   Filter by
                 </div>
                 {filteredTypes.map(([type, meta], index) => (
@@ -213,7 +213,7 @@ export function FilterDropdown({
                   >
                     <span>{meta.icon}</span>
                     <span>{meta.label}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">
+                    <span className="ml-auto text-muted-foreground text-xs">
                       @{type}:
                     </span>
                   </button>
@@ -224,18 +224,18 @@ export function FilterDropdown({
           {mode === "values" &&
             currentFilterType &&
             (loadingValues ? (
-              <div className="flex justify-center px-2 py-4 text-sm text-muted-foreground">
+              <div className="flex justify-center px-2 py-4 text-muted-foreground text-sm">
                 <IsLoading label="Loading" />
               </div>
             ) : filteredValues.length === 0 ? (
-              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+              <div className="px-2 py-4 text-center text-muted-foreground text-sm">
                 {searchText
                   ? `Press Enter to add "${searchText}"`
                   : "Type a value or select from list"}
               </div>
             ) : (
               <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
                   {FILTER_TYPES[currentFilterType].label}
                 </div>
                 {filteredValues.map((value, index) => (

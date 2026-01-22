@@ -57,28 +57,28 @@ export function LocationPreview({
         <div className="space-y-1 text-sm">
           {location.neighborhood && (
             <div className="flex justify-between gap-2">
-              <span className="text-zinc-500 shrink-0">Neighborhood</span>
-              <span className="font-medium text-right">
+              <span className="shrink-0 text-zinc-500">Neighborhood</span>
+              <span className="text-right font-medium">
                 {location.neighborhood}
               </span>
             </div>
           )}
           {location.city && (
             <div className="flex justify-between gap-2">
-              <span className="text-zinc-500 shrink-0">City</span>
-              <span className="font-medium text-right">{location.city}</span>
+              <span className="shrink-0 text-zinc-500">City</span>
+              <span className="text-right font-medium">{location.city}</span>
             </div>
           )}
           {location.region && (
             <div className="flex justify-between gap-2">
-              <span className="text-zinc-500 shrink-0">Region</span>
-              <span className="font-medium text-right">{location.region}</span>
+              <span className="shrink-0 text-zinc-500">Region</span>
+              <span className="text-right font-medium">{location.region}</span>
             </div>
           )}
           {location.country && (
             <div className="flex justify-between gap-2">
-              <span className="text-zinc-500 shrink-0">Country</span>
-              <span className="font-medium text-right">
+              <span className="shrink-0 text-zinc-500">Country</span>
+              <span className="text-right font-medium">
                 {location.countryCode && (
                   <span className="mr-1">
                     {getCountryFlag(location.countryCode)}
@@ -95,7 +95,7 @@ export function LocationPreview({
           href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+          className="block overflow-hidden rounded-md border border-zinc-200 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
         >
           {/* biome-ignore lint/performance/noImgElement: using proxied mapbox static image */}
           <img
@@ -103,7 +103,7 @@ export function LocationPreview({
             alt={`Map showing location: ${location.city || location.country || "Location"}`}
             width={width}
             height={height}
-            className="w-full h-auto bg-zinc-100 dark:bg-zinc-800"
+            className="h-auto w-full bg-zinc-100 dark:bg-zinc-800"
             loading="lazy"
           />
         </a>

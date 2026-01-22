@@ -85,13 +85,13 @@ export const ImageLoading: Story = {
 
     if (isLoaded) {
       return (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           Image loaded! (Progress bar hidden)
         </div>
       );
     }
 
-    return <Progress value={value} className="rounded-none h-0.5" />;
+    return <Progress value={value} className="h-0.5 rounded-none" />;
   },
 };
 
@@ -99,22 +99,22 @@ export const AllVariants: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="text-sm text-muted-foreground mb-2">Default (rounded)</p>
+        <p className="mb-2 text-muted-foreground text-sm">Default (rounded)</p>
         <Progress value={60} />
       </div>
       <div>
-        <p className="text-sm text-muted-foreground mb-2">No radius</p>
+        <p className="mb-2 text-muted-foreground text-sm">No radius</p>
         <Progress value={60} className="rounded-none" />
       </div>
       <div>
-        <p className="text-sm text-muted-foreground mb-2">Thin (h-0.5)</p>
+        <p className="mb-2 text-muted-foreground text-sm">Thin (h-0.5)</p>
         <Progress value={60} className="h-0.5" />
       </div>
       <div>
-        <p className="text-sm text-muted-foreground mb-2">
+        <p className="mb-2 text-muted-foreground text-sm">
           Thin + No radius (for image loading)
         </p>
-        <Progress value={60} className="rounded-none h-0.5" />
+        <Progress value={60} className="h-0.5 rounded-none" />
       </div>
     </div>
   ),

@@ -1,15 +1,23 @@
 import posthog from "posthog-js";
+import { isDevelopment, POSTHOG_HOST, POSTHOG_KEY } from "@/env";
+import { createLogger } from "@/lib/logger.client";
 
-posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-  api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-  // Include the defaults option for optimal behavior
-  defaults: "2025-05-24",
-  // Enables capturing unhandled exceptions via Error Tracking
-  capture_exceptions: true,
-  loaded: (posthog) => {
-    if (process.env.NODE_ENV === "development") {
-      posthog.opt_out_capturing();
-      posthog.debug();
-    }
-  },
-});
+const log = createLogger("posthog");
+
+if (POSTHOG_KEY) {
+  posthog.init(POSTHOG_KEY, {
+    api_host: POSTHOG_HOST,
+    // Include the defaults option for optimal behavior
+    defaults: "2025-05-24",
+    // Enables capturing unhandled exceptions via Error Tracking
+    capture_exceptions: true,
+    loaded: (posthog) => {
+      if (isDevelopment) {
+        posthog.opt_out_capturing();
+        posthog.debug();
+      }
+    },
+  });
+} else if (!isDevelopment) {
+  log.warn("PostHog key not set, analytics disabled");
+}

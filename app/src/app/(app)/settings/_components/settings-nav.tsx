@@ -33,7 +33,7 @@ export function SettingsNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:gap-3",
+                "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-medium text-sm transition-colors md:gap-3",
                 isActive
                   ? "bg-secondary text-foreground"
                   : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",

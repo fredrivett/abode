@@ -3,6 +3,10 @@
  * Uses oEmbed APIs (no API keys required)
  */
 
+import { createLogger } from "@/lib/logger.server";
+
+const log = createLogger("video-metadata");
+
 export type YouTubeOEmbedResponse = {
   title: string;
   author_name: string;
@@ -63,15 +67,16 @@ export async function fetchYouTubeOEmbed(
     const response = await fetch(oembedUrl);
 
     if (!response.ok) {
-      console.error(
-        `YouTube oEmbed failed: ${response.status} ${response.statusText}`,
+      log.error(
+        { status: response.status, statusText: response.statusText },
+        "YouTube oEmbed failed",
       );
       return null;
     }
 
     return (await response.json()) as YouTubeOEmbedResponse;
   } catch (error) {
-    console.error("YouTube oEmbed error:", error);
+    log.error({ error }, "YouTube oEmbed error");
     return null;
   }
 }
@@ -87,15 +92,16 @@ export async function fetchVimeoOEmbed(
     const response = await fetch(oembedUrl);
 
     if (!response.ok) {
-      console.error(
-        `Vimeo oEmbed failed: ${response.status} ${response.statusText}`,
+      log.error(
+        { status: response.status, statusText: response.statusText },
+        "Vimeo oEmbed failed",
       );
       return null;
     }
 
     return (await response.json()) as VimeoOEmbedResponse;
   } catch (error) {
-    console.error("Vimeo oEmbed error:", error);
+    log.error({ error }, "Vimeo oEmbed error");
     return null;
   }
 }

@@ -94,7 +94,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
   return (
     <div
       className={cn(
-        "absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2 pointer-events-none",
+        "pointer-events-none absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2",
         isProcessing &&
           "bg-gradient-to-t from-black/60 via-transparent to-transparent",
         isFailed &&
@@ -103,7 +103,7 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
     >
       <div
         className={cn(
-          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm pointer-events-auto cursor-default",
+          "pointer-events-auto flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 font-medium text-xs backdrop-blur-sm",
           isProcessing && "bg-white/20 text-white",
           isFailed && "bg-red-500/30 text-red-100",
         )}
@@ -203,7 +203,7 @@ export function ItemCard({
   if (error) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-destructive text-sm">{error}</p>
       </div>
     );
   }
@@ -220,11 +220,11 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <FileText className="size-12 text-gray-400 dark:text-gray-500" />
           <div className="text-center">
-            <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
               {itemName}
             </p>
             {item.articleDetails?.domain && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
                 {item.articleDetails.domain}
               </p>
             )}
@@ -263,11 +263,11 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <ExternalLink className="size-12 text-gray-400 dark:text-gray-500" />
           <div className="text-center">
-            <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
               {itemName}
             </p>
             {domain && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
                 {domain}
               </p>
             )}
@@ -311,11 +311,11 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <ExternalLink className="size-12 text-gray-400 dark:text-gray-500" />
           <div className="text-center">
-            <p className="line-clamp-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
               {itemName}
             </p>
             {domain && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
                 {domain}
               </p>
             )}
@@ -403,7 +403,7 @@ export function ItemCard({
       <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
         <IsLoading
           label="Loading preview"
-          className="text-sm text-gray-500 dark:text-gray-400"
+          className="text-gray-500 text-sm dark:text-gray-400"
         />
       </div>
     );
@@ -417,7 +417,7 @@ export function ItemCard({
             href={previewUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-primary underline"
+            className="text-primary text-sm underline"
           >
             View file: {itemName}
           </a>
@@ -454,7 +454,7 @@ export function ItemCard({
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
-          className="h-full w-full cursor-pointer overflow-hidden rounded-lg !opacity-100"
+          className="!opacity-100 h-full w-full cursor-pointer overflow-hidden rounded-lg"
           onClick={() => {
             setIsAnimating(true);
             setShowDetailDialog(true);
@@ -557,7 +557,7 @@ function RemoveFromRoomButton({
       onClick={handleRemove}
       disabled={isRemoving}
       className={cn(
-        "opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground transition-opacity ml-auto",
+        "ml-auto p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100",
         isRemoving ? "hover:text-destructive" : "cursor-pointer",
       )}
       aria-label={`Remove from ${room.name}`}
@@ -1082,48 +1082,48 @@ function ItemDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] p-0 !opacity-100 !bg-transparent !border-0 !shadow-none [&>button]:hidden !scale-100 data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:scale-100 data-[state=closed]:scale-100"
+        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
       >
         <motion.div
-          className="w-full h-full rounded-lg border shadow-lg overflow-hidden"
+          className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
           transition={{ duration: 0.2 }}
           style={{ willChange: "opacity" }}
         >
-          <div className="flex flex-col md:flex-row h-full relative overflow-y-auto md:overflow-hidden">
+          <div className="relative flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             {/* Top (mobile) / Left (desktop) - Main content area */}
             <div
               className={cn(
-                "shrink-0 flex items-center justify-center md:flex-1 md:overflow-hidden",
+                "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
                 !isArticle && "bg-gray-900",
               )}
             >
               {isArticle && item.articleDetails?.content ? (
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
-                  className="flex w-full h-full bg-background"
+                  className="flex h-full w-full bg-background"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
                   {/* Article content */}
                   <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
-                    <article className="w-full max-w-prose mx-auto">
+                    <article className="mx-auto w-full max-w-prose">
                       {/* Use meta.originalName for the article's original title (from HTML) */}
                       {(meta.originalName as string | undefined) && (
-                        <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold mb-6 lg:mb-8 text-foreground">
+                        <h1 className="mb-6 font-bold font-serif text-2xl text-foreground md:text-3xl lg:mb-8 lg:text-4xl">
                           {decodeHtmlEntities(meta.originalName as string)}
                         </h1>
                       )}
                       <HighlightableArticle
                         itemId={item.id}
                         content={item.articleDetails.content}
-                        className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert prose-headings:font-serif prose-p:font-serif prose-li:font-serif max-w-none"
+                        className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif"
                         scrollToHighlightId={scrollToHighlightId}
                       />
                     </article>
@@ -1131,7 +1131,7 @@ function ItemDetailDialog({
                 </motion.div>
               ) : isTwitter && item.twitterDetails ? (
                 <motion.div
-                  className="flex w-full h-full bg-background overflow-y-auto"
+                  className="flex h-full w-full overflow-y-auto bg-background"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
@@ -1144,7 +1144,7 @@ function ItemDetailDialog({
                 </motion.div>
               ) : isVideo && item.videoDetails ? (
                 <motion.div
-                  className="flex w-full h-full bg-background overflow-y-auto"
+                  className="flex h-full w-full overflow-y-auto bg-background"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
@@ -1173,20 +1173,20 @@ function ItemDetailDialog({
                   {showProgress && (
                     <Progress
                       value={loadingProgress}
-                      className="absolute top-0 left-0 right-0 z-10 h-0.5 rounded-none bg-transparent"
+                      className="absolute top-0 right-0 left-0 z-10 h-0.5 rounded-none bg-transparent"
                     />
                   )}
                   {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
                   <img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
-                    className="max-h-[calc(100vh-2rem)] md:h-full w-full object-contain"
+                    className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
                   />
                 </motion.div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
-                  <p className="text-lg font-medium text-gray-400">
+                  <p className="font-medium text-gray-400 text-lg">
                     {isArticle ? "No article content" : "No preview available"}
                   </p>
                 </div>
@@ -1194,8 +1194,8 @@ function ItemDetailDialog({
             </div>
 
             {/* Bottom (mobile) / Right (desktop) - Details */}
-            <div className="flex flex-col bg-background md:w-[400px] md:overflow-hidden border-t md:border-t-0 md:border-l border-border">
-              <DialogHeader className="p-6 pb-4 items-start">
+            <div className="flex flex-col border-border border-t bg-background md:w-[400px] md:overflow-hidden md:border-t-0 md:border-l">
+              <DialogHeader className="items-start p-6 pb-4">
                 <DialogTitle className="sr-only">
                   Item details for {name}
                 </DialogTitle>
@@ -1209,11 +1209,11 @@ function ItemDetailDialog({
                 />
               </DialogHeader>
 
-              <div className="flex-1 md:overflow-y-auto px-6 pb-6 flex flex-col gap-8">
-                <div className="space-y-6 flex-1">
+              <div className="flex flex-1 flex-col gap-8 px-6 pb-6 md:overflow-y-auto">
+                <div className="flex-1 space-y-6">
                   {/* Basic Info */}
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                       Details
                     </h3>
                     <div className="space-y-1 text-sm">
@@ -1265,7 +1265,7 @@ function ItemDetailDialog({
                   {/* Article Details */}
                   {isArticle && item.articleDetails && (
                     <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                         Article Info
                       </h3>
                       <div className="space-y-1 text-sm">
@@ -1353,7 +1353,7 @@ function ItemDetailDialog({
                   {/* Article Cover Image (shown in details panel for articles) */}
                   {isArticle && previewUrl && (
                     <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                         Cover Image
                       </h3>
                       <motion.div
@@ -1371,7 +1371,7 @@ function ItemDetailDialog({
                         <img
                           src={fullQualityUrl || previewUrl}
                           alt={name}
-                          className="w-full max-h-[300px] object-contain"
+                          className="max-h-[300px] w-full object-contain"
                         />
                       </motion.div>
                     </div>
@@ -1383,13 +1383,13 @@ function ItemDetailDialog({
                       {/* Description */}
                       {item.description && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                             Description
                           </h3>
                           <p
                             ref={descriptionRef}
                             className={cn(
-                              "text-sm text-gray-600 dark:text-gray-400",
+                              "text-gray-600 text-sm dark:text-gray-400",
                               !isDescriptionExpanded && "line-clamp-3",
                             )}
                           >
@@ -1401,7 +1401,7 @@ function ItemDetailDialog({
                               onClick={() =>
                                 setIsDescriptionExpanded(!isDescriptionExpanded)
                               }
-                              className="text-sm font-medium text-primary hover:underline"
+                              className="font-medium text-primary text-sm hover:underline"
                             >
                               {isDescriptionExpanded
                                 ? "Show less"
@@ -1414,7 +1414,7 @@ function ItemDetailDialog({
                       {/* Colors */}
                       {item.colors.length > 0 && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                             Colors
                           </h3>
                           <ColorsBar colors={item.colors} />
@@ -1424,14 +1424,14 @@ function ItemDetailDialog({
                       {/* Objects */}
                       {item.objects.length > 0 && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                             Objects
                           </h3>
                           <div className="flex flex-wrap gap-1.5">
                             {item.objects.map((obj) => (
                               <span
                                 key={obj}
-                                className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                                className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs dark:bg-blue-900/30 dark:text-blue-300"
                               >
                                 {obj}
                               </span>
@@ -1446,14 +1446,14 @@ function ItemDetailDialog({
                         canEdit) && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                               Tags
                             </h3>
                             {canEdit && !showAddTagInput && (
                               <button
                                 type="button"
                                 onClick={() => setShowAddTagInput(true)}
-                                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
                               >
                                 <Plus className="size-3.5" />
                                 Add tag
@@ -1466,7 +1466,7 @@ function ItemDetailDialog({
                               {userTags.map((tag) => (
                                 <span
                                   key={`user-${tag}`}
-                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20"
+                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-medium text-primary text-xs dark:bg-primary/20"
                                 >
                                   {tag}
                                   {canEdit && (
@@ -1485,7 +1485,7 @@ function ItemDetailDialog({
                               {item.tags.map((tag) => (
                                 <span
                                   key={`auto-${tag}`}
-                                  className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                  className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700 text-xs dark:bg-gray-800 dark:text-gray-300"
                                 >
                                   {tag}
                                 </span>
@@ -1509,7 +1509,7 @@ function ItemDetailDialog({
                                   }
                                 }}
                                 placeholder="Add a tag..."
-                                className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                 autoFocus
                                 disabled={isSavingUserTags}
                               />
@@ -1548,11 +1548,11 @@ function ItemDetailDialog({
                       {/* OCR Text */}
                       {item.ocrText && (
                         <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                             Detected Text
                           </h3>
                           <div className="max-h-32 overflow-y-auto rounded-md bg-gray-50 p-3 dark:bg-gray-800/50">
-                            <p className="whitespace-pre-wrap text-xs text-gray-600 dark:text-gray-400">
+                            <p className="whitespace-pre-wrap text-gray-600 text-xs dark:text-gray-400">
                               {item.ocrText}
                             </p>
                           </div>
@@ -1578,7 +1578,7 @@ function ItemDetailDialog({
 
                           return (
                             <div className="space-y-2">
-                              <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                              <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
                                 Location
                               </h3>
                               <LocationDisplay
@@ -1613,7 +1613,7 @@ function ItemDetailDialog({
                       })()}
                     </>
                   ) : currentProcessingStatus === "processing" ? (
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
+                    <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
                       <IsLoading
                         label={
                           item.sourceType === "url"
@@ -1624,9 +1624,9 @@ function ItemDetailDialog({
                     </div>
                   ) : currentProcessingStatus === "failed" ? (
                     <div className="space-y-3">
-                      <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400">
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400">
                         <div className="flex items-start gap-2">
-                          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                          <AlertCircle className="mt-0.5 size-4 shrink-0" />
                           <p>
                             Analysis failed. You can retry or delete the item.
                           </p>
@@ -1655,7 +1655,7 @@ function ItemDetailDialog({
                       )}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-500">
+                    <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
                       <p>No analysis available.</p>
                     </div>
                   )}
@@ -1665,10 +1665,10 @@ function ItemDetailDialog({
                 {canEdit && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
                         <DoorOpen className="size-4" />
                         Rooms
-                        <span className="text-xs font-normal text-muted-foreground">
+                        <span className="font-normal text-muted-foreground text-xs">
                           (private)
                         </span>
                       </h3>
@@ -1683,7 +1683,7 @@ function ItemDetailDialog({
                         {itemRooms.map((room) => (
                           <li
                             key={room.id}
-                            className="flex items-center gap-1 group"
+                            className="group flex items-center gap-1"
                           >
                             {room.emoji && (
                               <span className="text-sm">{room.emoji}</span>
@@ -1691,7 +1691,7 @@ function ItemDetailDialog({
                             {room.username && room.slug ? (
                               <Link
                                 href={`/@${room.username}/${room.slug}`}
-                                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                className="text-blue-600 text-sm hover:underline dark:text-blue-400"
                               >
                                 {room.name}
                               </Link>
@@ -1718,7 +1718,7 @@ function ItemDetailDialog({
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-muted-foreground text-sm">
                         This item isn't in any rooms yet.
                       </p>
                     )}
@@ -1729,10 +1729,10 @@ function ItemDetailDialog({
                 {canEdit && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
                         <Link2 className="size-4" />
                         Links
-                        <span className="text-xs font-normal text-muted-foreground">
+                        <span className="font-normal text-muted-foreground text-xs">
                           (private)
                         </span>
                       </h3>
@@ -1740,7 +1740,7 @@ function ItemDetailDialog({
                         <button
                           type="button"
                           onClick={() => setShowAddLinkInput(true)}
-                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
                         >
                           <Plus className="size-3.5" />
                           Add link
@@ -1752,24 +1752,24 @@ function ItemDetailDialog({
                         {externalLinks.map((link) => (
                           <li
                             key={link.url}
-                            className="flex items-center gap-2 group"
+                            className="group flex items-center gap-2"
                           >
                             <PlatformIcon
                               platform={link.platform}
-                              className="size-4 text-muted-foreground shrink-0"
+                              className="size-4 shrink-0 text-muted-foreground"
                             />
                             <a
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1"
+                              className="flex-1 truncate text-blue-600 text-sm hover:underline dark:text-blue-400"
                             >
                               {getPlatformName(link.platform, link.url)}
                             </a>
                             <button
                               type="button"
                               onClick={() => handleRemoveLink(link.url)}
-                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity"
+                              className="p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                               aria-label="Remove link"
                             >
                               <X className="size-3.5" />
@@ -1794,7 +1794,7 @@ function ItemDetailDialog({
                             }
                           }}
                           placeholder="Paste URL..."
-                          className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           autoFocus
                           disabled={isAddingLink}
                         />
@@ -1829,16 +1829,16 @@ function ItemDetailDialog({
                 {canEdit && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                         Notes
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        <span className="ml-2 font-normal text-muted-foreground text-xs">
                           (private)
                         </span>
                       </h3>
                       {isSavingNotes && (
                         <IsLoading
                           label="Saving"
-                          className="text-xs text-muted-foreground"
+                          className="text-muted-foreground text-xs"
                           iconClassName="size-3"
                         />
                       )}
@@ -1847,14 +1847,14 @@ function ItemDetailDialog({
                       value={notes}
                       onChange={(e) => handleNotesChange(e.target.value)}
                       placeholder="Add your notes..."
-                      className="w-full min-h-[100px] rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                      className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
                     />
                   </div>
                 )}
 
                 {/* Highlights - articles only */}
                 {isArticle && (
-                  <div className="pt-8 border-t border-gray-200 dark:border-gray-800">
+                  <div className="border-gray-200 border-t pt-8 dark:border-gray-800">
                     <HighlightsPanel
                       itemId={item.id}
                       onHighlightClick={(highlight) =>
@@ -1867,8 +1867,8 @@ function ItemDetailDialog({
 
                 {/* Privacy Setting - only shown to users who can edit */}
                 {canEdit && (
-                  <div className="space-y-2 pt-6 border-t border-gray-200 dark:border-gray-800">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                       Privacy
                     </h3>
                     <label className="flex items-center justify-between gap-3 text-sm">
@@ -1900,7 +1900,7 @@ function ItemDetailDialog({
                         />
                       </button>
                     </label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       When enabled, this item won't appear in public dynamic
                       rooms
                     </p>
@@ -1949,7 +1949,7 @@ function ItemDetailDialog({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 z-10 cursor-pointer rounded-sm p-1.5 bg-background/20 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+              className="absolute top-4 right-4 z-10 cursor-pointer rounded-sm bg-background/20 p-1.5 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

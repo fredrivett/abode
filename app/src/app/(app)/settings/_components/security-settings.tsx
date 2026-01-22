@@ -75,11 +75,11 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-xl font-semibold">
+      <h3 className="flex items-center gap-2 font-semibold text-xl">
         <Shield className="size-5 text-muted-foreground" />
         Security
       </h3>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-muted-foreground text-sm">
         Manage your account security settings.
       </p>
 
@@ -93,7 +93,7 @@ export function SecuritySettings({ initialFactors }: SecuritySettingsProps) {
             )}
             <div>
               <p className="font-medium">Two-factor authentication</p>
-              <p className="font-mono text-sm text-muted-foreground">
+              <p className="font-mono text-muted-foreground text-sm">
                 {hasMFA
                   ? "Your account is protected with an authenticator app"
                   : "Add an extra layer of security to your account"}
@@ -271,7 +271,7 @@ function MFAEnrollDialog({
           </div>
         ) : error && !qrCode ? (
           <div className="py-4 text-center">
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-destructive text-sm">{error}</p>
             <Button onClick={startEnrollment} className="mt-4" size="sm">
               Try again
             </Button>
@@ -291,7 +291,7 @@ function MFAEnrollDialog({
                   </div>
                   {secret && (
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-muted-foreground text-xs">
                         Or enter this code manually:
                       </p>
                       <code className="mt-1 block rounded bg-muted px-2 py-1 font-mono text-xs">
@@ -308,7 +308,7 @@ function MFAEnrollDialog({
               <div className="flex justify-center py-4">
                 <IsLoading
                   label="Waiting for QR code"
-                  className="text-sm text-muted-foreground"
+                  className="text-muted-foreground text-sm"
                 />
               </div>
             ) : null}
@@ -316,7 +316,7 @@ function MFAEnrollDialog({
             {step === "verify" && (
               <>
                 <div className="space-y-4">
-                  <p className="text-center text-sm text-muted-foreground">
+                  <p className="text-center text-muted-foreground text-sm">
                     Enter the 6-digit code from your authenticator app
                   </p>
                   <div className="flex justify-center">
@@ -337,7 +337,7 @@ function MFAEnrollDialog({
                     </InputOTP>
                   </div>
                   {error && (
-                    <p className="text-center text-sm text-destructive">
+                    <p className="text-center text-destructive text-sm">
                       {error}
                     </p>
                   )}

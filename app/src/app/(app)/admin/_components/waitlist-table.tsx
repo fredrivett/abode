@@ -79,7 +79,7 @@ export function WaitlistTable({ entries, pagination }: WaitlistTableProps) {
   const getStatusBadge = (entry: WaitlistEntry) => {
     if (invitedEntries.has(entry.id) || entry.status === "invited") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-700 text-xs dark:bg-blue-900/30 dark:text-blue-400">
           <Mail className="size-3" />
           Invited
         </span>
@@ -87,14 +87,14 @@ export function WaitlistTable({ entries, pagination }: WaitlistTableProps) {
     }
     if (entry.status === "joined") {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs dark:bg-green-900/30 dark:text-green-400">
           <Check className="size-3" />
           Joined
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-xs text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
         <Clock className="size-3" />
         Waiting
       </span>
@@ -166,7 +166,7 @@ export function WaitlistTable({ entries, pagination }: WaitlistTableProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Showing {(page - 1) * pagination.pageSize + 1} to{" "}
             {Math.min(page * pagination.pageSize, totalCount)} of {totalCount}{" "}
             entries
@@ -190,7 +190,7 @@ export function WaitlistTable({ entries, pagination }: WaitlistTableProps) {
                 </>
               )}
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               Page {page} of {totalPages}
             </span>
             <Button

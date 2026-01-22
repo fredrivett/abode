@@ -18,7 +18,7 @@ export function UserDeletionStats({
 
   return (
     <div className="rounded-lg border bg-muted/50 p-4">
-      <p className="text-sm font-medium text-foreground">
+      <p className="font-medium text-foreground text-sm">
         This will permanently delete:
       </p>
       <div className="mt-3 space-y-2 pl-2">

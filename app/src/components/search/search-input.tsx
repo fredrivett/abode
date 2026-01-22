@@ -306,14 +306,14 @@ export function SearchInput({
               placeholder={placeholder}
               aria-label="Search"
               className={cn(
-                "w-full rounded-none border-0 border-b-2 bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-foreground/30 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-lg",
+                "w-full rounded-none border-0 border-b-2 bg-transparent px-0 py-1 font-serif shadow-none placeholder:italic placeholder:opacity-60 focus-visible:border-foreground/30 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:text-lg dark:bg-transparent",
                 disabled && "cursor-not-allowed opacity-50",
                 focusShortcut && "pr-16",
               )}
             />
             {/* Keyboard shortcut hint (shown when not focused, hidden on mobile) */}
             {focusShortcut && !isFocused && (
-              <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2">
+              <div className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-0">
                 <KbdGroup className="hidden md:inline-flex">
                   <Kbd>{getModifierKeySymbol()}</Kbd>
                   <Kbd>⇧</Kbd>

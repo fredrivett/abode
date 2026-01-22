@@ -29,7 +29,7 @@ export function LocationMap({
         href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="block overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+        className="block overflow-hidden rounded-md border border-zinc-200 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
       >
         {/* biome-ignore lint/performance/noImgElement: using proxied mapbox static image */}
         <img
@@ -37,7 +37,7 @@ export function LocationMap({
           alt={`Map showing location: ${locationName}`}
           width={width}
           height={height}
-          className="w-full h-auto bg-zinc-100 dark:bg-zinc-800"
+          className="h-auto w-full bg-zinc-100 dark:bg-zinc-800"
           loading="lazy"
         />
       </a>

@@ -11,11 +11,11 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 text-xl font-semibold">
+      <h3 className="flex items-center gap-2 font-semibold text-xl">
         <BarChart3 className="size-5 text-muted-foreground" />
         Account
       </h3>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
+      <p className="mt-1 font-mono text-muted-foreground text-sm">
         Your account usage and storage.
       </p>
 
@@ -25,10 +25,10 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
             <Image className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-2xl font-semibold tabular-nums">
+            <p className="font-semibold text-2xl tabular-nums">
               {itemCount.toLocaleString()}
             </p>
-            <p className="font-mono text-sm text-muted-foreground">
+            <p className="font-mono text-muted-foreground text-sm">
               {itemCount === 1 ? "Item" : "Items"}
             </p>
           </div>
@@ -39,13 +39,13 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
             <HardDrive className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-2xl font-semibold tabular-nums">
+            <p className="font-semibold text-2xl tabular-nums">
               {storage.value}
-              <span className="text-base font-normal small-caps">
+              <span className="small-caps font-normal text-base">
                 {storage.unit}
               </span>
             </p>
-            <p className="font-mono text-sm text-muted-foreground">Storage used</p>
+            <p className="font-mono text-muted-foreground text-sm">Storage used</p>
           </div>
         </div>
       </div>
