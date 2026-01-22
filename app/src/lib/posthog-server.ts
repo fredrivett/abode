@@ -1,10 +1,11 @@
 import { PostHog } from "posthog-node";
+import { isDevelopment } from "@/env";
 
 let posthogClient: PostHog | null = null;
 
 export function getPostHogClient() {
   // Don't initialize PostHog in development
-  if (process.env.NODE_ENV === "development") {
+  if (isDevelopment) {
     return null;
   }
 

@@ -2,9 +2,8 @@ import "server-only";
 
 import pino, { type Logger as PinoLogger } from "pino";
 import pinoPretty from "pino-pretty";
+import { isDevelopment } from "@/env";
 import type { Logger } from "./logger-types";
-
-const isDev = process.env.NODE_ENV === "development";
 
 let serverLogger: PinoLogger | null = null;
 
@@ -20,8 +19,8 @@ function getServerLogger(): PinoLogger {
   const prodSyncDestination = pino.destination({ sync: true });
 
   serverLogger = pino(
-    { level: isDev ? "debug" : "info" },
-    (isDev
+    { level: isDevelopment ? "debug" : "info" },
+    (isDevelopment
       ? devPrettyStream
       : prodSyncDestination) as import("pino").DestinationStream,
   );
