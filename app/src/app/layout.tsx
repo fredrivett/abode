@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
+import { isDevelopment } from "@/env";
 import { QueryProvider } from "@/lib/query-client";
 
 const geistSans = Geist({
@@ -69,7 +70,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {process.env.NODE_ENV === "development" && (
+        {isDevelopment && (
           <>
             <Script
               src="//unpkg.com/react-grab@0.0.88/dist/index.global.js"

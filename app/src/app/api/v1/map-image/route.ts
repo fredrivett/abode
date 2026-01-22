@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -141,8 +142,7 @@ export async function GET(request: NextRequest) {
     const contentType = response.headers.get("content-type") ?? "image/png";
 
     // Only cache in production, not in development
-    const isDev = process.env.NODE_ENV === "development";
-    const cacheControl = isDev
+    const cacheControl = isDevelopment
       ? "no-cache, no-store, must-revalidate"
       : "public, max-age=86400, s-maxage=86400";
 
