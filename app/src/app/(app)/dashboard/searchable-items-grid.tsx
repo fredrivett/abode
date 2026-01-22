@@ -96,6 +96,7 @@ export function SearchableItemsGrid({
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
   const showLoadMore = !searchResults.hasActiveSearch && hasNextPage;
+  const displayTotal = searchResults.hasActiveSearch ? searchResults.total : total;
 
   return (
     <ItemsGrid
@@ -105,7 +106,7 @@ export function SearchableItemsGrid({
       hasMore={showLoadMore}
       isLoadingMore={isFetchingNextPage}
       onLoadMore={loadMore}
-      total={total}
+      total={displayTotal}
     />
   );
 }
