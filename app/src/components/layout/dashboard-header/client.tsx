@@ -7,7 +7,6 @@ import {
   LogOut,
   Plus,
   Settings,
-  User,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -272,36 +271,31 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <div className="flex items-center gap-2 px-2 py-2">
-                  <UserAvatar
-                    avatarUrl={avatarUrl}
-                    firstName={firstName}
-                    lastName={lastName}
-                    username={username}
-                    email={email}
-                    className="size-8"
-                  />
-                  <span className="flex flex-col items-start leading-tight">
-                    {displayLine1 && (
-                      <span className="font-medium text-sm">
-                        {displayLine1}
-                      </span>
-                    )}
-                    {displayLine2 && (
-                      <span className="text-muted-foreground text-xs">
-                        {displayLine2}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="p-0">
                   <Link
                     href={`/@${username}`}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 px-2 py-2"
                   >
-                    <User className="size-4" />
-                    View profile
+                    <UserAvatar
+                      avatarUrl={avatarUrl}
+                      firstName={firstName}
+                      lastName={lastName}
+                      username={username}
+                      email={email}
+                      className="size-8"
+                    />
+                    <span className="flex flex-col items-start leading-tight">
+                      {displayLine1 && (
+                        <span className="font-medium text-sm">
+                          {displayLine1}
+                        </span>
+                      )}
+                      {displayLine2 && (
+                        <span className="text-muted-foreground text-xs">
+                          {displayLine2}
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
