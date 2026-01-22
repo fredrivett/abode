@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, User } from "lucide-react";
+import { Handshake, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ const navItems = [
   {
     href: "/settings/invites",
     label: "Invites",
-    icon: Mail,
+    icon: Handshake,
   },
 ];
 

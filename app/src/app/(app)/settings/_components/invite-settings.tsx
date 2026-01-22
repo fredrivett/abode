@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, Clock, Mail, Trash2, X } from "lucide-react";
+import { Check, Clock, Handshake, Mail, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -138,8 +138,11 @@ export function InviteSettings({
   return (
     <>
       <section className="rounded-xl border p-6">
-        <h3 className="text-lg font-semibold">Invites</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h3 className="flex items-center gap-2 text-xl font-semibold">
+          <Handshake className="size-5 text-muted-foreground" />
+          Invites
+        </h3>
+        <p className="mt-1 font-mono text-sm text-muted-foreground">
           Invite friends to join abode. You have{" "}
           <span className="font-medium text-foreground">
             {availableInvites}
