@@ -113,6 +113,11 @@ export function matchesShortcut(
   event: KeyboardEvent | React.KeyboardEvent,
   shortcut: Shortcut,
 ): boolean {
+  // Guard against undefined key (can happen with IME events or certain browser edge cases)
+  if (!event.key) {
+    return false;
+  }
+
   // Case-insensitive key comparison (Shift changes "k" to "K")
   if (event.key.toLowerCase() !== shortcut.key.toLowerCase()) {
     return false;
