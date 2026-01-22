@@ -27,6 +27,7 @@ import { copyToClipboard } from "@/lib/copy";
 import type { Filter } from "@/lib/search/types";
 import { getAppBaseUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 type WidgetType = "badge" | "preview";
 type WidgetTheme = "auto" | "light" | "dark";
@@ -256,6 +257,27 @@ export function ShareRoomDialog({
   const [copied, setCopied] = useState(false);
 
   const isPublic = room.visibility === "public";
+
+  // Track share_room milestone when opening share dialog on a public room
+  const { completed, markComplete } = useMilestoneStore();
+  useEffect(() => {
+    if (open && isPublic && !completed.includes("share_room")) {
+      fetch("/api/v1/user/milestones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "share_room" }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            markComplete("share_room");
+          }
+        })
+        .catch(() => {
+          // Silently fail - milestone tracking should not break main flow
+        });
+    }
+  }, [open, isPublic, completed, markComplete]);
+
   const hasFilters = (room.filters?.length ?? 0) > 0;
   const hasEmoji = !!room.emoji;
   const embedCode = generateEmbedCode(room.id, {

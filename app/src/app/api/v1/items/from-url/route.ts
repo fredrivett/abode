@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { classifyUrlTask } from "../../../../../../trigger/classify-url";
@@ -79,6 +80,9 @@ export async function POST(request: NextRequest) {
         url_domain: parsedUrl.hostname,
       },
     });
+
+    // Mark milestone for saving first URL
+    void markMilestoneComplete(user.id, "save_first_url");
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {

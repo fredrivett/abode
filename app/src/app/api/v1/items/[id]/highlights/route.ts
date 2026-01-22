@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -153,6 +154,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         has_note: !!note,
       },
     });
+
+    // Mark milestone for highlighting an article
+    void markMilestoneComplete(user.id, "highlight_article");
 
     return NextResponse.json(highlight, { status: 201 });
   } catch (error) {

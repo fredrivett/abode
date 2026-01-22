@@ -10,6 +10,7 @@ import {
   getUserInvites,
 } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
@@ -179,6 +180,9 @@ export async function POST(request: NextRequest) {
         invite_id: result.invite.id,
       },
     });
+
+    // Mark milestone for inviting a friend
+    void markMilestoneComplete(user.id, "invite_friend");
 
     return NextResponse.json({
       success: true,

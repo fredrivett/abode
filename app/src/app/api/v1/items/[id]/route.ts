@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { createClient } from "@/lib/supabase/server";
 import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to-rooms";
 
@@ -99,6 +100,11 @@ export async function GET(
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_view", { itemId: id });
+
+    // Mark milestone for seeing AI analysis
+    if (item.processingStatus === "completed") {
+      void markMilestoneComplete(user.id, "see_ai_analysis");
+    }
 
     // Flatten imageDetails and roomItems for backward compatibility with frontend
     const flattenedItem = {
@@ -326,6 +332,11 @@ export async function PATCH(
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_update", { itemId: id });
+
+    // Mark milestone if user added their first tag
+    if (userTags !== undefined && userTags.length > 0) {
+      void markMilestoneComplete(user.id, "add_first_tag");
+    }
 
     // Flatten imageDetails and roomItems for backward compatibility with frontend
     const flattenedItem = {

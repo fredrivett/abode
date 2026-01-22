@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
@@ -198,6 +199,11 @@ export async function POST(request: NextRequest) {
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_create", { itemId: item.id, kind });
+
+    // Mark milestone for first image upload
+    if (kind === "image") {
+      void markMilestoneComplete(user.id, "upload_first_image");
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {

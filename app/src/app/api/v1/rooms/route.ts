@@ -3,12 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import {
-  // canCreateSmartRoom,
-  generateRoomSlug,
-  hasValidFilters,
-  // MAX_SMART_ROOMS_PER_USER,
-} from "@/lib/rooms";
+import { markMilestoneComplete } from "@/lib/milestones";
+import { generateRoomSlug, hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
@@ -189,6 +185,12 @@ export async function POST(request: NextRequest) {
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "room_create", { roomId: room.id, type });
+
+    // Mark milestones for room creation
+    void markMilestoneComplete(user.id, "create_first_room");
+    if (type === "smart") {
+      void markMilestoneComplete(user.id, "create_dynamic_room");
+    }
 
     return NextResponse.json(
       { ...room, itemCount: 0, username: dbUser?.username ?? null },
