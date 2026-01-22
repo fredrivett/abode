@@ -50,7 +50,7 @@ export function ItemsGrid({
   });
 
   return (
-    <div className="flex-1 flex flex-col w-full space-y-3">
+    <div className="flex w-full flex-1 flex-col space-y-3">
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
@@ -177,7 +177,7 @@ export function ItemsGrid({
 
       {/* Infinite scroll trigger and loading indicator */}
       {items.length > 0 && (
-        <div ref={loadMoreRef} className="flex justify-center pt-18 mt-auto">
+        <div ref={loadMoreRef} className="mt-auto flex justify-center pt-18">
           {isLoadingMore && (
             <IsLoading
               label="Loading more"
@@ -189,11 +189,11 @@ export function ItemsGrid({
             items.length > 0 &&
             total !== undefined &&
             (hasActiveSearch || total > DEFAULT_PAGE_SIZE) && (
-              <div className="text-center font-serif text-muted-foreground/50 text-base italic">
+              <div className="text-center font-serif text-base text-muted-foreground/50 italic">
                 {hasActiveSearch
                   ? `Showing ${total > 1 ? "all " : ""}${total} ${total === 1 ? "result" : "results"}`
                   : `Showing all ${total} items`}
-                <div className="cursor-default mt-6 text-2xl text-muted-foreground/25">
+                <div className="mt-6 cursor-default text-2xl text-muted-foreground/25">
                   ~~~
                 </div>
               </div>
