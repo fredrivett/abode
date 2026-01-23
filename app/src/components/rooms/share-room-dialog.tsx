@@ -261,7 +261,11 @@ export function ShareRoomDialog({
   // Track share_room milestone when opening share dialog on a public room
   const { completed, markComplete } = useMilestoneStore();
   useEffect(() => {
-    if (open && isPublic && !completed.includes("share_room")) {
+    if (
+      open &&
+      isPublic &&
+      !completed.some((m) => m.type === "share_room")
+    ) {
       fetch("/api/v1/user/milestones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

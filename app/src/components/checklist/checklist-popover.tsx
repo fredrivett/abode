@@ -29,7 +29,7 @@ type MilestoneConfig = {
 };
 
 type MilestonesResponse = {
-  completed: MilestoneType[];
+  completed: Array<{ type: MilestoneType; completedAt: string }>;
   pending: MilestoneType[];
   hasArticle: boolean;
   config: Record<MilestoneType, MilestoneConfig>;
@@ -161,17 +161,18 @@ export function ChecklistPopover() {
               )}
 
               {/* Completed items */}
-              {completedToShow.map((type) => {
-                const itemConfig = config[type];
+              {completedToShow.map((milestone) => {
+                const itemConfig = config[milestone.type];
                 if (!itemConfig) return null;
 
                 return (
                   <ChecklistItem
-                    key={type}
-                    type={type}
+                    key={milestone.type}
+                    type={milestone.type}
                     label={itemConfig.label}
                     destination={itemConfig.destination}
                     isCompleted={true}
+                    completedAt={milestone.completedAt}
                     onNavigate={handleNavigate}
                   />
                 );

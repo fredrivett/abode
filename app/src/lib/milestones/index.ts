@@ -85,7 +85,7 @@ export const MILESTONE_CONFIG: Record<
 };
 
 export type MilestoneStatus = {
-  completed: MilestoneType[];
+  completed: Array<{ type: MilestoneType; completedAt: Date }>;
   pending: MilestoneType[];
   hasArticle: boolean;
 };
@@ -99,7 +99,7 @@ export async function getMilestoneStatus(
   const [completedMilestones, articleCount, itemCount] = await Promise.all([
     db.userMilestone.findMany({
       where: { userId },
-      select: { type: true },
+      select: { type: true, completedAt: true },
     }),
     db.item.count({
       where: {
@@ -112,14 +112,16 @@ export async function getMilestoneStatus(
     }),
   ]);
 
-  const completedSet = new Set(completedMilestones.map((m) => m.type));
+  const completedMap = new Map(
+    completedMilestones.map((m) => [m.type, m.completedAt]),
+  );
   const hasArticle = articleCount > 0;
   const hasItem = itemCount > 0;
 
-  const completed: MilestoneType[] = [];
+  const completed: Array<{ type: MilestoneType; completedAt: Date }> = [];
   const pending: MilestoneType[] = [];
 
-  const hasFirstRoom = completedSet.has("create_first_room");
+  const hasFirstRoom = completedMap.has("create_first_room");
 
   for (const type of MILESTONE_TYPES) {
     const config = MILESTONE_CONFIG[type];
@@ -135,8 +137,9 @@ export async function getMilestoneStatus(
       continue;
     }
 
-    if (completedSet.has(type)) {
-      completed.push(type);
+    const completedAt = completedMap.get(type);
+    if (completedAt) {
+      completed.push({ type, completedAt });
     } else {
       pending.push(type);
     }

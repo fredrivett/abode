@@ -3,14 +3,19 @@
 import type { MilestoneType } from "@prisma/client";
 import { create } from "zustand";
 
+export type CompletedMilestone = {
+  type: MilestoneType;
+  completedAt: string;
+};
+
 type MilestoneState = {
-  completed: MilestoneType[];
+  completed: CompletedMilestone[];
   pending: MilestoneType[];
   hasArticle: boolean;
   isLoaded: boolean;
 
   setMilestones: (
-    completed: MilestoneType[],
+    completed: CompletedMilestone[],
     pending: MilestoneType[],
     hasArticle: boolean,
   ) => void;
@@ -31,14 +36,17 @@ export const useMilestoneStore = create<MilestoneState>((set) => ({
     set((state) => {
       // Skip if already completed or not in pending
       if (
-        state.completed.includes(type) ||
+        state.completed.some((m) => m.type === type) ||
         !state.pending.includes(type)
       ) {
         return state;
       }
 
       return {
-        completed: [...state.completed, type],
+        completed: [
+          ...state.completed,
+          { type, completedAt: new Date().toISOString() },
+        ],
         pending: state.pending.filter((t) => t !== type),
       };
     }),

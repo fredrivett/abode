@@ -31,7 +31,10 @@ export async function GET() {
     const status = await getMilestoneStatus(user.id);
 
     return NextResponse.json({
-      completed: status.completed,
+      completed: status.completed.map((m) => ({
+        type: m.type,
+        completedAt: m.completedAt.toISOString(),
+      })),
       pending: status.pending,
       hasArticle: status.hasArticle,
       config: MILESTONE_CONFIG,
