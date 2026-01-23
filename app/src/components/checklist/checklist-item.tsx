@@ -51,7 +51,7 @@ export function ChecklistItem({
           <TooltipTrigger asChild>
             <Info className="size-3.5 shrink-0 text-muted-foreground/50" />
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={8}>
+          <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
             <span className="text-xs">
               Completed {formatRelativeTime(completedAt)}
             </span>
