@@ -37,6 +37,7 @@ type MilestonesResponse = {
 
 export function ChecklistPopover() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [config, setConfig] = useState<Record<
     MilestoneType,
     MilestoneConfig
@@ -68,7 +69,14 @@ export function ChecklistPopover() {
   }, []);
 
   const pendingCount = pending.length;
-  const allItems = [...completed, ...pending];
+
+  // Show pending items first, then completed items (limited to 2 by default)
+  const MAX_COMPLETED_PREVIEW = 2;
+  const completedToShow = showAllCompleted
+    ? completed
+    : completed.slice(-MAX_COMPLETED_PREVIEW);
+  const hiddenCompletedCount = completed.length - MAX_COMPLETED_PREVIEW;
+  const hasHiddenCompleted = hiddenCompletedCount > 0;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -138,22 +146,55 @@ export function ChecklistPopover() {
         </p>
 
         <div className="space-y-0.5">
-          {config &&
-            allItems.map((type) => {
-              const itemConfig = config[type];
-              if (!itemConfig) return null;
+          {config && (
+            <>
+              {/* Pending items */}
+              {pending.map((type) => {
+                const itemConfig = config[type];
+                if (!itemConfig) return null;
 
-              return (
-                <ChecklistItem
-                  key={type}
-                  type={type}
-                  label={itemConfig.label}
-                  destination={itemConfig.destination}
-                  isCompleted={completed.includes(type)}
-                  onNavigate={handleNavigate}
-                />
-              );
-            })}
+                return (
+                  <ChecklistItem
+                    key={type}
+                    type={type}
+                    label={itemConfig.label}
+                    destination={itemConfig.destination}
+                    isCompleted={false}
+                    onNavigate={handleNavigate}
+                  />
+                );
+              })}
+
+              {/* Show more completed button */}
+              {hasHiddenCompleted && !showAllCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCompleted(true)}
+                  className="w-full rounded px-2 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted/50"
+                >
+                  Show {hiddenCompletedCount} more completed{" "}
+                  {hiddenCompletedCount === 1 ? "task" : "tasks"}
+                </button>
+              )}
+
+              {/* Completed items */}
+              {completedToShow.map((type) => {
+                const itemConfig = config[type];
+                if (!itemConfig) return null;
+
+                return (
+                  <ChecklistItem
+                    key={type}
+                    type={type}
+                    label={itemConfig.label}
+                    destination={itemConfig.destination}
+                    isCompleted={true}
+                    onNavigate={handleNavigate}
+                  />
+                );
+              })}
+            </>
+          )}
 
           {!config && (
             <div className="space-y-0.5">
