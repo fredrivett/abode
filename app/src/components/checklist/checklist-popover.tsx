@@ -1,7 +1,7 @@
 "use client";
 
 import type { MilestoneType } from "@prisma/client";
-import { ListTodo, UserRoundCheck } from "lucide-react";
+import { ListTodo } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -103,8 +103,8 @@ export function ChecklistPopover() {
       </Tooltip>
 
       <PopoverContent align="end" className="w-72 p-2">
-        <div className="mb-2 flex items-center gap-3 px-2 py-1">
-          <UserRoundCheck className="size-4 shrink-0 text-muted-foreground" />
+        <div className="mb-2 flex items-center gap-2 px-2 py-1">
+          <ListTodo className="size-4 shrink-0 text-muted-foreground" />
           <h3 className="font-medium text-sm">Get started</h3>
         </div>
 
