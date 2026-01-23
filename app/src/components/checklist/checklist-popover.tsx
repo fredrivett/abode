@@ -148,23 +148,6 @@ export function ChecklistPopover() {
         <div className="space-y-0.5">
           {config && (
             <>
-              {/* Pending items */}
-              {pending.map((type) => {
-                const itemConfig = config[type];
-                if (!itemConfig) return null;
-
-                return (
-                  <ChecklistItem
-                    key={type}
-                    type={type}
-                    label={itemConfig.label}
-                    destination={itemConfig.destination}
-                    isCompleted={false}
-                    onNavigate={handleNavigate}
-                  />
-                );
-              })}
-
               {/* Show more completed button */}
               {hasHiddenCompleted && !showAllCompleted && (
                 <button
@@ -189,6 +172,23 @@ export function ChecklistPopover() {
                     label={itemConfig.label}
                     destination={itemConfig.destination}
                     isCompleted={true}
+                    onNavigate={handleNavigate}
+                  />
+                );
+              })}
+
+              {/* Pending items */}
+              {pending.map((type) => {
+                const itemConfig = config[type];
+                if (!itemConfig) return null;
+
+                return (
+                  <ChecklistItem
+                    key={type}
+                    type={type}
+                    label={itemConfig.label}
+                    destination={itemConfig.destination}
+                    isCompleted={false}
                     onNavigate={handleNavigate}
                   />
                 );
