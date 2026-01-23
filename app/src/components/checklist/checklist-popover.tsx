@@ -70,12 +70,18 @@ export function ChecklistPopover() {
 
   const pendingCount = pending.length;
 
+  // Sort completed items by completion time (oldest first, so latest are at the end)
+  const sortedCompleted = [...completed].sort(
+    (a, b) =>
+      new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime(),
+  );
+
   // Show pending items first, then completed items (limited to 2 by default)
   const MAX_COMPLETED_PREVIEW = 2;
   const completedToShow = showAllCompleted
-    ? completed
-    : completed.slice(-MAX_COMPLETED_PREVIEW);
-  const hiddenCompletedCount = completed.length - MAX_COMPLETED_PREVIEW;
+    ? sortedCompleted
+    : sortedCompleted.slice(-MAX_COMPLETED_PREVIEW);
+  const hiddenCompletedCount = sortedCompleted.length - MAX_COMPLETED_PREVIEW;
   const hasHiddenCompleted = hiddenCompletedCount > 0;
 
   return (
