@@ -47,11 +47,11 @@ export function ChecklistItem({
         {label}
       </span>
       {isCompleted && completedAt && (
-        <Tooltip>
+        <Tooltip disableHoverableContent>
           <TooltipTrigger asChild>
             <Info className="size-3.5 shrink-0 text-muted-foreground/50" />
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={8} className="pointer-events-none">
+          <TooltipContent side="top" sideOffset={8}>
             <span className="text-xs">
               Completed {formatRelativeTime(completedAt)}
             </span>
