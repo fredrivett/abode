@@ -8,7 +8,9 @@ import { useAvatarUpload } from "@/components/avatar/use-avatar-upload";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { cn } from "@/lib/utils";
+import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 
 type UserAvatarSettingProps = {
@@ -45,9 +47,13 @@ export function UserAvatarSetting({
   const handleSuccess = useCallback(
     (newAvatarUrl: string) => {
       setAvatarUrl(newAvatarUrl);
+      // Mark milestone if profile is now complete
+      if (shouldCompleteProfile({ firstName, lastName, avatarUrl: newAvatarUrl })) {
+        useMilestoneStore.getState().markComplete("complete_profile");
+      }
       toast.success("Avatar updated");
     },
-    [setAvatarUrl],
+    [setAvatarUrl, firstName, lastName],
   );
 
   const handleError = useCallback((error: Error) => {

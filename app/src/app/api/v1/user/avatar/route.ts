@@ -4,6 +4,7 @@ import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
+import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
@@ -121,8 +122,7 @@ export async function POST(request: NextRequest) {
     log.info({ userId: user.id }, "Avatar uploaded successfully");
 
     // Check if profile is now complete: (firstName OR lastName) AND avatarUrl
-    const hasName = updatedUser.firstName || updatedUser.lastName;
-    if (hasName) {
+    if (shouldCompleteProfile({ ...updatedUser, avatarUrl: avatarUrlWithCacheBust })) {
       void markMilestoneComplete(user.id, "complete_profile");
     }
 

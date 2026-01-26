@@ -2,6 +2,7 @@
 
 import type { ArticleHighlight } from "@prisma/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMilestoneStore } from "@/stores/milestone-store";
 import { api } from "../api-client";
 
 type HighlightResponse = Pick<
@@ -46,6 +47,7 @@ export function useCreateHighlight(itemId: string) {
     mutationFn: (data) => api.post(`/api/v1/items/${itemId}/highlights`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: highlightsQueryKey(itemId) });
+      useMilestoneStore.getState().markComplete("highlight_article");
     },
   });
 }

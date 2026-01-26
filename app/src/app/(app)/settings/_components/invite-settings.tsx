@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 
 type Invite = {
@@ -66,6 +67,7 @@ export function InviteSettings({
       }
 
       toast.success(`Invite sent to ${email}`);
+      useMilestoneStore.getState().markComplete("invite_friend");
       setEmail("");
 
       // Use the computed invitesRemaining from the API response

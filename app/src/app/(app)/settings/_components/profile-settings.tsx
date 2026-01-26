@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { shouldCompleteProfile } from "@/lib/milestones/conditions";
+import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 import { requestEmailChange } from "../actions";
 
@@ -96,6 +98,13 @@ export function ProfileSettings({
       // Update zustand store so header reflects changes immediately
       setStoreFirstName(firstName || null);
       setStoreLastName(lastName || null);
+
+      // Mark milestone if profile is now complete
+      // Use store avatarUrl (updated if user uploaded this session) with fallback to initial prop
+      const currentAvatarUrl = useUserStore.getState().avatarUrl ?? initialAvatarUrl;
+      if (shouldCompleteProfile({ firstName, lastName, avatarUrl: currentAvatarUrl })) {
+        useMilestoneStore.getState().markComplete("complete_profile");
+      }
 
       // Track profile update event
       posthog.capture("profile_updated", {
