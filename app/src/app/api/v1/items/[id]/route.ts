@@ -4,6 +4,10 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
+import {
+  shouldCompleteAddFirstTag,
+  shouldCompleteSeeAiAnalysis,
+} from "@/lib/milestones/conditions";
 import { createClient } from "@/lib/supabase/server";
 import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to-rooms";
 
@@ -102,7 +106,7 @@ export async function GET(
     void logActivity(user.id, "item_view", { itemId: id });
 
     // Mark milestone for seeing AI analysis
-    if (item.processingStatus === "completed") {
+    if (shouldCompleteSeeAiAnalysis(item.processingStatus)) {
       void markMilestoneComplete(user.id, "see_ai_analysis");
     }
 
@@ -334,7 +338,7 @@ export async function PATCH(
     void logActivity(user.id, "item_update", { itemId: id });
 
     // Mark milestone if user added their first tag
-    if (userTags !== undefined && userTags.length > 0) {
+    if (shouldCompleteAddFirstTag(userTags)) {
       void markMilestoneComplete(user.id, "add_first_tag");
     }
 

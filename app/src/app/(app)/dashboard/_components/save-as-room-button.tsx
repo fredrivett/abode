@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { SearchState } from "@/lib/search";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 type SaveAsRoomButtonProps = {
   searchState: SearchState;
@@ -60,6 +61,9 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
 
       if (response.ok) {
         const room = await response.json();
+        // Mark milestones for room creation (always smart room here)
+        useMilestoneStore.getState().markComplete("create_first_room");
+        useMilestoneStore.getState().markComplete("create_dynamic_room");
         toast.success("Dynamic room created");
         setIsOpen(false);
         router.push(`/@${room.username}/${room.slug}`);

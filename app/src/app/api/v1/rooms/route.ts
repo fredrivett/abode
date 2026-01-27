@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
+import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
 import { generateRoomSlug, hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
 
     // Mark milestones for room creation
     void markMilestoneComplete(user.id, "create_first_room");
-    if (type === "smart") {
+    if (shouldCompleteCreateDynamicRoom(type)) {
       void markMilestoneComplete(user.id, "create_dynamic_room");
     }
 

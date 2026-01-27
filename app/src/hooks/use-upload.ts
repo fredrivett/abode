@@ -13,6 +13,7 @@ import {
   MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("hooks/use-upload");
 
@@ -78,6 +79,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
       try {
         await api.post("/api/v1/items/from-url", { url });
         toast.success("URL added — processing in background");
+        useMilestoneStore.getState().markComplete("save_first_url");
         if (isOnDashboard) {
           invalidateItems();
         } else {
@@ -173,6 +175,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         }
 
         toast.success("Upload complete");
+        useMilestoneStore.getState().markComplete("upload_first_image");
         if (isOnDashboard) {
           invalidateItems();
         } else {

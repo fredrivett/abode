@@ -14,6 +14,7 @@ import {
   MAX_IMAGE_UPLOAD_BYTES,
   MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploads";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("dashboard/upload-widget");
 
@@ -129,6 +130,9 @@ export function UploadWidget() {
         await supabase.storage.from("items").remove([objectPath]);
         throw itemError;
       }
+
+      // Mark milestone for first image upload
+      useMilestoneStore.getState().markComplete("upload_first_image");
 
       // Track item upload event
       posthog.capture("item_uploaded", {

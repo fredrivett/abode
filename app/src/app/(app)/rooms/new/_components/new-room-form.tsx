@@ -17,9 +17,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
 import type { SearchState } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
 import { cn } from "@/lib/utils";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 const ROOM_EXAMPLES = [
   { emoji: null, name: "My Collection" },
@@ -143,6 +145,12 @@ export function NewRoomForm() {
 
         if (response.ok) {
           const room = await response.json();
+
+          // Mark milestones for room creation
+          useMilestoneStore.getState().markComplete("create_first_room");
+          if (shouldCompleteCreateDynamicRoom(roomType)) {
+            useMilestoneStore.getState().markComplete("create_dynamic_room");
+          }
 
           // Track room creation event
           posthog.capture("room_created", {

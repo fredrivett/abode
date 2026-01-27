@@ -57,6 +57,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
+import { shouldCompleteAddFirstTag } from "@/lib/milestones/conditions";
 import { getPlatformName } from "@/lib/platforms";
 import { createClient } from "@/lib/supabase/client";
 import type {
@@ -65,6 +66,7 @@ import type {
   ItemRoom,
 } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
+import { useMilestoneStore } from "@/stores/milestone-store";
 import { AddToRoomPopover } from "./_components/add-to-room-popover";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationDisplay } from "./_components/location-display";
@@ -892,6 +894,11 @@ function ItemDetailDialog({
     try {
       await api.patch(`/api/v1/items/${item.id}`, { userTags: newTags });
       invalidateItems();
+
+      // Mark milestone if user added their first tag
+      if (shouldCompleteAddFirstTag(newTags)) {
+        useMilestoneStore.getState().markComplete("add_first_tag");
+      }
 
       // Track tag change
       posthog.capture(
