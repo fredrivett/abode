@@ -4,11 +4,11 @@ import { formatDistanceToNow } from "date-fns";
 import { Check, Clock, Handshake, Mail, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ProfileTag } from "@/components/user/profile-tag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { ProfileTag } from "@/components/user/profile-tag";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 
@@ -267,7 +267,7 @@ function InviteRow({
   };
 
   return (
-    <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+    <div className="flex items-center justify-between rounded-lg border p-2">
       <div className="flex items-center gap-2">
         {invite.status === "accepted" && invite.acceptedByUser?.username ? (
           <ProfileTag
@@ -286,7 +286,7 @@ function InviteRow({
           </>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pr-2">
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           {statusIcon[invite.status]}
           <span>{getStatusText()}</span>
