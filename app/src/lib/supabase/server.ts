@@ -36,9 +36,16 @@ export async function createClient() {
 /**
  * Create Supabase client for Route Handlers that can properly set cookies on responses.
  * Use this in route handlers where you need to set session cookies (e.g., auth flows).
+ *
+ * Returns a tuple of [supabase, response] where response has cookies set.
+ * Mutate the response (e.g., set status, body) before returning it.
  */
-export async function createRouteHandlerClient(request: NextRequest) {
-  const cookieStore = await cookies();
+export function createRouteHandlerClient(request: NextRequest): {
+  supabase: ReturnType<typeof createServerClient>;
+  response: NextResponse;
+} {
+  let response = NextResponse.next({ request });
+
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,29 +56,24 @@ export async function createRouteHandlerClient(request: NextRequest) {
     );
   }
 
-  const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = [];
-
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return request.cookies.getAll();
       },
-      setAll(cookiesToSetFromSupabase) {
-        // Collect cookies to set on the response later
-        cookiesToSet.push(...cookiesToSetFromSupabase);
-        // Also try to set them on the cookie store (for subsequent reads in same request)
-        try {
-          for (const { name, value, options } of cookiesToSetFromSupabase) {
-            cookieStore.set(name, value, options);
-          }
-        } catch {
-          // Ignore errors in route handlers
+      setAll(cookiesToSet) {
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value);
+        }
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
         }
       },
     },
   });
 
-  return { supabase, cookiesToSet };
+  return { supabase, response };
 }
 
 /**

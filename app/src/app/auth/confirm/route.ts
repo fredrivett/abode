@@ -20,16 +20,13 @@ function isValidOtpType(value: string | null): value is OtpType {
 }
 
 /**
- * Apply cookies to a redirect response
+ * Copy cookies from source response to target response
  */
-function applyCookiesToResponse(
-  response: NextResponse,
-  cookiesToSet: Array<{ name: string; value: string; options: any }>,
-) {
-  for (const { name, value, options } of cookiesToSet) {
-    response.cookies.set(name, value, options);
-  }
-  return response;
+function copyCookies(source: NextResponse, target: NextResponse): NextResponse {
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie);
+  });
+  return target;
 }
 
 /**
@@ -57,7 +54,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { supabase, cookiesToSet } = await createRouteHandlerClient(request);
+  const { supabase, response } = createRouteHandlerClient(request);
 
   // Verify the OTP using token_hash
   log.info({ type }, "Verifying OTP with token_hash");
@@ -74,10 +71,10 @@ export async function GET(request: NextRequest) {
       { error: error.message },
       "Failed to verify OTP in auth callback",
     );
-    const response = NextResponse.redirect(
+    const redirect = NextResponse.redirect(
       new URL("/auth/error?reason=verification_failed", origin),
     );
-    return applyCookiesToResponse(response, cookiesToSet);
+    return copyCookies(response, redirect);
   }
 
   log.info(
@@ -129,16 +126,16 @@ export async function GET(request: NextRequest) {
     });
 
     log.info({ userId: user.id }, "Email change completed");
-    const response = NextResponse.redirect(
+    const redirect = NextResponse.redirect(
       new URL("/settings/account?email_changed=true", origin),
     );
-    return applyCookiesToResponse(response, cookiesToSet);
+    return copyCookies(response, redirect);
   }
 
   if (!user || !user.email) {
     log.error("No user found after OTP verification");
-    const response = NextResponse.redirect(new URL("/auth/error?reason=no_user", origin));
-    return applyCookiesToResponse(response, cookiesToSet);
+    const redirect = NextResponse.redirect(new URL("/auth/error?reason=no_user", origin));
+    return copyCookies(response, redirect);
   }
 
   // Extract user metadata
@@ -170,8 +167,8 @@ export async function GET(request: NextRequest) {
       { userId: user.id },
       "User already has username, redirecting to dashboard",
     );
-    const response = NextResponse.redirect(new URL("/dashboard", origin));
-    return applyCookiesToResponse(response, cookiesToSet);
+    const redirect = NextResponse.redirect(new URL("/dashboard", origin));
+    return copyCookies(response, redirect);
   }
 
   // Check if we have the required metadata to complete signup
@@ -198,10 +195,10 @@ export async function GET(request: NextRequest) {
         { error: result.error, code: result.code, userId: user.id },
         "Failed to complete signup",
       );
-      const response = NextResponse.redirect(
+      const redirect = NextResponse.redirect(
         new URL(`/auth/error?reason=${result.code}`, origin),
       );
-      return applyCookiesToResponse(response, cookiesToSet);
+      return copyCookies(response, redirect);
     }
 
     log.info(
@@ -232,13 +229,13 @@ export async function GET(request: NextRequest) {
       { userId: user.id, username: pendingUsername },
       "Signup completed via email link",
     );
-    const response = NextResponse.redirect(new URL("/dashboard", origin));
-    return applyCookiesToResponse(response, cookiesToSet);
+    const redirect = NextResponse.redirect(new URL("/dashboard", origin));
+    return copyCookies(response, redirect);
   }
 
   // No pending_username in metadata - redirect to complete-signup page
   // This handles edge cases where metadata is missing
   log.warn({ userId: user.id }, "User verified but missing username metadata");
-  const response = NextResponse.redirect(new URL("/complete-signup", origin));
-  return applyCookiesToResponse(response, cookiesToSet);
+  const redirect = NextResponse.redirect(new URL("/complete-signup", origin));
+  return copyCookies(response, redirect);
 }
