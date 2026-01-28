@@ -11,6 +11,8 @@ if (POSTHOG_KEY) {
     defaults: "2025-05-24",
     // Enables capturing unhandled exceptions via Error Tracking
     capture_exceptions: true,
+    // Disable performance/web vitals in dev to prevent Turbopack dynamic import warning
+    capture_performance: !isDevelopment,
     loaded: (posthog) => {
       if (isDevelopment) {
         posthog.opt_out_capturing();
