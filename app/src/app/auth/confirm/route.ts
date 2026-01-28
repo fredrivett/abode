@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
   // Verify the OTP using token_hash
-  const { error } = await supabase.auth.verifyOtp({
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type,
   });
@@ -62,10 +65,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Get the authenticated user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  log.info(
+    {
+      userId: user?.id,
+      email: user?.email,
+      hasUser: !!user,
+      metadataKeys: user?.user_metadata ? Object.keys(user.user_metadata) : [],
+      metadata: user?.user_metadata,
+    },
+    "OTP verified - user data received",
+  );
 
   // Track password recovery completion
   if (type === "recovery" && user) {
@@ -122,6 +131,16 @@ export async function GET(request: NextRequest) {
   const oauthPicture =
     (metadata?.picture as string) || (metadata?.avatar_url as string) || null;
 
+  log.info(
+    {
+      userId: user.id,
+      pendingUsername,
+      inviteToken,
+      hasOauthPicture: !!oauthPicture,
+    },
+    "Extracted metadata from user",
+  );
+
   // Check if user already has username set (e.g., clicking link multiple times)
   const existingUser = await db.user.findUnique({
     where: { id: user.id },
@@ -139,6 +158,15 @@ export async function GET(request: NextRequest) {
 
   // Check if we have the required metadata to complete signup
   if (pendingUsername) {
+    log.info(
+      {
+        userId: user.id,
+        username: pendingUsername,
+        hasInviteToken: !!inviteToken,
+      },
+      "Attempting to complete signup with pending username",
+    );
+
     const result = await completeSignup({
       userId: user.id,
       email: user.email,
@@ -149,13 +177,18 @@ export async function GET(request: NextRequest) {
 
     if (!result.success) {
       log.error(
-        { error: result.error, code: result.code },
+        { error: result.error, code: result.code, userId: user.id },
         "Failed to complete signup",
       );
       return NextResponse.redirect(
         new URL(`/auth/error?reason=${result.code}`, origin),
       );
     }
+
+    log.info(
+      { userId: user.id, username: pendingUsername },
+      "Successfully completed signup",
+    );
 
     // Track signup completion with PostHog
     const posthog = getPostHogClient();

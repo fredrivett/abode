@@ -1,5 +1,6 @@
 import type { Invite, InviteOrigin, User } from "@prisma/client";
 import db from "@/lib/db";
+import { createLogger } from "@/lib/logger.server";
 import { getAppBaseUrl } from "@/lib/url";
 import { normalizeEmail, validateEmail } from "./email-validation";
 import {
@@ -7,6 +8,8 @@ import {
   getInviteExpiryDate,
   isInviteExpired,
 } from "./token";
+
+const log = createLogger("lib/invites");
 
 export { normalizeEmail, validateEmail } from "./email-validation";
 export {
@@ -277,11 +280,25 @@ export type AcceptInviteResult =
  * Validates that the invite exists, is not expired, and hasn't been accepted
  */
 export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
+  log.info({ token: `${token.substring(0, 8)}...` }, "acceptInvite called");
+
   const invite = await db.invite.findUnique({
     where: { token },
   });
 
+  log.info(
+    {
+      inviteFound: !!invite,
+      inviteId: invite?.id,
+      inviteStatus: invite?.status,
+      inviteEmail: invite?.email,
+      inviteExpired: invite ? isInviteExpired(invite.expiresAt) : null,
+    },
+    "Looked up invite for acceptance",
+  );
+
   if (!invite) {
+    log.error({ token: `${token.substring(0, 8)}...` }, "Invite not found for acceptance");
     return {
       success: false,
       error: "Invalid invite token",
@@ -290,6 +307,7 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
   }
 
   if (invite.status === "accepted") {
+    log.warn({ inviteId: invite.id, email: invite.email }, "Invite already accepted");
     return {
       success: false,
       error: "Invite already accepted",
@@ -298,9 +316,14 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
   }
 
   if (isInviteExpired(invite.expiresAt)) {
+    log.warn(
+      { inviteId: invite.id, expiresAt: invite.expiresAt },
+      "Attempted to accept expired invite",
+    );
     return { success: false, error: "Invite has expired", code: "EXPIRED" };
   }
 
+  log.info({ inviteId: invite.id, email: invite.email }, "Updating invite status to accepted");
   const updatedInvite = await db.invite.update({
     where: { token },
     data: {
@@ -308,6 +331,10 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
       acceptedAt: new Date(),
     },
   });
+  log.info(
+    { inviteId: updatedInvite.id, acceptedAt: updatedInvite.acceptedAt },
+    "Invite successfully marked as accepted",
+  );
 
   return { success: true, invite: updatedInvite };
 }

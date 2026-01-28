@@ -34,12 +34,24 @@ export async function completeSignup(
 ): Promise<CompleteSignupResult> {
   const { userId, email, username, inviteToken, oauthPicture } = params;
 
+  log.info(
+    {
+      userId,
+      email,
+      username,
+      hasInviteToken: !!inviteToken,
+      inviteToken: inviteToken ? `${inviteToken.substring(0, 8)}...` : null,
+    },
+    "Starting completeSignup",
+  );
+
   // Track invite info for admin notification
   let signupOrigin: "user" | "waitlist" | "admin" | "direct" = "direct";
   let inviterInfo: { username: string; email: string } | undefined;
 
   // If we have an invite token, handle invite-based signup
   if (inviteToken) {
+    log.info({ userId, inviteToken: `${inviteToken.substring(0, 8)}...` }, "Processing invite-based signup");
     const invite = await db.invite.findUnique({
       where: { token: inviteToken },
       select: {
@@ -58,7 +70,20 @@ export async function completeSignup(
       },
     });
 
+    log.info(
+      {
+        userId,
+        inviteFound: !!invite,
+        inviteStatus: invite?.status,
+        inviteEmail: invite?.email,
+        inviteOrigin: invite?.origin,
+        inviteExpired: invite ? invite.expiresAt < new Date() : null,
+      },
+      "Looked up invite token",
+    );
+
     if (!invite) {
+      log.error({ userId, inviteToken: `${inviteToken.substring(0, 8)}...` }, "Invite not found");
       return {
         success: false,
         error: "Invalid invite token",
@@ -95,6 +120,7 @@ export async function completeSignup(
     }
 
     // Update user with username, origin, and referrer
+    log.info({ userId, username, origin: invite.origin }, "Updating user record with username and origin");
     await db.user.update({
       where: { id: userId },
       data: {
@@ -107,19 +133,34 @@ export async function completeSignup(
         }),
       },
     });
+    log.info({ userId, username }, "User record updated successfully");
 
     // Mark the invite as accepted (only if not already)
     if (invite.status !== "accepted") {
+      log.info(
+        { userId, inviteId: invite.id, inviteStatus: invite.status },
+        "Attempting to accept invite",
+      );
       const acceptResult = await acceptInvite(inviteToken);
       if (!acceptResult.success) {
-        log.warn(
-          { token: inviteToken, error: acceptResult.error },
+        log.error(
+          {
+            userId,
+            token: `${inviteToken.substring(0, 8)}...`,
+            error: acceptResult.error,
+            code: acceptResult.code,
+          },
           "Failed to accept invite after verification",
         );
+      } else {
+        log.info({ userId, inviteId: invite.id }, "Invite marked as accepted successfully");
       }
+    } else {
+      log.info({ userId, inviteId: invite.id }, "Invite already accepted, skipping");
     }
   } else {
     // No invite - just set username (regular signup)
+    log.info({ userId, username }, "Regular signup (no invite) - updating user record");
     await db.user.update({
       where: { id: userId },
       data: {
@@ -130,6 +171,7 @@ export async function completeSignup(
         }),
       },
     });
+    log.info({ userId, username }, "User record updated successfully (no invite)");
   }
 
   // Trigger Gravatar check if no OAuth avatar

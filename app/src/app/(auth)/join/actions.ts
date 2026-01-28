@@ -2,8 +2,12 @@
 
 import db from "@/lib/db";
 import { validateInviteToken } from "@/lib/invites";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
+
+const log = createLogger("auth/join");
 
 export type AuthResult = {
   error?: string;
@@ -54,7 +58,18 @@ export async function signupWithInvite(
   }
 
   // Store invite info in user metadata for retrieval after OTP
-  const { error } = await supabase.auth.signUp({
+  const redirectUrl = `${getAppBaseUrl()}/auth/confirm`;
+  log.info(
+    {
+      email,
+      username,
+      inviteToken: `${token.substring(0, 8)}...`,
+      inviteOrigin: invite.origin,
+      redirectUrl,
+    },
+    "Attempting signup with invite metadata",
+  );
+  const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -64,12 +79,25 @@ export async function signupWithInvite(
         invite_origin: invite.origin,
         inviter_id: invite.inviterId,
       },
+      emailRedirectTo: redirectUrl,
     },
   });
 
   if (error) {
+    log.error({ email, error: error.message }, "Signup with invite failed");
     return { error: error.message };
   }
+
+  log.info(
+    {
+      email,
+      username,
+      userId: data.user?.id,
+      metadataKeys: data.user?.user_metadata ? Object.keys(data.user.user_metadata) : [],
+      metadata: data.user?.user_metadata,
+    },
+    "Signup with invite successful - metadata stored",
+  );
 
   return {
     success: true,

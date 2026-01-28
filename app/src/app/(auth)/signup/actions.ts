@@ -1,8 +1,12 @@
 "use server";
 
 import db from "@/lib/db";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
+
+const log = createLogger("auth/signup");
 
 export type AuthResult = {
   error?: string;
@@ -44,17 +48,31 @@ export async function signup(
   }
 
   // Store username in Supabase user metadata for retrieval after OTP
-  const { error } = await supabase.auth.signUp({
+  const redirectUrl = `${getAppBaseUrl()}/auth/confirm`;
+  log.info({ email, username, redirectUrl }, "Attempting signup with pending_username in metadata");
+  const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { pending_username: username },
+      emailRedirectTo: redirectUrl,
     },
   });
 
   if (error) {
+    log.error({ email, error: error.message }, "Signup failed");
     return { error: error.message };
   }
+
+  log.info(
+    {
+      email,
+      username,
+      userId: data.user?.id,
+      metadataKeys: data.user?.user_metadata ? Object.keys(data.user.user_metadata) : [],
+    },
+    "Signup successful - metadata stored",
+  );
 
   return {
     success: true,
