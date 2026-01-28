@@ -11,7 +11,7 @@ export function AccountDeletedToast() {
   useEffect(() => {
     if (showToast) {
       toast.success("Your account has been permanently deleted", {
-        duration: 10000,
+        duration: Number.POSITIVE_INFINITY,
       });
     }
   }, [showToast]);
