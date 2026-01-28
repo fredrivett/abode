@@ -1,5 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
+import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -30,6 +31,47 @@ export async function createClient() {
       },
     },
   });
+}
+
+/**
+ * Create Supabase client for Route Handlers that can properly set cookies on responses.
+ * Use this in route handlers where you need to set session cookies (e.g., auth flows).
+ */
+export async function createRouteHandlerClient(request: NextRequest) {
+  const cookieStore = await cookies();
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Missing Supabase env: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
+
+  const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = [];
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSetFromSupabase) {
+        // Collect cookies to set on the response later
+        cookiesToSet.push(...cookiesToSetFromSupabase);
+        // Also try to set them on the cookie store (for subsequent reads in same request)
+        try {
+          for (const { name, value, options } of cookiesToSetFromSupabase) {
+            cookieStore.set(name, value, options);
+          }
+        } catch {
+          // Ignore errors in route handlers
+        }
+      },
+    },
+  });
+
+  return { supabase, cookiesToSet };
 }
 
 /**
