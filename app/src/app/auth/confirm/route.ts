@@ -1,9 +1,10 @@
-import { createServerClient } from "@supabase/ssr";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
+import { redirect } from "next/navigation";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
 
@@ -20,16 +21,6 @@ function isValidOtpType(value: string | null): value is OtpType {
 }
 
 /**
- * Copy cookies from source response to target response
- */
-function copyCookies(source: NextResponse, target: NextResponse): NextResponse {
-  source.cookies.getAll().forEach((cookie) => {
-    target.cookies.set(cookie);
-  });
-  return target;
-}
-
-/**
  * Auth callback route handler for Supabase email verification links.
  *
  * When a user clicks the verification link in their email, Supabase redirects
@@ -40,7 +31,7 @@ function copyCookies(source: NextResponse, target: NextResponse): NextResponse {
  * 4. Redirects to dashboard or complete-signup page
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
 
@@ -49,35 +40,10 @@ export async function GET(request: NextRequest) {
       { tokenHash: !!tokenHash, type },
       "Invalid token_hash or type in auth callback",
     );
-    return NextResponse.redirect(
-      new URL("/auth/error?reason=missing_params", origin),
-    );
+    redirect("/auth/error?reason=missing_params");
   }
 
-  // Create Supabase client with cookie handling for Route Handler
-  // This follows the same pattern as middleware
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
-        },
-      },
-    },
-  );
+  const supabase = await createClient();
 
   // Verify the OTP using token_hash
   log.info({ type }, "Verifying OTP with token_hash");
@@ -94,10 +60,7 @@ export async function GET(request: NextRequest) {
       { error: error.message },
       "Failed to verify OTP in auth callback",
     );
-    const redirect = NextResponse.redirect(
-      new URL("/auth/error?reason=verification_failed", origin),
-    );
-    return copyCookies(response, redirect);
+    redirect("/auth/error?reason=verification_failed");
   }
 
   log.info(
@@ -149,16 +112,12 @@ export async function GET(request: NextRequest) {
     });
 
     log.info({ userId: user.id }, "Email change completed");
-    const redirect = NextResponse.redirect(
-      new URL("/settings/account?email_changed=true", origin),
-    );
-    return copyCookies(response, redirect);
+    redirect("/settings/account?email_changed=true");
   }
 
   if (!user || !user.email) {
     log.error("No user found after OTP verification");
-    const redirect = NextResponse.redirect(new URL("/auth/error?reason=no_user", origin));
-    return copyCookies(response, redirect);
+    redirect("/auth/error?reason=no_user");
   }
 
   // Extract user metadata
@@ -190,8 +149,7 @@ export async function GET(request: NextRequest) {
       { userId: user.id },
       "User already has username, redirecting to dashboard",
     );
-    const redirect = NextResponse.redirect(new URL("/dashboard", origin));
-    return copyCookies(response, redirect);
+    redirect("/dashboard");
   }
 
   // Check if we have the required metadata to complete signup
@@ -218,10 +176,7 @@ export async function GET(request: NextRequest) {
         { error: result.error, code: result.code, userId: user.id },
         "Failed to complete signup",
       );
-      const redirect = NextResponse.redirect(
-        new URL(`/auth/error?reason=${result.code}`, origin),
-      );
-      return copyCookies(response, redirect);
+      redirect(`/auth/error?reason=${result.code}`);
     }
 
     log.info(
@@ -252,13 +207,11 @@ export async function GET(request: NextRequest) {
       { userId: user.id, username: pendingUsername },
       "Signup completed via email link",
     );
-    const redirect = NextResponse.redirect(new URL("/dashboard", origin));
-    return copyCookies(response, redirect);
+    redirect("/dashboard");
   }
 
   // No pending_username in metadata - redirect to complete-signup page
   // This handles edge cases where metadata is missing
   log.warn({ userId: user.id }, "User verified but missing username metadata");
-  const redirect = NextResponse.redirect(new URL("/complete-signup", origin));
-  return copyCookies(response, redirect);
+  redirect("/complete-signup");
 }
