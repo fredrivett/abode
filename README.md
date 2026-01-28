@@ -19,6 +19,16 @@ A place to dwell.
 - On first run, the scripts symlink `app/.env` → `../.env.local` so Next.js picks up your root env values.
 - Supabase local services use dedicated ports to avoid clashes with other repos.
 
+### Starting Supabase Manually
+
+If you need to start Supabase manually (outside of `bin/dev`):
+
+```bash
+./scripts/start-supabase.sh
+```
+
+**Note:** This script includes a workaround for a [known Supabase bug](https://github.com/orgs/supabase/discussions/20753) where custom email templates fail to load due to a race condition. The script restarts the auth container after startup to ensure templates are loaded. This workaround can be removed once Supabase fixes the underlying issue.
+
 ## What it is
 
 Open-source, self-hostable library for saving images, links, quotes, videos, PDFs, and articles. Visual, minimal, serendipitous; single-player first. “Shelf” (public curation) comes later.
