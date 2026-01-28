@@ -348,10 +348,35 @@ export async function getUserInvites(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  // Derive effective status (check expiry for pending invites)
+  // Get user data for accepted invites (to show avatar and username)
+  const acceptedEmails = invites
+    .filter((invite) => invite.status === "accepted")
+    .map((invite) => invite.email.toLowerCase());
+
+  const users = acceptedEmails.length > 0
+    ? await db.user.findMany({
+        where: { email: { in: acceptedEmails } },
+        select: {
+          email: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+        },
+      })
+    : [];
+
+  const usersByEmail = new Map(
+    users.map((user) => [user.email.toLowerCase(), user]),
+  );
+
+  // Derive effective status (check expiry for pending invites) and attach user data
   return invites.map((invite) => ({
     ...invite,
     effectiveStatus: getEffectiveStatus(invite),
+    acceptedByUser: invite.status === "accepted"
+      ? usersByEmail.get(invite.email.toLowerCase()) ?? null
+      : null,
   }));
 }
 

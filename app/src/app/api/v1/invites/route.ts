@@ -50,6 +50,14 @@ export async function GET() {
       createdAt: invite.createdAt.toISOString(),
       expiresAt: invite.expiresAt.toISOString(),
       acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+      acceptedByUser: invite.acceptedByUser
+        ? {
+            username: invite.acceptedByUser.username,
+            firstName: invite.acceptedByUser.firstName,
+            lastName: invite.acceptedByUser.lastName,
+            avatarUrl: invite.acceptedByUser.avatarUrl,
+          }
+        : null,
     }));
 
     return NextResponse.json({

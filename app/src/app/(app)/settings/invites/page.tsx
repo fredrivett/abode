@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import db from "@/lib/db";
-import { getAvailableInvites } from "@/lib/invites";
+import { getAvailableInvites, getUserInvites } from "@/lib/invites";
 import { getAuthUser } from "@/lib/supabase/server";
 import { InviteSettings } from "../_components/invite-settings";
 
@@ -11,39 +10,30 @@ export default async function InvitesSettingsPage() {
     redirect("/login");
   }
 
-  const [dbUser, availableInvites] = await Promise.all([
-    db.user.findUnique({
-      where: { id: user.id },
-      select: {
-        sentInvites: {
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true,
-            email: true,
-            createdAt: true,
-            expiresAt: true,
-            acceptedAt: true,
-          },
-        },
-      },
-    }),
+  const [availableInvites, invites] = await Promise.all([
     getAvailableInvites(user.id),
+    getUserInvites(user.id),
   ]);
 
   return (
     <div className="space-y-6">
       <InviteSettings
         availableInvites={availableInvites}
-        initialInvites={(dbUser?.sentInvites ?? []).map((invite) => ({
-          ...invite,
+        initialInvites={invites.map((invite) => ({
+          id: invite.id,
+          email: invite.email,
+          status: invite.effectiveStatus,
           createdAt: invite.createdAt.toISOString(),
           expiresAt: invite.expiresAt.toISOString(),
           acceptedAt: invite.acceptedAt?.toISOString() ?? null,
-          status: invite.acceptedAt
-            ? "accepted"
-            : invite.expiresAt < new Date()
-              ? "expired"
-              : "pending",
+          acceptedByUser: invite.acceptedByUser
+            ? {
+                username: invite.acceptedByUser.username,
+                firstName: invite.acceptedByUser.firstName,
+                lastName: invite.acceptedByUser.lastName,
+                avatarUrl: invite.acceptedByUser.avatarUrl,
+              }
+            : null,
         }))}
       />
     </div>

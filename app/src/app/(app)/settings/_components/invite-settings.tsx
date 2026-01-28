@@ -4,6 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Check, Clock, Handshake, Mail, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -18,6 +19,12 @@ type Invite = {
   createdAt: string;
   expiresAt: string;
   acceptedAt: string | null;
+  acceptedByUser: {
+    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+  } | null;
 };
 
 type InviteSettingsProps = {
@@ -101,6 +108,7 @@ export function InviteSettings({
             createdAt: new Date().toISOString(),
             expiresAt: data.invite.expiresAt,
             acceptedAt: null,
+            acceptedByUser: null,
           },
           ...prev,
         ]);
@@ -261,8 +269,24 @@ function InviteRow({
   return (
     <div className="flex items-center justify-between rounded-lg border px-3 py-2">
       <div className="flex items-center gap-2">
-        <Mail className="size-4 text-muted-foreground" />
-        <span className="text-sm">{invite.email}</span>
+        {invite.status === "accepted" && invite.acceptedByUser?.username ? (
+          <>
+            <UserAvatar
+              avatarUrl={invite.acceptedByUser.avatarUrl}
+              firstName={invite.acceptedByUser.firstName}
+              lastName={invite.acceptedByUser.lastName}
+              username={invite.acceptedByUser.username}
+              className="size-6"
+              fallbackClassName="text-xs"
+            />
+            <span className="text-sm">@{invite.acceptedByUser.username}</span>
+          </>
+        ) : (
+          <>
+            <Mail className="size-4 text-muted-foreground" />
+            <span className="text-sm">{invite.email}</span>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
