@@ -203,7 +203,7 @@ otp_expiry = 3600
 # Custom confirmation email template (without OTP code)
 [auth.email.template.confirmation]
 subject = "Confirm Your Email"
-content_path = "./supabase/templates/confirmation.html"
+content_path = "./templates/confirmation.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
