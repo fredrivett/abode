@@ -1,11 +1,10 @@
 import { logger, task } from "@trigger.dev/sdk";
+import { getAllAdminEmails } from "../src/lib/admin/auth";
 import { sendEmail } from "../src/lib/email";
 import {
   type AdminNotificationData,
   getAdminNotificationEmail,
 } from "../src/lib/email/templates";
-
-const ADMIN_EMAIL = "fred@abode.fyi";
 
 export const adminNotificationTask = task({
   id: "admin-notification",
@@ -20,28 +19,54 @@ export const adminNotificationTask = task({
       type: payload.type,
     });
 
-    const { subject, text, html } = getAdminNotificationEmail(payload);
+    const adminEmails = await getAllAdminEmails();
 
-    const result = await sendEmail({
-      to: ADMIN_EMAIL,
-      subject,
-      text,
-      html,
-    });
-
-    if (!result.success) {
-      logger.error("Failed to send admin notification", {
-        type: payload.type,
-        error: result.error,
-      });
-      throw new Error(`Failed to send admin notification: ${result.error}`);
+    if (adminEmails.length === 0) {
+      logger.warn("No admin emails found, skipping notification");
+      return { success: true, emailsSent: 0 };
     }
 
-    logger.log("Admin notification sent", {
+    const { subject, text, html } = getAdminNotificationEmail(payload);
+
+    const results = await Promise.allSettled(
+      adminEmails.map((email) =>
+        sendEmail({
+          to: email,
+          subject,
+          text,
+          html,
+        }),
+      ),
+    );
+
+    const successfulEmails = results.filter(
+      (result) => result.status === "fulfilled" && result.value.success,
+    ).length;
+
+    const failedEmails = results.filter(
+      (result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value.success),
+    );
+
+    if (failedEmails.length > 0) {
+      logger.error("Some admin notifications failed to send", {
+        type: payload.type,
+        totalAdmins: adminEmails.length,
+        successful: successfulEmails,
+        failed: failedEmails.length,
+      });
+    }
+
+    logger.log("Admin notifications sent", {
       type: payload.type,
-      emailId: result.id,
+      totalAdmins: adminEmails.length,
+      successful: successfulEmails,
+      failed: failedEmails.length,
     });
 
-    return { success: true, emailId: result.id };
+    return {
+      success: successfulEmails > 0,
+      emailsSent: successfulEmails,
+      totalAdmins: adminEmails.length,
+    };
   },
 });

@@ -65,3 +65,16 @@ export async function hasFullAdminAccess(
   const access = await checkAdminAccess(supabase);
   return access.isAdmin && access.hasMFA && access.isAAL2;
 }
+
+/**
+ * Get all admin user emails.
+ * Use this for sending notifications to all admins.
+ */
+export async function getAllAdminEmails(): Promise<string[]> {
+  const admins = await db.user.findMany({
+    where: { isAdmin: true },
+    select: { email: true },
+  });
+
+  return admins.map((admin) => admin.email);
+}
