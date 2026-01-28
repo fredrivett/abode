@@ -1,20 +1,16 @@
+import { Suspense } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { XLink } from "@/components/x-link";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
 
-type HomePageProps = {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-};
-
-export default async function Home({ searchParams }: HomePageProps) {
-  const params = await searchParams;
-  const showAccountDeletedToast = params["account-deleted"] === "true";
-
+export default function Home() {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <AccountDeletedToast showToast={showAccountDeletedToast} />
+      <Suspense>
+        <AccountDeletedToast />
+      </Suspense>
       <main className="flex flex-col items-center px-4 text-center">
         <h1 className="mb-6 flex flex-col items-center">
           <span className="sr-only">abode</span>
