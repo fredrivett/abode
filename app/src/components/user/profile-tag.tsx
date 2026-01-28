@@ -12,12 +12,16 @@ type ProfileTagUser = {
 
 type ProfileTagProps = {
   user: ProfileTagUser;
+  size?: "default" | "sm";
   className?: string;
 };
 
-export function ProfileTag({ user, className }: ProfileTagProps) {
+export function ProfileTag({ user, size = "default", className }: ProfileTagProps) {
   const displayName = getDisplayName(user);
   const showUsername = user.firstName !== null;
+
+  const avatarSize = size === "sm" ? "size-6" : "size-8";
+  const avatarFallbackSize = size === "sm" ? "text-xs" : "text-sm";
 
   return (
     <Link
@@ -32,8 +36,8 @@ export function ProfileTag({ user, className }: ProfileTagProps) {
         firstName={user.firstName}
         lastName={user.lastName}
         username={user.username}
-        className="size-8"
-        fallbackClassName="text-sm"
+        className={avatarSize}
+        fallbackClassName={avatarFallbackSize}
       />
       <span className="flex flex-col items-start leading-tight">
         <span className="font-medium text-sm">{displayName}</span>

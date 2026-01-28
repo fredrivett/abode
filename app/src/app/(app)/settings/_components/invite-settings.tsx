@@ -277,6 +277,7 @@ function InviteRow({
               lastName: invite.acceptedByUser.lastName,
               avatarUrl: invite.acceptedByUser.avatarUrl,
             }}
+            size="sm"
           />
         ) : (
           <>
