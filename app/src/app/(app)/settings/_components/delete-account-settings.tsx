@@ -5,7 +5,6 @@ import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -121,7 +120,7 @@ export function DeleteAccountSettings() {
                 <AlertDialogCancel disabled={isPending}>
                   Cancel
                 </AlertDialogCancel>
-                <AlertDialogAction
+                <Button
                   type="submit"
                   variant="destructive"
                   disabled={isPending || !password}
@@ -131,7 +130,7 @@ export function DeleteAccountSettings() {
                   ) : (
                     "Delete Account"
                   )}
-                </AlertDialogAction>
+                </Button>
               </AlertDialogFooter>
             </form>
           </AlertDialogContent>

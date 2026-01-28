@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { sendEmail } from "@/lib/email";
+import { getUserAccountDeletionEmail } from "@/lib/email/templates";
 import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -235,6 +237,19 @@ export async function deleteAccount(
         deleted_by: "self",
       },
     });
+
+    // Send confirmation email to user before signing them out
+    try {
+      const { subject, text, html } = getUserAccountDeletionEmail();
+      await sendEmail({
+        to: user.email,
+        subject,
+        text,
+        html,
+      });
+    } catch (emailError) {
+      log.warn({ error: emailError }, "Failed to send account deletion email to user");
+    }
 
     // Trigger admin notification for account deletion
     try {

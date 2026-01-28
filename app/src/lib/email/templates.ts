@@ -330,3 +330,37 @@ ${htmlFooter()}`;
     }
   }
 }
+
+/**
+ * Email template for user account deletion confirmation
+ */
+export function getUserAccountDeletionEmail(): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = "your abode account has been deleted";
+
+  const text = `your abode account has been permanently deleted.
+
+all of your data has been removed from our systems.
+
+if you did not request this deletion, please contact us immediately at fred@abode.fyi.
+
+we're sorry to see you go.
+
+${EMAIL_FOOTER}
+`;
+
+  const html = `<p>your abode account has been permanently deleted.</p>
+
+<p>all of your data has been removed from our systems.</p>
+
+<p><strong>if you did not request this deletion, please contact us immediately at ${htmlLink("fred@abode.fyi", "mailto:fred@abode.fyi")}.</strong></p>
+
+<p>we're sorry to see you go.</p>
+
+${htmlFooter()}`;
+
+  return { subject, text, html };
+}
