@@ -1,9 +1,9 @@
+import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
-import { createRouteHandlerClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
 
@@ -54,7 +54,30 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { supabase, response } = createRouteHandlerClient(request);
+  // Create Supabase client with cookie handling for Route Handler
+  // This follows the same pattern as middleware
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+          response = NextResponse.next({ request });
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
+        },
+      },
+    },
+  );
 
   // Verify the OTP using token_hash
   log.info({ type }, "Verifying OTP with token_hash");
