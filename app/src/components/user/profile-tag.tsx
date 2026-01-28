@@ -27,7 +27,7 @@ export function ProfileTag({ user, size = "default", className }: ProfileTagProp
     <Link
       href={`/@${user.username}`}
       className={cn(
-        "-m-2 flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-accent/50",
+        "flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-accent/50",
         className,
       )}
     >
