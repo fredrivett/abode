@@ -80,7 +80,7 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                 <TableCell>
                   <Link
                     href={`/admin/users/${user.id}`}
-                    className="flex items-center gap-3 hover:underline"
+                    className="flex items-center gap-3"
                   >
                     <Avatar className="size-8">
                       <AvatarImage src={user.avatarUrl ?? undefined} />
