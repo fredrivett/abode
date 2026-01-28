@@ -270,7 +270,7 @@ export async function deleteAccount(
     return { error: "Failed to delete account. Please try again." };
   }
 
-  redirect("/");
+  redirect("/?account-deleted=true");
 }
 
 export type RequestEmailChangeResult = {
