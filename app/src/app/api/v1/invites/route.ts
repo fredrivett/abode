@@ -148,11 +148,27 @@ export async function POST(request: NextRequest) {
       });
 
       if (!emailResult.success) {
-        log.warn(
+        log.error(
           { email, error: emailResult.error },
           "Failed to send invite email",
         );
-        // Don't fail the request - invite is created, email just didn't send
+
+        // Delete the invite since email failed - user shouldn't lose invite credit
+        await db.invite.delete({
+          where: { id: result.invite.id },
+        }).catch((deleteError) => {
+          log.error(
+            { email, inviteId: result.invite.id, error: deleteError },
+            "Failed to delete invite after email failure",
+          );
+        });
+
+        return NextResponse.json(
+          {
+            error: "Failed to send invite email. Please try again. If the issue persists please reach out.",
+          },
+          { status: 500 },
+        );
       }
     } else {
       log.info({ email }, "Email not configured, skipping invite email");
