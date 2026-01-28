@@ -3,7 +3,6 @@
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
-import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
 
 const log = createLogger("auth/signup");
@@ -48,14 +47,12 @@ export async function signup(
   }
 
   // Store username in Supabase user metadata for retrieval after OTP
-  const redirectUrl = `${getAppBaseUrl()}/auth/confirm`;
-  log.info({ email, username, redirectUrl }, "Attempting signup with pending_username in metadata");
+  log.info({ email, username }, "Attempting signup with pending_username in metadata");
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { pending_username: username },
-      emailRedirectTo: redirectUrl,
     },
   });
 

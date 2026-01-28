@@ -1,4 +1,3 @@
-import type { User } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
@@ -35,69 +34,48 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
 
-  const supabase = await createClient();
-  let user: User | null = null;
-
-  // Two flows:
-  // 1. Direct token_hash verification (e.g., magic links, password reset)
-  // 2. Redirect after Supabase-verified signup (emailRedirectTo flow)
-  if (tokenHash && isValidOtpType(type)) {
-    // Flow 1: Verify the OTP using token_hash
-    log.info({ type }, "Verifying OTP with token_hash");
-    const {
-      data: { user: verifiedUser },
-      error,
-    } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type,
-    });
-
-    if (error) {
-      log.error(
-        { error: error.message },
-        "Failed to verify OTP in auth callback",
-      );
-      return NextResponse.redirect(
-        new URL("/auth/error?reason=verification_failed", origin),
-      );
-    }
-
-    user = verifiedUser;
-    log.info(
-      {
-        userId: user?.id,
-        email: user?.email,
-        hasUser: !!user,
-        metadataKeys: user?.user_metadata ? Object.keys(user.user_metadata) : [],
-        metadata: user?.user_metadata,
-      },
-      "OTP verified - user data received",
+  if (!tokenHash || !isValidOtpType(type)) {
+    log.warn(
+      { tokenHash: !!tokenHash, type },
+      "Invalid token_hash or type in auth callback",
     );
-  } else {
-    // Flow 2: User already authenticated via redirect (emailRedirectTo flow)
-    log.info("No token_hash - checking for authenticated user from redirect");
-    const {
-      data: { user: authenticatedUser },
-    } = await supabase.auth.getUser();
-
-    if (!authenticatedUser) {
-      log.error("No authenticated user found after redirect");
-      return NextResponse.redirect(
-        new URL("/auth/error?reason=no_user", origin),
-      );
-    }
-
-    user = authenticatedUser;
-    log.info(
-      {
-        userId: user.id,
-        email: user.email,
-        metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
-        metadata: user.user_metadata,
-      },
-      "Authenticated user found from redirect",
+    return NextResponse.redirect(
+      new URL("/auth/error?reason=missing_params", origin),
     );
   }
+
+  const supabase = await createClient();
+
+  // Verify the OTP using token_hash
+  log.info({ type }, "Verifying OTP with token_hash");
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type,
+  });
+
+  if (error) {
+    log.error(
+      { error: error.message },
+      "Failed to verify OTP in auth callback",
+    );
+    return NextResponse.redirect(
+      new URL("/auth/error?reason=verification_failed", origin),
+    );
+  }
+
+  log.info(
+    {
+      userId: user?.id,
+      email: user?.email,
+      hasUser: !!user,
+      metadataKeys: user?.user_metadata ? Object.keys(user.user_metadata) : [],
+      metadata: user?.user_metadata,
+    },
+    "OTP verified - user data received",
+  );
 
   // Track password recovery completion
   if (type === "recovery" && user) {
