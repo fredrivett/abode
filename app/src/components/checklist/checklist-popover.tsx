@@ -6,8 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CountBadge } from "@/components/ui/count-badge";
 import {
   Popover,
   PopoverContent,
@@ -97,12 +97,10 @@ export function ChecklistPopover() {
             >
               <ListTodo size={18} aria-hidden />
               {pendingCount > 0 && (
-                <Badge
-                  variant="outline"
-                  className="absolute top-0 right-0 h-4 min-w-4 rounded border-muted-foreground/20 bg-muted px-1 py-0 text-[10px] text-muted-foreground leading-none"
-                >
-                  {pendingCount}
-                </Badge>
+                <CountBadge
+                  count={pendingCount}
+                  aria-label={`${pendingCount} task${pendingCount !== 1 ? "s" : ""} remaining`}
+                />
               )}
             </Button>
           </PopoverTrigger>

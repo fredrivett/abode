@@ -18,8 +18,8 @@ import { UserAvatar } from "@/components/avatar/user-avatar";
 import { ChecklistPopover } from "@/components/checklist";
 import { SearchInput } from "@/components/search";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CountBadge } from "@/components/ui/count-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -234,12 +234,10 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                   >
                     <Handshake size={18} aria-hidden />
                     {availableInvites > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="absolute top-0 right-0 h-4 min-w-4 rounded border-muted-foreground/20 bg-muted px-1 py-0 text-[10px] text-muted-foreground leading-none"
-                      >
-                        {availableInvites}
-                      </Badge>
+                      <CountBadge
+                        count={availableInvites}
+                        aria-label={`${availableInvites} invite${availableInvites !== 1 ? "s" : ""} remaining`}
+                      />
                     )}
                   </Link>
                 </Button>
