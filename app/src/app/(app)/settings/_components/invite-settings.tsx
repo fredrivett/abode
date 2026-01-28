@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Check, Clock, Handshake, Mail, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { UserAvatar } from "@/components/avatar/user-avatar";
+import { ProfileTag } from "@/components/user/profile-tag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -270,17 +270,14 @@ function InviteRow({
     <div className="flex items-center justify-between rounded-lg border px-3 py-2">
       <div className="flex items-center gap-2">
         {invite.status === "accepted" && invite.acceptedByUser?.username ? (
-          <>
-            <UserAvatar
-              avatarUrl={invite.acceptedByUser.avatarUrl}
-              firstName={invite.acceptedByUser.firstName}
-              lastName={invite.acceptedByUser.lastName}
-              username={invite.acceptedByUser.username}
-              className="size-6"
-              fallbackClassName="text-xs"
-            />
-            <span className="text-sm">@{invite.acceptedByUser.username}</span>
-          </>
+          <ProfileTag
+            user={{
+              username: invite.acceptedByUser.username,
+              firstName: invite.acceptedByUser.firstName,
+              lastName: invite.acceptedByUser.lastName,
+              avatarUrl: invite.acceptedByUser.avatarUrl,
+            }}
+          />
         ) : (
           <>
             <Mail className="size-4 text-muted-foreground" />
