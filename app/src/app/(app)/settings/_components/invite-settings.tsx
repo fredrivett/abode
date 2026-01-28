@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
 import { ProfileTag } from "@/components/user/profile-tag";
+import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 
@@ -281,13 +282,18 @@ function InviteRow({
           />
         ) : (
           <>
-            <Mail className="size-4 text-muted-foreground" />
+            <Mail className="ml-2 size-4 text-muted-foreground" />
             <span className="text-sm">{invite.email}</span>
           </>
         )}
       </div>
-      <div className="flex items-center gap-3 pr-2">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "flex items-center gap-2 text-muted-foreground text-sm",
+            invite.status === "accepted" && "pr-2",
+          )}
+        >
           {statusIcon[invite.status]}
           <span>{getStatusText()}</span>
         </div>
