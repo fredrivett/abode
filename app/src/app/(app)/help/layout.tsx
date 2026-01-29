@@ -13,7 +13,7 @@ export default async function HelpLayout({
         <DashboardHeader showHomeLink />
       </Suspense>
       <div className="mx-auto flex w-full max-w-5xl gap-8 px-4 py-8">
-        <aside className="hidden w-48 shrink-0 md:block">
+        <aside className="md:sticky md:top-20 md:w-48 md:shrink-0">
           <HelpNav />
         </aside>
         <main className="min-w-0 flex-1">{children}</main>

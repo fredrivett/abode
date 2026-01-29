@@ -35,7 +35,12 @@ type MilestonesResponse = {
   config: Record<MilestoneType, MilestoneConfig>;
 };
 
-export function ChecklistPopover() {
+type ChecklistPopoverProps = {
+  /** "icon" renders as icon button with tooltip, "menu-item" renders as dropdown menu item style */
+  variant?: "icon" | "menu-item";
+};
+
+export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [config, setConfig] = useState<Record<
@@ -84,8 +89,25 @@ export function ChecklistPopover() {
   const hiddenCompletedCount = sortedCompleted.length - MAX_COMPLETED_PREVIEW;
   const hasHiddenCompleted = hiddenCompletedCount > 0;
 
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+  // Trigger element varies based on variant
+  const trigger =
+    variant === "menu-item" ? (
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+        >
+          <ListTodo className="size-4" />
+          Tasks
+          {pendingCount > 0 && (
+            <CountBadge
+              count={pendingCount}
+              className="relative top-0 right-0 ml-auto"
+            />
+          )}
+        </button>
+      </PopoverTrigger>
+    ) : (
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
@@ -113,6 +135,11 @@ export function ChecklistPopover() {
           </span>
         </TooltipContent>
       </Tooltip>
+    );
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      {trigger}
 
       <PopoverContent align="end" className="w-72 p-2">
         <div className="mb-2 flex items-center gap-2 px-2 py-1">

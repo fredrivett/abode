@@ -1,5 +1,13 @@
 export type ThemePreference = "light" | "dark" | "auto";
 
+const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
+
+export function getNextTheme(current: ThemePreference): ThemePreference {
+  const index = THEME_SEQUENCE.indexOf(current);
+  if (index === -1) return "auto";
+  return THEME_SEQUENCE[(index + 1) % THEME_SEQUENCE.length];
+}
+
 const HTML_THEME_DATA_ATTR = "data-theme";
 const HTML_THEME_PREFERENCE_ATTR = "data-theme-preference";
 const HTML_COLOR_SCHEME_PROP = "color-scheme";
@@ -118,6 +126,12 @@ export function clearStoredThemePreference(): void {
   // biome-ignore lint/suspicious/noDocumentCookie: using document.cookie for compatibility
   document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
+
+export type UseThemePreferenceReturn = {
+  mounted: boolean;
+  preference: ThemePreference;
+  toggle: () => void;
+};
 
 export function subscribeToThemeChanges(
   callback: (isDark: boolean) => void,
