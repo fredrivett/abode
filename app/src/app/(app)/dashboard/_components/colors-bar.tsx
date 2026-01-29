@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -11,63 +11,57 @@ import type { ImageColor } from "@/lib/types/item";
 
 type ColorsBarProps = {
   colors: ImageColor[];
-  minSlicePx?: number;
+  minSlicePercent?: number;
 };
 
-function getAdjustedSliceWidthsPx({
+function getAdjustedSliceWidthsPercent({
   colors,
-  containerWidthPx,
-  minSlicePx,
+  minSlicePercent,
 }: {
   colors: ImageColor[];
-  containerWidthPx: number;
-  minSlicePx: number;
+  minSlicePercent: number;
 }) {
-  if (!Number.isFinite(containerWidthPx) || containerWidthPx <= 0) return null;
   if (colors.length === 0) return null;
 
   const totalScore =
     colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
 
-  const clampedMinSlicePx = Math.max(
-    1,
-    Math.min(minSlicePx, containerWidthPx / colors.length),
+  const clampedMinPercent = Math.max(
+    0.5,
+    Math.min(minSlicePercent, 100 / colors.length),
   );
 
-  const baseWidthsPx = colors.map(
-    (color) => (Math.max(color.score ?? 0, 0) / totalScore) * containerWidthPx,
+  const baseWidths = colors.map(
+    (color) => (Math.max(color.score ?? 0, 0) / totalScore) * 100,
   );
 
   const smallIndexes: number[] = [];
   const largeIndexes: number[] = [];
-  for (let i = 0; i < baseWidthsPx.length; i += 1) {
-    if (baseWidthsPx[i] < clampedMinSlicePx) smallIndexes.push(i);
+  for (let i = 0; i < baseWidths.length; i += 1) {
+    if (baseWidths[i] < clampedMinPercent) smallIndexes.push(i);
     else largeIndexes.push(i);
   }
 
-  if (smallIndexes.length === 0) return baseWidthsPx;
+  if (smallIndexes.length === 0) return baseWidths;
 
-  const remainingWidthPx =
-    containerWidthPx - smallIndexes.length * clampedMinSlicePx;
-  if (remainingWidthPx <= 0) {
-    const even = containerWidthPx / colors.length;
+  const remainingPercent = 100 - smallIndexes.length * clampedMinPercent;
+  if (remainingPercent <= 0) {
+    const even = 100 / colors.length;
     return colors.map(() => even);
   }
 
-  const largeBaseSumPx = largeIndexes.reduce(
-    (sum, index) => sum + baseWidthsPx[index],
+  const largeBaseSum = largeIndexes.reduce(
+    (sum, index) => sum + baseWidths[index],
     0,
   );
-  const scale = largeBaseSumPx > 0 ? remainingWidthPx / largeBaseSumPx : 0;
+  const scale = largeBaseSum > 0 ? remainingPercent / largeBaseSum : 0;
 
-  return baseWidthsPx.map((widthPx) =>
-    widthPx < clampedMinSlicePx ? clampedMinSlicePx : widthPx * scale,
+  return baseWidths.map((width) =>
+    width < clampedMinPercent ? clampedMinPercent : width * scale,
   );
 }
 
-export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
-  const containerRef = useRef<HTMLFieldSetElement>(null);
-  const [containerWidthPx, setContainerWidthPx] = useState<number | null>(null);
+export function ColorsBar({ colors, minSlicePercent = 3 }: ColorsBarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [activeHex, setActiveHex] = useState<string | null>(null);
   const [pinnedHex, setPinnedHex] = useState<string | null>(null);
@@ -86,36 +80,12 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
     };
   }, []);
 
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const update = () => {
-      const nextWidth = el.getBoundingClientRect().width;
-      setContainerWidthPx(nextWidth);
-    };
-
-    update();
-
-    const observer = new ResizeObserver(() => {
-      update();
-    });
-
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  const sliceWidthsPx = useMemo(() => {
-    if (!containerWidthPx) return null;
-
-    return getAdjustedSliceWidthsPx({
+  const sliceWidths = useMemo(() => {
+    return getAdjustedSliceWidthsPercent({
       colors,
-      containerWidthPx,
-      minSlicePx: isHovered ? minSlicePx : 4,
+      minSlicePercent: isHovered ? minSlicePercent : 1,
     });
-  }, [colors, containerWidthPx, isHovered, minSlicePx]);
+  }, [colors, isHovered, minSlicePercent]);
 
   if (colors.length === 0) return null;
 
@@ -136,9 +106,8 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
 
   return (
     <fieldset
-      ref={containerRef}
       aria-label="Colors"
-      className="m-0 flex h-4 min-w-0 overflow-hidden rounded-md border border-gray-200 p-0 transition-[height] duration-200 ease-out hover:h-8 dark:border-gray-700"
+      className="m-0 flex h-4 min-w-0 overflow-hidden p-0 transition-[height] duration-200 ease-out hover:h-8"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -160,20 +129,11 @@ export function ColorsBar({ colors, minSlicePx = 12 }: ColorsBarProps) {
               <button
                 type="button"
                 className={`h-full appearance-none border-0 bg-transparent p-0 outline-none transition-[width] duration-200 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
-                style={
-                  sliceWidthsPx
-                    ? {
-                        backgroundColor: color.hex,
-                        width: sliceWidthsPx[index],
-                        flexShrink: 0,
-                      }
-                    : {
-                        backgroundColor: color.hex,
-                        flexGrow: Math.max(color.score ?? 0, 0.001),
-                        flexBasis: 0,
-                        minWidth: 4,
-                      }
-                }
+                style={{
+                  backgroundColor: color.hex,
+                  width: sliceWidths ? `${sliceWidths[index]}%` : undefined,
+                  flexShrink: 0,
+                }}
                 aria-label={`Copy ${color.hex} (${percent}%)`}
                 onMouseEnter={() => setActiveHex(color.hex)}
                 onMouseLeave={() =>
