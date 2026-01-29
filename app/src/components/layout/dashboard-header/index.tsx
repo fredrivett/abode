@@ -42,6 +42,7 @@ export async function DashboardHeader({
         lastName={user.lastName}
         username={user.username}
         avatarUrl={user.avatarUrl}
+        isAdmin={user.isAdmin}
         availableInvites={user.availableInvites}
         signOutAction={signOut}
         showSearch={showSearch}
