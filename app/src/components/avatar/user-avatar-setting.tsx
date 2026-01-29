@@ -131,7 +131,7 @@ export function UserAvatarSetting({
             type="button"
             onClick={openFilePicker}
             disabled={isUploading}
-            className="cursor-pointer disabled:cursor-not-allowed"
+            className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed"
           >
             <UserAvatar
               avatarUrl={avatarUrl}

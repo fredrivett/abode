@@ -1,5 +1,5 @@
-import { type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
+import type { NextRequest } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";

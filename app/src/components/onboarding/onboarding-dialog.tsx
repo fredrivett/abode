@@ -1,10 +1,8 @@
 "use client";
 
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
-import { DoorOpen, Filter, Home, Sparkles, Upload } from "lucide-react";
-import { useRef, useState } from "react";
-import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
-import { Badge } from "@/components/ui/badge";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
@@ -13,7 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IsLoading } from "@/components/ui/is-loading";
-import { Step, Stepper, StepperNavigation } from "@/components/ui/stepper";
+import { Kbd } from "@/components/ui/kbd";
+import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
 import { ProfileStep } from "./profile-step";
 
 type UserMetadata = {
@@ -23,59 +22,6 @@ type UserMetadata = {
   email?: string | null;
   avatarUrl?: string | null;
 };
-
-const ONBOARDING_STEPS = [
-  {
-    icon: Upload,
-    title: "Upload images & paste articles",
-    description: (
-      <>
-        Drag and drop images, or paste any URL to save articles.
-        <span className="translate-y-[0.025em]">
-          <AbodeInline />
-        </span>{" "}
-        currently supports images and web content, with more coming soon.
-      </>
-    ),
-  },
-  {
-    icon: Sparkles,
-    title: "Automatic analysis",
-    description: (
-      <>
-        <span className="translate-y-[0.025em]">
-          <AbodeInline />
-        </span>{" "}
-        automatically analyzes your content — extracting colors, objects,
-        locations, and key details.
-      </>
-    ),
-  },
-  {
-    icon: Filter,
-    title: "Find things effortlessly",
-    description:
-      "Filter by type, tags, colors, or location — or just type to search in natural language.",
-  },
-  {
-    icon: Home,
-    title: "Build your digital home",
-    description:
-      "Organize your visual life in one place. Everything is private and secure by default.",
-  },
-  {
-    icon: DoorOpen,
-    title: "Dynamic rooms",
-    description: (
-      <>
-        Automatically group items into dynamic rooms for personal use or
-        sharing. Create collections like{" "}
-        <Badge variant="secondary">🇨🇦 Vancouver photos 2025</Badge> or{" "}
-        <Badge variant="secondary">📚 5 star reads</Badge> effortlessly.
-      </>
-    ),
-  },
-];
 
 type OnboardingDialogProps = {
   open: boolean;
@@ -92,7 +38,7 @@ export function OnboardingDialog({
   const firstNameRef = useRef(userMetadata?.firstName ?? "");
   const lastNameRef = useRef(userMetadata?.lastName ?? "");
 
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     if (isCompleting) return;
     setIsCompleting(true);
 
@@ -107,12 +53,25 @@ export function OnboardingDialog({
       });
       onComplete();
     } catch {
-      // Silently continue - onboarding should not block the user
       onComplete();
     } finally {
       setIsCompleting(false);
     }
-  };
+  }, [isCompleting, onComplete]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesShortcut(e, { key: "Enter", modifier: true })) {
+        e.preventDefault();
+        void handleComplete();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, handleComplete]);
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -125,69 +84,32 @@ export function OnboardingDialog({
         <VisuallyHidden.Root>
           <DialogTitle>Welcome to Abode</DialogTitle>
           <DialogDescription>
-            Learn how to use Abode to organize your digital life
+            Complete your profile to get started
           </DialogDescription>
         </VisuallyHidden.Root>
-        <DialogBody>
-          <Stepper onComplete={handleComplete}>
-            {ONBOARDING_STEPS.map((step) => (
-              <Step key={step.title}>
-                <StepContent
-                  icon={step.icon}
-                  title={step.title}
-                  description={step.description}
-                />
-              </Step>
-            ))}
-            <Step key="profile">
-              <ProfileStep
-                firstName={userMetadata?.firstName}
-                lastName={userMetadata?.lastName}
-                username={userMetadata?.username}
-                email={userMetadata?.email}
-                initialAvatarUrl={userMetadata?.avatarUrl}
-                onFirstNameChange={(value) => {
-                  firstNameRef.current = value;
-                }}
-                onLastNameChange={(value) => {
-                  lastNameRef.current = value;
-                }}
-              />
-            </Step>
-            <StepperNavigation
-              nextLabel="Next"
-              completeLabel={
-                isCompleting ? <IsLoading label="Finishing" /> : "That's me"
-              }
-              showKeyboardHints
-            />
-          </Stepper>
+        <DialogBody className="py-6">
+          <ProfileStep
+            firstName={userMetadata?.firstName}
+            lastName={userMetadata?.lastName}
+            username={userMetadata?.username}
+            email={userMetadata?.email}
+            initialAvatarUrl={userMetadata?.avatarUrl}
+            onFirstNameChange={(value) => {
+              firstNameRef.current = value;
+            }}
+            onLastNameChange={(value) => {
+              lastNameRef.current = value;
+            }}
+          />
+          <div className="mt-6 flex justify-end">
+            <Button onClick={handleComplete}>
+              {isCompleting ? <IsLoading label="Finishing" /> : "That's me"}
+              <Kbd variant="primary">{getModifierKeySymbol()}</Kbd>
+              <Kbd variant="primary">↵</Kbd>
+            </Button>
+          </div>
         </DialogBody>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function StepContent({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 text-center">
-      <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
-        <Icon className="size-8 text-primary" />
-      </div>
-      <h2 className="text-pretty font-semibold text-lg leading-none">
-        {title}
-      </h2>
-      <p className="text-pretty text-base text-muted-foreground">
-        {description}
-      </p>
-    </div>
   );
 }
