@@ -13,20 +13,13 @@ import { createLogger } from "@/lib/logger.client";
 import {
   applyThemePreference,
   getCurrentPreference,
+  getNextTheme,
   getStoredThemePreference,
   storeThemePreference,
   type ThemePreference,
 } from "@/lib/theme";
 
 const logger = createLogger("theme-toggle");
-
-const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
-
-function getNextTheme(current: ThemePreference): ThemePreference {
-  const index = THEME_SEQUENCE.indexOf(current);
-  if (index === -1) return "auto";
-  return THEME_SEQUENCE[(index + 1) % THEME_SEQUENCE.length];
-}
 
 type ThemeToggleProps = {
   className?: string;

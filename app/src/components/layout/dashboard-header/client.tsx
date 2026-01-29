@@ -1,16 +1,21 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpLeft,
   DoorOpen,
   Handshake,
   LogOut,
+  Moon,
+  MoreVertical,
   Plus,
   Settings,
+  Sun,
+  SunMoon,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -33,8 +38,33 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useFilterOptions, useSearch } from "@/lib/search";
+import {
+  applyThemePreference,
+  getCurrentPreference,
+  getNextTheme,
+  getStoredThemePreference,
+  storeThemePreference,
+  type ThemePreference,
+} from "@/lib/theme";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  getBadge?: (props: { availableInvites: number }) => number | null;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: "/settings/invites",
+    label: "Invites",
+    icon: Handshake,
+    getBadge: ({ availableInvites }) =>
+      availableInvites > 0 ? availableInvites : null,
+  },
+];
 
 /**
  * Search section component - separated to avoid calling useSearchParams
@@ -57,6 +87,101 @@ function HeaderSearchSection() {
       </div>
       <SaveAsRoomButton searchState={searchState} />
     </div>
+  );
+}
+
+function MobileOverflowMenu({
+  navItems,
+  availableInvites,
+  className,
+}: {
+  navItems: NavItem[];
+  availableInvites: number;
+  className?: string;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const [preference, setPreference] = useState<ThemePreference>("auto");
+
+  useEffect(() => {
+    setMounted(true);
+    const stored = getStoredThemePreference();
+    setPreference(stored ?? getCurrentPreference());
+  }, []);
+
+  const handleThemeToggle = () => {
+    const next = getNextTheme(preference);
+    setPreference(next);
+    applyThemePreference(next);
+    storeThemePreference(next);
+  };
+
+  const themeIcon =
+    preference === "light" ? (
+      <Sun className="size-4" />
+    ) : preference === "dark" ? (
+      <Moon className="size-4" />
+    ) : (
+      <SunMoon className="size-4" />
+    );
+  const themeLabel =
+    preference === "auto" ? "System" : preference === "light" ? "Light" : "Dark";
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost-subtle"
+              size="icon"
+              className={className}
+              aria-label="More options"
+            >
+              <MoreVertical size={18} aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={6}>
+          more
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="w-48">
+        {/* Checklist - renders as menu item */}
+        <ChecklistPopover variant="menu-item" />
+
+        <DropdownMenuSeparator />
+
+        {navItems.map((item) => {
+          const badge = item.getBadge?.({ availableInvites });
+          return (
+            <DropdownMenuItem key={item.href} asChild>
+              <Link href={item.href} className="relative flex items-center gap-2">
+                <item.icon className="size-4" />
+                {item.label}
+                {badge && (
+                  <CountBadge
+                    count={badge}
+                    className="relative top-0 right-0 ml-auto"
+                  />
+                )}
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
+
+        <DropdownMenuSeparator />
+
+        {mounted && (
+          <DropdownMenuItem
+            onClick={handleThemeToggle}
+            className="flex items-center gap-2"
+          >
+            {themeIcon}
+            <span>Theme: {themeLabel}</span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -194,7 +319,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         )}
       </div>
 
-      <div className="order-2 ml-auto flex h-8 shrink-0 items-center gap-2 md:order-3">
+      <div className="order-2 xs:order-3 ml-auto flex h-8 shrink-0 items-center gap-2">
         {isAuthenticated ? (
           <>
             <Tooltip>
@@ -212,6 +337,8 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 add item
               </TooltipContent>
             </Tooltip>
+
+            {/* Rooms - always visible */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button asChild variant="ghost-subtle" size="icon">
@@ -224,34 +351,51 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <span className="font-mono">rooms</span>
               </TooltipContent>
             </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild variant="ghost-subtle" size="icon">
-                  <Link
-                    href="/settings/invites"
-                    aria-label="Invites"
-                    className="relative"
-                  >
-                    <Handshake size={18} aria-hidden />
-                    {availableInvites > 0 && (
-                      <CountBadge
-                        count={availableInvites}
-                        aria-label={`${availableInvites} invite${availableInvites !== 1 ? "s" : ""} remaining`}
-                      />
-                    )}
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={6}>
-                <span className="font-mono">
-                  {availableInvites > 0
-                    ? `${availableInvites} invite${availableInvites !== 1 ? "s" : ""} remaining`
-                    : "No invites remaining"}
-                </span>
-              </TooltipContent>
-            </Tooltip>
-            <ChecklistPopover />
-            <ThemeToggle />
+
+            {/* Desktop-only nav items (Invites) */}
+            {NAV_ITEMS.map((item) => {
+              const badge = item.getBadge?.({ availableInvites });
+              return (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      asChild
+                      variant="ghost-subtle"
+                      size="icon"
+                      className="xs:inline-flex hidden"
+                    >
+                      <Link href={item.href} aria-label={item.label} className="relative">
+                        <item.icon size={18} aria-hidden />
+                        {badge && (
+                          <CountBadge
+                            count={badge}
+                            aria-label={`${badge} ${item.label.toLowerCase()} remaining`}
+                          />
+                        )}
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    <span className="font-mono">{item.label.toLowerCase()}</span>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+
+            {/* Checklist - desktop only */}
+            <div className="xs:block hidden">
+              <ChecklistPopover />
+            </div>
+
+            {/* Theme toggle - desktop only */}
+            <ThemeToggle className="xs:inline-flex hidden" />
+
+            {/* Mobile overflow menu */}
+            <MobileOverflowMenu
+              navItems={NAV_ITEMS}
+              availableInvites={availableInvites}
+              className="xs:hidden"
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
