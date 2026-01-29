@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -38,14 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useFilterOptions, useSearch } from "@/lib/search";
-import {
-  applyThemePreference,
-  getCurrentPreference,
-  getNextTheme,
-  getStoredThemePreference,
-  storeThemePreference,
-  type ThemePreference,
-} from "@/lib/theme";
+import { useThemePreference } from "@/lib/use-theme-preference";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
 
@@ -99,21 +92,7 @@ function MobileOverflowMenu({
   availableInvites: number;
   className?: string;
 }) {
-  const [mounted, setMounted] = useState(false);
-  const [preference, setPreference] = useState<ThemePreference>("auto");
-
-  useEffect(() => {
-    setMounted(true);
-    const stored = getStoredThemePreference();
-    setPreference(stored ?? getCurrentPreference());
-  }, []);
-
-  const handleThemeToggle = () => {
-    const next = getNextTheme(preference);
-    setPreference(next);
-    applyThemePreference(next);
-    storeThemePreference(next);
-  };
+  const { mounted, preference, toggle } = useThemePreference();
 
   const themeIcon =
     preference === "light" ? (
@@ -173,7 +152,7 @@ function MobileOverflowMenu({
 
         {mounted && (
           <DropdownMenuItem
-            onClick={handleThemeToggle}
+            onClick={toggle}
             className="flex items-center gap-2"
           >
             {themeIcon}

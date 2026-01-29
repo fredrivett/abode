@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun, SunMoon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -9,61 +9,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { createLogger } from "@/lib/logger.client";
-import {
-  applyThemePreference,
-  getCurrentPreference,
-  getNextTheme,
-  getStoredThemePreference,
-  storeThemePreference,
-  type ThemePreference,
-} from "@/lib/theme";
-
-const logger = createLogger("theme-toggle");
+import { useThemePreference } from "@/lib/use-theme-preference";
 
 type ThemeToggleProps = {
   className?: string;
 };
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
-  const [mounted, setMounted] = useState(false);
-  const [preference, setPreference] = useState<ThemePreference>("auto");
-  const [isPending, setIsPending] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    const stored = getStoredThemePreference();
-    const initialPreference = stored ?? getCurrentPreference();
-
-    setPreference(initialPreference);
-    applyThemePreference(initialPreference);
-  }, [mounted]);
-
-  const handleToggle = useCallback(() => {
-    if (!mounted || isPending) return;
-
-    const previous = preference;
-    const next = getNextTheme(previous);
-
-    setPreference(next);
-    applyThemePreference(next);
-    setIsPending(true);
-
-    try {
-      storeThemePreference(next);
-    } catch (error) {
-      setPreference(previous);
-      applyThemePreference(previous);
-      logger.error("Failed to persist theme preference", error);
-    } finally {
-      setIsPending(false);
-    }
-  }, [mounted, isPending, preference]);
+  const { mounted, preference, toggle } = useThemePreference();
 
   const icon = useMemo(() => {
     switch (preference) {
@@ -115,9 +68,8 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
           variant="ghost-subtle"
           size="icon"
           className={className}
-          onClick={handleToggle}
+          onClick={toggle}
           aria-label={`Set ${label}`}
-          disabled={isPending}
         >
           {icon}
         </Button>

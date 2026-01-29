@@ -127,6 +127,12 @@ export function clearStoredThemePreference(): void {
   document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
 
+export type UseThemePreferenceReturn = {
+  mounted: boolean;
+  preference: ThemePreference;
+  toggle: () => void;
+};
+
 export function subscribeToThemeChanges(
   callback: (isDark: boolean) => void,
 ): () => void {
