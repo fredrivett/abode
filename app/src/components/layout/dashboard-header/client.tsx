@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Plus,
   Settings,
+  Shield,
   Sun,
   SunMoon,
 } from "lucide-react";
@@ -178,6 +179,7 @@ type AuthenticatedProps = BaseProps & {
   lastName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  isAdmin?: boolean;
   availableInvites: number;
   signOutAction: () => Promise<void>;
 };
@@ -421,6 +423,17 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     </span>
                   </Link>
                 </DropdownMenuItem>
+                {authProps?.isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="flex items-center gap-2">
+                        <Shield className="size-4" />
+                        Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/settings/account" className="flex items-center gap-2">
