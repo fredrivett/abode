@@ -11,6 +11,7 @@ const userSelect = {
   avatarUrl: true,
   firstName: true,
   lastName: true,
+  isAdmin: true,
 } satisfies Prisma.UserSelect;
 
 // AuthenticatedUser is a composite from 3 sources:
@@ -57,6 +58,7 @@ export const getAuthenticatedUser = cache(
       lastName: dbUser?.lastName ?? metadata.lastName,
       username: dbUser?.username ?? null,
       avatarUrl: dbUser?.avatarUrl ?? null,
+      isAdmin: dbUser?.isAdmin ?? false,
       availableInvites,
     };
   },
