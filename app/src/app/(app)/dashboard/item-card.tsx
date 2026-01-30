@@ -68,6 +68,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { AddToRoomPopover } from "./_components/add-to-room-popover";
+import { ColorHighlightOverlay } from "./_components/color-highlight-overlay";
 import { ColorsBar } from "./_components/colors-bar";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
@@ -723,6 +724,8 @@ function ItemDetailDialog({
   const [currentProcessingStatus, setCurrentProcessingStatus] = useState(
     item.processingStatus,
   );
+  const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
+
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const supabase = createClient();
 
@@ -1189,11 +1192,23 @@ function ItemDetailDialog({
                     alt={name}
                     className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
                   />
+                  {/* Color highlight overlay */}
+                  {currentProcessingStatus === "completed" &&
+                    item.colors.length > 0 && (
+                      <ColorHighlightOverlay
+                        imageUrl={fullQualityUrl || previewUrl}
+                        hoveredColorHex={hoveredColorHex}
+                      />
+                    )}
                   {/* Color bar overlay at bottom of image */}
                   {currentProcessingStatus === "completed" &&
                     item.colors.length > 0 && (
                       <div className="absolute right-0 bottom-0 left-0">
-                        <ColorsBar colors={item.colors} />
+                        <ColorsBar
+                          colors={item.colors}
+                          onColorHover={setHoveredColorHex}
+                          onColorHoverEnd={() => setHoveredColorHex(null)}
+                        />
                       </div>
                     )}
                 </motion.div>

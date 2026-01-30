@@ -12,16 +12,18 @@ import type { ImageColor } from "@/lib/types/item";
 type ColorsBarProps = {
   colors: ImageColor[];
   minSlicePercent?: number;
+  onColorHover?: (hex: string) => void;
+  onColorHoverEnd?: () => void;
 };
 
-function getAdjustedSliceWidthsPercent({
+export function getAdjustedSliceWidthsPercent({
   colors,
   minSlicePercent,
 }: {
   colors: ImageColor[];
   minSlicePercent: number;
-}) {
-  if (colors.length === 0) return null;
+}): number[] {
+  if (colors.length === 0) return [];
 
   const totalScore =
     colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
@@ -61,12 +63,21 @@ function getAdjustedSliceWidthsPercent({
   );
 }
 
-export function ColorsBar({ colors, minSlicePercent = 3 }: ColorsBarProps) {
+const LONG_PRESS_DURATION = 500;
+
+export function ColorsBar({
+  colors,
+  minSlicePercent = 3,
+  onColorHover,
+  onColorHoverEnd,
+}: ColorsBarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [activeHex, setActiveHex] = useState<string | null>(null);
   const [pinnedHex, setPinnedHex] = useState<string | null>(null);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
+  const [longPressHex, setLongPressHex] = useState<string | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
+  const longPressTimeoutRef = useRef<number | null>(null);
 
   const totalScore = useMemo(
     () => colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1,
@@ -77,6 +88,8 @@ export function ColorsBar({ colors, minSlicePercent = 3 }: ColorsBarProps) {
     return () => {
       if (copiedTimeoutRef.current)
         window.clearTimeout(copiedTimeoutRef.current);
+      if (longPressTimeoutRef.current)
+        window.clearTimeout(longPressTimeoutRef.current);
     };
   }, []);
 
@@ -131,19 +144,62 @@ export function ColorsBar({ colors, minSlicePercent = 3 }: ColorsBarProps) {
                 className={`h-full appearance-none border-0 bg-transparent p-0 outline-none transition-[width] duration-200 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
                 style={{
                   backgroundColor: color.hex,
-                  width: sliceWidths ? `${sliceWidths[index]}%` : undefined,
+                  width: `${sliceWidths[index]}%`,
                   flexShrink: 0,
                 }}
                 aria-label={`Copy ${color.hex} (${percent}%)`}
-                onMouseEnter={() => setActiveHex(color.hex)}
-                onMouseLeave={() =>
-                  setActiveHex((prev) => (prev === color.hex ? null : prev))
-                }
-                onFocus={() => setActiveHex(color.hex)}
-                onBlur={() =>
-                  setActiveHex((prev) => (prev === color.hex ? null : prev))
-                }
-                onClick={() => void copyColor(color.hex)}
+                onMouseEnter={() => {
+                  setActiveHex(color.hex);
+                  onColorHover?.(color.hex);
+                }}
+                onMouseLeave={() => {
+                  setActiveHex((prev) => (prev === color.hex ? null : prev));
+                  onColorHoverEnd?.();
+                }}
+                onFocus={() => {
+                  setActiveHex(color.hex);
+                  onColorHover?.(color.hex);
+                }}
+                onBlur={() => {
+                  setActiveHex((prev) => (prev === color.hex ? null : prev));
+                  onColorHoverEnd?.();
+                }}
+                onClick={() => {
+                  void copyColor(color.hex);
+                }}
+                onTouchStart={() => {
+                  if (longPressTimeoutRef.current)
+                    window.clearTimeout(longPressTimeoutRef.current);
+                  longPressTimeoutRef.current = window.setTimeout(() => {
+                    setLongPressHex(color.hex);
+                    onColorHover?.(color.hex);
+                  }, LONG_PRESS_DURATION);
+                }}
+                onTouchMove={() => {
+                  if (longPressTimeoutRef.current) {
+                    window.clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = null;
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (longPressTimeoutRef.current)
+                    window.clearTimeout(longPressTimeoutRef.current);
+                  if (longPressHex) {
+                    setLongPressHex(null);
+                    onColorHoverEnd?.();
+                  }
+                }}
+                onTouchCancel={() => {
+                  if (longPressTimeoutRef.current)
+                    window.clearTimeout(longPressTimeoutRef.current);
+                  if (longPressHex) {
+                    setLongPressHex(null);
+                    onColorHoverEnd?.();
+                  }
+                }}
+                onContextMenu={(e) => {
+                  if (longPressHex) e.preventDefault();
+                }}
               />
             </TooltipTrigger>
             <TooltipContent sideOffset={6}>
