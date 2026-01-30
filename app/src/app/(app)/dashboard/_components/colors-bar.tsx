@@ -9,69 +9,74 @@ import {
 import { copyToClipboard } from "@/lib/copy";
 import type { ImageColor } from "@/lib/types/item";
 
-type ColorsBarProps = {
-  colors: ImageColor[];
-  minSlicePercent?: number;
-  onColorHover?: (hex: string) => void;
-  onColorHoverEnd?: () => void;
-};
+const MIN_WIDTH_PERCENT = 3;
 
-export function getAdjustedSliceWidthsPercent({
-  colors,
-  minSlicePercent,
-}: {
-  colors: ImageColor[];
-  minSlicePercent: number;
-}): number[] {
+/**
+ * Calculate width percentages for colors with minimum width enforcement.
+ * Small colors are bumped to the minimum, and larger colors are scaled down
+ * proportionally so the total always equals 100%.
+ */
+export function calculateWidths(colors: ImageColor[]): number[] {
   if (colors.length === 0) return [];
 
   const totalScore =
     colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
 
-  const clampedMinPercent = Math.max(
-    0.5,
-    Math.min(minSlicePercent, 100 / colors.length),
-  );
-
+  // Calculate base widths as percentages
   const baseWidths = colors.map(
-    (color) => (Math.max(color.score ?? 0, 0) / totalScore) * 100,
+    (color) => ((color.score ?? 0) / totalScore) * 100,
   );
 
+  // Find which colors are below minimum
   const smallIndexes: number[] = [];
   const largeIndexes: number[] = [];
-  for (let i = 0; i < baseWidths.length; i += 1) {
-    if (baseWidths[i] < clampedMinPercent) smallIndexes.push(i);
-    else largeIndexes.push(i);
+  for (let i = 0; i < baseWidths.length; i++) {
+    if (baseWidths[i] < MIN_WIDTH_PERCENT) {
+      smallIndexes.push(i);
+    } else {
+      largeIndexes.push(i);
+    }
   }
 
+  // If none are below minimum, return base widths
   if (smallIndexes.length === 0) return baseWidths;
 
-  const remainingPercent = 100 - smallIndexes.length * clampedMinPercent;
-  if (remainingPercent <= 0) {
-    const even = 100 / colors.length;
-    return colors.map(() => even);
+  // If all colors are below minimum, distribute evenly
+  if (largeIndexes.length === 0) {
+    return colors.map(() => 100 / colors.length);
   }
 
-  const largeBaseSum = largeIndexes.reduce(
-    (sum, index) => sum + baseWidths[index],
-    0,
-  );
-  const scale = largeBaseSum > 0 ? remainingPercent / largeBaseSum : 0;
+  // Calculate remaining space after giving small colors the minimum
+  const spaceForSmall = smallIndexes.length * MIN_WIDTH_PERCENT;
+  const spaceForLarge = 100 - spaceForSmall;
 
-  return baseWidths.map((width) =>
-    width < clampedMinPercent ? clampedMinPercent : width * scale,
+  // If not enough space for large colors, distribute evenly
+  if (spaceForLarge <= 0) {
+    return colors.map(() => 100 / colors.length);
+  }
+
+  // Scale large colors to fit remaining space
+  const largeTotal = largeIndexes.reduce((sum, i) => sum + baseWidths[i], 0);
+  const scale = spaceForLarge / largeTotal;
+
+  return baseWidths.map((width, i) =>
+    smallIndexes.includes(i) ? MIN_WIDTH_PERCENT : width * scale,
   );
 }
+
+type ColorsBarProps = {
+  colors: ImageColor[];
+  onColorHover?: (hex: string) => void;
+  onColorHoverEnd?: () => void;
+};
 
 const LONG_PRESS_DURATION = 500;
 
 export function ColorsBar({
   colors,
-  minSlicePercent = 3,
   onColorHover,
   onColorHoverEnd,
 }: ColorsBarProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [activeHex, setActiveHex] = useState<string | null>(null);
   const [pinnedHex, setPinnedHex] = useState<string | null>(null);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
@@ -79,10 +84,7 @@ export function ColorsBar({
   const copiedTimeoutRef = useRef<number | null>(null);
   const longPressTimeoutRef = useRef<number | null>(null);
 
-  const totalScore = useMemo(
-    () => colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1,
-    [colors],
-  );
+  const widths = useMemo(() => calculateWidths(colors), [colors]);
 
   useEffect(() => {
     return () => {
@@ -92,13 +94,6 @@ export function ColorsBar({
         window.clearTimeout(longPressTimeoutRef.current);
     };
   }, []);
-
-  const sliceWidths = useMemo(() => {
-    return getAdjustedSliceWidthsPercent({
-      colors,
-      minSlicePercent: isHovered ? minSlicePercent : 1,
-    });
-  }, [colors, isHovered, minSlicePercent]);
 
   if (colors.length === 0) return null;
 
@@ -120,12 +115,11 @@ export function ColorsBar({
   return (
     <fieldset
       aria-label="Colors"
-      className="m-0 flex h-4 min-w-0 overflow-hidden p-0 transition-[height] duration-200 ease-out hover:h-8"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className="m-0 flex h-4 w-full min-w-0 overflow-hidden p-0 transition-[height] duration-200 ease-out hover:h-8"
     >
       {colors.map((color, index) => {
-        const percent = Math.round(((color.score ?? 0) / totalScore) * 100);
+        const widthPercent = widths[index];
+        const percent = Math.round(widthPercent);
         const isOpen =
           pinnedHex === color.hex ||
           copiedHex === color.hex ||
@@ -141,11 +135,10 @@ export function ColorsBar({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={`h-full appearance-none border-0 bg-transparent p-0 outline-none transition-[width] duration-200 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
+                className={`h-full shrink-0 appearance-none border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
                 style={{
                   backgroundColor: color.hex,
-                  width: `${sliceWidths[index]}%`,
-                  flexShrink: 0,
+                  width: `${widthPercent}%`,
                 }}
                 aria-label={`Copy ${color.hex} (${percent}%)`}
                 onMouseEnter={() => {
