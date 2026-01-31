@@ -117,9 +117,10 @@ export function ColorsBar({
   return (
     <fieldset
       aria-label="Colors"
-      className={`m-0 flex h-4 w-full min-w-0 overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
+      className={`m-0 flex h-4 w-full min-w-0 select-none overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
         visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
       }`}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {colors.map((color, index) => {
         const widthPercent = widths[index];
