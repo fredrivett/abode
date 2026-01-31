@@ -1,16 +1,39 @@
 "use client";
 
-import { type RefObject, useCallback } from "react";
+import { type RefObject, useCallback, useEffect, useState } from "react";
 import {
   DEFAULT_DENSITY,
   DENSITY_CONFIG,
   DENSITY_LEVELS,
+  type DensityBreakpoint,
   type DensityLevel,
   getDensityByIndex,
   getDensityIndex,
+  LG_BREAKPOINT,
   useGridDensityStore,
 } from "@/stores/grid-density-store";
 import { useGridPinch } from "./use-grid-pinch";
+
+function useBreakpoint(): DensityBreakpoint {
+  const [breakpoint, setBreakpoint] = useState<DensityBreakpoint>("default");
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(min-width: ${LG_BREAKPOINT}px)`);
+
+    const updateBreakpoint = () => {
+      setBreakpoint(mediaQuery.matches ? "lg" : "default");
+    };
+
+    // Set initial value
+    updateBreakpoint();
+
+    // Listen for changes
+    mediaQuery.addEventListener("change", updateBreakpoint);
+    return () => mediaQuery.removeEventListener("change", updateBreakpoint);
+  }, []);
+
+  return breakpoint;
+}
 
 interface UseGridDensityOptions {
   enablePinch?: boolean;
@@ -35,6 +58,7 @@ export function useGridDensity(
 ): UseGridDensityReturn {
   const { enablePinch = true } = options;
   const { density, setDensity, hasHydrated } = useGridDensityStore();
+  const breakpoint = useBreakpoint();
 
   const increaseDensity = useCallback(() => {
     const currentIndex = getDensityIndex(density);
@@ -72,7 +96,7 @@ export function useGridDensity(
     enabled: enablePinch && hasHydrated,
   });
 
-  const config = DENSITY_CONFIG[density];
+  const config = DENSITY_CONFIG[density][breakpoint];
 
   return {
     density,

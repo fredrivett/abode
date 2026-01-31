@@ -54,18 +54,6 @@ export function useGridPinch({
       handlePinchDelta(delta);
     };
 
-    const handleGestureStart = (e: Event) => {
-      e.preventDefault();
-    };
-
-    const handleGestureChange = (e: Event) => {
-      e.preventDefault();
-      const gestureEvent = e as unknown as { scale: number };
-      const scale = gestureEvent.scale;
-      const delta = (scale - 1) * 0.5;
-      handlePinchDelta(delta);
-    };
-
     const getTouchDistance = (touches: TouchList): number => {
       if (touches.length < 2) return 0;
       const dx = touches[0].clientX - touches[1].clientX;
@@ -121,12 +109,6 @@ export function useGridPinch({
       passive: false,
       capture: true,
     });
-    container.addEventListener("gesturestart", handleGestureStart, {
-      passive: false,
-    });
-    container.addEventListener("gesturechange", handleGestureChange, {
-      passive: false,
-    });
     container.addEventListener("touchstart", handleTouchStart, {
       passive: false,
     });
@@ -137,8 +119,6 @@ export function useGridPinch({
 
     return () => {
       container.removeEventListener("wheel", handleWheel, { capture: true });
-      container.removeEventListener("gesturestart", handleGestureStart);
-      container.removeEventListener("gesturechange", handleGestureChange);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
