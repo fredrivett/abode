@@ -8,16 +8,24 @@ export type CompletedMilestone = {
   completedAt: string;
 };
 
+export type MilestoneConfig = {
+  label: string;
+  destination: string;
+  conditional?: "has_article";
+};
+
 type MilestoneState = {
   completed: CompletedMilestone[];
   pending: MilestoneType[];
   hasArticle: boolean;
   isLoaded: boolean;
+  config: Record<MilestoneType, MilestoneConfig> | null;
 
   setMilestones: (
     completed: CompletedMilestone[],
     pending: MilestoneType[],
     hasArticle: boolean,
+    config: Record<MilestoneType, MilestoneConfig>,
   ) => void;
 
   markComplete: (type: MilestoneType) => void;
@@ -28,9 +36,10 @@ export const useMilestoneStore = create<MilestoneState>((set) => ({
   pending: [],
   hasArticle: false,
   isLoaded: false,
+  config: null,
 
-  setMilestones: (completed, pending, hasArticle) =>
-    set({ completed, pending, hasArticle, isLoaded: true }),
+  setMilestones: (completed, pending, hasArticle, config) =>
+    set({ completed, pending, hasArticle, config, isLoaded: true }),
 
   markComplete: (type) =>
     set((state) => {

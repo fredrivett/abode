@@ -160,12 +160,17 @@ export async function markMilestoneComplete(
   userId: string,
   type: MilestoneType,
 ): Promise<void> {
+  logger.info({ userId, type }, `Attempting to mark milestone ${type}`);
   try {
-    await db.userMilestone.upsert({
+    const result = await db.userMilestone.upsert({
       where: { userId_type: { userId, type } },
       create: { userId, type },
       update: {}, // No-op if already exists (idempotent)
     });
+    logger.info(
+      { userId, type, milestoneId: result.id },
+      `Successfully marked milestone ${type}`,
+    );
   } catch (err) {
     // Log but don't rethrow - milestone tracking should never break main flow
     logger.error({ err, userId, type }, `Failed to mark milestone ${type}`);

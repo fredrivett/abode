@@ -106,7 +106,19 @@ export async function GET(
     void logActivity(user.id, "item_view", { itemId: id });
 
     // Mark milestone for seeing AI analysis
-    if (shouldCompleteSeeAiAnalysis(item.processingStatus)) {
+    const shouldMarkSeeAiAnalysis = shouldCompleteSeeAiAnalysis(
+      item.processingStatus,
+    );
+    log.info(
+      {
+        userId: user.id,
+        itemId: id,
+        processingStatus: item.processingStatus,
+        shouldMarkSeeAiAnalysis,
+      },
+      "Checking see_ai_analysis milestone condition",
+    );
+    if (shouldMarkSeeAiAnalysis) {
       void markMilestoneComplete(user.id, "see_ai_analysis");
     }
 

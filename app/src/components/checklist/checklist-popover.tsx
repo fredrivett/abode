@@ -18,15 +18,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useMilestoneStore } from "@/stores/milestone-store";
+import {
+  type MilestoneConfig,
+  useMilestoneStore,
+} from "@/stores/milestone-store";
 
 import { ChecklistItem } from "./checklist-item";
-
-type MilestoneConfig = {
-  label: string;
-  destination: string;
-  conditional?: "has_article";
-};
 
 type MilestonesResponse = {
   completed: Array<{ type: MilestoneType; completedAt: string }>;
@@ -43,12 +40,9 @@ type ChecklistPopoverProps = {
 export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const [config, setConfig] = useState<Record<
-    MilestoneType,
-    MilestoneConfig
-  > | null>(null);
 
-  const { completed, pending, isLoaded, setMilestones } = useMilestoneStore();
+  const { completed, pending, config, isLoaded, setMilestones } =
+    useMilestoneStore();
 
   useEffect(() => {
     async function fetchMilestones() {
@@ -57,8 +51,12 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
         if (!response.ok) return;
 
         const data: MilestonesResponse = await response.json();
-        setMilestones(data.completed, data.pending, data.hasArticle);
-        setConfig(data.config);
+        setMilestones(
+          data.completed,
+          data.pending,
+          data.hasArticle,
+          data.config,
+        );
       } catch {
         // Silently fail - checklist is non-critical
       }
@@ -179,18 +177,6 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
         <div className="space-y-0.5">
           {config && (
             <>
-              {/* Show more completed button */}
-              {hasHiddenCompleted && !showAllCompleted && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllCompleted(true)}
-                  className="w-full rounded px-2 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted/50"
-                >
-                  Show {hiddenCompletedCount} more completed{" "}
-                  {hiddenCompletedCount === 1 ? "task" : "tasks"}
-                </button>
-              )}
-
               {/* Completed items */}
               {completedToShow.map((milestone) => {
                 const itemConfig = config[milestone.type];
@@ -208,6 +194,18 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
                   />
                 );
               })}
+
+              {/* Show more completed button */}
+              {hasHiddenCompleted && !showAllCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCompleted(true)}
+                  className="w-full cursor-pointer rounded px-2 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted/50"
+                >
+                  Show {hiddenCompletedCount} more completed{" "}
+                  {hiddenCompletedCount === 1 ? "task" : "tasks"}
+                </button>
+              )}
 
               {/* Pending items */}
               {pending.map((type) => {
