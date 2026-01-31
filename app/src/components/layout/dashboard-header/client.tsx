@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
+import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
 
@@ -106,6 +107,11 @@ function MobileOverflowMenu({
   const themeLabel =
     preference === "auto" ? "System" : preference === "light" ? "Light" : "Dark";
 
+  const totalBadgeCount = navItems.reduce((sum, item) => {
+    const badge = item.getBadge?.({ availableInvites });
+    return sum + (badge ?? 0);
+  }, 0);
+
   return (
     <DropdownMenu>
       <Tooltip>
@@ -114,10 +120,11 @@ function MobileOverflowMenu({
             <Button
               variant="ghost-subtle"
               size="icon"
-              className={className}
+              className={cn("relative", className)}
               aria-label="More options"
             >
               <MoreVertical size={18} aria-hidden />
+              {totalBadgeCount > 0 && <CountBadge count={totalBadgeCount} />}
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
