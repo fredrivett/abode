@@ -66,6 +66,7 @@ export function calculateWidths(colors: ImageColor[]): number[] {
 
 type ColorsBarProps = {
   colors: ImageColor[];
+  visible?: boolean;
   onColorHover?: (hex: string) => void;
   onColorHoverEnd?: () => void;
 };
@@ -74,6 +75,7 @@ const LONG_PRESS_DURATION = 500;
 
 export function ColorsBar({
   colors,
+  visible = true,
   onColorHover,
   onColorHoverEnd,
 }: ColorsBarProps) {
@@ -115,7 +117,9 @@ export function ColorsBar({
   return (
     <fieldset
       aria-label="Colors"
-      className="m-0 flex h-4 w-full min-w-0 overflow-hidden p-0 transition-[height] duration-200 ease-out hover:h-8"
+      className={`m-0 flex h-4 w-full min-w-0 overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+      }`}
     >
       {colors.map((color, index) => {
         const widthPercent = widths[index];

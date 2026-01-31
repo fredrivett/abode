@@ -1206,6 +1206,7 @@ function ItemDetailDialog({
                       <div className="absolute right-0 bottom-0 left-0">
                         <ColorsBar
                           colors={item.colors}
+                          visible={!!fullQualityUrl}
                           onColorHover={setHoveredColorHex}
                           onColorHoverEnd={() => setHoveredColorHex(null)}
                         />
