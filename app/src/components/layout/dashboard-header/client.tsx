@@ -17,6 +17,7 @@ import {
   SunMoon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
@@ -191,6 +192,20 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
   const { mounted: themeMounted, preference: themePreference, toggle: toggleTheme } = useThemePreference();
+  const router = useRouter();
+
+  // Keyboard shortcut: Cmd+, to open settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        router.push("/settings/account");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   // Extract authenticated props for hydration (with type narrowing)
   const authProps = isAuthenticated ? props : null;
@@ -415,7 +430,11 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/settings/account" className="flex items-center gap-2">
                     <Settings className="size-4" />
-                    Settings
+                    <span className="flex-1">Settings</span>
+                    <KbdGroup>
+                      <Kbd>{getModifierKeySymbol()}</Kbd>
+                      <Kbd>,</Kbd>
+                    </KbdGroup>
                   </Link>
                 </DropdownMenuItem>
                 {themeMounted && (
