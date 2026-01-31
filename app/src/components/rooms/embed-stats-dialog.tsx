@@ -5,13 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ExternalLink, Globe } from "lucide-react";
 import { DateTime } from "@/components/ui/date-time";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogOrDrawer,
+  DialogOrDrawerBody,
+  DialogOrDrawerContent,
+  DialogOrDrawerDescription,
+  DialogOrDrawerHeader,
+  DialogOrDrawerTitle,
+} from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 
@@ -57,16 +57,16 @@ export function EmbedStatsDialog({
   const totalViews = referrers.reduce((sum, r) => sum + r.viewCount, 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Embed stats</DialogTitle>
-          <DialogDescription>
+    <DialogOrDrawer open={open} onOpenChange={onOpenChange}>
+      <DialogOrDrawerContent className="sm:max-w-lg">
+        <DialogOrDrawerHeader>
+          <DialogOrDrawerTitle>Embed stats</DialogOrDrawerTitle>
+          <DialogOrDrawerDescription>
             See where {roomName} is being embedded across the web.
-          </DialogDescription>
-        </DialogHeader>
+          </DialogOrDrawerDescription>
+        </DialogOrDrawerHeader>
 
-        <DialogBody className="space-y-4">
+        <DialogOrDrawerBody className="space-y-4">
           {!isPublic ? (
             <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -135,8 +135,8 @@ export function EmbedStatsDialog({
               </div>
             </>
           )}
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+        </DialogOrDrawerBody>
+      </DialogOrDrawerContent>
+    </DialogOrDrawer>
   );
 }

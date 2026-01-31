@@ -9,13 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogOrDrawer,
+  DialogOrDrawerBody,
+  DialogOrDrawerContent,
+  DialogOrDrawerDescription,
+  DialogOrDrawerHeader,
+  DialogOrDrawerTitle,
+} from "@/components/ui/dialog-or-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -306,22 +306,22 @@ export function ShareRoomDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <DialogOrDrawer open={open} onOpenChange={onOpenChange}>
+      <DialogOrDrawerContent className="sm:max-w-xl">
+        <DialogOrDrawerHeader>
+          <DialogOrDrawerTitle className="flex items-center gap-2">
             Share{" "}
             <Badge variant="outline" className="font-semibold text-sm">
               {room.emoji && <span>{room.emoji}</span>}
               {room.name}
             </Badge>
-          </DialogTitle>
-          <DialogDescription>
+          </DialogOrDrawerTitle>
+          <DialogOrDrawerDescription>
             Embed this room on your website or blog.
-          </DialogDescription>
-        </DialogHeader>
+          </DialogOrDrawerDescription>
+        </DialogOrDrawerHeader>
 
-        <DialogBody>
+        <DialogOrDrawerBody>
           {!isPublic ? (
             <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -572,8 +572,8 @@ export function ShareRoomDialog({
               </div>
             </div>
           )}
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+        </DialogOrDrawerBody>
+      </DialogOrDrawerContent>
+    </DialogOrDrawer>
   );
 }

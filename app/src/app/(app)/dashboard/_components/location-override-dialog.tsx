@@ -4,14 +4,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogOrDrawer,
+  DialogOrDrawerBody,
+  DialogOrDrawerContent,
+  DialogOrDrawerDescription,
+  DialogOrDrawerFooter,
+  DialogOrDrawerHeader,
+  DialogOrDrawerTitle,
+} from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
@@ -64,18 +64,18 @@ export function LocationOverrideDialog({
   const showTwoColumns = hasExistingLocation;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+    <DialogOrDrawer open={open} onOpenChange={onOpenChange}>
+      <DialogOrDrawerContent
         className={showTwoColumns ? "sm:max-w-2xl" : "sm:max-w-md"}
       >
-        <DialogHeader>
-          <DialogTitle>Update Location</DialogTitle>
-          <DialogDescription>
+        <DialogOrDrawerHeader>
+          <DialogOrDrawerTitle>Update Location</DialogOrDrawerTitle>
+          <DialogOrDrawerDescription>
             Set location from EXIF data in "{sourceFileName}"
-          </DialogDescription>
-        </DialogHeader>
+          </DialogOrDrawerDescription>
+        </DialogOrDrawerHeader>
 
-        <DialogBody
+        <DialogOrDrawerBody
           className={
             showTwoColumns ? "grid grid-cols-2 gap-6" : "flex justify-center"
           }
@@ -100,9 +100,9 @@ export function LocationOverrideDialog({
               }}
             />
           </div>
-        </DialogBody>
+        </DialogOrDrawerBody>
 
-        <DialogFooter>
+        <DialogOrDrawerFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -113,8 +113,8 @@ export function LocationOverrideDialog({
           <Button onClick={handleConfirm} disabled={isSubmitting}>
             {isSubmitting ? <IsLoading label="Updating" /> : "Confirm"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogOrDrawerFooter>
+      </DialogOrDrawerContent>
+    </DialogOrDrawer>
   );
 }

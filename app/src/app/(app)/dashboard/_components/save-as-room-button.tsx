@@ -10,13 +10,13 @@ import { FilterBadges } from "@/components/rooms/filter-badges";
 import { VisibilityToggle } from "@/components/rooms/visibility-toggle";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogOrDrawer,
+  DialogOrDrawerContent,
+  DialogOrDrawerDescription,
+  DialogOrDrawerFooter,
+  DialogOrDrawerHeader,
+  DialogOrDrawerTitle,
+} from "@/components/ui/dialog-or-drawer";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { SearchState } from "@/lib/search";
@@ -90,17 +90,17 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         Save as Room
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save as Dynamic Room</DialogTitle>
-            <DialogDescription>
+      <DialogOrDrawer open={isOpen} onOpenChange={setIsOpen}>
+        <DialogOrDrawerContent className="sm:max-w-md">
+          <DialogOrDrawerHeader>
+            <DialogOrDrawerTitle>Save as Dynamic Room</DialogOrDrawerTitle>
+            <DialogOrDrawerDescription>
               Create a dynamic room from your current filters. Items matching
               these filters will be automatically added to the room.
-            </DialogDescription>
-          </DialogHeader>
+            </DialogOrDrawerDescription>
+          </DialogOrDrawerHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 px-4 py-4 md:px-0">
             <div className="space-y-2">
               <label htmlFor="roomName" className="font-medium text-sm">
                 Room name
@@ -135,7 +135,7 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogOrDrawerFooter>
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
@@ -146,9 +146,9 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
                 "Create Dynamic Room"
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogOrDrawerFooter>
+        </DialogOrDrawerContent>
+      </DialogOrDrawer>
     </>
   );
 }
