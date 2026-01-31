@@ -69,6 +69,7 @@ type ColorsBarProps = {
   visible?: boolean;
   onColorHover?: (hex: string) => void;
   onColorHoverEnd?: () => void;
+  onColorSearch?: (hex: string) => void;
 };
 
 const LONG_PRESS_DURATION = 500;
@@ -78,18 +79,35 @@ export function ColorsBar({
   visible = true,
   onColorHover,
   onColorHoverEnd,
+  onColorSearch,
 }: ColorsBarProps) {
   const [activeHex, setActiveHex] = useState<string | null>(null);
   const [pinnedHex, setPinnedHex] = useState<string | null>(null);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
   const [longPressHex, setLongPressHex] = useState<string | null>(null);
+  const [isMetaKeyHeld, setIsMetaKeyHeld] = useState(false);
   const copiedTimeoutRef = useRef<number | null>(null);
   const longPressTimeoutRef = useRef<number | null>(null);
 
   const widths = useMemo(() => calculateWidths(colors), [colors]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) setIsMetaKeyHeld(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) setIsMetaKeyHeld(false);
+    };
+    const handleBlur = () => setIsMetaKeyHeld(false);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
       if (copiedTimeoutRef.current)
         window.clearTimeout(copiedTimeoutRef.current);
       if (longPressTimeoutRef.current)
@@ -162,8 +180,8 @@ export function ColorsBar({
   return (
     <fieldset
       aria-label="Colors"
-      className={`m-0 flex h-4 w-full min-w-0 select-none overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+      className={`m-0 flex h-4 w-full min-w-0 origin-bottom select-none overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
+        visible ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
       }`}
       onContextMenu={(e) => e.preventDefault()}
       onTouchStart={handleTouchStart}
@@ -190,12 +208,22 @@ export function ColorsBar({
               <button
                 type="button"
                 data-hex={color.hex}
-                className={`h-full shrink-0 appearance-none border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
+                className={`h-full shrink-0 appearance-none border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  isCopied
+                    ? "cursor-copy-check"
+                    : isMetaKeyHeld && onColorSearch
+                      ? "cursor-scan-search"
+                      : "cursor-pipette"
+                }`}
                 style={{
                   backgroundColor: color.hex,
                   width: `${widthPercent}%`,
                 }}
-                aria-label={`Copy ${color.hex} (${percent}%)`}
+                aria-label={
+                  isMetaKeyHeld && onColorSearch
+                    ? `Search for ${color.hex}`
+                    : `Copy ${color.hex} (${percent}%)`
+                }
                 onMouseEnter={() => {
                   setActiveHex(color.hex);
                   onColorHover?.(color.hex);
@@ -212,14 +240,27 @@ export function ColorsBar({
                   setActiveHex((prev) => (prev === color.hex ? null : prev));
                   onColorHoverEnd?.();
                 }}
-                onClick={() => {
-                  void copyColor(color.hex);
+                onClick={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && onColorSearch) {
+                    onColorSearch(color.hex);
+                  } else {
+                    void copyColor(color.hex);
+                  }
                 }}
               />
             </TooltipTrigger>
             <TooltipContent sideOffset={6}>
               {isCopied ? (
                 <span className="font-mono">Copied!</span>
+              ) : isMetaKeyHeld && onColorSearch ? (
+                <div className="flex items-center gap-2">
+                  <div
+                    aria-hidden="true"
+                    className="h-3 w-3 shrink-0 rounded-sm border border-gray-200/60 dark:border-gray-700"
+                    style={{ backgroundColor: color.hex }}
+                  />
+                  <span className="font-mono">Search {color.hex}</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <div
