@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/drawer";
 
 interface DialogOrDrawerProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
