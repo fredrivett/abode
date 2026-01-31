@@ -142,9 +142,13 @@ export function CommandPalette() {
 
   const isAuthenticated = !!profile;
 
+  // Track if we just opened the dialog
+  const wasOpenRef = useRef(false);
+
   // Update current theme when dialog opens
   useEffect(() => {
-    if (open) {
+    // Only run reset logic when transitioning from closed to open
+    if (open && !wasOpenRef.current) {
       setCurrentTheme(getCurrentPreference());
       setPage(targetPage);
       setSearchState({ query: "", filters: [] });
@@ -159,6 +163,7 @@ export function CommandPalette() {
         setSelectedValue(""); // Reset selection to first item
       }
     }
+    wasOpenRef.current = open;
   }, [open, targetPage, currentDensity]);
 
   // Load filter values when entering values mode (for non-date types)
