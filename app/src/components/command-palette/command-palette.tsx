@@ -21,6 +21,7 @@ import {
   SunMoon,
   User,
   UserPlus,
+  ZoomIn,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +60,11 @@ import {
   type ThemePreference,
 } from "@/lib/theme";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
+import {
+  DENSITY_LEVELS,
+  type DensityLevel,
+  useGridDensityStore,
+} from "@/stores/grid-density-store";
 
 type UserProfile = {
   id: string;
@@ -87,9 +93,10 @@ export function CommandPalette() {
     query: "",
     filters: [],
   });
-  const [page, setPage] = useState<"main" | "theme">("main");
+  const [page, setPage] = useState<"main" | "theme" | "zoom">("main");
   const [showAllRooms, setShowAllRooms] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("auto");
+  const { density: currentDensity, setDensity } = useGridDensityStore();
   const [selectedValue, setSelectedValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dateFilterAppliedRef = useRef(false);
@@ -380,6 +387,29 @@ export function CommandPalette() {
         handleThemeChange(theme);
         return;
       }
+      if (value === "zoom") {
+        setPage("zoom");
+        setSearchState((prev) => ({ ...prev, query: "" }));
+        // Defer selection until after page change and query clear
+        requestAnimationFrame(() => {
+          setSelectedValue(`zoom-${currentDensity}`);
+          inputRef.current?.focus();
+        });
+        return;
+      }
+      if (value === "zoom-back") {
+        setPage("main");
+        setSearchState((prev) => ({ ...prev, query: "" }));
+        setSelectedValue("");
+        requestAnimationFrame(() => inputRef.current?.focus());
+        return;
+      }
+      if (value.startsWith("zoom-")) {
+        const density = value.replace("zoom-", "") as DensityLevel;
+        setDensity(density);
+        setOpen(false);
+        return;
+      }
       if (value === "add-item") {
         setOpen(false);
         setUploadDialogOpen(true);
@@ -405,6 +435,8 @@ export function CommandPalette() {
       navigate,
       setOpen,
       setUploadDialogOpen,
+      setDensity,
+      currentDensity,
     ],
   );
 
@@ -417,6 +449,19 @@ export function CommandPalette() {
     light: "Light",
     dark: "Dark",
     auto: "System",
+  };
+
+  // Get density display label
+  const densityLabels: Record<DensityLevel, string> = {
+    micro: "Micro",
+    tiny: "Tiny",
+    compact: "Compact",
+    dense: "Dense",
+    normal: "Normal",
+    spacious: "Spacious",
+    large: "Large",
+    xlarge: "X-Large",
+    xxlarge: "XX-Large",
   };
 
   // Prevent dialog from closing when interacting with filter dropdown or date picker
@@ -475,7 +520,11 @@ export function CommandPalette() {
         <CommandInput
           ref={inputRef}
           placeholder={
-            page === "theme" ? "Select theme..." : "Type a command or search..."
+            page === "theme"
+              ? "Select theme..."
+              : page === "zoom"
+                ? "Select zoom level..."
+                : "Type a command or search..."
           }
           value={searchState.query}
           onValueChange={(query) =>
@@ -528,6 +577,35 @@ export function CommandPalette() {
               <CommandGroup>
                 <CommandItem
                   value="theme-back"
+                  keywords={["back", "return", "go back"]}
+                  onSelect={handleSelect}
+                >
+                  <ArrowLeft className="size-4" />
+                  <span>Back</span>
+                </CommandItem>
+              </CommandGroup>
+            </>
+          ) : page === "zoom" ? (
+            // Zoom level submenu
+            <>
+              <CommandGroup heading="Zoom Level">
+                {DENSITY_LEVELS.map((level) => (
+                  <CommandItem
+                    key={level}
+                    value={`zoom-${level}`}
+                    onSelect={handleSelect}
+                  >
+                    <span>{densityLabels[level]}</span>
+                    {currentDensity === level && (
+                      <Check className="ml-auto size-4" />
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  value="zoom-back"
                   keywords={["back", "return", "go back"]}
                   onSelect={handleSelect}
                 >
@@ -668,6 +746,17 @@ export function CommandPalette() {
                   <span>Change theme</span>
                   <span className="ml-auto text-muted-foreground text-xs">
                     {themeLabels[currentTheme]}
+                  </span>
+                </CommandItem>
+                <CommandItem
+                  value="zoom"
+                  keywords={["zoom", "zoom level", "grid size", "density", "pinch"]}
+                  onSelect={handleSelect}
+                >
+                  <ZoomIn className="size-4" />
+                  <span>Zoom level</span>
+                  <span className="ml-auto text-muted-foreground text-xs">
+                    {densityLabels[currentDensity]}
                   </span>
                 </CommandItem>
               </CommandGroup>

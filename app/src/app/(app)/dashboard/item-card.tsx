@@ -54,6 +54,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
@@ -99,12 +100,13 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 z-10 flex items-end justify-start rounded-lg p-2",
+        "pointer-events-none absolute inset-0 z-10 flex items-end justify-start p-2",
         isProcessing &&
           "bg-gradient-to-t from-black/60 via-transparent to-transparent",
         isFailed &&
           "bg-gradient-to-t from-red-900/70 via-transparent to-transparent",
       )}
+      style={gridCardStyle}
     >
       <div
         className={cn(
@@ -207,7 +209,10 @@ export function ItemCard({
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div
+        className="flex h-full items-center justify-center border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+        style={gridCardStyle}
+      >
         <p className="text-destructive text-sm">{error}</p>
       </div>
     );
@@ -219,17 +224,24 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <FileText className="size-12 text-gray-400 dark:text-gray-500" />
+          <FileText className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
           <div className="text-center">
-            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+            <p
+              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
+              style={{ fontSize: "0.875em" }}
+            >
               {itemName}
             </p>
             {item.articleDetails?.domain && (
-              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
+              <p
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
                 {item.articleDetails.domain}
               </p>
             )}
@@ -262,17 +274,24 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink className="size-12 text-gray-400 dark:text-gray-500" />
+          <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
           <div className="text-center">
-            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+            <p
+              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
+              style={{ fontSize: "0.875em" }}
+            >
               {itemName}
             </p>
             {domain && (
-              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
+              <p
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
                 {domain}
               </p>
             )}
@@ -310,17 +329,24 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
           onClick={() => setShowDetailDialog(true)}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink className="size-12 text-gray-400 dark:text-gray-500" />
+          <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
           <div className="text-center">
-            <p className="line-clamp-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+            <p
+              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
+              style={{ fontSize: "0.875em" }}
+            >
               {itemName}
             </p>
             {domain && (
-              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
+              <p
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
                 {domain}
               </p>
             )}
@@ -405,7 +431,10 @@ export function ItemCard({
 
   if (!previewUrl) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+      <div
+        className="flex h-full items-center justify-center border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+        style={gridCardStyle}
+      >
         <IsLoading
           label="Loading preview"
           className="text-gray-500 text-sm dark:text-gray-400"
@@ -416,7 +445,10 @@ export function ItemCard({
 
   if (!hasDisplayableImage) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900">
+      <div
+        className="flex h-full items-center justify-center border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-800 dark:bg-gray-900"
+        style={gridCardStyle}
+      >
         <div className="flex flex-col items-center gap-4">
           <a
             href={previewUrl}
@@ -452,14 +484,16 @@ export function ItemCard({
     <>
       <div
         className={cn(
-          "group relative h-full w-full rounded-lg",
+          "group relative h-full w-full",
           (showDetailDialog || isAnimating) && "z-50",
         )}
+        style={gridCardStyle}
       >
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
-          className="!opacity-100 h-full w-full cursor-pointer overflow-hidden rounded-lg"
+          className="!opacity-100 h-full w-full cursor-pointer overflow-hidden"
+          style={gridCardStyle}
           onClick={() => {
             setIsAnimating(true);
             setShowDetailDialog(true);
