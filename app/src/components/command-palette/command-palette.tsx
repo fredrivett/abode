@@ -488,6 +488,13 @@ export function CommandPalette() {
     [filterDropdownOpen, datePickerOpen],
   );
 
+  // Prevent auto-focus on mobile to avoid keyboard popup
+  const handleOpenAutoFocus = useCallback((e: Event) => {
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      e.preventDefault();
+    }
+  }, []);
+
   // Shared search group component used in both search-only view and main view
   const searchGroup = (
     <CommandGroup heading="Search" forceMount>
@@ -530,6 +537,7 @@ export function CommandPalette() {
         onValueChange={setSelectedValue}
         onInteractOutside={handleInteractOutside}
         onPointerDownOutside={handleInteractOutside}
+        onOpenAutoFocus={handleOpenAutoFocus}
       >
         <CommandInput
           ref={inputRef}

@@ -39,6 +39,7 @@ function CommandDialog({
   onValueChange,
   onInteractOutside,
   onPointerDownOutside,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string;
@@ -49,6 +50,7 @@ function CommandDialog({
   onValueChange?: (value: string) => void;
   onInteractOutside?: (event: Event) => void;
   onPointerDownOutside?: (event: Event) => void;
+  onOpenAutoFocus?: (event: Event) => void;
 }) {
   return (
     <Dialog {...props}>
@@ -61,6 +63,7 @@ function CommandDialog({
         showCloseButton={showCloseButton}
         onInteractOutside={onInteractOutside}
         onPointerDownOutside={onPointerDownOutside}
+        onOpenAutoFocus={onOpenAutoFocus}
       >
         <Command
           value={value}
