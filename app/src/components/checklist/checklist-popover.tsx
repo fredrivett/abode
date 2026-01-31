@@ -18,15 +18,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useMilestoneStore } from "@/stores/milestone-store";
+import {
+  type MilestoneConfig,
+  useMilestoneStore,
+} from "@/stores/milestone-store";
 
 import { ChecklistItem } from "./checklist-item";
-
-type MilestoneConfig = {
-  label: string;
-  destination: string;
-  conditional?: "has_article";
-};
 
 type MilestonesResponse = {
   completed: Array<{ type: MilestoneType; completedAt: string }>;
@@ -43,12 +40,9 @@ type ChecklistPopoverProps = {
 export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const [config, setConfig] = useState<Record<
-    MilestoneType,
-    MilestoneConfig
-  > | null>(null);
 
-  const { completed, pending, isLoaded, setMilestones } = useMilestoneStore();
+  const { completed, pending, config, isLoaded, setMilestones } =
+    useMilestoneStore();
 
   useEffect(() => {
     async function fetchMilestones() {
@@ -57,8 +51,12 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
         if (!response.ok) return;
 
         const data: MilestonesResponse = await response.json();
-        setMilestones(data.completed, data.pending, data.hasArticle);
-        setConfig(data.config);
+        setMilestones(
+          data.completed,
+          data.pending,
+          data.hasArticle,
+          data.config,
+        );
       } catch {
         // Silently fail - checklist is non-critical
       }
