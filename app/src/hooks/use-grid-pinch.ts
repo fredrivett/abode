@@ -15,12 +15,6 @@ interface UseGridPinchReturn {
   containerRef: RefObject<HTMLDivElement | null>;
 }
 
-function triggerHaptic() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-    navigator.vibrate(10);
-  }
-}
-
 export function useGridPinch({
   onPinch,
   onReset,
@@ -37,11 +31,9 @@ export function useGridPinch({
 
       if (scaleAccumulator.current >= threshold) {
         scaleAccumulator.current = 0;
-        triggerHaptic();
         onPinch("out");
       } else if (scaleAccumulator.current <= -threshold) {
         scaleAccumulator.current = 0;
-        triggerHaptic();
         onPinch("in");
       }
     },
@@ -110,19 +102,16 @@ export function useGridPinch({
       // Plus: = or + (with shift)
       if (e.key === "=" || e.key === "+") {
         e.preventDefault();
-        triggerHaptic();
         onPinch("out"); // Larger items
       }
       // Minus: -
       else if (e.key === "-") {
         e.preventDefault();
-        triggerHaptic();
         onPinch("in"); // Smaller items
       }
       // Zero: reset to default
       else if (e.key === "0" && onReset) {
         e.preventDefault();
-        triggerHaptic();
         onReset();
       }
     };
