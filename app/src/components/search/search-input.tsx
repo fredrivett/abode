@@ -292,7 +292,7 @@ export function SearchInput({
         />
 
         {/* Input + filter button wrapper - stays together when wrapping */}
-        <div className="flex min-w-48 flex-1 items-center gap-2">
+        <div className="flex min-w-52 flex-1 items-center gap-2">
           <div className="relative flex flex-1 items-center">
             <input
               ref={inputRef}

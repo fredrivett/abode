@@ -15,6 +15,7 @@ import {
   Shield,
   Sun,
   SunMoon,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,7 +76,7 @@ function HeaderSearchSection() {
   const { getFilterValuesForType } = useFilterOptions();
 
   return (
-    <div className="order-3 flex w-full basis-full items-center gap-2 md:order-2 md:w-auto md:min-w-48 md:flex-1 md:basis-auto">
+    <div className="order-3 flex w-full basis-full items-center gap-2 lg:order-2 lg:w-auto lg:min-w-48 lg:flex-1 lg:basis-auto">
       <div className="flex-1">
         <SearchInput
           value={searchState}
@@ -85,7 +86,20 @@ function HeaderSearchSection() {
           focusShortcut
         />
       </div>
-      <SaveAsRoomButton searchState={searchState} />
+      {searchState.filters.length > 0 && (
+        <div className="flex flex-wrap justify-end gap-1 self-end lg:gap-2 lg:self-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSearchState({ query: "", filters: [] })}
+            className="gap-1.5"
+          >
+            <X className="size-4" />
+            Clear
+          </Button>
+          <SaveAsRoomButton searchState={searchState} />
+        </div>
+      )}
     </div>
   );
 }
@@ -270,7 +284,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   const logoHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
-    <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 md:flex-nowrap md:gap-y-0 xl:gap-x-8">
+        <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 lg:flex-nowrap lg:gap-y-0 xl:gap-x-8">
       <div className="relative order-1 flex h-8 shrink-0 items-center">
         <h1>
           <Link

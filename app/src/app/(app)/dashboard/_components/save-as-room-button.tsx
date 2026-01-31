@@ -87,7 +87,8 @@ export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
         className="gap-1.5"
       >
         <DoorOpen className="size-4" />
-        Save as Room
+        <span className="lg:hidden">Save</span>
+        <span className="hidden lg:inline">Save as Room</span>
       </Button>
 
       <DialogOrDrawer open={isOpen} onOpenChange={setIsOpen}>
