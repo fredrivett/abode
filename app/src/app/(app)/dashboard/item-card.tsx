@@ -59,6 +59,8 @@ import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
 import { shouldCompleteAddFirstTag } from "@/lib/milestones/conditions";
 import { getPlatformName } from "@/lib/platforms";
+import { useSearch } from "@/lib/search";
+import { createFilterId } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/client";
 import type {
   ExternalLink as ExternalLinkType,
@@ -691,6 +693,7 @@ function ItemDetailDialog({
   canEdit,
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
+  const { setState: setSearchState } = useSearch();
   const [isSavingName, setIsSavingName] = useState(false);
   const [fullQualityUrl, setFullQualityUrl] = useState<string | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -1206,8 +1209,23 @@ function ItemDetailDialog({
                       <div className="absolute right-0 bottom-0 left-0">
                         <ColorsBar
                           colors={item.colors}
+                          visible={!!fullQualityUrl}
                           onColorHover={setHoveredColorHex}
                           onColorHoverEnd={() => setHoveredColorHex(null)}
+                          onColorSearch={(hex) => {
+                            setSearchState({
+                              query: "",
+                              filters: [
+                                {
+                                  id: createFilterId(),
+                                  type: "color",
+                                  value: hex,
+                                  negated: false,
+                                },
+                              ],
+                            });
+                            onOpenChange(false);
+                          }}
                         />
                       </div>
                     )}

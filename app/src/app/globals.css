@@ -194,6 +194,14 @@
   cursor: url("/cursors/copy-check-dark.png") 2 30, crosshair;
 }
 
+@utility cursor-scan-search {
+  cursor: url("/cursors/scan-search-light.png") 2 30, crosshair;
+}
+
+.dark .cursor-scan-search {
+  cursor: url("/cursors/scan-search-dark.png") 2 30, crosshair;
+}
+
 /* Highlight flash animation - uses CSS custom properties for light/dark mode */
 @keyframes highlight-flash {
   0%,

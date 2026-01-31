@@ -9,96 +9,111 @@ import {
 import { copyToClipboard } from "@/lib/copy";
 import type { ImageColor } from "@/lib/types/item";
 
-type ColorsBarProps = {
-  colors: ImageColor[];
-  minSlicePercent?: number;
-  onColorHover?: (hex: string) => void;
-  onColorHoverEnd?: () => void;
-};
+const MIN_WIDTH_PERCENT = 3;
 
-export function getAdjustedSliceWidthsPercent({
-  colors,
-  minSlicePercent,
-}: {
-  colors: ImageColor[];
-  minSlicePercent: number;
-}): number[] {
+/**
+ * Calculate width percentages for colors with minimum width enforcement.
+ * Small colors are bumped to the minimum, and larger colors are scaled down
+ * proportionally so the total always equals 100%.
+ */
+export function calculateWidths(colors: ImageColor[]): number[] {
   if (colors.length === 0) return [];
 
   const totalScore =
     colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1;
 
-  const clampedMinPercent = Math.max(
-    0.5,
-    Math.min(minSlicePercent, 100 / colors.length),
-  );
-
+  // Calculate base widths as percentages
   const baseWidths = colors.map(
-    (color) => (Math.max(color.score ?? 0, 0) / totalScore) * 100,
+    (color) => ((color.score ?? 0) / totalScore) * 100,
   );
 
+  // Find which colors are below minimum
   const smallIndexes: number[] = [];
   const largeIndexes: number[] = [];
-  for (let i = 0; i < baseWidths.length; i += 1) {
-    if (baseWidths[i] < clampedMinPercent) smallIndexes.push(i);
-    else largeIndexes.push(i);
+  for (let i = 0; i < baseWidths.length; i++) {
+    if (baseWidths[i] < MIN_WIDTH_PERCENT) {
+      smallIndexes.push(i);
+    } else {
+      largeIndexes.push(i);
+    }
   }
 
+  // If none are below minimum, return base widths
   if (smallIndexes.length === 0) return baseWidths;
 
-  const remainingPercent = 100 - smallIndexes.length * clampedMinPercent;
-  if (remainingPercent <= 0) {
-    const even = 100 / colors.length;
-    return colors.map(() => even);
+  // If all colors are below minimum, distribute evenly
+  if (largeIndexes.length === 0) {
+    return colors.map(() => 100 / colors.length);
   }
 
-  const largeBaseSum = largeIndexes.reduce(
-    (sum, index) => sum + baseWidths[index],
-    0,
-  );
-  const scale = largeBaseSum > 0 ? remainingPercent / largeBaseSum : 0;
+  // Calculate remaining space after giving small colors the minimum
+  const spaceForSmall = smallIndexes.length * MIN_WIDTH_PERCENT;
+  const spaceForLarge = 100 - spaceForSmall;
 
-  return baseWidths.map((width) =>
-    width < clampedMinPercent ? clampedMinPercent : width * scale,
+  // If not enough space for large colors, distribute evenly
+  if (spaceForLarge <= 0) {
+    return colors.map(() => 100 / colors.length);
+  }
+
+  // Scale large colors to fit remaining space
+  const largeTotal = largeIndexes.reduce((sum, i) => sum + baseWidths[i], 0);
+  const scale = spaceForLarge / largeTotal;
+
+  return baseWidths.map((width, i) =>
+    smallIndexes.includes(i) ? MIN_WIDTH_PERCENT : width * scale,
   );
 }
+
+type ColorsBarProps = {
+  colors: ImageColor[];
+  visible?: boolean;
+  onColorHover?: (hex: string) => void;
+  onColorHoverEnd?: () => void;
+  onColorSearch?: (hex: string) => void;
+};
 
 const LONG_PRESS_DURATION = 500;
 
 export function ColorsBar({
   colors,
-  minSlicePercent = 3,
+  visible = true,
   onColorHover,
   onColorHoverEnd,
+  onColorSearch,
 }: ColorsBarProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [activeHex, setActiveHex] = useState<string | null>(null);
   const [pinnedHex, setPinnedHex] = useState<string | null>(null);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
   const [longPressHex, setLongPressHex] = useState<string | null>(null);
+  const [isMetaKeyHeld, setIsMetaKeyHeld] = useState(false);
   const copiedTimeoutRef = useRef<number | null>(null);
   const longPressTimeoutRef = useRef<number | null>(null);
 
-  const totalScore = useMemo(
-    () => colors.reduce((sum, color) => sum + (color.score ?? 0), 0) || 1,
-    [colors],
-  );
+  const widths = useMemo(() => calculateWidths(colors), [colors]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) setIsMetaKeyHeld(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) setIsMetaKeyHeld(false);
+    };
+    const handleBlur = () => setIsMetaKeyHeld(false);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
       if (copiedTimeoutRef.current)
         window.clearTimeout(copiedTimeoutRef.current);
       if (longPressTimeoutRef.current)
         window.clearTimeout(longPressTimeoutRef.current);
     };
   }, []);
-
-  const sliceWidths = useMemo(() => {
-    return getAdjustedSliceWidthsPercent({
-      colors,
-      minSlicePercent: isHovered ? minSlicePercent : 1,
-    });
-  }, [colors, isHovered, minSlicePercent]);
 
   if (colors.length === 0) return null;
 
@@ -117,15 +132,66 @@ export function ColorsBar({
     }, 1200);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    const hex = target.dataset.hex;
+    if (!hex) return;
+
+    if (longPressTimeoutRef.current)
+      window.clearTimeout(longPressTimeoutRef.current);
+
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      setLongPressHex(hex);
+      onColorHover?.(hex);
+    }, LONG_PRESS_DURATION);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    if (!longPressHex) {
+      // Not in exploration mode yet - cancel timer if user moves
+      if (longPressTimeoutRef.current) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // In exploration mode - find color under touch point
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const hex = (element as HTMLElement)?.dataset?.hex;
+    if (hex && hex !== longPressHex) {
+      setLongPressHex(hex);
+      onColorHover?.(hex);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimeoutRef.current)
+      window.clearTimeout(longPressTimeoutRef.current);
+    if (longPressHex) {
+      setLongPressHex(null);
+      onColorHoverEnd?.();
+    }
+  };
+
   return (
     <fieldset
       aria-label="Colors"
-      className="m-0 flex h-4 min-w-0 overflow-hidden p-0 transition-[height] duration-200 ease-out hover:h-8"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className={`m-0 flex h-4 w-full min-w-0 origin-bottom select-none overflow-hidden p-0 transition-all duration-300 ease-out hover:h-8 ${
+        visible ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
+      }`}
+      onContextMenu={(e) => e.preventDefault()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {colors.map((color, index) => {
-        const percent = Math.round(((color.score ?? 0) / totalScore) * 100);
+        const widthPercent = widths[index];
+        const percent = Math.round(widthPercent);
         const isOpen =
           pinnedHex === color.hex ||
           copiedHex === color.hex ||
@@ -141,13 +207,23 @@ export function ColorsBar({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={`h-full appearance-none border-0 bg-transparent p-0 outline-none transition-[width] duration-200 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
+                data-hex={color.hex}
+                className={`h-full shrink-0 appearance-none border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  isCopied
+                    ? "cursor-copy-check"
+                    : isMetaKeyHeld && onColorSearch
+                      ? "cursor-scan-search"
+                      : "cursor-pipette"
+                }`}
                 style={{
                   backgroundColor: color.hex,
-                  width: `${sliceWidths[index]}%`,
-                  flexShrink: 0,
+                  width: `${widthPercent}%`,
                 }}
-                aria-label={`Copy ${color.hex} (${percent}%)`}
+                aria-label={
+                  isMetaKeyHeld && onColorSearch
+                    ? `Search for ${color.hex}`
+                    : `Copy ${color.hex} (${percent}%)`
+                }
                 onMouseEnter={() => {
                   setActiveHex(color.hex);
                   onColorHover?.(color.hex);
@@ -164,47 +240,27 @@ export function ColorsBar({
                   setActiveHex((prev) => (prev === color.hex ? null : prev));
                   onColorHoverEnd?.();
                 }}
-                onClick={() => {
-                  void copyColor(color.hex);
-                }}
-                onTouchStart={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  longPressTimeoutRef.current = window.setTimeout(() => {
-                    setLongPressHex(color.hex);
-                    onColorHover?.(color.hex);
-                  }, LONG_PRESS_DURATION);
-                }}
-                onTouchMove={() => {
-                  if (longPressTimeoutRef.current) {
-                    window.clearTimeout(longPressTimeoutRef.current);
-                    longPressTimeoutRef.current = null;
+                onClick={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && onColorSearch) {
+                    onColorSearch(color.hex);
+                  } else {
+                    void copyColor(color.hex);
                   }
-                }}
-                onTouchEnd={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  if (longPressHex) {
-                    setLongPressHex(null);
-                    onColorHoverEnd?.();
-                  }
-                }}
-                onTouchCancel={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  if (longPressHex) {
-                    setLongPressHex(null);
-                    onColorHoverEnd?.();
-                  }
-                }}
-                onContextMenu={(e) => {
-                  if (longPressHex) e.preventDefault();
                 }}
               />
             </TooltipTrigger>
             <TooltipContent sideOffset={6}>
               {isCopied ? (
                 <span className="font-mono">Copied!</span>
+              ) : isMetaKeyHeld && onColorSearch ? (
+                <div className="flex items-center gap-2">
+                  <div
+                    aria-hidden="true"
+                    className="h-3 w-3 shrink-0 rounded-sm border border-gray-200/60 dark:border-gray-700"
+                    style={{ backgroundColor: color.hex }}
+                  />
+                  <span className="font-mono">Search {color.hex}</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <div
