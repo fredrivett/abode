@@ -18,12 +18,20 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  type PanInfo,
+  useMotionValue,
+  useTransform,
+} from "motion/react";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { useMediaQuery } from "usehooks-ts";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
@@ -508,6 +516,12 @@ export function ItemCard({
           transition={{
             layout: { duration: 0.3 },
           }}
+          onLayoutAnimationComplete={() => {
+            // Reset isAnimating when the image finishes flying back to grid
+            if (!showDetailDialog) {
+              setIsAnimating(false);
+            }
+          }}
         >
           {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
           <img
@@ -532,7 +546,6 @@ export function ItemCard({
         onDeleteConfirm={handleDelete}
         isDeleting={isDeleting}
         canEdit={canEdit}
-        onExitComplete={() => setIsAnimating(false)}
       />
     </>
   );
@@ -764,7 +777,49 @@ function ItemDetailDialog({
   const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  // Swipe-to-dismiss on touch devices
+  const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)", {
+    defaultValue: false,
+    initializeWithValue: false,
+  });
+  const dragY = useMotionValue(0);
+  const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
+  const closingOpacity = useMotionValue(1);
+  const combinedOpacity = useTransform(
+    [dragOpacity, closingOpacity],
+    ([drag, closing]) => (drag as number) * (closing as number),
+  );
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    const shouldDismiss = info.offset.y > 100 || info.velocity.y > 500;
+    if (shouldDismiss) {
+      onOpenChange(false);
+    } else {
+      void animate(dragY, 0, { type: "spring", stiffness: 300, damping: 30 });
+    }
+  };
+
+  const handleDragStart = () => {
+    // Check if scrollable content is at top - if not, prevent drag
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer && scrollContainer.scrollTop > 0) {
+      return false;
+    }
+  };
+
+  // Reset drag position when dialog opens, animate opacity when closing
+  useEffect(() => {
+    if (open) {
+      dragY.set(0);
+      closingOpacity.set(1);
+    } else {
+      // Animate dialog fade-out to match the layoutId animation duration
+      void animate(closingOpacity, 0, { duration: 0.3, ease: "easeOut" });
+    }
+  }, [open, dragY, closingOpacity]);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
@@ -1136,13 +1191,27 @@ function ItemDetailDialog({
       >
         <motion.div
           className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
-          initial={{ opacity: 0, scale: 1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.1 } }}
           transition={{ duration: 0.2 }}
-          style={{ willChange: "opacity" }}
+          drag={isTouchDevice ? "y" : false}
+          dragConstraints={{ top: 0 }}
+          dragElastic={{ top: 0 }}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          style={{ y: dragY, opacity: combinedOpacity, willChange: "opacity, transform" }}
         >
-          <div className="relative flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <div
+            ref={scrollContainerRef}
+            className="relative flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden"
+          >
+            {/* Drag handle indicator on mobile */}
+            {isTouchDevice && (
+              <div className="absolute top-0 right-0 left-0 z-10 flex justify-center pt-2">
+                <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              </div>
+            )}
             {/* Top (mobile) / Left (desktop) - Main content area */}
             <div
               className={cn(
