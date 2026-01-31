@@ -114,6 +114,51 @@ export function ColorsBar({
     }, 1200);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    const hex = target.dataset.hex;
+    if (!hex) return;
+
+    if (longPressTimeoutRef.current)
+      window.clearTimeout(longPressTimeoutRef.current);
+
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      setLongPressHex(hex);
+      onColorHover?.(hex);
+    }, LONG_PRESS_DURATION);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    if (!longPressHex) {
+      // Not in exploration mode yet - cancel timer if user moves
+      if (longPressTimeoutRef.current) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // In exploration mode - find color under touch point
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const hex = (element as HTMLElement)?.dataset?.hex;
+    if (hex && hex !== longPressHex) {
+      setLongPressHex(hex);
+      onColorHover?.(hex);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimeoutRef.current)
+      window.clearTimeout(longPressTimeoutRef.current);
+    if (longPressHex) {
+      setLongPressHex(null);
+      onColorHoverEnd?.();
+    }
+  };
+
   return (
     <fieldset
       aria-label="Colors"
@@ -121,6 +166,10 @@ export function ColorsBar({
         visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
       }`}
       onContextMenu={(e) => e.preventDefault()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {colors.map((color, index) => {
         const widthPercent = widths[index];
@@ -140,6 +189,7 @@ export function ColorsBar({
             <TooltipTrigger asChild>
               <button
                 type="button"
+                data-hex={color.hex}
                 className={`h-full shrink-0 appearance-none border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isCopied ? "cursor-copy-check" : "cursor-pipette"}`}
                 style={{
                   backgroundColor: color.hex,
@@ -164,39 +214,6 @@ export function ColorsBar({
                 }}
                 onClick={() => {
                   void copyColor(color.hex);
-                }}
-                onTouchStart={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  longPressTimeoutRef.current = window.setTimeout(() => {
-                    setLongPressHex(color.hex);
-                    onColorHover?.(color.hex);
-                  }, LONG_PRESS_DURATION);
-                }}
-                onTouchMove={() => {
-                  if (longPressTimeoutRef.current) {
-                    window.clearTimeout(longPressTimeoutRef.current);
-                    longPressTimeoutRef.current = null;
-                  }
-                }}
-                onTouchEnd={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  if (longPressHex) {
-                    setLongPressHex(null);
-                    onColorHoverEnd?.();
-                  }
-                }}
-                onTouchCancel={() => {
-                  if (longPressTimeoutRef.current)
-                    window.clearTimeout(longPressTimeoutRef.current);
-                  if (longPressHex) {
-                    setLongPressHex(null);
-                    onColorHoverEnd?.();
-                  }
-                }}
-                onContextMenu={(e) => {
-                  if (longPressHex) e.preventDefault();
                 }}
               />
             </TooltipTrigger>
