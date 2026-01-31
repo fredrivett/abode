@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import { getFilterTriggerQuery } from "@/lib/search/get-filter-trigger-query";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
@@ -226,11 +227,10 @@ export function SearchInput({
   };
 
   const handleFilterButtonClick = useCallback(() => {
-    // Insert @ at the end of query to trigger filter dropdown
-    const newQuery =
-      value.query.trimEnd() +
-      (value.query.endsWith(" ") || !value.query ? "@" : " @");
-    onChange({ ...value, query: newQuery });
+    const newQuery = getFilterTriggerQuery(value.query);
+    if (newQuery !== null) {
+      onChange({ ...value, query: newQuery });
+    }
     inputRef.current?.focus();
   }, [value, onChange]);
 
