@@ -177,18 +177,6 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
         <div className="space-y-0.5">
           {config && (
             <>
-              {/* Show more completed button */}
-              {hasHiddenCompleted && !showAllCompleted && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllCompleted(true)}
-                  className="w-full rounded px-2 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted/50"
-                >
-                  Show {hiddenCompletedCount} more completed{" "}
-                  {hiddenCompletedCount === 1 ? "task" : "tasks"}
-                </button>
-              )}
-
               {/* Completed items */}
               {completedToShow.map((milestone) => {
                 const itemConfig = config[milestone.type];
@@ -206,6 +194,18 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
                   />
                 );
               })}
+
+              {/* Show more completed button */}
+              {hasHiddenCompleted && !showAllCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCompleted(true)}
+                  className="w-full cursor-pointer rounded px-2 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted/50"
+                >
+                  Show {hiddenCompletedCount} more completed{" "}
+                  {hiddenCompletedCount === 1 ? "task" : "tasks"}
+                </button>
+              )}
 
               {/* Pending items */}
               {pending.map((type) => {
