@@ -1546,7 +1546,7 @@ function ItemDetailDialog({
                                   }
                                 }}
                                 placeholder="Add a tag..."
-                                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
                                 autoFocus
                                 disabled={isSavingUserTags}
                               />
@@ -1831,7 +1831,7 @@ function ItemDetailDialog({
                             }
                           }}
                           placeholder="Paste URL..."
-                          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
                           autoFocus
                           disabled={isAddingLink}
                         />
@@ -1884,7 +1884,7 @@ function ItemDetailDialog({
                       value={notes}
                       onChange={(e) => handleNotesChange(e.target.value)}
                       placeholder="Add your notes..."
-                      className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
+                      className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-gray-800"
                     />
                   </div>
                 )}
