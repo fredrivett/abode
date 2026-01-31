@@ -50,7 +50,7 @@ export default async function DashboardLayout({
           <Suspense fallback={<div className="h-16" />}>
             <DashboardHeader showSearch />
           </Suspense>
-          <div className="flex w-full flex-1 flex-col px-4 py-2">
+          <div className="flex w-full flex-1 flex-col px-4 py-2 overflow-hidden">
             {children}
           </div>
         </div>
