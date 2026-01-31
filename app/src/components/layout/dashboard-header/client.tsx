@@ -141,7 +141,10 @@ function MobileOverflowMenu({
           const badge = item.getBadge?.({ availableInvites });
           return (
             <DropdownMenuItem key={item.href} asChild>
-              <Link href={item.href} className="relative flex items-center gap-2">
+              <Link
+                href={item.href}
+                className="relative flex items-center gap-2"
+              >
                 <item.icon className="size-4" />
                 {item.label}
                 {badge && (
@@ -205,7 +208,11 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   } = useUserStore();
 
   const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
-  const { mounted: themeMounted, preference: themePreference, toggle: toggleTheme } = useThemePreference();
+  const {
+    mounted: themeMounted,
+    preference: themePreference,
+    toggle: toggleTheme,
+  } = useThemePreference();
   const router = useRouter();
 
   // Keyboard shortcut: Cmd+, to open settings
@@ -246,13 +253,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
       ? storeFirstName
       : (authProps?.firstName ?? null);
   const lastName =
-    storeLastName !== undefined
-      ? storeLastName
-      : (authProps?.lastName ?? null);
+    storeLastName !== undefined ? storeLastName : (authProps?.lastName ?? null);
   const username =
-    storeUsername !== undefined
-      ? storeUsername
-      : (authProps?.username ?? null);
+    storeUsername !== undefined ? storeUsername : (authProps?.username ?? null);
   const email =
     storeEmail !== undefined ? storeEmail : (authProps?.email ?? null);
   const avatarUrl =
@@ -269,11 +272,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   // Otherwise, show @username on line 1 and email on line 2
   const hasName = firstName || lastName;
   const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
-  const displayLine1 = hasName
-    ? fullName
-    : username
-      ? `@${username}`
-      : null;
+  const displayLine1 = hasName ? fullName : username ? `@${username}` : null;
   const displayLine2 = hasName
     ? username
       ? `@${username}`
@@ -284,7 +283,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   const logoHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
-        <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 lg:flex-nowrap lg:gap-y-0 xl:gap-x-8">
+    <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 lg:flex-nowrap lg:gap-y-0 xl:gap-x-8">
       <div className="relative order-1 flex h-8 shrink-0 items-center">
         <h1>
           <Link
@@ -354,7 +353,11 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                       size="icon"
                       className="xs:inline-flex hidden"
                     >
-                      <Link href={item.href} aria-label={item.label} className="relative">
+                      <Link
+                        href={item.href}
+                        aria-label={item.label}
+                        className="relative"
+                      >
                         <item.icon size={18} aria-hidden />
                         {badge && (
                           <CountBadge
@@ -366,7 +369,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" sideOffset={6}>
-                    <span className="font-mono">{item.label.toLowerCase()}</span>
+                    <span className="font-mono">
+                      {item.label.toLowerCase()}
+                    </span>
                   </TooltipContent>
                 </Tooltip>
               );
@@ -442,7 +447,10 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/settings/account" className="flex items-center gap-2">
+                  <Link
+                    href="/settings/account"
+                    className="flex items-center gap-2"
+                  >
                     <Settings className="size-4" />
                     <span className="flex-1">Settings</span>
                     <KbdGroup>
