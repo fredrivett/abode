@@ -95,7 +95,7 @@ export default function RootLayout({
           </Suspense>
           <Footer />
         </QueryProvider>
-        <Toaster richColors />
+        <Toaster richColors theme="system" />
       </body>
     </html>
   );

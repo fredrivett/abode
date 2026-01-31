@@ -2,9 +2,11 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
+import type { CSSProperties } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
@@ -43,14 +45,29 @@ export function ItemsGrid({
   onLoadMore,
   total,
 }: ItemsGridProps) {
+  const { frameWidth, gap, borderRadius, fontScale, containerRef, hasHydrated } =
+    useGridDensity();
   const { ref: loadMoreRef } = useInfiniteScroll({
     hasMore: hasMore ?? false,
     isLoading: isLoadingMore ?? false,
     onLoadMore: onLoadMore ?? (() => {}),
   });
 
+  if (!hasHydrated) {
+    return null;
+  }
+
   return (
-    <div className="flex w-full flex-1 flex-col space-y-3">
+    <div
+      ref={containerRef}
+      className="flex w-full flex-1 flex-col space-y-3"
+      style={
+        {
+          "--grid-border-radius": `${borderRadius}px`,
+          "--grid-font-scale": fontScale,
+        } as CSSProperties
+      }
+    >
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
@@ -110,8 +127,8 @@ export function ItemsGrid({
       ) : (
         <div className={items.length <= 4 ? "flex justify-center" : ""}>
           <BalancedMasonryGrid
-            frameWidth={250}
-            gap={16}
+            frameWidth={frameWidth}
+            gap={gap}
             style={{ overflow: "visible !important" }}
           >
             {items.map((item) => {
@@ -140,7 +157,7 @@ export function ItemsGrid({
 
               // Calculate aspect ratio based on item type
               // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
-              // - Articles and processing URLs: 16:9
+              // - Articles and processing URLs: 4:3
               // - Images: actual dimensions or 3:4 default
               let width: number;
               let height: number;
@@ -151,8 +168,8 @@ export function ItemsGrid({
                 width = 16;
                 height = hasVisualContent ? 18 : 12;
               } else if (isArticle || isProcessingUrl) {
-                width = 16;
-                height = 9;
+                width = 4;
+                height = 3;
               } else {
                 width = (meta.width as number | undefined) ?? 3;
                 height = (meta.height as number | undefined) ?? 4;

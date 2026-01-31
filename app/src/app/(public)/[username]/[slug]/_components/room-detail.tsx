@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
@@ -53,6 +54,7 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { ProfileTag } from "@/components/user/profile-tag";
+import { useGridDensity } from "@/hooks/use-grid-density";
 import type { Room, RoomItem } from "@/lib/types/room";
 
 type RoomOwner = {
@@ -95,6 +97,8 @@ export function RoomDetail({
   roomOwner,
 }: RoomDetailProps) {
   const router = useRouter();
+  const { frameWidth, gap, borderRadius, fontScale, containerRef, hasHydrated } =
+    useGridDensity();
   const [roomEmoji, setRoomEmoji] = useState(room.emoji);
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
@@ -231,8 +235,21 @@ export function RoomDetail({
     }
   };
 
+  if (!hasHydrated) {
+    return null;
+  }
+
   return (
-    <div className="space-y-6">
+    <div
+      ref={containerRef}
+      className="space-y-6"
+      style={
+        {
+          "--grid-border-radius": `${borderRadius}px`,
+          "--grid-font-scale": fontScale,
+        } as CSSProperties
+      }
+    >
       {/* Header */}
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -356,8 +373,8 @@ export function RoomDetail({
         <>
           <div className={items.length <= 4 ? "flex justify-center" : ""}>
             <BalancedMasonryGrid
-              frameWidth={250}
-              gap={16}
+              frameWidth={frameWidth}
+              gap={gap}
               style={{ overflow: "visible !important" }}
             >
               {items.map((item) => {
@@ -370,12 +387,12 @@ export function RoomDetail({
               const size = formatBytes(meta.size as number | undefined);
               const mimeType = meta.type as string | undefined;
 
-              // For articles, use 16:9 aspect ratio; for images use actual dimensions or 3:4
+              // For articles, use 4:3 aspect ratio; for images use actual dimensions or 3:4
               const width = isArticle
-                ? 16
+                ? 4
                 : ((meta.width as number | undefined) ?? 3);
               const height = isArticle
-                ? 9
+                ? 3
                 : ((meta.height as number | undefined) ?? 4);
 
               return (

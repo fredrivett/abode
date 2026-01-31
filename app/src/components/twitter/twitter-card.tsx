@@ -1,6 +1,7 @@
 "use client";
 
 import { TwitterIcon } from "@/components/icons/platform-icons";
+import { gridCardStyle } from "@/lib/grid-styles";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
 
@@ -36,6 +37,7 @@ export function TwitterCard({
         "group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700",
         className,
       )}
+      style={gridCardStyle}
     >
       {/* Media preview area - grows to fill available space */}
       {previewImage ? (
@@ -71,39 +73,58 @@ export function TwitterCard({
       )}
 
       {/* Content area - fixed size, doesn't grow */}
-      <div className="flex shrink-0 flex-col gap-2 p-3">
+      <div
+        className="flex shrink-0 flex-col"
+        style={{ padding: "0.75em", gap: "0.5em" }}
+      >
         {/* Author row */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center" style={{ gap: "0.5em" }}>
           {authorAvatarUrl ? (
             // biome-ignore lint/a11y/useAltText: decorative avatar
             // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
             <img
               src={authorAvatarUrl}
-              className="size-5 shrink-0 rounded-full"
+              className="shrink-0 rounded-full"
+              style={{ width: "1.25em", height: "1.25em" }}
               loading="lazy"
             />
           ) : (
-            <div className="size-5 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div
+              className="shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"
+              style={{ width: "1.25em", height: "1.25em" }}
+            />
           )}
-          <span className="truncate font-medium text-gray-900 text-xs dark:text-gray-100">
+          <span
+            className="truncate font-medium text-gray-900 dark:text-gray-100"
+            style={{ fontSize: "0.75em" }}
+          >
             {authorName ?? authorUsername}
           </span>
-          <span className="truncate text-gray-500 text-xs dark:text-gray-400">
+          <span
+            className="truncate text-gray-500 dark:text-gray-400"
+            style={{ fontSize: "0.75em" }}
+          >
             @{authorUsername}
           </span>
         </div>
 
         {/* Tweet text preview */}
         {text && (
-          <p className="line-clamp-3 text-left text-gray-700 text-sm dark:text-gray-300">
+          <p
+            className="line-clamp-3 text-left text-gray-700 dark:text-gray-300"
+            style={{ fontSize: "0.875em" }}
+          >
             {text}
           </p>
         )}
       </div>
 
       {/* X badge */}
-      <div className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 backdrop-blur-sm">
-        <TwitterIcon className="size-3 text-white" />
+      <div
+        className="absolute rounded-full bg-black/60 backdrop-blur-sm"
+        style={{ top: "0.5em", right: "0.5em", padding: "0.375em" }}
+      >
+        <TwitterIcon className="h-[0.75em] w-[0.75em] text-white" />
       </div>
     </button>
   );
