@@ -39,9 +39,10 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
-import { matchesShortcut } from "@/lib/keyboard";
+import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
 import { useSearch } from "@/lib/search";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
@@ -63,6 +64,7 @@ import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import {
   DENSITY_LEVELS,
   type DensityLevel,
+  getDensityIndex,
   useGridDensityStore,
 } from "@/stores/grid-density-store";
 
@@ -86,7 +88,7 @@ type Room = {
 export function CommandPalette() {
   const router = useRouter();
   const pathname = usePathname();
-  const { open, setOpen, uploadDialogOpen, setUploadDialogOpen } =
+  const { open, setOpen, targetPage, uploadDialogOpen, setUploadDialogOpen } =
     useCommandPaletteStore();
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -144,13 +146,20 @@ export function CommandPalette() {
   useEffect(() => {
     if (open) {
       setCurrentTheme(getCurrentPreference());
-      setPage("main");
+      setPage(targetPage);
       setSearchState({ query: "", filters: [] });
       setShowAllRooms(false);
       setFilterValues([]);
-      setSelectedValue(""); // Reset selection to first item
+      // Set selected value based on target page
+      if (targetPage === "zoom") {
+        requestAnimationFrame(() => {
+          setSelectedValue(`zoom-${currentDensity}`);
+        });
+      } else {
+        setSelectedValue(""); // Reset selection to first item
+      }
     }
-  }, [open]);
+  }, [open, targetPage, currentDensity]);
 
   // Load filter values when entering values mode (for non-date types)
   useEffect(() => {
@@ -589,18 +598,44 @@ export function CommandPalette() {
             // Zoom level submenu
             <>
               <CommandGroup heading="Zoom Level">
-                {DENSITY_LEVELS.map((level) => (
-                  <CommandItem
-                    key={level}
-                    value={`zoom-${level}`}
-                    onSelect={handleSelect}
-                  >
-                    <span>{densityLabels[level]}</span>
-                    {currentDensity === level && (
-                      <Check className="ml-auto size-4" />
-                    )}
-                  </CommandItem>
-                ))}
+                {DENSITY_LEVELS.map((level, index) => {
+                  const currentIndex = getDensityIndex(currentDensity);
+                  // Higher index = larger frameWidth = bigger items
+                  const isNextLarger = index === currentIndex + 1;
+                  const isNextSmaller = index === currentIndex - 1;
+                  const isDefault = level === "normal";
+
+                  return (
+                    <CommandItem
+                      key={level}
+                      value={`zoom-${level}`}
+                      onSelect={handleSelect}
+                    >
+                      <span>{densityLabels[level]}</span>
+                      <div className="ml-auto flex items-center gap-2">
+                        {isNextLarger && (
+                          <KbdGroup>
+                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>+</Kbd>
+                          </KbdGroup>
+                        )}
+                        {isNextSmaller && (
+                          <KbdGroup>
+                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>-</Kbd>
+                          </KbdGroup>
+                        )}
+                        {isDefault && (
+                          <KbdGroup>
+                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>0</Kbd>
+                          </KbdGroup>
+                        )}
+                        {currentDensity === level && <Check className="size-4" />}
+                      </div>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup>

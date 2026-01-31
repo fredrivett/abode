@@ -1,7 +1,11 @@
 "use client";
 
+import { ZoomIn } from "lucide-react";
+import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { Button } from "@/components/ui/button";
+import { useCommandPaletteStore } from "./command-palette-store";
 
 export const DENSITY_LEVELS = [
   "micro",
@@ -16,6 +20,18 @@ export const DENSITY_LEVELS = [
 ] as const;
 
 export type DensityLevel = (typeof DENSITY_LEVELS)[number];
+
+export const DENSITY_LABELS: Record<DensityLevel, string> = {
+  micro: "Micro",
+  tiny: "Tiny",
+  compact: "Compact",
+  dense: "Dense",
+  normal: "Normal",
+  spacious: "Spacious",
+  large: "Large",
+  xlarge: "X-Large",
+  xxlarge: "XX-Large",
+};
 
 export const DENSITY_CONFIG: Record<
   DensityLevel,
@@ -46,7 +62,32 @@ export const useGridDensityStore = create<GridDensityState>()(
     (set) => ({
       density: DEFAULT_DENSITY,
       hasHydrated: false,
-      setDensity: (density) => set({ density }),
+      setDensity: (density) => {
+        set({ density });
+        toast.custom(
+          () => (
+            <div className="flex w-full items-center justify-between gap-12 rounded-lg border bg-background p-4 shadow-lg">
+              <span className="flex items-center gap-2 font-medium text-sm">
+                <ZoomIn className="size-4" />
+                Zoom: {DENSITY_LABELS[density]}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  useCommandPaletteStore.getState().openToPage("zoom");
+                }}
+              >
+                View options
+              </Button>
+            </div>
+          ),
+          {
+            id: "zoom-level",
+            duration: 3000,
+          },
+        );
+      },
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
