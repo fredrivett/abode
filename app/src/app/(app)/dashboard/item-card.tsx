@@ -66,7 +66,10 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.client";
-import { shouldCompleteAddFirstTag } from "@/lib/milestones/conditions";
+import {
+  shouldCompleteAddFirstTag,
+  shouldCompleteSeeAiAnalysis,
+} from "@/lib/milestones/conditions";
 import { getPlatformName } from "@/lib/platforms";
 import { useSearch } from "@/lib/search";
 import { createFilterId } from "@/lib/search/types";
@@ -215,6 +218,25 @@ export function ItemCard({
     }
   };
 
+  const handleOpenDetail = () => {
+    setIsAnimating(true);
+    setShowDetailDialog(true);
+
+    // Track item details viewed event
+    posthog.capture("item_details_viewed", {
+      item_id: item.id,
+      item_kind: item.kind,
+      source_type: item.sourceType,
+    });
+
+    // Mark see_ai_analysis milestone if item processing is complete
+    if (shouldCompleteSeeAiAnalysis(item.processingStatus)) {
+      useMilestoneStore.getState().markComplete("see_ai_analysis");
+      // Also persist to server (fire-and-forget)
+      void api.post("/api/v1/user/milestones", { type: "see_ai_analysis" });
+    }
+  };
+
   if (error) {
     return (
       <div
@@ -234,7 +256,7 @@ export function ItemCard({
           type="button"
           className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
-          onClick={() => setShowDetailDialog(true)}
+          onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
           <FileText className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
@@ -284,7 +306,7 @@ export function ItemCard({
           type="button"
           className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
-          onClick={() => setShowDetailDialog(true)}
+          onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
           <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
@@ -339,7 +361,7 @@ export function ItemCard({
           type="button"
           className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
           style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
-          onClick={() => setShowDetailDialog(true)}
+          onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
           <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
@@ -386,7 +408,7 @@ export function ItemCard({
       <>
         <TwitterCard
           twitterDetails={item.twitterDetails}
-          onClick={() => setShowDetailDialog(true)}
+          onClick={handleOpenDetail}
         />
 
         <ItemDetailDialogWrapper
@@ -415,7 +437,7 @@ export function ItemCard({
         <VideoCard
           videoDetails={item.videoDetails}
           coverFileKey={item.coverFileKey}
-          onClick={() => setShowDetailDialog(true)}
+          onClick={handleOpenDetail}
         />
 
         <ItemDetailDialogWrapper
@@ -502,17 +524,7 @@ export function ItemCard({
           layoutId={`item-image-${item.id}`}
           className="!opacity-100 h-full w-full cursor-pointer overflow-hidden"
           style={gridCardStyle}
-          onClick={() => {
-            setIsAnimating(true);
-            setShowDetailDialog(true);
-
-            // Track item details viewed event
-            posthog.capture("item_details_viewed", {
-              item_id: item.id,
-              item_kind: item.kind,
-              source_type: item.sourceType,
-            });
-          }}
+          onClick={handleOpenDetail}
           transition={{
             layout: { duration: 0.3 },
           }}
