@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 
 type PinchDirection = "in" | "out";
 
@@ -12,7 +12,7 @@ interface UseGridPinchOptions {
 }
 
 interface UseGridPinchReturn {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
 }
 
 function triggerHaptic() {

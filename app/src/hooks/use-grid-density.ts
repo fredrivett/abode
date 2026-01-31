@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { type RefObject, useCallback } from "react";
 import {
   DEFAULT_DENSITY,
   DENSITY_CONFIG,
@@ -22,7 +22,7 @@ interface UseGridDensityReturn {
   gap: number;
   borderRadius: number;
   fontScale: number;
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   hasHydrated: boolean;
   setDensity: (density: DensityLevel) => void;
   increaseDensity: () => void;
