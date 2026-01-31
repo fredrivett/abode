@@ -293,7 +293,7 @@ export function SearchInput({
 
         {/* Input + filter button wrapper - stays together when wrapping */}
         <div className="flex min-w-48 flex-1 items-center gap-2">
-          <div className="relative flex-1">
+          <div className="relative flex flex-1 items-center">
             <input
               ref={inputRef}
               type="text"
@@ -313,7 +313,7 @@ export function SearchInput({
             />
             {/* Keyboard shortcut hint (shown when not focused, hidden on mobile) */}
             {focusShortcut && !isFocused && (
-              <div className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-0">
+              <div className="pointer-events-none absolute right-0 flex">
                 <KbdGroup className="hidden md:inline-flex">
                   <Kbd>{getModifierKeySymbol()}</Kbd>
                   <Kbd>⇧</Kbd>

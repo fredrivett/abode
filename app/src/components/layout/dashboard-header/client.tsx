@@ -3,6 +3,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpLeft,
+  CircleHelp,
+  Command,
   DoorOpen,
   Handshake,
   LogOut,
@@ -15,6 +17,7 @@ import {
   SunMoon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
@@ -33,13 +36,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getModifierKeySymbol } from "@/lib/keyboard";
 import { useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
+import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useUserStore } from "@/stores/user-store";
 
@@ -93,38 +99,24 @@ function MobileOverflowMenu({
   availableInvites: number;
   className?: string;
 }) {
-  const { mounted, preference, toggle } = useThemePreference();
-
-  const themeIcon =
-    preference === "light" ? (
-      <Sun className="size-4" />
-    ) : preference === "dark" ? (
-      <Moon className="size-4" />
-    ) : (
-      <SunMoon className="size-4" />
-    );
-  const themeLabel =
-    preference === "auto" ? "System" : preference === "light" ? "Light" : "Dark";
+  const totalBadgeCount = navItems.reduce((sum, item) => {
+    const badge = item.getBadge?.({ availableInvites });
+    return sum + (badge ?? 0);
+  }, 0);
 
   return (
     <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost-subtle"
-              size="icon"
-              className={className}
-              aria-label="More options"
-            >
-              <MoreVertical size={18} aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          more
-        </TooltipContent>
-      </Tooltip>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost-subtle"
+          size="icon"
+          className={cn("relative", className)}
+          aria-label="More options"
+        >
+          <MoreVertical size={18} aria-hidden />
+          {totalBadgeCount > 0 && <CountBadge count={totalBadgeCount} />}
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {/* Checklist - renders as menu item */}
         <ChecklistPopover variant="menu-item" />
@@ -148,18 +140,6 @@ function MobileOverflowMenu({
             </DropdownMenuItem>
           );
         })}
-
-        <DropdownMenuSeparator />
-
-        {mounted && (
-          <DropdownMenuItem
-            onClick={toggle}
-            className="flex items-center gap-2"
-          >
-            {themeIcon}
-            <span>Theme: {themeLabel}</span>
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -210,7 +190,22 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     hydrateUser,
   } = useUserStore();
 
-  const { setUploadDialogOpen } = useCommandPaletteStore();
+  const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
+  const { mounted: themeMounted, preference: themePreference, toggle: toggleTheme } = useThemePreference();
+  const router = useRouter();
+
+  // Keyboard shortcut: Cmd+, to open settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        router.push("/settings/account");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   // Extract authenticated props for hydration (with type narrowing)
   const authProps = isAuthenticated ? props : null;
@@ -368,9 +363,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
               <ChecklistPopover />
             </div>
 
-            {/* Theme toggle - desktop only */}
-            <ThemeToggle className="xs:inline-flex hidden" />
-
             {/* Mobile overflow menu */}
             <MobileOverflowMenu
               navItems={NAV_ITEMS}
@@ -438,7 +430,51 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/settings/account" className="flex items-center gap-2">
                     <Settings className="size-4" />
-                    Settings
+                    <span className="flex-1">Settings</span>
+                    <KbdGroup>
+                      <Kbd>{getModifierKeySymbol()}</Kbd>
+                      <Kbd>,</Kbd>
+                    </KbdGroup>
+                  </Link>
+                </DropdownMenuItem>
+                {themeMounted && (
+                  <DropdownMenuItem
+                    onClick={toggleTheme}
+                    className="flex items-center gap-2"
+                  >
+                    {themePreference === "light" ? (
+                      <Sun className="size-4" />
+                    ) : themePreference === "dark" ? (
+                      <Moon className="size-4" />
+                    ) : (
+                      <SunMoon className="size-4" />
+                    )}
+                    <span>
+                      Theme:{" "}
+                      {themePreference === "auto"
+                        ? "System"
+                        : themePreference === "light"
+                          ? "Light"
+                          : "Dark"}
+                    </span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Command className="size-4" />
+                  <span className="flex-1">Commands</span>
+                  <KbdGroup>
+                    <Kbd>{getModifierKeySymbol()}</Kbd>
+                    <Kbd>K</Kbd>
+                  </KbdGroup>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/help" className="flex items-center gap-2">
+                    <CircleHelp className="size-4" />
+                    Help
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
