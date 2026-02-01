@@ -1385,13 +1385,13 @@ function ItemDetailDialog({
                           {item.kind ?? "unknown"}
                         </span>
                       </div>
-                      {!isArticle && (
+                      {item.sourceType !== "url" && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Size</span>
                           <span className="font-medium">{size}</span>
                         </div>
                       )}
-                      {!isArticle && width > 0 && height > 0 && (
+                      {item.sourceType !== "url" && width > 0 && height > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Dimensions</span>
                           <span className="font-medium">
