@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 import { login } from "./actions";
 
 export function LoginForm() {
@@ -44,7 +45,7 @@ export function LoginForm() {
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : "Sign in"}
+        {isPending ? <IsLoading label="Signing in" /> : "Sign in"}
       </Button>
     </form>
   );

@@ -4,6 +4,7 @@ import posthog from "posthog-js";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { createLogger } from "@/lib/logger.client";
@@ -182,7 +183,7 @@ export function UploadWidget() {
         onClick={() => fileInputRef.current?.click()}
         disabled={isUploading}
       >
-        {isUploading ? "Uploading" : "Select a file to upload"}
+        {isUploading ? <IsLoading label="Uploading" /> : "Select a file to upload"}
       </Button>
 
       {fileName ? (
