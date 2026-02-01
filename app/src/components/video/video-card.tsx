@@ -38,13 +38,13 @@ export function VideoCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700",
+        "group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700",
         className,
       )}
       style={gridCardStyle}
     >
-      {/* Thumbnail area */}
-      <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
+      {/* Thumbnail area - 16:9 aspect ratio */}
+      <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
         {thumbnailUrl ? (
           <>
             {/* biome-ignore lint/a11y/useAltText: decorative video thumbnail */}
