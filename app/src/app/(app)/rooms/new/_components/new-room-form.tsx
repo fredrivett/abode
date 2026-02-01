@@ -188,8 +188,10 @@ export function NewRoomForm() {
         </Link>
         <h1 className="font-semibold font-serif text-3xl">Create a new room</h1>
         <p className="text-pretty text-muted-foreground">
-          Dynamic or static collections for personal use or to share some of
-          your home with others
+          Rooms allow you to group your items. Choose a dynamic room to
+          automatically collect items matching your filters, or a static room to
+          hand-pick specific items. Rooms are private by default, or you can
+          share them with others.
         </p>
       </div>
 

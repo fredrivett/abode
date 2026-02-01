@@ -24,7 +24,7 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
             Rooms
           </h2>
           <p className="text-muted-foreground text-sm">
-            Organize your items into dynamic or static collections
+            Group your items into dynamic or static rooms
           </p>
         </div>
         <Button asChild>
@@ -44,9 +44,10 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
                 No rooms yet
               </h2>
               <p className="text-base text-muted-foreground">
-                Create your first room to start organizing your items. Dynamic
-                rooms automatically collect items matching your filters, while
-                static rooms let you hand-pick specific items.
+                Rooms allow you to group your items. Dynamic rooms automatically
+                collect items matching your filters, while static rooms let you
+                hand-pick specific items. Rooms are private by default, or you
+                can share them.
               </p>
               <Button asChild className="mt-4">
                 <Link href="/rooms/new">
