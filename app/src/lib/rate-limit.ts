@@ -48,6 +48,14 @@ export const RATE_LIMITS = {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1 minute - add/remove external links
   },
+  emojiSuggest: {
+    maxRequests: 30,
+    windowMs: 60 * 1000, // 1 minute - AI emoji suggestions
+  },
+  emojiSuggestDaily: {
+    maxRequests: 180,
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours - hard daily cap
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;
@@ -71,8 +79,7 @@ function cleanupStore() {
 
   lastCleanup = now;
   const maxWindowMs = Math.max(
-    RATE_LIMITS.search.windowMs,
-    RATE_LIMITS.filters.windowMs,
+    ...Object.values(RATE_LIMITS).map((config) => config.windowMs),
   );
 
   for (const [key, entry] of rateLimitStore) {

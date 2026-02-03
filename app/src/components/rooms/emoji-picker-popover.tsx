@@ -25,6 +25,8 @@ type EmojiPickerPopoverProps = {
   isTransitioning?: boolean;
   /** Callback fired after an emoji is selected (not on remove) */
   onSelect?: () => void;
+  /** Whether the emoji picker should pulse (e.g., waiting for AI suggestion) */
+  isPulsing?: boolean;
 };
 
 export function EmojiPickerPopover({
@@ -33,6 +35,7 @@ export function EmojiPickerPopover({
   placeholderEmoji,
   isTransitioning = false,
   onSelect,
+  isPulsing = false,
 }: EmojiPickerPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -73,7 +76,10 @@ export function EmojiPickerPopover({
           type="button"
           variant="outline"
           size="icon"
-          className="size-10 shrink-0 text-xl"
+          className={cn(
+            "size-10 shrink-0 text-xl",
+            isPulsing && "animate-pulse",
+          )}
           aria-label={value ? `Change emoji: ${value}` : "Add emoji"}
         >
           {renderButtonContent()}

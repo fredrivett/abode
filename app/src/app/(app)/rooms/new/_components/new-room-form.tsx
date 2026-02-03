@@ -48,6 +48,11 @@ export function NewRoomForm() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [hasManuallySelectedEmoji, setHasManuallySelectedEmoji] =
+    useState(false);
+  const hasManuallySelectedEmojiRef = useRef(hasManuallySelectedEmoji);
+  hasManuallySelectedEmojiRef.current = hasManuallySelectedEmoji;
+  const [isWaitingForEmoji, setIsWaitingForEmoji] = useState(false);
 
   // Reset to default placeholder when user interacts
   const handleInteraction = useCallback(() => {
@@ -60,9 +65,14 @@ export function NewRoomForm() {
 
   // Handle emoji change - reset on interaction, track when cleared
   const handleEmojiChange = useCallback(
-    (newEmoji: string | null) => {
+    (newEmoji: string | null, isManual = true) => {
       handleInteraction();
       setEmoji(newEmoji);
+
+      // Track if user manually selected an emoji
+      if (isManual) {
+        setHasManuallySelectedEmoji(newEmoji !== null);
+      }
 
       // If emoji is cleared and name is empty, allow cycling again
       if (newEmoji === null && !name) {
@@ -79,12 +89,17 @@ export function NewRoomForm() {
       handleInteraction();
       setName(newName);
 
-      // If name is cleared and emoji is null, allow cycling again
-      if (newName === "" && !emoji) {
-        setHasInteracted(false);
+      // If name is cleared, clear auto-suggested emoji and allow cycling again
+      if (newName === "") {
+        if (!hasManuallySelectedEmoji) {
+          setEmoji(null);
+        }
+        if (!emoji || !hasManuallySelectedEmoji) {
+          setHasInteracted(false);
+        }
       }
     },
-    [handleInteraction, emoji],
+    [handleInteraction, emoji, hasManuallySelectedEmoji],
   );
 
   // Cycle through placeholder examples with fade transition
@@ -107,6 +122,48 @@ export function NewRoomForm() {
   }, [hasInteracted]);
 
   const currentExample = ROOM_EXAMPLES[placeholderIndex];
+
+  // Auto-suggest emoji based on room name (debounced)
+  useEffect(() => {
+    // Don't suggest if user manually selected an emoji or name is empty
+    if (hasManuallySelectedEmoji || !name.trim()) {
+      setIsWaitingForEmoji(false);
+      return;
+    }
+
+    // Start pulsing immediately when name changes
+    setIsWaitingForEmoji(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/v1/ai/suggest-emoji", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim() }),
+          signal: controller.signal,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Use ref to get current value, avoiding stale closure
+          if (data.emoji && !hasManuallySelectedEmojiRef.current) {
+            handleEmojiChange(data.emoji, false);
+          }
+        }
+      } catch {
+        // Fail silently - emoji suggestion is non-critical
+      } finally {
+        setIsWaitingForEmoji(false);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+      setIsWaitingForEmoji(false);
+    };
+  }, [name, hasManuallySelectedEmoji, handleEmojiChange]);
 
   // Get filter options for autocomplete
   const { getFilterValuesForType } = useFilterOptions();
@@ -188,8 +245,10 @@ export function NewRoomForm() {
         </Link>
         <h1 className="font-semibold font-serif text-3xl">Create a new room</h1>
         <p className="text-pretty text-muted-foreground">
-          Dynamic or static collections for personal use or to share some of
-          your home with others
+          Rooms allow you to group your items. Choose a dynamic room to
+          automatically collect items matching your filters, or a static room to
+          hand-pick specific items. Rooms are private by default, or you can
+          share them with others.
         </p>
       </div>
 
@@ -203,6 +262,7 @@ export function NewRoomForm() {
               onChange={handleEmojiChange}
               placeholderEmoji={currentExample.emoji}
               isTransitioning={isTransitioning}
+              isPulsing={isWaitingForEmoji}
               onSelect={() => nameInputRef.current?.focus()}
             />
             <div className="relative flex-1">
