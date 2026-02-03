@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { isValidEmoji } from "@/lib/emoji";
 import { createLogger } from "@/lib/logger.server";
 import {
   checkRateLimit,
@@ -8,13 +9,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/ai/suggest-emoji");
-
-// Matches a single emoji (including compound emojis like flags, skin tones, etc.)
-const EMOJI_REGEX = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(\u200D(\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
-
-function isValidEmoji(str: string): boolean {
-  return EMOJI_REGEX.test(str);
-}
 
 let openaiClient: OpenAI | null = null;
 function getOpenAiClient(): OpenAI {
