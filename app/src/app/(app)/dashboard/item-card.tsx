@@ -510,14 +510,32 @@ export function ItemCard({
     );
   }
 
+  // Get the top two dominant colors (by score) for the card background gradient
+  const sortedColors = [...item.colors].sort(
+    (a, b) => (b.score ?? 0) - (a.score ?? 0)
+  );
+  const topColor = sortedColors[0] ?? null;
+  const secondColor = sortedColors[1] ?? null;
+
+  // Build background style: gradient if 2+ colors, solid if 1, muted fallback if none
+  const backgroundStyle = topColor
+    ? secondColor
+      ? `linear-gradient(to bottom, ${secondColor.hex}, ${topColor.hex})`
+      : topColor.hex
+    : undefined;
+
   return (
     <>
       <div
         className={cn(
-          "group relative h-full w-full",
+          "group relative h-full w-full transition-all duration-300",
           (showDetailDialog || isAnimating) && "z-50",
+          !topColor && "bg-muted",
         )}
-        style={gridCardStyle}
+        style={{
+          ...gridCardStyle,
+          background: backgroundStyle,
+        }}
       >
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
