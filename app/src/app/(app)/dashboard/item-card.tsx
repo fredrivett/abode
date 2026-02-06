@@ -530,18 +530,20 @@ export function ItemCard({
         className={cn(
           "group relative h-full w-full transition-all duration-300",
           (showDetailDialog || isAnimating) && "z-50",
-          !topColor && "bg-muted",
         )}
-        style={{
-          ...gridCardStyle,
-          background: backgroundStyle,
-        }}
+        style={gridCardStyle}
       >
         <ProcessingOverlay status={item.processingStatus} />
         <motion.div
           layoutId={`item-image-${item.id}`}
-          className="!opacity-100 h-full w-full cursor-pointer overflow-hidden"
-          style={gridCardStyle}
+          className={cn(
+            "!opacity-100 h-full w-full cursor-pointer overflow-hidden",
+            !topColor && "bg-muted",
+          )}
+          style={{
+            ...gridCardStyle,
+            background: backgroundStyle,
+          }}
           onClick={handleOpenDetail}
           transition={{
             layout: { duration: 0.3 },
