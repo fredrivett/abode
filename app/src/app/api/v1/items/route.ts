@@ -12,6 +12,7 @@ import {
   encodeCursor,
   MAX_PAGE_SIZE,
 } from "@/lib/pagination";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { getFileSizeFromMeta } from "@/lib/utils";
 import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Items fetch error");
+    captureServerException(error, undefined, { route: "GET /api/v1/items" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -208,6 +210,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     log.error({ error }, "Item creation error");
+    captureServerException(error, undefined, { route: "POST /api/v1/items" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -291,6 +294,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ message: "Item deleted" }, { status: 200 });
   } catch (error) {
     log.error({ error }, "Item deletion error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/items",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

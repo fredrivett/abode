@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
 import {
@@ -364,6 +364,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Search error");
+    captureServerException(error, undefined, { route: "GET /api/v1/search" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
