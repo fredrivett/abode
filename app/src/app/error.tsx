@@ -3,6 +3,10 @@
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  applyThemePreference,
+  getCurrentPreference,
+} from "@/lib/theme";
 
 export default function ErrorPage({
   error,
@@ -11,6 +15,10 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    applyThemePreference(getCurrentPreference());
+  }, []);
+
   useEffect(() => {
     posthog.captureException(error, {
       source: "next-error-boundary",
@@ -27,6 +35,13 @@ export default function ErrorPage({
       <Button variant="outline" onClick={reset}>
         Try again
       </Button>
+      <p className="max-w-md text-muted-foreground text-sm">
+        If the error persists, please{" "}
+        <a href="mailto:fred@abode.fyi" className="underline">
+          reach out
+        </a>{" "}
+        and we'll investigate.
+      </p>
     </div>
   );
 }

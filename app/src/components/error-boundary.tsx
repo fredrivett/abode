@@ -47,6 +47,13 @@ export class ErrorBoundary extends Component<Props, State> {
           >
             Try again
           </Button>
+          <p className="max-w-md text-muted-foreground text-sm">
+            If the error persists, please{" "}
+            <a href="mailto:fred@abode.fyi" className="underline">
+              reach out
+            </a>{" "}
+            and we'll investigate.
+          </p>
         </div>
       );
     }
