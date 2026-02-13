@@ -5,6 +5,7 @@
  */
 
 import { logger, task } from "@trigger.dev/sdk";
+import { captureServerException } from "../src/lib/posthog-server";
 import { syncRoomItems } from "../src/lib/rooms";
 
 type SyncRoomItemsPayload = {
@@ -28,24 +29,34 @@ export const syncRoomItemsTask = task({
 
     logger.log("Starting room items sync", { roomId, userId, itemId });
 
-    const result = await syncRoomItems(roomId, userId);
+    try {
+      const result = await syncRoomItems(roomId, userId);
 
-    logger.log("Room items sync complete", {
-      roomId,
-      userId,
-      itemId,
-      addedItemIds: result.addedItemIds,
-      removedItemIds: result.removedItemIds,
-      added: result.added,
-      removed: result.removed,
-    });
+      logger.log("Room items sync complete", {
+        roomId,
+        userId,
+        itemId,
+        addedItemIds: result.addedItemIds,
+        removedItemIds: result.removedItemIds,
+        added: result.added,
+        removed: result.removed,
+      });
 
-    return {
-      success: true,
-      roomId,
-      userId,
-      itemId,
-      ...result,
-    };
+      return {
+        success: true,
+        roomId,
+        userId,
+        itemId,
+        ...result,
+      };
+    } catch (error) {
+      logger.error("Room items sync failed", { roomId, userId, itemId, error });
+      captureServerException(error, userId, {
+        task: "sync-room-items",
+        roomId,
+        itemId,
+      });
+      throw error;
+    }
   },
 });

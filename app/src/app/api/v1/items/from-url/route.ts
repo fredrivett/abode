@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { classifyUrlTask } from "../../../../../../trigger/classify-url";
 
@@ -87,6 +87,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     log.error({ error }, "Item creation from URL error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/items/from-url",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

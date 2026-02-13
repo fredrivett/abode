@@ -9,6 +9,7 @@ import {
   generateTextEmbedding,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
+import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImage, generateAITitle } from "../src/lib/vision";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
@@ -422,6 +423,10 @@ export const analyzeImageTask = task({
       };
     } catch (error) {
       logger.error("Image analysis failed", { itemId, error });
+      captureServerException(error, userId, {
+        task: "analyze-image",
+        itemId,
+      });
 
       // Mark item as failed
       await db.item.update({

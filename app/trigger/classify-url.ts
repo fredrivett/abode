@@ -15,6 +15,7 @@ import {
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { detectPlatform } from "../src/lib/platforms";
+import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import { handleTwitterArticle } from "./handle-twitter-article";
@@ -419,6 +420,11 @@ export const classifyUrlTask = task({
       };
     } catch (error) {
       logger.error("URL classification failed", { itemId, error });
+      captureServerException(error, userId, {
+        task: "classify-url",
+        itemId,
+        url,
+      });
 
       // Mark item as failed
       await db.item.update({

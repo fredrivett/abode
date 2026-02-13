@@ -2,6 +2,7 @@
 
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { validateUsername } from "@/lib/username";
 
@@ -58,6 +59,7 @@ export async function signup(
 
   if (error) {
     log.error({ email, error: error.message }, "Signup failed");
+    captureServerException(error, undefined, { action: "signup" });
     return { error: error.message };
   }
 

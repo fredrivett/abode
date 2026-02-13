@@ -10,7 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { getUserAccountDeletionEmail } from "@/lib/email/templates";
 import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
@@ -267,6 +267,7 @@ export async function deleteAccount(
     await supabase.auth.signOut();
   } catch (error) {
     log.error({ error, userId: user.id }, "Account deletion error");
+    captureServerException(error, user.id, { action: "deleteAccount" });
     return { error: "Failed to delete account. Please try again." };
   }
 
@@ -330,6 +331,9 @@ export async function requestEmailChange(
 
   if (error) {
     log.error({ error, userId: user.id }, "Failed to request email change");
+    captureServerException(error, user.id, {
+      action: "requestEmailChange",
+    });
     return { error: error.message };
   }
 
