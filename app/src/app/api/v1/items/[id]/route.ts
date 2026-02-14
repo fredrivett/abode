@@ -213,13 +213,19 @@ export async function PATCH(
         }
         if (tag.length > 50) {
           return NextResponse.json(
-            { message: "Invalid userTags field: tags must be 50 characters or less" },
+            {
+              message:
+                "Invalid userTags field: tags must be 50 characters or less",
+            },
             { status: 400 },
           );
         }
         if (!tagRegex.test(tag)) {
           return NextResponse.json(
-            { message: "Invalid userTags field: tags can only contain letters, numbers, spaces, hyphens, and underscores" },
+            {
+              message:
+                "Invalid userTags field: tags can only contain letters, numbers, spaces, hyphens, and underscores",
+            },
             { status: 400 },
           );
         }

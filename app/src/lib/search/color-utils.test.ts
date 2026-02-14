@@ -384,8 +384,8 @@ describe("rgbToLab", () => {
     it("converts blue to LAB", () => {
       const lab = rgbToLab({ r: 0, g: 0, b: 255 });
       // Blue in LAB: L ~32, a ~79, b ~-108
-      expect(lab.l).toBeCloseTo(32.30, 0);
-      expect(lab.a).toBeCloseTo(79.20, 0);
+      expect(lab.l).toBeCloseTo(32.3, 0);
+      expect(lab.a).toBeCloseTo(79.2, 0);
       expect(lab.b).toBeCloseTo(-107.86, 0);
     });
   });

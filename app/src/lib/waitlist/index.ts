@@ -134,7 +134,10 @@ export async function joinWaitlist(
 
   // Trigger admin notification (skip in test environment)
   if (process.env.VITEST) {
-    log.debug({ email: normalizedEmail }, "Skipping admin notification in test environment");
+    log.debug(
+      { email: normalizedEmail },
+      "Skipping admin notification in test environment",
+    );
   } else {
     try {
       await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
@@ -144,7 +147,10 @@ export async function joinWaitlist(
         referralSource,
       });
     } catch (error) {
-      log.warn({ error }, "Failed to trigger admin notification for waitlist signup");
+      log.warn(
+        { error },
+        "Failed to trigger admin notification for waitlist signup",
+      );
     }
   }
 

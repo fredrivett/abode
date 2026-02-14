@@ -2,10 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { isValidEmoji } from "@/lib/emoji";
 import { createLogger } from "@/lib/logger.server";
-import {
-  checkRateLimit,
-  getRateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/ai/suggest-emoji");

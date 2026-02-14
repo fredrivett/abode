@@ -38,9 +38,7 @@ function centerAspectCrop(
 
   return centerCrop(
     makeAspectCrop(
-      isLandscape
-        ? { unit: "%", height: 100 }
-        : { unit: "%", width: 100 },
+      isLandscape ? { unit: "%", height: 100 } : { unit: "%", width: 100 },
       aspect,
       mediaWidth,
       mediaHeight,

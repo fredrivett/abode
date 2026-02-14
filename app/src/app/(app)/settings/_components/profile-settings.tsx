@@ -101,8 +101,15 @@ export function ProfileSettings({
 
       // Mark milestone if profile is now complete
       // Use store avatarUrl (updated if user uploaded this session) with fallback to initial prop
-      const currentAvatarUrl = useUserStore.getState().avatarUrl ?? initialAvatarUrl;
-      if (shouldCompleteProfile({ firstName, lastName, avatarUrl: currentAvatarUrl })) {
+      const currentAvatarUrl =
+        useUserStore.getState().avatarUrl ?? initialAvatarUrl;
+      if (
+        shouldCompleteProfile({
+          firstName,
+          lastName,
+          avatarUrl: currentAvatarUrl,
+        })
+      ) {
         useMilestoneStore.getState().markComplete("complete_profile");
       }
 

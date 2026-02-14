@@ -32,7 +32,9 @@ export const backfillColorLabTask = task({
         AND NOT (colors->0 ? 'l')
     `;
 
-    logger.info(`Found ${itemsToUpdate.length} items to backfill with LAB values`);
+    logger.info(
+      `Found ${itemsToUpdate.length} items to backfill with LAB values`,
+    );
 
     let updated = 0;
     let skipped = 0;

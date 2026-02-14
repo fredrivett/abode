@@ -177,7 +177,13 @@ export function ItemCard({
     // Failed URL items won't have a file - they'll show a failed state placeholder
     if (!imageFileKey) {
       setPreviewUrl(null);
-      if (!isArticle && !isProcessingUrl && !isTwitter && !isVideo && !isFailedUrl) {
+      if (
+        !isArticle &&
+        !isProcessingUrl &&
+        !isTwitter &&
+        !isVideo &&
+        !isFailedUrl
+      ) {
         setError("Missing file");
       }
       return;
@@ -187,7 +193,14 @@ export function ItemCard({
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
     setPreviewUrl(proxyUrl);
-  }, [imageFileKey, isArticle, isProcessingUrl, isTwitter, isVideo, isFailedUrl]);
+  }, [
+    imageFileKey,
+    isArticle,
+    isProcessingUrl,
+    isTwitter,
+    isVideo,
+    isFailedUrl,
+  ]);
 
   useEffect(() => {
     setItemName(name);
@@ -259,7 +272,10 @@ export function ItemCard({
           onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <FileText className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
+          <FileText
+            className="text-gray-400 dark:text-gray-500"
+            style={{ width: "3em", height: "3em" }}
+          />
           <div className="text-center">
             <p
               className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
@@ -309,7 +325,10 @@ export function ItemCard({
           onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
+          <ExternalLink
+            className="text-gray-400 dark:text-gray-500"
+            style={{ width: "3em", height: "3em" }}
+          />
           <div className="text-center">
             <p
               className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
@@ -364,7 +383,10 @@ export function ItemCard({
           onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink className="text-gray-400 dark:text-gray-500" style={{ width: "3em", height: "3em" }} />
+          <ExternalLink
+            className="text-gray-400 dark:text-gray-500"
+            style={{ width: "3em", height: "3em" }}
+          />
           <div className="text-center">
             <p
               className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
@@ -512,7 +534,7 @@ export function ItemCard({
 
   // Get the top two dominant colors (by score) for the card background gradient
   const sortedColors = [...item.colors].sort(
-    (a, b) => (b.score ?? 0) - (a.score ?? 0)
+    (a, b) => (b.score ?? 0) - (a.score ?? 0),
   );
   const topColor = sortedColors[0] ?? null;
   const secondColor = sortedColors[1] ?? null;
@@ -1232,7 +1254,11 @@ function ItemDetailDialog({
           dragElastic={{ top: 0 }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          style={{ y: dragY, opacity: combinedOpacity, willChange: "opacity, transform" }}
+          style={{
+            y: dragY,
+            opacity: combinedOpacity,
+            willChange: "opacity, transform",
+          }}
         >
           <div
             ref={scrollContainerRef}

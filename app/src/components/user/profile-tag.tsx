@@ -16,7 +16,11 @@ type ProfileTagProps = {
   className?: string;
 };
 
-export function ProfileTag({ user, size = "default", className }: ProfileTagProps) {
+export function ProfileTag({
+  user,
+  size = "default",
+  className,
+}: ProfileTagProps) {
   const displayName = getDisplayName(user);
   const showUsername = user.firstName !== null;
 

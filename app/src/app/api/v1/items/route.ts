@@ -81,7 +81,9 @@ export async function GET(request: NextRequest) {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: fetchLimit,
       }),
-      cursorData ? Promise.resolve(undefined) : db.item.count({ where: baseWhere }),
+      cursorData
+        ? Promise.resolve(undefined)
+        : db.item.count({ where: baseWhere }),
     ]);
 
     // Check if there are more results

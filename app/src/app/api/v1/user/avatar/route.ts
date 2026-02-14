@@ -122,7 +122,12 @@ export async function POST(request: NextRequest) {
     log.info({ userId: user.id }, "Avatar uploaded successfully");
 
     // Check if profile is now complete: (firstName OR lastName) AND avatarUrl
-    if (shouldCompleteProfile({ ...updatedUser, avatarUrl: avatarUrlWithCacheBust })) {
+    if (
+      shouldCompleteProfile({
+        ...updatedUser,
+        avatarUrl: avatarUrlWithCacheBust,
+      })
+    ) {
       void markMilestoneComplete(user.id, "complete_profile");
     }
 

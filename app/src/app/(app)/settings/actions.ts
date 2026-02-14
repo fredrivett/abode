@@ -248,7 +248,10 @@ export async function deleteAccount(
         html,
       });
     } catch (emailError) {
-      log.warn({ error: emailError }, "Failed to send account deletion email to user");
+      log.warn(
+        { error: emailError },
+        "Failed to send account deletion email to user",
+      );
     }
 
     // Trigger admin notification for account deletion
@@ -260,7 +263,10 @@ export async function deleteAccount(
         deletedBy: "self",
       });
     } catch (notifyError) {
-      log.warn({ error: notifyError }, "Failed to trigger admin notification for account deletion");
+      log.warn(
+        { error: notifyError },
+        "Failed to trigger admin notification for account deletion",
+      );
     }
 
     // Sign out the user

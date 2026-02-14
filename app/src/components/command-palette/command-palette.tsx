@@ -364,12 +364,15 @@ export function CommandPalette() {
   );
 
   // Theme handler
-  const handleThemeChange = useCallback((theme: ThemePreference) => {
-    applyThemePreference(theme);
-    storeThemePreference(theme);
-    setCurrentTheme(theme);
-    setOpen(false);
-  }, [setOpen]);
+  const handleThemeChange = useCallback(
+    (theme: ThemePreference) => {
+      applyThemePreference(theme);
+      storeThemePreference(theme);
+      setCurrentTheme(theme);
+      setOpen(false);
+    },
+    [setOpen],
+  );
 
   // Sign out handler
   const handleSignOut = useCallback(async () => {
@@ -644,7 +647,9 @@ export function CommandPalette() {
                             <Kbd>0</Kbd>
                           </KbdGroup>
                         )}
-                        {currentDensity === level && <Check className="size-4" />}
+                        {currentDensity === level && (
+                          <Check className="size-4" />
+                        )}
                       </div>
                     </CommandItem>
                   );
@@ -787,7 +792,12 @@ export function CommandPalette() {
               <CommandGroup heading="Appearance">
                 <CommandItem
                   value="theme"
-                  keywords={["change theme", "dark mode", "light mode", "appearance"]}
+                  keywords={[
+                    "change theme",
+                    "dark mode",
+                    "light mode",
+                    "appearance",
+                  ]}
                   onSelect={handleSelect}
                 >
                   <Palette className="size-4" />
@@ -798,7 +808,13 @@ export function CommandPalette() {
                 </CommandItem>
                 <CommandItem
                   value="zoom"
-                  keywords={["zoom", "zoom level", "grid size", "density", "pinch"]}
+                  keywords={[
+                    "zoom",
+                    "zoom level",
+                    "grid size",
+                    "density",
+                    "pinch",
+                  ]}
                   onSelect={handleSelect}
                 >
                   <ZoomIn className="size-4" />
@@ -810,41 +826,44 @@ export function CommandPalette() {
               </CommandGroup>
 
               {/* Rooms (authenticated only) */}
-              {isAuthenticated && profile?.username && rooms && rooms.length > 0 && (
-                <CommandGroup heading="Rooms">
-                  {displayRooms?.map((room) => (
-                    <CommandItem
-                      key={room.id}
-                      value={`${room.name} ${room.slug}`}
-                      keywords={["room", "rooms"]}
-                      onSelect={() =>
-                        navigate(`/@${profile?.username}/${room.slug}`)
-                      }
-                    >
-                      {room.emoji ? (
-                        <span className="text-base">{room.emoji}</span>
-                      ) : (
-                        <RoomIcon className="size-4 text-muted-foreground" />
-                      )}
-                      <span>{room.name}</span>
-                      <span className="ml-auto text-muted-foreground text-xs">
-                        {room.itemCount} item{room.itemCount !== 1 ? "s" : ""}
-                      </span>
-                    </CommandItem>
-                  ))}
-                  {hasMoreRooms && (
-                    <CommandItem
-                      value="show-all-rooms"
-                      keywords={["show all rooms", "more rooms"]}
-                      onSelect={handleSelect}
-                    >
-                      <span className="text-muted-foreground">
-                        Show all {rooms.length} rooms...
-                      </span>
-                    </CommandItem>
-                  )}
-                </CommandGroup>
-              )}
+              {isAuthenticated &&
+                profile?.username &&
+                rooms &&
+                rooms.length > 0 && (
+                  <CommandGroup heading="Rooms">
+                    {displayRooms?.map((room) => (
+                      <CommandItem
+                        key={room.id}
+                        value={`${room.name} ${room.slug}`}
+                        keywords={["room", "rooms"]}
+                        onSelect={() =>
+                          navigate(`/@${profile?.username}/${room.slug}`)
+                        }
+                      >
+                        {room.emoji ? (
+                          <span className="text-base">{room.emoji}</span>
+                        ) : (
+                          <RoomIcon className="size-4 text-muted-foreground" />
+                        )}
+                        <span>{room.name}</span>
+                        <span className="ml-auto text-muted-foreground text-xs">
+                          {room.itemCount} item{room.itemCount !== 1 ? "s" : ""}
+                        </span>
+                      </CommandItem>
+                    ))}
+                    {hasMoreRooms && (
+                      <CommandItem
+                        value="show-all-rooms"
+                        keywords={["show all rooms", "more rooms"]}
+                        onSelect={handleSelect}
+                      >
+                        <span className="text-muted-foreground">
+                          Show all {rooms.length} rooms...
+                        </span>
+                      </CommandItem>
+                    )}
+                  </CommandGroup>
+                )}
 
               {/* Search option (shown at bottom when there's query text) */}
               {isAuthenticated && hasQueryText && searchGroup}
@@ -876,7 +895,10 @@ export function CommandPalette() {
       />
 
       {/* Upload dialog - shared state */}
-      <UploadDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} />
+      <UploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+      />
     </>
   );
 }

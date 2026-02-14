@@ -183,7 +183,11 @@ export function UploadWidget() {
         onClick={() => fileInputRef.current?.click()}
         disabled={isUploading}
       >
-        {isUploading ? <IsLoading label="Uploading" /> : "Select a file to upload"}
+        {isUploading ? (
+          <IsLoading label="Uploading" />
+        ) : (
+          "Select a file to upload"
+        )}
       </Button>
 
       {fileName ? (

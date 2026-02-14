@@ -173,7 +173,10 @@ export function VimeoIcon({ className }: IconProps) {
 export function PlatformIcon({
   platform,
   className,
-}: { platform: string; className?: string }) {
+}: {
+  platform: string;
+  className?: string;
+}) {
   switch (platform) {
     case "unsplash":
       return <UnsplashIcon className={className} />;

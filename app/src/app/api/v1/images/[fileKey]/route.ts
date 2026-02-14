@@ -54,8 +54,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const heightParam = searchParams.get("h");
     const qualityParam = searchParams.get("q");
 
-    const width = widthParam ? parseInt(widthParam, 10) || undefined : undefined;
-    const height = heightParam ? parseInt(heightParam, 10) || undefined : undefined;
+    const width = widthParam
+      ? parseInt(widthParam, 10) || undefined
+      : undefined;
+    const height = heightParam
+      ? parseInt(heightParam, 10) || undefined
+      : undefined;
     const quality = qualityParam ? parseInt(qualityParam, 10) || 80 : 80;
 
     if (!fileKey) {

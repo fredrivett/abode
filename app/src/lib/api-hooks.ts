@@ -60,7 +60,8 @@ export function useItemsInfinite(ssrData?: ItemsInitialData) {
       return api.get<ItemsPageResponse>(url);
     },
     initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.cursor : undefined),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.cursor : undefined,
     initialData:
       ssrData !== undefined
         ? {

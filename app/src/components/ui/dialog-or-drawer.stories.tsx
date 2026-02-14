@@ -36,7 +36,8 @@ export const Default: Story = {
         <DialogOrDrawerHeader>
           <DialogOrDrawerTitle>Edit profile</DialogOrDrawerTitle>
           <DialogOrDrawerDescription>
-            Update your public details here. Shows as a dialog on desktop, drawer on mobile.
+            Update your public details here. Shows as a dialog on desktop,
+            drawer on mobile.
           </DialogOrDrawerDescription>
         </DialogOrDrawerHeader>
         <DialogOrDrawerBody className="grid gap-4">

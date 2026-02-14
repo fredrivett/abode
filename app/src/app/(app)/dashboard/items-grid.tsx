@@ -45,8 +45,14 @@ export function ItemsGrid({
   onLoadMore,
   total,
 }: ItemsGridProps) {
-  const { frameWidth, gap, borderRadius, fontScale, containerRef, hasHydrated } =
-    useGridDensity();
+  const {
+    frameWidth,
+    gap,
+    borderRadius,
+    fontScale,
+    containerRef,
+    hasHydrated,
+  } = useGridDensity();
   const { ref: loadMoreRef } = useInfiniteScroll({
     hasMore: hasMore ?? false,
     isLoading: isLoadingMore ?? false,

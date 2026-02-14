@@ -280,7 +280,10 @@ export type AcceptInviteResult =
  * Accept an invite (mark as accepted)
  * Validates that the invite exists, is not expired, and hasn't been accepted
  */
-export async function acceptInvite(token: string, userId: string): Promise<AcceptInviteResult> {
+export async function acceptInvite(
+  token: string,
+  userId: string,
+): Promise<AcceptInviteResult> {
   log.info({ token: `${token.substring(0, 8)}...` }, "acceptInvite called");
 
   const invite = await db.invite.findUnique({
@@ -299,7 +302,10 @@ export async function acceptInvite(token: string, userId: string): Promise<Accep
   );
 
   if (!invite) {
-    log.error({ token: `${token.substring(0, 8)}...` }, "Invite not found for acceptance");
+    log.error(
+      { token: `${token.substring(0, 8)}...` },
+      "Invite not found for acceptance",
+    );
     return {
       success: false,
       error: "Invalid invite token",
@@ -308,7 +314,10 @@ export async function acceptInvite(token: string, userId: string): Promise<Accep
   }
 
   if (invite.status === "accepted") {
-    log.warn({ inviteId: invite.id, email: invite.email }, "Invite already accepted");
+    log.warn(
+      { inviteId: invite.id, email: invite.email },
+      "Invite already accepted",
+    );
     return {
       success: false,
       error: "Invite already accepted",
@@ -324,7 +333,10 @@ export async function acceptInvite(token: string, userId: string): Promise<Accep
     return { success: false, error: "Invite has expired", code: "EXPIRED" };
   }
 
-  log.info({ inviteId: invite.id, email: invite.email, userId }, "Updating invite status to accepted");
+  log.info(
+    { inviteId: invite.id, email: invite.email, userId },
+    "Updating invite status to accepted",
+  );
   const [updatedInvite] = await db.$transaction([
     db.invite.update({
       where: { token },
@@ -348,7 +360,11 @@ export async function acceptInvite(token: string, userId: string): Promise<Accep
     }),
   ]);
   log.info(
-    { inviteId: updatedInvite.id, acceptedAt: updatedInvite.acceptedAt, userId },
+    {
+      inviteId: updatedInvite.id,
+      acceptedAt: updatedInvite.acceptedAt,
+      userId,
+    },
     "Invite successfully marked as accepted and other invites marked as joined_elsewhere",
   );
 
@@ -369,18 +385,19 @@ export async function getUserInvites(userId: string) {
     .map((invite) => invite.acceptedByUserId)
     .filter((id): id is string => id !== null && id !== undefined);
 
-  const users = acceptedUserIds.length > 0
-    ? await db.user.findMany({
-        where: { id: { in: acceptedUserIds } },
-        select: {
-          id: true,
-          username: true,
-          firstName: true,
-          lastName: true,
-          avatarUrl: true,
-        },
-      })
-    : [];
+  const users =
+    acceptedUserIds.length > 0
+      ? await db.user.findMany({
+          where: { id: { in: acceptedUserIds } },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        })
+      : [];
 
   const usersById = new Map(users.map((user) => [user.id, user]));
 
@@ -389,10 +406,11 @@ export async function getUserInvites(userId: string) {
     ...invite,
     effectiveStatus: getEffectiveStatus(invite),
     acceptedByUser: invite.acceptedByUserId
-      ? usersById.get(invite.acceptedByUserId) ?? null
+      ? (usersById.get(invite.acceptedByUserId) ?? null)
       : null,
     // If acceptedByUserId is set but user not found → user was deleted
-    userDeleted: invite.acceptedByUserId && !usersById.has(invite.acceptedByUserId),
+    userDeleted:
+      invite.acceptedByUserId && !usersById.has(invite.acceptedByUserId),
     // If inviterId is null → inviter was deleted (already happens)
     inviterDeleted: invite.inviterId === null && invite.origin === "user",
   }));

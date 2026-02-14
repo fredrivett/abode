@@ -97,8 +97,14 @@ export function RoomDetail({
   roomOwner,
 }: RoomDetailProps) {
   const router = useRouter();
-  const { frameWidth, gap, borderRadius, fontScale, containerRef, hasHydrated } =
-    useGridDensity();
+  const {
+    frameWidth,
+    gap,
+    borderRadius,
+    fontScale,
+    containerRef,
+    hasHydrated,
+  } = useGridDensity();
   const [roomEmoji, setRoomEmoji] = useState(room.emoji);
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
@@ -277,7 +283,9 @@ export function RoomDetail({
                   isSaving={isSavingName}
                 />
               ) : (
-                <h1 className="font-semibold font-serif text-3xl">{roomName}</h1>
+                <h1 className="font-semibold font-serif text-3xl">
+                  {roomName}
+                </h1>
               )}
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -378,35 +386,35 @@ export function RoomDetail({
               style={{ overflow: "visible !important" }}
             >
               {items.map((item) => {
-              const meta = item.meta || {};
-              const isArticle = item.kind === "article";
+                const meta = item.meta || {};
+                const isArticle = item.kind === "article";
 
-              // item.title is the single source of truth for display name
-              const name = item.title ?? "Untitled";
+                // item.title is the single source of truth for display name
+                const name = item.title ?? "Untitled";
 
-              const size = formatBytes(meta.size as number | undefined);
-              const mimeType = meta.type as string | undefined;
+                const size = formatBytes(meta.size as number | undefined);
+                const mimeType = meta.type as string | undefined;
 
-              // For articles, use 4:3 aspect ratio; for images use actual dimensions or 3:4
-              const width = isArticle
-                ? 4
-                : ((meta.width as number | undefined) ?? 3);
-              const height = isArticle
-                ? 3
-                : ((meta.height as number | undefined) ?? 4);
+                // For articles, use 4:3 aspect ratio; for images use actual dimensions or 3:4
+                const width = isArticle
+                  ? 4
+                  : ((meta.width as number | undefined) ?? 3);
+                const height = isArticle
+                  ? 3
+                  : ((meta.height as number | undefined) ?? 4);
 
-              return (
-                <Frame key={item.id} width={width} height={height}>
-                  <ItemCard
-                    item={item}
-                    name={name}
-                    size={size}
-                    mimeType={mimeType}
-                    canEdit={isOwner}
-                  />
-                </Frame>
-              );
-            })}
+                return (
+                  <Frame key={item.id} width={width} height={height}>
+                    <ItemCard
+                      item={item}
+                      name={name}
+                      size={size}
+                      mimeType={mimeType}
+                      canEdit={isOwner}
+                    />
+                  </Frame>
+                );
+              })}
             </BalancedMasonryGrid>
           </div>
 
@@ -418,11 +426,7 @@ export function RoomDetail({
                 onClick={loadMoreItems}
                 disabled={isLoadingMore}
               >
-                {isLoadingMore ? (
-                  <IsLoading label="Loading" />
-                ) : (
-                  "Load more"
-                )}
+                {isLoadingMore ? <IsLoading label="Loading" /> : "Load more"}
               </Button>
             </div>
           )}

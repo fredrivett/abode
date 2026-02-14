@@ -3,10 +3,7 @@
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  applyThemePreference,
-  getCurrentPreference,
-} from "@/lib/theme";
+import { applyThemePreference, getCurrentPreference } from "@/lib/theme";
 
 export default function ErrorPage({
   error,

@@ -321,7 +321,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (count === 0) {
-      return NextResponse.json({ message: "Item not in room" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Item not in room" },
+        { status: 404 },
+      );
     }
 
     return new NextResponse(null, { status: 204 });

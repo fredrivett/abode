@@ -44,7 +44,9 @@ export const adminNotificationTask = task({
     ).length;
 
     const failedEmails = results.filter(
-      (result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value.success),
+      (result) =>
+        result.status === "rejected" ||
+        (result.status === "fulfilled" && !result.value.success),
     );
 
     if (failedEmails.length > 0) {

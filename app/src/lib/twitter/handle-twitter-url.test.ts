@@ -35,7 +35,8 @@ describe("transformTweetData", () => {
         user: {
           name: "Test User",
           screen_name: "testuser",
-          profile_image_url_https: "https://pbs.twimg.com/profile_images/123.jpg",
+          profile_image_url_https:
+            "https://pbs.twimg.com/profile_images/123.jpg",
         },
       } as Tweet;
 
@@ -140,7 +141,9 @@ describe("transformTweetData", () => {
       expect(result.media).toHaveLength(1);
       const media = result.media?.[0];
       expect(media?.type).toBe("video");
-      expect(media?.posterUrl).toBe("https://pbs.twimg.com/video_thumb/123.jpg");
+      expect(media?.posterUrl).toBe(
+        "https://pbs.twimg.com/video_thumb/123.jpg",
+      );
       expect(media?.variants).toHaveLength(2); // Filters out non-video content types
       expect(media?.variants?.[0]).toEqual({
         type: "video/mp4",

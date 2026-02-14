@@ -70,10 +70,11 @@ export function transformTweetData(tweet: Tweet): TwitterDetails {
     const title = values?.title?.string_value;
     const description = values?.description?.string_value;
     const cardUrl = values?.url?.string_value ?? rawTweet.card.url;
-    const imageUrl = values?.thumbnail_image_large?.image_value?.url ??
-                     values?.thumbnail_image?.image_value?.url ??
-                     values?.player_image_large?.image_value?.url ??
-                     null;
+    const imageUrl =
+      values?.thumbnail_image_large?.image_value?.url ??
+      values?.thumbnail_image?.image_value?.url ??
+      values?.player_image_large?.image_value?.url ??
+      null;
 
     if (title || description) {
       card = {
@@ -95,7 +96,9 @@ export function transformTweetData(tweet: Tweet): TwitterDetails {
     authorUsername: tweet.user.screen_name,
     authorAvatarUrl: tweet.user.profile_image_url_https ?? null,
     text: tweet.text ?? null,
-    postedAt: tweet.created_at ? new Date(tweet.created_at).toISOString() : null,
+    postedAt: tweet.created_at
+      ? new Date(tweet.created_at).toISOString()
+      : null,
     media,
     quotedTweetId: tweet.quoted_tweet?.id_str ?? null,
     card,
@@ -117,7 +120,9 @@ export async function handleTwitterUrl(
   const result = await fetchTweet(tweetId);
 
   if (result.tombstone) {
-    throw new Error(`Tweet is no longer available (deleted or private): ${tweetId}`);
+    throw new Error(
+      `Tweet is no longer available (deleted or private): ${tweetId}`,
+    );
   }
   if (result.notFound) {
     throw new Error(`Tweet not found: ${tweetId}`);
@@ -163,8 +168,11 @@ export async function handleTwitterUrl(
         authorUsername: twitterDetails.authorUsername,
         authorAvatarUrl: twitterDetails.authorAvatarUrl,
         text: twitterDetails.text,
-        postedAt: twitterDetails.postedAt ? new Date(twitterDetails.postedAt) : null,
-        media: (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        postedAt: twitterDetails.postedAt
+          ? new Date(twitterDetails.postedAt)
+          : null,
+        media:
+          (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         quotedTweetId: twitterDetails.quotedTweetId,
         card: (twitterDetails.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
