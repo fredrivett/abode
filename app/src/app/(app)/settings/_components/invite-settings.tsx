@@ -157,7 +157,7 @@ export function InviteSettings({
         </h3>
         <p className="mt-1 font-mono text-muted-foreground text-sm">
           Invite friends to join abode. You have{" "}
-          <span className="font-medium text-foreground">
+          <span className="font-medium text-foreground" data-testid="invites-remaining">
             {availableInvites}
           </span>{" "}
           invite{availableInvites !== 1 ? "s" : ""} remaining.

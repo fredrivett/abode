@@ -35,7 +35,7 @@ function getLocalTransport(): nodemailer.Transporter {
   if (!localTransport) {
     localTransport = nodemailer.createTransport({
       host: "localhost",
-      port: 54325,
+      port: Number.parseInt(process.env.LOCAL_SMTP_PORT || "54325", 10),
       secure: false,
     });
   }
