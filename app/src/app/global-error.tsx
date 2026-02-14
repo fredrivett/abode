@@ -2,10 +2,7 @@
 
 import posthog from "posthog-js";
 import { useEffect } from "react";
-import {
-  applyThemePreference,
-  getCurrentPreference,
-} from "@/lib/theme";
+import { applyThemePreference, getCurrentPreference } from "@/lib/theme";
 
 export default function GlobalError({
   error,

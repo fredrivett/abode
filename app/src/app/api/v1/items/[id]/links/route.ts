@@ -44,10 +44,7 @@ export async function POST(
     const { url } = body;
 
     if (!url || typeof url !== "string") {
-      return NextResponse.json(
-        { message: "URL is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
     // Validate URL format
@@ -83,7 +80,9 @@ export async function POST(
     const normalizedUrl = normalizeUrl(url);
 
     // Check for duplicate URL (using normalized comparison)
-    if (existingLinks.some((link) => normalizeUrl(link.url) === normalizedUrl)) {
+    if (
+      existingLinks.some((link) => normalizeUrl(link.url) === normalizedUrl)
+    ) {
       return NextResponse.json(
         { message: "Link already exists" },
         { status: 409 },
@@ -154,10 +153,7 @@ export async function DELETE(
     const { url } = body;
 
     if (!url || typeof url !== "string") {
-      return NextResponse.json(
-        { message: "URL is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
     // Check if item exists and belongs to user
@@ -183,10 +179,7 @@ export async function DELETE(
     const updatedLinks = existingLinks.filter((link) => link.url !== url);
 
     if (updatedLinks.length === existingLinks.length) {
-      return NextResponse.json(
-        { message: "Link not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ message: "Link not found" }, { status: 404 });
     }
 
     // Update item

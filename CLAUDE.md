@@ -112,6 +112,22 @@ bun run test:e2e          # E2E tests with Playwright (requires Docker)
 
 <!-- TESTING END -->
 
+<!-- SUPABASE EMAIL TEMPLATES START -->
+
+# Supabase Email Templates
+
+**Local dev templates are in `supabase/templates/` and configured in `supabase/config.toml`. These do NOT deploy to production.**
+
+Production email templates are configured manually in the **Supabase Dashboard** under Authentication > Email Templates.
+
+## Critical Rules
+
+- **NEVER use `{{ .ConfirmationURL }}`** in email templates — it bypasses our `/auth/confirm` route and breaks the signup flow
+- **ALWAYS use `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=<type>`** where `<type>` matches the template (signup, recovery, email_change)
+- **If you change a local template, you MUST flag to the user that the production template in the Supabase Dashboard also needs updating to match**
+
+<!-- SUPABASE EMAIL TEMPLATES END -->
+
 <!-- DEPENDENCIES START -->
 
 # Dependencies

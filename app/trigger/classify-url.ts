@@ -135,28 +135,56 @@ export const classifyUrlTask = task({
             });
             twitterUrl = resolveResponse.url;
             resolvedUrl = twitterUrl;
-            logger.log("Resolved t.co URL", { itemId, originalUrl: url, resolvedUrl: twitterUrl });
+            logger.log("Resolved t.co URL", {
+              itemId,
+              originalUrl: url,
+              resolvedUrl: twitterUrl,
+            });
           } catch (resolveError) {
-            logger.warn("Failed to resolve t.co URL, will try fetching directly", { itemId, url, error: resolveError });
+            logger.warn(
+              "Failed to resolve t.co URL, will try fetching directly",
+              { itemId, url, error: resolveError },
+            );
           }
         }
 
         // Check if it's a tweet
         const tweetId = extractTweetId(twitterUrl);
         if (tweetId) {
-          logger.log("URL classified as Twitter/X post", { itemId, url: twitterUrl, tweetId });
-          return await handleTwitterUrl({ itemId, userId, url: twitterUrl, tweetId });
+          logger.log("URL classified as Twitter/X post", {
+            itemId,
+            url: twitterUrl,
+            tweetId,
+          });
+          return await handleTwitterUrl({
+            itemId,
+            userId,
+            url: twitterUrl,
+            tweetId,
+          });
         }
 
         // Check if it's a Twitter Article
         const articleId = extractTwitterArticleId(twitterUrl);
         if (articleId) {
-          logger.log("URL classified as Twitter Article", { itemId, url: twitterUrl, articleId });
-          return await handleTwitterArticle({ itemId, userId, url: twitterUrl, articleId });
+          logger.log("URL classified as Twitter Article", {
+            itemId,
+            url: twitterUrl,
+            articleId,
+          });
+          return await handleTwitterArticle({
+            itemId,
+            userId,
+            url: twitterUrl,
+            articleId,
+          });
         }
 
         // Twitter URL without tweet/article ID (could be a profile or other page)
-        logger.warn("Twitter URL without tweet ID, treating as article", { itemId, url: twitterUrl });
+        logger.warn("Twitter URL without tweet ID, treating as article", {
+          itemId,
+          url: twitterUrl,
+        });
       }
 
       // Check for YouTube video
@@ -168,7 +196,13 @@ export const classifyUrlTask = task({
           videoId: youtubeVideoId,
         });
         return await handleVideoUrl(
-          { itemId, userId, url: resolvedUrl, platform: "youtube", videoId: youtubeVideoId },
+          {
+            itemId,
+            userId,
+            url: resolvedUrl,
+            platform: "youtube",
+            videoId: youtubeVideoId,
+          },
           supabase,
         );
       }
@@ -182,7 +216,13 @@ export const classifyUrlTask = task({
           videoId: vimeoVideoId,
         });
         return await handleVideoUrl(
-          { itemId, userId, url: resolvedUrl, platform: "vimeo", videoId: vimeoVideoId },
+          {
+            itemId,
+            userId,
+            url: resolvedUrl,
+            platform: "vimeo",
+            videoId: vimeoVideoId,
+          },
           supabase,
         );
       }
@@ -204,7 +244,10 @@ export const classifyUrlTask = task({
         });
         contentType = headResponse.headers.get("content-type");
       } catch {
-        logger.log("HEAD request failed, will try GET", { itemId, url: fetchUrl });
+        logger.log("HEAD request failed, will try GET", {
+          itemId,
+          url: fetchUrl,
+        });
       }
 
       // Check if it's a direct image URL
@@ -233,7 +276,10 @@ export const classifyUrlTask = task({
 
       // Double-check if it's actually an image (some servers don't respond to HEAD)
       if (isImageUrl(fetchUrl, finalContentType ?? undefined)) {
-        logger.log("URL classified as image after GET", { itemId, url: fetchUrl });
+        logger.log("URL classified as image after GET", {
+          itemId,
+          url: fetchUrl,
+        });
         return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
@@ -357,7 +403,10 @@ export const classifyUrlTask = task({
 
         if (result) {
           coverResult = { fileKey: result.fileKey, size: result.size };
-          logger.log("Cover image stored", { itemId, coverFileKey: result.fileKey });
+          logger.log("Cover image stored", {
+            itemId,
+            coverFileKey: result.fileKey,
+          });
         }
       }
 

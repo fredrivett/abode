@@ -49,7 +49,10 @@ type InviteErrorActionsProps = {
   primaryLabel: string;
 };
 
-function InviteErrorActions({ primaryHref, primaryLabel }: InviteErrorActionsProps) {
+function InviteErrorActions({
+  primaryHref,
+  primaryLabel,
+}: InviteErrorActionsProps) {
   return (
     <div className="space-y-3 pt-4">
       <Button asChild size="lg" className="w-full">
@@ -101,7 +104,9 @@ type InviteAlreadyUsedErrorProps = {
   invite: InviteErrorContext;
 };
 
-export function InviteAlreadyUsedError({ invite }: InviteAlreadyUsedErrorProps) {
+export function InviteAlreadyUsedError({
+  invite,
+}: InviteAlreadyUsedErrorProps) {
   return (
     <InviteErrorLayout title="you've already joined">
       {invite.origin === "user" && invite.inviter && (

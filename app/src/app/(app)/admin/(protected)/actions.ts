@@ -140,7 +140,10 @@ export async function deleteUserAsAdmin(
         adminEmail: adminUser.email,
       });
     } catch (notifyError) {
-      log.warn({ error: notifyError }, "Failed to trigger admin notification for account deletion");
+      log.warn(
+        { error: notifyError },
+        "Failed to trigger admin notification for account deletion",
+      );
     }
 
     revalidatePath("/admin/users");

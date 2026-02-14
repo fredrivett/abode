@@ -23,7 +23,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "includes": ["!biome/**/*.grit"]
+    "includes": ["**", "!biome/**/*.grit"]
   },
   "css": {
     "parser": {

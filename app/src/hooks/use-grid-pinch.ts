@@ -112,7 +112,9 @@ export function useGridPinch({
     container.addEventListener("touchstart", handleTouchStart, {
       passive: false,
     });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
     container.addEventListener("touchend", handleTouchEnd);
     // Keyboard events on document to work regardless of focus
     document.addEventListener("keydown", handleKeyDown);

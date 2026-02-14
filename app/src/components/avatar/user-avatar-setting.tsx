@@ -48,7 +48,9 @@ export function UserAvatarSetting({
     (newAvatarUrl: string) => {
       setAvatarUrl(newAvatarUrl);
       // Mark milestone if profile is now complete
-      if (shouldCompleteProfile({ firstName, lastName, avatarUrl: newAvatarUrl })) {
+      if (
+        shouldCompleteProfile({ firstName, lastName, avatarUrl: newAvatarUrl })
+      ) {
         useMilestoneStore.getState().markComplete("complete_profile");
       }
       toast.success("Avatar updated");

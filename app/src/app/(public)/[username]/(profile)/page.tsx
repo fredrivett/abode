@@ -147,7 +147,11 @@ export default async function ProfilePage({ params }: Props) {
               />
             ) : (
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted font-medium text-3xl text-muted-foreground">
-                {(user.firstName?.[0] || user.username?.[0] || "?").toUpperCase()}
+                {(
+                  user.firstName?.[0] ||
+                  user.username?.[0] ||
+                  "?"
+                ).toUpperCase()}
               </div>
             )}
 

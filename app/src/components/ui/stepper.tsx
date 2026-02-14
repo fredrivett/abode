@@ -280,7 +280,10 @@ function StepperNavigation({
       } else if (e.key === "ArrowRight" && !isLastStep) {
         e.preventDefault();
         handleNext();
-      } else if (matchesShortcut(e, { key: "Enter", modifier: true }) && isLastStep) {
+      } else if (
+        matchesShortcut(e, { key: "Enter", modifier: true }) &&
+        isLastStep
+      ) {
         e.preventDefault();
         handleComplete();
       }

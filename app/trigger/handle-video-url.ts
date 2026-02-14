@@ -103,7 +103,9 @@ export async function handleVideoUrl(
   const metadata = await fetchVideoMetadata(platform, url, videoId);
 
   if (!metadata) {
-    throw new Error(`Failed to fetch ${platform} metadata for video: ${videoId}`);
+    throw new Error(
+      `Failed to fetch ${platform} metadata for video: ${videoId}`,
+    );
   }
 
   logger.log("Video metadata fetched", {

@@ -274,7 +274,10 @@ describe("Invites Integration", () => {
         },
       });
 
-      const result = await acceptInvite(invite.token, "550e8400-e29b-41d4-a716-446655440099");
+      const result = await acceptInvite(
+        invite.token,
+        "550e8400-e29b-41d4-a716-446655440099",
+      );
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -312,7 +315,10 @@ describe("Invites Integration", () => {
         },
       });
 
-      const result = await acceptInvite("already-accepted-token", "550e8400-e29b-41d4-a716-446655440099");
+      const result = await acceptInvite(
+        "already-accepted-token",
+        "550e8400-e29b-41d4-a716-446655440099",
+      );
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -342,7 +348,10 @@ describe("Invites Integration", () => {
         },
       });
 
-      const result = await acceptInvite("expired-token", "550e8400-e29b-41d4-a716-446655440099");
+      const result = await acceptInvite(
+        "expired-token",
+        "550e8400-e29b-41d4-a716-446655440099",
+      );
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -353,7 +362,10 @@ describe("Invites Integration", () => {
     it("returns error for non-existent token", async () => {
       const { acceptInvite } = await import("@/lib/invites");
 
-      const result = await acceptInvite("non-existent-token", "550e8400-e29b-41d4-a716-446655440099");
+      const result = await acceptInvite(
+        "non-existent-token",
+        "550e8400-e29b-41d4-a716-446655440099",
+      );
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -525,7 +537,9 @@ describe("Invites Integration", () => {
         },
       });
 
-      const result = await validateInviteToken("already-accepted-context-token");
+      const result = await validateInviteToken(
+        "already-accepted-context-token",
+      );
 
       expect(result.valid).toBe(false);
       if (!result.valid && result.code === "ALREADY_ACCEPTED") {

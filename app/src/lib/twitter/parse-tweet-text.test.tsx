@@ -158,7 +158,9 @@ describe("parseTweetText", () => {
     });
 
     it("handles URLs with fragments", () => {
-      const result = parseTweetText("Section: https://example.com/page#section");
+      const result = parseTweetText(
+        "Section: https://example.com/page#section",
+      );
       const linkElement = result[1] as ReactElement<LinkProps>;
 
       expect(isValidElement(linkElement)).toBe(true);

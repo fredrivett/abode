@@ -108,7 +108,11 @@ export function detectPlatform(url: string): string {
     const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
 
     for (const platform of PLATFORMS) {
-      if (platform.hostnames.some((h) => hostname === h || hostname.endsWith(`.${h}`))) {
+      if (
+        platform.hostnames.some(
+          (h) => hostname === h || hostname.endsWith(`.${h}`),
+        )
+      ) {
         return platform.id;
       }
     }

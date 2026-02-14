@@ -378,7 +378,8 @@ export function buildSourceCondition(
     }
   }
 
-  const { valid: validFilters, invalid } = validateSourceFilters(regularFilters);
+  const { valid: validFilters, invalid } =
+    validateSourceFilters(regularFilters);
 
   // Combine null filters with validated regular filters
   const allFilters = [...nullFilters, ...validFilters];

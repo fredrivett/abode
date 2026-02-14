@@ -45,7 +45,9 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
                 {storage.unit}
               </span>
             </p>
-            <p className="font-mono text-muted-foreground text-sm">Storage used</p>
+            <p className="font-mono text-muted-foreground text-sm">
+              Storage used
+            </p>
           </div>
         </div>
       </div>

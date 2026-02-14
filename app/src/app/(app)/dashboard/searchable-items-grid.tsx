@@ -25,18 +25,13 @@ export function SearchableItemsGrid({
   const searchResults = useSearchResults(searchState);
 
   // Use React Query for items with SSR hydration
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    error,
-  } = useItemsInfinite({
-    items: initialItems,
-    cursor: initialCursor,
-    hasMore: initialHasMore,
-    total: initialTotal,
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, error } =
+    useItemsInfinite({
+      items: initialItems,
+      cursor: initialCursor,
+      hasMore: initialHasMore,
+      total: initialTotal,
+    });
 
   // Show error toast if fetch fails
   useEffect(() => {
@@ -96,7 +91,9 @@ export function SearchableItemsGrid({
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
   const showLoadMore = !searchResults.hasActiveSearch && hasNextPage;
-  const displayTotal = searchResults.hasActiveSearch ? searchResults.total : total;
+  const displayTotal = searchResults.hasActiveSearch
+    ? searchResults.total
+    : total;
 
   return (
     <ItemsGrid

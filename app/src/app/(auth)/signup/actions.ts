@@ -48,7 +48,10 @@ export async function signup(
   }
 
   // Store username in Supabase user metadata for retrieval after OTP
-  log.info({ email, username }, "Attempting signup with pending_username in metadata");
+  log.info(
+    { email, username },
+    "Attempting signup with pending_username in metadata",
+  );
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
@@ -68,7 +71,9 @@ export async function signup(
       email,
       username,
       userId: data.user?.id,
-      metadataKeys: data.user?.user_metadata ? Object.keys(data.user.user_metadata) : [],
+      metadataKeys: data.user?.user_metadata
+        ? Object.keys(data.user.user_metadata)
+        : [],
     },
     "Signup successful - metadata stored",
   );

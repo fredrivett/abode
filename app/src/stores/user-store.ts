@@ -63,7 +63,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (state.avatarUrl === undefined && data.avatarUrl !== undefined) {
       updates.avatarUrl = data.avatarUrl ?? null;
     }
-    if (state.availableInvites === undefined && data.availableInvites !== undefined) {
+    if (
+      state.availableInvites === undefined &&
+      data.availableInvites !== undefined
+    ) {
       updates.availableInvites = data.availableInvites;
     }
 

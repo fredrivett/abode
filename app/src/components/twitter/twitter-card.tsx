@@ -27,7 +27,7 @@ export function TwitterCard({
   const previewImage =
     media?.[0]?.type === "photo"
       ? media[0].url
-      : media?.[0]?.posterUrl ?? card?.imageUrl ?? null;
+      : (media?.[0]?.posterUrl ?? card?.imageUrl ?? null);
 
   return (
     <button

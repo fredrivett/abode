@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({
@@ -11,6 +12,15 @@ export default async function AppLayout({
 
   if (!data?.claims) {
     redirect("/login");
+  }
+
+  const dbUser = await db.user.findUnique({
+    where: { id: data.claims.sub as string },
+    select: { username: true },
+  });
+
+  if (!dbUser?.username) {
+    redirect("/complete-signup");
   }
 
   return <>{children}</>;

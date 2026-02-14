@@ -75,7 +75,10 @@ export const backfillMilestonesTask = task({
     for (const user of users) {
       if ((user.firstName || user.lastName) && user.avatarUrl) {
         if (shouldCreate(user.id, "complete_profile")) {
-          milestonesToCreate.push({ userId: user.id, type: "complete_profile" });
+          milestonesToCreate.push({
+            userId: user.id,
+            type: "complete_profile",
+          });
         }
       }
     }
@@ -195,7 +198,9 @@ export const backfillMilestonesTask = task({
       created += batch.length;
 
       if (created % 500 === 0 || created === milestonesToCreate.length) {
-        logger.info(`Progress: ${created}/${milestonesToCreate.length} created`);
+        logger.info(
+          `Progress: ${created}/${milestonesToCreate.length} created`,
+        );
       }
     }
 

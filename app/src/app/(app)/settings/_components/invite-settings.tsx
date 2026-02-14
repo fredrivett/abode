@@ -157,7 +157,10 @@ export function InviteSettings({
         </h3>
         <p className="mt-1 font-mono text-muted-foreground text-sm">
           Invite friends to join abode. You have{" "}
-          <span className="font-medium text-foreground" data-testid="invites-remaining">
+          <span
+            className="font-medium text-foreground"
+            data-testid="invites-remaining"
+          >
             {availableInvites}
           </span>{" "}
           invite{availableInvites !== 1 ? "s" : ""} remaining.
@@ -308,30 +311,33 @@ function InviteRow({
         <div
           className={cn(
             "flex items-center gap-2 text-muted-foreground text-sm",
-            (invite.status === "accepted" || invite.status === "joined_elsewhere") && "pr-2",
+            (invite.status === "accepted" ||
+              invite.status === "joined_elsewhere") &&
+              "pr-2",
           )}
         >
           {statusIcon[invite.status]}
           <span>{getStatusText()}</span>
         </div>
-        {invite.status !== "accepted" && invite.status !== "joined_elsewhere" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClick}
-            onBlur={handleBlur}
-            disabled={isRevoking}
-            className="h-7 px-2 text-muted-foreground hover:text-destructive"
-          >
-            {isRevoking ? (
-              <IsLoading label="Revoking" iconClassName="size-3" />
-            ) : showConfirm ? (
-              <span className="text-xs">Confirm revoke invite?</span>
-            ) : (
-              <Trash2 className="size-4" />
-            )}
-          </Button>
-        )}
+        {invite.status !== "accepted" &&
+          invite.status !== "joined_elsewhere" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClick}
+              onBlur={handleBlur}
+              disabled={isRevoking}
+              className="h-7 px-2 text-muted-foreground hover:text-destructive"
+            >
+              {isRevoking ? (
+                <IsLoading label="Revoking" iconClassName="size-3" />
+              ) : showConfirm ? (
+                <span className="text-xs">Confirm revoke invite?</span>
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+            </Button>
+          )}
       </div>
     </div>
   );

@@ -167,7 +167,9 @@ export const ClickThrough: Story = {
             variant="ghost-subtle"
             size="icon"
             className="relative"
-            onClick={() => alert("Button clicked! Badge has pointer-events-none")}
+            onClick={() =>
+              alert("Button clicked! Badge has pointer-events-none")
+            }
           >
             <Bell size={18} />
             <Story />

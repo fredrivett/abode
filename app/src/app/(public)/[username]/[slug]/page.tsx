@@ -271,7 +271,8 @@ export default async function RoomPage({ params }: Props) {
           authorUsername: roomItem.item.twitterDetails.authorUsername,
           authorAvatarUrl: roomItem.item.twitterDetails.authorAvatarUrl,
           text: roomItem.item.twitterDetails.text,
-          postedAt: roomItem.item.twitterDetails.postedAt?.toISOString() ?? null,
+          postedAt:
+            roomItem.item.twitterDetails.postedAt?.toISOString() ?? null,
           media: roomItem.item.twitterDetails.media as TwitterMedia[] | null,
           quotedTweetId: roomItem.item.twitterDetails.quotedTweetId,
           card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
@@ -279,7 +280,8 @@ export default async function RoomPage({ params }: Props) {
       : null,
     videoDetails: roomItem.item.videoDetails
       ? ({
-          platform: roomItem.item.videoDetails.platform as VideoDetails["platform"],
+          platform: roomItem.item.videoDetails
+            .platform as VideoDetails["platform"],
           videoId: roomItem.item.videoDetails.videoId,
           channelName: roomItem.item.videoDetails.channelName,
           channelUrl: roomItem.item.videoDetails.channelUrl,

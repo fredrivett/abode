@@ -1,5 +1,6 @@
 # testing
 /coverage
+supabase-e2e/supabase/config.toml
 
 # misc
 .DS_Store
