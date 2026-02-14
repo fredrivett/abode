@@ -33,6 +33,9 @@ interface InbucketMessageBody {
 async function listMessages(email: string): Promise<InbucketMessage[]> {
 	const mailbox = email.split("@")[0];
 	const res = await fetch(`${getInbucketUrl()}/api/v1/mailbox/${mailbox}`);
+	if (res.status === 404) {
+		return [];
+	}
 	if (!res.ok) {
 		throw new Error(`Failed to list messages for ${email}: ${res.status}`);
 	}

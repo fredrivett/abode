@@ -41,6 +41,13 @@ export async function createUser(opts: {
 	const password = opts.password ?? DEFAULT_PASSWORD;
 	const client = getAdminClient();
 
+	// Delete existing user if present (handles Playwright test retries)
+	const { data: listData } = await client.auth.admin.listUsers();
+	const existing = listData?.users?.find((u) => u.email === opts.email);
+	if (existing) {
+		await client.auth.admin.deleteUser(existing.id);
+	}
+
 	const { data, error } = await client.auth.admin.createUser({
 		email: opts.email,
 		password,
