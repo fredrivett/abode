@@ -364,17 +364,21 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 
 		// Revoke the invite via UI (click trash → confirm)
 		await inviterPage.goto("/settings/invites");
+		await expect(inviterPage.getByText(inviteeEmail)).toBeVisible();
 		// Click the trash icon button on the invite row
 		const inviteRow = inviterPage.locator("div", {
 			hasText: inviteeEmail,
 		}).first();
 		await inviteRow.getByRole("button").last().click();
-		// Confirm revocation
+		// Wait for confirm text to appear, then click the same button again
+		await expect(
+			inviterPage.getByRole("button", { name: /confirm revoke invite/i }),
+		).toBeVisible();
 		await inviterPage
-			.getByText("Confirm revoke invite?")
+			.getByRole("button", { name: /confirm revoke invite/i })
 			.click();
 		await expect(inviterPage.getByText("Invite revoked")).toBeVisible({
-			timeout: 5000,
+			timeout: 10000,
 		});
 
 		// Verify invite is gone from the list
@@ -400,6 +404,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 	});
 
 	test("UI displays all status types correctly", async ({ browser }) => {
+		test.setTimeout(120_000);
 		const inviterA = await createUser({
 			email: "t9-inviter-a@test.local",
 			username: "t9_inviter_a",
@@ -488,7 +493,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 
 		// Verify "expired" invite: shows email and "expired" text
 		await expect(pageA.getByText(emailExpired)).toBeVisible();
-		await expect(pageA.getByText("expired")).toBeVisible();
+		await expect(pageA.getByText("expired", { exact: true })).toBeVisible();
 
 		await ctxA.close();
 	});

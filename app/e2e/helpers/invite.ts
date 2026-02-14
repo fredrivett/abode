@@ -110,13 +110,21 @@ export async function deleteAccountViaUI(
 ): Promise<void> {
 	await page.goto("/settings/account");
 
-	// Click the Delete Account button to open the dialog
-	await page.getByRole("button", { name: /delete account/i }).click();
+	// Wait for page to load fully
+	await expect(
+		page.getByRole("button", { name: /delete account/i }).first(),
+	).toBeVisible({ timeout: 10000 });
 
-	// Fill password in the confirmation dialog
+	// Click the Delete Account button to open the dialog
 	await page
-		.getByLabel(/enter your password to confirm/i)
-		.fill(password);
+		.getByRole("button", { name: /delete account/i })
+		.first()
+		.click();
+
+	// Wait for dialog to appear, then fill password
+	const passwordInput = page.getByLabel(/enter your password to confirm/i);
+	await expect(passwordInput).toBeVisible({ timeout: 5000 });
+	await passwordInput.fill(password);
 
 	// Click the confirmation Delete Account button (inside the dialog)
 	await page
