@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
 
 const log = createLogger("auth/join");
@@ -70,6 +71,7 @@ export async function signupWithInvite(
     email,
     password,
     options: {
+      emailRedirectTo: `${getAppBaseUrl()}/auth/confirm`,
       data: {
         pending_username: username,
         invite_token: token,
@@ -89,7 +91,9 @@ export async function signupWithInvite(
       email,
       username,
       userId: data.user?.id,
-      metadataKeys: data.user?.user_metadata ? Object.keys(data.user.user_metadata) : [],
+      metadataKeys: data.user?.user_metadata
+        ? Object.keys(data.user.user_metadata)
+        : [],
       metadata: data.user?.user_metadata,
     },
     "Signup with invite successful - metadata stored",

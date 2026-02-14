@@ -1,9 +1,10 @@
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
@@ -163,20 +164,35 @@ export async function GET(request: NextRequest) {
       "Attempting to complete signup with pending username",
     );
 
-    const result = await completeSignup({
-      userId: user.id,
-      email: user.email,
-      username: pendingUsername,
-      inviteToken,
-      oauthPicture,
-    });
+    try {
+      const result = await completeSignup({
+        userId: user.id,
+        email: user.email,
+        username: pendingUsername,
+        inviteToken,
+        oauthPicture,
+      });
 
-    if (!result.success) {
+      if (!result.success) {
+        log.error(
+          { error: result.error, code: result.code, userId: user.id },
+          "Failed to complete signup, redirecting to manual completion",
+        );
+        redirect("/complete-signup");
+      }
+    } catch (error) {
+      if (isRedirectError(error)) {
+        throw error;
+      }
       log.error(
-        { error: result.error, code: result.code, userId: user.id },
-        "Failed to complete signup",
+        { error, userId: user.id },
+        "Exception during signup completion, redirecting to manual completion",
       );
-      redirect(`/auth/error?reason=${result.code}`);
+      captureServerException(error, user.id, {
+        route: "GET /auth/confirm",
+        phase: "complete-signup",
+      });
+      redirect("/complete-signup");
     }
 
     log.info(

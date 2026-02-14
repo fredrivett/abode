@@ -200,7 +200,10 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
-# Custom confirmation email template (without OTP code)
+# WARNING: These templates are LOCAL DEV only.
+# Production uses the Supabase Dashboard (Authentication > Email Templates).
+# If you change templates here, you MUST also update production to match.
+# NEVER use {{ .ConfirmationURL }} — always use {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=<type>
 [auth.email.template.confirmation]
 subject = "Confirm Your Email"
 content_path = "./supabase/templates/confirmation.html"
