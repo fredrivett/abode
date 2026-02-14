@@ -58,6 +58,8 @@ export async function GET() {
             avatarUrl: invite.acceptedByUser.avatarUrl,
           }
         : null,
+      userDeleted: invite.userDeleted,
+      inviterDeleted: invite.inviterDeleted,
     }));
 
     return NextResponse.json({

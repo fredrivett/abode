@@ -31,6 +31,7 @@ export async function getAvailableInvites(userId: string): Promise<number> {
   if (!user) return 0;
 
   // Count invites that are "used" (accepted or still active/pending)
+  // Note: joined_elsewhere doesn't count as "used" since user didn't join via this invite
   const usedInvites = await db.invite.count({
     where: {
       inviterId: userId,
@@ -279,7 +280,7 @@ export type AcceptInviteResult =
  * Accept an invite (mark as accepted)
  * Validates that the invite exists, is not expired, and hasn't been accepted
  */
-export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
+export async function acceptInvite(token: string, userId: string): Promise<AcceptInviteResult> {
   log.info({ token: `${token.substring(0, 8)}...` }, "acceptInvite called");
 
   const invite = await db.invite.findUnique({
@@ -323,17 +324,32 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
     return { success: false, error: "Invite has expired", code: "EXPIRED" };
   }
 
-  log.info({ inviteId: invite.id, email: invite.email }, "Updating invite status to accepted");
-  const updatedInvite = await db.invite.update({
-    where: { token },
-    data: {
-      status: "accepted",
-      acceptedAt: new Date(),
-    },
-  });
+  log.info({ inviteId: invite.id, email: invite.email, userId }, "Updating invite status to accepted");
+  const [updatedInvite] = await db.$transaction([
+    db.invite.update({
+      where: { token },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date(),
+        acceptedByUserId: userId,
+      },
+    }),
+    db.invite.updateMany({
+      where: {
+        email: invite.email.toLowerCase(),
+        token: { not: token },
+        status: "pending",
+      },
+      data: {
+        status: "joined_elsewhere",
+        acceptedAt: new Date(),
+        acceptedByUserId: userId,
+      },
+    }),
+  ]);
   log.info(
-    { inviteId: updatedInvite.id, acceptedAt: updatedInvite.acceptedAt },
-    "Invite successfully marked as accepted",
+    { inviteId: updatedInvite.id, acceptedAt: updatedInvite.acceptedAt, userId },
+    "Invite successfully marked as accepted and other invites marked as joined_elsewhere",
   );
 
   return { success: true, invite: updatedInvite };
@@ -348,16 +364,16 @@ export async function getUserInvites(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  // Get user data for accepted invites (to show avatar and username)
-  const acceptedEmails = invites
-    .filter((invite) => invite.status === "accepted")
-    .map((invite) => invite.email.toLowerCase());
+  // Get user data for accepted invites (both "accepted" and "joined_elsewhere")
+  const acceptedUserIds = invites
+    .map((invite) => invite.acceptedByUserId)
+    .filter((id): id is string => id !== null && id !== undefined);
 
-  const users = acceptedEmails.length > 0
+  const users = acceptedUserIds.length > 0
     ? await db.user.findMany({
-        where: { email: { in: acceptedEmails } },
+        where: { id: { in: acceptedUserIds } },
         select: {
-          email: true,
+          id: true,
           username: true,
           firstName: true,
           lastName: true,
@@ -366,17 +382,19 @@ export async function getUserInvites(userId: string) {
       })
     : [];
 
-  const usersByEmail = new Map(
-    users.map((user) => [user.email.toLowerCase(), user]),
-  );
+  const usersById = new Map(users.map((user) => [user.id, user]));
 
   // Derive effective status (check expiry for pending invites) and attach user data
   return invites.map((invite) => ({
     ...invite,
     effectiveStatus: getEffectiveStatus(invite),
-    acceptedByUser: invite.status === "accepted"
-      ? usersByEmail.get(invite.email.toLowerCase()) ?? null
+    acceptedByUser: invite.acceptedByUserId
+      ? usersById.get(invite.acceptedByUserId) ?? null
       : null,
+    // If acceptedByUserId is set but user not found → user was deleted
+    userDeleted: invite.acceptedByUserId && !usersById.has(invite.acceptedByUserId),
+    // If inviterId is null → inviter was deleted (already happens)
+    inviterDeleted: invite.inviterId === null && invite.origin === "user",
   }));
 }
 
@@ -385,8 +403,9 @@ export async function getUserInvites(userId: string) {
  */
 function getEffectiveStatus(
   invite: Pick<Invite, "status" | "expiresAt">,
-): "pending" | "accepted" | "expired" {
+): "pending" | "accepted" | "expired" | "joined_elsewhere" {
   if (invite.status === "accepted") return "accepted";
+  if (invite.status === "joined_elsewhere") return "joined_elsewhere";
   if (isInviteExpired(invite.expiresAt)) return "expired";
   return "pending";
 }

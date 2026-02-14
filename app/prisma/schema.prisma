@@ -275,6 +275,7 @@ model ItemImageDetails {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  @@index([colors], type: Gin)
   @@map("item_image_details")
 }
 
@@ -430,6 +431,7 @@ enum InviteOrigin {
 enum InviteStatus {
   pending
   accepted
+  joined_elsewhere
 }
 
 // Single table for ALL invite tokens - user invites, waitlist promotions, admin invites
@@ -444,6 +446,7 @@ model Invite {
   updatedAt       DateTime     @updatedAt @map("updated_at")
   acceptedAt      DateTime?    @map("accepted_at")
   sendCount       Int          @default(1) @map("send_count") // How many times this invite was (re)sent
+  acceptedByUserId String?     @map("accepted_by_user_id") @db.Uuid
 
   // For user invites (origin: user)
   inviterId       String?      @map("inviter_id") @db.Uuid
@@ -457,6 +460,7 @@ model Invite {
   @@index([token])
   @@index([email])
   @@index([inviterId])
+  @@index([acceptedByUserId])
   @@map("invites")
 }
 
