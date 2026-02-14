@@ -56,6 +56,13 @@ test.describe("Join page (invite-based signup)", () => {
   });
 });
 
+test.describe("Dashboard redirect", () => {
+  test("should redirect unauthenticated users to login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login/);
+  });
+});
+
 test.describe("Signup page redirect", () => {
   test("should redirect /signup to homepage", async ({ page }) => {
     await page.goto("/signup");

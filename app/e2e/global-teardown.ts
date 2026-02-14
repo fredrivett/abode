@@ -1,11 +1,8 @@
 import type { FullConfig } from "@playwright/test";
-import { stopTestDatabase } from "../test/db-container";
 
-/**
- * Playwright global teardown - stops the test database container.
- */
 async function globalTeardown(_config: FullConfig) {
-  await stopTestDatabase();
+	// Supabase teardown is handled by the run-e2e.ts wrapper script's
+	// finally block AFTER Playwright exits.
 }
 
 export default globalTeardown;

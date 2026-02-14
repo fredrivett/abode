@@ -93,18 +93,17 @@ bun run test:e2e          # E2E tests with Playwright (requires Docker)
 - Sequential execution to avoid database conflicts
 
 ### E2E Tests
-- **Files**: `e2e/*.spec.ts`
+- **Files**: `e2e/*.spec.ts` (unauthenticated), `e2e/*.auth.spec.ts` (authenticated)
 - **Tool**: Playwright
-- **Database**: PostgreSQL test container via Testcontainers (shared setup with integration tests)
+- **Database**: Isolated Supabase instance (started/stopped per test run via `supabase-e2e/`)
 - Tests run against a real Next.js dev server
-- Container starts in `globalSetup`, stops in `globalTeardown`
+- Supabase starts in `globalSetup`, stops with `--no-backup` in `globalTeardown`
+- Authenticated tests use Playwright's `storageState` pattern (setup project signs in via UI)
 
-## Shared Test Infrastructure
+## Test Infrastructure
 
-Database container setup is shared between integration and e2e tests:
-- `test/db-container.ts` - Shared container management (start, stop, reset)
-- `vitest.setup.db.ts` - Vitest integration test setup
-- `e2e/global-setup.ts` - Playwright e2e test setup
+- **Integration tests**: `test/db-container.ts` + `vitest.setup.db.ts` — Testcontainers PostgreSQL
+- **E2E tests**: `e2e/supabase-setup.ts` + `e2e/global-setup.ts` — Isolated Supabase instance on `CONDUCTOR_PORT`-derived ports
 
 ## Path Aliases in Tests
 
@@ -154,6 +153,14 @@ bun run prisma:migrate --name your_migration_name
 - **Never manually create migration folders/files** - The `prisma:migrate` command creates properly timestamped folders and SQL files
 
 If a migration cannot be generated from schema changes (extremely rare), discuss with the team before manually writing SQL.
+
+## E2E Test Database (`supabase-e2e/`)
+
+The `supabase-e2e/` directory contains config for an isolated Supabase instance used by E2E tests. Its `migrations/` and `templates/` are **symlinks** to the main `supabase/` directory.
+
+- **Never run write operations** (`supabase migration new`, `supabase db diff`, etc.) with `--workdir ./supabase-e2e` — these would write into the real `supabase/migrations/` directory via the symlink
+- **Only `start`, `stop`, and `status`** should be used with `--workdir ./supabase-e2e`
+- See `README.md` for the full port allocation table
 
 <!-- DATABASE END -->
 
