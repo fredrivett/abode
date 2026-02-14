@@ -60,6 +60,7 @@ export default defineConfig({
 			SUPABASE_SERVICE_ROLE_KEY:
 				process.env.SUPABASE_SERVICE_ROLE_KEY || "",
 			RESEND_API_KEY: process.env.RESEND_API_KEY || "",
+			LOCAL_SMTP_PORT: process.env.LOCAL_SMTP_PORT || "",
 		},
 	},
 });

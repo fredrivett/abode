@@ -39,6 +39,9 @@ async function main() {
 				NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
 				SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
 				RESEND_API_KEY: "re_e2e_placeholder_not_real",
+				LOCAL_SMTP_PORT: String(
+					Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
+				),
 			},
 		});
 	} finally {

@@ -34,6 +34,8 @@ export default async function InvitesSettingsPage() {
                 avatarUrl: invite.acceptedByUser.avatarUrl,
               }
             : null,
+          userDeleted: !!invite.userDeleted,
+          inviterDeleted: !!invite.inviterDeleted,
         }))}
       />
     </div>
