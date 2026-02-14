@@ -2,10 +2,16 @@ import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 
 export interface TestUser {
-	id: string;
-	email: string;
-	password: string;
-	username: string;
+  id: string;
+  email: string;
+  password: string;
+  username: string;
+}
+
+export interface TestUserWithoutUsername {
+  id: string;
+  email: string;
+  password: string;
 }
 
 const DEFAULT_PASSWORD = "test-password-123!";
@@ -13,19 +19,19 @@ const DEFAULT_PASSWORD = "test-password-123!";
 let adminClient: ReturnType<typeof createClient> | null = null;
 
 function getAdminClient() {
-	if (!adminClient) {
-		const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-		const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-		if (!url || !key) {
-			throw new Error(
-				"Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars",
-			);
-		}
-		adminClient = createClient(url, key, {
-			auth: { autoRefreshToken: false, persistSession: false },
-		});
-	}
-	return adminClient;
+  if (!adminClient) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      throw new Error(
+        "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars",
+      );
+    }
+    adminClient = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  }
+  return adminClient;
 }
 
 /**
@@ -34,52 +40,87 @@ function getAdminClient() {
  * Each test should use unique emails for isolation (e.g., "t1-inviter-a@test.local").
  */
 export async function createUser(opts: {
-	email: string;
-	username: string;
-	password?: string;
+  email: string;
+  username: string;
+  password?: string;
 }): Promise<TestUser> {
-	const password = opts.password ?? DEFAULT_PASSWORD;
-	const client = getAdminClient();
+  const password = opts.password ?? DEFAULT_PASSWORD;
+  const client = getAdminClient();
 
-	// Delete existing user if present (handles Playwright test retries)
-	const { data: listData } = await client.auth.admin.listUsers();
-	const existing = listData?.users?.find((u) => u.email === opts.email);
-	if (existing) {
-		await client.auth.admin.deleteUser(existing.id);
-	}
+  // Delete existing user if present (handles Playwright test retries)
+  const { data: listData } = await client.auth.admin.listUsers();
+  const existing = listData?.users?.find((u) => u.email === opts.email);
+  if (existing) {
+    await client.auth.admin.deleteUser(existing.id);
+  }
 
-	const { data, error } = await client.auth.admin.createUser({
-		email: opts.email,
-		password,
-		email_confirm: true,
-		user_metadata: { pending_username: opts.username },
-	});
+  const { data, error } = await client.auth.admin.createUser({
+    email: opts.email,
+    password,
+    email_confirm: true,
+    user_metadata: { pending_username: opts.username },
+  });
 
-	if (error) {
-		throw new Error(`Failed to create user ${opts.email}: ${error.message}`);
-	}
+  if (error) {
+    throw new Error(`Failed to create user ${opts.email}: ${error.message}`);
+  }
 
-	// The handle_new_user trigger creates a public.users row.
-	// Update username and mark onboarding complete via Prisma.
-	const prisma = new PrismaClient({
-		datasources: { db: { url: process.env.DATABASE_URL } },
-	});
+  // The handle_new_user trigger creates a public.users row.
+  // Update username and mark onboarding complete via Prisma.
+  const prisma = new PrismaClient({
+    datasources: { db: { url: process.env.DATABASE_URL } },
+  });
 
-	try {
-		await prisma.user.update({
-			where: { id: data.user.id },
-			data: { username: opts.username, onboardingCompletedAt: new Date() },
-		});
-	} finally {
-		await prisma.$disconnect();
-	}
+  try {
+    await prisma.user.update({
+      where: { id: data.user.id },
+      data: { username: opts.username, onboardingCompletedAt: new Date() },
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
 
-	return {
-		id: data.user.id,
-		email: opts.email,
-		password,
-		username: opts.username,
-	};
+  return {
+    id: data.user.id,
+    email: opts.email,
+    password,
+    username: opts.username,
+  };
+}
+
+/**
+ * Create a confirmed user via Supabase admin API WITHOUT setting username.
+ * Simulates a user who is authenticated but never completed signup
+ * (e.g., email template bypassed /auth/confirm so completeSignup() never ran).
+ */
+export async function createUserWithoutUsername(opts: {
+  email: string;
+  password?: string;
+}): Promise<TestUserWithoutUsername> {
+  const password = opts.password ?? DEFAULT_PASSWORD;
+  const client = getAdminClient();
+
+  const { data: listData } = await client.auth.admin.listUsers();
+  const existing = listData?.users?.find((u) => u.email === opts.email);
+  if (existing) {
+    await client.auth.admin.deleteUser(existing.id);
+  }
+
+  const { data, error } = await client.auth.admin.createUser({
+    email: opts.email,
+    password,
+    email_confirm: true,
+  });
+
+  if (error) {
+    throw new Error(`Failed to create user ${opts.email}: ${error.message}`);
+  }
+
+  return {
+    id: data.user.id,
+    email: opts.email,
+    password,
+  };
 }
 
 /**
@@ -87,10 +128,10 @@ export async function createUser(opts: {
  * Useful for cleaning up invitee accounts from failed test retries.
  */
 export async function deleteUserByEmail(email: string): Promise<void> {
-	const client = getAdminClient();
-	const { data: listData } = await client.auth.admin.listUsers();
-	const existing = listData?.users?.find((u) => u.email === email);
-	if (existing) {
-		await client.auth.admin.deleteUser(existing.id);
-	}
+  const client = getAdminClient();
+  const { data: listData } = await client.auth.admin.listUsers();
+  const existing = listData?.users?.find((u) => u.email === email);
+  if (existing) {
+    await client.auth.admin.deleteUser(existing.id);
+  }
 }
