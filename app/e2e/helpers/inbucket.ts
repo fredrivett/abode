@@ -1,12 +1,15 @@
 /**
- * Helpers for interacting with the Inbucket email server
+ * Helpers for interacting with the email testing server
  * used by the E2E Supabase instance.
  *
- * Inbucket API runs on CONDUCTOR_PORT + 3 (e.g., 3303).
+ * Newer Supabase CLI versions use Mailpit; older versions use Inbucket.
+ * This helper auto-detects which API is available and adapts accordingly.
+ *
+ * Email API runs on CONDUCTOR_PORT + 3 (e.g., 3303).
  * Supabase auth emails (confirmation links) are delivered here.
  */
 
-function getInbucketUrl(): string {
+function getBaseUrl(): string {
 	const basePort = Number.parseInt(
 		process.env.CONDUCTOR_PORT || "3300",
 		10,
@@ -14,32 +17,79 @@ function getInbucketUrl(): string {
 	return `http://localhost:${basePort + 3}`;
 }
 
-interface InbucketMessage {
+// Normalized message shape used by both APIs
+interface EmailMessage {
 	id: string;
-	from: string;
-	to: string[];
 	subject: string;
-	date: string;
 }
 
-interface InbucketMessageBody {
+interface EmailBody {
 	html: string;
 	text: string;
 }
 
+// Auto-detect which email API is running (cached after first call)
+let detectedApi: "mailpit" | "inbucket" | null = null;
+
+async function detectApi(): Promise<"mailpit" | "inbucket"> {
+	if (detectedApi) return detectedApi;
+
+	// Mailpit has /api/v1/messages; Inbucket does not
+	const res = await fetch(`${getBaseUrl()}/api/v1/messages?limit=1`);
+	detectedApi = res.ok ? "mailpit" : "inbucket";
+	return detectedApi;
+}
+
 /**
- * List messages in a mailbox. Mailbox name is the local part of the email (before @).
+ * List messages for a given email address.
  */
-async function listMessages(email: string): Promise<InbucketMessage[]> {
-	const mailbox = email.split("@")[0];
-	const res = await fetch(`${getInbucketUrl()}/api/v1/mailbox/${mailbox}`);
-	if (res.status === 404) {
-		return [];
+async function listMessages(email: string): Promise<EmailMessage[]> {
+	const api = await detectApi();
+
+	if (api === "mailpit") {
+		// Mailpit: search by recipient
+		const query = encodeURIComponent(`to:${email}`);
+		const res = await fetch(
+			`${getBaseUrl()}/api/v1/search?query=${query}`,
+		);
+		if (!res.ok) {
+			// Fall back to listing all messages and filtering
+			const allRes = await fetch(`${getBaseUrl()}/api/v1/messages`);
+			if (!allRes.ok) return [];
+			const allData = await allRes.json();
+			return (allData.messages || [])
+				.filter((msg: { To: { Address: string }[] }) =>
+					msg.To?.some(
+						(to: { Address: string }) =>
+							to.Address?.toLowerCase() === email.toLowerCase(),
+					),
+				)
+				.map((msg: { ID: string; Subject: string }) => ({
+					id: msg.ID,
+					subject: msg.Subject,
+				}));
+		}
+		const data = await res.json();
+		return (data.messages || []).map(
+			(msg: { ID: string; Subject: string }) => ({
+				id: msg.ID,
+				subject: msg.Subject,
+			}),
+		);
 	}
+
+	// Inbucket: mailbox-based lookup
+	const mailbox = email.split("@")[0];
+	const res = await fetch(`${getBaseUrl()}/api/v1/mailbox/${mailbox}`);
+	if (res.status === 404) return [];
 	if (!res.ok) {
 		throw new Error(`Failed to list messages for ${email}: ${res.status}`);
 	}
-	return res.json();
+	const messages = await res.json();
+	return messages.map((msg: { id: string; subject: string }) => ({
+		id: msg.id,
+		subject: msg.subject,
+	}));
 }
 
 /**
@@ -48,10 +98,25 @@ async function listMessages(email: string): Promise<InbucketMessage[]> {
 async function getMessageBody(
 	email: string,
 	messageId: string,
-): Promise<InbucketMessageBody> {
+): Promise<EmailBody> {
+	const api = await detectApi();
+
+	if (api === "mailpit") {
+		// Mailpit: /api/v1/message/{ID}
+		const res = await fetch(`${getBaseUrl()}/api/v1/message/${messageId}`);
+		if (!res.ok) {
+			throw new Error(
+				`Failed to get message ${messageId}: ${res.status}`,
+			);
+		}
+		const msg = await res.json();
+		return { html: msg.HTML || "", text: msg.Text || "" };
+	}
+
+	// Inbucket: /api/v1/mailbox/{localPart}/{id}
 	const mailbox = email.split("@")[0];
 	const res = await fetch(
-		`${getInbucketUrl()}/api/v1/mailbox/${mailbox}/${messageId}`,
+		`${getBaseUrl()}/api/v1/mailbox/${mailbox}/${messageId}`,
 	);
 	if (!res.ok) {
 		throw new Error(
@@ -63,11 +128,29 @@ async function getMessageBody(
 }
 
 /**
- * Purge all messages in a mailbox.
+ * Purge messages for an email address.
  */
 export async function clearMailbox(email: string): Promise<void> {
+	const api = await detectApi();
+
+	if (api === "mailpit") {
+		// Mailpit: find messages for this email and delete them by ID
+		const messages = await listMessages(email);
+		if (messages.length > 0) {
+			await fetch(`${getBaseUrl()}/api/v1/messages`, {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					IDs: messages.map((m) => m.id),
+				}),
+			});
+		}
+		return;
+	}
+
+	// Inbucket: delete entire mailbox
 	const mailbox = email.split("@")[0];
-	await fetch(`${getInbucketUrl()}/api/v1/mailbox/${mailbox}`, {
+	await fetch(`${getBaseUrl()}/api/v1/mailbox/${mailbox}`, {
 		method: "DELETE",
 	});
 }

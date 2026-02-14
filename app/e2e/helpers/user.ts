@@ -81,3 +81,16 @@ export async function createUser(opts: {
 		username: opts.username,
 	};
 }
+
+/**
+ * Delete a Supabase auth user by email if they exist.
+ * Useful for cleaning up invitee accounts from failed test retries.
+ */
+export async function deleteUserByEmail(email: string): Promise<void> {
+	const client = getAdminClient();
+	const { data: listData } = await client.auth.admin.listUsers();
+	const existing = listData?.users?.find((u) => u.email === email);
+	if (existing) {
+		await client.auth.admin.deleteUser(existing.id);
+	}
+}

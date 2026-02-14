@@ -2,15 +2,24 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { getE2EPrisma } from "./db";
 import { clearMailbox, getConfirmationPath } from "./inbucket";
+import { deleteUserByEmail } from "./user";
 
 /**
  * Send an invite via the settings UI.
  * Assumes the page is authenticated and can navigate freely.
+ * Cleans up orphaned invites and leftover users from failed retries.
  */
 export async function sendInviteViaUI(
 	page: Page,
 	email: string,
 ): Promise<void> {
+	// Clean up leftover state from failed retries
+	await deleteUserByEmail(email);
+	const prisma = getE2EPrisma();
+	await prisma.invite.deleteMany({
+		where: { email: email.toLowerCase(), inviterId: null },
+	});
+
 	await page.goto("/settings/invites");
 	await page.getByPlaceholder("friend@example.com").fill(email);
 	await page.getByRole("button", { name: /send invite/i }).click();
@@ -54,7 +63,8 @@ export async function signupViaInvite(
 	token: string,
 	credentials: { email: string; username: string; password: string },
 ): Promise<void> {
-	// Clear any existing emails first
+	// Clean up any leftover state from failed retries
+	await deleteUserByEmail(credentials.email);
 	await clearMailbox(credentials.email);
 
 	// Navigate to join page with token
