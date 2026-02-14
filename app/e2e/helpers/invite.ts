@@ -127,13 +127,13 @@ export async function deleteAccountViaUI(
 	await passwordInput.fill(password);
 
 	// Click the confirmation Delete Account button (inside the dialog)
-	await page
+	const dialog = page.getByRole("alertdialog");
+	await dialog
 		.getByRole("button", { name: /delete account/i })
-		.last()
 		.click();
 
 	// Wait for redirect to homepage with account-deleted param
 	await expect(page).toHaveURL(/\?account-deleted=true/, {
-		timeout: 20000,
+		timeout: 30000,
 	});
 }

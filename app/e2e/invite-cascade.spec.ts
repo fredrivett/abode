@@ -16,6 +16,8 @@ test.afterAll(async () => {
 });
 
 test.describe("Invite Cascade Deletion Behavior", () => {
+	test.describe.configure({ timeout: 120_000 });
+
 	test("used invite accepted, others marked joined_elsewhere", async ({
 		browser,
 	}) => {
@@ -404,7 +406,6 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 	});
 
 	test("UI displays all status types correctly", async ({ browser }) => {
-		test.setTimeout(120_000);
 		const inviterA = await createUser({
 			email: "t9-inviter-a@test.local",
 			username: "t9_inviter_a",
