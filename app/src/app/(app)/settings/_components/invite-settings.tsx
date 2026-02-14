@@ -16,7 +16,7 @@ import { useUserStore } from "@/stores/user-store";
 type Invite = {
   id: string;
   email: string;
-  status: "pending" | "accepted" | "expired";
+  status: "pending" | "accepted" | "expired" | "joined_elsewhere";
   createdAt: string;
   expiresAt: string;
   acceptedAt: string | null;
@@ -26,6 +26,8 @@ type Invite = {
     lastName: string | null;
     avatarUrl: string | null;
   } | null;
+  userDeleted?: boolean;
+  inviterDeleted?: boolean;
 };
 
 type InviteSettingsProps = {
@@ -228,10 +230,14 @@ function InviteRow({
     pending: <Clock className="size-4 text-yellow-500" />,
     accepted: <Check className="size-4 text-green-500" />,
     expired: <X className="size-4 text-muted-foreground" />,
+    joined_elsewhere: <Check className="size-4 text-muted-foreground" />,
   };
 
   const getStatusText = () => {
     if (invite.status === "accepted" && invite.acceptedAt) {
+      return `joined ${formatDistanceToNow(new Date(invite.acceptedAt), { addSuffix: true })}`;
+    }
+    if (invite.status === "joined_elsewhere" && invite.acceptedAt) {
       return `joined ${formatDistanceToNow(new Date(invite.acceptedAt), { addSuffix: true })}`;
     }
     if (invite.status === "pending") {
@@ -271,15 +277,26 @@ function InviteRow({
     <div className="flex items-center justify-between rounded-lg border p-2">
       <div className="flex items-center gap-2">
         {invite.status === "accepted" && invite.acceptedByUser?.username ? (
-          <ProfileTag
-            user={{
-              username: invite.acceptedByUser.username,
-              firstName: invite.acceptedByUser.firstName,
-              lastName: invite.acceptedByUser.lastName,
-              avatarUrl: invite.acceptedByUser.avatarUrl,
-            }}
-            size="sm"
-          />
+          <>
+            <ProfileTag
+              user={{
+                username: invite.acceptedByUser.username,
+                firstName: invite.acceptedByUser.firstName,
+                lastName: invite.acceptedByUser.lastName,
+                avatarUrl: invite.acceptedByUser.avatarUrl,
+              }}
+              size="sm"
+            />
+            {invite.userDeleted && (
+              <span className="text-muted-foreground text-xs">(deleted)</span>
+            )}
+          </>
+        ) : invite.status === "accepted" && invite.userDeleted ? (
+          <span className="text-muted-foreground text-sm">User deleted</span>
+        ) : invite.status === "joined_elsewhere" ? (
+          <span className="text-muted-foreground text-sm">
+            Joined {invite.userDeleted ? "(now deleted)" : "via another invite"}
+          </span>
         ) : (
           <>
             <Mail className="ml-2 size-4 text-muted-foreground" />
@@ -291,13 +308,13 @@ function InviteRow({
         <div
           className={cn(
             "flex items-center gap-2 text-muted-foreground text-sm",
-            invite.status === "accepted" && "pr-2",
+            (invite.status === "accepted" || invite.status === "joined_elsewhere") && "pr-2",
           )}
         >
           {statusIcon[invite.status]}
           <span>{getStatusText()}</span>
         </div>
-        {invite.status !== "accepted" && (
+        {invite.status !== "accepted" && invite.status !== "joined_elsewhere" && (
           <Button
             variant="ghost"
             size="sm"

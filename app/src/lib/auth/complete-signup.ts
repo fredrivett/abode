@@ -141,7 +141,7 @@ export async function completeSignup(
         { userId, inviteId: invite.id, inviteStatus: invite.status },
         "Attempting to accept invite",
       );
-      const acceptResult = await acceptInvite(inviteToken);
+      const acceptResult = await acceptInvite(inviteToken, userId);
       if (!acceptResult.success) {
         log.error(
           {
