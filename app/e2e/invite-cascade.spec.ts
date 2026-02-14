@@ -302,7 +302,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 		const token = await getInviteTokenFromDB(inviter.id, inviteeEmail);
 
 		// Invitee starts signup (submits form, email sent) but doesn't confirm yet
-		const { clearMailbox } = await import("./helpers/inbucket");
+		const { clearMailbox } = await import("./helpers/mailpit");
 		await clearMailbox(inviteeEmail);
 
 		const inviteeCtx = await browser.newContext();
@@ -331,7 +331,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 		await inviterCtx.close();
 
 		// Invitee clicks confirmation link
-		const { getConfirmationPath } = await import("./helpers/inbucket");
+		const { getConfirmationPath } = await import("./helpers/mailpit");
 		const confirmPath = await getConfirmationPath(inviteeEmail);
 		await inviteePage.goto(confirmPath);
 

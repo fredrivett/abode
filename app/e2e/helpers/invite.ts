@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { getE2EPrisma } from "./db";
-import { clearMailbox, getConfirmationPath } from "./inbucket";
+import { clearMailbox, getConfirmationPath } from "./mailpit";
 import { deleteUserByEmail } from "./user";
 
 /**
