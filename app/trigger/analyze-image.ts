@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { extname } from "node:path";
 import { inspect } from "node:util";
 import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
@@ -9,9 +10,10 @@ import {
   generateTextEmbedding,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
+import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
-import { analyzeImage, generateAITitle } from "../src/lib/vision";
+import { analyzeImageColorsOnly } from "../src/lib/vision";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type AnalyzeImagePayload = {
@@ -29,6 +31,22 @@ type EmbeddingInsert = {
 
 function toVectorLiteral(embedding: number[]) {
   return `[${embedding.join(",")}]`;
+}
+
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".avif": "image/avif",
+};
+
+function getMimeTypeFromFileKey(fileKey: string): string {
+  const ext = extname(fileKey).toLowerCase();
+  return EXTENSION_TO_MIME[ext] || "image/jpeg";
 }
 
 function getSupabaseConfig() {
@@ -226,64 +244,49 @@ export const analyzeImageTask = task({
         });
       }
 
-      // Step 2: Analyze with Google Cloud Vision API
-      logger.log("Analyzing image with Vision API", { itemId });
+      // Step 2: Analyze image with hybrid approach (Vision API colors + OpenAI Vision)
+      logger.log("Analyzing image with hybrid approach", { itemId });
 
-      const analysis = await analyzeImage(buffer);
+      const mimeType = getMimeTypeFromFileKey(fileKey);
 
-      logger.log("Vision API analysis complete", {
-        itemId,
-        title: analysis.title,
-        tagCount: analysis.tags.length,
-        objectCount: analysis.objects.length,
-        hasOcr: !!analysis.ocrText,
-        colorCount: analysis.colors.length,
-      });
+      const [colors, openaiResult] = await Promise.all([
+        (async () => {
+          logger.log("Extracting colors with Vision API", { itemId });
+          const result = await analyzeImageColorsOnly(buffer);
+          logger.log("Vision API color extraction complete", {
+            itemId,
+            colorCount: result.length,
+          });
+          return result;
+        })(),
+        (async () => {
+          logger.log("Analyzing image with OpenAI Vision", { itemId });
+          const result = await analyzeImageWithOpenAI(buffer, mimeType);
+          logger.log("OpenAI Vision analysis complete", {
+            itemId,
+            title: result.analysis.title,
+            tagCount: result.analysis.tags.length,
+            objectCount: result.analysis.objects.length,
+            hasOcr: !!result.analysis.ocrText,
+            usage: result.usage,
+          });
+          return result;
+        })(),
+      ]);
 
-      // Step 2.5: Fetch item metadata for original filename
-      const item = await db.item.findUnique({
-        where: { id: itemId },
-        select: { meta: true },
-      });
-
-      const meta = item?.meta as { originalName?: string } | null;
-      const originalFilename = meta?.originalName;
-
-      logger.log("Fetched item metadata", { itemId, originalFilename });
-
-      // Step 2.6: Generate AI-suggested title
-      let finalTitle = analysis.title;
-      if (
-        originalFilename ||
-        analysis.tags.length > 0 ||
-        analysis.objects.length > 0 ||
-        analysis.ocrText
-      ) {
-        logger.log("Generating AI title", { itemId, originalFilename });
-
-        const aiTitle = await generateAITitle({
-          originalFilename,
-          labels: analysis.tags,
-          objects: analysis.objects,
-          ocrText: analysis.ocrText,
-        });
-
-        if (aiTitle) {
-          finalTitle = aiTitle;
-          logger.log("Using AI-generated title", { itemId, aiTitle });
-        } else {
-          logger.log(
-            "AI title generation returned null, using Vision-derived title",
-            {
-              itemId,
-              fallbackTitle: analysis.title,
-            },
-          );
-        }
-      }
+      const { analysis } = openaiResult;
 
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
+
+      const visionData = {
+        source: "hybrid",
+        openai: {
+          model: openaiResult.model,
+          usage: openaiResult.usage,
+        },
+        visionApiFeatures: ["IMAGE_PROPERTIES"],
+      };
 
       // Update Item and ImageDetails in a transaction for consistency
       await db.$transaction([
@@ -294,7 +297,7 @@ export const analyzeImageTask = task({
             userId: userId, // Multi-tenant isolation
           },
           data: {
-            title: finalTitle,
+            title: analysis.title,
             description: analysis.description,
             tags: analysis.tags,
             processingStatus: "completed",
@@ -307,15 +310,15 @@ export const analyzeImageTask = task({
             itemId,
             objects: analysis.objects,
             ocrText: analysis.ocrText,
-            colors: analysis.colors,
-            visionData: analysis.visionData,
+            colors: colors,
+            visionData,
             captureDate,
           },
           update: {
             objects: analysis.objects,
             ocrText: analysis.ocrText,
-            colors: analysis.colors,
-            visionData: analysis.visionData,
+            colors: colors,
+            visionData,
             captureDate,
           },
         }),
@@ -409,12 +412,12 @@ export const analyzeImageTask = task({
         success: true,
         itemId,
         analysis: {
-          title: finalTitle,
+          title: analysis.title,
           description: analysis.description,
           tagCount: analysis.tags.length,
           objectCount: analysis.objects.length,
           hasOcr: !!analysis.ocrText,
-          colorCount: analysis.colors.length,
+          colorCount: colors.length,
         },
         embeddings: {
           visualVectorId,
