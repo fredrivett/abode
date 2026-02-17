@@ -53,14 +53,16 @@ export const reprocessImagesTask = task({
       logger.warn(`Skipped ${skipped} items with null fileKey`);
     }
 
-    if (batchItems.length > 0) {
-      await tasks.batchTrigger<typeof analyzeImageTask>(
-        "analyze-image",
-        batchItems,
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < batchItems.length; i += BATCH_SIZE) {
+      const chunk = batchItems.slice(i, i + BATCH_SIZE);
+      await tasks.batchTrigger<typeof analyzeImageTask>("analyze-image", chunk);
+      logger.info(
+        `Triggered batch ${Math.floor(i / BATCH_SIZE) + 1}: ${chunk.length} tasks`,
       );
     }
 
-    logger.info(`Triggered ${batchItems.length} image analysis tasks`);
+    logger.info(`Triggered ${batchItems.length} image analysis tasks total`);
 
     return {
       total: items.length,
