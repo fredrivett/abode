@@ -71,6 +71,7 @@
     "motion": "^12.23.26",
     "nanoid": "^5.1.6",
     "next": "16.0.7",
+    "node-vibrant": "^4.0.4",
     "nodemailer": "^7.0.12",
     "openai": "^6.10.0",
     "pino": "^10.1.0",
