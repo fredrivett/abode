@@ -23,27 +23,49 @@ export const reprocessImagesTask = task({
     logger.info(`Found ${items.length} images to reprocess`);
 
     if (items.length === 0) {
-      return { total: 0, triggered: 0 };
+      return { total: 0, triggered: 0, skipped: 0 };
     }
 
-    const batchItems = items.map((item) => ({
-      payload: {
-        itemId: item.id,
-        userId: item.userId,
-        fileKey: item.fileKey as string,
-      },
-    }));
+    const batchItems: {
+      payload: { itemId: string; userId: string; fileKey: string };
+    }[] = [];
+    let skipped = 0;
 
-    await tasks.batchTrigger<typeof analyzeImageTask>(
-      "analyze-image",
-      batchItems,
-    );
+    for (const item of items) {
+      if (!item.fileKey) {
+        logger.warn("Skipping image item with null fileKey", {
+          itemId: item.id,
+        });
+        skipped++;
+        continue;
+      }
 
-    logger.info(`Triggered ${items.length} image analysis tasks`);
+      batchItems.push({
+        payload: {
+          itemId: item.id,
+          userId: item.userId,
+          fileKey: item.fileKey,
+        },
+      });
+    }
+
+    if (skipped > 0) {
+      logger.warn(`Skipped ${skipped} items with null fileKey`);
+    }
+
+    if (batchItems.length > 0) {
+      await tasks.batchTrigger<typeof analyzeImageTask>(
+        "analyze-image",
+        batchItems,
+      );
+    }
+
+    logger.info(`Triggered ${batchItems.length} image analysis tasks`);
 
     return {
       total: items.length,
-      triggered: items.length,
+      triggered: batchItems.length,
+      skipped,
     };
   },
 });
