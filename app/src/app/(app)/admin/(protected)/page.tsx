@@ -57,12 +57,6 @@ export default async function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/playground/images"
-              className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
-            >
-              Image Playground
-            </Link>
-            <Link
               href="/admin/waitlist"
               className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
             >
