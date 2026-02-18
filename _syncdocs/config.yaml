@@ -1,0 +1,37 @@
+# syncdocs configuration
+# Learn more: https://github.com/fredrivett/syncdocs
+
+output:
+  # Where generated documentation will be stored
+  dir: _syncdocs
+
+scope:
+  # Files to include in documentation
+  include:
+    - src/**/*.{ts,tsx,js,jsx}
+
+  # Files to exclude from documentation
+  exclude:
+    - **/*.test.ts
+    - **/*.spec.ts
+    - node_modules/**
+    - dist/**
+    - build/**
+
+generation:
+  # AI provider to use for generation
+  aiProvider: anthropic
+
+  # How documentation should be written
+  prompt: |
+    Document for senior engineers joining the team.
+    Focus on why decisions were made, not just what the code does.
+    Highlight non-obvious behavior, edge cases, and trade-offs.
+    Keep explanations concise—link to code for implementation details.
+
+git:
+  # Include commit messages when regenerating docs
+  includeCommitMessages: true
+
+  # How many commits back to analyze for context
+  commitDepth: 10

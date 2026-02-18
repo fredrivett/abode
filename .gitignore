@@ -14,3 +14,5 @@ supabase-e2e/supabase/config.toml
 
 # ai coding
 .claude
+
+/node_modules
