@@ -96,6 +96,11 @@ type GridDensityState = {
   setHasHydrated: (hydrated: boolean) => void;
 };
 
+/**
+ * Manages the user's preferred grid density level, persisted to localStorage.
+ *
+ * Shows a toast notification with the new zoom level whenever the density changes.
+ */
 export const useGridDensityStore = create<GridDensityState>()(
   persist(
     (set) => ({
@@ -140,10 +145,12 @@ export const useGridDensityStore = create<GridDensityState>()(
   ),
 );
 
+/** Returns the numeric index of a density level within `DENSITY_LEVELS`. */
 export function getDensityIndex(density: DensityLevel): number {
   return DENSITY_LEVELS.indexOf(density);
 }
 
+/** Returns the density level at the given index, clamped to valid bounds. */
 export function getDensityByIndex(index: number): DensityLevel {
   const clamped = Math.max(0, Math.min(index, DENSITY_LEVELS.length - 1));
   return DENSITY_LEVELS[clamped];

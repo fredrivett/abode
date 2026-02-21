@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
+/** Next.js middleware entry point — delegates to Supabase session management. */
 export async function middleware(request: NextRequest) {
   return await updateSession(request);
 }

@@ -31,6 +31,10 @@ type MilestoneState = {
   markComplete: (type: MilestoneType) => void;
 };
 
+/**
+ * Manages onboarding milestone progress -- which milestones have been completed,
+ * which are still pending, and their display configuration.
+ */
 export const useMilestoneStore = create<MilestoneState>((set) => ({
   completed: [],
   pending: [],

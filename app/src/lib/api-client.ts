@@ -66,6 +66,14 @@ async function apiClient<T>(
   return response.json();
 }
 
+/**
+ * Authenticated API client that automatically attaches the current Supabase
+ * session token to requests.
+ *
+ * Sets `Content-Type: application/json` by default. Returns an empty object
+ * for 204 No Content responses. Throws `ApiClientError` on non-OK responses,
+ * extracting the error message from the JSON body when possible.
+ */
 export const api = {
   get: <T>(url: string, options?: RequestInit) =>
     apiClient<T>(url, { ...options, method: "GET" }),

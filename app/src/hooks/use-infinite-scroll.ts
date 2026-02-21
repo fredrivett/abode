@@ -8,6 +8,15 @@ type UseInfiniteScrollOptions = {
   onLoadMore: () => void;
 };
 
+/**
+ * Triggers a callback when a sentinel element scrolls into view, for loading
+ * more content.
+ *
+ * Uses IntersectionObserver with a 200px root margin. Only fires on the rising
+ * edge (not intersecting -> intersecting) to prevent duplicate loads.
+ *
+ * @returns A ref to attach to the sentinel element at the bottom of the list.
+ */
 export function useInfiniteScroll({
   hasMore,
   isLoading,

@@ -10,6 +10,15 @@ export type ReverseGeocodedPlace = {
 
 export type LatLon = { latitude: number; longitude: number };
 
+/**
+ * Converts latitude/longitude coordinates into a structured place description
+ * using the Mapbox Geocoding API.
+ *
+ * Returns `null` if the API key is missing, the request fails, or no features
+ * are found. Aborts after 5 seconds to avoid hanging on slow responses.
+ *
+ * @param coords - The latitude and longitude to look up.
+ */
 export async function reverseGeocode({
   latitude,
   longitude,

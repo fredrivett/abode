@@ -115,6 +115,11 @@ export class SearchError extends Error {
   }
 }
 
+/**
+ * Executes a search query against the search API.
+ *
+ * @throws {SearchError} On rate limiting (429), unauthorized (401), or other HTTP errors.
+ */
 export async function search(params: SearchParams): Promise<SearchResponse> {
   const searchParams = buildSearchParams(params);
   const response = await fetch(`/api/v1/search?${searchParams.toString()}`);

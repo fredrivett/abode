@@ -12,6 +12,13 @@ import {
   type UseThemePreferenceReturn,
 } from "@/lib/theme";
 
+/**
+ * Manages the user's theme preference (light/dark/auto).
+ *
+ * On mount, restores the preference from localStorage (or falls back to the
+ * DOM/cookie value) and applies it. The returned `toggle` cycles through
+ * auto -> light -> dark and persists the choice.
+ */
 export function useThemePreference(): UseThemePreferenceReturn {
   const [mounted, setMounted] = useState(false);
   const [preference, setPreference] = useState<ThemePreference>("auto");

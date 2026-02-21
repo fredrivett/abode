@@ -6,6 +6,12 @@ import {
   getAdminNotificationEmail,
 } from "../src/lib/email/templates";
 
+/**
+ * Sends an email notification to all admin users.
+ *
+ * Delivers in parallel to all admins and reports partial success if some
+ * emails fail.
+ */
 export const adminNotificationTask = task({
   id: "admin-notification",
   retry: {

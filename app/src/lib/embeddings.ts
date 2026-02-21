@@ -22,6 +22,16 @@ function getOpenAiClient(): OpenAI {
   return openaiClient;
 }
 
+/**
+ * Extracts a CLIP embedding vector from the Replicate model output.
+ *
+ * Handles multiple output shapes: a raw nested array, or an object with
+ * an `embedding`, `embeddings`, or `features` key.
+ *
+ * @param output - Raw output from the Replicate CLIP model run.
+ * @returns The embedding as a flat number array.
+ * @throws If the output format is unrecognised or empty.
+ */
 export function extractClipEmbedding(output: unknown): number[] {
   if (!Array.isArray(output) || output.length === 0) {
     throw new Error("Invalid output: expected array with at least one element");

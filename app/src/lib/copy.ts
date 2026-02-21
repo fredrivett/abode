@@ -1,3 +1,9 @@
+/**
+ * Copies text to the clipboard, using the Clipboard API when available
+ * and falling back to `document.execCommand("copy")` in older browsers.
+ *
+ * Returns `false` if the input is empty or copying fails.
+ */
 export async function copyToClipboard(text: string): Promise<boolean> {
   if (typeof text !== "string" || text.length === 0) return false;
 

@@ -99,6 +99,14 @@ async function downloadAndStoreImage(
   }
 }
 
+/**
+ * Classifies a URL into a content type (tweet, article, image, video) and
+ * processes it accordingly.
+ *
+ * Resolves short URLs, delegates to specialised handlers for Twitter/YouTube/
+ * Vimeo/direct images, and falls back to article extraction via Readability.
+ * Marks the item as `failed` on error.
+ */
 export const classifyUrlTask = task({
   id: "classify-url",
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying

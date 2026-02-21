@@ -131,6 +131,13 @@ async function insertTextVector({
   return id;
 }
 
+/**
+ * Full image processing pipeline: downloads the image from Supabase Storage,
+ * extracts EXIF/GPS data, runs color analysis and OpenAI Vision in parallel,
+ * generates CLIP visual and text embeddings, and triggers smart room sync.
+ *
+ * Marks the item as `failed` on error so the UI can show processing status.
+ */
 export const analyzeImageTask = task({
   id: "analyze-image",
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings

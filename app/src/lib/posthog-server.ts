@@ -5,6 +5,13 @@ import { isDevelopment } from "@/env";
 // import, which would prevent Trigger.dev tasks from importing this module.
 let posthogClient: PostHog | null = null;
 
+/**
+ * Returns the singleton PostHog client for server-side analytics.
+ *
+ * Returns `null` in development or when the API key is missing.
+ * Configured with immediate flushing to avoid lost events in short-lived
+ * server functions.
+ */
 export function getPostHogClient() {
   if (isDevelopment) {
     return null;
@@ -27,6 +34,11 @@ export function getPostHogClient() {
   return posthogClient;
 }
 
+/**
+ * Sends an exception to PostHog for server-side error tracking.
+ *
+ * No-ops silently when the PostHog client is unavailable.
+ */
 export function captureServerException(
   error: unknown,
   distinctId?: string,
@@ -38,6 +50,9 @@ export function captureServerException(
   client.captureException(error, distinctId, additionalProperties);
 }
 
+/**
+ * Flushes pending events and shuts down the PostHog client.
+ */
 export async function shutdownPostHog() {
   if (posthogClient) {
     await posthogClient.shutdown();

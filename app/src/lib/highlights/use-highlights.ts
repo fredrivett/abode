@@ -32,6 +32,11 @@ function highlightsQueryKey(itemId: string) {
   return ["items", itemId, "highlights"] as const;
 }
 
+/**
+ * Fetches all highlights for an item via the API.
+ *
+ * @param enabled - Pass `false` to defer fetching until the article content is ready.
+ */
 export function useItemHighlights(itemId: string, enabled = true) {
   return useQuery<HighlightResponse[]>({
     queryKey: highlightsQueryKey(itemId),
@@ -40,6 +45,9 @@ export function useItemHighlights(itemId: string, enabled = true) {
   });
 }
 
+/**
+ * Creates a new highlight on an item and marks the `highlight_article` milestone on success.
+ */
 export function useCreateHighlight(itemId: string) {
   const queryClient = useQueryClient();
 
@@ -52,6 +60,9 @@ export function useCreateHighlight(itemId: string) {
   });
 }
 
+/**
+ * Updates an existing highlight (e.g. its note) and invalidates the highlights cache.
+ */
 export function useUpdateHighlight(itemId: string) {
   const queryClient = useQueryClient();
 
@@ -68,6 +79,9 @@ export function useUpdateHighlight(itemId: string) {
   });
 }
 
+/**
+ * Deletes a highlight by ID and invalidates the highlights cache.
+ */
 export function useDeleteHighlight(itemId: string) {
   const queryClient = useQueryClient();
 
