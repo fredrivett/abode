@@ -11,6 +11,10 @@ function md5(str: string): string {
   return createHash("md5").update(str).digest("hex");
 }
 
+/**
+ * Checks whether a Gravatar exists for the user's email and, if found, saves
+ * it as their avatar. Skips if the user already has an avatar set.
+ */
 export const checkGravatarTask = task({
   id: "check-gravatar",
   retry: {

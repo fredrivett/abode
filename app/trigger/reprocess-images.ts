@@ -2,6 +2,12 @@ import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import type { analyzeImageTask } from "./analyze-image";
 
+/**
+ * Re-triggers `analyze-image` for every image item in the database.
+ *
+ * Batches items in chunks of 500 to stay within the Trigger.dev
+ * `batchTrigger` limit.
+ */
 export const reprocessImagesTask = task({
   id: "reprocess-images",
   retry: {

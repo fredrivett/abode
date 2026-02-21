@@ -1,6 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+/**
+ * Refreshes the Supabase auth session and enforces route protection.
+ *
+ * Redirects unauthenticated users away from protected routes, enforces MFA
+ * challenges, and redirects authenticated users away from auth/landing pages.
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,

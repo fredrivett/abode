@@ -78,7 +78,11 @@ export function getHostname(url: string): string {
 }
 
 /**
- * Gets file extension from a content type
+ * Maps a MIME content type to a file extension (e.g. `"image/png"` → `".png"`).
+ *
+ * Falls back to `".jpg"` for unrecognised content types.
+ *
+ * @param contentType - A MIME type string, optionally with parameters (e.g. `"image/png; charset=utf-8"`).
  */
 export function getExtensionFromContentType(contentType: string): string {
   const mimeType = contentType.split(";")[0].trim().toLowerCase();

@@ -17,6 +17,12 @@ type UseUsernameAvailabilityOptions = {
   currentUsername?: string | null;
 };
 
+/**
+ * Manages username input with debounced server-side availability checking.
+ *
+ * Performs instant format validation, skips the API call for case-only
+ * changes, and provides a suggestion when the chosen name is taken.
+ */
 export function useUsernameAvailability(
   options: UseUsernameAvailabilityOptions = {},
 ) {

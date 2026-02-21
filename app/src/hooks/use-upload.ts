@@ -51,6 +51,16 @@ interface UseUploadReturn {
   isLoading: boolean;
 }
 
+/**
+ * Manages URL submission and image file uploads.
+ *
+ * URL submissions are sent to the API for background processing.
+ * File uploads go to Supabase Storage first, then create an item record via the API —
+ * if the item creation fails the uploaded file is cleaned up automatically.
+ *
+ * Both paths show toast notifications, track milestones, invalidate the items cache,
+ * and redirect to the dashboard when the user isn't already there.
+ */
 export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
   const { onSuccess, onError } = options;
   const supabase = useMemo(() => createClient(), []);

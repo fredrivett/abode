@@ -2,6 +2,11 @@
 
 import type { Logger, LogLevel } from "./logger-types";
 
+/**
+ * Creates a namespaced logger that writes to the browser console.
+ *
+ * Child loggers append their module name to the namespace with a colon separator.
+ */
 export function createLogger(namespace: string): Logger {
   const prefix = `[${namespace}]`;
 

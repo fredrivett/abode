@@ -53,6 +53,13 @@ interface UseGridDensityReturn {
   resetDensity: () => void;
 }
 
+/**
+ * Manages grid density state with pinch-to-zoom support and keyboard shortcuts.
+ *
+ * Wraps the density store and responds to the current viewport breakpoint to
+ * provide the correct CSS values for frame width, gap, border radius, and
+ * font scale.
+ */
 export function useGridDensity(
   options: UseGridDensityOptions = {},
 ): UseGridDensityReturn {

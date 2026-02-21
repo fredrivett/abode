@@ -13,6 +13,10 @@ type CommandPaletteState = {
   setUploadDialogOpen: (open: boolean) => void;
 };
 
+/**
+ * Manages command palette open/close state, the active page within the palette,
+ * and the upload dialog visibility.
+ */
 export const useCommandPaletteStore = create<CommandPaletteState>((set) => ({
   open: false,
   targetPage: "main",

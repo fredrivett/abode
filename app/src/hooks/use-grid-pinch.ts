@@ -15,6 +15,13 @@ interface UseGridPinchReturn {
   containerRef: RefObject<HTMLDivElement | null>;
 }
 
+/**
+ * Detects pinch-to-zoom gestures and keyboard zoom shortcuts on a container element.
+ *
+ * Handles trackpad pinch (via ctrlKey + wheel), touch pinch, and Cmd/Ctrl +/-/0
+ * shortcuts. Scale deltas are accumulated and only fire the callback once the
+ * threshold is crossed. Returns a ref to attach to the target container.
+ */
 export function useGridPinch({
   onPinch,
   onReset,

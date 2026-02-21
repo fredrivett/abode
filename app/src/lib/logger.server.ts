@@ -28,6 +28,12 @@ function getServerLogger(): PinoLogger {
   return serverLogger;
 }
 
+/**
+ * Creates a namespaced logger backed by pino.
+ *
+ * In development, output is pretty-printed with colorised timestamps.
+ * In production, output is synchronous JSON for reliable log capture.
+ */
 export function createLogger(namespace: string): Logger {
   return getServerLogger().child({ module: namespace }) as Logger;
 }

@@ -28,6 +28,14 @@ type UserState = {
   hydrateUser: (data: UserHydrationData) => void;
 };
 
+/**
+ * Manages the authenticated user's profile fields on the client.
+ *
+ * Fields use a three-state model: `undefined` means not yet hydrated from the
+ * server, `null` means explicitly empty, and a string/number is the actual value.
+ * `hydrateUser` only fills in fields that are still `undefined`, so client-side
+ * mutations made before hydration are preserved.
+ */
 export const useUserStore = create<UserState>((set, get) => ({
   firstName: undefined,
   lastName: undefined,

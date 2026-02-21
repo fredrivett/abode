@@ -1,3 +1,10 @@
+/**
+ * Derives user initials for avatar display.
+ *
+ * Tries first + last name initials, then the first character of a fallback
+ * string (stripping a leading `@`), then the first two characters of the
+ * email username, and finally falls back to `"U"`.
+ */
 export function getInitials({
   firstName,
   lastName,

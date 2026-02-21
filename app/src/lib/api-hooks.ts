@@ -20,7 +20,10 @@ type ItemMeta = Prisma.JsonValue;
 // Query key constants for consistent invalidation
 export const ITEMS_QUERY_KEY = ["items"] as const;
 
-// Helper to invalidate items query from anywhere
+/**
+ * Returns a stable callback that invalidates all items queries in the React Query cache.
+ * Useful for triggering a refetch after mutations that affect the items list.
+ */
 export function useInvalidateItems() {
   const queryClient = useQueryClient();
   return useCallback(
@@ -74,7 +77,13 @@ export function useItemsInfinite(ssrData?: ItemsInitialData) {
 
 // Example usage patterns for your API routes
 
-// Generic query hook for GET requests
+/**
+ * Generic React Query wrapper for GET requests.
+ * Uses the URL as the query key, so identical URLs share a cache entry.
+ *
+ * @param url - The API endpoint to fetch.
+ * @param options - Optional React Query settings (enabled, staleTime, cacheTime).
+ */
 export function useApiQuery<T>(
   url: string,
   options?: {
@@ -91,7 +100,14 @@ export function useApiQuery<T>(
   });
 }
 
-// Generic mutation hook for POST/PUT/PATCH/DELETE
+/**
+ * Generic React Query mutation wrapper.
+ * Automatically invalidates the specified query keys on success so dependent
+ * queries refetch fresh data.
+ *
+ * @param mutationFn - The async function that performs the API call.
+ * @param options - Callbacks and an optional list of query keys to invalidate on success.
+ */
 export function useApiMutation<TData = unknown, TVariables = unknown>(
   mutationFn: (variables: TVariables) => Promise<TData>,
   options?: {
@@ -119,14 +135,14 @@ export function useApiMutation<TData = unknown, TVariables = unknown>(
 
 // Example domain-specific hooks (replace with your actual API routes)
 
-// User profile
+/** Fetches the authenticated user's profile. */
 export function useUserProfile() {
   return useApiQuery<{ id: string; email: string; name?: string }>(
     "/api/v1/user/profile",
   );
 }
 
-// Items (for your items table)
+/** Fetches all items for the authenticated user. */
 export function useItems() {
   return useApiQuery<
     Array<{
@@ -143,6 +159,7 @@ export function useItems() {
   >("/api/v1/items");
 }
 
+/** Creates a new item and invalidates the items query cache. */
 export function useCreateItem() {
   return useApiMutation<
     { id: string },
@@ -157,6 +174,7 @@ export function useCreateItem() {
   });
 }
 
+/** Updates an existing item and invalidates the items query cache. */
 export function useUpdateItem() {
   return useApiMutation<
     { id: string },
@@ -172,6 +190,7 @@ export function useUpdateItem() {
   });
 }
 
+/** Deletes an item and invalidates the items query cache. */
 export function useDeleteItem() {
   return useApiMutation<void, { id: string }>(
     ({ id }) => api.delete(`/api/v1/items/${id}`),

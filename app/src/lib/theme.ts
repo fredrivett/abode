@@ -2,6 +2,9 @@ export type ThemePreference = "light" | "dark" | "auto";
 
 const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
 
+/**
+ * Returns the next theme preference in the cycle: auto -> light -> dark -> auto.
+ */
 export function getNextTheme(current: ThemePreference): ThemePreference {
   const index = THEME_SEQUENCE.indexOf(current);
   if (index === -1) return "auto";
@@ -28,6 +31,13 @@ function resolveMode(preference: ThemePreference): "light" | "dark" {
   return mediaQuery?.matches ? "dark" : "light";
 }
 
+/**
+ * Applies a theme preference to the document root element.
+ *
+ * Sets `data-theme`, `data-theme-preference`, the `color-scheme` CSS property,
+ * and toggles the `dark` class. When preference is `"auto"`, resolves the
+ * effective mode from the system `prefers-color-scheme` media query.
+ */
 export function applyThemePreference(preference: ThemePreference): void {
   if (!isDomAvailable()) return;
 
@@ -45,6 +55,11 @@ export function applyThemePreference(preference: ThemePreference): void {
   root.style.setProperty(HTML_COLOR_SCHEME_PROP, mode);
 }
 
+/**
+ * Reads the currently active theme (`"light"` or `"dark"`) from the document root.
+ *
+ * Defaults to `"light"` on the server or when the attribute is absent.
+ */
 export function getActiveTheme(): "light" | "dark" {
   if (!isDomAvailable()) return "light";
   return document.documentElement.getAttribute(HTML_THEME_DATA_ATTR) === "dark"
@@ -52,6 +67,11 @@ export function getActiveTheme(): "light" | "dark" {
     : "light";
 }
 
+/**
+ * Reads the current theme preference from the DOM attribute, falling back
+ * to the theme cookie. Returns `"auto"` on the server or when no preference
+ * is found.
+ */
 export function getCurrentPreference(): ThemePreference {
   if (!isDomAvailable()) return "auto";
 
@@ -86,12 +106,23 @@ function parseStoredPreference(value: string | null | undefined) {
   return null;
 }
 
+/**
+ * Reads the persisted theme preference from localStorage.
+ *
+ * Returns `null` on the server or when no valid preference is stored.
+ */
 export function getStoredThemePreference(): ThemePreference | null {
   if (!isDomAvailable()) return null;
   const raw = window.localStorage.getItem(THEME_LOCAL_STORAGE_KEY);
   return parseStoredPreference(raw);
 }
 
+/**
+ * Persists the theme preference to both localStorage and a `theme` cookie.
+ *
+ * The cookie is SameSite=Lax with a one-year expiry so the server can read
+ * the preference on initial page load.
+ */
 export function storeThemePreference(preference: ThemePreference): void {
   if (!isDomAvailable()) return;
 
@@ -116,6 +147,9 @@ export function storeThemePreference(preference: ThemePreference): void {
   document.cookie = cookieValue.join("; ");
 }
 
+/**
+ * Removes the persisted theme preference from both localStorage and the cookie.
+ */
 export function clearStoredThemePreference(): void {
   if (!isDomAvailable()) return;
   try {
@@ -133,6 +167,13 @@ export type UseThemePreferenceReturn = {
   toggle: () => void;
 };
 
+/**
+ * Subscribes to theme changes via a MutationObserver on the document root
+ * and the `prefers-color-scheme` media query.
+ *
+ * Calls the callback immediately with the current state, then again whenever
+ * the active theme changes. Returns an unsubscribe function.
+ */
 export function subscribeToThemeChanges(
   callback: (isDark: boolean) => void,
 ): () => void {
