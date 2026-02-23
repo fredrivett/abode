@@ -7,6 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
 
+/**
+ * Layout wrapping all dashboard pages.
+ *
+ * Verifies authentication, redirects to complete-signup if username is missing,
+ * and wraps children in the onboarding dialog and full-page dropzone.
+ */
 export default async function DashboardLayout({
   children,
 }: {

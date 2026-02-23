@@ -5,6 +5,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Radix Avatar root component with circular overflow styling. */
 function Avatar({
   className,
   ...props
@@ -21,6 +22,7 @@ function Avatar({
   );
 }
 
+/** Radix Avatar image element. */
 function AvatarImage({
   className,
   ...props
@@ -34,6 +36,7 @@ function AvatarImage({
   );
 }
 
+/** Radix Avatar fallback shown when the image is unavailable. */
 function AvatarFallback({
   className,
   ...props

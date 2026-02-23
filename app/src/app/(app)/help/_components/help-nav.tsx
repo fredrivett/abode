@@ -14,6 +14,9 @@ const helpPages: HelpNavItem[] = [
   { href: "/help/filtering", label: "Filtering" },
 ];
 
+/**
+ * Sidebar/top navigation for the help section with active-page highlighting.
+ */
 export function HelpNav() {
   const pathname = usePathname();
 

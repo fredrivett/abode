@@ -6,12 +6,14 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Radix Accordion root component. */
 function Accordion({
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
   return <AccordionPrimitive.Root data-slot="accordion" {...props} />;
 }
 
+/** Radix Accordion item container. */
 function AccordionItem({
   className,
   ...props
@@ -25,6 +27,7 @@ function AccordionItem({
   );
 }
 
+/** Radix Accordion trigger button with animated chevron. */
 function AccordionTrigger({
   className,
   children,
@@ -47,6 +50,7 @@ function AccordionTrigger({
   );
 }
 
+/** Radix Accordion collapsible content panel. */
 function AccordionContent({
   className,
   children,

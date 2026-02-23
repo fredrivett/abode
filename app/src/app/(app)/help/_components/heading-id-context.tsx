@@ -8,6 +8,12 @@ type HeadingIdContextType = {
 
 const HeadingIdContext = createContext<HeadingIdContextType | null>(null);
 
+/**
+ * Provides context for generating stable, unique heading IDs within a document.
+ *
+ * Tracks which base IDs have been used and appends numeric suffixes for duplicates,
+ * ensuring each heading instance gets a consistent ID across re-renders.
+ */
 export function HeadingIdProvider({ children }: { children: React.ReactNode }) {
   // Map of baseId -> count of how many times it's been used
   const idCounts = useRef<Map<string, number>>(new Map());
@@ -41,6 +47,11 @@ export function HeadingIdProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Returns the `getOrCreateId` function from the nearest `HeadingIdProvider`.
+ *
+ * @throws {Error} If called outside of a `HeadingIdProvider`.
+ */
 export function useHeadingId() {
   const context = useContext(HeadingIdContext);
   if (!context) {

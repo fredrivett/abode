@@ -6,12 +6,14 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Root dropdown menu component that manages open/close state. */
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
+/** Renders dropdown menu content into a portal outside the DOM hierarchy. */
 function DropdownMenuPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
@@ -20,6 +22,7 @@ function DropdownMenuPortal({
   );
 }
 
+/** Button or element that toggles the dropdown menu open and closed. */
 function DropdownMenuTrigger({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
@@ -31,6 +34,7 @@ function DropdownMenuTrigger({
   );
 }
 
+/** Floating panel that displays the dropdown menu items. */
 function DropdownMenuContent({
   className,
   sideOffset = 4,

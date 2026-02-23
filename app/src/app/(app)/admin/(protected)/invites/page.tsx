@@ -15,6 +15,9 @@ type SearchParams = Promise<{
   origin?: string;
 }>;
 
+/**
+ * Next.js page that lists all invites with filtering by status and origin, pagination, and stats.
+ */
 export default async function AdminInvitesPage(props: {
   searchParams: SearchParams;
 }) {

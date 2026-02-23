@@ -12,6 +12,9 @@ const filterTypeDescriptions: Record<FilterType, string> = {
   location: "Where the item was taken",
 };
 
+/**
+ * Table showing all available filter types with their labels, descriptions, and AND/OR support.
+ */
 export function FilterTypesTable() {
   const filterTypes = Object.entries(FILTER_TYPES) as [
     FilterType,

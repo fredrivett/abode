@@ -31,6 +31,12 @@ type LocationOverrideDialogProps = {
   sourceFileName: string;
 };
 
+/**
+ * Confirmation dialog shown when updating an item's location from image EXIF data.
+ *
+ * Displays current location alongside the new GPS coordinates extracted from a
+ * dropped image file. On confirm, POSTs the new coordinates to the location API.
+ */
 export function LocationOverrideDialog({
   open,
   onOpenChange,

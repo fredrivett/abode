@@ -4,6 +4,11 @@ import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
+/**
+ * Main dashboard page that server-renders the first page of the user's items.
+ *
+ * Passes initial data to `SearchableItemsGrid` for hydration.
+ */
 export default async function DashboardPage() {
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([

@@ -5,6 +5,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Root popover component that manages open/close state. */
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {

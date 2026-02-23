@@ -139,6 +139,13 @@ function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
   );
 }
 
+/**
+ * Grid card for a single item with click-to-expand detail dialog.
+ *
+ * Handles image/article/twitter/video content types, progressive image loading,
+ * swipe-to-dismiss on touch devices, editing (name, tags, notes, links, location,
+ * privacy), room membership, and deletion.
+ */
 export function ItemCard({
   item,
   name,

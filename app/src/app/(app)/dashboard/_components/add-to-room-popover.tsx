@@ -28,6 +28,12 @@ type AddToRoomPopoverProps = {
   onRoomsChange: (rooms: ItemRoom[]) => void;
 };
 
+/**
+ * Popover for adding or removing an item from manual rooms.
+ *
+ * Lazily fetches the user's manual rooms on first open and toggles membership
+ * for each room via API calls.
+ */
 export function AddToRoomPopover({
   itemId,
   currentRooms,

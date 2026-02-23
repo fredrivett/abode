@@ -12,6 +12,9 @@ async function getFilteringContent() {
   return readFile(filePath, "utf-8");
 }
 
+/**
+ * Help page explaining the filtering system, rendered from a Markdown file.
+ */
 export default async function FilteringHelpPage() {
   const filteringContent = await getFilteringContent();
 

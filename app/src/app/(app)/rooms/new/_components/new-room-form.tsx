@@ -34,6 +34,10 @@ const ROOM_EXAMPLES = [
 const CYCLE_INTERVAL = 6000; // Time between cycles (ms)
 const FADE_DURATION = 300; // Fade transition duration (ms)
 
+/**
+ * Form for creating a new room with animated placeholder cycling, AI emoji suggestions,
+ * and room type selection (static or dynamic with filters).
+ */
 export function NewRoomForm() {
   const router = useRouter();
   const nameInputRef = useRef<HTMLInputElement>(null);

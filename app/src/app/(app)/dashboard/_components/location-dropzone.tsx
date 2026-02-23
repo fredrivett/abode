@@ -46,6 +46,14 @@ function hasFiles(dataTransfer?: DataTransfer | null) {
   return false;
 }
 
+/**
+ * Drag-and-drop zone for setting an item's location from image EXIF data.
+ *
+ * Accepts image files via drag-and-drop or file picker, extracts GPS
+ * coordinates from EXIF, and shows a confirmation dialog before saving.
+ * When a manual override exists alongside an original EXIF location, provides
+ * a "Restore original" action.
+ */
 export function LocationDropzone({
   itemId,
   displayLocation,

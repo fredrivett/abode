@@ -5,6 +5,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Displays a horizontal progress bar filled to the given value (0–100). */
 function Progress({
   className,
   value,

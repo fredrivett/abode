@@ -74,6 +74,12 @@ type ColorsBarProps = {
 
 const LONG_PRESS_DURATION = 500;
 
+/**
+ * Interactive horizontal color bar showing dominant colors from an image.
+ *
+ * Click to copy a hex value; Cmd/Ctrl+click to trigger a color search.
+ * On touch devices, long-press and drag to explore colors.
+ */
 export function ColorsBar({
   colors,
   visible = true,

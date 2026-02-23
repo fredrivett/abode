@@ -29,6 +29,10 @@ function getSupabaseAdminClient() {
   return createSupabaseAdmin(url, key);
 }
 
+/**
+ * Server action that deletes a user by ID, including all their items, rooms, files, and auth record.
+ * Requires admin access with MFA at aal2. Logs activity audit trail and triggers admin notification.
+ */
 export async function deleteUserAsAdmin(
   userId: string,
 ): Promise<DeleteUserResult> {

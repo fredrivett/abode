@@ -6,12 +6,14 @@ import type * as React from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Radix AlertDialog root component. */
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
+/** Radix AlertDialog trigger element. */
 function AlertDialogTrigger({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
@@ -20,6 +22,7 @@ function AlertDialogTrigger({
   );
 }
 
+/** Radix AlertDialog portal for rendering outside the DOM tree. */
 function AlertDialogPortal({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
@@ -28,6 +31,7 @@ function AlertDialogPortal({
   );
 }
 
+/** Radix AlertDialog backdrop overlay. */
 function AlertDialogOverlay({
   className,
   ...props
@@ -44,6 +48,7 @@ function AlertDialogOverlay({
   );
 }
 
+/** Radix AlertDialog modal content panel. */
 function AlertDialogContent({
   className,
   ...props
@@ -63,6 +68,7 @@ function AlertDialogContent({
   );
 }
 
+/** AlertDialog header layout container. */
 function AlertDialogHeader({
   className,
   ...props
@@ -76,6 +82,7 @@ function AlertDialogHeader({
   );
 }
 
+/** AlertDialog footer layout container. */
 function AlertDialogFooter({
   className,
   ...props
@@ -92,6 +99,7 @@ function AlertDialogFooter({
   );
 }
 
+/** Radix AlertDialog title element. */
 function AlertDialogTitle({
   className,
   ...props
@@ -105,6 +113,7 @@ function AlertDialogTitle({
   );
 }
 
+/** Radix AlertDialog description element. */
 function AlertDialogDescription({
   className,
   ...props
@@ -118,6 +127,7 @@ function AlertDialogDescription({
   );
 }
 
+/** Radix AlertDialog confirm action button. */
 function AlertDialogAction({
   className,
   variant,
@@ -133,6 +143,7 @@ function AlertDialogAction({
   );
 }
 
+/** Radix AlertDialog cancel button. */
 function AlertDialogCancel({
   className,
   ...props

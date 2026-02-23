@@ -21,6 +21,12 @@ type HeadingLinkProps = {
   children: React.ReactNode;
 };
 
+/**
+ * Heading element with a copy-link button and smooth-scroll highlight on hash navigation.
+ *
+ * Clicking the heading copies the URL with the heading's fragment to the clipboard.
+ * On page load, scrolls to and highlights the heading if its ID matches the URL hash.
+ */
 export function HeadingLink({ level, children }: HeadingLinkProps) {
   const { getOrCreateId } = useHeadingId();
   const instanceKey = useId(); // Stable key for this component instance

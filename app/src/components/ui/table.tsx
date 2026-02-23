@@ -4,6 +4,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Scrollable table wrapper with a styled `<table>` element. */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div

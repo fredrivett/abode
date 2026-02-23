@@ -26,6 +26,11 @@ type SaveAsRoomButtonProps = {
   searchState: SearchState;
 };
 
+/**
+ * Button that opens a dialog to save the current search filters as a new dynamic room.
+ *
+ * Only renders when there are active filters. On creation, navigates to the new room page.
+ */
 export function SaveAsRoomButton({ searchState }: SaveAsRoomButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);

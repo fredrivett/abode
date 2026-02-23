@@ -5,6 +5,9 @@ import { getAuthUser } from "@/lib/supabase/server";
 import type { RoomWithSlug } from "@/lib/types/room";
 import { RoomsList } from "./_components/rooms-list";
 
+/**
+ * Rooms listing page showing all of the authenticated user's rooms.
+ */
 export default async function RoomsPage() {
   const user = await getAuthUser();
 

@@ -23,6 +23,9 @@ function getCountryFlag(countryCode: string): string {
   );
 }
 
+/**
+ * Compact location summary showing geocoded place names, coordinates, and an optional map.
+ */
 export function LocationPreview({
   location,
   showMap = true,

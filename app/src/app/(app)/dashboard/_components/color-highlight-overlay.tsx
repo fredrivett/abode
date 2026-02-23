@@ -30,6 +30,13 @@ function deltaEFromLab(lab1: LabColor, lab2: LabColor): number {
   return Math.sqrt(dL * dL + da * da + db * db);
 }
 
+/**
+ * Canvas overlay that darkens image pixels dissimilar to a hovered color.
+ *
+ * Preloads and caches pixel data in LAB color space. When `hoveredColorHex`
+ * changes, renders a new mask and crossfades between two canvas layers to
+ * avoid flickering.
+ */
 export function ColorHighlightOverlay({
   imageUrl,
   hoveredColorHex,

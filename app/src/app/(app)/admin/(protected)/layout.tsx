@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { checkAdminAccess } from "@/lib/admin/auth";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Layout that gates access to admin-only pages. Redirects to login if unauthenticated, to dashboard
+ * if not admin, to settings if MFA not set up, or to /admin/verify if not at aal2.
+ */
 export default async function AdminProtectedLayout({
   children,
 }: {

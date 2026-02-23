@@ -2,6 +2,12 @@ import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Root layout for authenticated app routes.
+ *
+ * Verifies the user is authenticated and has completed signup (has a username).
+ * Redirects to `/login` or `/complete-signup` as needed.
+ */
 export default async function AppLayout({
   children,
 }: {

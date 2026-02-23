@@ -5,6 +5,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Wraps children with the Radix tooltip provider; sets default delay to 0. */
 function TooltipProvider({
   delayDuration = 0,
   ...props

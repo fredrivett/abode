@@ -36,6 +36,9 @@ type ItemsGridProps = {
   total?: number;
 };
 
+/**
+ * Masonry grid of items with infinite scroll, empty states, and result count footer.
+ */
 export function ItemsGrid({
   items,
   hasActiveSearch,

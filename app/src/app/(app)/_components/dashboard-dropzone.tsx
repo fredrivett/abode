@@ -18,6 +18,12 @@ function hasFiles(dataTransfer?: DataTransfer | null) {
   return false;
 }
 
+/**
+ * Full-page dropzone that handles drag-and-drop file uploads and URL paste events.
+ *
+ * Intercepts global paste events (excluding inputs/textareas) to auto-submit URLs.
+ * Shows a visual overlay during drag or active upload operations.
+ */
 export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   const [isDragging, setIsDragging] = useState(false);
   const {

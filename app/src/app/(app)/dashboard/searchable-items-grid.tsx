@@ -15,6 +15,12 @@ type SearchableItemsGridProps = {
   initialTotal: number;
 };
 
+/**
+ * Items grid with integrated search, infinite scroll, and processing status polling.
+ *
+ * Switches between paginated items and search results depending on whether a
+ * search query or filters are active.
+ */
 export function SearchableItemsGrid({
   initialItems,
   initialCursor,

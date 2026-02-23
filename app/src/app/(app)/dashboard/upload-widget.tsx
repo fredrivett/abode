@@ -40,6 +40,12 @@ async function getImageDimensions(
   });
 }
 
+/**
+ * File upload widget for selecting and uploading an image from the file picker.
+ *
+ * Validates file type and size, reads image dimensions, uploads to Supabase
+ * Storage, then creates an item record via the API. Tracks upload analytics.
+ */
 export function UploadWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo(() => createClient(), []);

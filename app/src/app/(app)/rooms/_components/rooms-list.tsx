@@ -12,6 +12,11 @@ type RoomsListProps = {
   username: string;
 };
 
+/**
+ * Displays the user's rooms as a grid of cards with type badges and filter previews.
+ *
+ * Shows an empty-state prompt when no rooms exist.
+ */
 export function RoomsList({ initialRooms, username }: RoomsListProps) {
   const rooms = initialRooms;
 

@@ -10,6 +10,12 @@ type LocationMapProps = {
   itemId?: string;
 };
 
+/**
+ * Displays a static Mapbox map image for the given coordinates.
+ *
+ * Fetches the map via the server-side proxy at `/api/v1/map-image` to keep
+ * the Mapbox token secret. The image links to Google Maps.
+ */
 export function LocationMap({
   latitude,
   longitude,
