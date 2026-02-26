@@ -9,6 +9,7 @@ scope:
   # Files to include in documentation
   include:
     - app/src/**/*.{ts,tsx,js,jsx}
+    - app/trigger/**/*.{ts,tsx,js,jsx}
 
   # Files to exclude from documentation
   exclude:

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-02-23T23:53:53.308Z",
+  "generatedAt": "2026-02-24T23:18:01.929Z",
   "nodes": [
     {
       "id": "app/src/app/(app)/_components/dashboard-dropzone.tsx:hasFiles",
@@ -22625,6 +22625,650 @@
       "hasJsDoc": true,
       "description": "Manages the authenticated user's profile fields on the client.\n\nFields use a three-state model: `undefined` means not yet hydrated from the\nserver, `null` means explicitly empty, and a string/number is the actual value.\n`hydrateUser` only fills in fields that are still `undefined`, so client-side\nmutations made before hydration are preserved.",
       "isExported": true
+    },
+    {
+      "id": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "name": "adminNotificationTask",
+      "kind": "const",
+      "filePath": "app/trigger/admin-notification.ts",
+      "isAsync": true,
+      "hash": "c02406ad48ba4f3b92747f5f3c49f8b97fd20f54eb6381a66e50d0fb73d5a58d",
+      "lineRange": [
+        15,
+        80
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "admin-notification"
+      },
+      "hasJsDoc": true,
+      "description": "Sends an email notification to all admin users.\n\nDelivers in parallel to all admins and reports partial success if some\nemails fail.",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:toVectorLiteral",
+      "name": "toVectorLiteral",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": false,
+      "hash": "1334656ad4e10814b2c8ac2a67a138b117f733bdd77a9d2ed9e23f6ff83c3fd2",
+      "lineRange": [
+        30,
+        34
+      ],
+      "hasJsDoc": false,
+      "isTrivial": true,
+      "structuredParams": [
+        {
+          "name": "embedding",
+          "type": "number[]",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:getMimeTypeFromFileKey",
+      "name": "getMimeTypeFromFileKey",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": false,
+      "hash": "fab901d79698e8f87b2206b25d0d560dea26907a8af7bf10b0aaf8061680b78d",
+      "lineRange": [
+        45,
+        50
+      ],
+      "hasJsDoc": false,
+      "structuredParams": [
+        {
+          "name": "fileKey",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "string",
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:getSupabaseConfig",
+      "name": "getSupabaseConfig",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": false,
+      "hash": "e7553954b6889e15b33d70b15d3275c263dfef399b0183be10bb715edfeef541",
+      "lineRange": [
+        50,
+        67
+      ],
+      "hasJsDoc": false,
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:formatStorageError",
+      "name": "formatStorageError",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": false,
+      "hash": "af21662572f6c92ce5c2bfecb8a18e28ba1ede8e8f9b1bb2da7b812e8ef1da96",
+      "lineRange": [
+        67,
+        96
+      ],
+      "hasJsDoc": false,
+      "structuredParams": [
+        {
+          "name": "error",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:insertVisualVector",
+      "name": "insertVisualVector",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": true,
+      "hash": "3f23d76d25b965af44fd90e2562fc6e9e23d50e2a7017c87c0932734d422226d",
+      "lineRange": [
+        96,
+        114
+      ],
+      "hasJsDoc": false,
+      "structuredParams": [
+        {
+          "name": "itemId",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "userId",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "model",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "embedding",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:insertTextVector",
+      "name": "insertTextVector",
+      "kind": "function",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": true,
+      "hash": "8f47a1d409a7b9a2d5061a3d476ad66c25f19fe670760d85a0a64511eb46e326",
+      "lineRange": [
+        114,
+        132
+      ],
+      "hasJsDoc": false,
+      "structuredParams": [
+        {
+          "name": "itemId",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "userId",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "model",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "embedding",
+          "type": "unknown",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "name": "analyzeImageTask",
+      "kind": "const",
+      "filePath": "app/trigger/analyze-image.ts",
+      "isAsync": true,
+      "hash": "4c31529d9ab0c12ec36fcb90d7b91b972c17c03cee61815d61fa5136a31287c1",
+      "lineRange": [
+        141,
+        454
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "analyze-image"
+      },
+      "hasJsDoc": true,
+      "description": "Full image processing pipeline: downloads the image from Supabase Storage,\nextracts EXIF/GPS data, runs color analysis and OpenAI Vision in parallel,\ngenerates CLIP visual and text embeddings, and triggers smart room sync.\n\nMarks the item as `failed` on error so the UI can show processing status.",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/backfill-color-lab.ts:backfillColorLabTask",
+      "name": "backfillColorLabTask",
+      "kind": "const",
+      "filePath": "app/trigger/backfill-color-lab.ts",
+      "isAsync": true,
+      "hash": "d14cc95cf935a91f100fe7ef627b6908e3b3869fefec8c088d8a45e1bf2fcf8d",
+      "lineRange": [
+        14,
+        90
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "backfill-color-lab"
+      },
+      "hasJsDoc": false,
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/backfill-color-names.ts:backfillColorNamesTask",
+      "name": "backfillColorNamesTask",
+      "kind": "const",
+      "filePath": "app/trigger/backfill-color-names.ts",
+      "isAsync": true,
+      "hash": "9fe41abeea691921e2626f652e170934c492b85c2136670cb1346e015db9c194",
+      "lineRange": [
+        15,
+        86
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "backfill-color-names"
+      },
+      "hasJsDoc": false,
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/backfill-milestones.ts:backfillMilestonesTask",
+      "name": "backfillMilestonesTask",
+      "kind": "const",
+      "filePath": "app/trigger/backfill-milestones.ts",
+      "isAsync": true,
+      "hash": "faa6912848390c66022f7d97873d7cf514e02388378de0ede7219aecf0f5fff0",
+      "lineRange": [
+        33,
+        215
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "backfill-milestones"
+      },
+      "hasJsDoc": false,
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/backfill-milestones.ts:shouldCreate",
+      "name": "shouldCreate",
+      "kind": "const",
+      "filePath": "app/trigger/backfill-milestones.ts",
+      "isAsync": false,
+      "hash": "5c7f0f0dcf700579f0f0f550db4c66867b026abce09bd3d61aa3ac0228ba5d3a",
+      "lineRange": [
+        70,
+        72
+      ],
+      "hasJsDoc": false,
+      "isTrivial": true,
+      "structuredParams": [
+        {
+          "name": "userId",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "type",
+          "type": "MilestoneType",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "boolean",
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/check-gravatar.ts:md5",
+      "name": "md5",
+      "kind": "function",
+      "filePath": "app/trigger/check-gravatar.ts",
+      "isAsync": false,
+      "hash": "d207b4fccb0fbf78db3bf70a5364ad9175320ffcca404237c0baab98aaf23e34",
+      "lineRange": [
+        8,
+        12
+      ],
+      "hasJsDoc": false,
+      "isTrivial": true,
+      "structuredParams": [
+        {
+          "name": "str",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "string",
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/check-gravatar.ts:checkGravatarTask",
+      "name": "checkGravatarTask",
+      "kind": "const",
+      "filePath": "app/trigger/check-gravatar.ts",
+      "isAsync": true,
+      "hash": "adff7f57f24f91ab9c31f97413c474ea7ce499a82f0d09eb9aff3a1ac858ee2a",
+      "lineRange": [
+        18,
+        83
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "check-gravatar"
+      },
+      "hasJsDoc": true,
+      "description": "Checks whether a Gravatar exists for the user's email and, if found, saves\nit as their avatar. Skips if the user already has an avatar set.",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/classify-url.ts:getSupabaseConfig",
+      "name": "getSupabaseConfig",
+      "kind": "function",
+      "filePath": "app/trigger/classify-url.ts",
+      "isAsync": false,
+      "hash": "0a96753cc01d0e774e6dcf693c7ed970537fe7b3d0da616bcb4b40bff6d23fd4",
+      "lineRange": [
+        30,
+        47
+      ],
+      "hasJsDoc": false,
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/classify-url.ts:downloadAndStoreImage",
+      "name": "downloadAndStoreImage",
+      "kind": "function",
+      "filePath": "app/trigger/classify-url.ts",
+      "isAsync": true,
+      "hash": "34e37a0ab7b225cd9588ce4777bfb342a167ae90e475884de1f1e554f610f063",
+      "lineRange": [
+        47,
+        100
+      ],
+      "hasJsDoc": true,
+      "description": "Downloads an image from a URL and stores it in Supabase storage.\nReturns the file key, content type, and size for the caller to handle.",
+      "structuredParams": [
+        {
+          "name": "imageUrl",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "userId",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "supabase",
+          "type": "SupabaseClient",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "Promise<{ fileKey: string; contentType: string; size: number } | null>",
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask",
+      "name": "classifyUrlTask",
+      "kind": "const",
+      "filePath": "app/trigger/classify-url.ts",
+      "isAsync": true,
+      "hash": "8f20ea2f7b2d0a854a2189c8f02d02cd8b696ad4c8b4c1a0536382ef8c547356",
+      "lineRange": [
+        110,
+        495
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "classify-url"
+      },
+      "hasJsDoc": true,
+      "description": "Classifies a URL into a content type (tweet, article, image, video) and\nprocesses it accordingly.\n\nResolves short URLs, delegates to specialised handlers for Twitter/YouTube/\nVimeo/direct images, and falls back to article extraction via Readability.\nMarks the item as `failed` on error.",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/classify-url.ts:handleImageUrl",
+      "name": "handleImageUrl",
+      "kind": "function",
+      "filePath": "app/trigger/classify-url.ts",
+      "isAsync": true,
+      "hash": "0e2b82f785f3f17f7398638fd58cde5795b05839eafea7eef2678b358ba623cd",
+      "lineRange": [
+        495,
+        551
+      ],
+      "hasJsDoc": false,
+      "structuredParams": [
+        {
+          "name": "itemId",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "userId",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "supabase",
+          "type": "SupabaseClient",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/handle-twitter-article.ts:handleTwitterArticle",
+      "name": "handleTwitterArticle",
+      "kind": "function",
+      "filePath": "app/trigger/handle-twitter-article.ts",
+      "isAsync": true,
+      "hash": "e37c096dc11cc1d689a882b266025df6a80ea88a9093b523dc3b58d047489c3f",
+      "lineRange": [
+        17,
+        83
+      ],
+      "hasJsDoc": true,
+      "description": "Handle a Twitter/X Article URL.\nTwitter Articles cannot be fetched programmatically (returns 403/500),\nso we store them with minimal metadata as an article type.",
+      "structuredParams": [
+        {
+          "name": "payload",
+          "type": "HandleTwitterArticlePayload",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "Promise<HandleTwitterArticleResult>",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/handle-twitter-url.ts:transformTweetData",
+      "name": "transformTweetData",
+      "kind": "function",
+      "filePath": "app/trigger/handle-twitter-url.ts",
+      "isAsync": false,
+      "hash": "bc9d737c0723fc98ca2b19bb82a2b6c7a1d3a290c9c4002bf377927e1c656647",
+      "lineRange": [
+        20,
+        106
+      ],
+      "hasJsDoc": true,
+      "description": "Transform raw tweet data from react-tweet/api into our TwitterDetails format.\nExported for testing purposes.",
+      "structuredParams": [
+        {
+          "name": "tweet",
+          "type": "Tweet",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "TwitterDetails",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/handle-twitter-url.ts:handleTwitterUrl",
+      "name": "handleTwitterUrl",
+      "kind": "function",
+      "filePath": "app/trigger/handle-twitter-url.ts",
+      "isAsync": true,
+      "hash": "0a48f59e3bcefd2c93c76fbf9ce9b1bbe9c0ee056cfeec494527fb8952fa8a1d",
+      "lineRange": [
+        106,
+        197
+      ],
+      "hasJsDoc": true,
+      "description": "Handle a Twitter/X URL by fetching tweet data and storing it.",
+      "structuredParams": [
+        {
+          "name": "payload",
+          "type": "HandleTwitterUrlPayload",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "Promise<HandleTwitterUrlResult>",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:downloadAndStoreThumbnail",
+      "name": "downloadAndStoreThumbnail",
+      "kind": "function",
+      "filePath": "app/trigger/handle-video-url.ts",
+      "isAsync": true,
+      "hash": "1c18c0871c704d090953856831e5dc6cfae49f0039d72110159d8551f465429d",
+      "lineRange": [
+        28,
+        89
+      ],
+      "hasJsDoc": true,
+      "description": "Downloads an image from a URL and stores it in Supabase storage.\nReturns the file key and size.",
+      "structuredParams": [
+        {
+          "name": "imageUrl",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "userId",
+          "type": "string",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "supabase",
+          "type": "SupabaseClient",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "Promise<{ fileKey: string; size: number } | null>",
+      "isExported": false
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "name": "handleVideoUrl",
+      "kind": "function",
+      "filePath": "app/trigger/handle-video-url.ts",
+      "isAsync": true,
+      "hash": "7ffbc8c231e23f453f1ba9b712a0de268d5d0793edb681a633fe1256a98d7512",
+      "lineRange": [
+        89,
+        207
+      ],
+      "hasJsDoc": true,
+      "description": "Handle a YouTube or Vimeo URL by fetching video metadata and storing it.",
+      "structuredParams": [
+        {
+          "name": "payload",
+          "type": "HandleVideoUrlPayload",
+          "isOptional": false,
+          "isRest": false
+        },
+        {
+          "name": "supabase",
+          "type": "SupabaseClient",
+          "isOptional": false,
+          "isRest": false
+        }
+      ],
+      "returnType": "Promise<HandleVideoUrlResult>",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/reconcile-user-data.ts:reconcileUserDataTask",
+      "name": "reconcileUserDataTask",
+      "kind": "const",
+      "filePath": "app/trigger/reconcile-user-data.ts",
+      "isAsync": true,
+      "hash": "63ffeca87c50338201803ae5205a650617eeeceb58a55b396191cdee993d0d3e",
+      "lineRange": [
+        11,
+        164
+      ],
+      "hasJsDoc": true,
+      "description": "Daily reconciliation task for user data.\n\nReconciles:\n1. Storage and item counts - ensures cached values match actual data\n2. Email sync - ensures DB email matches Supabase auth email (source of truth)",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/reprocess-images.ts:reprocessImagesTask",
+      "name": "reprocessImagesTask",
+      "kind": "const",
+      "filePath": "app/trigger/reprocess-images.ts",
+      "isAsync": true,
+      "hash": "3d90a17a035a2173d24092d5537c597504d3ab2aed128e316e2d03b665c1080d",
+      "lineRange": [
+        11,
+        79
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "reprocess-images"
+      },
+      "hasJsDoc": true,
+      "description": "Re-triggers `analyze-image` for every image item in the database.\n\nBatches items in chunks of 500 to stay within the Trigger.dev\n`batchTrigger` limit.",
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "name": "syncItemToRoomsTask",
+      "kind": "const",
+      "filePath": "app/trigger/sync-item-to-rooms.ts",
+      "isAsync": true,
+      "hash": "fb95cbcf9c4cd70dc7cd6286fa60c87ce599b988ab1a8d24e59ec4509813cca4",
+      "lineRange": [
+        16,
+        46
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "sync-item-to-rooms"
+      },
+      "hasJsDoc": false,
+      "isExported": true
+    },
+    {
+      "id": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "name": "syncRoomItemsTask",
+      "kind": "const",
+      "filePath": "app/trigger/sync-room-items.ts",
+      "isAsync": true,
+      "hash": "4ee7b745e1d7d1ddb274a9fe527a42fcb0dd77df4a8fd1a5331e1c48660394b4",
+      "lineRange": [
+        18,
+        62
+      ],
+      "entryType": "trigger-task",
+      "metadata": {
+        "taskId": "sync-room-items"
+      },
+      "hasJsDoc": false,
+      "isExported": true
     }
   ],
   "edges": [
@@ -22675,6 +23319,14 @@
       "type": "direct-call",
       "isAsync": true,
       "order": 3
+    },
+    {
+      "id": "app/src/app/(app)/admin/(protected)/actions.ts:deleteUserAsAdmin->app/trigger/admin-notification.ts:adminNotificationTask",
+      "source": "app/src/app/(app)/admin/(protected)/actions.ts:deleteUserAsAdmin",
+      "target": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "type": "async-dispatch",
+      "label": "admin-notification",
+      "isAsync": true
     },
     {
       "id": "app/src/app/(app)/admin/(protected)/layout.tsx:AdminProtectedLayout->app/src/lib/supabase/server.ts:createClient",
@@ -24069,6 +24721,14 @@
       "order": 5
     },
     {
+      "id": "app/src/app/(app)/settings/actions.ts:deleteAccount->app/trigger/admin-notification.ts:adminNotificationTask",
+      "source": "app/src/app/(app)/settings/actions.ts:deleteAccount",
+      "target": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "type": "async-dispatch",
+      "label": "admin-notification",
+      "isAsync": true
+    },
+    {
       "id": "app/src/app/(app)/settings/actions.ts:requestEmailChange->app/src/lib/supabase/server.ts:createClient",
       "source": "app/src/app/(app)/settings/actions.ts:requestEmailChange",
       "target": "app/src/lib/supabase/server.ts:createClient",
@@ -25122,6 +25782,14 @@
       "order": 6
     },
     {
+      "id": "app/src/app/api/v1/invites/route.ts:POST->app/trigger/admin-notification.ts:adminNotificationTask",
+      "source": "app/src/app/api/v1/invites/route.ts:POST",
+      "target": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "type": "async-dispatch",
+      "label": "admin-notification",
+      "isAsync": true
+    },
+    {
       "id": "app/src/app/api/v1/invites/validate/route.ts:log->app/src/lib/logger.server.ts:createLogger",
       "source": "app/src/app/api/v1/invites/validate/route.ts:log",
       "target": "app/src/lib/logger.server.ts:createLogger",
@@ -25330,12 +25998,28 @@
       "order": 1
     },
     {
+      "id": "app/src/app/api/v1/items/[id]/location/route.ts:POST->app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "source": "app/src/app/api/v1/items/[id]/location/route.ts:POST",
+      "target": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "type": "async-dispatch",
+      "label": "sync-room-items",
+      "isAsync": true
+    },
+    {
       "id": "app/src/app/api/v1/items/[id]/location/route.ts:DELETE->app/src/lib/supabase/server.ts:createClient",
       "source": "app/src/app/api/v1/items/[id]/location/route.ts:DELETE",
       "target": "app/src/lib/supabase/server.ts:createClient",
       "type": "direct-call",
       "isAsync": true,
       "order": 0
+    },
+    {
+      "id": "app/src/app/api/v1/items/[id]/location/route.ts:DELETE->app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "source": "app/src/app/api/v1/items/[id]/location/route.ts:DELETE",
+      "target": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "type": "async-dispatch",
+      "label": "sync-room-items",
+      "isAsync": true
     },
     {
       "id": "app/src/app/api/v1/items/[id]/retry/route.ts:log->app/src/lib/logger.server.ts:createLogger",
@@ -25352,6 +26036,22 @@
       "type": "direct-call",
       "isAsync": true,
       "order": 0
+    },
+    {
+      "id": "app/src/app/api/v1/items/[id]/retry/route.ts:POST->app/trigger/classify-url.ts:classifyUrlTask",
+      "source": "app/src/app/api/v1/items/[id]/retry/route.ts:POST",
+      "target": "app/trigger/classify-url.ts:classifyUrlTask",
+      "type": "async-dispatch",
+      "label": "classify-url",
+      "isAsync": true
+    },
+    {
+      "id": "app/src/app/api/v1/items/[id]/retry/route.ts:POST->app/trigger/analyze-image.ts:analyzeImageTask",
+      "source": "app/src/app/api/v1/items/[id]/retry/route.ts:POST",
+      "target": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "type": "async-dispatch",
+      "label": "analyze-image",
+      "isAsync": true
     },
     {
       "id": "app/src/app/api/v1/items/[id]/route.ts:log->app/src/lib/logger.server.ts:createLogger",
@@ -25434,6 +26134,14 @@
       "order": 2
     },
     {
+      "id": "app/src/app/api/v1/items/[id]/route.ts:PATCH->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/src/app/api/v1/items/[id]/route.ts:PATCH",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
       "id": "app/src/app/api/v1/items/[id]/route.ts:DELETE->app/src/lib/supabase/server.ts:createClient",
       "source": "app/src/app/api/v1/items/[id]/route.ts:DELETE",
       "target": "app/src/lib/supabase/server.ts:createClient",
@@ -25480,6 +26188,14 @@
       "type": "direct-call",
       "isAsync": false,
       "order": 3
+    },
+    {
+      "id": "app/src/app/api/v1/items/from-url/route.ts:POST->app/trigger/classify-url.ts:classifyUrlTask",
+      "source": "app/src/app/api/v1/items/from-url/route.ts:POST",
+      "target": "app/trigger/classify-url.ts:classifyUrlTask",
+      "type": "async-dispatch",
+      "label": "classify-url",
+      "isAsync": true
     },
     {
       "id": "app/src/app/api/v1/items/route.ts:log->app/src/lib/logger.server.ts:createLogger",
@@ -25584,6 +26300,14 @@
       "type": "direct-call",
       "isAsync": false,
       "order": 4
+    },
+    {
+      "id": "app/src/app/api/v1/items/route.ts:POST->app/trigger/analyze-image.ts:analyzeImageTask",
+      "source": "app/src/app/api/v1/items/route.ts:POST",
+      "target": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "type": "async-dispatch",
+      "label": "analyze-image",
+      "isAsync": true
     },
     {
       "id": "app/src/app/api/v1/items/route.ts:DELETE->app/src/lib/supabase/server.ts:createClient",
@@ -25746,6 +26470,14 @@
       "order": 2
     },
     {
+      "id": "app/src/app/api/v1/rooms/[id]/route.ts:PATCH->app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "source": "app/src/app/api/v1/rooms/[id]/route.ts:PATCH",
+      "target": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "type": "async-dispatch",
+      "label": "sync-room-items",
+      "isAsync": true
+    },
+    {
       "id": "app/src/app/api/v1/rooms/[id]/route.ts:DELETE->app/src/lib/supabase/server.ts:createClient",
       "source": "app/src/app/api/v1/rooms/[id]/route.ts:DELETE",
       "target": "app/src/lib/supabase/server.ts:createClient",
@@ -25808,6 +26540,14 @@
       "type": "direct-call",
       "isAsync": true,
       "order": 2
+    },
+    {
+      "id": "app/src/app/api/v1/rooms/route.ts:POST->app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "source": "app/src/app/api/v1/rooms/route.ts:POST",
+      "target": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "type": "async-dispatch",
+      "label": "sync-room-items",
+      "isAsync": true
     },
     {
       "id": "app/src/app/api/v1/search/route.ts:log->app/src/lib/logger.server.ts:createLogger",
@@ -28822,6 +29562,22 @@
       "order": 0
     },
     {
+      "id": "app/src/lib/auth/complete-signup.ts:completeSignup->app/trigger/check-gravatar.ts:checkGravatarTask",
+      "source": "app/src/lib/auth/complete-signup.ts:completeSignup",
+      "target": "app/trigger/check-gravatar.ts:checkGravatarTask",
+      "type": "async-dispatch",
+      "label": "check-gravatar",
+      "isAsync": true
+    },
+    {
+      "id": "app/src/lib/auth/complete-signup.ts:completeSignup->app/trigger/admin-notification.ts:adminNotificationTask",
+      "source": "app/src/lib/auth/complete-signup.ts:completeSignup",
+      "target": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "type": "async-dispatch",
+      "label": "admin-notification",
+      "isAsync": true
+    },
+    {
       "id": "app/src/lib/db.ts:getWriteClient->app/src/lib/db.ts:createWriteClient",
       "source": "app/src/lib/db.ts:getWriteClient",
       "target": "app/src/lib/db.ts:createWriteClient",
@@ -31042,11 +31798,509 @@
       "order": 1
     },
     {
+      "id": "app/src/lib/waitlist/index.ts:joinWaitlist->app/trigger/admin-notification.ts:adminNotificationTask",
+      "source": "app/src/lib/waitlist/index.ts:joinWaitlist",
+      "target": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "type": "async-dispatch",
+      "label": "admin-notification",
+      "isAsync": true
+    },
+    {
       "id": "app/src/middleware.ts:middleware->app/src/lib/supabase/middleware.ts:updateSession",
       "source": "app/src/middleware.ts:middleware",
       "target": "app/src/lib/supabase/middleware.ts:updateSession",
       "type": "direct-call",
       "isAsync": true,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/admin-notification.ts:adminNotificationTask->app/src/lib/admin/auth.ts:getAllAdminEmails",
+      "source": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "target": "app/src/lib/admin/auth.ts:getAllAdminEmails",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/admin-notification.ts:adminNotificationTask->app/src/lib/email/templates.ts:getAdminNotificationEmail",
+      "source": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "target": "app/src/lib/email/templates.ts:getAdminNotificationEmail",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 1
+    },
+    {
+      "id": "app/trigger/admin-notification.ts:adminNotificationTask->app/src/lib/email/index.ts:sendEmail",
+      "source": "app/trigger/admin-notification.ts:adminNotificationTask",
+      "target": "app/src/lib/email/index.ts:sendEmail",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 2
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:insertVisualVector->app/trigger/analyze-image.ts:toVectorLiteral",
+      "source": "app/trigger/analyze-image.ts:insertVisualVector",
+      "target": "app/trigger/analyze-image.ts:toVectorLiteral",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:insertTextVector->app/trigger/analyze-image.ts:toVectorLiteral",
+      "source": "app/trigger/analyze-image.ts:insertTextVector",
+      "target": "app/trigger/analyze-image.ts:toVectorLiteral",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/analyze-image.ts:getSupabaseConfig",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/analyze-image.ts:getSupabaseConfig",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/analyze-image.ts:formatStorageError",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/analyze-image.ts:formatStorageError",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (error || !data)",
+          "branch": "then",
+          "branchGroup": "branch:164"
+        }
+      ],
+      "label": "if (error || !data)",
+      "isAsync": false,
+      "order": 1
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/exif.ts:extractExifData",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/exif.ts:extractExifData",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 2
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/reverse-geocode.ts:reverseGeocode",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/reverse-geocode.ts:reverseGeocode",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (gps)",
+          "branch": "then",
+          "branchGroup": "branch:190"
+        }
+      ],
+      "label": "if (gps)",
+      "isAsync": true,
+      "order": 3
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/analyze-image.ts:getMimeTypeFromFileKey",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/analyze-image.ts:getMimeTypeFromFileKey",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 4
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/vision.ts:analyzeImageColorsOnly",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/vision.ts:analyzeImageColorsOnly",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 5
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/image-analysis/openai-vision.ts:analyzeImageWithOpenAI",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/image-analysis/openai-vision.ts:analyzeImageWithOpenAI",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 6
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/embeddings.ts:generateImageEmbedding",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/embeddings.ts:generateImageEmbedding",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 7
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/analyze-image.ts:insertVisualVector",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/analyze-image.ts:insertVisualVector",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 8
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/embeddings.ts:generateTextEmbedding",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/embeddings.ts:generateTextEmbedding",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (textContent)",
+          "branch": "then",
+          "branchGroup": "branch:382"
+        }
+      ],
+      "label": "if (textContent)",
+      "isAsync": true,
+      "order": 9
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/analyze-image.ts:insertTextVector",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/analyze-image.ts:insertTextVector",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (textContent)",
+          "branch": "then",
+          "branchGroup": "branch:382"
+        }
+      ],
+      "label": "if (textContent)",
+      "isAsync": true,
+      "order": 10
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/src/lib/posthog-server.ts:captureServerException",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/src/lib/posthog-server.ts:captureServerException",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 11
+    },
+    {
+      "id": "app/trigger/analyze-image.ts:analyzeImageTask->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/backfill-color-lab.ts:backfillColorLabTask->app/src/lib/search/color-utils.ts:hexToLab",
+      "source": "app/trigger/backfill-color-lab.ts:backfillColorLabTask",
+      "target": "app/src/lib/search/color-utils.ts:hexToLab",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/backfill-color-names.ts:backfillColorNamesTask->app/src/lib/search/color-utils.ts:getNearestColorName",
+      "source": "app/trigger/backfill-color-names.ts:backfillColorNamesTask",
+      "target": "app/src/lib/search/color-utils.ts:getNearestColorName",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/check-gravatar.ts:checkGravatarTask->app/trigger/check-gravatar.ts:md5",
+      "source": "app/trigger/check-gravatar.ts:checkGravatarTask",
+      "target": "app/trigger/check-gravatar.ts:md5",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/classify-url.ts:downloadAndStoreImage->app/src/lib/url-utils.ts:getExtensionFromContentType",
+      "source": "app/trigger/classify-url.ts:downloadAndStoreImage",
+      "target": "app/src/lib/url-utils.ts:getExtensionFromContentType",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/classify-url.ts:getSupabaseConfig",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/classify-url.ts:getSupabaseConfig",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/platforms.ts:detectPlatform",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/platforms.ts:detectPlatform",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 1
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:extractTweetId",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:extractTweetId",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (platform === \"twitter\")",
+          "branch": "then",
+          "branchGroup": "branch:124"
+        }
+      ],
+      "label": "if (platform === \"twitter\")",
+      "isAsync": false,
+      "order": 2
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/handle-twitter-url.ts:handleTwitterUrl",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/handle-twitter-url.ts:handleTwitterUrl",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (platform === \"twitter\")",
+          "branch": "then",
+          "branchGroup": "branch:124"
+        },
+        {
+          "condition": "if (tweetId)",
+          "branch": "then",
+          "branchGroup": "branch:159"
+        }
+      ],
+      "label": "if (platform === \"twitter\") → if (tweetId)",
+      "isAsync": true,
+      "order": 3
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:extractTwitterArticleId",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:extractTwitterArticleId",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (platform === \"twitter\")",
+          "branch": "then",
+          "branchGroup": "branch:124"
+        }
+      ],
+      "label": "if (platform === \"twitter\")",
+      "isAsync": false,
+      "order": 4
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/handle-twitter-article.ts:handleTwitterArticle",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/handle-twitter-article.ts:handleTwitterArticle",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (platform === \"twitter\")",
+          "branch": "then",
+          "branchGroup": "branch:124"
+        },
+        {
+          "condition": "if (articleId)",
+          "branch": "then",
+          "branchGroup": "branch:175"
+        }
+      ],
+      "label": "if (platform === \"twitter\") → if (articleId)",
+      "isAsync": true,
+      "order": 5
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:extractYouTubeVideoId",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:extractYouTubeVideoId",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 6
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/handle-video-url.ts:handleVideoUrl",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (youtubeVideoId)",
+          "branch": "then",
+          "branchGroup": "branch:198"
+        }
+      ],
+      "label": "if (youtubeVideoId)",
+      "isAsync": true,
+      "order": 7
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:extractVimeoVideoId",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:extractVimeoVideoId",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 8
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/classify-url.ts:handleImageUrl",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/classify-url.ts:handleImageUrl",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (isImageUrl(fetchUrl, contentType ?? undefined))",
+          "branch": "then",
+          "branchGroup": "branch:258"
+        }
+      ],
+      "label": "if (isImageUrl(fetchUrl, contentType ?? undefined))",
+      "isAsync": true,
+      "order": 9
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:extractArticleMetadata",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:extractArticleMetadata",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 10
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/html-metadata.ts:preserveSocialEmbeds",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/html-metadata.ts:preserveSocialEmbeds",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 11
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/classify-url.ts:downloadAndStoreImage",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/classify-url.ts:downloadAndStoreImage",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (metadata.ogImage)",
+          "branch": "then",
+          "branchGroup": "branch:398"
+        }
+      ],
+      "label": "if (metadata.ogImage)",
+      "isAsync": true,
+      "order": 12
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/src/lib/posthog-server.ts:captureServerException",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/src/lib/posthog-server.ts:captureServerException",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 13
+    },
+    {
+      "id": "app/trigger/classify-url.ts:classifyUrlTask->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/trigger/classify-url.ts:classifyUrlTask",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/classify-url.ts:handleImageUrl->app/trigger/classify-url.ts:downloadAndStoreImage",
+      "source": "app/trigger/classify-url.ts:handleImageUrl",
+      "target": "app/trigger/classify-url.ts:downloadAndStoreImage",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/classify-url.ts:handleImageUrl->app/trigger/analyze-image.ts:analyzeImageTask",
+      "source": "app/trigger/classify-url.ts:handleImageUrl",
+      "target": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "type": "async-dispatch",
+      "label": "analyze-image",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/handle-twitter-article.ts:handleTwitterArticle->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/trigger/handle-twitter-article.ts:handleTwitterArticle",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/handle-twitter-url.ts:handleTwitterUrl->app/trigger/handle-twitter-url.ts:transformTweetData",
+      "source": "app/trigger/handle-twitter-url.ts:handleTwitterUrl",
+      "target": "app/trigger/handle-twitter-url.ts:transformTweetData",
+      "type": "direct-call",
+      "isAsync": false,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/handle-twitter-url.ts:handleTwitterUrl->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/trigger/handle-twitter-url.ts:handleTwitterUrl",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:handleVideoUrl->app/src/lib/video-metadata.ts:fetchVideoMetadata",
+      "source": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "target": "app/src/lib/video-metadata.ts:fetchVideoMetadata",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 0
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:handleVideoUrl->app/src/lib/video-metadata.ts:getBestYouTubeThumbnailUrl",
+      "source": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "target": "app/src/lib/video-metadata.ts:getBestYouTubeThumbnailUrl",
+      "type": "conditional-call",
+      "conditions": [
+        {
+          "condition": "if (platform === \"youtube\")",
+          "branch": "then",
+          "branchGroup": "branch:121"
+        }
+      ],
+      "label": "if (platform === \"youtube\")",
+      "isAsync": true,
+      "order": 1
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:handleVideoUrl->app/trigger/handle-video-url.ts:downloadAndStoreThumbnail",
+      "source": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "target": "app/trigger/handle-video-url.ts:downloadAndStoreThumbnail",
+      "type": "direct-call",
+      "isAsync": true,
+      "order": 2
+    },
+    {
+      "id": "app/trigger/handle-video-url.ts:handleVideoUrl->app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "source": "app/trigger/handle-video-url.ts:handleVideoUrl",
+      "target": "app/trigger/sync-item-to-rooms.ts:syncItemToRoomsTask",
+      "type": "async-dispatch",
+      "label": "sync-item-to-rooms",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/reprocess-images.ts:reprocessImagesTask->app/trigger/analyze-image.ts:analyzeImageTask",
+      "source": "app/trigger/reprocess-images.ts:reprocessImagesTask",
+      "target": "app/trigger/analyze-image.ts:analyzeImageTask",
+      "type": "async-dispatch",
+      "label": "analyze-image",
+      "isAsync": true
+    },
+    {
+      "id": "app/trigger/sync-room-items.ts:syncRoomItemsTask->app/src/lib/posthog-server.ts:captureServerException",
+      "source": "app/trigger/sync-room-items.ts:syncRoomItemsTask",
+      "target": "app/src/lib/posthog-server.ts:captureServerException",
+      "type": "direct-call",
+      "isAsync": false,
       "order": 0
     }
   ]
