@@ -1,0 +1,26 @@
+# treck configuration
+# Learn more: https://github.com/fredrivett/treck
+
+output:
+  # Where generated documentation will be stored
+  dir: _treck
+
+scope:
+  # Files to include in documentation
+  include:
+    - app/src/**/*.{ts,tsx,js,jsx}
+    - app/trigger/**/*.{ts,tsx,js,jsx}
+
+  # Files to exclude from documentation
+  exclude:
+    - **/*.test.{ts,tsx,js,jsx}
+    - **/*.spec.{ts,tsx,js,jsx}
+    - **/__tests__/**
+    - **/e2e/**
+    - **/node_modules/**
+    - **/dist/**
+    - **/build/**
+    - **/.next/**
+    - **/coverage/**
+    - **/.storybook/**
+    - **/*.stories.{ts,tsx,js,jsx}

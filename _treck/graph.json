@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-02-24T23:18:01.929Z",
+  "generatedAt": "2026-03-01T20:00:44.041Z",
   "nodes": [
     {
       "id": "app/src/app/(app)/_components/dashboard-dropzone.tsx:hasFiles",
@@ -9704,20 +9704,6 @@
       "isExported": false
     },
     {
-      "id": "app/src/components/twitter/twitter-card.stories.tsx:noop",
-      "name": "noop",
-      "kind": "const",
-      "filePath": "app/src/components/twitter/twitter-card.stories.tsx",
-      "isAsync": false,
-      "hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-      "lineRange": [
-        6,
-        6
-      ],
-      "hasJsDoc": false,
-      "isExported": false
-    },
-    {
       "id": "app/src/components/twitter/twitter-card.tsx:TwitterCard",
       "name": "TwitterCard",
       "kind": "component",
@@ -9786,51 +9772,6 @@
         }
       ],
       "isExported": true
-    },
-    {
-      "id": "app/src/components/ui/accordion.stories.tsx:SingleAccordion",
-      "name": "SingleAccordion",
-      "kind": "component",
-      "filePath": "app/src/components/ui/accordion.stories.tsx",
-      "isAsync": false,
-      "hash": "997b13df7617c338b5dbcae15a1a67c61ef2ba2403e5d30cfb14a5dcb31f28ec",
-      "lineRange": [
-        8,
-        34
-      ],
-      "hasJsDoc": false,
-      "isTrivial": true,
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/accordion.stories.tsx:MultipleAccordion",
-      "name": "MultipleAccordion",
-      "kind": "component",
-      "filePath": "app/src/components/ui/accordion.stories.tsx",
-      "isAsync": false,
-      "hash": "5bf4ea2ccd32d8980acf0d653378faae7c3669a774c2f3e9f797748bda45a4de",
-      "lineRange": [
-        34,
-        53
-      ],
-      "hasJsDoc": false,
-      "isTrivial": true,
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/accordion.stories.tsx:DefaultOpenAccordion",
-      "name": "DefaultOpenAccordion",
-      "kind": "component",
-      "filePath": "app/src/components/ui/accordion.stories.tsx",
-      "isAsync": false,
-      "hash": "725988989412ad42790dea2ec7dbfae75ff0ed4631cebd821dd00e2ae09a4811",
-      "lineRange": [
-        53,
-        75
-      ],
-      "hasJsDoc": false,
-      "isTrivial": true,
-      "isExported": false
     },
     {
       "id": "app/src/components/ui/accordion.tsx:Accordion",
@@ -10482,28 +10423,6 @@
         {
           "name": "props",
           "type": "unknown",
-          "isOptional": false,
-          "isRest": false
-        }
-      ],
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/calendar.stories.tsx:disabledDates",
-      "name": "disabledDates",
-      "kind": "const",
-      "filePath": "app/src/components/ui/calendar.stories.tsx",
-      "isAsync": false,
-      "hash": "278a72b592cf1b2afd67b2a67f581fb98cbee917f0a6f4c2b003341085eaa6cf",
-      "lineRange": [
-        64,
-        67
-      ],
-      "hasJsDoc": false,
-      "structuredParams": [
-        {
-          "name": "date",
-          "type": "Date",
           "isOptional": false,
           "isRest": false
         }
@@ -12557,50 +12476,6 @@
       "isExported": false
     },
     {
-      "id": "app/src/components/ui/editable-title.stories.tsx:EditableTitleDemo",
-      "name": "EditableTitleDemo",
-      "kind": "component",
-      "filePath": "app/src/components/ui/editable-title.stories.tsx",
-      "isAsync": false,
-      "hash": "88e64ff2fe2f33e085483190b7d051aa169c8d2ed93c90dc5c5dd06da9a53174",
-      "lineRange": [
-        6,
-        40
-      ],
-      "hasJsDoc": false,
-      "structuredParams": [
-        {
-          "name": "initialValue",
-          "type": "string",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "\"Changelog Update\""
-        },
-        {
-          "name": "size",
-          "type": "\"sm\" | \"md\" | \"lg\" | \"xl\"",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "\"lg\""
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "false"
-        },
-        {
-          "name": "multiline",
-          "type": "boolean",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "false"
-        }
-      ],
-      "isExported": false
-    },
-    {
       "id": "app/src/components/ui/editable-title.tsx:EditableTitle",
       "name": "EditableTitle",
       "kind": "component",
@@ -12686,43 +12561,6 @@
           "type": "React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>",
           "isOptional": false,
           "isRest": false
-        }
-      ],
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/emoji-picker.stories.tsx:EmojiPickerDemo",
-      "name": "EmojiPickerDemo",
-      "kind": "component",
-      "filePath": "app/src/components/ui/emoji-picker.stories.tsx",
-      "isAsync": false,
-      "hash": "384e5ed39f742cce5f5099f99eac679976635ee9a8a8c6858a7475a700956db8",
-      "lineRange": [
-        30,
-        61
-      ],
-      "hasJsDoc": false,
-      "structuredParams": [
-        {
-          "name": "showFooter",
-          "type": "boolean",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "false"
-        },
-        {
-          "name": "height",
-          "type": "string",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "\"342px\""
-        },
-        {
-          "name": "width",
-          "type": "string",
-          "isOptional": true,
-          "isRest": false,
-          "defaultValue": "\"352px\""
         }
       ],
       "isExported": false
@@ -12934,20 +12772,6 @@
           "isRest": false
         }
       ],
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/form.stories.tsx:DefaultForm",
-      "name": "DefaultForm",
-      "kind": "component",
-      "filePath": "app/src/components/ui/form.stories.tsx",
-      "isAsync": false,
-      "hash": "5bb39e7f63e57ca7ee96473a05fa796edc2e36a66e3d94b6a513f7a8f8822d26",
-      "lineRange": [
-        12,
-        51
-      ],
-      "hasJsDoc": false,
       "isExported": false
     },
     {
@@ -13624,41 +13448,6 @@
         {
           "name": "props",
           "type": "unknown",
-          "isOptional": false,
-          "isRest": false
-        }
-      ],
-      "isExported": false
-    },
-    {
-      "id": "app/src/components/ui/stepper.stories.tsx:StepContent",
-      "name": "StepContent",
-      "kind": "component",
-      "filePath": "app/src/components/ui/stepper.stories.tsx",
-      "isAsync": false,
-      "hash": "ea1de2f5d57ae6e006e39ffaa3f5f516c91071554ce709fe7eb2cc133093636f",
-      "lineRange": [
-        22,
-        42
-      ],
-      "hasJsDoc": false,
-      "isTrivial": true,
-      "structuredParams": [
-        {
-          "name": "Icon",
-          "type": "React.ComponentType<{ className?: string }>",
-          "isOptional": false,
-          "isRest": false
-        },
-        {
-          "name": "title",
-          "type": "string",
-          "isOptional": false,
-          "isRest": false
-        },
-        {
-          "name": "description",
-          "type": "string",
           "isOptional": false,
           "isRest": false
         }
@@ -23211,6 +23000,11 @@
         11,
         164
       ],
+      "entryType": "trigger-scheduled-task",
+      "metadata": {
+        "taskId": "reconcile-user-data",
+        "cronSchedule": "0 3 * * *"
+      },
       "hasJsDoc": true,
       "description": "Daily reconciliation task for user data.\n\nReconciles:\n1. Storage and item counts - ensures cached values match actual data\n2. Email sync - ensures DB email matches Supabase auth email (source of truth)",
       "isExported": true
