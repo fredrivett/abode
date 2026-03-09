@@ -24,6 +24,13 @@ export function getProxyImageUrl(
   fileKey: string,
   size: ImageSize = "grid",
 ): string {
+  // Skip transforms for GIFs — Supabase converts transformed images to WebP,
+  // which strips animation
+  const isGif = fileKey.toLowerCase().endsWith(".gif");
+  if (isGif) {
+    return `/api/v1/images/${encodeURIComponent(fileKey)}`;
+  }
+
   const params = SIZE_PRESETS[size];
   const searchParams = new URLSearchParams();
 
