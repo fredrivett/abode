@@ -14,14 +14,16 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!data?.claims) {
+  if (!user) {
     redirect("/login");
   }
 
   const dbUser = await db.user.findUnique({
-    where: { id: data.claims.sub as string },
+    where: { id: user.id },
     select: { username: true },
   });
 
