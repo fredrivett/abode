@@ -16,3 +16,6 @@ supabase-e2e/supabase/config.toml
 .claude
 
 /node_modules
+
+# Treck generated data
+.treck/
