@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type UseInfiniteScrollOptions = {
   hasMore: boolean;
@@ -15,21 +15,26 @@ type UseInfiniteScrollOptions = {
  * Uses IntersectionObserver with a 200px root margin. Only fires on the rising
  * edge (not intersecting -> intersecting) to prevent duplicate loads.
  *
- * @returns A ref to attach to the sentinel element at the bottom of the list.
+ * Uses a callback ref so the observer is set up as soon as the sentinel element
+ * mounts (even if it mounts after the initial render).
+ *
+ * @returns A ref callback to attach to the sentinel element at the bottom of the list.
  */
 export function useInfiniteScroll({
   hasMore,
   isLoading,
   onLoadMore,
 }: UseInfiniteScrollOptions) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const wasIntersectingRef = useRef(false);
 
-  useEffect(() => {
-    const element = sentinelRef.current;
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    setSentinelEl(node);
+  }, []);
 
-    if (!element || !hasMore || isLoading) {
+  useEffect(() => {
+    if (!sentinelEl || !hasMore || isLoading) {
       observerRef.current?.disconnect();
       observerRef.current = null;
       return;
@@ -41,20 +46,18 @@ export function useInfiniteScroll({
       const wasIntersecting = wasIntersectingRef.current;
       wasIntersectingRef.current = isNowIntersecting;
 
-      // Only fire on rising edge: NOT intersecting → intersecting
       if (isNowIntersecting && !wasIntersecting) {
         onLoadMore();
       }
     };
 
-    // Small delay before reconnecting to let new content render
     const timer = setTimeout(() => {
       observerRef.current = new IntersectionObserver(handleIntersection, {
         root: null,
         rootMargin: "200px",
         threshold: 0,
       });
-      observerRef.current.observe(element);
+      observerRef.current.observe(sentinelEl);
     }, 50);
 
     return () => {
@@ -62,9 +65,8 @@ export function useInfiniteScroll({
       observerRef.current?.disconnect();
       observerRef.current = null;
     };
-  }, [hasMore, isLoading, onLoadMore]);
+  }, [sentinelEl, hasMore, isLoading, onLoadMore]);
 
-  // Reset intersection tracking when loading completes
   useEffect(() => {
     if (!isLoading) {
       wasIntersectingRef.current = false;
