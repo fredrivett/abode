@@ -8,7 +8,7 @@ import type {
   TwitterDetails,
   TwitterMedia,
 } from "../src/lib/types/item";
-import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
+import type { enrichItemTask } from "./enrich-item";
 
 type HandleTwitterUrlPayload = {
   itemId: string;
@@ -171,7 +171,6 @@ export async function handleTwitterUrl(
         kind: "twitter",
         title: `Tweet by @${twitterDetails.authorUsername}`,
         description: twitterDetails.text?.slice(0, 200) ?? null,
-        processingStatus: "completed",
         externalLinks: hasLink
           ? undefined
           : [
@@ -204,11 +203,12 @@ export async function handleTwitterUrl(
 
   logger.log("Twitter item saved", { itemId, tweetId });
 
-  // Trigger smart room sync
-  logger.log("Triggering smart room sync", { itemId, userId });
-  await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+  // Trigger enrichment (tags, text embedding, room sync)
+  logger.log("Triggering item enrichment", { itemId, userId });
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
     itemId,
     userId,
+    sourceText: twitterDetails.text ?? undefined,
   });
 
   return {

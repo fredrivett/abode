@@ -6,7 +6,7 @@ import {
   fetchVideoMetadata,
   getBestYouTubeThumbnailUrl,
 } from "../src/lib/video-metadata";
-import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
+import type { enrichItemTask } from "./enrich-item";
 
 export type VideoPlatform = "youtube" | "vimeo";
 
@@ -155,7 +155,6 @@ export async function handleVideoUrl(
       data: {
         kind: "video",
         title: metadata.title,
-        processingStatus: "completed",
         ...(thumbnailResult && { coverFileKey: thumbnailResult.fileKey }),
         meta: {
           originalName: metadata.title,
@@ -189,11 +188,17 @@ export async function handleVideoUrl(
 
   logger.log("Video item saved", { itemId, platform, videoId });
 
-  // Trigger smart room sync
-  logger.log("Triggering smart room sync", { itemId, userId });
-  await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+  // Trigger enrichment (tags, text embedding, room sync)
+  // TODO: Use YouTube Data API to fetch video descriptions for richer tag generation
+  const sourceText = [metadata.title, metadata.channelName]
+    .filter(Boolean)
+    .join(" - ");
+
+  logger.log("Triggering item enrichment", { itemId, userId });
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
     itemId,
     userId,
+    sourceText: sourceText || undefined,
   });
 
   return {

@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
+import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
   extractArticleMetadata,
@@ -18,10 +19,10 @@ import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
+import type { enrichItemTask } from "./enrich-item";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
-import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type ClassifyUrlPayload = {
   itemId: string;
@@ -426,7 +427,6 @@ export const classifyUrlTask = task({
             kind: "article",
             title: metadata.title,
             description: metadata.description,
-            processingStatus: "completed",
             ...(coverResult && { coverFileKey: coverResult.fileKey }),
             meta: {
               originalName: metadata.title,
@@ -458,11 +458,16 @@ export const classifyUrlTask = task({
 
       logger.log("Article processing complete", { itemId });
 
-      // Step 7: Sync item to smart rooms
-      logger.log("Triggering smart room sync", { itemId, userId });
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+      // Step 7: Trigger enrichment (tags, text embedding, room sync)
+      const sourceText =
+        articleContent ??
+        [metadata.title, metadata.description].filter(Boolean).join(" ");
+
+      logger.log("Triggering item enrichment", { itemId, userId });
+      await tasks.trigger<typeof enrichItemTask>("enrich-item", {
         itemId,
         userId,
+        sourceText: truncateToTokenLimit(sourceText, 8191),
       });
 
       return {

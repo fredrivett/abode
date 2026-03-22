@@ -1,20 +1,20 @@
-import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { inspect } from "node:util";
 import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
+import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
   generateImageEmbedding,
-  generateTextEmbedding,
+  upsertVisualVector,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImageColorsOnly } from "../src/lib/vision";
-import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
+import type { enrichItemTask } from "./enrich-item";
 
 type AnalyzeImagePayload = {
   itemId: string;
@@ -22,16 +22,7 @@ type AnalyzeImagePayload = {
   fileKey: string;
 };
 
-type EmbeddingInsert = {
-  itemId: string;
-  userId: string;
-  model: string;
-  embedding: number[];
-};
-
-function toVectorLiteral(embedding: number[]) {
-  return `[${embedding.join(",")}]`;
-}
+const EMBEDDING_TOKEN_LIMIT = 8191;
 
 const EXTENSION_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -95,46 +86,11 @@ function formatStorageError(error: unknown) {
   return String(error);
 }
 
-// pgvector columns aren't in the Prisma schema so we write visual vectors via raw SQL
-async function insertVisualVector({
-  itemId,
-  userId,
-  model,
-  embedding,
-}: EmbeddingInsert) {
-  const id = randomUUID();
-  const vectorLiteral = toVectorLiteral(embedding);
-
-  await db.$executeRaw`
-    INSERT INTO "item_visual_vectors" ("id", "item_id", "user_id", "model", "embedding")
-    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
-  `;
-
-  return id;
-}
-
-// pgvector columns aren't in the Prisma schema so we write text vectors via raw SQL
-async function insertTextVector({
-  itemId,
-  userId,
-  model,
-  embedding,
-}: EmbeddingInsert) {
-  const id = randomUUID();
-  const vectorLiteral = toVectorLiteral(embedding);
-
-  await db.$executeRaw`
-    INSERT INTO "item_text_vectors" ("id", "item_id", "user_id", "model", "embedding")
-    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
-  `;
-
-  return id;
-}
-
 /**
- * Full image processing pipeline: downloads the image from Supabase Storage,
+ * Image processing pipeline: downloads the image from Supabase Storage,
  * extracts EXIF/GPS data, runs color analysis and OpenAI Vision in parallel,
- * generates CLIP visual and text embeddings, and triggers smart room sync.
+ * generates CLIP visual embedding, then triggers enrich-item for tags +
+ * text embedding + room sync.
  *
  * Marks the item as `failed` on error so the UI can show processing status.
  */
@@ -306,8 +262,6 @@ export const analyzeImageTask = task({
           data: {
             title: analysis.title,
             description: analysis.description,
-            tags: analysis.tags,
-            processingStatus: "completed",
           },
         }),
         // Create/update image-specific details
@@ -361,7 +315,7 @@ export const analyzeImageTask = task({
       });
 
       // Store visual embedding
-      const visualVectorId = await insertVisualVector({
+      const visualVectorId = await upsertVisualVector({
         itemId,
         userId,
         model: "clip-vit-base-patch32",
@@ -370,49 +324,19 @@ export const analyzeImageTask = task({
 
       logger.log("Visual embedding stored", { itemId, visualVectorId });
 
-      // Generate text embedding if we have text content
-      const textContent = [
-        ...(analysis.tags || []),
-        ...(analysis.objects || []),
-        analysis.ocrText,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-      let textVectorId: string | null = null;
-
-      if (textContent) {
-        logger.log("Generating text embedding", {
-          itemId,
-          textLength: textContent.length,
-        });
-
-        const textEmbedding = await generateTextEmbedding(textContent);
-
-        logger.log("Text embedding generated", {
-          itemId,
-          model: "text-embedding-3-small",
-          vectorLength: textEmbedding.length,
-        });
-
-        textVectorId = await insertTextVector({
-          itemId,
-          userId,
-          model: "text-embedding-3-small",
-          embedding: textEmbedding,
-        });
-
-        logger.log("Text embedding stored", { itemId, textVectorId });
-      }
-
       logger.log("Image analysis complete", { itemId });
 
-      // Step 5: Sync item to smart rooms
-      logger.log("Triggering smart room sync", { itemId, userId });
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+      // Step 5: Trigger enrichment (tags, text embedding, room sync)
+      const sourceText = [...analysis.objects, analysis.ocrText]
+        .filter(Boolean)
+        .join(" ");
+
+      logger.log("Triggering item enrichment", { itemId, userId });
+      await tasks.trigger<typeof enrichItemTask>("enrich-item", {
         itemId,
         userId,
+        precomputedTags: analysis.tags,
+        sourceText: truncateToTokenLimit(sourceText, EMBEDDING_TOKEN_LIMIT),
       });
 
       return {
@@ -428,7 +352,6 @@ export const analyzeImageTask = task({
         },
         embeddings: {
           visualVectorId,
-          textVectorId,
         },
       };
     } catch (error) {

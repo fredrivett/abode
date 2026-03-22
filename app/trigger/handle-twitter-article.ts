@@ -1,6 +1,6 @@
 import { logger, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
-import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
+import type { enrichItemTask } from "./enrich-item";
 
 type HandleTwitterArticlePayload = {
   itemId: string;
@@ -45,7 +45,6 @@ export async function handleTwitterArticle(
       kind: "article",
       title: "Twitter Article",
       description: "Twitter Article (content not available for preview)",
-      processingStatus: "completed",
       meta: {
         twitterArticleId: articleId,
         originalUrl: url,
@@ -67,9 +66,9 @@ export async function handleTwitterArticle(
 
   logger.log("Twitter Article saved", { itemId, articleId });
 
-  // Trigger smart room sync
-  logger.log("Triggering smart room sync", { itemId, userId });
-  await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+  // Trigger enrichment (room sync — no content available for tags/embedding)
+  logger.log("Triggering item enrichment", { itemId, userId });
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
     itemId,
     userId,
   });
