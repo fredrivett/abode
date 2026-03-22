@@ -49,6 +49,7 @@ async function main() {
   }
 }
 
-main().catch(() => {
+main().catch((err) => {
+  console.error("E2E run failed:", err);
   process.exit(1);
 });
