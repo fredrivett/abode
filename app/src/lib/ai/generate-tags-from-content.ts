@@ -23,6 +23,23 @@ export function truncateToTokenLimit(text: string, maxTokens: number): string {
 }
 
 /**
+ * Build the text input for embedding generation from tags and source text.
+ * Returns null if there's nothing to embed.
+ */
+export function buildEmbeddingText(
+  tags: string[],
+  sourceText: string | undefined,
+): string | null {
+  const parts = [
+    tags.length > 0 ? tags.join(" ") : null,
+    sourceText || null,
+  ].filter(Boolean);
+
+  if (parts.length === 0) return null;
+  return parts.join("\n\n");
+}
+
+/**
  * Generate tags from text content using gpt-4o-mini.
  * Returns 10-15 tags as a string array.
  */

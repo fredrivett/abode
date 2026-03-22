@@ -1,5 +1,6 @@
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import {
+  buildEmbeddingText,
   generateTagsFromText,
   truncateToTokenLimit,
 } from "../src/lib/ai/generate-tags-from-content";
@@ -59,14 +60,11 @@ export const enrichItemTask = task({
       });
 
       // Build embedding text from tags + source text
-      const embeddingParts = [
-        tags.length > 0 ? tags.join(" ") : null,
-        sourceText,
-      ].filter(Boolean);
+      const rawEmbeddingText = buildEmbeddingText(tags, sourceText);
 
-      if (embeddingParts.length > 0) {
+      if (rawEmbeddingText) {
         const embeddingInput = truncateToTokenLimit(
-          embeddingParts.join("\n\n"),
+          rawEmbeddingText,
           EMBEDDING_TOKEN_LIMIT,
         );
 
