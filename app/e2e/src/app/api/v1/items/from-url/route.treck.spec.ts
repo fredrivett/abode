@@ -1,5 +1,5 @@
 // @treck flow:app/src/app/api/v1/items/from-url/route.ts:POST hash:366d337d26c20595dbc47a7d3db2b1f21d24454f8252bf7811bd8f13f54c4b6c
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * E2E tests for POST /api/v1/items/from-url
@@ -30,11 +30,11 @@ const ENDPOINT = "/api/v1/items/from-url";
 async function getAuthCookies(
   request: import("@playwright/test").APIRequestContext,
 ): Promise<string> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-  const email = process.env.TEST_USER_EMAIL!;
-  const password = process.env.TEST_USER_PASSWORD!;
+  const email = process.env.TEST_USER_EMAIL ?? "";
+  const password = process.env.TEST_USER_PASSWORD ?? "";
 
   const resp = await request.post(
     `${supabaseUrl}/auth/v1/token?grant_type=password`,
@@ -58,7 +58,10 @@ async function getAuthCookies(
 
   // Cookie names used by @supabase/ssr (project-ref extracted from the URL)
   const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-  const cookieValue = JSON.stringify({ access_token: accessToken, refresh_token: refreshToken });
+  const cookieValue = JSON.stringify({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
 
   // Return a minimal cookie string that Next.js / Supabase SSR will accept
   return [
@@ -94,7 +97,10 @@ test.describe("POST /api/v1/items/from-url", () => {
     expect(typeof body.id).toBe("string");
 
     expect(body).toHaveProperty("sourceType", "url");
-    expect(body).toHaveProperty("sourceUrl", "https://example.com/some-article");
+    expect(body).toHaveProperty(
+      "sourceUrl",
+      "https://example.com/some-article",
+    );
     expect(body).toHaveProperty("processingStatus", "processing");
 
     // kind starts as null — it will be set by the background classify-url task

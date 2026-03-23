@@ -1,5 +1,5 @@
 // @treck flow:app/src/app/api/v1/items/[id]/retry/route.ts:POST hash:95692f55750df25f2c7c5e3776c1b4a2d1b4d765187bec07090d2975434231b4
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * E2E tests for POST /api/v1/items/[id]/retry
@@ -12,23 +12,6 @@ import { test, expect } from "@playwright/test";
  * - 200 happy-path for a URL item (sourceType === "url")
  * - 200 happy-path for a direct image item (kind === "image")
  */
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Post to the retry endpoint without any auth cookies */
-function retryRequest(
-  request: Parameters<typeof test>[1] extends (
-    args: { request: infer R },
-    ...rest: any[]
-  ) => any
-    ? R
-    : never,
-  itemId: string,
-) {
-  return request.post(`/api/v1/items/${itemId}/retry`);
-}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -63,10 +46,10 @@ test.describe("POST /api/v1/items/[id]/retry", () => {
     // Sign in via the test credentials supplied through environment variables.
     // We first perform a Supabase sign-in to obtain a session cookie, then call
     // the retry endpoint using those cookies.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const testEmail = process.env.TEST_USER_EMAIL!;
-    const testPassword = process.env.TEST_USER_PASSWORD!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const testEmail = process.env.TEST_USER_EMAIL ?? "";
+    const testPassword = process.env.TEST_USER_PASSWORD ?? "";
 
     // Exchange credentials for an access token via Supabase REST Auth
     const signInRes = await request.post(

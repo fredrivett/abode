@@ -1,5 +1,5 @@
 // @treck flow:app/src/app/api/v1/items/route.ts:POST hash:020aff639c785efbdee9da2385d5eab1ac8a3f1a21d6e46f68f89357b1bf3036
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * E2E tests for POST /api/v1/items
@@ -19,51 +19,6 @@ const API_URL = "/api/v1/items";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Sign in via Supabase's password flow and return the cookie header string
- * so every request is authenticated as a real user.
- *
- * The credentials must exist in the test / staging database; they are read
- * from environment variables so they never land in source control.
- */
-async function getAuthCookies(
-  request: import("@playwright/test").APIRequestContext,
-): Promise<string> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const email = process.env.TEST_USER_EMAIL!;
-  const password = process.env.TEST_USER_PASSWORD!;
-
-  // Sign in directly against Supabase Auth REST API
-  const signInRes = await request.post(
-    `${supabaseUrl}/auth/v1/token?grant_type=password`,
-    {
-      headers: {
-        apikey: supabaseAnonKey,
-        "Content-Type": "application/json",
-      },
-      data: { email, password },
-    },
-  );
-
-  expect(
-    signInRes.ok(),
-    `Supabase sign-in failed: ${await signInRes.text()}`,
-  ).toBeTruthy();
-
-  const { access_token, refresh_token } = await signInRes.json();
-
-  // Encode the session the way the Supabase SSR helpers expect it
-  // (sb-<project>-auth-token stored as a JSON value)
-  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-  const cookieName = `sb-${projectRef}-auth-token`;
-  const cookieValue = encodeURIComponent(
-    JSON.stringify({ access_token, refresh_token }),
-  );
-
-  return `${cookieName}=${cookieValue}`;
-}
 
 /**
  * Derive a valid fileKey prefix for the authenticated user.
@@ -86,10 +41,10 @@ test.describe("POST /api/v1/items", () => {
   let userId: string;
 
   test.beforeAll(async ({ request }) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const email = process.env.TEST_USER_EMAIL!;
-    const password = process.env.TEST_USER_PASSWORD!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const email = process.env.TEST_USER_EMAIL ?? "";
+    const password = process.env.TEST_USER_PASSWORD ?? "";
 
     const signInRes = await request.post(
       `${supabaseUrl}/auth/v1/token?grant_type=password`,
@@ -263,7 +218,7 @@ test.describe("POST /api/v1/items", () => {
   }) => {
     const fakeToken = "invalid.token.value";
     const projectRef = new URL(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
     ).hostname.split(".")[0];
     const cookieName = `sb-${projectRef}-auth-token`;
     const badCookie = `${cookieName}=${encodeURIComponent(JSON.stringify({ access_token: fakeToken, refresh_token: "bad" }))}`;

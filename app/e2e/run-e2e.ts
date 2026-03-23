@@ -50,6 +50,7 @@ async function main() {
 }
 
 main().catch((err) => {
+  // biome-ignore lint/suspicious/noConsole: CLI script needs stderr output
   console.error("E2E run failed:", err);
   process.exit(1);
 });
