@@ -28,6 +28,8 @@ async function main() {
 
     const playwrightArgs = process.argv.slice(2).join(" ");
 
+    const defaultUser = TEST_USERS.default;
+
     execSync(`bunx playwright test ${playwrightArgs}`, {
       stdio: "inherit",
       cwd: APP_DIR,
@@ -39,6 +41,8 @@ async function main() {
         NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
         SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
         RESEND_API_KEY: "re_e2e_placeholder_not_real",
+        TEST_USER_EMAIL: defaultUser.email,
+        TEST_USER_PASSWORD: defaultUser.password,
         LOCAL_SMTP_PORT: String(
           Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
         ),
