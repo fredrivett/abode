@@ -19,7 +19,8 @@ jobs:
 
       - name: Detect default branch
         id: default-branch
-        run: echo "branch=$(git remote show origin | sed -n 's/.*HEAD branch: //p')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "branch=$(git remote show origin | sed -n 's/.*HEAD branch: //p')" >> "$GITHUB_OUTPUT"
 
       - name: Fetch default branch
         run: git fetch origin ${{ steps.default-branch.outputs.branch }}
