@@ -2,7 +2,12 @@ import { Prisma } from "@prisma/client";
 import { logger, tasks } from "@trigger.dev/sdk";
 import { fetchTweet, type Tweet } from "react-tweet/api";
 import db from "../src/lib/db";
-import type { TwitterDetails, TwitterMedia } from "../src/lib/types/item";
+import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
+import type {
+  ExternalLink,
+  TwitterDetails,
+  TwitterMedia,
+} from "../src/lib/types/item";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 type HandleTwitterUrlPayload = {
@@ -146,8 +151,19 @@ export async function handleTwitterUrl(
   const twitterDetails = transformTweetData(tweet);
 
   // Update item and create twitter details in a transaction
+  const normalizedUrl = normalizeUrl(url);
+
   await db.$transaction(async (tx) => {
-    // Update item with twitter metadata
+    const item = await tx.item.findUniqueOrThrow({
+      where: { id: itemId, userId },
+      select: { externalLinks: true },
+    });
+
+    const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
+    const hasLink = existingLinks.some(
+      (link) => normalizeUrl(link.url) === normalizedUrl,
+    );
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
@@ -155,6 +171,12 @@ export async function handleTwitterUrl(
         title: `Tweet by @${twitterDetails.authorUsername}`,
         description: twitterDetails.text?.slice(0, 200) ?? null,
         processingStatus: "completed",
+        externalLinks: hasLink
+          ? undefined
+          : [
+              ...existingLinks,
+              { url: normalizedUrl, platform: detectPlatform(normalizedUrl) },
+            ],
       },
     });
 
