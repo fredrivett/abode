@@ -1,15 +1,3 @@
--- Add AvatarSource enum type
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AvatarSource') THEN
-    CREATE TYPE "AvatarSource" AS ENUM ('upload', 'oauth', 'gravatar');
-  END IF;
-END $$;
-
--- Add avatar_source column to users table
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS avatar_source "AvatarSource";
-
 -- Create the avatars storage bucket (public for profile sharing)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
