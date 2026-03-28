@@ -56,11 +56,19 @@ jobs:
       - name: Map Supabase env vars for Prisma
         run: |
           ENV_FILE=".vercel/.env.preview.local"
+          echo "--- Contents of $ENV_FILE ---"
+          cat "$ENV_FILE" | grep -E '^(POSTGRES_|DATABASE_|DIRECT_)' || echo "No matching vars found"
+          echo "---"
           if grep -q "POSTGRES_PRISMA_URL" "$ENV_FILE" 2>/dev/null; then
             DB_URL=$(grep '^POSTGRES_PRISMA_URL=' "$ENV_FILE" | sed 's/^POSTGRES_PRISMA_URL=//' | tr -d '"')
             DIRECT=$(grep '^POSTGRES_URL_NON_POOLING=' "$ENV_FILE" | sed 's/^POSTGRES_URL_NON_POOLING=//' | tr -d '"')
+            echo "DATABASE_URL=$DB_URL" >> "$ENV_FILE"
+            echo "DIRECT_URL=$DIRECT" >> "$ENV_FILE"
             echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
             echo "DIRECT_URL=$DIRECT" >> "$GITHUB_ENV"
+            echo "Mapped DATABASE_URL and DIRECT_URL"
+          else
+            echo "WARNING: POSTGRES_PRISMA_URL not found in env file"
           fi
 
       - name: Build
