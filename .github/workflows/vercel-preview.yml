@@ -1,0 +1,109 @@
+name: Vercel Preview
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: vercel-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+    defaults:
+      run:
+        working-directory: ./app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Supabase branch
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          echo "Waiting for Supabase branch '$BRANCH_NAME' to be ready..."
+          for i in $(seq 1 60); do
+            RESPONSE=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/branches")
+            STATUS=$(echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch) | .status')
+            echo "Attempt $i/60: status=$STATUS"
+            if [ "$STATUS" = "ACTIVE_HEALTHY" ]; then
+              echo "Supabase branch is ready!"
+              echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch)' > /tmp/supabase-branch.json
+              BRANCH_REF=$(jq -r '.project_ref' /tmp/supabase-branch.json)
+              echo "SUPABASE_BRANCH_REF=$BRANCH_REF" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for Supabase branch after 10 minutes"
+          exit 1
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $URL"
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.preview_url }}';
+            const body = `### Preview Deployment\n\n🔗 **Preview:** ${url}\n\n_Deployed with Supabase branch database_`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith('### Preview Deployment'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Report preview URL to treck.dev
+        if: steps.deploy.outputs.preview_url
+        env:
+          TRECK_API_SECRET: ${{ secrets.TRECK_API_SECRET }}
+        run: |
+          if [ -z "$TRECK_API_SECRET" ]; then exit 0; fi
+          curl -s -X POST "https://www.treck.dev/api/ci/preview-ready" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TRECK_API_SECRET" \
+            -d "{\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":${{ github.event.pull_request.number }},\"headSha\":\"${{ github.event.pull_request.head.sha }}\",\"previewUrl\":\"${{ steps.deploy.outputs.preview_url }}\"}"
+          echo "Preview URL reported to treck.dev"
