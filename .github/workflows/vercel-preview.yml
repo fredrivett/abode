@@ -57,8 +57,10 @@ jobs:
         run: |
           ENV_FILE=".vercel/.env.preview.local"
           if grep -q "POSTGRES_PRISMA_URL" "$ENV_FILE" 2>/dev/null; then
-            echo "DATABASE_URL=$(grep '^POSTGRES_PRISMA_URL=' "$ENV_FILE" | cut -d= -f2-)" >> "$ENV_FILE"
-            echo "DIRECT_URL=$(grep '^POSTGRES_URL_NON_POOLING=' "$ENV_FILE" | cut -d= -f2-)" >> "$ENV_FILE"
+            DB_URL=$(grep '^POSTGRES_PRISMA_URL=' "$ENV_FILE" | sed 's/^POSTGRES_PRISMA_URL=//' | tr -d '"')
+            DIRECT=$(grep '^POSTGRES_URL_NON_POOLING=' "$ENV_FILE" | sed 's/^POSTGRES_URL_NON_POOLING=//' | tr -d '"')
+            echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+            echo "DIRECT_URL=$DIRECT" >> "$GITHUB_ENV"
           fi
 
       - name: Build
