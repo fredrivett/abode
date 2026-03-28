@@ -53,6 +53,14 @@ jobs:
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Map Supabase env vars for Prisma
+        run: |
+          ENV_FILE=".vercel/.env.preview.local"
+          if grep -q "POSTGRES_PRISMA_URL" "$ENV_FILE" 2>/dev/null; then
+            echo "DATABASE_URL=$(grep '^POSTGRES_PRISMA_URL=' "$ENV_FILE" | cut -d= -f2-)" >> "$ENV_FILE"
+            echo "DIRECT_URL=$(grep '^POSTGRES_URL_NON_POOLING=' "$ENV_FILE" | cut -d= -f2-)" >> "$ENV_FILE"
+          fi
+
       - name: Build
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
