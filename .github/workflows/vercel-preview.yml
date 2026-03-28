@@ -21,9 +21,6 @@ jobs:
       contents: read
       pull-requests: write
       deployments: write
-    defaults:
-      run:
-        working-directory: ./app
     steps:
       - uses: actions/checkout@v4
 
