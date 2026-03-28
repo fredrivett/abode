@@ -45,6 +45,8 @@ jobs:
           echo "Timed out waiting for Supabase branch after 10 minutes"
           exit 1
 
+      - uses: oven-sh/setup-bun@v2
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
