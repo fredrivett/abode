@@ -173,12 +173,30 @@ export async function PATCH(
       userTags,
       title,
       notes,
+      twitterCoverMediaIndex,
     } = body;
 
     // Validate notes field type (user-editable field)
     if (notes !== undefined && notes !== null && typeof notes !== "string") {
       return NextResponse.json(
         { message: "Invalid notes field: must be a string or null" },
+        { status: 400 },
+      );
+    }
+
+    // Validate twitterCoverMediaIndex field
+    if (
+      twitterCoverMediaIndex !== undefined &&
+      twitterCoverMediaIndex !== null &&
+      (typeof twitterCoverMediaIndex !== "number" ||
+        !Number.isInteger(twitterCoverMediaIndex) ||
+        twitterCoverMediaIndex < 0)
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Invalid twitterCoverMediaIndex: must be a non-negative integer or null",
+        },
         { status: 400 },
       );
     }
@@ -343,6 +361,14 @@ export async function PATCH(
         },
       },
     });
+
+    // Update twitter cover media index if provided
+    if (twitterCoverMediaIndex !== undefined) {
+      await db.itemTwitterDetails.updateMany({
+        where: { itemId: id },
+        data: { coverMediaIndex: twitterCoverMediaIndex },
+      });
+    }
 
     // Trigger room sync if filter-relevant fields changed
     if (filterRelevantFieldsChanged) {

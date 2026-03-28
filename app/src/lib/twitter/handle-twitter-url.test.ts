@@ -24,6 +24,7 @@ describe("transformTweetData", () => {
         media: null,
         quotedTweetId: null,
         card: null,
+        coverMediaIndex: null,
       });
     });
 

@@ -35,4 +35,5 @@ export type TwitterDetails = {
     url: string;
     imageUrl: string | null;
   } | null;
+  coverMediaIndex: number | null;
 };
