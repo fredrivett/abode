@@ -45,6 +45,20 @@ jobs:
           echo "Timed out waiting for Supabase branch after 10 minutes"
           exit 1
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Get Supabase branch DB credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase --experimental branches get "${{ github.head_ref }}" \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            -o env >> "$GITHUB_ENV"
+
       - uses: oven-sh/setup-bun@v2
 
       - name: Install Vercel CLI
@@ -53,23 +67,12 @@ jobs:
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Map Supabase env vars for Prisma
+      - name: Inject DB env vars for build
         run: |
           ENV_FILE=".vercel/.env.preview.local"
-          echo "--- Contents of $ENV_FILE ---"
-          cat "$ENV_FILE" | grep -E '^(POSTGRES_|DATABASE_|DIRECT_)' || echo "No matching vars found"
-          echo "---"
-          if grep -q "POSTGRES_PRISMA_URL" "$ENV_FILE" 2>/dev/null; then
-            DB_URL=$(grep '^POSTGRES_PRISMA_URL=' "$ENV_FILE" | sed 's/^POSTGRES_PRISMA_URL=//' | tr -d '"')
-            DIRECT=$(grep '^POSTGRES_URL_NON_POOLING=' "$ENV_FILE" | sed 's/^POSTGRES_URL_NON_POOLING=//' | tr -d '"')
-            echo "DATABASE_URL=$DB_URL" >> "$ENV_FILE"
-            echo "DIRECT_URL=$DIRECT" >> "$ENV_FILE"
-            echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
-            echo "DIRECT_URL=$DIRECT" >> "$GITHUB_ENV"
-            echo "Mapped DATABASE_URL and DIRECT_URL"
-          else
-            echo "WARNING: POSTGRES_PRISMA_URL not found in env file"
-          fi
+          echo "DATABASE_URL=$POSTGRES_URL" >> "$ENV_FILE"
+          echo "DIRECT_URL=$POSTGRES_URL_NON_POOLING" >> "$ENV_FILE"
+          echo "Injected DATABASE_URL and DIRECT_URL into $ENV_FILE"
 
       - name: Build
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
@@ -86,7 +89,7 @@ jobs:
         with:
           script: |
             const url = '${{ steps.deploy.outputs.preview_url }}';
-            const body = `### Preview Deployment\n\n🔗 **Preview:** ${url}\n\n_Supabase branch DB env vars synced via Vercel integration_`;
+            const body = `### Preview Deployment\n\n**Preview:** ${url}\n\nDeployed with Supabase branch database.`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -119,5 +122,5 @@ jobs:
           curl -s -X POST "https://www.treck.dev/api/ci/preview-ready" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TRECK_API_SECRET" \
-            -d "{\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":${{ github.event.pull_request.number }},\"headSha\":\"${{ github.event.pull_request.head.sha }}\",\"previewUrl\":\"${{ steps.deploy.outputs.preview_url }}\"}"
+            -d "{\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":${{ github.event.pull_request.number }},\"headSha\":\"${{ github.event.pull_request.head.sha }},\"previewUrl\":\"${{ steps.deploy.outputs.preview_url }}\"}"
           echo "Preview URL reported to treck.dev"
