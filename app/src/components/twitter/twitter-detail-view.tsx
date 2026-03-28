@@ -1,19 +1,21 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
+import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getHostname } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
-import type { TwitterDetails } from "./types";
+import type { TwitterDetails, TwitterMedia } from "./types";
 
 type TwitterDetailViewProps = {
   twitterDetails: TwitterDetails;
   sourceUrl?: string | null;
   className?: string;
-  onCoverImageChange?: (index: number) => void;
+  onCoverImageChange?: (index: number) => Promise<void>;
 };
 
 /**
@@ -108,49 +110,14 @@ export function TwitterDetailView({
             {media.map((item, index) => {
               const isCover = index === (twitterDetails.coverMediaIndex ?? 0);
               return (
-                <div
+                <CoverImageMedia
                   key={`${item.url}-${index}`}
-                  className={cn(
-                    "group/media relative overflow-hidden bg-gray-100 dark:bg-gray-800",
-                    media.length === 3 && index === 0 && "row-span-2",
-                  )}
-                >
-                  {item.type === "video" ? (
-                    <video
-                      src={item.url}
-                      poster={item.posterUrl}
-                      controls
-                      className="h-full w-full object-cover"
-                      playsInline
-                    >
-                      <track kind="captions" />
-                    </video>
-                  ) : (
-                    // biome-ignore lint/a11y/useAltText: tweet media
-                    // biome-ignore lint/performance/noImgElement: external Twitter media URL
-                    <img
-                      src={item.url}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  {onCoverImageChange && media.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => onCoverImageChange(index)}
-                      disabled={isCover}
-                      className={cn(
-                        "absolute right-2 bottom-2 rounded-md px-2 py-1 font-medium text-xs transition-opacity",
-                        "bg-black/60 text-white backdrop-blur-sm",
-                        isCover
-                          ? "cursor-default opacity-70"
-                          : "opacity-0 hover:bg-black/80 group-hover/media:opacity-100",
-                      )}
-                    >
-                      {isCover ? "Cover image" : "Set as cover"}
-                    </button>
-                  )}
-                </div>
+                  item={item}
+                  index={index}
+                  isCover={isCover}
+                  mediaLength={media.length}
+                  onCoverImageChange={onCoverImageChange}
+                />
               );
             })}
           </div>
@@ -207,6 +174,89 @@ export function TwitterDetailView({
           </Button>
         </div>
       </article>
+    </div>
+  );
+}
+
+function CoverImageMedia({
+  item,
+  index,
+  isCover,
+  mediaLength,
+  onCoverImageChange,
+}: {
+  item: TwitterMedia;
+  index: number;
+  isCover: boolean;
+  mediaLength: number;
+  onCoverImageChange?: (index: number) => Promise<void>;
+}) {
+  const [isSettingCover, setIsSettingCover] = useState(false);
+
+  const handleSetCover = async () => {
+    if (!onCoverImageChange || isCover || isSettingCover) return;
+    setIsSettingCover(true);
+    try {
+      await onCoverImageChange(index);
+    } finally {
+      setIsSettingCover(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "group/media relative overflow-hidden bg-gray-100 dark:bg-gray-800",
+        mediaLength === 3 && index === 0 && "row-span-2",
+      )}
+    >
+      {item.type === "video" ? (
+        <video
+          src={item.url}
+          poster={item.posterUrl}
+          controls
+          className="h-full w-full object-cover"
+          playsInline
+        >
+          <track kind="captions" />
+        </video>
+      ) : (
+        // biome-ignore lint/a11y/useAltText: tweet media
+        // biome-ignore lint/performance/noImgElement: external Twitter media URL
+        <img
+          src={item.url}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      )}
+      {onCoverImageChange && mediaLength > 1 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSetCover}
+          disabled={isCover && !isSettingCover}
+          className={cn(
+            "absolute top-2 right-2 h-auto px-2 py-1 text-xs transition-opacity",
+            "bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 hover:text-white",
+            isSettingCover
+              ? "opacity-100"
+              : isCover
+                ? "cursor-default opacity-0 group-hover/media:opacity-70"
+                : "opacity-0 group-hover/media:opacity-100",
+          )}
+        >
+          {isSettingCover ? (
+            <>
+              Setting as cover
+              <LoadingEllipsis />
+            </>
+          ) : isCover ? (
+            "Cover image"
+          ) : (
+            "Set as cover"
+          )}
+        </Button>
+      )}
     </div>
   );
 }
