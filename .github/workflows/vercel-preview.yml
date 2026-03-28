@@ -39,7 +39,7 @@ jobs:
               "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/branches")
             STATUS=$(echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch) | .status')
             echo "Attempt $i/60: status=$STATUS"
-            if [ "$STATUS" = "ACTIVE_HEALTHY" ]; then
+            if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "FUNCTIONS_DEPLOYED" ]; then
               echo "Supabase branch is ready!"
               exit 0
             fi
