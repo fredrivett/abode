@@ -13,6 +13,7 @@ type TwitterDetailViewProps = {
   twitterDetails: TwitterDetails;
   sourceUrl?: string | null;
   className?: string;
+  onCoverImageChange?: (index: number) => void;
 };
 
 /**
@@ -23,6 +24,7 @@ export function TwitterDetailView({
   twitterDetails,
   sourceUrl,
   className,
+  onCoverImageChange,
 }: TwitterDetailViewProps) {
   const {
     tweetId,
@@ -103,35 +105,54 @@ export function TwitterDetailView({
               media.length >= 4 && "grid-cols-2",
             )}
           >
-            {media.map((item, index) => (
-              <div
-                key={`${item.url}-${index}`}
-                className={cn(
-                  "relative overflow-hidden bg-gray-100 dark:bg-gray-800",
-                  media.length === 3 && index === 0 && "row-span-2",
-                )}
-              >
-                {item.type === "video" ? (
-                  <video
-                    src={item.url}
-                    poster={item.posterUrl}
-                    controls
-                    className="h-full w-full object-cover"
-                    playsInline
-                  >
-                    <track kind="captions" />
-                  </video>
-                ) : (
-                  // biome-ignore lint/a11y/useAltText: tweet media
-                  // biome-ignore lint/performance/noImgElement: external Twitter media URL
-                  <img
-                    src={item.url}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                )}
-              </div>
-            ))}
+            {media.map((item, index) => {
+              const isCover = index === (twitterDetails.coverMediaIndex ?? 0);
+              return (
+                <div
+                  key={`${item.url}-${index}`}
+                  className={cn(
+                    "group/media relative overflow-hidden bg-gray-100 dark:bg-gray-800",
+                    media.length === 3 && index === 0 && "row-span-2",
+                  )}
+                >
+                  {item.type === "video" ? (
+                    <video
+                      src={item.url}
+                      poster={item.posterUrl}
+                      controls
+                      className="h-full w-full object-cover"
+                      playsInline
+                    >
+                      <track kind="captions" />
+                    </video>
+                  ) : (
+                    // biome-ignore lint/a11y/useAltText: tweet media
+                    // biome-ignore lint/performance/noImgElement: external Twitter media URL
+                    <img
+                      src={item.url}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  {onCoverImageChange && media.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onCoverImageChange(index)}
+                      disabled={isCover}
+                      className={cn(
+                        "absolute right-2 bottom-2 rounded-md px-2 py-1 font-medium text-xs transition-opacity",
+                        "bg-black/60 text-white backdrop-blur-sm",
+                        isCover
+                          ? "cursor-default opacity-70"
+                          : "opacity-0 hover:bg-black/80 group-hover/media:opacity-100",
+                      )}
+                    >
+                      {isCover ? "Cover image" : "Set as cover"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

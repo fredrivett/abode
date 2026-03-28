@@ -23,11 +23,13 @@ export function TwitterCard({
   const { authorName, authorUsername, authorAvatarUrl, text, media, card } =
     twitterDetails;
 
-  // Get preview image: first media item or link card image
+  // Get preview image: use cover media index, falling back to first item or link card
+  const coverIndex = twitterDetails.coverMediaIndex ?? 0;
+  const coverMedia = media?.[coverIndex] ?? media?.[0];
   const previewImage =
-    media?.[0]?.type === "photo"
-      ? media[0].url
-      : (media?.[0]?.posterUrl ?? card?.imageUrl ?? null);
+    coverMedia?.type === "photo"
+      ? coverMedia.url
+      : (coverMedia?.posterUrl ?? card?.imageUrl ?? null);
 
   return (
     <button
@@ -50,7 +52,7 @@ export function TwitterCard({
             loading="lazy"
           />
           {/* Video indicator */}
-          {media?.[0]?.type === "video" && (
+          {coverMedia?.type === "video" && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="rounded-full bg-black/60 p-3">
                 <svg

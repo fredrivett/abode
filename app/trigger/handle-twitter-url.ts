@@ -102,6 +102,7 @@ export function transformTweetData(tweet: Tweet): TwitterDetails {
     media,
     quotedTweetId: tweet.quoted_tweet?.id_str ?? null,
     card,
+    coverMediaIndex: null,
   };
 }
 

@@ -100,6 +100,7 @@ type RawItemRow = {
   twitter_media: unknown;
   twitter_quoted_tweet_id: string | null;
   twitter_card: unknown;
+  twitter_cover_media_index: number | null;
   video_platform: string | null;
   video_video_id: string | null;
   video_channel_name: string | null;
@@ -190,6 +191,7 @@ function transformRawItemToItem(
             media: row.twitter_media as TwitterMedia[] | null,
             quotedTweetId: row.twitter_quoted_tweet_id,
             card: row.twitter_card as TwitterDetails["card"],
+            coverMediaIndex: row.twitter_cover_media_index,
           } satisfies TwitterDetails)
         : null,
     videoDetails:
@@ -584,6 +586,7 @@ async function executeFiltersOnlySearch(
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
       td.card as twitter_card,
+      td.cover_media_index as twitter_cover_media_index,
       vd.platform as video_platform,
       vd.video_id as video_video_id,
       vd.channel_name as video_channel_name,
@@ -831,6 +834,7 @@ async function executeRankedSearch(
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
       td.card as twitter_card,
+      td.cover_media_index as twitter_cover_media_index,
       vd.platform as video_platform,
       vd.video_id as video_video_id,
       vd.channel_name as video_channel_name,

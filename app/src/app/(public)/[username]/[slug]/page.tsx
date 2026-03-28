@@ -196,6 +196,7 @@ export default async function RoomPage({ params }: Props) {
               media: true,
               quotedTweetId: true,
               card: true,
+              coverMediaIndex: true,
             },
           },
           videoDetails: {
@@ -276,6 +277,7 @@ export default async function RoomPage({ params }: Props) {
           media: roomItem.item.twitterDetails.media as TwitterMedia[] | null,
           quotedTweetId: roomItem.item.twitterDetails.quotedTweetId,
           card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
+          coverMediaIndex: roomItem.item.twitterDetails.coverMediaIndex,
         } satisfies TwitterDetails)
       : null,
     videoDetails: roomItem.item.videoDetails

@@ -48,6 +48,7 @@ const tweetWithVideo: TwitterDetails = {
   ],
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 const tweetWithPhoto: TwitterDetails = {
@@ -68,6 +69,7 @@ const tweetWithPhoto: TwitterDetails = {
   ],
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 const tweetWithLinkCard: TwitterDetails = {
@@ -88,6 +90,7 @@ const tweetWithLinkCard: TwitterDetails = {
     imageUrl:
       "https://pbs.twimg.com/card_img/2007572200522420226/8IgzTQ3M?format=png&name=800x419",
   },
+  coverMediaIndex: null,
 };
 
 const textOnlyTweet: TwitterDetails = {
@@ -100,6 +103,7 @@ const textOnlyTweet: TwitterDetails = {
   media: null,
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 export const WithVideo: Story = {
@@ -145,6 +149,7 @@ const longTextTweet: TwitterDetails = {
   media: null,
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 export const LongText: Story = {
@@ -177,6 +182,7 @@ const noAvatarTweet: TwitterDetails = {
   ],
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 export const NoAvatar: Story = {
@@ -196,6 +202,7 @@ const usernameOnlyTweet: TwitterDetails = {
   media: null,
   quotedTweetId: null,
   card: null,
+  coverMediaIndex: null,
 };
 
 export const UsernameOnly: Story = {
@@ -227,6 +234,7 @@ const linkCardNoImageTweet: TwitterDetails = {
     url: "https://example.com/article",
     imageUrl: null,
   },
+  coverMediaIndex: null,
 };
 
 export const LinkCardNoImage: Story = {

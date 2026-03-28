@@ -1321,6 +1321,20 @@ function ItemDetailDialog({
                     twitterDetails={item.twitterDetails}
                     sourceUrl={item.sourceUrl}
                     className="py-8"
+                    onCoverImageChange={
+                      canEdit
+                        ? async (index) => {
+                            try {
+                              await api.patch(`/api/v1/items/${item.id}`, {
+                                twitterCoverMediaIndex: index,
+                              });
+                              invalidateItems();
+                            } catch {
+                              toast.error("Failed to set cover image");
+                            }
+                          }
+                        : undefined
+                    }
                   />
                 </motion.div>
               ) : isVideo && item.videoDetails ? (

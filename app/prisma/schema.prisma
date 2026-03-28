@@ -224,6 +224,7 @@ model ItemVisualVector {
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
+  @@unique([itemId, model])
   @@index([itemId])
   @@index([userId])
   @@map("item_visual_vectors")
@@ -241,6 +242,7 @@ model ItemTextVector {
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
+  @@unique([itemId, model])
   @@index([itemId])
   @@index([userId])
   @@map("item_text_vectors")
@@ -292,6 +294,7 @@ model ItemTwitterDetails {
   media           Json?     @map("media")              // Array of media objects with type, url, dimensions
   quotedTweetId   String?   @map("quoted_tweet_id")    // If quoting another tweet
   card            Json?     @map("card")               // Link card data (title, description, url, imageUrl)
+  coverMediaIndex Int?      @map("cover_media_index")  // Index into media[] for cover image
 
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")

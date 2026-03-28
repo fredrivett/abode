@@ -73,6 +73,7 @@ export const itemSelect = {
       media: true,
       quotedTweetId: true,
       card: true,
+      coverMediaIndex: true,
     },
   },
   videoDetails: {
@@ -154,6 +155,7 @@ export function transformItem(item: RawItem) {
           media: item.twitterDetails.media as TwitterMedia[] | null,
           quotedTweetId: item.twitterDetails.quotedTweetId,
           card: item.twitterDetails.card as TwitterDetails["card"],
+          coverMediaIndex: item.twitterDetails.coverMediaIndex,
         } satisfies TwitterDetails)
       : null,
     videoDetails: item.videoDetails
