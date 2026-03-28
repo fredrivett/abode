@@ -41,9 +41,6 @@ jobs:
             echo "Attempt $i/60: status=$STATUS"
             if [ "$STATUS" = "ACTIVE_HEALTHY" ]; then
               echo "Supabase branch is ready!"
-              echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch)' > /tmp/supabase-branch.json
-              BRANCH_REF=$(jq -r '.project_ref' /tmp/supabase-branch.json)
-              echo "SUPABASE_BRANCH_REF=$BRANCH_REF" >> "$GITHUB_ENV"
               exit 0
             fi
             sleep 10
@@ -72,7 +69,7 @@ jobs:
         with:
           script: |
             const url = '${{ steps.deploy.outputs.preview_url }}';
-            const body = `### Preview Deployment\n\n🔗 **Preview:** ${url}\n\n_Deployed with Supabase branch database_`;
+            const body = `### Preview Deployment\n\n🔗 **Preview:** ${url}\n\n_Supabase branch DB env vars synced via Vercel integration_`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
