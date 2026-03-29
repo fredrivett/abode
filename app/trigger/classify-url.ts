@@ -621,7 +621,6 @@ async function handleProductUrl(
         kind: "product",
         title: productMeta.title,
         description: productMeta.description,
-        processingStatus: "completed",
         ...(coverFileKey && { coverFileKey }),
         meta: {
           originalName: productMeta.title,
@@ -650,14 +649,23 @@ async function handleProductUrl(
     },
   });
 
-  logger.log("Product processing complete", {
+  logger.log("Product processing complete, triggering enrichment", {
     itemId,
     imageCount: storedImages.length,
   });
 
-  await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+  const sourceText = [
+    productMeta.title,
+    productMeta.description,
+    productMeta.brand,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
     itemId,
     userId,
+    sourceText: truncateToTokenLimit(sourceText, 8191),
   });
 
   return {
