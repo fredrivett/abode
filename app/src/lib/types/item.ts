@@ -62,6 +62,29 @@ export type VideoDetails = {
 };
 
 /**
+ * A single product image stored in Supabase.
+ */
+export type ProductImage = {
+  fileKey: string;
+  url: string;
+  width?: number;
+  height?: number;
+};
+
+/**
+ * Product-specific details for e-commerce URLs.
+ */
+export type ProductDetails = {
+  domain: string | null;
+  brand: string | null;
+  price: string | null;
+  currency: string | null;
+  availability: string | null;
+  images: ProductImage[] | null;
+  coverImageIndex: number | null;
+};
+
+/**
  * Color information from image analysis.
  *
  * This type supports colors from both:
@@ -151,6 +174,7 @@ export type Item = {
   articleDetails: ArticleDetails | null;
   twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
   videoDetails: VideoDetails | null;
+  productDetails: ProductDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   rooms?: ItemRoom[];

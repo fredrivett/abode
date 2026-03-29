@@ -59,6 +59,7 @@ enum ItemKind {
   article
   twitter
   video
+  product
 }
 
 enum SourceType {
@@ -168,6 +169,7 @@ model Item {
   imageDetails      ItemImageDetails?
   twitterDetails    ItemTwitterDetails?
   videoDetails      ItemVideoDetails?
+  productDetails    ItemProductDetails?
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
@@ -318,6 +320,24 @@ model ItemVideoDetails {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   @@map("item_video_details")
+}
+
+model ItemProductDetails {
+  itemId          String    @id @map("item_id") @db.Uuid
+  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  domain          String?
+  brand           String?
+  price           String?
+  currency        String?
+  availability    String?
+  images          Json?
+  coverImageIndex Int?      @map("cover_image_index")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_product_details")
 }
 
 model Room {

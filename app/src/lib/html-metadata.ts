@@ -151,6 +151,198 @@ export function extractArticleMetadata(
   };
 }
 
+// --- Product metadata extraction ---
+
+export type ProductMetadata = {
+  title: string | null;
+  description: string | null;
+  domain: string;
+  price: string | null;
+  currency: string | null;
+  brand: string | null;
+  availability: string | null;
+  imageUrls: string[];
+  ogImage: string | null;
+};
+
+/**
+ * Extracts the og:type value from HTML
+ */
+export function extractOgType(html: string): string | null {
+  return extractMetaContent(html, "og:type");
+}
+
+/**
+ * Extracts product data from JSON-LD structured data.
+ * Looks for `@type: "Product"` in script[type="application/ld+json"] blocks.
+ */
+export function extractJsonLdProduct(html: string): {
+  price: string | null;
+  currency: string | null;
+  brand: string | null;
+  availability: string | null;
+  images: string[];
+} | null {
+  const scriptRegex =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+
+  let match = scriptRegex.exec(html);
+  while (match !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      const product = findProductInJsonLd(data);
+      if (product) {
+        const offers = product.offers;
+        const offer = Array.isArray(offers) ? offers[0] : offers;
+
+        const images: string[] = [];
+        if (product.image) {
+          if (Array.isArray(product.image)) {
+            for (const img of product.image) {
+              const url = typeof img === "string" ? img : img?.url;
+              if (url) images.push(url);
+            }
+          } else if (typeof product.image === "string") {
+            images.push(product.image);
+          } else if (product.image?.url) {
+            images.push(product.image.url);
+          }
+        }
+
+        return {
+          price:
+            offer?.price?.toString() ?? offer?.lowPrice?.toString() ?? null,
+          currency: offer?.priceCurrency ?? null,
+          brand:
+            typeof product.brand === "string"
+              ? product.brand
+              : (product.brand?.name ?? null),
+          availability: parseAvailability(offer?.availability),
+          images,
+        };
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+    match = scriptRegex.exec(html);
+  }
+
+  return null;
+}
+
+/**
+ * Recursively searches JSON-LD data for a Product type.
+ * Handles @graph arrays and nested structures.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function findProductInJsonLd(data: any): any | null {
+  if (!data || typeof data !== "object") return null;
+
+  if (data["@type"] === "Product") return data;
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findProductInJsonLd(item);
+      if (found) return found;
+    }
+  }
+
+  if (data["@graph"]) {
+    return findProductInJsonLd(data["@graph"]);
+  }
+
+  return null;
+}
+
+/**
+ * Normalizes schema.org availability URLs to short labels.
+ */
+function parseAvailability(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const short = value.replace(/^https?:\/\/schema\.org\//, "");
+  return short || null;
+}
+
+/**
+ * Collects product image URLs from structured data sources only.
+ * Sources: JSON-LD `image` field, multiple `og:image` meta tags.
+ * Does NOT scrape arbitrary <img> tags.
+ */
+export function extractProductImageUrls(html: string): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  const addUrl = (url: string) => {
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+  };
+
+  // 1. JSON-LD images (highest quality, explicitly product images)
+  const jsonLd = extractJsonLdProduct(html);
+  if (jsonLd) {
+    for (const img of jsonLd.images) {
+      addUrl(img);
+    }
+  }
+
+  // 2. All og:image tags (product pages often have multiple)
+  const ogImageRegex =
+    /<meta[^>]+(?:property=["']og:image["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:image["'])[^>]*>/gi;
+  let ogMatch = ogImageRegex.exec(html);
+  while (ogMatch !== null) {
+    const url = ogMatch[1] || ogMatch[2];
+    if (url) addUrl(decodeHtmlEntities(url));
+    ogMatch = ogImageRegex.exec(html);
+  }
+
+  return urls;
+}
+
+/**
+ * Extracts product metadata from HTML. Returns null if the page is not a product.
+ *
+ * Detection signals (any one is sufficient):
+ * 1. og:type is "product", "product.item", or "product.group"
+ * 2. JSON-LD with @type: "Product"
+ * 3. Product-specific OG meta tags (product:price:amount, product:price:currency)
+ */
+export function extractProductMetadata(
+  html: string,
+  url: string,
+): ProductMetadata | null {
+  const ogType = extractOgType(html);
+  const isOgProduct =
+    ogType === "product" ||
+    ogType === "product.item" ||
+    ogType === "product.group";
+
+  const jsonLd = extractJsonLdProduct(html);
+
+  const ogPrice = extractMetaContent(html, "product:price:amount");
+  const ogCurrency = extractMetaContent(html, "product:price:currency");
+  const hasProductOgTags = !!(ogPrice || ogCurrency);
+
+  if (!isOgProduct && !jsonLd && !hasProductOgTags) {
+    return null;
+  }
+
+  const ogBrand = extractMetaContent(html, "product:brand");
+
+  return {
+    title: extractTitle(html),
+    description: extractDescription(html),
+    domain: extractDomain(url),
+    price: jsonLd?.price ?? ogPrice ?? null,
+    currency: jsonLd?.currency ?? ogCurrency ?? null,
+    brand: jsonLd?.brand ?? ogBrand ?? null,
+    availability: jsonLd?.availability ?? null,
+    imageUrls: extractProductImageUrls(html),
+    ogImage: extractOgImage(html),
+  };
+}
+
 /**
  * Escapes special regex characters in a string
  */

@@ -30,6 +30,8 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   ImageColor,
   MatchReason,
+  ProductDetails,
+  ProductImage,
   SearchItem,
   TwitterDetails,
   TwitterMedia,
@@ -108,6 +110,13 @@ type RawItemRow = {
   video_duration: number | null;
   video_embed_url: string | null;
   video_thumbnail_url: string | null;
+  product_domain: string | null;
+  product_brand: string | null;
+  product_price: string | null;
+  product_currency: string | null;
+  product_availability: string | null;
+  product_images: unknown;
+  product_cover_image_index: number | null;
 };
 
 type RawLocationRow = {
@@ -205,6 +214,18 @@ function transformRawItemToItem(
             embedUrl: row.video_embed_url,
             thumbnailUrl: row.video_thumbnail_url,
           } satisfies VideoDetails)
+        : null,
+    productDetails:
+      row.product_domain || row.product_brand || row.product_price
+        ? ({
+            domain: row.product_domain,
+            brand: row.product_brand,
+            price: row.product_price,
+            currency: row.product_currency,
+            availability: row.product_availability,
+            images: row.product_images as ProductImage[] | null,
+            coverImageIndex: row.product_cover_image_index,
+          } satisfies ProductDetails)
         : null,
     createdAt: row.created_at.toISOString(),
   };
@@ -593,12 +614,20 @@ async function executeFiltersOnlySearch(
       vd.channel_url as video_channel_url,
       vd.duration as video_duration,
       vd.embed_url as video_embed_url,
-      vd.thumbnail_url as video_thumbnail_url
+      vd.thumbnail_url as video_thumbnail_url,
+      pd.domain as product_domain,
+      pd.brand as product_brand,
+      pd.price as product_price,
+      pd.currency as product_currency,
+      pd.availability as product_availability,
+      pd.images as product_images,
+      pd.cover_image_index as product_cover_image_index
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
     LEFT JOIN item_video_details vd ON vd.item_id = items.id
+    LEFT JOIN item_product_details pd ON pd.item_id = items.id
     ${colorRelevanceJoin}
     WHERE ${whereClause}
     ${cursorCondition}
@@ -841,12 +870,20 @@ async function executeRankedSearch(
       vd.channel_url as video_channel_url,
       vd.duration as video_duration,
       vd.embed_url as video_embed_url,
-      vd.thumbnail_url as video_thumbnail_url
+      vd.thumbnail_url as video_thumbnail_url,
+      pd.domain as product_domain,
+      pd.brand as product_brand,
+      pd.price as product_price,
+      pd.currency as product_currency,
+      pd.availability as product_availability,
+      pd.images as product_images,
+      pd.cover_image_index as product_cover_image_index
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
     LEFT JOIN item_article_details ad ON ad.item_id = i.id
     LEFT JOIN item_twitter_details td ON td.item_id = i.id
     LEFT JOIN item_video_details vd ON vd.item_id = i.id
+    LEFT JOIN item_product_details pd ON pd.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,
     itemIds,

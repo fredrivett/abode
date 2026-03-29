@@ -174,6 +174,7 @@ export async function PATCH(
       title,
       notes,
       twitterCoverMediaIndex,
+      productCoverImageIndex,
     } = body;
 
     // Validate notes field type (user-editable field)
@@ -196,6 +197,23 @@ export async function PATCH(
         {
           message:
             "Invalid twitterCoverMediaIndex: must be a non-negative integer or null",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate productCoverImageIndex field
+    if (
+      productCoverImageIndex !== undefined &&
+      productCoverImageIndex !== null &&
+      (typeof productCoverImageIndex !== "number" ||
+        !Number.isInteger(productCoverImageIndex) ||
+        productCoverImageIndex < 0)
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Invalid productCoverImageIndex: must be a non-negative integer or null",
         },
         { status: 400 },
       );
@@ -367,6 +385,14 @@ export async function PATCH(
       await db.itemTwitterDetails.updateMany({
         where: { itemId: id },
         data: { coverMediaIndex: twitterCoverMediaIndex },
+      });
+    }
+
+    // Update product cover image index if provided
+    if (productCoverImageIndex !== undefined) {
+      await db.itemProductDetails.updateMany({
+        where: { itemId: id },
+        data: { coverImageIndex: productCoverImageIndex },
       });
     }
 
