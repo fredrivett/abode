@@ -77,8 +77,20 @@ jobs:
           echo "DIRECT_URL=$SESSION_URL" >> "$ENV_FILE"
           echo "Injected DATABASE_URL (pooler:6543) and DIRECT_URL (session:5432)"
 
-      - name: Build
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build (with retry for cold DB)
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt/3..."
+            if vercel build --token=${{ secrets.VERCEL_TOKEN }}; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed, waiting 15s before retry..."
+              sleep 15
+            fi
+          done
+          echo "All build attempts failed"
+          exit 1
 
       - name: Deploy
         id: deploy
