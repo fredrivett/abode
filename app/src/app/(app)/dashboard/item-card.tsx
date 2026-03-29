@@ -322,8 +322,7 @@ export function ItemCard({
                 className="font-medium text-gray-600 dark:text-gray-400"
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
-                {item.productDetails.currency &&
-                item.productDetails.currency !== item.productDetails.price
+                {item.productDetails.currency
                   ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
                   : item.productDetails.price}
               </p>
@@ -682,8 +681,7 @@ export function ItemCard({
           />
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
-              {item.productDetails.currency &&
-              item.productDetails.currency !== item.productDetails.price
+              {item.productDetails.currency
                 ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
                 : item.productDetails.price}
             </div>
