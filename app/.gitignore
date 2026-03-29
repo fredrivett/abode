@@ -53,3 +53,6 @@ storybook-static
 # Serwist service worker output
 public/sw*
 public/swe-worker*
+
+# Treck generated data
+.treck/

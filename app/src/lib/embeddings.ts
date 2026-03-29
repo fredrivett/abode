@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import OpenAI from "openai";
 import Replicate from "replicate";
+import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/embeddings");
@@ -14,7 +16,7 @@ function getReplicateClient(): Replicate {
 }
 
 let openaiClient: OpenAI | null = null;
-function getOpenAiClient(): OpenAI {
+export function getOpenAiClient(): OpenAI {
   if (openaiClient) return openaiClient;
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
@@ -202,4 +204,59 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
     log.error(errorDetails, "Failed to generate text embedding");
     throw error;
   }
+}
+
+export type EmbeddingInsert = {
+  itemId: string;
+  userId: string;
+  model: string;
+  embedding: number[];
+};
+
+function toVectorLiteral(embedding: number[]) {
+  return `[${embedding.join(",")}]`;
+}
+
+/**
+ * Upsert a visual embedding vector for an item.
+ * Uses ON CONFLICT to update if a vector for this (item_id, model) already exists.
+ */
+export async function upsertVisualVector({
+  itemId,
+  userId,
+  model,
+  embedding,
+}: EmbeddingInsert) {
+  const id = randomUUID();
+  const vectorLiteral = toVectorLiteral(embedding);
+
+  await db.$executeRaw`
+    INSERT INTO "item_visual_vectors" ("id", "item_id", "user_id", "model", "embedding")
+    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
+    ON CONFLICT ("item_id", "model") DO UPDATE SET "embedding" = EXCLUDED."embedding"
+  `;
+
+  return id;
+}
+
+/**
+ * Upsert a text embedding vector for an item.
+ * Uses ON CONFLICT to update if a vector for this (item_id, model) already exists.
+ */
+export async function upsertTextVector({
+  itemId,
+  userId,
+  model,
+  embedding,
+}: EmbeddingInsert) {
+  const id = randomUUID();
+  const vectorLiteral = toVectorLiteral(embedding);
+
+  await db.$executeRaw`
+    INSERT INTO "item_text_vectors" ("id", "item_id", "user_id", "model", "embedding")
+    VALUES (${id}::uuid, ${itemId}::uuid, ${userId}::uuid, ${model}, ${vectorLiteral}::vector)
+    ON CONFLICT ("item_id", "model") DO UPDATE SET "embedding" = EXCLUDED."embedding"
+  `;
+
+  return id;
 }

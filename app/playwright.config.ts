@@ -31,7 +31,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /.*\.auth\.spec\.ts/,
+      testIgnore: [/.*\.auth\.spec\.ts/, /.*\.treck\.spec\.ts/],
       dependencies: ["setup"],
     },
     {
@@ -41,6 +41,7 @@ export default defineConfig({
         storageState: authFile,
       },
       testMatch: /.*\.auth\.spec\.ts/,
+      testIgnore: [/.*\.treck\.spec\.ts/],
       dependencies: ["setup"],
     },
   ],
