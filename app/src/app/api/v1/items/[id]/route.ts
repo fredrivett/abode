@@ -388,12 +388,28 @@ export async function PATCH(
       });
     }
 
-    // Update product cover image index if provided
+    // Update product cover image index and sync coverFileKey
     if (productCoverImageIndex !== undefined) {
+      const productDetails = await db.itemProductDetails.findFirst({
+        where: { itemId: id },
+        select: { images: true },
+      });
+
       await db.itemProductDetails.updateMany({
         where: { itemId: id },
         data: { coverImageIndex: productCoverImageIndex },
       });
+
+      if (productDetails?.images && productCoverImageIndex !== null) {
+        const images = productDetails.images as Array<{ fileKey?: string }>;
+        const selectedImage = images[productCoverImageIndex];
+        if (selectedImage?.fileKey) {
+          await db.item.update({
+            where: { id },
+            data: { coverFileKey: selectedImage.fileKey },
+          });
+        }
+      }
     }
 
     // Trigger room sync if filter-relevant fields changed
