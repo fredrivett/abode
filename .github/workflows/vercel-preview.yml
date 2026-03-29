@@ -71,7 +71,7 @@ jobs:
         run: |
           ENV_FILE=".vercel/.env.preview.local"
           echo "DATABASE_URL=$POSTGRES_URL" >> "$ENV_FILE"
-          echo "DIRECT_URL=$POSTGRES_URL_NON_POOLING" >> "$ENV_FILE"
+          echo "DIRECT_URL=$POSTGRES_URL" >> "$ENV_FILE"
           echo "Injected DATABASE_URL and DIRECT_URL into $ENV_FILE"
 
       - name: Build
