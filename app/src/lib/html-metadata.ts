@@ -301,12 +301,116 @@ export function extractProductImageUrls(html: string): string[] {
 }
 
 /**
+ * Known e-commerce domain + product URL path patterns.
+ * Each entry matches ONLY product pages (not search, category, or blog pages).
+ */
+type ProductUrlPattern = {
+  domain: RegExp;
+  path: RegExp;
+};
+
+const PRODUCT_URL_PATTERNS: ProductUrlPattern[] = [
+  // --- US / Global ---
+  // Amazon (all TLDs): /dp/ASIN or /gp/product/ASIN
+  {
+    domain:
+      /amazon\.(com|co\.uk|ca|de|fr|es|it|co\.jp|com\.au|in|com\.br|nl|se|pl|sg|com\.mx|ae|sa)$/,
+    path: /\/(?:dp|gp\/product|gp\/aw\/d)\/[A-Z0-9]{10}/i,
+  },
+  // eBay (all TLDs): /itm/...
+  {
+    domain: /ebay\.(com|co\.uk|de|fr|com\.au|ca|it|es)$/,
+    path: /\/itm\/(?:[a-zA-Z0-9-]+\/)?\d{9,15}/,
+  },
+  // Etsy: /listing/ID/slug
+  { domain: /etsy\.com$/, path: /\/listing\/\d+\/[a-zA-Z0-9-]+/ },
+  // Walmart: /ip/slug/ID
+  { domain: /walmart\.com$/, path: /\/ip\/[a-zA-Z0-9-]+\/\d+/ },
+  // Target: /p/slug/-/A-ID
+  { domain: /target\.com$/, path: /\/p\/[a-zA-Z0-9-]+\/-\/A-\d+/ },
+  // Best Buy: /site/slug/ID.p
+  { domain: /bestbuy\.com$/, path: /\/site\/[a-zA-Z0-9-]+\/\d+\.p/ },
+  // AliExpress: /item/ID.html
+  { domain: /aliexpress\.com$/, path: /\/item\/\d+\.html/ },
+  // ASOS: /prd/ID
+  { domain: /asos\.com$/, path: /\/prd\/\d+/ },
+  // Wayfair: /pdp/...
+  { domain: /wayfair\.com$/, path: /\/pdp\// },
+  // Temu: ...-g-ID.html
+  { domain: /temu\.com$/, path: /-g-\d+\.html/ },
+
+  // --- UK ---
+  // John Lewis: /p/slug
+  { domain: /johnlewis\.com$/, path: /\/p\/[a-zA-Z0-9-]+/ },
+  // Argos: /product/ID
+  { domain: /argos\.co\.uk$/, path: /\/product\/\d+/ },
+  // Currys: /products/slug.html
+  { domain: /currys\.co\.uk$/, path: /\/products\/[^/]+\.html/ },
+  // M&S: /slug/p/Pcode
+  { domain: /marksandspencer\.com$/, path: /\/p\/[Pp]\w+/ },
+  // Selfridges: /.../product/...
+  { domain: /selfridges\.com$/, path: /\/product\// },
+  // Boots: /product/slug
+  { domain: /boots\.com$/, path: /\/product\// },
+  // Next: /style/stID
+  { domain: /next\.co\.uk$/, path: /\/style\/st\d+/ },
+  // Screwfix: /p/slug
+  { domain: /screwfix\.com$/, path: /\/p\/[a-zA-Z0-9-]+/ },
+
+  // --- Generic e-commerce path patterns ---
+  // Shopify stores (myshopify.com subdomains)
+  { domain: /\.myshopify\.com$/, path: /\/products\/[a-zA-Z0-9][a-zA-Z0-9-]+/ },
+];
+
+/**
+ * Generic product path patterns that work across any domain.
+ * Lower confidence than domain-specific patterns, used as fallback.
+ */
+const GENERIC_PRODUCT_PATH_PATTERNS: RegExp[] = [
+  // Shopify custom domains: /products/handle
+  /^\/products\/[a-zA-Z0-9][a-zA-Z0-9-]+$/,
+  // WooCommerce: /product/handle
+  /^\/product\/[a-zA-Z0-9][a-zA-Z0-9-]+$/,
+];
+
+/**
+ * Checks if a URL matches a known e-commerce product page pattern.
+ * Returns true only for product pages, not search/category/blog pages.
+ */
+export function isKnownProductUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const pathname = parsed.pathname;
+
+    // Check domain-specific patterns (high confidence)
+    for (const pattern of PRODUCT_URL_PATTERNS) {
+      if (pattern.domain.test(hostname) && pattern.path.test(pathname)) {
+        return true;
+      }
+    }
+
+    // Check generic path patterns (medium confidence)
+    for (const pathPattern of GENERIC_PRODUCT_PATH_PATTERNS) {
+      if (pathPattern.test(pathname)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extracts product metadata from HTML. Returns null if the page is not a product.
  *
  * Detection signals (any one is sufficient):
  * 1. og:type is "product", "product.item", or "product.group"
  * 2. JSON-LD with @type: "Product"
  * 3. Product-specific OG meta tags (product:price:amount, product:price:currency)
+ * 4. URL matches a known e-commerce product page pattern
  */
 export function extractProductMetadata(
   html: string,
@@ -324,7 +428,9 @@ export function extractProductMetadata(
   const ogCurrency = extractMetaContent(html, "product:price:currency");
   const hasProductOgTags = !!(ogPrice || ogCurrency);
 
-  if (!isOgProduct && !jsonLd && !hasProductOgTags) {
+  const isKnownProduct = isKnownProductUrl(url);
+
+  if (!isOgProduct && !jsonLd && !hasProductOgTags && !isKnownProduct) {
     return null;
   }
 

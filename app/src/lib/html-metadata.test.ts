@@ -15,6 +15,7 @@ import {
   extractTitle,
   extractTweetId,
   extractTwitterArticleId,
+  isKnownProductUrl,
   parsePublishedDate,
   preserveSocialEmbeds,
 } from "./html-metadata";
@@ -1005,5 +1006,275 @@ describe("extractProductMetadata", () => {
     const result = extractProductMetadata(html, "https://example.com/p");
     expect(result).not.toBeNull();
     expect(result?.currency).toBe("GBP");
+  });
+
+  it("detects product via known URL pattern even without structured data", () => {
+    const html = `<html><head><title>Cool Widget</title></head><body></body></html>`;
+    const result = extractProductMetadata(
+      html,
+      "https://www.amazon.com/Cool-Widget/dp/B08N5WRWNW",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Cool Widget");
+  });
+
+  it("returns null for non-product page on known domain", () => {
+    const html = `<html><head><title>Search Results</title></head><body></body></html>`;
+    const result = extractProductMetadata(
+      html,
+      "https://www.amazon.com/s?k=laptop",
+    );
+    expect(result).toBeNull();
+  });
+});
+
+describe("isKnownProductUrl", () => {
+  describe("US / Global platforms", () => {
+    it("matches Amazon product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.amazon.com/Apple-MacBook/dp/B0DL2GFJHP"),
+      ).toBe(true);
+      expect(
+        isKnownProductUrl("https://www.amazon.co.uk/gp/product/B08N5WRWNW"),
+      ).toBe(true);
+      expect(isKnownProductUrl("https://amazon.de/gp/aw/d/B08N5WRWNW")).toBe(
+        true,
+      );
+    });
+
+    it("rejects Amazon non-product pages", () => {
+      expect(isKnownProductUrl("https://www.amazon.com/s?k=laptop")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.amazon.com/gp/bestsellers/")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.amazon.com/")).toBe(false);
+    });
+
+    it("matches eBay product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.ebay.com/itm/Apple-MacBook/123456789012",
+        ),
+      ).toBe(true);
+      expect(isKnownProductUrl("https://www.ebay.co.uk/itm/123456789012")).toBe(
+        true,
+      );
+    });
+
+    it("rejects eBay non-product pages", () => {
+      expect(
+        isKnownProductUrl("https://www.ebay.com/sch/i.html?_nkw=laptop"),
+      ).toBe(false);
+    });
+
+    it("matches Etsy listing URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.etsy.com/listing/1234567890/handmade-ceramic-mug",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects Etsy non-product pages", () => {
+      expect(isKnownProductUrl("https://www.etsy.com/shop/StoreName")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.etsy.com/search?q=mugs")).toBe(
+        false,
+      );
+    });
+
+    it("matches Walmart product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.walmart.com/ip/Apple-AirPods/720991369"),
+      ).toBe(true);
+    });
+
+    it("rejects Walmart non-product pages", () => {
+      expect(
+        isKnownProductUrl("https://www.walmart.com/browse/electronics/3944"),
+      ).toBe(false);
+    });
+
+    it("matches Target product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.target.com/p/apple-airpods/-/A-85978612",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Best Buy product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.bestbuy.com/site/apple-macbook/6534606.p?skuId=6534606",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects Best Buy category pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.bestbuy.com/site/computers/abcat0500000.c",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches AliExpress product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.aliexpress.com/item/1005006123456789.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches ASOS product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.asos.com/nike/air-max/prd/204512345"),
+      ).toBe(true);
+    });
+
+    it("matches Wayfair product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.wayfair.com/furniture/pdp/some-product-W001234567.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Temu product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.temu.com/some-product-g-601099512345678.html",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("UK platforms", () => {
+    it("matches John Lewis product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.johnlewis.com/p/samsung-tv/p6789012"),
+      ).toBe(true);
+    });
+
+    it("rejects John Lewis browse pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.johnlewis.com/browse/electricals/televisions",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches Argos product URLs", () => {
+      expect(isKnownProductUrl("https://www.argos.co.uk/product/1234567")).toBe(
+        true,
+      );
+    });
+
+    it("rejects Argos browse pages", () => {
+      expect(
+        isKnownProductUrl("https://www.argos.co.uk/browse/technology/c:30101"),
+      ).toBe(false);
+    });
+
+    it("matches Currys product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.currys.co.uk/products/samsung-galaxy-12345.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches M&S product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.marksandspencer.com/oxford-shirt/p/P60610288",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects M&S category pages", () => {
+      expect(
+        isKnownProductUrl("https://www.marksandspencer.com/l/men/shirts"),
+      ).toBe(false);
+    });
+
+    it("matches Selfridges product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.selfridges.com/GB/en/product/gucci-trainers_R03748939",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Boots product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.boots.com/product/no7-serum-10308765"),
+      ).toBe(true);
+    });
+
+    it("matches Next product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.next.co.uk/style/st123456/product-name"),
+      ).toBe(true);
+    });
+
+    it("rejects Next category pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.next.co.uk/shop/gender-women-category-dresses",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches Screwfix product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.screwfix.com/p/bosch-drill/12345"),
+      ).toBe(true);
+    });
+  });
+
+  describe("Generic patterns", () => {
+    it("matches Shopify /products/ pattern on myshopify.com", () => {
+      expect(
+        isKnownProductUrl(
+          "https://cool-store.myshopify.com/products/cool-widget",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Shopify /products/ pattern on custom domains", () => {
+      expect(
+        isKnownProductUrl("https://www.allbirds.com/products/tree-runners"),
+      ).toBe(true);
+    });
+
+    it("matches WooCommerce /product/ pattern", () => {
+      expect(
+        isKnownProductUrl("https://www.somestore.com/product/blue-widget"),
+      ).toBe(true);
+    });
+
+    it("rejects Shopify collection pages", () => {
+      expect(
+        isKnownProductUrl("https://cool-store.myshopify.com/collections/all"),
+      ).toBe(false);
+    });
+
+    it("rejects generic blog URLs", () => {
+      expect(isKnownProductUrl("https://www.example.com/blog/my-post")).toBe(
+        false,
+      );
+    });
+
+    it("rejects non-e-commerce URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.nytimes.com/2024/01/01/article"),
+      ).toBe(false);
+      expect(isKnownProductUrl("https://github.com/user/repo")).toBe(false);
+    });
   });
 });
