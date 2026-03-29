@@ -70,9 +70,12 @@ jobs:
       - name: Inject DB env vars for build
         run: |
           ENV_FILE=".vercel/.env.preview.local"
+          # Use transaction-mode pooler for general queries
           echo "DATABASE_URL=$POSTGRES_URL" >> "$ENV_FILE"
-          echo "DIRECT_URL=$POSTGRES_URL" >> "$ENV_FILE"
-          echo "Injected DATABASE_URL and DIRECT_URL into $ENV_FILE"
+          # Derive session-mode pooler URL (port 5432) for migrations (supports advisory locks, reachable over IPv4)
+          SESSION_URL=$(echo "$POSTGRES_URL" | sed 's/:6543/:5432/')
+          echo "DIRECT_URL=$SESSION_URL" >> "$ENV_FILE"
+          echo "Injected DATABASE_URL (pooler:6543) and DIRECT_URL (session:5432)"
 
       - name: Build
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
