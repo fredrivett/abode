@@ -668,6 +668,15 @@ async function handleProductUrl(
     sourceText: truncateToTokenLimit(sourceText, 8191),
   });
 
+  // Trigger image analysis on cover image for visual tagging and search
+  if (coverFileKey) {
+    await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
+      itemId,
+      userId,
+      fileKey: coverFileKey,
+    });
+  }
+
   return {
     success: true,
     itemId,

@@ -64,6 +64,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -90,27 +91,6 @@ import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 
 const log = createLogger("dashboard/item-card");
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  JPY: "¥",
-  CNY: "¥",
-  KRW: "₩",
-  INR: "₹",
-  BRL: "R$",
-  CAD: "CA$",
-  AUD: "A$",
-  CHF: "CHF",
-  SEK: "kr",
-  NOK: "kr",
-  DKK: "kr",
-};
-
-function getCurrencySymbol(currency: string): string {
-  return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? `${currency} `;
-}
 
 type ItemCardProps = {
   item: Item;

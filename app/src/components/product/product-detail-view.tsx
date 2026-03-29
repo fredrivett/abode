@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { getCurrencySymbol } from "@/lib/currency";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { ProductDetails, ProductImage } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
@@ -126,27 +127,6 @@ export function ProductDetailView({
       </div>
     </div>
   );
-}
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  JPY: "¥",
-  CNY: "¥",
-  KRW: "₩",
-  INR: "₹",
-  BRL: "R$",
-  CAD: "CA$",
-  AUD: "A$",
-  CHF: "CHF",
-  SEK: "kr",
-  NOK: "kr",
-  DKK: "kr",
-};
-
-function getCurrencySymbol(currency: string): string {
-  return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? `${currency} `;
 }
 
 function formatAvailability(value: string): string {
