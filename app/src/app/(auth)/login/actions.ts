@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
+import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { getAAL } from "@/lib/mfa";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthResult = {
@@ -59,6 +61,8 @@ export async function login(
     redirect("/login/verify-mfa");
   }
 
+  const signupComplete = await hasCompletedSignup(authData.user.id);
+
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(signupComplete ? ROUTES.DASHBOARD : ROUTES.COMPLETE_SIGNUP);
 }

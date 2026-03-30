@@ -2,9 +2,11 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
+import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("auth/confirm");
@@ -139,18 +141,12 @@ export async function GET(request: NextRequest) {
   );
 
   // Check if user already has username set (e.g., clicking link multiple times)
-  const existingUser = await db.user.findUnique({
-    where: { id: user.id },
-    select: { username: true },
-  });
-
-  if (existingUser?.username) {
-    // User already completed signup, just redirect to dashboard
+  if (await hasCompletedSignup(user.id)) {
     log.info(
       { userId: user.id },
       "User already has username, redirecting to dashboard",
     );
-    redirect("/dashboard");
+    redirect(ROUTES.DASHBOARD);
   }
 
   // Check if we have the required metadata to complete signup
@@ -178,7 +174,7 @@ export async function GET(request: NextRequest) {
           { error: result.error, code: result.code, userId: user.id },
           "Failed to complete signup, redirecting to manual completion",
         );
-        redirect("/complete-signup");
+        redirect(ROUTES.COMPLETE_SIGNUP);
       }
     } catch (error) {
       if (isRedirectError(error)) {
@@ -192,7 +188,7 @@ export async function GET(request: NextRequest) {
         route: "GET /auth/confirm",
         phase: "complete-signup",
       });
-      redirect("/complete-signup");
+      redirect(ROUTES.COMPLETE_SIGNUP);
     }
 
     log.info(
@@ -223,11 +219,11 @@ export async function GET(request: NextRequest) {
       { userId: user.id, username: pendingUsername },
       "Signup completed via email link",
     );
-    redirect("/dashboard");
+    redirect(ROUTES.DASHBOARD);
   }
 
   // No pending_username in metadata - redirect to complete-signup page
   // This handles edge cases where metadata is missing
   log.warn({ userId: user.id }, "User verified but missing username metadata");
-  redirect("/complete-signup");
+  redirect(ROUTES.COMPLETE_SIGNUP);
 }
