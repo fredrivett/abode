@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import db from "@/lib/db";
+import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -19,16 +20,12 @@ export default async function AppLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect(ROUTES.LOGIN);
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.id },
-    select: { username: true },
-  });
-
-  if (!dbUser?.username) {
-    redirect("/complete-signup");
+  const signupComplete = await hasCompletedSignup(user.id);
+  if (!signupComplete) {
+    redirect(ROUTES.COMPLETE_SIGNUP);
   }
 
   return <>{children}</>;

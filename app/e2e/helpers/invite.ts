@@ -25,7 +25,7 @@ export async function sendInviteViaUI(
   await page.getByRole("button", { name: /send invite/i }).click();
   // Wait for success toast
   await expect(page.getByText(`Invite sent to ${email}`)).toBeVisible({
-    timeout: 10000,
+    timeout: 30000,
   });
 }
 

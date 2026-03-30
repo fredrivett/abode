@@ -187,20 +187,20 @@ export async function POST(request: NextRequest) {
       log.info({ email }, "Email not configured, skipping invite email");
     }
 
-    // Trigger admin notification
-    try {
-      await tasks.trigger<typeof adminNotificationTask>("admin-notification", {
+    // Trigger admin notification (fire-and-forget)
+    tasks
+      .trigger<typeof adminNotificationTask>("admin-notification", {
         type: "user_invited",
         inviterEmail: dbUser?.email ?? user.email ?? "unknown",
         inviterUsername: dbUser?.username ?? "unknown",
         inviteeEmail: email,
+      })
+      .catch((error) => {
+        log.warn(
+          { error },
+          "Failed to trigger admin notification for user invite",
+        );
       });
-    } catch (error) {
-      log.warn(
-        { error },
-        "Failed to trigger admin notification for user invite",
-      );
-    }
 
     // Track invite sent
     const posthog = getPostHogClient();

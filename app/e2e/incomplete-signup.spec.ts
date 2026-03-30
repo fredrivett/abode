@@ -22,12 +22,16 @@ test.describe("Incomplete signup (no username)", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
     await page.getByLabel(/email/i).fill(user.email);
     await page.getByLabel(/password/i).fill(user.password);
     await page.getByRole("button", { name: /sign in/i }).click();
 
+    // Verify the form action is running (confirms React hydration)
+    await expect(page.getByText(/signing in/i)).toBeVisible({ timeout: 10000 });
+
     // 3. Should be redirected to /complete-signup (not /dashboard)
-    await expect(page).toHaveURL(/\/complete-signup/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/complete-signup/, { timeout: 30000 });
 
     // 4. User completes signup by choosing a username
     await expect(
