@@ -5,6 +5,8 @@ import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import type {
+  ProductDetails,
+  ProductImage,
   TwitterDetails,
   TwitterMedia,
   VideoDetails,
@@ -210,6 +212,17 @@ export default async function RoomPage({ params }: Props) {
               thumbnailUrl: true,
             },
           },
+          productDetails: {
+            select: {
+              domain: true,
+              brand: true,
+              price: true,
+              currency: true,
+              availability: true,
+              images: true,
+              coverImageIndex: true,
+            },
+          },
         },
       },
     },
@@ -291,6 +304,17 @@ export default async function RoomPage({ params }: Props) {
           embedUrl: roomItem.item.videoDetails.embedUrl,
           thumbnailUrl: roomItem.item.videoDetails.thumbnailUrl,
         } satisfies VideoDetails)
+      : null,
+    productDetails: roomItem.item.productDetails
+      ? ({
+          domain: roomItem.item.productDetails.domain,
+          brand: roomItem.item.productDetails.brand,
+          price: roomItem.item.productDetails.price,
+          currency: roomItem.item.productDetails.currency,
+          availability: roomItem.item.productDetails.availability,
+          images: roomItem.item.productDetails.images as ProductImage[] | null,
+          coverImageIndex: roomItem.item.productDetails.coverImageIndex,
+        } satisfies ProductDetails)
       : null,
   }));
 

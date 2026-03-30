@@ -137,5 +137,6 @@ jobs:
           curl -s -X POST "https://www.treck.dev/api/ci/preview-ready" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TRECK_API_SECRET" \
-            -d "{\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":${{ github.event.pull_request.number }},\"headSha\":\"${{ github.event.pull_request.head.sha }},\"previewUrl\":\"${{ steps.deploy.outputs.preview_url }}\"}"
+            -d "{\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":${{ github.event.pull_request.number }},\"headSha\":\"${{ github.event.pull_request.head.sha }}\",\"previewUrl\":\"${{ steps.deploy.outputs.preview_url }}\"}"
+          echo ""
           echo "Preview URL reported to treck.dev"

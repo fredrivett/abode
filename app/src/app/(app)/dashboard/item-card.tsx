@@ -14,6 +14,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  ShoppingBag,
   Sparkles,
   Trash2,
   X,
@@ -35,6 +36,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { HighlightableArticle } from "@/components/article/highlightable-article";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
+import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import {
@@ -62,6 +64,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -165,16 +168,20 @@ export function ItemCard({
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
+  const isProduct = item.kind === "product";
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
-  // For articles, use coverFileKey; for images, use fileKey
-  const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
-  // Has displayable image: either it's an image type OR it's an article with a cover
+  // For articles/products, use coverFileKey; for images, use fileKey
+  const imageFileKey =
+    isArticle || isProduct ? item.coverFileKey : item.fileKey;
+  // Has displayable image: either it's an image type OR it's an article/product with a cover
   const hasDisplayableImage =
-    mimeType?.startsWith("image/") || (isArticle && !!item.coverFileKey);
+    mimeType?.startsWith("image/") ||
+    (isArticle && !!item.coverFileKey) ||
+    (isProduct && !!item.coverFileKey);
 
   useEffect(() => {
     // Articles without a cover image don't need to load anything
@@ -265,6 +272,68 @@ export function ItemCard({
       >
         <p className="text-destructive text-sm">{error}</p>
       </div>
+    );
+  }
+
+  // Products without cover images get a placeholder card
+  if (isProduct && !previewUrl && !imageFileKey) {
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
+          onClick={handleOpenDetail}
+        >
+          <ProcessingOverlay status={item.processingStatus} />
+          <ShoppingBag
+            className="text-gray-400 dark:text-gray-500"
+            style={{ width: "3em", height: "3em" }}
+          />
+          <div className="text-center">
+            <p
+              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
+              style={{ fontSize: "0.875em" }}
+            >
+              {itemName}
+            </p>
+            {item.productDetails?.price && (
+              <p
+                className="font-medium text-gray-600 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
+                {item.productDetails.currency
+                  ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
+                  : item.productDetails.price}
+              </p>
+            )}
+            {item.productDetails?.domain && (
+              <p
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
+                {item.productDetails.domain}
+              </p>
+            )}
+          </div>
+        </button>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
     );
   }
 
@@ -590,6 +659,13 @@ export function ItemCard({
             alt={itemName}
             className="h-full w-full object-cover"
           />
+          {isProduct && item.productDetails?.price && (
+            <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
+              {item.productDetails.currency
+                ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
+                : item.productDetails.price}
+            </div>
+          )}
         </motion.div>
       </div>
 
@@ -957,6 +1033,7 @@ function ItemDetailDialog({
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
+  const isProduct = item.kind === "product";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1281,7 +1358,7 @@ function ItemDetailDialog({
             <div
               className={cn(
                 "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
-                !isArticle && "bg-gray-900",
+                !isArticle && !isProduct && "bg-gray-900",
               )}
             >
               {isArticle && item.articleDetails?.content ? (
@@ -1337,6 +1414,35 @@ function ItemDetailDialog({
                     }
                   />
                 </motion.div>
+              ) : isProduct && item.productDetails ? (
+                <motion.div
+                  className="flex h-full w-full overflow-y-auto bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ProductDetailView
+                    productDetails={item.productDetails}
+                    title={item.title}
+                    sourceUrl={item.sourceUrl}
+                    coverFileKey={item.coverFileKey}
+                    className="py-8"
+                    onCoverImageChange={
+                      canEdit
+                        ? async (index) => {
+                            try {
+                              await api.patch(`/api/v1/items/${item.id}`, {
+                                productCoverImageIndex: index,
+                              });
+                              invalidateItems();
+                            } catch {
+                              toast.error("Failed to set cover image");
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                </motion.div>
               ) : isVideo && item.videoDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
@@ -1352,7 +1458,7 @@ function ItemDetailDialog({
                     className="py-8"
                   />
                 </motion.div>
-              ) : previewUrl && !isArticle ? (
+              ) : previewUrl && !isArticle && !isProduct ? (
                 <motion.div
                   layoutId={`item-image-${item.id}`}
                   className="relative"
@@ -1416,7 +1522,11 @@ function ItemDetailDialog({
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
                   <p className="font-medium text-gray-400 text-lg">
-                    {isArticle ? "No article content" : "No preview available"}
+                    {isArticle
+                      ? "No article content"
+                      : isProduct
+                        ? "No product images"
+                        : "No preview available"}
                   </p>
                 </div>
               )}
@@ -1554,6 +1664,95 @@ function ItemDetailDialog({
                             >
                               <ExternalLink className="size-3.5" />
                               View original article
+                            </a>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => {
+                              if (item.sourceUrl) {
+                                navigator.clipboard.writeText(item.sourceUrl);
+                                setHasCopiedUrl(true);
+                                setTimeout(() => setHasCopiedUrl(false), 2000);
+                              }
+                            }}
+                            aria-label="Copy URL"
+                          >
+                            {hasCopiedUrl ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Product Details */}
+                  {isProduct && item.productDetails && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                        Product Info
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        {item.productDetails.price && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Price</span>
+                            <span className="font-medium">
+                              {item.productDetails.currency
+                                ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
+                                : item.productDetails.price}
+                            </span>
+                          </div>
+                        )}
+                        {item.productDetails.brand && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Brand</span>
+                            <span className="font-medium">
+                              {item.productDetails.brand}
+                            </span>
+                          </div>
+                        )}
+                        {item.productDetails.domain && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Store</span>
+                            {item.sourceUrl ? (
+                              <a
+                                href={new URL(item.sourceUrl).origin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                              >
+                                <ExternalLink className="size-3" />
+                                {item.productDetails.domain}
+                              </a>
+                            ) : (
+                              <span className="font-medium">
+                                {item.productDetails.domain}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {item.productDetails.availability && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Availability</span>
+                            <span className="font-medium">
+                              {item.productDetails.availability}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {item.sourceUrl && (
+                        <div className="mt-2 flex items-center gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <a
+                              href={item.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              View product
                             </a>
                           </Button>
                           <Button

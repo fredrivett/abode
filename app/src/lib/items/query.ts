@@ -6,6 +6,8 @@ import type { Prisma } from "@prisma/client";
 import type {
   ExternalLink,
   ImageColor,
+  ProductDetails,
+  ProductImage,
   TwitterDetails,
   TwitterMedia,
   VideoDetails,
@@ -85,6 +87,17 @@ export const itemSelect = {
       duration: true,
       embedUrl: true,
       thumbnailUrl: true,
+    },
+  },
+  productDetails: {
+    select: {
+      domain: true,
+      brand: true,
+      price: true,
+      currency: true,
+      availability: true,
+      images: true,
+      coverImageIndex: true,
     },
   },
   roomItems: {
@@ -168,6 +181,17 @@ export function transformItem(item: RawItem) {
           embedUrl: item.videoDetails.embedUrl,
           thumbnailUrl: item.videoDetails.thumbnailUrl,
         } satisfies VideoDetails)
+      : null,
+    productDetails: item.productDetails
+      ? ({
+          domain: item.productDetails.domain,
+          brand: item.productDetails.brand,
+          price: item.productDetails.price,
+          currency: item.productDetails.currency,
+          availability: item.productDetails.availability,
+          images: item.productDetails.images as ProductImage[] | null,
+          coverImageIndex: item.productDetails.coverImageIndex,
+        } satisfies ProductDetails)
       : null,
   };
 }

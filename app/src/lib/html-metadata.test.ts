@@ -6,11 +6,16 @@ import {
   extractAuthor,
   extractDescription,
   extractDomain,
+  extractJsonLdProduct,
   extractMetaContent,
   extractOgImage,
+  extractOgType,
+  extractProductImageUrls,
+  extractProductMetadata,
   extractTitle,
   extractTweetId,
   extractTwitterArticleId,
+  isKnownProductUrl,
   parsePublishedDate,
   preserveSocialEmbeds,
 } from "./html-metadata";
@@ -603,6 +608,673 @@ describe("preserveSocialEmbeds", () => {
         "In this case, trying hard could be making a video",
       );
       expect(result.html).toContain("Trying hard is really not that hard.");
+    });
+  });
+});
+
+// --- Product metadata extraction tests ---
+
+describe("extractOgType", () => {
+  it("extracts og:type value", () => {
+    const html = '<meta property="og:type" content="product">';
+    expect(extractOgType(html)).toBe("product");
+  });
+
+  it("returns null when not present", () => {
+    const html = "<html><head></head></html>";
+    expect(extractOgType(html)).toBeNull();
+  });
+});
+
+describe("extractJsonLdProduct", () => {
+  it("extracts product data from JSON-LD", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "name": "Test Product",
+          "brand": { "name": "TestBrand" },
+          "image": ["https://example.com/img1.jpg", "https://example.com/img2.jpg"],
+          "offers": {
+            "price": "29.99",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          }
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result).not.toBeNull();
+    expect(result?.price).toBe("29.99");
+    expect(result?.currency).toBe("USD");
+    expect(result?.brand).toBe("TestBrand");
+    expect(result?.availability).toBe("InStock");
+    expect(result?.images).toEqual([
+      "https://example.com/img1.jpg",
+      "https://example.com/img2.jpg",
+    ]);
+  });
+
+  it("handles Product inside @graph", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@graph": [
+            { "@type": "WebPage", "name": "Page" },
+            {
+              "@type": "Product",
+              "name": "Graph Product",
+              "brand": "SimpleBrand",
+              "offers": { "price": "49.99", "priceCurrency": "GBP" }
+            }
+          ]
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.price).toBe("49.99");
+    expect(result?.currency).toBe("GBP");
+    expect(result?.brand).toBe("SimpleBrand");
+  });
+
+  it("handles single image string", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Product", "image": "https://example.com/single.jpg", "offers": {} }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.images).toEqual(["https://example.com/single.jpg"]);
+  });
+
+  it("returns null for non-product JSON-LD", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Article", "name": "Blog Post" }
+      </script>
+    `;
+    expect(extractJsonLdProduct(html)).toBeNull();
+  });
+
+  it("handles offers as an array (picks first)", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "offers": [
+            { "price": "19.99", "priceCurrency": "USD" },
+            { "price": "24.99", "priceCurrency": "EUR" }
+          ]
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.price).toBe("19.99");
+    expect(result?.currency).toBe("USD");
+  });
+
+  it("falls back to lowPrice when price is absent", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "offers": { "lowPrice": "14.99", "priceCurrency": "GBP" }
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.price).toBe("14.99");
+  });
+
+  it("handles image as object with url property", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "image": { "url": "https://example.com/obj.jpg" },
+          "offers": {}
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.images).toEqual(["https://example.com/obj.jpg"]);
+  });
+
+  it("handles image array with mixed strings and objects", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "image": [
+            "https://example.com/str.jpg",
+            { "url": "https://example.com/obj.jpg" }
+          ],
+          "offers": {}
+        }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.images).toEqual([
+      "https://example.com/str.jpg",
+      "https://example.com/obj.jpg",
+    ]);
+  });
+
+  it("finds Product in second JSON-LD script when first is not Product", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Organization", "name": "Shop Inc" }
+      </script>
+      <script type="application/ld+json">
+        { "@type": "Product", "brand": "Found", "offers": { "price": "5.00", "priceCurrency": "USD" } }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.brand).toBe("Found");
+    expect(result?.price).toBe("5.00");
+  });
+
+  it("returns null availability when not provided", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Product", "offers": { "price": "10" } }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.availability).toBeNull();
+  });
+
+  it("handles no image field", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Product", "offers": { "price": "10" } }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.images).toEqual([]);
+  });
+
+  it("handles numeric price values", () => {
+    const html = `
+      <script type="application/ld+json">
+        { "@type": "Product", "offers": { "price": 42.5, "priceCurrency": "USD" } }
+      </script>
+    `;
+    const result = extractJsonLdProduct(html);
+    expect(result?.price).toBe("42.5");
+  });
+
+  it("handles invalid JSON gracefully", () => {
+    const html = `
+      <script type="application/ld+json">
+        { invalid json here
+      </script>
+    `;
+    expect(extractJsonLdProduct(html)).toBeNull();
+  });
+});
+
+describe("extractProductImageUrls", () => {
+  it("collects images from JSON-LD and og:image", () => {
+    const html = `
+      <meta property="og:image" content="https://example.com/og.jpg">
+      <script type="application/ld+json">
+        { "@type": "Product", "image": ["https://example.com/product1.jpg"], "offers": {} }
+      </script>
+    `;
+    const urls = extractProductImageUrls(html);
+    expect(urls).toContain("https://example.com/product1.jpg");
+    expect(urls).toContain("https://example.com/og.jpg");
+  });
+
+  it("deduplicates URLs", () => {
+    const html = `
+      <meta property="og:image" content="https://example.com/same.jpg">
+      <script type="application/ld+json">
+        { "@type": "Product", "image": ["https://example.com/same.jpg"], "offers": {} }
+      </script>
+    `;
+    const urls = extractProductImageUrls(html);
+    expect(urls).toEqual(["https://example.com/same.jpg"]);
+  });
+
+  it("collects multiple og:image tags", () => {
+    const html = `
+      <meta property="og:image" content="https://example.com/img1.jpg">
+      <meta property="og:image" content="https://example.com/img2.jpg">
+    `;
+    const urls = extractProductImageUrls(html);
+    expect(urls).toEqual([
+      "https://example.com/img1.jpg",
+      "https://example.com/img2.jpg",
+    ]);
+  });
+});
+
+describe("extractProductMetadata", () => {
+  it("detects product via og:type", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="og:title" content="Cool Product">
+      <meta property="og:image" content="https://example.com/img.jpg">
+      <meta property="product:price:amount" content="19.99">
+      <meta property="product:price:currency" content="EUR">
+      <meta property="product:brand" content="BrandX">
+    `;
+    const result = extractProductMetadata(html, "https://example.com/product");
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Cool Product");
+    expect(result?.price).toBe("19.99");
+    expect(result?.currency).toBe("EUR");
+    expect(result?.brand).toBe("BrandX");
+    expect(result?.domain).toBe("example.com");
+  });
+
+  it("detects product via JSON-LD only", () => {
+    const html = `
+      <title>Turntable</title>
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "name": "AT-LP120XUSB",
+          "brand": { "name": "Audio-Technica" },
+          "image": ["https://example.com/turntable.jpg"],
+          "offers": {
+            "price": "349.00",
+            "priceCurrency": "GBP",
+            "availability": "https://schema.org/InStock"
+          }
+        }
+      </script>
+    `;
+    const result = extractProductMetadata(
+      html,
+      "https://audio-technica.com/product",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.price).toBe("349.00");
+    expect(result?.currency).toBe("GBP");
+    expect(result?.brand).toBe("Audio-Technica");
+    expect(result?.availability).toBe("InStock");
+  });
+
+  it("detects product via product OG meta tags only", () => {
+    const html = `
+      <meta property="og:type" content="website">
+      <meta property="product:price:amount" content="99.99">
+      <meta property="product:price:currency" content="USD">
+    `;
+    const result = extractProductMetadata(
+      html,
+      "https://shop.example.com/item",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.price).toBe("99.99");
+    expect(result?.currency).toBe("USD");
+  });
+
+  it("returns null for non-product pages", () => {
+    const html = `
+      <meta property="og:type" content="article">
+      <meta property="og:title" content="Blog Post">
+    `;
+    const result = extractProductMetadata(
+      html,
+      "https://blog.example.com/post",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns null for plain HTML with no product signals", () => {
+    const html =
+      "<html><head><title>Hello</title></head><body>Hi</body></html>";
+    expect(extractProductMetadata(html, "https://example.com")).toBeNull();
+  });
+
+  it("prefers JSON-LD data over OG meta tags", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="product:price:amount" content="10.00">
+      <meta property="product:price:currency" content="USD">
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "offers": { "price": "9.99", "priceCurrency": "EUR" },
+          "brand": { "name": "JsonBrand" }
+        }
+      </script>
+    `;
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result?.price).toBe("9.99");
+    expect(result?.currency).toBe("EUR");
+    expect(result?.brand).toBe("JsonBrand");
+  });
+
+  it("detects product.item og:type", () => {
+    const html = '<meta property="og:type" content="product.item">';
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result).not.toBeNull();
+  });
+
+  it("detects product.group og:type", () => {
+    const html = '<meta property="og:type" content="product.group">';
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result).not.toBeNull();
+  });
+
+  it("does not detect og:type=website as product", () => {
+    const html = '<meta property="og:type" content="website">';
+    expect(extractProductMetadata(html, "https://example.com")).toBeNull();
+  });
+
+  it("handles product with no images at all", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="product:price:amount" content="5.00">
+    `;
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result).not.toBeNull();
+    expect(result?.imageUrls).toEqual([]);
+    expect(result?.ogImage).toBeNull();
+    expect(result?.price).toBe("5.00");
+  });
+
+  it("extracts title and description for product pages", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="og:title" content="Amazing Widget">
+      <meta property="og:description" content="The best widget ever">
+    `;
+    const result = extractProductMetadata(html, "https://example.com/widget");
+    expect(result?.title).toBe("Amazing Widget");
+    expect(result?.description).toBe("The best widget ever");
+  });
+
+  it("falls back to OG brand when JSON-LD has no brand", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="product:brand" content="OgBrand">
+    `;
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result?.brand).toBe("OgBrand");
+  });
+
+  it("detects product with only product:price:currency tag", () => {
+    const html = `
+      <meta property="product:price:currency" content="GBP">
+    `;
+    const result = extractProductMetadata(html, "https://example.com/p");
+    expect(result).not.toBeNull();
+    expect(result?.currency).toBe("GBP");
+  });
+
+  it("detects product via known URL pattern even without structured data", () => {
+    const html = `<html><head><title>Cool Widget</title></head><body></body></html>`;
+    const result = extractProductMetadata(
+      html,
+      "https://www.amazon.com/Cool-Widget/dp/B08N5WRWNW",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Cool Widget");
+  });
+
+  it("returns null for non-product page on known domain", () => {
+    const html = `<html><head><title>Search Results</title></head><body></body></html>`;
+    const result = extractProductMetadata(
+      html,
+      "https://www.amazon.com/s?k=laptop",
+    );
+    expect(result).toBeNull();
+  });
+});
+
+describe("isKnownProductUrl", () => {
+  describe("US / Global platforms", () => {
+    it("matches Amazon product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.amazon.com/Apple-MacBook/dp/B0DL2GFJHP"),
+      ).toBe(true);
+      expect(
+        isKnownProductUrl("https://www.amazon.co.uk/gp/product/B08N5WRWNW"),
+      ).toBe(true);
+      expect(isKnownProductUrl("https://amazon.de/gp/aw/d/B08N5WRWNW")).toBe(
+        true,
+      );
+    });
+
+    it("rejects Amazon non-product pages", () => {
+      expect(isKnownProductUrl("https://www.amazon.com/s?k=laptop")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.amazon.com/gp/bestsellers/")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.amazon.com/")).toBe(false);
+    });
+
+    it("matches eBay product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.ebay.com/itm/Apple-MacBook/123456789012",
+        ),
+      ).toBe(true);
+      expect(isKnownProductUrl("https://www.ebay.co.uk/itm/123456789012")).toBe(
+        true,
+      );
+    });
+
+    it("rejects eBay non-product pages", () => {
+      expect(
+        isKnownProductUrl("https://www.ebay.com/sch/i.html?_nkw=laptop"),
+      ).toBe(false);
+    });
+
+    it("matches Etsy listing URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.etsy.com/listing/1234567890/handmade-ceramic-mug",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects Etsy non-product pages", () => {
+      expect(isKnownProductUrl("https://www.etsy.com/shop/StoreName")).toBe(
+        false,
+      );
+      expect(isKnownProductUrl("https://www.etsy.com/search?q=mugs")).toBe(
+        false,
+      );
+    });
+
+    it("matches Walmart product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.walmart.com/ip/Apple-AirPods/720991369"),
+      ).toBe(true);
+    });
+
+    it("rejects Walmart non-product pages", () => {
+      expect(
+        isKnownProductUrl("https://www.walmart.com/browse/electronics/3944"),
+      ).toBe(false);
+    });
+
+    it("matches Target product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.target.com/p/apple-airpods/-/A-85978612",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Best Buy product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.bestbuy.com/site/apple-macbook/6534606.p?skuId=6534606",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects Best Buy category pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.bestbuy.com/site/computers/abcat0500000.c",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches AliExpress product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.aliexpress.com/item/1005006123456789.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches ASOS product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.asos.com/nike/air-max/prd/204512345"),
+      ).toBe(true);
+    });
+
+    it("matches Wayfair product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.wayfair.com/furniture/pdp/some-product-W001234567.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Temu product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.temu.com/some-product-g-601099512345678.html",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("UK platforms", () => {
+    it("matches John Lewis product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.johnlewis.com/p/samsung-tv/p6789012"),
+      ).toBe(true);
+    });
+
+    it("rejects John Lewis browse pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.johnlewis.com/browse/electricals/televisions",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches Argos product URLs", () => {
+      expect(isKnownProductUrl("https://www.argos.co.uk/product/1234567")).toBe(
+        true,
+      );
+    });
+
+    it("rejects Argos browse pages", () => {
+      expect(
+        isKnownProductUrl("https://www.argos.co.uk/browse/technology/c:30101"),
+      ).toBe(false);
+    });
+
+    it("matches Currys product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.currys.co.uk/products/samsung-galaxy-12345.html",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches M&S product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.marksandspencer.com/oxford-shirt/p/P60610288",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects M&S category pages", () => {
+      expect(
+        isKnownProductUrl("https://www.marksandspencer.com/l/men/shirts"),
+      ).toBe(false);
+    });
+
+    it("matches Selfridges product URLs", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.selfridges.com/GB/en/product/gucci-trainers_R03748939",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Boots product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.boots.com/product/no7-serum-10308765"),
+      ).toBe(true);
+    });
+
+    it("matches Next product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.next.co.uk/style/st123456/product-name"),
+      ).toBe(true);
+    });
+
+    it("rejects Next category pages", () => {
+      expect(
+        isKnownProductUrl(
+          "https://www.next.co.uk/shop/gender-women-category-dresses",
+        ),
+      ).toBe(false);
+    });
+
+    it("matches Screwfix product URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.screwfix.com/p/bosch-drill/12345"),
+      ).toBe(true);
+    });
+  });
+
+  describe("Generic patterns", () => {
+    it("matches Shopify /products/ pattern on myshopify.com", () => {
+      expect(
+        isKnownProductUrl(
+          "https://cool-store.myshopify.com/products/cool-widget",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches Shopify /products/ pattern on custom domains", () => {
+      expect(
+        isKnownProductUrl("https://www.allbirds.com/products/tree-runners"),
+      ).toBe(true);
+    });
+
+    it("matches WooCommerce /product/ pattern", () => {
+      expect(
+        isKnownProductUrl("https://www.somestore.com/product/blue-widget"),
+      ).toBe(true);
+    });
+
+    it("rejects Shopify collection pages", () => {
+      expect(
+        isKnownProductUrl("https://cool-store.myshopify.com/collections/all"),
+      ).toBe(false);
+    });
+
+    it("rejects generic blog URLs", () => {
+      expect(isKnownProductUrl("https://www.example.com/blog/my-post")).toBe(
+        false,
+      );
+    });
+
+    it("rejects non-e-commerce URLs", () => {
+      expect(
+        isKnownProductUrl("https://www.nytimes.com/2024/01/01/article"),
+      ).toBe(false);
+      expect(isKnownProductUrl("https://github.com/user/repo")).toBe(false);
     });
   });
 });

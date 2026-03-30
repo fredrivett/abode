@@ -9,10 +9,12 @@ import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
   extractArticleMetadata,
+  extractProductMetadata,
   extractTweetId,
   extractTwitterArticleId,
   extractVimeoVideoId,
   extractYouTubeVideoId,
+  type ProductMetadata,
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { detectPlatform } from "../src/lib/platforms";
@@ -292,8 +294,23 @@ export const classifyUrlTask = task({
         return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
-      // Step 3: Parse as article
+      // Step 3: Parse HTML and check for product before article
       const html = await response.text();
+
+      // Step 3a: Check if this is a product page
+      const productMeta = extractProductMetadata(html, fetchUrl);
+      if (productMeta) {
+        logger.log("URL classified as product", {
+          itemId,
+          url: fetchUrl,
+          title: productMeta.title,
+          brand: productMeta.brand,
+          price: productMeta.price,
+          imageCount: productMeta.imageUrls.length,
+        });
+        return await handleProductUrl(itemId, userId, productMeta, supabase);
+      }
+
       const metadata = extractArticleMetadata(html, fetchUrl);
 
       // Step 3.5: Extract article content using Mozilla Readability
@@ -552,5 +569,124 @@ async function handleImageUrl(
     itemId,
     kind: "image" as const,
     fileKey: imageResult.fileKey,
+  };
+}
+
+const MAX_PRODUCT_IMAGES = 6;
+
+async function handleProductUrl(
+  itemId: string,
+  userId: string,
+  productMeta: ProductMetadata,
+  supabase: SupabaseClient,
+) {
+  // Download product images in parallel (capped)
+  const imageUrls = productMeta.imageUrls.slice(0, MAX_PRODUCT_IMAGES);
+  const imageResults = await Promise.all(
+    imageUrls.map(async (imageUrl) => {
+      const result = await downloadAndStoreImage(imageUrl, userId, supabase);
+      return result
+        ? { fileKey: result.fileKey, url: imageUrl, size: result.size }
+        : null;
+    }),
+  );
+
+  const storedImages = imageResults.filter(
+    (r): r is { fileKey: string; url: string; size: number } => r !== null,
+  );
+
+  // If no product images from structured data, try og:image as fallback
+  if (storedImages.length === 0 && productMeta.ogImage) {
+    const fallback = await downloadAndStoreImage(
+      productMeta.ogImage,
+      userId,
+      supabase,
+    );
+    if (fallback) {
+      storedImages.push({
+        fileKey: fallback.fileKey,
+        url: productMeta.ogImage,
+        size: fallback.size,
+      });
+    }
+  }
+
+  const coverFileKey = storedImages[0]?.fileKey ?? null;
+  const totalImageSize = storedImages.reduce((sum, img) => sum + img.size, 0);
+
+  await db.$transaction(async (tx) => {
+    await tx.item.update({
+      where: { id: itemId, userId },
+      data: {
+        kind: "product",
+        title: productMeta.title,
+        description: productMeta.description,
+        ...(coverFileKey && { coverFileKey }),
+        meta: {
+          originalName: productMeta.title,
+          ...(totalImageSize > 0 && { coverSize: storedImages[0]?.size }),
+        },
+      },
+    });
+
+    if (totalImageSize > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { storageUsedBytes: { increment: BigInt(totalImageSize) } },
+      });
+    }
+  });
+
+  await db.itemProductDetails.create({
+    data: {
+      itemId,
+      domain: productMeta.domain,
+      brand: productMeta.brand,
+      price: productMeta.price,
+      currency: productMeta.currency,
+      availability: productMeta.availability,
+      images: storedImages.map(({ fileKey, url }) => ({ fileKey, url })),
+    },
+  });
+
+  logger.log("Product processing complete, triggering enrichment", {
+    itemId,
+    imageCount: storedImages.length,
+  });
+
+  const sourceText = [
+    productMeta.title,
+    productMeta.description,
+    productMeta.brand,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+    itemId,
+    userId,
+    sourceText: truncateToTokenLimit(sourceText, 8191),
+  });
+
+  // Trigger image analysis on cover image for visual tagging and search
+  if (coverFileKey) {
+    await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
+      itemId,
+      userId,
+      fileKey: coverFileKey,
+    });
+  }
+
+  return {
+    success: true,
+    itemId,
+    kind: "product" as const,
+    metadata: {
+      title: productMeta.title,
+      domain: productMeta.domain,
+      price: productMeta.price,
+      brand: productMeta.brand,
+      imageCount: storedImages.length,
+    },
   };
 }

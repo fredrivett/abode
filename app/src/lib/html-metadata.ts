@@ -151,6 +151,304 @@ export function extractArticleMetadata(
   };
 }
 
+// --- Product metadata extraction ---
+
+export type ProductMetadata = {
+  title: string | null;
+  description: string | null;
+  domain: string;
+  price: string | null;
+  currency: string | null;
+  brand: string | null;
+  availability: string | null;
+  imageUrls: string[];
+  ogImage: string | null;
+};
+
+/**
+ * Extracts the og:type value from HTML
+ */
+export function extractOgType(html: string): string | null {
+  return extractMetaContent(html, "og:type");
+}
+
+/**
+ * Extracts product data from JSON-LD structured data.
+ * Looks for `@type: "Product"` in script[type="application/ld+json"] blocks.
+ */
+export function extractJsonLdProduct(html: string): {
+  price: string | null;
+  currency: string | null;
+  brand: string | null;
+  availability: string | null;
+  images: string[];
+} | null {
+  const scriptRegex =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+
+  let match = scriptRegex.exec(html);
+  while (match !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      const product = findProductInJsonLd(data);
+      if (product) {
+        const offers = product.offers;
+        const offer = Array.isArray(offers) ? offers[0] : offers;
+
+        const images: string[] = [];
+        if (product.image) {
+          if (Array.isArray(product.image)) {
+            for (const img of product.image) {
+              const url = typeof img === "string" ? img : img?.url;
+              if (url) images.push(url);
+            }
+          } else if (typeof product.image === "string") {
+            images.push(product.image);
+          } else if (product.image?.url) {
+            images.push(product.image.url);
+          }
+        }
+
+        return {
+          price:
+            offer?.price?.toString() ?? offer?.lowPrice?.toString() ?? null,
+          currency: offer?.priceCurrency ?? null,
+          brand:
+            typeof product.brand === "string"
+              ? product.brand
+              : (product.brand?.name ?? null),
+          availability: parseAvailability(offer?.availability),
+          images,
+        };
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+    match = scriptRegex.exec(html);
+  }
+
+  return null;
+}
+
+/**
+ * Recursively searches JSON-LD data for a Product type.
+ * Handles @graph arrays and nested structures.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function findProductInJsonLd(data: any): any | null {
+  if (!data || typeof data !== "object") return null;
+
+  if (data["@type"] === "Product") return data;
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findProductInJsonLd(item);
+      if (found) return found;
+    }
+  }
+
+  if (data["@graph"]) {
+    return findProductInJsonLd(data["@graph"]);
+  }
+
+  return null;
+}
+
+/**
+ * Normalizes schema.org availability URLs to short labels.
+ */
+function parseAvailability(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const short = value.replace(/^https?:\/\/schema\.org\//, "");
+  return short || null;
+}
+
+/**
+ * Collects product image URLs from structured data sources only.
+ * Sources: JSON-LD `image` field, multiple `og:image` meta tags.
+ * Does NOT scrape arbitrary <img> tags.
+ */
+export function extractProductImageUrls(html: string): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  const addUrl = (url: string) => {
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+  };
+
+  // 1. JSON-LD images (highest quality, explicitly product images)
+  const jsonLd = extractJsonLdProduct(html);
+  if (jsonLd) {
+    for (const img of jsonLd.images) {
+      addUrl(img);
+    }
+  }
+
+  // 2. All og:image tags (product pages often have multiple)
+  const ogImageRegex =
+    /<meta[^>]+(?:property=["']og:image["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:image["'])[^>]*>/gi;
+  let ogMatch = ogImageRegex.exec(html);
+  while (ogMatch !== null) {
+    const url = ogMatch[1] || ogMatch[2];
+    if (url) addUrl(decodeHtmlEntities(url));
+    ogMatch = ogImageRegex.exec(html);
+  }
+
+  return urls;
+}
+
+/**
+ * Known e-commerce domain + product URL path patterns.
+ * Each entry matches ONLY product pages (not search, category, or blog pages).
+ */
+type ProductUrlPattern = {
+  domain: RegExp;
+  path: RegExp;
+};
+
+const PRODUCT_URL_PATTERNS: ProductUrlPattern[] = [
+  // --- US / Global ---
+  // Amazon (all TLDs): /dp/ASIN or /gp/product/ASIN
+  {
+    domain:
+      /amazon\.(com|co\.uk|ca|de|fr|es|it|co\.jp|com\.au|in|com\.br|nl|se|pl|sg|com\.mx|ae|sa)$/,
+    path: /\/(?:dp|gp\/product|gp\/aw\/d)\/[A-Z0-9]{10}/i,
+  },
+  // eBay (all TLDs): /itm/...
+  {
+    domain: /ebay\.(com|co\.uk|de|fr|com\.au|ca|it|es)$/,
+    path: /\/itm\/(?:[a-zA-Z0-9-]+\/)?\d{9,15}/,
+  },
+  // Etsy: /listing/ID/slug
+  { domain: /etsy\.com$/, path: /\/listing\/\d+\/[a-zA-Z0-9-]+/ },
+  // Walmart: /ip/slug/ID
+  { domain: /walmart\.com$/, path: /\/ip\/[a-zA-Z0-9-]+\/\d+/ },
+  // Target: /p/slug/-/A-ID
+  { domain: /target\.com$/, path: /\/p\/[a-zA-Z0-9-]+\/-\/A-\d+/ },
+  // Best Buy: /site/slug/ID.p
+  { domain: /bestbuy\.com$/, path: /\/site\/[a-zA-Z0-9-]+\/\d+\.p/ },
+  // AliExpress: /item/ID.html
+  { domain: /aliexpress\.com$/, path: /\/item\/\d+\.html/ },
+  // ASOS: /prd/ID
+  { domain: /asos\.com$/, path: /\/prd\/\d+/ },
+  // Wayfair: /pdp/...
+  { domain: /wayfair\.com$/, path: /\/pdp\// },
+  // Temu: ...-g-ID.html
+  { domain: /temu\.com$/, path: /-g-\d+\.html/ },
+
+  // --- UK ---
+  // John Lewis: /p/slug
+  { domain: /johnlewis\.com$/, path: /\/p\/[a-zA-Z0-9-]+/ },
+  // Argos: /product/ID
+  { domain: /argos\.co\.uk$/, path: /\/product\/\d+/ },
+  // Currys: /products/slug.html
+  { domain: /currys\.co\.uk$/, path: /\/products\/[^/]+\.html/ },
+  // M&S: /slug/p/Pcode
+  { domain: /marksandspencer\.com$/, path: /\/p\/[Pp]\w+/ },
+  // Selfridges: /.../product/...
+  { domain: /selfridges\.com$/, path: /\/product\// },
+  // Boots: /product/slug
+  { domain: /boots\.com$/, path: /\/product\// },
+  // Next: /style/stID
+  { domain: /next\.co\.uk$/, path: /\/style\/st\d+/ },
+  // Screwfix: /p/slug
+  { domain: /screwfix\.com$/, path: /\/p\/[a-zA-Z0-9-]+/ },
+
+  // --- Generic e-commerce path patterns ---
+  // Shopify stores (myshopify.com subdomains)
+  { domain: /\.myshopify\.com$/, path: /\/products\/[a-zA-Z0-9][a-zA-Z0-9-]+/ },
+];
+
+/**
+ * Generic product path patterns that work across any domain.
+ * Lower confidence than domain-specific patterns, used as fallback.
+ */
+const GENERIC_PRODUCT_PATH_PATTERNS: RegExp[] = [
+  // Shopify custom domains: /products/handle
+  /^\/products\/[a-zA-Z0-9][a-zA-Z0-9-]+$/,
+  // WooCommerce: /product/handle
+  /^\/product\/[a-zA-Z0-9][a-zA-Z0-9-]+$/,
+];
+
+/**
+ * Checks if a URL matches a known e-commerce product page pattern.
+ * Returns true only for product pages, not search/category/blog pages.
+ */
+export function isKnownProductUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const pathname = parsed.pathname;
+
+    // Check domain-specific patterns (high confidence)
+    for (const pattern of PRODUCT_URL_PATTERNS) {
+      if (pattern.domain.test(hostname) && pattern.path.test(pathname)) {
+        return true;
+      }
+    }
+
+    // Check generic path patterns (medium confidence)
+    for (const pathPattern of GENERIC_PRODUCT_PATH_PATTERNS) {
+      if (pathPattern.test(pathname)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extracts product metadata from HTML. Returns null if the page is not a product.
+ *
+ * Detection signals (any one is sufficient):
+ * 1. og:type is "product", "product.item", or "product.group"
+ * 2. JSON-LD with @type: "Product"
+ * 3. Product-specific OG meta tags (product:price:amount, product:price:currency)
+ * 4. URL matches a known e-commerce product page pattern
+ */
+export function extractProductMetadata(
+  html: string,
+  url: string,
+): ProductMetadata | null {
+  const ogType = extractOgType(html);
+  const isOgProduct =
+    ogType === "product" ||
+    ogType === "product.item" ||
+    ogType === "product.group";
+
+  const jsonLd = extractJsonLdProduct(html);
+
+  const ogPrice = extractMetaContent(html, "product:price:amount");
+  const ogCurrency = extractMetaContent(html, "product:price:currency");
+  const hasProductOgTags = !!(ogPrice || ogCurrency);
+
+  const isKnownProduct = isKnownProductUrl(url);
+
+  if (!isOgProduct && !jsonLd && !hasProductOgTags && !isKnownProduct) {
+    return null;
+  }
+
+  const ogBrand = extractMetaContent(html, "product:brand");
+
+  return {
+    title: extractTitle(html),
+    description: extractDescription(html),
+    domain: extractDomain(url),
+    price: jsonLd?.price ?? ogPrice ?? null,
+    currency: jsonLd?.currency ?? ogCurrency ?? null,
+    brand: jsonLd?.brand ?? ogBrand ?? null,
+    availability: jsonLd?.availability ?? null,
+    imageUrls: extractProductImageUrls(html),
+    ogImage: extractOgImage(html),
+  };
+}
+
 /**
  * Escapes special regex characters in a string
  */
