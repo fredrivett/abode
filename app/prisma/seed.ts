@@ -20,14 +20,6 @@ function getSupabaseAdmin() {
   const url = supabaseUrl ?? nextPublicUrl;
   const key = strip(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  console.log(
-    `Supabase URL source: ${supabaseUrl ? "SUPABASE_URL" : nextPublicUrl ? "NEXT_PUBLIC_SUPABASE_URL" : "NONE"}`,
-  );
-  console.log(
-    `Supabase URL value: ${url ? `${url.slice(0, 30)}...` : "undefined"}`,
-  );
-  console.log(`Service role key: ${key ? "present" : "missing"}`);
-
   if (!url || !key) {
     throw new Error(
       "Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
