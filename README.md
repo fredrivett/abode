@@ -7,8 +7,44 @@
 # 🏠 abode — the home for your info
 
 The mymind you can own. Beautiful like Sublime, but open like Ghost.
-Your mind shouldn’t live on someone else’s server.
+Your mind shouldn't live on someone else's server.
 A place to dwell.
+
+## What it is
+
+Open-source, self-hostable library for saving images, links, tweets, videos, and articles. Visual, minimal, serendipitous; single-player first.
+
+Self-host for free or pay for managed hosting at [abode.fyi](https://www.abode.fyi).
+
+## Stack
+
+- **Frontend:** Next.js 16 (React 19), Tailwind CSS 4, shadcn/ui, Zustand, TanStack Query
+- **Backend:** Next.js API routes, Prisma ORM (PostgreSQL)
+- **Auth:** Supabase Auth
+- **Database:** Supabase (PostgreSQL) with pgvector for embeddings and tsvector for full-text search
+- **Background jobs:** [Trigger.dev](https://trigger.dev) v4
+- **File storage:** Supabase Storage
+- **AI/ML:** Google Cloud Vision (image analysis, OCR), OpenAI (text embeddings), Replicate CLIP (image embeddings)
+- **Email:** Resend
+- **Analytics:** PostHog
+- **Deployment:** Vercel
+- **Package manager:** Bun
+
+## Features
+
+- **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
+- **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
+- **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content.
+- **Similarity:** pgvector-powered "more like this" via text and image embeddings.
+- **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
+- **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR (Google Cloud Vision), embedding generation, and auto-tagging — all via async Trigger.dev tasks.
+- **Feed:** Personal feed blending recent and resurfaced items.
+- **Admin:** User management, waitlist, and invite system.
+
+## Non-goals
+
+- Not a second brain / tasks / notes suite.
+- No social network (optional public rooms may come later).
 
 ## Development
 
@@ -51,174 +87,25 @@ If you need to start Supabase manually (outside of `bin/dev`):
 
 **Note:** This script includes a workaround for a [known Supabase bug](https://github.com/orgs/supabase/discussions/20753) where custom email templates fail to load due to a race condition. The script restarts the auth container after startup to ensure templates are loaded. This workaround can be removed once Supabase fixes the underlying issue.
 
-## What it is
+## Roadmap
 
-Open-source, self-hostable library for saving images, links, quotes, videos, PDFs, and articles. Visual, minimal, serendipitous; single-player first. “Shelf” (public curation) comes later.
+**Done (v0):**
+- Capture via website (URL, file, text/quote, tweets)
+- Masonry gallery, full-text search, filters
+- Metadata extraction + article parsing (Mozilla Readability)
+- OCR via Google Cloud Vision
+- pgvector embeddings + "more like this"
+- Auto-tagging (Vision API for images)
+- Rooms (manual + smart collections)
+- Personal feed
+- Admin dashboard, waitlist, invite system
 
-Self-host for free or pay for managed hosting.
+**Next:**
+- Browser extension
+- Public rooms / shelves
+- Better feed heuristics
+- Export / portability
 
-## Non-goals
-
-    •	Not a second brain / tasks / notes suite.
-    •	No social network at launch (optional shelves later).
-    •	No theming/customization in v0.
-
-⸻
-
-## Stack (initial)
-
-    •	Frontend: Next.js (React), Tailwind, shadcn/ui. Layout uses masonry (Pinterest-style) flow.
-    •	Backend: Supabase (Postgres + Storage) accessed via Prisma.
-    •	Auth: Supabase Auth or WorkOS (TBD).
-    •	Search/Similarity: pgvector from day one (text + image embeddings).
-    •	Workers/Jobs: Inngest or lightweight queue; deploy workers on Railway/Fly (open to Railway). Web on Vercel or Railway.
-    •	File storage: Supabase Storage (S3-compatible options later).
-
-⸻
-
-## Core objects
-
-    •	Item: { id, user_id, kind, url?, file_key?, text?, meta jsonb, tags[], content_html?, ocr_text?, created_at, updated_at }
-    •	kind: image | link | quote | video | pdf | book | note
-    •	Embeddings stored separately and joined for similarity.
-    •	User: { id, email, settings }
-    •	Username claim deferred to v1 (for shelves).
-
-⸻
-
-## Product flows
-
-### v0
-
-#### Capture
-
-- Website only to start (drop-zone + URL input + paste to save).
-- Browser extension later; mobile much later.
-
-#### Explore
-
-- Dense masonry gallery; hover quick actions; keyboard nav.
-- Filters: kind, tag; global text search.
-- Similar items (“more like this”) as soon as embeddings are available.
-
-#### Feed
-
-- Simple personal feed that blends recent + resurfaced saved items (lightweight heuristics).
-- No “random” button; keep it quiet and ambient.
-
-### v1
-
-#### Shelf
-
-- Username claimed at signup (v1).
-- Public shelf for explicitly selected items only (opt-in per item).
-
-Enrichment pipeline (modular)
-
-Executed asynchronously after initial save:
-
-1. Metadata
-
-- Fetch OG tags, favicon, content-type; store in meta.
-
-2. Article extraction
-
-- Uses [Defuddle](https://github.com/kepano/defuddle) to extract main article content from web pages.
-- Alternative: [@mozilla/readability](https://github.com/mozilla/readability) is more battle-tested (~30k weekly downloads vs ~400 for Defuddle) but Defuddle provides better output for modern web pages and HTML-to-Markdown conversion.
-
-3. OCR
-
-- PaddleOCR (Python worker) for images/PDFs; write to ocr_text.
-- Cloud APIs optional later; keep privacy/cost predictable.
-
-4. Embeddings (pgvector)
-
-- Text: sentence-transformers model.
-- Images: TBD.
-- Store in item_vectors(item_id, embedding) for similarity.
-
-5. Auto-tagging
-
-- Text/articles: keyphrase extraction (KeyBERT/YAKE?).
-- Images: zero-shot labels via CLIP + optional BLIP caption?
-- YouTube: pull transcript → keyphrases; save thumbnail.
-
-Notes:
-
-- Ideally each step is idempotent and can be enabled/disabled independently.
-- Self-hosters can run core app only (capture + browse + search) and add workers later without touching the app.
-
-⸻
-
-Search & serendipity
-
-- Text search across title/notes/ocr/extracted article text.
-- Similarity search (pgvector) for “more like this”.
-- Feed mixes recency and light resurfacing (e.g., time-based, tag-based spreads). No heavy recommendation system in v0.
-
-⸻
-
-Privacy
-
-- Private by default; no public endpoints until a user explicitly publishes a shelf in v1.
-- Use storage/server-side encryption where available; avoid sending user content to third-party APIs by default.
-- If/when external providers are enabled (e.g., LLM captioning), make it explicit and opt-in.
-
-⸻
-
-Hosting & deployment
-
-- Web app → Vercel or Railway.
-- Workers → Railway (good fit for Python OCR/embedding jobs) or Fly.
-- Database/Storage → Prisma + Supabase.
-- One Docker Compose for local dev and self-hosting? Not v0.
-
-⸻
-
-Modularity (self-hosting)
-
-- Core app runs without workers (capture/browse/search on text).
-- Optional modules: OCR, embeddings, auto-tagging, article snapshots.
-- Modules are enabled via environment flags; each is an isolated worker.
-- No UI “feature toggles” required to self-host — you can simply not run the workers you don’t want.
-
-⸻
-
-Export & portability (not sure how yet, but allow users to export their data).
-
-⸻
-
-Roadmap
-
-v0 (MVP)
-• Capture via website (URL, file, text/quote)
-• Masonry gallery, text search, filters, text search
-• Metadata extraction + article parsing
-• PaddleOCR pipeline?
-• pgvector embeddings + “more like this”
-• Simple personal feed
-• Private-by-default; managed + self-host paths
-
-v1
-• Username claim + public Shelf (opt-in per item)
-• Auto-tagging refinements; nicer captions
-• Browser extension
-• Better feed heuristics; similarity tuned
-• Basic admin tools (exports, usage, storage)
-
-Later
-• Mobile capture
-• Federation between shelves (optional)
-• More robust local-first sync (Yjs) if/when justified
-
-⸻
-
-References / positioning
-• Like Ghost → Medium, or Fathom Analytics → Google Analytics (open, ownable, focused).
-• “The mymind you can own. Beautiful like Sublime, but open like Ghost.”
-• “Your mind shouldn’t live on someone else’s server.”
-• Built to be a place to dwell.
-
-⸻
-
-If you want, I can spin this into a contributor guide next (repo layout + worker interfaces + embedding/OCR job contracts) so you can start coding without getting bogged down in upfront docs.
+**Later:**
+- Mobile capture
+- Self-hosting guide + Docker Compose
