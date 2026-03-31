@@ -349,6 +349,12 @@ export function ItemCard({
 
   // Articles/webpages without cover images get a placeholder card
   if (isArticleOrWebpage && !previewUrl && !imageFileKey) {
+    let placeholderDomain = item.articleDetails?.domain;
+    if (!placeholderDomain && item.sourceUrl) {
+      try {
+        placeholderDomain = new URL(item.sourceUrl).hostname;
+      } catch {}
+    }
     return (
       <>
         <button
@@ -369,12 +375,12 @@ export function ItemCard({
             >
               {itemName}
             </p>
-            {item.articleDetails?.domain && (
+            {placeholderDomain && (
               <p
                 className="text-gray-500 dark:text-gray-400"
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
-                {item.articleDetails.domain}
+                {placeholderDomain}
               </p>
             )}
           </div>
@@ -1592,6 +1598,20 @@ function ItemDetailDialog({
                     title={item.title}
                     sourceUrl={item.sourceUrl}
                     className="py-8"
+                  />
+                </motion.div>
+              ) : isWebpage && previewUrl ? (
+                <motion.div
+                  className="flex h-full w-full items-center justify-center bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
+                  <img
+                    src={fullQualityUrl || previewUrl}
+                    alt={name}
+                    className="max-h-[calc(100vh-2rem)] w-full object-contain"
                   />
                 </motion.div>
               ) : previewUrl && !isArticleOrWebpage && !isProduct ? (
