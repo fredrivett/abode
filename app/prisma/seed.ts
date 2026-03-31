@@ -14,10 +14,11 @@ const SEED_USER = {
 const ASSETS_DIR = path.join(__dirname, "seed-assets");
 
 function getSupabaseAdmin() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const nextPublicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const strip = (v: string | undefined) => v?.replace(/^"|"$/g, "");
+  const supabaseUrl = strip(process.env.SUPABASE_URL);
+  const nextPublicUrl = strip(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const url = supabaseUrl ?? nextPublicUrl;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = strip(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   console.log(
     `Supabase URL source: ${supabaseUrl ? "SUPABASE_URL" : nextPublicUrl ? "NEXT_PUBLIC_SUPABASE_URL" : "NONE"}`,
