@@ -147,10 +147,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .filter((ri) => !ri.item.excludeFromPublicRooms)
       .map((ri) => {
         const meta = ri.item.meta as Record<string, unknown> | null;
-        const isArticle = ri.item.kind === "article";
+        const isArticleOrWebpage =
+          ri.item.kind === "article" || ri.item.kind === "webpage";
 
         // Build image URL using the proxy endpoint
-        const imageFileKey = isArticle ? ri.item.coverFileKey : ri.item.fileKey;
+        const imageFileKey = isArticleOrWebpage
+          ? ri.item.coverFileKey
+          : ri.item.fileKey;
 
         return {
           id: ri.item.id,
@@ -159,8 +162,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           imageUrl: imageFileKey
             ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
             : null,
-          width: isArticle ? 16 : ((meta?.width as number) ?? 1),
-          height: isArticle ? 9 : ((meta?.height as number) ?? 1),
+          width: isArticleOrWebpage ? 16 : ((meta?.width as number) ?? 1),
+          height: isArticleOrWebpage ? 9 : ((meta?.height as number) ?? 1),
         };
       });
 

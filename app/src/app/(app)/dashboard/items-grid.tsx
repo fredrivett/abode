@@ -142,7 +142,8 @@ export function ItemsGrid({
           >
             {items.map((item) => {
               const meta = item.meta || {};
-              const isArticle = item.kind === "article";
+              const isArticleOrWebpage =
+                item.kind === "article" || item.kind === "webpage";
               const isTwitter = item.kind === "twitter";
               const isVideo = item.kind === "video";
               const isProduct = item.kind === "product";
@@ -170,7 +171,7 @@ export function ItemsGrid({
               // Calculate aspect ratio based on item type
               // - Twitter: cover media's natural aspect; falls back to card image / text-only defaults
               // - Video: 16:9 (YouTube/Vimeo thumbnails are always 16:9)
-              // - Articles and processing URLs: 4:3
+              // - Articles, webpages, and processing URLs: 4:3
               // - Images: actual dimensions or 3:4 default
               let width: number;
               let height: number;
@@ -207,7 +208,7 @@ export function ItemsGrid({
                   width = 1;
                   height = 1;
                 }
-              } else if (isArticle || isProcessingUrl) {
+              } else if (isArticleOrWebpage || isProcessingUrl) {
                 width = 4;
                 height = 3;
               } else if (isNote) {

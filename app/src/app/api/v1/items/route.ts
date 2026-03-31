@@ -19,7 +19,7 @@ import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
-const allowedKinds = new Set(["image", "article"]);
+const allowedKinds = new Set(["image", "article", "webpage"]);
 
 /**
  * GET /api/v1/items
