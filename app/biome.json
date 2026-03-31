@@ -63,6 +63,18 @@
       "react": "recommended"
     }
   },
+  "overrides": [
+    {
+      "includes": ["prisma/seed.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "actions": {
       "source": {
