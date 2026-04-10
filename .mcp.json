@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "trigger": {
+      "command": "npx",
+      "args": ["trigger.dev@4.3.0", "mcp"],
+      "env": {
+        "TRIGGER_ACCESS_TOKEN": "${TRIGGER_ACCESS_TOKEN}"
+      }
+    }
+  }
+}
