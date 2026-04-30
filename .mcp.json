@@ -6,6 +6,19 @@
       "env": {
         "TRIGGER_ACCESS_TOKEN": "${TRIGGER_ACCESS_TOKEN}"
       }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=wksalveyxphvxhuwkcrv",
+        "--features=database,debug,development,functions,branching,account,storage"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
     }
   }
 }
