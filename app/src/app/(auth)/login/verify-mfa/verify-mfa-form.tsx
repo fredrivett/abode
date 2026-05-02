@@ -15,9 +15,13 @@ import { createClient } from "@/lib/supabase/client";
 
 type VerifyMFAFormProps = {
   factorId: string;
+  next?: string;
 };
 
-export function VerifyMFAForm({ factorId }: VerifyMFAFormProps) {
+export function VerifyMFAForm({
+  factorId,
+  next = "/dashboard",
+}: VerifyMFAFormProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +42,7 @@ export function VerifyMFAForm({ factorId }: VerifyMFAFormProps) {
         factor_type: "totp",
       });
 
-      router.push("/dashboard");
+      router.push(next);
       router.refresh();
     } catch (err) {
       // Track MFA verification failure

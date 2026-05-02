@@ -4,7 +4,11 @@ import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { VerifyMFAForm } from "./verify-mfa-form";
 
-export default async function VerifyMFAPage() {
+type Props = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function VerifyMFAPage({ searchParams }: Props) {
   const supabase = await createClient();
 
   // Check if user is authenticated
@@ -16,23 +20,27 @@ export default async function VerifyMFAPage() {
     redirect("/login");
   }
 
+  const { next } = await searchParams;
+  const safeNext =
+    next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
   // Check AAL level
   const aal = await getAAL(supabase);
 
-  // If already at aal2, redirect to dashboard
+  // If already at aal2, redirect to next destination
   if (aal.currentLevel === "aal2") {
-    redirect("/dashboard");
+    redirect(safeNext);
   }
 
-  // If no MFA factor, something went wrong - redirect to dashboard
+  // If no MFA factor, something went wrong - redirect to next destination
   if (!aal.hasVerifiedFactor) {
-    redirect("/dashboard");
+    redirect(safeNext);
   }
 
   // Get the verified factor for the challenge
   const factor = await getVerifiedTOTPFactor(supabase);
   if (!factor) {
-    redirect("/dashboard");
+    redirect(safeNext);
   }
 
   return (
@@ -47,7 +55,7 @@ export default async function VerifyMFAPage() {
           </p>
         </div>
 
-        <VerifyMFAForm factorId={factor.id} />
+        <VerifyMFAForm factorId={factor.id} next={safeNext} />
 
         <p className="text-center text-gray-500 text-sm dark:text-gray-400">
           <form action={signOut} className="inline">

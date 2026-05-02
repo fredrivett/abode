@@ -1,13 +1,23 @@
 import { redirect } from "next/navigation";
+import { needsMFAChallenge } from "@/lib/mfa";
 import { ROUTES } from "@/lib/routes";
-import { getAuthUser } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "./reset-password-form";
 
 export default async function ResetPasswordPage() {
-  const user = await getAuthUser();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect(ROUTES.LOGIN);
+  }
+
+  // Supabase requires AAL2 to call updateUser when MFA is enabled.
+  // Send AAL1 users with a verified factor through the MFA challenge first.
+  if (await needsMFAChallenge(supabase)) {
+    redirect("/login/verify-mfa?next=/reset-password");
   }
 
   return (
