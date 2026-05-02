@@ -62,6 +62,8 @@ export async function generateTagsFromText(text: string): Promise<string[]> {
 
 Return a JSON object with a "tags" field containing an array of 10-15 relevant tags/labels (nouns, concepts, themes). Be specific and accurate.
 
+All tags MUST be in English, regardless of the language of the source content. If the content is in another language, translate concepts into their English equivalents.
+
 Content:
 ${truncatedText}`,
       },
