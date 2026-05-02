@@ -323,17 +323,29 @@ const SOURCE_PRIORITY: Record<ProductImageSource, number> = {
 };
 
 function detectWidthHint(url: string): number {
+  // ?width=N, ?w=N, ?size=N
   const q = url.match(/[?&](?:width|w|size)=(\d+)/i);
   if (q) return Number.parseInt(q[1], 10);
-  const p = url.match(/(?:-|_)(\d{2,4})x\d{2,4}/i);
-  if (p) return Number.parseInt(p[1], 10);
+  // -800x600, _800x600
+  const wh = url.match(/(?:-|_)(\d{2,4})x\d{2,4}/i);
+  if (wh) return Number.parseInt(wh[1], 10);
+  // -1200w, _800w (followed by extension/query/end so we don't match
+  // arbitrary words starting with digits)
+  const w = url.match(/(?:-|_)(\d{2,4})w(?=[.?&/]|$)/i);
+  if (w) return Number.parseInt(w[1], 10);
   return 0;
 }
+
+// Strips responsive size suffixes commonly used by image CDNs so all variants
+// of the same image collapse to one dedupe key. Covers WxH (-300x300),
+// width-only (-1200w), and retina (@2x, @3x) conventions.
+const SIZE_SUFFIX_RE =
+  /(?:-|_|\.)\d{2,4}x\d{2,4}|(?:-|_)\d{2,4}w(?=[.?&/]|$)|@\dx/gi;
 
 function pathDedupeKey(url: string): string {
   try {
     const u = new URL(url);
-    const path = u.pathname.replace(/(?:-|_|\.)\d{2,4}x\d{2,4}/i, "");
+    const path = u.pathname.replace(SIZE_SUFFIX_RE, "");
     return u.origin + path;
   } catch {
     return url;

@@ -966,6 +966,42 @@ describe("extractAllProductImageCandidates", () => {
     expect(urls[0]).toBe("https://cdn.example.com/photo-1200x1200.jpg");
   });
 
+  it("dedupes width-only Nw variants and keeps the largest", () => {
+    const html = `
+      <img src="https://cdn.example.com/photo-300w.jpg">
+      <img src="https://cdn.example.com/photo-1200w.jpg">
+      <img src="https://cdn.example.com/photo-600w.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://cdn.example.com/photo-1200w.jpg"]);
+  });
+
+  it("dedupes retina @Nx variants", () => {
+    const html = `
+      <img src="https://cdn.example.com/hero@1x.jpg">
+      <img src="https://cdn.example.com/hero@2x.jpg">
+      <img src="https://cdn.example.com/hero@3x.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toHaveLength(1);
+  });
+
+  it("does not strip Nw inside arbitrary words", () => {
+    const html = `
+      <img src="https://cdn.example.com/photo-1200wide.jpg">
+      <img src="https://cdn.example.com/photo-1200w.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toContain("https://cdn.example.com/photo-1200wide.jpg");
+    expect(urls).toContain("https://cdn.example.com/photo-1200w.jpg");
+  });
+
   it("resolves relative URLs against base", () => {
     const html = `<img src="/img/photo.jpg">`;
     const urls = extractAllProductImageCandidates(html, baseUrl).map(
