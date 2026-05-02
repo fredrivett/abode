@@ -77,13 +77,20 @@ export async function GET(request: NextRequest) {
     "OTP verified - user data received",
   );
 
-  // Track password recovery completion
+  // Track password recovery completion and send user to set a new password
   if (type === "recovery" && user) {
     const posthog = getPostHogClient();
     posthog?.capture({
       distinctId: user.id,
       event: "password_recovery_completed",
     });
+
+    const next = searchParams.get("next");
+    const target =
+      next?.startsWith("/") && !next.startsWith("//")
+        ? next
+        : "/reset-password";
+    redirect(target);
   }
 
   // Handle email change completion
