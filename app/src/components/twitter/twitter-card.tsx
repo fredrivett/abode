@@ -74,9 +74,21 @@ export function TwitterCard({
         </div>
       )}
 
-      {/* Content area - fixed size, doesn't grow */}
+      {/* Content area - on hover-capable devices: overlay that slides up on hover.
+          On touch devices: stays in flow below media (current behavior). */}
       <div
-        className="flex shrink-0 flex-col"
+        className={cn(
+          "flex shrink-0 flex-col bg-white dark:bg-gray-900",
+          "[@media(hover:hover)_and_(pointer:fine)]:pointer-events-none",
+          "[@media(hover:hover)_and_(pointer:fine)]:absolute",
+          "[@media(hover:hover)_and_(pointer:fine)]:inset-x-0",
+          "[@media(hover:hover)_and_(pointer:fine)]:bottom-0",
+          "[@media(hover:hover)_and_(pointer:fine)]:translate-y-full",
+          "[@media(hover:hover)_and_(pointer:fine)]:transition-transform",
+          "[@media(hover:hover)_and_(pointer:fine)]:duration-200",
+          "[@media(hover:hover)_and_(pointer:fine)]:ease-out",
+          "[@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-y-0",
+        )}
         style={{ padding: "0.75em", gap: "0.5em" }}
       >
         {/* Author row */}
