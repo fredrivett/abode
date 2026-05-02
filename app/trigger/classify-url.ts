@@ -665,11 +665,6 @@ async function handleProductUrl(
     pickedCandidates = keptIndices.map((i) => candidates[i]);
   }
 
-  // Fall back to og:image if extraction yielded nothing
-  if (pickedCandidates.length === 0 && productMeta.ogImage) {
-    pickedCandidates = [{ url: productMeta.ogImage, source: "og" }];
-  }
-
   const toFetch = pickedCandidates.slice(0, DOWNLOAD_BUDGET);
 
   const fetched = await Promise.all(
