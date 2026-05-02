@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  extractAllProductImageCandidates,
   extractArticleMetadata,
   extractAuthor,
   extractDescription,
@@ -854,6 +855,137 @@ describe("extractProductImageUrls", () => {
       "https://example.com/img1.jpg",
       "https://example.com/img2.jpg",
     ]);
+  });
+});
+
+describe("extractAllProductImageCandidates", () => {
+  const baseUrl = "https://shop.example.com/p/widget";
+
+  it("collects from img src, srcset, source srcset, og, JSON-LD, preload", () => {
+    const html = `
+      <meta property="og:image" content="https://shop.example.com/og.jpg">
+      <link rel="preload" as="image" href="https://shop.example.com/preload.jpg">
+      <script type="application/ld+json">
+        { "@type": "Product", "image": ["https://shop.example.com/jsonld.jpg"], "offers": {} }
+      </script>
+      <picture>
+        <source srcset="https://shop.example.com/source-large.jpg 1200w, https://shop.example.com/source-small.jpg 300w">
+        <img src="https://shop.example.com/hero.jpg" srcset="https://shop.example.com/hero-2x.jpg 2x">
+      </picture>
+      <img data-src="https://shop.example.com/lazy.jpg">
+    `;
+    const result = extractAllProductImageCandidates(html, baseUrl);
+    const urls = result.map((c) => c.url);
+    expect(urls).toContain("https://shop.example.com/jsonld.jpg");
+    expect(urls).toContain("https://shop.example.com/og.jpg");
+    expect(urls).toContain("https://shop.example.com/preload.jpg");
+    expect(urls).toContain("https://shop.example.com/source-large.jpg");
+    expect(urls).toContain("https://shop.example.com/source-small.jpg");
+    expect(urls).toContain("https://shop.example.com/hero.jpg");
+    expect(urls).toContain("https://shop.example.com/hero-2x.jpg");
+    expect(urls).toContain("https://shop.example.com/lazy.jpg");
+  });
+
+  it("tags source correctly: json-ld > og > dom", () => {
+    const html = `
+      <meta property="og:image" content="https://example.com/og-only.jpg">
+      <script type="application/ld+json">
+        { "@type": "Product", "image": ["https://example.com/jsonld-only.jpg"], "offers": {} }
+      </script>
+      <img src="https://example.com/dom-only.jpg">
+    `;
+    const result = extractAllProductImageCandidates(html, baseUrl);
+    const byUrl = Object.fromEntries(result.map((c) => [c.url, c.source]));
+    expect(byUrl["https://example.com/jsonld-only.jpg"]).toBe("json-ld");
+    expect(byUrl["https://example.com/og-only.jpg"]).toBe("og");
+    expect(byUrl["https://example.com/dom-only.jpg"]).toBe("dom");
+  });
+
+  it("upgrades source to highest-priority when same image appears multiple times", () => {
+    const html = `
+      <img src="https://example.com/photo.jpg">
+      <script type="application/ld+json">
+        { "@type": "Product", "image": ["https://example.com/photo.jpg"], "offers": {} }
+      </script>
+    `;
+    const result = extractAllProductImageCandidates(html, baseUrl);
+    const photo = result.find((c) => c.url === "https://example.com/photo.jpg");
+    expect(photo?.source).toBe("json-ld");
+  });
+
+  it("filters obvious junk URLs", () => {
+    const html = `
+      <img src="https://cdn.example.com/payment-visa.png">
+      <img src="https://cdn.example.com/social-icon-twitter.png">
+      <img src="https://cdn.example.com/site-logo.png">
+      <img src="https://cdn.example.com/sprite-sheet.png">
+      <img src="https://cdn.example.com/favicon.ico">
+      <img src="https://cdn.example.com/spacer.gif">
+      <img src="https://cdn.example.com/real-product.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://cdn.example.com/real-product.jpg"]);
+  });
+
+  it("filters SVG, GIF, and data URIs", () => {
+    const html = `
+      <img src="https://cdn.example.com/icon.svg">
+      <img src="https://cdn.example.com/animation.gif">
+      <img src="data:image/png;base64,iVBORw0KG">
+      <img src="https://cdn.example.com/photo.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://cdn.example.com/photo.jpg"]);
+  });
+
+  it("dedupes responsive variants and keeps the largest by URL hint", () => {
+    const html = `
+      <img src="https://cdn.example.com/photo.jpg?width=300">
+      <img src="https://cdn.example.com/photo.jpg?width=1200">
+      <img src="https://cdn.example.com/photo.jpg?width=600">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://cdn.example.com/photo.jpg?width=1200"]);
+  });
+
+  it("dedupes path-embedded size suffixes", () => {
+    const html = `
+      <img src="https://cdn.example.com/photo-300x300.jpg">
+      <img src="https://cdn.example.com/photo-1200x1200.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toBe("https://cdn.example.com/photo-1200x1200.jpg");
+  });
+
+  it("resolves relative URLs against base", () => {
+    const html = `<img src="/img/photo.jpg">`;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://shop.example.com/img/photo.jpg"]);
+  });
+
+  it("caps at 50 candidates", () => {
+    const imgs = Array.from(
+      { length: 80 },
+      (_, i) => `<img src="https://cdn.example.com/photo-${i}.jpg">`,
+    ).join("\n");
+    const result = extractAllProductImageCandidates(imgs, baseUrl);
+    expect(result).toHaveLength(50);
+  });
+
+  it("returns empty for HTML with no images", () => {
+    const html = "<html><body><p>No images here</p></body></html>";
+    expect(extractAllProductImageCandidates(html, baseUrl)).toEqual([]);
   });
 });
 
