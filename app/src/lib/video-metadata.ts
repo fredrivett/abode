@@ -52,6 +52,8 @@ export type VideoMetadata = {
   channelName: string;
   channelUrl: string | null;
   thumbnailUrl: string;
+  thumbnailWidth: number | null;
+  thumbnailHeight: number | null;
   duration: number | null;
   embedUrl: string;
 };
@@ -160,6 +162,8 @@ export async function fetchYouTubeMetadata(
     channelName: oembed.author_name,
     channelUrl: oembed.author_url || null,
     thumbnailUrl: getYouTubeThumbnailUrl(videoId, true),
+    thumbnailWidth: oembed.thumbnail_width || null,
+    thumbnailHeight: oembed.thumbnail_height || null,
     duration: null, // YouTube oEmbed doesn't provide duration
     embedUrl: getVideoEmbedUrl("youtube", videoId),
   };
@@ -183,6 +187,8 @@ export async function fetchVimeoMetadata(
     channelName: oembed.author_name,
     channelUrl: oembed.author_url || null,
     thumbnailUrl: oembed.thumbnail_url,
+    thumbnailWidth: oembed.thumbnail_width || null,
+    thumbnailHeight: oembed.thumbnail_height || null,
     duration: oembed.duration || null,
     embedUrl: getVideoEmbedUrl("vimeo", videoId),
   };

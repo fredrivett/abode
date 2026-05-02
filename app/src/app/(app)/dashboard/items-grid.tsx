@@ -144,6 +144,7 @@ export function ItemsGrid({
               const meta = item.meta || {};
               const isArticle = item.kind === "article";
               const isTwitter = item.kind === "twitter";
+              const isVideo = item.kind === "video";
               const isProcessingUrl =
                 item.sourceType === "url" &&
                 item.processingStatus === "processing";
@@ -165,17 +166,34 @@ export function ItemsGrid({
               const mimeType = meta.type as string | undefined;
 
               // Calculate aspect ratio based on item type
-              // - Twitter: 16:18 (taller) for tweets with media, 16:12 for text-only
+              // - Twitter: cover media's natural aspect; falls back to card image / text-only defaults
+              // - Video: 16:9 (YouTube/Vimeo thumbnails are always 16:9)
               // - Articles and processing URLs: 4:3
               // - Images: actual dimensions or 3:4 default
               let width: number;
               let height: number;
               if (isTwitter) {
-                const hasVisualContent =
-                  item.twitterDetails?.media?.length ||
-                  item.twitterDetails?.card?.imageUrl;
-                width = 16;
-                height = hasVisualContent ? 18 : 12;
+                const coverIndex = item.twitterDetails?.coverMediaIndex ?? 0;
+                const coverMedia =
+                  item.twitterDetails?.media?.[coverIndex] ??
+                  item.twitterDetails?.media?.[0];
+                const hasCardImage = !!item.twitterDetails?.card?.imageUrl;
+                if (coverMedia?.width && coverMedia?.height) {
+                  width = coverMedia.width;
+                  height = coverMedia.height;
+                } else if (hasCardImage) {
+                  // Twitter link-card images render at ~1.91:1
+                  width = 16;
+                  height = 9;
+                } else {
+                  // Text-only tweet placeholder
+                  width = 16;
+                  height = 12;
+                }
+              } else if (isVideo) {
+                // New videos persist thumbnail dims into meta; older ones fall back to 16:9
+                width = (meta.width as number | undefined) ?? 16;
+                height = (meta.height as number | undefined) ?? 9;
               } else if (isArticle || isProcessingUrl) {
                 width = 4;
                 height = 3;
