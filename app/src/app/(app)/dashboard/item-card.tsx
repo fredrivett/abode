@@ -84,6 +84,7 @@ import type {
 } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
+import { useUserStore } from "@/stores/user-store";
 import { AddToRoomPopover } from "./_components/add-to-room-popover";
 import { ColorHighlightOverlay } from "./_components/color-highlight-overlay";
 import { ColorsBar } from "./_components/colors-bar";
@@ -912,6 +913,7 @@ function ItemDetailDialog({
     item.processingStatus,
   );
   const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
+  const isAdmin = useUserStore((state) => state.isAdmin) ?? false;
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -2325,10 +2327,26 @@ function ItemDetailDialog({
                   </div>
                 )}
 
-                {/* Action buttons - only shown to users who can edit */}
-                {canEdit && (
+                {/* Action buttons - reanalyse is admin-only; download/delete require edit access */}
+                {(canEdit || isAdmin) && (
                   <div className="mt-auto flex justify-end gap-2">
-                    {item.fileKey && (
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        onClick={handleRetry}
+                        disabled={isRetrying}
+                      >
+                        {isRetrying ? (
+                          <IsLoading label="Reanalysing" />
+                        ) : (
+                          <>
+                            <RefreshCw className="size-4" />
+                            Reanalyse
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {canEdit && item.fileKey && (
                       <Button
                         variant="outline"
                         onClick={handleDownload}
@@ -2344,20 +2362,22 @@ function ItemDetailDialog({
                         )}
                       </Button>
                     )}
-                    <Button
-                      variant="destructive-outline"
-                      onClick={() => onDeleteOpenChange(true)}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <IsLoading label="Deleting" />
-                      ) : (
-                        <>
-                          <Trash2 className="size-4" />
-                          Delete
-                        </>
-                      )}
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="destructive-outline"
+                        onClick={() => onDeleteOpenChange(true)}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <IsLoading label="Deleting" />
+                        ) : (
+                          <>
+                            <Trash2 className="size-4" />
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

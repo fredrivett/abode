@@ -2,6 +2,7 @@ import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -24,12 +25,11 @@ export async function POST(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch item to check ownership and current status
+    const isAdmin = await hasFullAdminAccess(supabase);
+
+    // Admins can retry any item; other users can only retry their own.
     const item = await db.item.findUnique({
-      where: {
-        id,
-        userId: user.id,
-      },
+      where: isAdmin ? { id } : { id, userId: user.id },
       select: {
         id: true,
         userId: true,
@@ -45,8 +45,8 @@ export async function POST(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
-    // Only allow retrying failed items
-    if (item.processingStatus !== "failed") {
+    // Non-admins can only retry failed items; admins can re-trigger any item.
+    if (!isAdmin && item.processingStatus !== "failed") {
       return NextResponse.json(
         { message: "Only failed items can be retried" },
         { status: 400 },
@@ -75,25 +75,29 @@ export async function POST(
       data: { processingStatus: "processing" },
     });
 
-    // Trigger the appropriate task based on source type and kind
+    // Trigger the appropriate task using the item owner's userId
+    // (admins can retry on behalf of other users).
     try {
       if (item.sourceType === "url" && item.sourceUrl) {
         // URL items need to be re-classified (could be image or article)
         log.info(
-          { itemId: id, userId: user.id },
+          { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
         );
         await tasks.trigger<typeof classifyUrlTask>("classify-url", {
           itemId: id,
-          userId: user.id,
+          userId: item.userId,
           url: item.sourceUrl,
         });
       } else if (item.kind === "image" && item.fileKey) {
         // Direct image upload - run image analysis
-        log.info({ itemId: id, userId: user.id }, "Retrying image analysis");
+        log.info(
+          { itemId: id, userId: item.userId, triggeredBy: user.id },
+          "Retrying image analysis",
+        );
         await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
           itemId: id,
-          userId: user.id,
+          userId: item.userId,
           fileKey: item.fileKey,
         });
       }

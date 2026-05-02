@@ -241,6 +241,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
         email: authProps.email,
         avatarUrl: authProps.avatarUrl,
         availableInvites: authProps.availableInvites,
+        isAdmin: authProps.isAdmin,
       });
     }
   }, [authProps, hydrateUser]);

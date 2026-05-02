@@ -15,6 +15,7 @@ type UserState = {
   email: string | null | undefined;
   avatarUrl: string | null | undefined;
   availableInvites: number | undefined;
+  isAdmin: boolean | undefined;
 
   // Individual setters for mutations
   setFirstName: (name: string | null) => void;
@@ -43,6 +44,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   email: undefined,
   avatarUrl: undefined,
   availableInvites: undefined,
+  isAdmin: undefined,
 
   setFirstName: (name) => set({ firstName: name }),
   setLastName: (name) => set({ lastName: name }),
@@ -76,6 +78,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       data.availableInvites !== undefined
     ) {
       updates.availableInvites = data.availableInvites;
+    }
+    if (state.isAdmin === undefined && data.isAdmin !== undefined) {
+      updates.isAdmin = data.isAdmin;
     }
 
     if (Object.keys(updates).length > 0) {
