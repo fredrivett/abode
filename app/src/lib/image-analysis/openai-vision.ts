@@ -73,7 +73,9 @@ Return a JSON object with these fields:
 - ocrText: Any text visible in the image, or null if there's no text
 - dominantColors: An array of 3-6 dominant colors, each with a "name" (common color name) and "hex" (approximate hex code)
 
-Be specific and accurate. For colors, use common color names and provide approximate hex values.`;
+Be specific and accurate. For colors, use common color names and provide approximate hex values.
+
+All output (title, description, tags, objects, ocrText interpretation, color names) MUST be in English. If the image contains text in another language, transcribe it verbatim in ocrText, but write the title, description, tags, and objects in English.`;
 
   try {
     const response = await client.chat.completions.create({
