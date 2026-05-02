@@ -300,6 +300,194 @@ export function extractProductImageUrls(html: string): string[] {
   return urls;
 }
 
+export type ProductImageSource = "json-ld" | "og" | "dom";
+
+export type ProductImageCandidate = {
+  url: string;
+  source: ProductImageSource;
+};
+
+const MAX_PRODUCT_IMAGE_CANDIDATES = 50;
+
+// Word-bounded so we don't false-positive on legitimate product names like
+// "iconic-chair.jpg", "logos-tee.jpg", or "striped-shirt.jpg".
+// The pixel./blank./loading. patterns intentionally match the literal "."
+// so they catch tracking/spacer GIFs (pixel.gif etc) without word boundary.
+const JUNK_URL_RE =
+  /\b(?:sprite|icon|logo|badge|avatar|emoji|favicon|payment|visa|mastercard|paypal|apple-?pay|google-?pay|amex|discover|stripe|placeholder|spacer|tracker|analytics)\b|\bpixel\.|\bblank\.|\bloading\./i;
+
+const SOURCE_PRIORITY: Record<ProductImageSource, number> = {
+  "json-ld": 3,
+  og: 2,
+  dom: 1,
+};
+
+function detectWidthHint(url: string): number {
+  // ?width=N, ?w=N, ?size=N
+  const q = url.match(/[?&](?:width|w|size)=(\d+)/i);
+  if (q) return Number.parseInt(q[1], 10);
+  // -800x600, _800x600
+  const wh = url.match(/(?:-|_)(\d{2,4})x\d{2,4}/i);
+  if (wh) return Number.parseInt(wh[1], 10);
+  // -1200w, _800w (followed by extension/query/end so we don't match
+  // arbitrary words starting with digits)
+  const w = url.match(/(?:-|_)(\d{2,4})w(?=[.?&/]|$)/i);
+  if (w) return Number.parseInt(w[1], 10);
+  return 0;
+}
+
+// Strips responsive size suffixes commonly used by image CDNs so all variants
+// of the same image collapse to one dedupe key. Covers WxH (-300x300),
+// width-only (-1200w), and retina (@2x, @3x) conventions.
+const SIZE_SUFFIX_RE =
+  /(?:-|_|\.)\d{2,4}x\d{2,4}|(?:-|_)\d{2,4}w(?=[.?&/]|$)|@\dx/gi;
+
+function pathDedupeKey(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(SIZE_SUFFIX_RE, "");
+    return u.origin + path;
+  } catch {
+    return url;
+  }
+}
+
+function resolveImageUrl(raw: string, baseUrl: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    return new URL(trimmed, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Collects every plausible product image URL from a page: JSON-LD `image`,
+ * `og:image`/`twitter:image`, `<link rel="preload" as="image">`, all `<img>`
+ * src/srcset/data-src variants, and `<source srcset>` inside `<picture>`.
+ *
+ * Filters obvious junk (icons, logos, payment badges, SVG/GIF, data URIs) and
+ * dedupes responsive variants of the same image (e.g. Shopify's
+ * `?width=300` vs `?width=1200`), keeping the largest variant. Each result
+ * carries its source so downstream code can prefer JSON-LD-tagged images
+ * when ranking for cover selection. Capped at MAX_PRODUCT_IMAGE_CANDIDATES.
+ */
+export function extractAllProductImageCandidates(
+  html: string,
+  url: string,
+): ProductImageCandidate[] {
+  // Strip HTML comments so commented-out ad/template markup doesn't leak
+  // image URLs into the candidate set.
+  const cleaned = html.replace(/<!--[\s\S]*?-->/g, "");
+
+  type Entry = {
+    url: string;
+    source: ProductImageSource;
+    width: number;
+    order: number;
+  };
+  const byKey = new Map<string, Entry>();
+  let nextOrder = 0;
+
+  const tryAdd = (raw: string | null, source: ProductImageSource) => {
+    if (!raw) return;
+    const resolved = resolveImageUrl(raw, url);
+    if (!resolved) return;
+    if (resolved.startsWith("data:")) return;
+    if (/\.(svg|gif)(?:\?|#|$)/i.test(resolved)) return;
+    if (JUNK_URL_RE.test(resolved)) return;
+
+    const key = pathDedupeKey(resolved);
+    const width = detectWidthHint(resolved);
+    const existing = byKey.get(key);
+
+    if (!existing) {
+      byKey.set(key, { url: resolved, source, width, order: nextOrder++ });
+      return;
+    }
+
+    if (SOURCE_PRIORITY[source] > SOURCE_PRIORITY[existing.source]) {
+      existing.source = source;
+    }
+    if (width > existing.width) {
+      existing.url = resolved;
+      existing.width = width;
+    }
+  };
+
+  // 1. JSON-LD images first — these are the canonical product images
+  const jsonLd = extractJsonLdProduct(cleaned);
+  if (jsonLd) {
+    for (const img of jsonLd.images) tryAdd(img, "json-ld");
+  }
+
+  // 2. og:image / twitter:image (multiple og:image tags allowed)
+  const ogImageRegex =
+    /<meta[^>]+(?:property=["']og:image["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:image["'])[^>]*>/gi;
+  let ogMatch = ogImageRegex.exec(cleaned);
+  while (ogMatch !== null) {
+    tryAdd(decodeHtmlEntities(ogMatch[1] || ogMatch[2]), "og");
+    ogMatch = ogImageRegex.exec(cleaned);
+  }
+  const twitterImage = extractMetaContent(cleaned, "twitter:image");
+  if (twitterImage) tryAdd(twitterImage, "og");
+
+  // 3. <link rel="preload" as="image"> and <link rel="image_src">
+  const linkRegex = /<link\b[^>]*>/gi;
+  let linkMatch = linkRegex.exec(cleaned);
+  while (linkMatch !== null) {
+    const tag = linkMatch[0];
+    const isPreloadImage =
+      /rel=["']preload["']/i.test(tag) && /as=["']image["']/i.test(tag);
+    const isImageSrc = /rel=["']image_src["']/i.test(tag);
+    if (isPreloadImage || isImageSrc) {
+      const href = tag.match(/href=["']([^"']+)["']/i);
+      if (href) tryAdd(decodeHtmlEntities(href[1]), "dom");
+    }
+    linkMatch = linkRegex.exec(cleaned);
+  }
+
+  // 4. <img> tags: src, lazy-load attrs, srcset
+  const imgRegex = /<img\b[^>]*>/gi;
+  let imgMatch = imgRegex.exec(cleaned);
+  while (imgMatch !== null) {
+    const tag = imgMatch[0];
+    for (const attr of ["src", "data-src", "data-lazy-src", "data-original"]) {
+      const v = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, "i"));
+      if (v) tryAdd(decodeHtmlEntities(v[1]), "dom");
+    }
+    for (const attr of ["srcset", "data-srcset"]) {
+      const v = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, "i"));
+      if (!v) continue;
+      for (const part of v[1].split(",")) {
+        const u = part.trim().split(/\s+/)[0];
+        if (u) tryAdd(decodeHtmlEntities(u), "dom");
+      }
+    }
+    imgMatch = imgRegex.exec(cleaned);
+  }
+
+  // 5. <source srcset> inside <picture>
+  const sourceRegex = /<source\b[^>]*>/gi;
+  let sourceMatch = sourceRegex.exec(cleaned);
+  while (sourceMatch !== null) {
+    const v = sourceMatch[0].match(/srcset=["']([^"']+)["']/i);
+    if (v) {
+      for (const part of v[1].split(",")) {
+        const u = part.trim().split(/\s+/)[0];
+        if (u) tryAdd(decodeHtmlEntities(u), "dom");
+      }
+    }
+    sourceMatch = sourceRegex.exec(cleaned);
+  }
+
+  return [...byKey.values()]
+    .sort((a, b) => a.order - b.order)
+    .slice(0, MAX_PRODUCT_IMAGE_CANDIDATES)
+    .map(({ url: u, source }) => ({ url: u, source }));
+}
+
 /**
  * Known e-commerce domain + product URL path patterns.
  * Each entry matches ONLY product pages (not search, category, or blog pages).

@@ -3,20 +3,24 @@ import { Readability } from "@mozilla/readability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
+import { imageSize } from "image-size";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
+  extractAllProductImageCandidates,
   extractArticleMetadata,
   extractProductMetadata,
   extractTweetId,
   extractTwitterArticleId,
   extractVimeoVideoId,
   extractYouTubeVideoId,
+  type ProductImageCandidate,
   type ProductMetadata,
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
+import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
@@ -57,7 +61,25 @@ async function downloadAndStoreImage(
   imageUrl: string,
   userId: string,
   supabase: SupabaseClient,
-): Promise<{ fileKey: string; contentType: string; size: number } | null> {
+): Promise<{
+  fileKey: string;
+  contentType: string;
+  size: number;
+  width: number;
+  height: number;
+} | null> {
+  const fetched = await fetchImageBuffer(imageUrl);
+  if (!fetched) return null;
+  return uploadImageBuffer(fetched, userId, supabase);
+}
+
+async function fetchImageBuffer(imageUrl: string): Promise<{
+  imageUrl: string;
+  buffer: Buffer;
+  contentType: string;
+  width: number;
+  height: number;
+} | null> {
   try {
     const response = await fetch(imageUrl, {
       headers: {
@@ -77,29 +99,65 @@ async function downloadAndStoreImage(
     const contentType = response.headers.get("content-type") || "image/jpeg";
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    const ext = getExtensionFromContentType(contentType);
-    const fileKey = `${userId}/${randomUUID()}${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("items")
-      .upload(fileKey, buffer, {
-        contentType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      logger.error("Failed to upload image to storage", {
-        imageUrl,
-        error: uploadError,
-      });
-      return null;
+    let width = 0;
+    let height = 0;
+    try {
+      const dims = imageSize(buffer);
+      width = dims.width ?? 0;
+      height = dims.height ?? 0;
+    } catch (err) {
+      logger.warn("Failed to read image dimensions", { imageUrl, err });
     }
 
-    return { fileKey, contentType, size: buffer.length };
+    return { imageUrl, buffer, contentType, width, height };
   } catch (error) {
-    logger.error("Error downloading/storing image", { imageUrl, error });
+    logger.error("Error downloading image", { imageUrl, error });
     return null;
   }
+}
+
+async function uploadImageBuffer(
+  fetched: {
+    imageUrl: string;
+    buffer: Buffer;
+    contentType: string;
+    width: number;
+    height: number;
+  },
+  userId: string,
+  supabase: SupabaseClient,
+): Promise<{
+  fileKey: string;
+  contentType: string;
+  size: number;
+  width: number;
+  height: number;
+} | null> {
+  const ext = getExtensionFromContentType(fetched.contentType);
+  const fileKey = `${userId}/${randomUUID()}${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("items")
+    .upload(fileKey, fetched.buffer, {
+      contentType: fetched.contentType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    logger.error("Failed to upload image to storage", {
+      imageUrl: fetched.imageUrl,
+      error: uploadError,
+    });
+    return null;
+  }
+
+  return {
+    fileKey,
+    contentType: fetched.contentType,
+    size: fetched.buffer.length,
+    width: fetched.width,
+    height: fetched.height,
+  };
 }
 
 /**
@@ -300,15 +358,22 @@ export const classifyUrlTask = task({
       // Step 3a: Check if this is a product page
       const productMeta = extractProductMetadata(html, fetchUrl);
       if (productMeta) {
+        const candidates = extractAllProductImageCandidates(html, fetchUrl);
         logger.log("URL classified as product", {
           itemId,
           url: fetchUrl,
           title: productMeta.title,
           brand: productMeta.brand,
           price: productMeta.price,
-          imageCount: productMeta.imageUrls.length,
+          candidateCount: candidates.length,
         });
-        return await handleProductUrl(itemId, userId, productMeta, supabase);
+        return await handleProductUrl(
+          itemId,
+          userId,
+          productMeta,
+          candidates,
+          supabase,
+        );
       }
 
       const metadata = extractArticleMetadata(html, fetchUrl);
@@ -574,44 +639,74 @@ async function handleImageUrl(
   };
 }
 
-const MAX_PRODUCT_IMAGES = 6;
+const MAX_PRODUCT_IMAGES = 8;
+const DOWNLOAD_BUDGET = 20;
+
+const SOURCE_RANK: Record<ProductImageCandidate["source"], number> = {
+  "json-ld": 0,
+  og: 1,
+  dom: 2,
+};
 
 async function handleProductUrl(
   itemId: string,
   userId: string,
   productMeta: ProductMetadata,
+  candidates: ProductImageCandidate[],
   supabase: SupabaseClient,
 ) {
-  // Download product images in parallel (capped)
-  const imageUrls = productMeta.imageUrls.slice(0, MAX_PRODUCT_IMAGES);
-  const imageResults = await Promise.all(
-    imageUrls.map(async (imageUrl) => {
-      const result = await downloadAndStoreImage(imageUrl, userId, supabase);
-      return result
-        ? { fileKey: result.fileKey, url: imageUrl, size: result.size }
-        : null;
+  let pickedCandidates: ProductImageCandidate[] = candidates;
+  if (candidates.length > 1) {
+    const keptIndices = await selectProductImagesWithLLM({
+      imageUrls: candidates.map((c) => c.url),
+      productTitle: productMeta.title,
+      domain: productMeta.domain,
+    });
+    pickedCandidates = keptIndices.map((i) => candidates[i]);
+  }
+
+  const toFetch = pickedCandidates.slice(0, DOWNLOAD_BUDGET);
+
+  const fetched = await Promise.all(
+    toFetch.map(async (candidate) => {
+      const result = await fetchImageBuffer(candidate.url);
+      return result ? { ...result, source: candidate.source } : null;
     }),
   );
 
-  const storedImages = imageResults.filter(
-    (r): r is { fileKey: string; url: string; size: number } => r !== null,
+  type FetchedCandidate = NonNullable<(typeof fetched)[number]>;
+  const fetchedNonNull = fetched.filter(
+    (r): r is FetchedCandidate => r !== null,
   );
 
-  // If no product images from structured data, try og:image as fallback
-  if (storedImages.length === 0 && productMeta.ogImage) {
-    const fallback = await downloadAndStoreImage(
-      productMeta.ogImage,
-      userId,
-      supabase,
-    );
-    if (fallback) {
-      storedImages.push({
-        fileKey: fallback.fileKey,
-        url: productMeta.ogImage,
-        size: fallback.size,
-      });
-    }
-  }
+  // Order: source priority first (json-ld > og > dom), then largest dim desc
+  fetchedNonNull.sort((a, b) => {
+    const rankDiff = SOURCE_RANK[a.source] - SOURCE_RANK[b.source];
+    if (rankDiff !== 0) return rankDiff;
+    return Math.max(b.width, b.height) - Math.max(a.width, a.height);
+  });
+
+  const toStore = fetchedNonNull.slice(0, MAX_PRODUCT_IMAGES);
+
+  const uploaded = await Promise.all(
+    toStore.map(async (item) => {
+      const result = await uploadImageBuffer(item, userId, supabase);
+      return result ? { ...result, url: item.imageUrl } : null;
+    }),
+  );
+
+  const storedImages = uploaded.filter(
+    (
+      r,
+    ): r is {
+      fileKey: string;
+      contentType: string;
+      size: number;
+      width: number;
+      height: number;
+      url: string;
+    } => r !== null,
+  );
 
   const coverFileKey = storedImages[0]?.fileKey ?? null;
   const totalImageSize = storedImages.reduce((sum, img) => sum + img.size, 0);
@@ -645,7 +740,12 @@ async function handleProductUrl(
     price: productMeta.price,
     currency: productMeta.currency,
     availability: productMeta.availability,
-    images: storedImages.map(({ fileKey, url }) => ({ fileKey, url })),
+    images: storedImages.map(({ fileKey, url, width, height }) => ({
+      fileKey,
+      url,
+      ...(width > 0 && { width }),
+      ...(height > 0 && { height }),
+    })),
   };
   await db.itemProductDetails.upsert({
     where: { itemId },
