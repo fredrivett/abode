@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+  Real-world snippet from https://www.audio-technica.com/en-gb/at-lp120xusb
+  Captured 2026-05-02. Trimmed to the price-relevant markup that exercises
+  every signal we infer currency from (Magento/Hyva storefront).
+-->
+<html>
+<head>
+<meta property="og:title" content="AT-LP120XUSB" />
+<meta property="og:url" content="https://www.audio-technica.com/en-gb/at-lp120xusb" />
+<meta property="og:type" content="og:product" />
+<meta property="product:price:amount" content="299.99" />
+</head>
+<body>
+<div class="product__price-wrapper">
+  <div class="final-price" itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+    <span class="price-label">From</span>
+    <span class="price-wrapper price-excluding-tax" data-label="Ex. Tax">
+      <span class="price" x-html="getFormattedFinalPrice()">
+        <span class="price">£299.99</span>
+      </span>
+    </span>
+    <meta itemprop="price" content="299.99">
+    <meta itemprop="priceCurrency" content="GBP">
+    <link itemprop="availability" href="https://schema.org/InStock" />
+  </div>
+</div>
+<script>
+  // Tracking blob — exposes price as a JS literal without a symbol.
+  mstGtmItemPush({"event":"view_item","items":[{"item_name":"AT-LP120XUSB","price":299.99,"currency":"GBP"}],"value":299.99,"currency":"GBP"});
+</script>
+</body>
+</html>
