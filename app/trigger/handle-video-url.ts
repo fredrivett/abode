@@ -159,6 +159,8 @@ export async function handleVideoUrl(
         meta: {
           originalName: metadata.title,
           ...(thumbnailResult && { coverSize: thumbnailResult.size }),
+          ...(metadata.thumbnailWidth && { width: metadata.thumbnailWidth }),
+          ...(metadata.thumbnailHeight && { height: metadata.thumbnailHeight }),
         },
       },
     });

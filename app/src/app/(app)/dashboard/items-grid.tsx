@@ -191,8 +191,9 @@ export function ItemsGrid({
                   height = 12;
                 }
               } else if (isVideo) {
-                width = 16;
-                height = 9;
+                // New videos persist thumbnail dims into meta; older ones fall back to 16:9
+                width = (meta.width as number | undefined) ?? 16;
+                height = (meta.height as number | undefined) ?? 9;
               } else if (isArticle || isProcessingUrl) {
                 width = 4;
                 height = 3;
