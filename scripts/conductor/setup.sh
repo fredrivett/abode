@@ -28,7 +28,16 @@ else
   echo "No .env.local in workspace; skipping app/.env link"
 fi
 
-# 3. Propagate MCP env vars to launchd so Claude Code MCP servers can read them
+# 3. Propagate MCP env vars to launchd so Claude Code MCP servers can read them.
+#
+# HACK: Conductor launches Claude Code in an environment that doesn't inherit
+# the user's shell env, so MCP servers configured in .mcp.json (Trigger.dev,
+# Supabase) can't see tokens like TRIGGER_ACCESS_TOKEN. Workaround: pull them
+# from ~/.claude/settings.json and stuff them into launchd, which Conductor's
+# child processes do inherit.
+#
+# Remove this block once Conductor exposes a first-class way to forward env
+# vars to MCP servers (or once Claude Code reads .env.local for MCP config).
 if [ -f "$HOME/.claude/settings.json" ] && command -v /usr/bin/jq >/dev/null; then
   for k in TRIGGER_ACCESS_TOKEN SUPABASE_ACCESS_TOKEN; do
     v=$(/usr/bin/jq -r ".env.$k // empty" "$HOME/.claude/settings.json")

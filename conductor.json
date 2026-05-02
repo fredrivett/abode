@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "setup": "./scripts/conductor-setup.sh",
-    "run": "./scripts/conductor-run.sh",
+    "setup": "./scripts/conductor/setup.sh",
+    "run": "./scripts/conductor/run.sh",
     "archive": "supabase stop --workdir ./supabase-e2e --no-backup 2>/dev/null || true"
   }
 }
