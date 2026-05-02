@@ -2354,7 +2354,7 @@ function ItemDetailDialog({
                       ) : (
                         <>
                           <Trash2 className="size-4" />
-                          Delete item
+                          Delete
                         </>
                       )}
                     </Button>
