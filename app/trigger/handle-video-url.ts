@@ -171,18 +171,20 @@ export async function handleVideoUrl(
       });
     }
 
-    // Create video details record
-    await tx.itemVideoDetails.create({
-      data: {
-        itemId,
-        platform,
-        videoId,
-        channelName: metadata.channelName,
-        channelUrl: metadata.channelUrl,
-        duration: metadata.duration,
-        embedUrl: metadata.embedUrl,
-        thumbnailUrl: metadata.thumbnailUrl,
-      },
+    // Upsert video details record (idempotent for retries)
+    const videoDetailsData = {
+      platform,
+      videoId,
+      channelName: metadata.channelName,
+      channelUrl: metadata.channelUrl,
+      duration: metadata.duration,
+      embedUrl: metadata.embedUrl,
+      thumbnailUrl: metadata.thumbnailUrl,
+    };
+    await tx.itemVideoDetails.upsert({
+      where: { itemId },
+      create: { itemId, ...videoDetailsData },
+      update: videoDetailsData,
     });
   });
 

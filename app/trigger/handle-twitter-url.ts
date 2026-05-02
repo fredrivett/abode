@@ -180,24 +180,25 @@ export async function handleTwitterUrl(
       },
     });
 
-    // Create twitter details record
+    // Upsert twitter details record (idempotent for retries)
     // For JSON fields, use Prisma.JsonNull for null values, or cast to InputJsonValue
-    await tx.itemTwitterDetails.create({
-      data: {
-        itemId,
-        tweetId: twitterDetails.tweetId,
-        authorName: twitterDetails.authorName,
-        authorUsername: twitterDetails.authorUsername,
-        authorAvatarUrl: twitterDetails.authorAvatarUrl,
-        text: twitterDetails.text,
-        postedAt: twitterDetails.postedAt
-          ? new Date(twitterDetails.postedAt)
-          : null,
-        media:
-          (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        quotedTweetId: twitterDetails.quotedTweetId,
-        card: (twitterDetails.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-      },
+    const detailsData = {
+      tweetId: twitterDetails.tweetId,
+      authorName: twitterDetails.authorName,
+      authorUsername: twitterDetails.authorUsername,
+      authorAvatarUrl: twitterDetails.authorAvatarUrl,
+      text: twitterDetails.text,
+      postedAt: twitterDetails.postedAt
+        ? new Date(twitterDetails.postedAt)
+        : null,
+      media: (twitterDetails.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      quotedTweetId: twitterDetails.quotedTweetId,
+      card: (twitterDetails.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+    };
+    await tx.itemTwitterDetails.upsert({
+      where: { itemId },
+      create: { itemId, ...detailsData },
+      update: detailsData,
     });
   });
 
