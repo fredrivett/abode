@@ -65,7 +65,7 @@ Drop:
 - Reviews, user-generated content, blog post thumbnails
 - Pure decoration (textures, patterns, abstract graphics)
 
-Order matters: list the cleanest hero shot first if you can identify one, but don't agonise over ordering — focus on getting the keep/drop right. If unsure about an image, include it. If no images clearly show the product, return {"productImageIndices": []}.`;
+Order does not matter — only keep/drop matters. If unsure about an image, include it. If no images clearly show the product, return {"productImageIndices": []}.`;
 
   try {
     const client = getOpenAiClient();
