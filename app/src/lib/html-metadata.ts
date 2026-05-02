@@ -309,8 +309,12 @@ export type ProductImageCandidate = {
 
 const MAX_PRODUCT_IMAGE_CANDIDATES = 50;
 
+// Word-bounded so we don't false-positive on legitimate product names like
+// "iconic-chair.jpg", "logos-tee.jpg", or "striped-shirt.jpg".
+// The pixel./blank./loading. patterns intentionally match the literal "."
+// so they catch tracking/spacer GIFs (pixel.gif etc) without word boundary.
 const JUNK_URL_RE =
-  /sprite|icon|logo|badge|avatar|emoji|favicon|payment|visa|mastercard|paypal|apple-?pay|google-?pay|amex|discover|stripe|placeholder|pixel\.|spacer|blank\.|loading\.|tracker|analytics/i;
+  /\b(?:sprite|icon|logo|badge|avatar|emoji|favicon|payment|visa|mastercard|paypal|apple-?pay|google-?pay|amex|discover|stripe|placeholder|spacer|tracker|analytics)\b|\bpixel\.|\bblank\.|\bloading\./i;
 
 const SOURCE_PRIORITY: Record<ProductImageSource, number> = {
   "json-ld": 3,
@@ -361,6 +365,10 @@ export function extractAllProductImageCandidates(
   html: string,
   url: string,
 ): ProductImageCandidate[] {
+  // Strip HTML comments so commented-out ad/template markup doesn't leak
+  // image URLs into the candidate set.
+  const cleaned = html.replace(/<!--[\s\S]*?-->/g, "");
+
   type Entry = {
     url: string;
     source: ProductImageSource;
@@ -397,7 +405,7 @@ export function extractAllProductImageCandidates(
   };
 
   // 1. JSON-LD images first — these are the canonical product images
-  const jsonLd = extractJsonLdProduct(html);
+  const jsonLd = extractJsonLdProduct(cleaned);
   if (jsonLd) {
     for (const img of jsonLd.images) tryAdd(img, "json-ld");
   }
@@ -405,17 +413,17 @@ export function extractAllProductImageCandidates(
   // 2. og:image / twitter:image (multiple og:image tags allowed)
   const ogImageRegex =
     /<meta[^>]+(?:property=["']og:image["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:image["'])[^>]*>/gi;
-  let ogMatch = ogImageRegex.exec(html);
+  let ogMatch = ogImageRegex.exec(cleaned);
   while (ogMatch !== null) {
     tryAdd(decodeHtmlEntities(ogMatch[1] || ogMatch[2]), "og");
-    ogMatch = ogImageRegex.exec(html);
+    ogMatch = ogImageRegex.exec(cleaned);
   }
-  const twitterImage = extractMetaContent(html, "twitter:image");
+  const twitterImage = extractMetaContent(cleaned, "twitter:image");
   if (twitterImage) tryAdd(twitterImage, "og");
 
   // 3. <link rel="preload" as="image"> and <link rel="image_src">
   const linkRegex = /<link\b[^>]*>/gi;
-  let linkMatch = linkRegex.exec(html);
+  let linkMatch = linkRegex.exec(cleaned);
   while (linkMatch !== null) {
     const tag = linkMatch[0];
     const isPreloadImage =
@@ -425,12 +433,12 @@ export function extractAllProductImageCandidates(
       const href = tag.match(/href=["']([^"']+)["']/i);
       if (href) tryAdd(decodeHtmlEntities(href[1]), "dom");
     }
-    linkMatch = linkRegex.exec(html);
+    linkMatch = linkRegex.exec(cleaned);
   }
 
   // 4. <img> tags: src, lazy-load attrs, srcset
   const imgRegex = /<img\b[^>]*>/gi;
-  let imgMatch = imgRegex.exec(html);
+  let imgMatch = imgRegex.exec(cleaned);
   while (imgMatch !== null) {
     const tag = imgMatch[0];
     for (const attr of ["src", "data-src", "data-lazy-src", "data-original"]) {
@@ -445,12 +453,12 @@ export function extractAllProductImageCandidates(
         if (u) tryAdd(decodeHtmlEntities(u), "dom");
       }
     }
-    imgMatch = imgRegex.exec(html);
+    imgMatch = imgRegex.exec(cleaned);
   }
 
   // 5. <source srcset> inside <picture>
   const sourceRegex = /<source\b[^>]*>/gi;
-  let sourceMatch = sourceRegex.exec(html);
+  let sourceMatch = sourceRegex.exec(cleaned);
   while (sourceMatch !== null) {
     const v = sourceMatch[0].match(/srcset=["']([^"']+)["']/i);
     if (v) {
@@ -459,7 +467,7 @@ export function extractAllProductImageCandidates(
         if (u) tryAdd(decodeHtmlEntities(u), "dom");
       }
     }
-    sourceMatch = sourceRegex.exec(html);
+    sourceMatch = sourceRegex.exec(cleaned);
   }
 
   return [...byKey.values()]

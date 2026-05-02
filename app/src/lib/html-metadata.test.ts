@@ -987,6 +987,81 @@ describe("extractAllProductImageCandidates", () => {
     const html = "<html><body><p>No images here</p></body></html>";
     expect(extractAllProductImageCandidates(html, baseUrl)).toEqual([]);
   });
+
+  it("does not false-positive on legitimate names containing junk substrings", () => {
+    const html = `
+      <img src="https://cdn.example.com/iconic-chair.jpg">
+      <img src="https://cdn.example.com/logos-tee.jpg">
+      <img src="https://cdn.example.com/striped-shirt.jpg">
+      <img src="https://cdn.example.com/discovery-bundle.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual([
+      "https://cdn.example.com/iconic-chair.jpg",
+      "https://cdn.example.com/logos-tee.jpg",
+      "https://cdn.example.com/striped-shirt.jpg",
+      "https://cdn.example.com/discovery-bundle.jpg",
+    ]);
+  });
+
+  it("extracts <img> inside <noscript> (lazy-load fallback pattern)", () => {
+    const html = `
+      <img src="https://cdn.example.com/lazy-placeholder.jpg" data-src="https://cdn.example.com/lazy-real.jpg">
+      <noscript>
+        <img src="https://cdn.example.com/noscript-real.jpg">
+      </noscript>
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toContain("https://cdn.example.com/noscript-real.jpg");
+    expect(urls).toContain("https://cdn.example.com/lazy-real.jpg");
+  });
+
+  it("ignores images inside HTML comments", () => {
+    const html = `
+      <!-- <img src="https://cdn.example.com/commented-out-ad.jpg"> -->
+      <img src="https://cdn.example.com/real-product.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toEqual(["https://cdn.example.com/real-product.jpg"]);
+  });
+
+  it("handles JSON-LD ImageObject form", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@type": "Product",
+          "image": [
+            { "@type": "ImageObject", "url": "https://example.com/obj1.jpg" },
+            { "@type": "ImageObject", "url": "https://example.com/obj2.jpg" }
+          ],
+          "offers": {}
+        }
+      </script>
+    `;
+    const result = extractAllProductImageCandidates(html, baseUrl);
+    const urls = result.map((c) => c.url);
+    expect(urls).toContain("https://example.com/obj1.jpg");
+    expect(urls).toContain("https://example.com/obj2.jpg");
+    expect(result.every((c) => c.source === "json-ld")).toBe(true);
+  });
+
+  it("handles self-closing <img /> and uppercase <IMG SRC>", () => {
+    const html = `
+      <img src="https://example.com/self-close.jpg" />
+      <IMG SRC="https://example.com/uppercase.jpg">
+    `;
+    const urls = extractAllProductImageCandidates(html, baseUrl).map(
+      (c) => c.url,
+    );
+    expect(urls).toContain("https://example.com/self-close.jpg");
+    expect(urls).toContain("https://example.com/uppercase.jpg");
+  });
 });
 
 describe("extractProductMetadata", () => {
