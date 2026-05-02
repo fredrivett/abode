@@ -19,3 +19,4 @@ supabase-e2e/supabase/config.toml
 
 # Treck generated data
 .treck/
+.vercel
