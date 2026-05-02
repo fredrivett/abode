@@ -1,0 +1,17 @@
+<!--
+  WARNING: This template is for LOCAL DEV only (via supabase/config.toml).
+  Production uses the Supabase Dashboard (Authentication > Email Templates).
+  If you change this file, you MUST also update the production template to match.
+-->
+<h2>Reset your abode password</h2>
+
+<p>Click the link below to set a new password:</p>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">Reset password</a></p>
+
+<p>Take care,</br>
+Fred</br>
+<em>— founder @ abode</em></p>
+
+<hr />
+
+<p><em>If you didn't request a password reset, you can safely ignore this email.</em></p>
