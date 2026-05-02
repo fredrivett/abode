@@ -15,6 +15,7 @@ import {
   extractTitle,
   extractTweetId,
   extractTwitterArticleId,
+  inferCurrencyFromPriceContext,
   isKnownProductUrl,
   parsePublishedDate,
   preserveSocialEmbeds,
@@ -23,6 +24,11 @@ import {
 // Load test fixtures
 const aaronFrancisFixture = readFileSync(
   join(__dirname, "__fixtures__/aaron-francis-tweet-embed.html"),
+  "utf-8",
+);
+
+const audioTechnicaFixture = readFileSync(
+  join(__dirname, "__fixtures__/audio-technica-product-snippet.html"),
   "utf-8",
 );
 
@@ -1275,6 +1281,212 @@ describe("isKnownProductUrl", () => {
         isKnownProductUrl("https://www.nytimes.com/2024/01/01/article"),
       ).toBe(false);
       expect(isKnownProductUrl("https://github.com/user/repo")).toBe(false);
+    });
+  });
+});
+
+describe("inferCurrencyFromPriceContext", () => {
+  describe("prefix symbols", () => {
+    it("resolves £ to GBP", () => {
+      expect(inferCurrencyFromPriceContext("£299.99", "299.99")).toBe("GBP");
+    });
+
+    it("resolves $ to USD", () => {
+      expect(inferCurrencyFromPriceContext("$299.99", "299.99")).toBe("USD");
+    });
+
+    it("resolves € to EUR", () => {
+      expect(inferCurrencyFromPriceContext("€299.99", "299.99")).toBe("EUR");
+    });
+
+    it("resolves ¥ to JPY", () => {
+      expect(inferCurrencyFromPriceContext("¥1200", "1200")).toBe("JPY");
+    });
+
+    it("resolves ₹ to INR", () => {
+      expect(inferCurrencyFromPriceContext("₹1500", "1500")).toBe("INR");
+    });
+
+    it("resolves ₩ to KRW", () => {
+      expect(inferCurrencyFromPriceContext("₩50000", "50000")).toBe("KRW");
+    });
+
+    it("tolerates whitespace between symbol and price", () => {
+      expect(inferCurrencyFromPriceContext("£ 299.99", "299.99")).toBe("GBP");
+    });
+  });
+
+  describe("multi-character prefix symbols", () => {
+    it("resolves CA$ to CAD (not USD)", () => {
+      expect(inferCurrencyFromPriceContext("CA$299.99", "299.99")).toBe("CAD");
+    });
+
+    it("resolves R$ to BRL (not USD)", () => {
+      expect(inferCurrencyFromPriceContext("R$299.99", "299.99")).toBe("BRL");
+    });
+
+    it("resolves A$ to AUD (not USD)", () => {
+      expect(inferCurrencyFromPriceContext(" A$299.99", "299.99")).toBe("AUD");
+    });
+
+    it("resolves NZ$ to NZD", () => {
+      expect(inferCurrencyFromPriceContext("NZ$299.99", "299.99")).toBe("NZD");
+    });
+
+    it("resolves CHF prefix to CHF", () => {
+      expect(inferCurrencyFromPriceContext("CHF 299.99", "299.99")).toBe("CHF");
+    });
+  });
+
+  describe("postfix symbols", () => {
+    it("resolves trailing € to EUR (French/German format)", () => {
+      expect(inferCurrencyFromPriceContext("299,99 €", "299.99")).toBe("EUR");
+    });
+
+    it("resolves trailing £ to GBP", () => {
+      expect(inferCurrencyFromPriceContext("299.99£", "299.99")).toBe("GBP");
+    });
+  });
+
+  describe("ISO codes", () => {
+    it("resolves prefix ISO code to currency", () => {
+      expect(inferCurrencyFromPriceContext("USD 299.99", "299.99")).toBe("USD");
+    });
+
+    it("resolves postfix ISO code to currency", () => {
+      expect(inferCurrencyFromPriceContext("299.99 GBP", "299.99")).toBe("GBP");
+    });
+
+    it("ignores ISO-shaped substrings inside longer words", () => {
+      // "STATUS" ends in "TUS" — not an ISO code
+      expect(inferCurrencyFromPriceContext("STATUS 299.99", "299.99")).toBe(
+        null,
+      );
+    });
+
+    it("ignores ISO codes that are not real currencies", () => {
+      expect(inferCurrencyFromPriceContext("XYZ 299.99", "299.99")).toBe(null);
+    });
+
+    it("rejects ISO code glued to a preceding letter", () => {
+      // "TheUSD" should not resolve, even though "USD" appears at the end
+      expect(inferCurrencyFromPriceContext("TheUSD 299.99", "299.99")).toBe(
+        null,
+      );
+    });
+  });
+
+  describe("HTML markup", () => {
+    it("looks through tag boundaries", () => {
+      const html = '<span class="symbol">£</span><span>299.99</span>';
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("GBP");
+    });
+
+    it("decodes named HTML entities", () => {
+      const html = "<p>&pound;299.99</p>";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("GBP");
+    });
+
+    it("decodes &euro; entity", () => {
+      const html = "<p>&euro;299.99</p>";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("EUR");
+    });
+
+    it("decodes numeric HTML entities", () => {
+      // &#163; = £
+      const html = "<p>&#163;299.99</p>";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("GBP");
+    });
+
+    it("decodes hex HTML entities", () => {
+      // &#xA3; = £
+      const html = "<p>&#xA3;299.99</p>";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("GBP");
+    });
+
+    it("prefers an occurrence with an adjacent symbol over one without", () => {
+      const html = `
+        <meta property="product:price:amount" content="299.99" />
+        <span class="price">£299.99</span>
+      `;
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe("GBP");
+    });
+  });
+
+  describe("locale price formatting", () => {
+    it("matches a price formatted with comma thousand separators", () => {
+      const html = "<span>$1,299.99</span>";
+      expect(inferCurrencyFromPriceContext(html, "1299.99")).toBe("USD");
+    });
+
+    it("matches a price formatted with dot thousand separators", () => {
+      // German format: 1.299,99 €
+      const html = "<span>1.299,99 €</span>";
+      expect(inferCurrencyFromPriceContext(html, "1299.99")).toBe("EUR");
+    });
+
+    it("matches a price formatted with space thousand separators", () => {
+      // French format: 1 299,99 €
+      const html = "<span>1 299,99 €</span>";
+      expect(inferCurrencyFromPriceContext(html, "1299.99")).toBe("EUR");
+    });
+  });
+
+  describe("boundary handling", () => {
+    it("does not match a price that is part of a larger number", () => {
+      // Looking for "299.99" should not match inside "1299.99"
+      const html = "<span>1299.99</span>";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe(null);
+    });
+
+    it("does not match when price is preceded by another digit", () => {
+      const html = "<span>£12345.99</span>";
+      expect(inferCurrencyFromPriceContext(html, "5.99")).toBe(null);
+    });
+
+    it("rejects a single-char symbol glued to a preceding letter", () => {
+      // "BANANAS$299" should not resolve to USD
+      const html = "BANANAS$299.99";
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe(null);
+    });
+  });
+
+  describe("no signal", () => {
+    it("returns null when no symbol or ISO code is adjacent", () => {
+      const html =
+        '<meta property="product:price:amount" content="299.99" /><script>{"price":299.99}</script>';
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe(null);
+    });
+
+    it("returns null for empty price", () => {
+      expect(inferCurrencyFromPriceContext("£299.99", "")).toBe(null);
+    });
+
+    it("returns null for empty html", () => {
+      expect(inferCurrencyFromPriceContext("", "299.99")).toBe(null);
+    });
+
+    it("returns null when symbol is too far from price", () => {
+      const html = `£${" ".repeat(200)}299.99`;
+      expect(inferCurrencyFromPriceContext(html, "299.99")).toBe(null);
+    });
+  });
+
+  describe("real-world fixture (audio-technica.com Magento/Hyva storefront)", () => {
+    it('recovers GBP from the visible <span class="price">£299.99</span>', () => {
+      expect(
+        inferCurrencyFromPriceContext(audioTechnicaFixture, "299.99"),
+      ).toBe("GBP");
+    });
+
+    it("end-to-end via extractProductMetadata", () => {
+      const result = extractProductMetadata(
+        audioTechnicaFixture,
+        "https://www.audio-technica.com/en-gb/at-lp120xusb",
+      );
+      expect(result).not.toBeNull();
+      expect(result?.price).toBe("299.99");
+      expect(result?.currency).toBe("GBP");
     });
   });
 });

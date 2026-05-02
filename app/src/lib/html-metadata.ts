@@ -436,17 +436,184 @@ export function extractProductMetadata(
 
   const ogBrand = extractMetaContent(html, "product:brand");
 
+  const price = jsonLd?.price ?? ogPrice ?? null;
+  const structuredCurrency = jsonLd?.currency ?? ogCurrency ?? null;
+  let currency: string | null = structuredCurrency;
+  if (currency === null && price !== null) {
+    currency = inferCurrencyFromPriceContext(html, price);
+  }
+
   return {
     title: extractTitle(html),
     description: extractDescription(html),
     domain: extractDomain(url),
-    price: jsonLd?.price ?? ogPrice ?? null,
-    currency: jsonLd?.currency ?? ogCurrency ?? null,
+    price,
+    currency,
     brand: jsonLd?.brand ?? ogBrand ?? null,
     availability: jsonLd?.availability ?? null,
     imageUrls: extractProductImageUrls(html),
     ogImage: extractOgImage(html),
   };
+}
+
+const CURRENCY_SYMBOL_MAP: ReadonlyArray<readonly [string, string]> = [
+  ["R$", "BRL"],
+  ["CA$", "CAD"],
+  ["A$", "AUD"],
+  ["NZ$", "NZD"],
+  ["HK$", "HKD"],
+  ["S$", "SGD"],
+  ["CHF", "CHF"],
+  ["£", "GBP"],
+  ["€", "EUR"],
+  ["¥", "JPY"],
+  ["₩", "KRW"],
+  ["₹", "INR"],
+  ["$", "USD"],
+];
+
+const ISO_CURRENCY_CODES = new Set([
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CAD",
+  "AUD",
+  "CHF",
+  "SEK",
+  "NOK",
+  "DKK",
+  "INR",
+  "BRL",
+  "CNY",
+  "KRW",
+  "NZD",
+  "HKD",
+  "SGD",
+  "MXN",
+  "ZAR",
+  "PLN",
+  "TRY",
+  "AED",
+  "SAR",
+]);
+
+const PRICE_CONTEXT_WINDOW = 50;
+
+function stripHtmlTags(s: string): string {
+  return s.replace(/<[^>]*>/g, "");
+}
+
+function priceFormatVariants(price: string): string[] {
+  const variants = new Set<string>([price]);
+  const num = Number.parseFloat(price);
+  if (Number.isNaN(num)) return [...variants];
+
+  const decimalPart = price.includes(".") ? price.split(".")[1] : "";
+
+  if (decimalPart) {
+    variants.add(price.replace(".", ","));
+  }
+
+  if (Math.abs(num) >= 1000) {
+    const fixed = num.toFixed(decimalPart.length || 0);
+    const [intPart, decPart] = fixed.split(".");
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "_");
+    if (decPart) {
+      variants.add(`${grouped.replace(/_/g, ",")}.${decPart}`);
+      variants.add(`${grouped.replace(/_/g, ".")},${decPart}`);
+      variants.add(`${grouped.replace(/_/g, " ")},${decPart}`);
+    } else {
+      variants.add(grouped.replace(/_/g, ","));
+      variants.add(grouped.replace(/_/g, "."));
+    }
+  }
+  return [...variants];
+}
+
+function hasWordBoundaryBefore(text: string, symbolLength: number): boolean {
+  if (text.length === symbolLength) return true;
+  const prevChar = text[text.length - symbolLength - 1];
+  return !/[A-Za-z]/.test(prevChar);
+}
+
+function hasWordBoundaryAfter(text: string, symbolLength: number): boolean {
+  if (text.length === symbolLength) return true;
+  const nextChar = text[symbolLength];
+  return !/[A-Za-z]/.test(nextChar);
+}
+
+/**
+ * Searches HTML for a currency symbol or ISO 4217 code adjacent to the given
+ * price string, and returns the inferred currency code. Returns null if no
+ * recognised symbol/code is adjacent to any occurrence.
+ *
+ * Use as a fallback when structured data (JSON-LD, OG, microdata) provides a
+ * price but no currency. Adjacency tolerates HTML tags between the symbol and
+ * the price within a ~50-char window.
+ *
+ * Why: many e-commerce templates (notably Magento/Hyva storefronts) emit the
+ * price amount in OG/microdata but render the currency only as a visible glyph
+ * (e.g. `<span class="price">£299.99</span>`). Reading the glyph recovers the
+ * currency where structured data alone cannot.
+ */
+export function inferCurrencyFromPriceContext(
+  html: string,
+  price: string,
+): string | null {
+  if (!price) return null;
+
+  const decoded = decodeHtmlEntities(html);
+  const variants = priceFormatVariants(price);
+
+  for (const variant of variants) {
+    const escaped = escapeRegex(variant);
+    const pattern = new RegExp(`(?<![\\d.,])${escaped}(?![\\d.,])`, "g");
+
+    let match = pattern.exec(decoded);
+    while (match !== null) {
+      const idx = match.index;
+      const before = stripHtmlTags(
+        decoded.slice(Math.max(0, idx - PRICE_CONTEXT_WINDOW), idx),
+      ).trimEnd();
+      const after = stripHtmlTags(
+        decoded.slice(
+          idx + variant.length,
+          idx + variant.length + PRICE_CONTEXT_WINDOW,
+        ),
+      ).trimStart();
+
+      for (const [symbol, code] of CURRENCY_SYMBOL_MAP) {
+        if (
+          before.endsWith(symbol) &&
+          hasWordBoundaryBefore(before, symbol.length)
+        ) {
+          return code;
+        }
+      }
+      for (const [symbol, code] of CURRENCY_SYMBOL_MAP) {
+        if (
+          after.startsWith(symbol) &&
+          hasWordBoundaryAfter(after, symbol.length)
+        ) {
+          return code;
+        }
+      }
+
+      const beforeIso = before.match(/(?:^|[^A-Za-z])([A-Za-z]{3})$/);
+      if (beforeIso && ISO_CURRENCY_CODES.has(beforeIso[1].toUpperCase())) {
+        return beforeIso[1].toUpperCase();
+      }
+      const afterIso = after.match(/^([A-Za-z]{3})(?:[^A-Za-z]|$)/);
+      if (afterIso && ISO_CURRENCY_CODES.has(afterIso[1].toUpperCase())) {
+        return afterIso[1].toUpperCase();
+      }
+
+      match = pattern.exec(decoded);
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -468,6 +635,10 @@ export function decodeHtmlEntities(str: string): string {
     "&#39;": "'",
     "&apos;": "'",
     "&nbsp;": " ",
+    "&pound;": "£",
+    "&euro;": "€",
+    "&yen;": "¥",
+    "&cent;": "¢",
   };
 
   return str.replace(/&[a-z0-9#]+;/gi, (match) => {
