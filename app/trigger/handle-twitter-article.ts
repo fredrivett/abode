@@ -52,16 +52,18 @@ export async function handleTwitterArticle(
     },
   });
 
-  // Create article details record with minimal info
-  await db.itemArticleDetails.create({
-    data: {
-      itemId,
-      domain,
-      content: null,
-      readingTime: null,
-      author: null,
-      publishedAt: null,
-    },
+  // Upsert article details record with minimal info (idempotent for retries)
+  const articleDetailsData = {
+    domain,
+    content: null,
+    readingTime: null,
+    author: null,
+    publishedAt: null,
+  };
+  await db.itemArticleDetails.upsert({
+    where: { itemId },
+    create: { itemId, ...articleDetailsData },
+    update: articleDetailsData,
   });
 
   logger.log("Twitter Article saved", { itemId, articleId });

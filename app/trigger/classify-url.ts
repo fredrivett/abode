@@ -461,16 +461,18 @@ export const classifyUrlTask = task({
         }
       });
 
-      // Step 6: Create article details record
-      await db.itemArticleDetails.create({
-        data: {
-          itemId,
-          author: metadata.author,
-          domain: metadata.domain,
-          publishedAt: metadata.publishedAt,
-          readingTime,
-          content: articleContent,
-        },
+      // Step 6: Upsert article details record (idempotent for retries)
+      const articleDetailsData = {
+        author: metadata.author,
+        domain: metadata.domain,
+        publishedAt: metadata.publishedAt,
+        readingTime,
+        content: articleContent,
+      };
+      await db.itemArticleDetails.upsert({
+        where: { itemId },
+        create: { itemId, ...articleDetailsData },
+        update: articleDetailsData,
       });
 
       logger.log("Article processing complete", { itemId });
@@ -637,16 +639,18 @@ async function handleProductUrl(
     }
   });
 
-  await db.itemProductDetails.create({
-    data: {
-      itemId,
-      domain: productMeta.domain,
-      brand: productMeta.brand,
-      price: productMeta.price,
-      currency: productMeta.currency,
-      availability: productMeta.availability,
-      images: storedImages.map(({ fileKey, url }) => ({ fileKey, url })),
-    },
+  const productDetailsData = {
+    domain: productMeta.domain,
+    brand: productMeta.brand,
+    price: productMeta.price,
+    currency: productMeta.currency,
+    availability: productMeta.availability,
+    images: storedImages.map(({ fileKey, url }) => ({ fileKey, url })),
+  };
+  await db.itemProductDetails.upsert({
+    where: { itemId },
+    create: { itemId, ...productDetailsData },
+    update: productDetailsData,
   });
 
   logger.log("Product processing complete, triggering enrichment", {
