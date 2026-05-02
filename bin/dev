@@ -44,8 +44,11 @@ fi
 # -----------------------------
 if command -v bunx >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
   if [[ -d "./.supabase" || -f "./supabase/config.toml" ]]; then
-    echo "Starting Supabase..."
-    bunx supabase start || echo "Supabase start failed or not configured; continuing..."
+    if docker ps --format '{{.Names}}' | grep -q '^supabase_auth_abode$'; then
+      echo "Supabase already running; skipping start."
+    else
+      ./scripts/start-supabase.sh || echo "Supabase start failed or not configured; continuing..."
+    fi
   fi
 fi
 
