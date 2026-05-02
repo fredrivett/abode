@@ -13,14 +13,14 @@ type TwitterCardProps = {
 
 /**
  * Grid card for displaying a tweet preview.
- * Shows author info, truncated text, and optional media thumbnail.
+ * Shows author info and an optional media thumbnail.
  */
 export function TwitterCard({
   twitterDetails,
   onClick,
   className,
 }: TwitterCardProps) {
-  const { authorName, authorUsername, authorAvatarUrl, text, media, card } =
+  const { authorName, authorUsername, authorAvatarUrl, media, card } =
     twitterDetails;
 
   // Get preview image: use cover media index, falling back to first item or link card
@@ -74,63 +74,38 @@ export function TwitterCard({
         </div>
       )}
 
-      {/* Content area - on hover-capable devices: overlay that slides up on hover.
-          On touch devices: stays in flow below media (current behavior). */}
+      {/* Author row - fixed-size footer in flow */}
       <div
-        className={cn(
-          "flex shrink-0 flex-col bg-white dark:bg-gray-900",
-          "[@media(hover:hover)_and_(pointer:fine)]:pointer-events-none",
-          "[@media(hover:hover)_and_(pointer:fine)]:absolute",
-          "[@media(hover:hover)_and_(pointer:fine)]:inset-x-0",
-          "[@media(hover:hover)_and_(pointer:fine)]:bottom-0",
-          "[@media(hover:hover)_and_(pointer:fine)]:translate-y-full",
-          "[@media(hover:hover)_and_(pointer:fine)]:transition-transform",
-          "[@media(hover:hover)_and_(pointer:fine)]:duration-200",
-          "[@media(hover:hover)_and_(pointer:fine)]:ease-out",
-          "[@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-y-0",
-        )}
+        className="flex shrink-0 items-center"
         style={{ padding: "0.75em", gap: "0.5em" }}
       >
-        {/* Author row */}
-        <div className="flex items-center" style={{ gap: "0.5em" }}>
-          {authorAvatarUrl ? (
-            // biome-ignore lint/a11y/useAltText: decorative avatar
-            // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
-            <img
-              src={authorAvatarUrl}
-              className="shrink-0 rounded-full"
-              style={{ width: "1.25em", height: "1.25em" }}
-              loading="lazy"
-            />
-          ) : (
-            <div
-              className="shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"
-              style={{ width: "1.25em", height: "1.25em" }}
-            />
-          )}
-          <span
-            className="truncate font-medium text-gray-900 dark:text-gray-100"
-            style={{ fontSize: "0.75em" }}
-          >
-            {authorName ?? authorUsername}
-          </span>
-          <span
-            className="truncate text-gray-500 dark:text-gray-400"
-            style={{ fontSize: "0.75em" }}
-          >
-            @{authorUsername}
-          </span>
-        </div>
-
-        {/* Tweet text preview */}
-        {text && (
-          <p
-            className="line-clamp-3 text-left text-gray-700 dark:text-gray-300"
-            style={{ fontSize: "0.875em" }}
-          >
-            {text}
-          </p>
+        {authorAvatarUrl ? (
+          // biome-ignore lint/a11y/useAltText: decorative avatar
+          // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
+          <img
+            src={authorAvatarUrl}
+            className="shrink-0 rounded-full"
+            style={{ width: "1.25em", height: "1.25em" }}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className="shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"
+            style={{ width: "1.25em", height: "1.25em" }}
+          />
         )}
+        <span
+          className="truncate font-medium text-gray-900 dark:text-gray-100"
+          style={{ fontSize: "0.75em" }}
+        >
+          {authorName ?? authorUsername}
+        </span>
+        <span
+          className="truncate text-gray-500 dark:text-gray-400"
+          style={{ fontSize: "0.75em" }}
+        >
+          @{authorUsername}
+        </span>
       </div>
 
       {/* X badge */}
