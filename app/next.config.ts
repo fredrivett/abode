@@ -18,6 +18,11 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the
+  // top-level export. Trigger ships its own nested zod v3, so externalizing
+  // these packages lets Node resolve to that copy at runtime instead of
+  // letting webpack dedupe to the app's zod v4.
+  serverExternalPackages: ["@trigger.dev/sdk", "@trigger.dev/core"],
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
