@@ -75,10 +75,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Find the item by fileKey or coverFileKey
+    // Find the item by fileKey, coverFileKey, or any fileKey in the
+    // product gallery (ItemProductDetails.images is a JSON array of
+    // { fileKey, url, width?, height? } — JSONB contains lets us match
+    // without scanning every row).
     const item = await db.item.findFirst({
       where: {
-        OR: [{ fileKey }, { coverFileKey: fileKey }],
+        OR: [
+          { fileKey },
+          { coverFileKey: fileKey },
+          {
+            productDetails: {
+              images: { array_contains: [{ fileKey }] },
+            },
+          },
+        ],
       },
       select: {
         id: true,
