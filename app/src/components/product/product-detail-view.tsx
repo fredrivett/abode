@@ -46,7 +46,7 @@ export function ProductDetailView({
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center bg-background p-6 md:p-8",
+        "flex min-h-full w-full flex-col items-center justify-center bg-background p-6 md:p-8",
         className,
       )}
     >
