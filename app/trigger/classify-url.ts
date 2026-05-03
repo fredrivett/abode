@@ -89,16 +89,30 @@ async function fetchImageBuffer(imageUrl: string): Promise<{
     });
 
     if (!response.ok) {
-      logger.warn("Failed to download image", {
+      logger.warn("Image fetch failed: bad status", {
         imageUrl,
         status: response.status,
       });
       return null;
     }
 
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    // Some sites (e.g. anti-bot pages) return 200 OK with an HTML error
+    // body. Trust the Content-Type header and reject anything that isn't
+    // declared as an image rather than uploading HTML/JSON as if it were.
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      logger.warn("Image fetch failed: non-image content-type", {
+        imageUrl,
+        contentType: contentType || "(none)",
+      });
+      return null;
+    }
+
     const buffer = Buffer.from(await response.arrayBuffer());
 
+    // Final proof-of-image check: image-size only succeeds on a parseable
+    // image header. If it throws, the bytes aren't a real image regardless
+    // of what Content-Type claimed.
     let width = 0;
     let height = 0;
     try {
@@ -106,12 +120,18 @@ async function fetchImageBuffer(imageUrl: string): Promise<{
       width = dims.width ?? 0;
       height = dims.height ?? 0;
     } catch (err) {
-      logger.warn("Failed to read image dimensions", { imageUrl, err });
+      logger.warn("Image fetch failed: bytes not parseable as image", {
+        imageUrl,
+        contentType,
+        size: buffer.length,
+        err,
+      });
+      return null;
     }
 
     return { imageUrl, buffer, contentType, width, height };
   } catch (error) {
-    logger.error("Error downloading image", { imageUrl, error });
+    logger.error("Image fetch failed: network error", { imageUrl, error });
     return null;
   }
 }
@@ -655,6 +675,16 @@ async function handleProductUrl(
   candidates: ProductImageCandidate[],
   supabase: SupabaseClient,
 ) {
+  logger.log("Product image candidates extracted", {
+    itemId,
+    count: candidates.length,
+    candidates: candidates.map((c, i) => ({
+      i,
+      source: c.source,
+      url: c.url,
+    })),
+  });
+
   let pickedCandidates: ProductImageCandidate[] = candidates;
   if (candidates.length > 1) {
     const keptIndices = await selectProductImagesWithLLM({
@@ -662,7 +692,15 @@ async function handleProductUrl(
       productTitle: productMeta.title,
       domain: productMeta.domain,
     });
+    const keptSet = new Set(keptIndices);
     pickedCandidates = keptIndices.map((i) => candidates[i]);
+    logger.log("Product images filtered by LLM", {
+      itemId,
+      keptCount: pickedCandidates.length,
+      droppedCount: candidates.length - pickedCandidates.length,
+      kept: pickedCandidates.map((c) => c.url),
+      dropped: candidates.filter((_, i) => !keptSet.has(i)).map((c) => c.url),
+    });
   }
 
   const toFetch = pickedCandidates.slice(0, DOWNLOAD_BUDGET);
@@ -670,14 +708,34 @@ async function handleProductUrl(
   const fetched = await Promise.all(
     toFetch.map(async (candidate) => {
       const result = await fetchImageBuffer(candidate.url);
-      return result ? { ...result, source: candidate.source } : null;
+      return result
+        ? { ...result, source: candidate.source, ok: true as const }
+        : { url: candidate.url, source: candidate.source, ok: false as const };
     }),
   );
 
-  type FetchedCandidate = NonNullable<(typeof fetched)[number]>;
-  const fetchedNonNull = fetched.filter(
-    (r): r is FetchedCandidate => r !== null,
-  );
+  logger.log("Product images fetched", {
+    itemId,
+    attempted: fetched.length,
+    succeeded: fetched.filter((f) => f.ok).length,
+    failed: fetched.filter((f) => !f.ok).length,
+    results: fetched.map((f) =>
+      f.ok
+        ? {
+            url: f.imageUrl,
+            source: f.source,
+            ok: true,
+            contentType: f.contentType,
+            size: f.buffer.length,
+            width: f.width,
+            height: f.height,
+          }
+        : { url: f.url, source: f.source, ok: false },
+    ),
+  });
+
+  type FetchedCandidate = Extract<(typeof fetched)[number], { ok: true }>;
+  const fetchedNonNull = fetched.filter((r): r is FetchedCandidate => r.ok);
 
   // Order: source priority first (json-ld > og > dom), then largest dim desc
   fetchedNonNull.sort((a, b) => {
@@ -687,6 +745,18 @@ async function handleProductUrl(
   });
 
   const toStore = fetchedNonNull.slice(0, MAX_PRODUCT_IMAGES);
+  const cutFromStorage = fetchedNonNull.slice(MAX_PRODUCT_IMAGES);
+  if (cutFromStorage.length > 0) {
+    logger.log("Product images dropped after sort (over MAX_PRODUCT_IMAGES)", {
+      itemId,
+      cut: cutFromStorage.map((f) => ({
+        url: f.imageUrl,
+        source: f.source,
+        width: f.width,
+        height: f.height,
+      })),
+    });
+  }
 
   const uploaded = await Promise.all(
     toStore.map(async (item) => {
@@ -707,6 +777,19 @@ async function handleProductUrl(
       url: string;
     } => r !== null,
   );
+
+  logger.log("Product images stored", {
+    itemId,
+    count: storedImages.length,
+    coverUrl: storedImages[0]?.url ?? null,
+    images: storedImages.map((s) => ({
+      url: s.url,
+      fileKey: s.fileKey,
+      width: s.width,
+      height: s.height,
+      size: s.size,
+    })),
+  });
 
   const coverFileKey = storedImages[0]?.fileKey ?? null;
   const totalImageSize = storedImages.reduce((sum, img) => sum + img.size, 0);
