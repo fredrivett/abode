@@ -629,6 +629,8 @@ async function handleImageUrl(
           size: imageResult.size,
           type: imageResult.contentType,
           originalUrl: url,
+          ...(imageResult.width > 0 && { width: imageResult.width }),
+          ...(imageResult.height > 0 && { height: imageResult.height }),
         },
       },
     });

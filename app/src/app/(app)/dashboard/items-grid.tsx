@@ -145,6 +145,7 @@ export function ItemsGrid({
               const isArticle = item.kind === "article";
               const isTwitter = item.kind === "twitter";
               const isVideo = item.kind === "video";
+              const isProduct = item.kind === "product";
               const isProcessingUrl =
                 item.sourceType === "url" &&
                 item.processingStatus === "processing";
@@ -194,6 +195,17 @@ export function ItemsGrid({
                 // New videos persist thumbnail dims into meta; older ones fall back to 16:9
                 width = (meta.width as number | undefined) ?? 16;
                 height = (meta.height as number | undefined) ?? 9;
+              } else if (isProduct) {
+                const coverIndex = item.productDetails?.coverImageIndex ?? 0;
+                const coverImage = item.productDetails?.images?.[coverIndex];
+                if (coverImage?.width && coverImage?.height) {
+                  width = coverImage.width;
+                  height = coverImage.height;
+                } else {
+                  // Most product photography is squarish to portrait
+                  width = 1;
+                  height = 1;
+                }
               } else if (isArticle || isProcessingUrl) {
                 width = 4;
                 height = 3;
