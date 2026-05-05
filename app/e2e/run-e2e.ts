@@ -8,6 +8,7 @@ import {
   startTestSupabase,
   stopTestSupabase,
 } from "./supabase-setup";
+import { useProdServer } from "./use-prod-server";
 
 const APP_DIR = path.resolve(__dirname, "..");
 
@@ -44,8 +45,6 @@ async function main() {
         Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
       ),
     };
-
-    const useProdServer = process.env.E2E_USE_BUILD === "1" || !!process.env.CI;
 
     if (useProdServer) {
       execSync("bun run build", {
