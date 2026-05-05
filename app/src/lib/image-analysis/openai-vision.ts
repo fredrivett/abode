@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { createLogger } from "../logger.server";
 
@@ -65,20 +66,20 @@ export async function analyzeImageWithOpenAI(
 
   const prompt = `Analyze this image and provide structured information about it.
 
-Return a JSON object with these fields:
+Provide:
 - title: A concise 2-6 word title that captures the essence of the image
 - description: A 1-2 sentence description of what the image shows
-- tags: An array of 10-20 relevant tags/labels (nouns, concepts, themes)
-- objects: An array of specific objects visible in the image
+- tags: 10-20 relevant tags/labels (nouns, concepts, themes)
+- objects: Specific objects visible in the image
 - ocrText: Any text visible in the image, or null if there's no text
-- dominantColors: An array of 3-6 dominant colors, each with a "name" (common color name) and "hex" (approximate hex code)
+- dominantColors: 3-6 dominant colors, each with a common name and approximate hex code
 
 Be specific and accurate. For colors, use common color names and provide approximate hex values.
 
 All output (title, description, tags, objects, ocrText interpretation, color names) MUST be in English. If the image contains text in another language, transcribe it verbatim in ocrText, but write the title, description, tags, and objects in English.`;
 
   try {
-    const response = await client.chat.completions.create({
+    const completion = await client.chat.completions.parse({
       model: "gpt-4o-mini",
       messages: [
         {
@@ -97,27 +98,24 @@ All output (title, description, tags, objects, ocrText interpretation, color nam
       ],
       max_tokens: 1000,
       temperature: 0.3,
-      response_format: { type: "json_object" },
+      response_format: zodResponseFormat(ImageAnalysisSchema, "image_analysis"),
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("No content in OpenAI response");
+    const analysis = completion.choices[0]?.message?.parsed;
+    if (!analysis) {
+      throw new Error("No parsed content in OpenAI response");
     }
-
-    const parsed = JSON.parse(content);
-    const analysis = ImageAnalysisSchema.parse(parsed);
 
     log.info({ title: analysis.title }, "OpenAI vision analysis complete");
 
     return {
       analysis,
       usage: {
-        promptTokens: response.usage?.prompt_tokens ?? 0,
-        completionTokens: response.usage?.completion_tokens ?? 0,
-        totalTokens: response.usage?.total_tokens ?? 0,
+        promptTokens: completion.usage?.prompt_tokens ?? 0,
+        completionTokens: completion.usage?.completion_tokens ?? 0,
+        totalTokens: completion.usage?.total_tokens ?? 0,
       },
-      model: response.model,
+      model: completion.model,
     };
   } catch (error) {
     log.error({ error }, "OpenAI vision analysis failed");
