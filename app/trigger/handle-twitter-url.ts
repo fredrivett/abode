@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { logger, tasks } from "@trigger.dev/sdk";
 import { fetchTweet, type Tweet } from "react-tweet/api";
+import { translateToEnglish } from "../src/lib/ai/translate-to-english";
 import db from "../src/lib/db";
 import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
 import type {
@@ -151,6 +152,20 @@ export async function handleTwitterUrl(
   // Transform to our format
   const twitterDetails = transformTweetData(tweet);
 
+  // Translate tweet text into English for the description (no-op if already English)
+  let descriptionEn: string | null = null;
+  if (twitterDetails.text) {
+    try {
+      descriptionEn = await translateToEnglish(twitterDetails.text);
+    } catch (error) {
+      logger.log("Failed to translate tweet text, falling back to original", {
+        itemId,
+        error,
+      });
+      descriptionEn = twitterDetails.text;
+    }
+  }
+
   // Update item and create twitter details in a transaction
   const normalizedUrl = normalizeUrl(url);
 
@@ -170,7 +185,7 @@ export async function handleTwitterUrl(
       data: {
         kind: "twitter",
         title: `Tweet by @${twitterDetails.authorUsername}`,
-        description: twitterDetails.text?.slice(0, 200) ?? null,
+        description: descriptionEn?.slice(0, 200) ?? null,
         externalLinks: hasLink
           ? undefined
           : [

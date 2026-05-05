@@ -1,4 +1,5 @@
 import { encodingForModel } from "js-tiktoken";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { getOpenAiClient } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
@@ -53,14 +54,14 @@ export async function generateTagsFromText(text: string): Promise<string[]> {
     "Generating tags from text",
   );
 
-  const response = await client.chat.completions.create({
+  const completion = await client.chat.completions.parse({
     model: "gpt-4o-mini",
     messages: [
       {
         role: "user",
         content: `Analyze the following content and generate tags for it.
 
-Return a JSON object with a "tags" field containing an array of 10-15 relevant tags/labels (nouns, concepts, themes). Be specific and accurate.
+Return 10-15 relevant tags/labels (nouns, concepts, themes). Be specific and accurate.
 
 All tags MUST be in English, regardless of the language of the source content. If the content is in another language, translate concepts into their English equivalents.
 
@@ -70,18 +71,15 @@ ${truncatedText}`,
     ],
     max_tokens: 500,
     temperature: 0.3,
-    response_format: { type: "json_object" },
+    response_format: zodResponseFormat(TagsSchema, "tags"),
   });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No content in OpenAI response");
+  const parsed = completion.choices[0]?.message?.parsed;
+  if (!parsed) {
+    throw new Error("No parsed content in OpenAI response");
   }
 
-  const parsed = JSON.parse(content);
-  const result = TagsSchema.parse(parsed);
+  log.info({ tagCount: parsed.tags.length }, "Tags generated from text");
 
-  log.info({ tagCount: result.tags.length }, "Tags generated from text");
-
-  return result.tags;
+  return parsed.tags;
 }
