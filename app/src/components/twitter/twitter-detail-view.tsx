@@ -178,6 +178,15 @@ export function TwitterDetailView({
   );
 }
 
+function pickVideoSrc(item: TwitterMedia): string | undefined {
+  const variants = item.variants ?? [];
+  const mp4s = variants.filter((v) => v.type === "video/mp4");
+  const sorted = [...(mp4s.length > 0 ? mp4s : variants)].sort(
+    (a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0),
+  );
+  return sorted[0]?.src;
+}
+
 function CoverImageMedia({
   item,
   index,
@@ -210,11 +219,14 @@ function CoverImageMedia({
         mediaLength === 3 && index === 0 && "row-span-2",
       )}
     >
-      {item.type === "video" ? (
+      {item.type === "video" || item.type === "animated_gif" ? (
         <video
-          src={item.url}
+          src={pickVideoSrc(item)}
           poster={item.posterUrl}
-          controls
+          controls={item.type === "video"}
+          autoPlay={item.type === "animated_gif"}
+          loop={item.type === "animated_gif"}
+          muted={item.type === "animated_gif"}
           className="h-full w-full object-cover"
           playsInline
         >
