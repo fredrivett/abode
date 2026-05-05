@@ -7,6 +7,8 @@ const basePort = Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10);
 // Offset +5 is assigned to the shadow DB in config.toml (Prisma concept only, never bound at runtime)
 const e2eServerPort = basePort + 5;
 
+const useProdServer = process.env.E2E_USE_BUILD === "1" || !!process.env.CI;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -46,7 +48,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run dev",
+    command: useProdServer ? "bun run start" : "bun run dev",
+    timeout: 120_000,
     url: `http://localhost:${e2eServerPort}`,
     reuseExistingServer: false,
     env: {

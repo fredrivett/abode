@@ -30,23 +30,35 @@ async function main() {
 
     const defaultUser = TEST_USERS.default;
 
+    const sharedEnv = {
+      ...process.env,
+      DATABASE_URL: status.DB_URL,
+      DIRECT_URL: status.DB_URL,
+      NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+      RESEND_API_KEY: "re_e2e_placeholder_not_real",
+      TEST_USER_EMAIL: defaultUser.email,
+      TEST_USER_PASSWORD: defaultUser.password,
+      LOCAL_SMTP_PORT: String(
+        Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
+      ),
+    };
+
+    const useProdServer = process.env.E2E_USE_BUILD === "1" || !!process.env.CI;
+
+    if (useProdServer) {
+      execSync("bun run build", {
+        stdio: "inherit",
+        cwd: APP_DIR,
+        env: sharedEnv,
+      });
+    }
+
     execSync(`bunx playwright test ${playwrightArgs}`, {
       stdio: "inherit",
       cwd: APP_DIR,
-      env: {
-        ...process.env,
-        DATABASE_URL: status.DB_URL,
-        DIRECT_URL: status.DB_URL,
-        NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
-        SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
-        RESEND_API_KEY: "re_e2e_placeholder_not_real",
-        TEST_USER_EMAIL: defaultUser.email,
-        TEST_USER_PASSWORD: defaultUser.password,
-        LOCAL_SMTP_PORT: String(
-          Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
-        ),
-      },
+      env: sharedEnv,
     });
   } finally {
     stopTestSupabase();
