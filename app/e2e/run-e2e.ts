@@ -33,6 +33,7 @@ async function main() {
 
     const sharedEnv = {
       ...process.env,
+      E2E: "1",
       DATABASE_URL: status.DB_URL,
       DIRECT_URL: status.DB_URL,
       NEXT_PUBLIC_SUPABASE_URL: status.API_URL,

@@ -52,6 +52,7 @@ export default defineConfig({
     url: `http://localhost:${e2eServerPort}`,
     reuseExistingServer: false,
     env: {
+      E2E: process.env.E2E || "",
       CONDUCTOR_PORT: String(e2eServerPort),
       DATABASE_URL: process.env.DATABASE_URL || "",
       DIRECT_URL: process.env.DIRECT_URL || "",

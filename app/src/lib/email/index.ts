@@ -138,8 +138,8 @@ export async function sendEmail(options: {
     throw new EmailBlockedInTestError(options.to);
   }
 
-  // Local development: send to Inbucket via SMTP
-  if (isDevelopment) {
+  // Local development or e2e tests against a local Supabase: send to Inbucket via SMTP
+  if (isDevelopment || process.env.E2E === "1") {
     return sendEmailLocal(options);
   }
 
