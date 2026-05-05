@@ -229,6 +229,8 @@ function CoverImageMedia({
           muted={item.type === "animated_gif"}
           className="h-full w-full object-cover"
           playsInline
+          // @ts-expect-error -- not in HTML spec for <video>, but Chromium and Firefox honor it. Twitter's video CDN returns 403 when Referer is our origin; this suppresses it.
+          referrerPolicy="no-referrer"
         >
           <track kind="captions" />
         </video>
