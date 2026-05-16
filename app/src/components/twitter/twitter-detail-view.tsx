@@ -184,7 +184,9 @@ function pickVideoSrc(item: TwitterMedia): string | undefined {
   const sorted = [...(mp4s.length > 0 ? mp4s : variants)].sort(
     (a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0),
   );
-  return sorted[0]?.src;
+  const src = sorted[0]?.src;
+  if (!src) return undefined;
+  return `/api/v1/twitter-video?url=${encodeURIComponent(src)}`;
 }
 
 function CoverImageMedia({
@@ -229,8 +231,6 @@ function CoverImageMedia({
           muted={item.type === "animated_gif"}
           className="h-full w-full object-cover"
           playsInline
-          // @ts-expect-error -- not in HTML spec for <video>, but Chromium and Firefox honor it. Twitter's video CDN returns 403 when Referer is our origin; this suppresses it.
-          referrerPolicy="no-referrer"
         >
           <track kind="captions" />
         </video>
