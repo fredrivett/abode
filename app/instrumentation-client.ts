@@ -1,5 +1,5 @@
 import posthog from "posthog-js";
-import { isDevelopment, POSTHOG_HOST, POSTHOG_KEY } from "@/env";
+import { BUILD_SHA, isDevelopment, POSTHOG_HOST, POSTHOG_KEY } from "@/env";
 import { createLogger } from "@/lib/logger.client";
 
 const log = createLogger("posthog");
@@ -14,6 +14,10 @@ if (POSTHOG_KEY) {
     // Disable performance/web vitals in dev to prevent Turbopack dynamic import warning
     capture_performance: !isDevelopment,
     loaded: (posthog) => {
+      // Attach the build SHA to every event so incidents link to the deploy.
+      if (BUILD_SHA) {
+        posthog.register({ build_sha: BUILD_SHA });
+      }
       if (isDevelopment) {
         posthog.opt_out_capturing();
         posthog.debug();

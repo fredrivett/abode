@@ -18,6 +18,11 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // Expose the build's git SHA to client + server so analytics/errors can be
+  // linked back to the deploy that produced them.
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: revision,
+  },
   // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the
   // top-level export. Trigger ships its own nested zod v3, so externalizing
   // these packages lets Node resolve to that copy at runtime instead of

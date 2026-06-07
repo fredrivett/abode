@@ -47,7 +47,10 @@ export function captureServerException(
   const client = getPostHogClient();
   if (!client) return;
 
-  client.captureException(error, distinctId, additionalProperties);
+  client.captureException(error, distinctId, {
+    build_sha: process.env.NEXT_PUBLIC_BUILD_SHA,
+    ...additionalProperties,
+  });
 }
 
 /**

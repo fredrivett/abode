@@ -9,4 +9,7 @@
 export const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 export const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
+// Git SHA of the running build, injected via next.config.ts `env`.
+export const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA;
+
 export const isDevelopment = process.env.NODE_ENV === "development";
