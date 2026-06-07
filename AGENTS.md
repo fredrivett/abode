@@ -82,6 +82,12 @@ IMPORTANT: This section must be followed strictly.
 - Never edit previously generated migrations, assume they have already been ran.
 - Never run `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, or any other Prisma migration commands unless the user explicitly instructs you to.
 
+## Lessons learned
+
+When a recurring defect is fixed, append a one-line entry here — but first try to convert the lesson into a deterministic check (type, lint, or test) via the `learn` skill in `.agents/skills/learn/`. Use this list only for context a check can't capture.
+
+- _No entries yet._
+
 <!-- TRIGGER.DEV basic START -->
 
 # Trigger.dev Basic Tasks (v4)
