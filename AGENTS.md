@@ -5,6 +5,39 @@
 - Be concise. Preserve important meaning but remove fluff, sacrifice grammar for the sake of concision.
 - Understand that multiple agents may be working at once, so don't revert if you find changes you didn't make.
 
+## Commands
+
+Run from the `./app` directory unless noted. `bun run check:fix` is the primary quality gate after any code change.
+
+| Command | What it does | When to use |
+| --- | --- | --- |
+| `bun run dev` | Start Next.js dev server (Turbopack) | Local development — the user usually has this running |
+| `bun run build` | Production build (webpack) | CI / verifying a prod build — **not** during a dev session |
+| `bun run check:fix` | Biome autofix + `tsc --noEmit` | After every code change (run this before considering work done) |
+| `bun run fix` | Biome lint/format autofix | Quick format/lint pass |
+| `bun run lint` | Biome check, no fixes | Read-only lint (matches CI) |
+| `bun run ts:check` | TypeScript check (`tsc --noEmit`) | Verify types only |
+| `bun run test` | Unit tests (vitest, jsdom) | After logic changes |
+| `bun run test:integration` | Integration tests (Testcontainers Postgres — requires Docker) | After DB / server-side changes |
+| `bun run test:all` | All vitest projects | Full vitest run |
+| `bun run test:e2e` | Playwright E2E (isolated Supabase — requires Docker) | After user-facing flow changes |
+| `bun run test:coverage` | Vitest with coverage | Check coverage |
+| `bun run prisma:generate` | Generate Prisma client | After schema changes / fresh install |
+| `bun run prisma:migrate --name <name>` | Create + apply a dev migration (`prisma migrate dev`) | Only per the Database Migrations policy below |
+| `bun add <pkg>` | Install a dependency (bun only, from `./app`) | Adding dependencies |
+| `bun run storybook` | Run Storybook on port 6306 | Component development |
+
+## Boundaries
+
+Most "always / never" rules live in the relevant sections below. In addition, **ask the user first** before any of the following:
+
+- Running database migrations or any destructive Prisma command (`prisma migrate`, `prisma db push`, `prisma migrate reset`).
+- Any operation that touches production data or production services (prod DB writes, prod Supabase changes, deleting users or items).
+- Changing auth/session logic, or email templates that are mirrored manually in the Supabase Dashboard.
+- Adding a new third-party dependency or external service.
+- Rewriting git history, force-pushing, or deleting branches.
+- Deploying to production or promoting a deployment.
+
 ## Development Server Management
 
 **IMPORTANT**: Do NOT run `npm run build` during development sessions when the user is watching the dev server. This breaks the running development environment.
