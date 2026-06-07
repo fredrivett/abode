@@ -38,6 +38,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@masonry-grid/react": "^1.1.1",
     "@mozilla/readability": "^0.6.0",
+    "@posthog/nextjs-config": "^1.9.52",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { withPostHogConfig } from "@posthog/nextjs-config";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
@@ -56,4 +57,23 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+const serwistConfig = withSerwist(nextConfig);
+
+// Upload source maps to PostHog at build time so production stack traces are
+// readable. Only enabled when a personal API key is present, so local and
+// token-less CI builds are unaffected. Set POSTHOG_API_KEY + POSTHOG_PROJECT_ID
+// in the Vercel project to activate.
+const posthogApiKey = process.env.POSTHOG_API_KEY;
+
+export default posthogApiKey
+  ? withPostHogConfig(serwistConfig, {
+      personalApiKey: posthogApiKey,
+      projectId: process.env.POSTHOG_PROJECT_ID,
+      host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      sourcemaps: {
+        enabled: true,
+        deleteAfterUpload: true,
+        releaseVersion: revision,
+      },
+    })
+  : serwistConfig;
