@@ -34,6 +34,9 @@ jobs:
       - name: Run Biome lint
         run: bun run lint
 
+      - name: Check for banned TS suppressions
+        run: bun run lint:suppressions
+
   typecheck:
     name: TypeScript
     runs-on: ubuntu-latest

@@ -1,0 +1,18 @@
+language js
+
+// Flag placeholder/stub implementations so agents can't leave unimplemented code behind.
+`throw new Error($msg)` where {
+  or {
+    $msg <: contains `"not implemented"`,
+    $msg <: contains `"Not implemented"`,
+    $msg <: contains `"not yet implemented"`,
+    $msg <: contains `"unimplemented"`,
+    $msg <: contains `"TODO"`,
+    $msg <: contains `"stub"`
+  },
+  register_diagnostic(
+    span=$msg,
+    message="Avoid placeholder/stub implementations. Implement the behavior or open a tracked issue instead of throwing a 'not implemented' error.",
+    severity="error"
+  )
+}

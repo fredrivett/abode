@@ -74,6 +74,8 @@ This (1) auto-fixes lint/format issues (Biome) and (2) reports TypeScript errors
 
 - **Prefer type guards over type assertions** — runtime checks that narrow types instead of `as` casts.
 - **Avoid `any`** — use `unknown` with type guards, or define proper types. `noExplicitAny` is enforced as a lint error.
+- **No suppression comments** — `@ts-ignore` / `@ts-nocheck` are banned (CI-enforced via `lint:suppressions`); only use `@ts-expect-error: <reason>` with a description when truly unavoidable.
+- **No stub placeholders** — don't leave `throw new Error("not implemented")` (or similar) behind; the `no-stub.grit` Biome plugin flags them.
 
 ```ts
 // ❌ Bad: type assertion
