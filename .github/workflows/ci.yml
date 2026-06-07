@@ -37,6 +37,9 @@ jobs:
       - name: Check for banned TS suppressions
         run: bun run lint:suppressions
 
+      - name: Check Commands table is in sync
+        run: bun run check:commands-doc
+
   typecheck:
     name: TypeScript
     runs-on: ubuntu-latest

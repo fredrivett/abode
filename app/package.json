@@ -12,6 +12,7 @@
     "fix": "bunx -p @biomejs/biome biome check --fix",
     "fix:unsafe": "bunx -p @biomejs/biome biome check --fix --unsafe",
     "check:fix": "bun run fix && bun run ts:check",
+    "check:commands-doc": "bun scripts/check-commands-doc.ts",
     "format": "bunx -p @biomejs/biome biome format --write",
     "test": "vitest --project unit",
     "test:watch": "vitest watch --project unit",

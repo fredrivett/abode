@@ -9,6 +9,8 @@
 
 Run from the `./app` directory unless noted. `bun run check:fix` is the primary quality gate after any code change.
 
+> This table is verified against `package.json` by `bun run check:commands-doc` (CI). Adding or renaming a script means updating this table (or the allowlist in `app/scripts/check-commands-doc.ts`).
+
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `bun run dev` | Start Next.js dev server (Turbopack) | Local development — the user usually has this running |
