@@ -17,6 +17,7 @@
     "test:watch": "vitest watch --project unit",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:coverage:unit": "vitest --config vitest.coverage.config.ts --run --coverage",
     "test:integration": "vitest --project integration --run",
     "test:all": "vitest --run",
     "test:e2e": "bun ./e2e/run-e2e.ts",

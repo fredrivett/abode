@@ -109,8 +109,22 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: bunx playwright install-deps chromium
 
-      - name: Run tests
-        run: bun run test --run
+      - name: Run tests with coverage
+        shell: bash
+        run: |
+          set -o pipefail
+          bun run test:coverage:unit 2>&1 | tee coverage.txt
+
+      - name: Publish coverage to job summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo '### Unit test coverage'
+            echo '```'
+            tail -n 20 coverage.txt 2>/dev/null || echo "no coverage output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
     name: E2E Tests
