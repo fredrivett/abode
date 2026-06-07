@@ -42,7 +42,8 @@
       "recommended": true,
       "suspicious": {
         "noUnknownAtRules": "off",
-        "noConsole": "error"
+        "noConsole": "error",
+        "noExplicitAny": "error"
       },
       "style": {
         "noNonNullAssertion": "error"
