@@ -170,6 +170,16 @@ bun run test:e2e          # E2E tests with Playwright (requires Docker)
 - `@/` — Maps to `./src` (all test types)
 - `@app/` — Maps to `./app` root (integration tests only)
 
+## Analytics & Instrumentation
+
+When shipping a user-facing feature, instrument it as part of the change (not later):
+
+- Capture a PostHog event for the key action — client via `posthog.capture(...)` (or a tracker in `src/components/tracking`), server via `getPostHogClient()?.capture(...)`.
+- For a **new flow**, add or update a funnel/insight so drop-off is measurable.
+- Ensure new error paths report via `captureServerException` (server) or the error boundary (client).
+
+The PR template includes a checklist for this.
+
 ## Dependencies
 
 All package installations must use `bun` from the `./app` directory:
