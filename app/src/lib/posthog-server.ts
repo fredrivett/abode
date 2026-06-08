@@ -48,8 +48,9 @@ export function captureServerException(
   if (!client) return;
 
   client.captureException(error, distinctId, {
-    build_sha: process.env.NEXT_PUBLIC_BUILD_SHA,
     ...additionalProperties,
+    // Tag last so the build SHA can't be overridden by a caller's properties.
+    build_sha: process.env.NEXT_PUBLIC_BUILD_SHA,
   });
 }
 
