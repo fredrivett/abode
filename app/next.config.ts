@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { withPostHogConfig } from "@posthog/nextjs-config";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
@@ -18,6 +19,11 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // Expose the build's git SHA to client + server so analytics/errors can be
+  // linked back to the deploy that produced them.
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: revision,
+  },
   // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the
   // top-level export. Trigger ships its own nested zod v3, so externalizing
   // these packages lets Node resolve to that copy at runtime instead of
@@ -51,4 +57,25 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+const serwistConfig = withSerwist(nextConfig);
+
+// Upload source maps to PostHog at build time so production stack traces are
+// readable. Only enabled when BOTH the personal API key and project ID are
+// present — the wrapper validates projectId eagerly and would crash the build
+// if it were missing — so local and token-less CI builds are unaffected. Set
+// POSTHOG_API_KEY + POSTHOG_PROJECT_ID in the Vercel project to activate.
+const posthogApiKey = process.env.POSTHOG_API_KEY;
+const posthogProjectId = process.env.POSTHOG_PROJECT_ID;
+
+export default posthogApiKey && posthogProjectId
+  ? withPostHogConfig(serwistConfig, {
+      personalApiKey: posthogApiKey,
+      projectId: posthogProjectId,
+      host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      sourcemaps: {
+        enabled: true,
+        deleteAfterUpload: true,
+        releaseVersion: revision,
+      },
+    })
+  : serwistConfig;

@@ -31,16 +31,29 @@ function getSupabaseAdmin() {
   });
 }
 
+// Remove any existing seed user before creating a fresh one.
+async function deleteExistingSeedUser(prisma: PrismaClient) {
+  const existing = await prisma.user.findUnique({
+    where: { email: SEED_USER.email },
+    select: { id: true },
+  });
+  if (existing) {
+    // items_user_id_fkey is ON DELETE RESTRICT, so the user's items must be
+    // removed first. Deleting items cascades their children (locations, vectors,
+    // details, room links), clearing every remaining user-RESTRICT reference.
+    await prisma.item.deleteMany({ where: { userId: existing.id } });
+  }
+  // Free the reserved email. Raw SQL sees soft-deleted auth rows that
+  // admin.listUsers() omits; the on_auth_user_deleted trigger then removes the
+  // public.users row, cascading the remaining (rooms, milestones, …) FKs.
+  await prisma.$executeRaw`DELETE FROM auth.users WHERE email = ${SEED_USER.email}`;
+}
+
 async function createSeedUser(
   supabase: SupabaseClient,
   prisma: PrismaClient,
 ): Promise<string> {
-  const { data: listData } = await supabase.auth.admin.listUsers();
-  const existing = listData?.users?.find((u) => u.email === SEED_USER.email);
-  if (existing) {
-    await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
-    await supabase.auth.admin.deleteUser(existing.id);
-  }
+  await deleteExistingSeedUser(prisma);
 
   const { data, error } = await supabase.auth.admin.createUser({
     email: SEED_USER.email,
@@ -49,8 +62,10 @@ async function createSeedUser(
     user_metadata: { pending_username: SEED_USER.username },
   });
 
-  if (error) {
-    throw new Error(`Failed to create seed user: ${error.message}`);
+  if (error || !data?.user) {
+    throw new Error(
+      `Failed to create seed user: ${error?.message ?? "unknown error"}`,
+    );
   }
 
   const userId = data.user.id;
@@ -100,7 +115,14 @@ async function uploadSeedImage(
 async function seed() {
   console.log("Starting preview seed...");
 
-  const prisma = new PrismaClient();
+  // Use the session-mode (direct) connection for this one-off script. The
+  // transaction-mode pooler (DATABASE_URL, port 6543) breaks Prisma's prepared
+  // statements ("prepared statement already exists"); DIRECT_URL (5432) doesn't.
+  const prisma = new PrismaClient(
+    process.env.DIRECT_URL
+      ? { datasourceUrl: process.env.DIRECT_URL }
+      : undefined,
+  );
   const supabase = getSupabaseAdmin();
 
   try {

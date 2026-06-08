@@ -1,6 +1,6 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
-  "plugins": ["./biome/no-hardcoded-ellipsis.grit"],
+  "plugins": ["./biome/no-hardcoded-ellipsis.grit", "./biome/no-stub.grit"],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -42,7 +42,8 @@
       "recommended": true,
       "suspicious": {
         "noUnknownAtRules": "off",
-        "noConsole": "error"
+        "noConsole": "error",
+        "noExplicitAny": "error"
       },
       "style": {
         "noNonNullAssertion": "error"
@@ -65,7 +66,7 @@
   },
   "overrides": [
     {
-      "includes": ["prisma/seed.ts"],
+      "includes": ["prisma/seed.ts", "scripts/**"],
       "linter": {
         "rules": {
           "suspicious": {

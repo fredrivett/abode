@@ -1,7 +1,212 @@
+# Trigger.dev tasks (`app/trigger/`)
+
+Scoped rules for files in this directory. See the `add-trigger-task` skill (`.agents/skills/add-trigger-task/`) for the how-to, and the full SDK reference at the bottom of this file.
+
+- **v4 SDK only** — `import { task, schemaTask, logger } from "@trigger.dev/sdk"`. Never `client.defineJob` (v2; breaks the app).
+- Tasks are **auto-discovered** via `dirs: ["trigger"]` in `trigger.config.ts` — no manual registration.
+- `id` is kebab-case, unique, and **stable** (it's the trigger key). Keep it in sync with the exported symbol.
+- Always set a `retry` config and a sensible `maxDuration`.
+- **Error handling convention**: in `run`, `try/catch` → `logger.error(...)` + `captureServerException(error, userId, { task })` → if the work backs a user-visible item, set `processingStatus: "failed"` → **re-throw** so Trigger.dev retries.
+- Return an object including at least `{ success: true }`.
+- Don't remove `@trigger.dev/sdk`/`@trigger.dev/core` from `serverExternalPackages` in `next.config.ts` (zod v4-vs-v3 resolution).
+
 ---
-trigger: glob
-globs: **/trigger.config.ts
----
+
+_The reference below was migrated out of the always-loaded root `AGENTS.md` so it only loads when working in this directory._
+
+# Trigger.dev Basic Tasks (v4)
+
+**MUST use `@trigger.dev/sdk` (v4), NEVER `client.defineJob`**
+
+## Basic Task
+
+```ts
+import { logger, task } from "@trigger.dev/sdk";
+
+export const processData = task({
+  id: "process-data",
+  retry: {
+    maxAttempts: 10,
+    factor: 1.8,
+    minTimeoutInMs: 500,
+    maxTimeoutInMs: 30_000,
+    randomize: false,
+  },
+  run: async (payload: { userId: string; data: any[] }) => {
+    // Task logic - runs for long time, no timeouts
+    logger.log(
+      `Processing ${payload.data.length} items for user ${payload.userId}`,
+    );
+    return { processed: payload.data.length };
+  },
+});
+```
+
+## Schema Task (with validation)
+
+```ts
+import { schemaTask } from "@trigger.dev/sdk";
+import { z } from "zod";
+
+export const validatedTask = schemaTask({
+  id: "validated-task",
+  schema: z.object({
+    name: z.string(),
+    age: z.number(),
+    email: z.string().email(),
+  }),
+  run: async (payload) => {
+    // Payload is automatically validated and typed
+    return { message: `Hello ${payload.name}, age ${payload.age}` };
+  },
+});
+```
+
+## Scheduled Task
+
+```ts
+import { logger, schedules } from "@trigger.dev/sdk";
+
+const dailyReport = schedules.task({
+  id: "daily-report",
+  cron: "0 9 * * *", // Daily at 9:00 AM UTC
+  // or with timezone: cron: { pattern: "0 9 * * *", timezone: "America/New_York" },
+  run: async (payload) => {
+    logger.log("Scheduled run", { at: payload.timestamp });
+    logger.log("Last run", { at: payload.lastTimestamp });
+    logger.log("Upcoming runs", { upcoming: payload.upcoming });
+
+    // Generate daily report logic
+    return { reportGenerated: true, date: payload.timestamp };
+  },
+});
+```
+
+## Triggering Tasks
+
+### From Backend Code
+
+```ts
+import { tasks } from "@trigger.dev/sdk";
+import type { processData } from "./trigger/tasks";
+
+// Single trigger
+const handle = await tasks.trigger<typeof processData>("process-data", {
+  userId: "123",
+  data: [{ id: 1 }, { id: 2 }],
+});
+
+// Batch trigger
+const batchHandle = await tasks.batchTrigger<typeof processData>(
+  "process-data",
+  [
+    { payload: { userId: "123", data: [{ id: 1 }] } },
+    { payload: { userId: "456", data: [{ id: 2 }] } },
+  ],
+);
+```
+
+### From Inside Tasks (with Result handling)
+
+```ts
+export const parentTask = task({
+  id: "parent-task",
+  run: async (payload) => {
+    // Trigger and continue
+    const handle = await childTask.trigger({ data: "value" });
+
+    // Trigger and wait - returns Result object, NOT task output
+    const result = await childTask.triggerAndWait({ data: "value" });
+    if (result.ok) {
+      logger.log("Task output", { output: result.output }); // Actual task return value
+    } else {
+      logger.error("Task failed", { error: result.error });
+    }
+
+    // Quick unwrap (throws on error)
+    const output = await childTask.triggerAndWait({ data: "value" }).unwrap();
+
+    // Batch trigger and wait
+    const results = await childTask.batchTriggerAndWait([
+      { payload: { data: "item1" } },
+      { payload: { data: "item2" } },
+    ]);
+
+    for (const run of results) {
+      if (run.ok) {
+        logger.log("Success", { output: run.output });
+      } else {
+        logger.log("Failed", { error: run.error });
+      }
+    }
+  },
+});
+
+export const childTask = task({
+  id: "child-task",
+  run: async (payload: { data: string }) => {
+    return { processed: payload.data };
+  },
+});
+```
+
+> Never wrap triggerAndWait or batchTriggerAndWait calls in a Promise.all or Promise.allSettled as this is not supported in Trigger.dev tasks.
+
+## Waits
+
+```ts
+import { logger, task, wait } from "@trigger.dev/sdk";
+
+export const taskWithWaits = task({
+  id: "task-with-waits",
+  run: async (payload) => {
+    logger.log("Starting task");
+
+    // Wait for specific duration
+    await wait.for({ seconds: 30 });
+    await wait.for({ minutes: 5 });
+    await wait.for({ hours: 1 });
+    await wait.for({ days: 1 });
+
+    // Wait until specific date
+    await wait.until({ date: new Date("2024-12-25") });
+
+    // Wait for token (from external system)
+    await wait.forToken({
+      token: "user-approval-token",
+      timeoutInSeconds: 3600, // 1 hour timeout
+    });
+
+    logger.log("All waits completed");
+    return { status: "completed" };
+  },
+});
+```
+
+> Never wrap wait calls in a Promise.all or Promise.allSettled as this is not supported in Trigger.dev tasks.
+
+## Key Points
+
+- **Result vs Output**: `triggerAndWait()` returns a `Result` object with `ok`, `output`, `error` properties - NOT the direct task output
+- **Type safety**: Use `import type` for task references when triggering from backend
+- **Waits > 5 seconds**: Automatically checkpointed, don't count toward compute usage
+
+## NEVER Use (v2 deprecated)
+
+```ts
+// BREAKS APPLICATION
+client.defineJob({
+  id: "job-id",
+  run: async (payload, io) => {
+    /* ... */
+  },
+});
+```
+
+Use v4 SDK (`@trigger.dev/sdk`), check `result.ok` before accessing `result.output`
+
+
+
 # Trigger.dev Configuration (v4)
 
 **Complete guide to configuring `trigger.config.ts` with build extensions**
@@ -37,7 +242,8 @@ export default defineConfig({
     extensions: [], // Build extensions go here
   },
 
-  // Global lifecycle hooks
+  // Global lifecycle hooks (config context — the SDK `logger` is task-scoped,
+  // so plain console is used in config/build hooks)
   onStartAttempt: async ({ payload, ctx }) => {
     console.log("Global task start");
   },
@@ -216,7 +422,10 @@ extensions: [
     // ctx contains: environment, projectRef, env
     return [
       { name: "SECRET_KEY", value: await getSecret(ctx.environment) },
-      { name: "API_URL", value: ctx.environment === "prod" ? "api.prod.com" : "api.dev.com" },
+      {
+        name: "API_URL",
+        value: ctx.environment === "prod" ? "api.prod.com" : "api.dev.com",
+      },
     ];
   }),
 ];
@@ -235,7 +444,7 @@ extensions: [
       project: process.env.SENTRY_PROJECT,
       authToken: process.env.SENTRY_AUTH_TOKEN,
     }),
-    { placement: "last", target: "deploy" } // Optional config
+    { placement: "last", target: "deploy" }, // Optional config
   ),
 ];
 ```
@@ -287,7 +496,10 @@ import { OpenAIInstrumentation } from "@langfuse/openai";
 export default defineConfig({
   // ... other config
   telemetry: {
-    instrumentations: [new PrismaInstrumentation(), new OpenAIInstrumentation()],
+    instrumentations: [
+      new PrismaInstrumentation(),
+      new OpenAIInstrumentation(),
+    ],
     exporters: [customExporter], // Optional custom exporters
   },
 });
@@ -348,3 +560,4 @@ extensions: [
 - **Debug builds**: Use `--log-level debug --dry-run` for troubleshooting
 
 Extensions only affect deployment, not local development. Use `external` array for packages that shouldn't be bundled.
+

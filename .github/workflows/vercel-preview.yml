@@ -54,9 +54,11 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          supabase --experimental branches get "${{ github.head_ref }}" \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+          supabase --experimental branches get "$BRANCH_NAME" \
+            --project-ref "$SUPABASE_PROJECT_REF" \
             -o env >> "$GITHUB_ENV"
 
       - uses: oven-sh/setup-bun@v2

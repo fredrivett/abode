@@ -1,0 +1,40 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  semgrep:
+    name: Semgrep (OWASP Top Ten)
+    runs-on: ubuntu-latest
+    container:
+      # Pinned by tag + digest for deterministic, supply-chain-safe scans.
+      # Dependabot (github-actions ecosystem) keeps this updated.
+      image: semgrep/semgrep:1.165.0@sha256:f4791a54c891eabe1188248135574e6e03dfc31dfd3f3b747c7bec7079bfed1b
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep scan --config p/owasp-top-ten --config p/github-actions --error
+
+  gitleaks:
+    name: Gitleaks (secret scanning)
+    runs-on: ubuntu-latest
+    # Needs pull-requests: read to list PR commits for the scan range.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Rely on the job's pass/fail + logs; PR comments would need write access.
+          GITLEAKS_ENABLE_COMMENTS: "false"
