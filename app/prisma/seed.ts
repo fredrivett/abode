@@ -31,62 +31,35 @@ function getSupabaseAdmin() {
   });
 }
 
-// `listUsers()` is paginated (server default ~50 per page), so a single
-// unpaginated call can miss the seed user once a preview branch accumulates
-// many users (e.g. from e2e runs) — leaving the old user in place and making
-// createUser fail with "already registered". Search every page.
-async function findSeedAuthUser(supabase: SupabaseClient) {
-  for (let page = 1; ; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage: 200,
-    });
-    if (error) throw new Error(`Failed to list users: ${error.message}`);
-    const match = data.users.find((u) => u.email === SEED_USER.email);
-    if (match) return match;
-    if (data.users.length < 200) return null; // last page reached
-  }
-}
-
-async function deleteSeedUserIfExists(
-  supabase: SupabaseClient,
-  prisma: PrismaClient,
-) {
-  const existing = await findSeedAuthUser(supabase);
-  if (!existing) return;
-  // Cascade-deletes the user's items/rooms via FK; hard-deletes free the email.
-  await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
-  await supabase.auth.admin.deleteUser(existing.id);
+// Remove any existing seed user before creating a fresh one. We delete directly
+// from auth.users by email (raw SQL) because admin.listUsers() omits
+// soft-deleted / email-reserved users — yet their email still blocks createUser
+// with "already registered". The on_auth_user_deleted trigger removes the
+// matching public.users row, which cascades to its items/rooms.
+async function deleteExistingSeedUser(prisma: PrismaClient) {
+  await prisma.$executeRaw`DELETE FROM auth.users WHERE email = ${SEED_USER.email}`;
 }
 
 async function createSeedUser(
   supabase: SupabaseClient,
   prisma: PrismaClient,
 ): Promise<string> {
-  const createPayload = {
+  await deleteExistingSeedUser(prisma);
+
+  const { data, error } = await supabase.auth.admin.createUser({
     email: SEED_USER.email,
     password: SEED_USER.password,
     email_confirm: true,
     user_metadata: { pending_username: SEED_USER.username },
-  };
+  });
 
-  await deleteSeedUserIfExists(supabase, prisma);
-
-  let created = await supabase.auth.admin.createUser(createPayload);
-
-  // Belt-and-suspenders: if the email is somehow still reserved, clear and retry.
-  if (created.error && /already/i.test(created.error.message)) {
-    await deleteSeedUserIfExists(supabase, prisma);
-    created = await supabase.auth.admin.createUser(createPayload);
-  }
-
-  if (created.error || !created.data?.user) {
+  if (error || !data?.user) {
     throw new Error(
-      `Failed to create seed user: ${created.error?.message ?? "unknown error"}`,
+      `Failed to create seed user: ${error?.message ?? "unknown error"}`,
     );
   }
 
-  const userId = created.data.user.id;
+  const userId = data.user.id;
 
   // The handle_new_user trigger creates the public.users row.
   // Wait briefly for the trigger to fire, then update with seed data.
