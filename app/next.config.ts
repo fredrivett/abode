@@ -60,15 +60,17 @@ const nextConfig: NextConfig = {
 const serwistConfig = withSerwist(nextConfig);
 
 // Upload source maps to PostHog at build time so production stack traces are
-// readable. Only enabled when a personal API key is present, so local and
-// token-less CI builds are unaffected. Set POSTHOG_API_KEY + POSTHOG_PROJECT_ID
-// in the Vercel project to activate.
+// readable. Only enabled when BOTH the personal API key and project ID are
+// present — the wrapper validates projectId eagerly and would crash the build
+// if it were missing — so local and token-less CI builds are unaffected. Set
+// POSTHOG_API_KEY + POSTHOG_PROJECT_ID in the Vercel project to activate.
 const posthogApiKey = process.env.POSTHOG_API_KEY;
+const posthogProjectId = process.env.POSTHOG_PROJECT_ID;
 
-export default posthogApiKey
+export default posthogApiKey && posthogProjectId
   ? withPostHogConfig(serwistConfig, {
       personalApiKey: posthogApiKey,
-      projectId: process.env.POSTHOG_PROJECT_ID,
+      projectId: posthogProjectId,
       host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
       sourcemaps: {
         enabled: true,
