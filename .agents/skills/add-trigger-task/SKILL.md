@@ -48,7 +48,7 @@ export const myTask = task({
 
 ```ts
 import { tasks } from "@trigger.dev/sdk";
-import type { myTask } from "../../../trigger/my-task"; // import type only
+import type { myTask } from "@app/trigger/my-task"; // `@app/*` → app root; type-only
 
 await tasks.trigger<typeof myTask>("my-task", { itemId, userId });
 ```
@@ -59,6 +59,6 @@ In server actions, wrap the trigger in try/catch and log a warning on failure so
 
 - **v4 SDK only** (`@trigger.dev/sdk`). Never `client.defineJob` (v2, breaks the app). See the Trigger.dev sections in `AGENTS.md`.
 - **zod gotcha**: `@trigger.dev/sdk`/`core` are in `serverExternalPackages` in `app/next.config.ts` because the app is on zod v4 and Trigger ships zod v3 internally — do not remove that.
-- Use `import type` for task references when triggering, so task code isn't bundled into the app.
+- Import the task **type** via the `@app/*` alias (`@app/trigger/<name>`) — a stable, depth-independent path (the codebase also has relative `../trigger/...` imports, but those are error-prone). `import type` keeps task code out of the app bundle.
 - Triggering uses the string id (`"my-task"`) with the type param — keep the id and the exported symbol in sync.
 - Verify with `bun run check:fix`. Do not run a production build during a dev session.
