@@ -106,7 +106,14 @@ async function uploadSeedImage(
 async function seed() {
   console.log("Starting preview seed...");
 
-  const prisma = new PrismaClient();
+  // Use the session-mode (direct) connection for this one-off script. The
+  // transaction-mode pooler (DATABASE_URL, port 6543) breaks Prisma's prepared
+  // statements ("prepared statement already exists"); DIRECT_URL (5432) doesn't.
+  const prisma = new PrismaClient(
+    process.env.DIRECT_URL
+      ? { datasourceUrl: process.env.DIRECT_URL }
+      : undefined,
+  );
   const supabase = getSupabaseAdmin();
 
   try {
