@@ -57,9 +57,9 @@ const baseUrl = getAppBaseUrl();
 
 ## Development Server Management
 
-**IMPORTANT**: Do NOT run `npm run build` during development sessions when the user is watching the dev server. This breaks the running development environment.
+**IMPORTANT**: Do NOT run `bun run build` during development sessions when the user is watching the dev server. This breaks the running development environment.
 
-The user typically has the development server running via `npm run dev` and is actively watching changes. Running build commands interrupts this workflow.
+The user typically has the development server running via `bun run dev` and is actively watching changes. Running build commands interrupts this workflow.
 
 ## Code Quality
 
