@@ -102,7 +102,7 @@ jobs:
           echo "Deployed to: $URL"
 
       - name: Comment PR with preview URL
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const url = '${{ steps.deploy.outputs.preview_url }}';
