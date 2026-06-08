@@ -21,7 +21,7 @@ _The reference below was migrated out of the always-loaded root `AGENTS.md` so i
 ## Basic Task
 
 ```ts
-import { task } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 
 export const processData = task({
   id: "process-data",
@@ -34,7 +34,7 @@ export const processData = task({
   },
   run: async (payload: { userId: string; data: any[] }) => {
     // Task logic - runs for long time, no timeouts
-    console.log(
+    logger.log(
       `Processing ${payload.data.length} items for user ${payload.userId}`,
     );
     return { processed: payload.data.length };
@@ -65,16 +65,16 @@ export const validatedTask = schemaTask({
 ## Scheduled Task
 
 ```ts
-import { schedules } from "@trigger.dev/sdk";
+import { logger, schedules } from "@trigger.dev/sdk";
 
 const dailyReport = schedules.task({
   id: "daily-report",
   cron: "0 9 * * *", // Daily at 9:00 AM UTC
   // or with timezone: cron: { pattern: "0 9 * * *", timezone: "America/New_York" },
   run: async (payload) => {
-    console.log("Scheduled run at:", payload.timestamp);
-    console.log("Last run was:", payload.lastTimestamp);
-    console.log("Next 5 runs:", payload.upcoming);
+    logger.log("Scheduled run", { at: payload.timestamp });
+    logger.log("Last run", { at: payload.lastTimestamp });
+    logger.log("Upcoming runs", { upcoming: payload.upcoming });
 
     // Generate daily report logic
     return { reportGenerated: true, date: payload.timestamp };
@@ -118,9 +118,9 @@ export const parentTask = task({
     // Trigger and wait - returns Result object, NOT task output
     const result = await childTask.triggerAndWait({ data: "value" });
     if (result.ok) {
-      console.log("Task output:", result.output); // Actual task return value
+      logger.log("Task output", { output: result.output }); // Actual task return value
     } else {
-      console.error("Task failed:", result.error);
+      logger.error("Task failed", { error: result.error });
     }
 
     // Quick unwrap (throws on error)
@@ -134,9 +134,9 @@ export const parentTask = task({
 
     for (const run of results) {
       if (run.ok) {
-        console.log("Success:", run.output);
+        logger.log("Success", { output: run.output });
       } else {
-        console.log("Failed:", run.error);
+        logger.log("Failed", { error: run.error });
       }
     }
   },
@@ -155,12 +155,12 @@ export const childTask = task({
 ## Waits
 
 ```ts
-import { task, wait } from "@trigger.dev/sdk";
+import { logger, task, wait } from "@trigger.dev/sdk";
 
 export const taskWithWaits = task({
   id: "task-with-waits",
   run: async (payload) => {
-    console.log("Starting task");
+    logger.log("Starting task");
 
     // Wait for specific duration
     await wait.for({ seconds: 30 });
@@ -177,7 +177,7 @@ export const taskWithWaits = task({
       timeoutInSeconds: 3600, // 1 hour timeout
     });
 
-    console.log("All waits completed");
+    logger.log("All waits completed");
     return { status: "completed" };
   },
 });
@@ -242,7 +242,8 @@ export default defineConfig({
     extensions: [], // Build extensions go here
   },
 
-  // Global lifecycle hooks
+  // Global lifecycle hooks (config context — the SDK `logger` is task-scoped,
+  // so plain console is used in config/build hooks)
   onStartAttempt: async ({ payload, ctx }) => {
     console.log("Global task start");
   },
