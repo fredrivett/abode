@@ -1,7 +1,11 @@
 language js
 
 // Flag placeholder/stub implementations so agents can't leave unimplemented code behind.
-`throw new Error($msg)` where {
+// Matches both `throw new Error(...)` and `throw Error(...)` (no `new`).
+or {
+  `throw new Error($msg)`,
+  `throw Error($msg)`
+} where {
   or {
     $msg <: contains `"not implemented"`,
     $msg <: contains `"Not implemented"`,
