@@ -35,7 +35,11 @@ For stricter access (e.g. admin), nest under a protected group with its own layo
 Routes are not covered by the `(app)` layout — guard explicitly:
 
 ```ts
+import { type NextRequest, NextResponse } from "next/server";
+import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+
+const log = createLogger("my-route");
 
 export async function GET(request: NextRequest) {
   try {
