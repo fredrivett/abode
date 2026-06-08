@@ -31,12 +31,21 @@ function getSupabaseAdmin() {
   });
 }
 
-// Remove any existing seed user before creating a fresh one. We delete directly
-// from auth.users by email (raw SQL) because admin.listUsers() omits
-// soft-deleted / email-reserved users — yet their email still blocks createUser
-// with "already registered". The on_auth_user_deleted trigger removes the
-// matching public.users row, which cascades to its items/rooms.
+// Remove any existing seed user before creating a fresh one.
 async function deleteExistingSeedUser(prisma: PrismaClient) {
+  const existing = await prisma.user.findUnique({
+    where: { email: SEED_USER.email },
+    select: { id: true },
+  });
+  if (existing) {
+    // items_user_id_fkey is ON DELETE RESTRICT, so the user's items must be
+    // removed first. Deleting items cascades their children (locations, vectors,
+    // details, room links), clearing every remaining user-RESTRICT reference.
+    await prisma.item.deleteMany({ where: { userId: existing.id } });
+  }
+  // Free the reserved email. Raw SQL sees soft-deleted auth rows that
+  // admin.listUsers() omits; the on_auth_user_deleted trigger then removes the
+  // public.users row, cascading the remaining (rooms, milestones, …) FKs.
   await prisma.$executeRaw`DELETE FROM auth.users WHERE email = ${SEED_USER.email}`;
 }
 
