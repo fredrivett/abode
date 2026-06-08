@@ -9,7 +9,8 @@
  * Run by CI (and `bun run check:commands-doc`).
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Scripts intentionally NOT in the Commands table (internal / rarely agent-run).
 // Adding a new script means either documenting it in AGENTS.md or listing it here.
@@ -33,7 +34,7 @@ const UNDOCUMENTED_ALLOWLIST = new Set([
   "supabase:studio",
 ]);
 
-const appDir = join(import.meta.dir, "..");
+const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = join(appDir, "..");
 
 const pkg = JSON.parse(readFileSync(join(appDir, "package.json"), "utf8"));
