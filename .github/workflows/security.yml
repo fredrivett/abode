@@ -11,7 +11,9 @@ jobs:
     name: Semgrep (OWASP Top Ten)
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      # Pinned by tag + digest for deterministic, supply-chain-safe scans.
+      # Dependabot (github-actions ecosystem) keeps this updated.
+      image: semgrep/semgrep:1.165.0@sha256:f4791a54c891eabe1188248135574e6e03dfc31dfd3f3b747c7bec7079bfed1b
     steps:
       - uses: actions/checkout@v4
 
