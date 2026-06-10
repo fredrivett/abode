@@ -1,7 +1,10 @@
 "use client";
 
 import { TwitterIcon } from "@/components/icons/platform-icons";
+import { AutoplayVideo } from "@/components/media/autoplay-video";
+import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
 
@@ -14,6 +17,8 @@ type TwitterCardProps = {
 /**
  * Grid card for displaying a tweet preview.
  * Shows the tweet's media (or an X branding placeholder when there is none).
+ * Videos and GIFs autoplay muted while in the viewport, unless the user
+ * prefers reduced motion or has data saver enabled.
  */
 export function TwitterCard({
   twitterDetails,
@@ -21,6 +26,7 @@ export function TwitterCard({
   className,
 }: TwitterCardProps) {
   const { media, card } = twitterDetails;
+  const autoplayAllowed = useAutoplayAllowed();
 
   // Get preview image: use cover media index, falling back to first item or link card
   const coverIndex = twitterDetails.coverMediaIndex ?? 0;
@@ -29,6 +35,13 @@ export function TwitterCard({
     coverMedia?.type === "photo"
       ? coverMedia.url
       : (coverMedia?.posterUrl ?? card?.imageUrl ?? null);
+
+  const isPlayable =
+    coverMedia?.type === "video" || coverMedia?.type === "animated_gif";
+  // Lowest bitrate for in-feed autoplay — bandwidth over fidelity
+  const videoSrc =
+    isPlayable && coverMedia ? getTwitterVideoSrc(coverMedia, "lowest") : null;
+  const shouldAutoplay = autoplayAllowed && !!videoSrc;
 
   return (
     <button
@@ -41,7 +54,25 @@ export function TwitterCard({
       style={gridCardStyle}
     >
       {/* Media preview area - grows to fill available space */}
-      {previewImage ? (
+      {shouldAutoplay && videoSrc ? (
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
+          <AutoplayVideo src={videoSrc} posterUrl={coverMedia?.posterUrl} />
+          {/* GIF badge */}
+          {coverMedia?.type === "animated_gif" && (
+            <div
+              className="absolute rounded bg-black/80 font-medium text-white"
+              style={{
+                left: "0.5em",
+                bottom: "0.5em",
+                padding: "0.125em 0.375em",
+                fontSize: "0.75em",
+              }}
+            >
+              GIF
+            </div>
+          )}
+        </div>
+      ) : previewImage ? (
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
           {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
           {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
@@ -50,8 +81,8 @@ export function TwitterCard({
             className="h-full w-full object-cover"
             loading="lazy"
           />
-          {/* Video indicator */}
-          {coverMedia?.type === "video" && (
+          {/* Play indicator for videos/GIFs that aren't autoplaying */}
+          {isPlayable && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="rounded-full bg-black/60 p-3">
                 <svg

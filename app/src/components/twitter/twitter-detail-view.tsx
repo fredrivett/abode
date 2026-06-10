@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
+import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { getHostname } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails, TwitterMedia } from "./types";
@@ -178,17 +179,6 @@ export function TwitterDetailView({
   );
 }
 
-function pickVideoSrc(item: TwitterMedia): string | undefined {
-  const variants = item.variants ?? [];
-  const mp4s = variants.filter((v) => v.type === "video/mp4");
-  const sorted = [...(mp4s.length > 0 ? mp4s : variants)].sort(
-    (a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0),
-  );
-  const src = sorted[0]?.src;
-  if (!src) return undefined;
-  return `/api/v1/twitter-video?url=${encodeURIComponent(src)}`;
-}
-
 function CoverImageMedia({
   item,
   index,
@@ -223,7 +213,7 @@ function CoverImageMedia({
     >
       {item.type === "video" || item.type === "animated_gif" ? (
         <video
-          src={pickVideoSrc(item)}
+          src={getTwitterVideoSrc(item, "highest")}
           poster={item.posterUrl}
           controls={item.type === "video"}
           autoPlay={item.type === "animated_gif"}
