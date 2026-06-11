@@ -7,8 +7,9 @@ const log = createLogger("api/v1/items/status");
 
 /**
  * GET /api/v1/items/status?ids=id1,id2,id3
- * Returns the processing status for the given item IDs.
- * Lightweight endpoint for polling processing items.
+ * Returns the processing status and last update time for the given item IDs.
+ * Lightweight endpoint for polling processing items — `updatedAt` lets the
+ * client detect mid-processing progress (e.g. a URL being classified).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         processingStatus: true,
+        updatedAt: true,
       },
     });
 

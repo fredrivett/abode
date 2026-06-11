@@ -12,20 +12,24 @@ type StatusResponse = {
   items: Array<{
     id: string;
     processingStatus: ProcessingStatus;
+    updatedAt: string;
   }>;
 };
 
 const POLL_INTERVAL_MS = 1500; // Poll every 1.5 seconds
 
 /**
- * Hook that polls the server to check if processing items have completed.
- * When any item transitions from "processing" to another status, invalidates the items query.
+ * Hook that polls the server for progress on processing items.
+ * Invalidates the items query when an item finishes (completed/failed) or is
+ * updated mid-processing (e.g. a URL is classified and rich data is saved),
+ * so the grid can show the rich card as soon as the data exists.
  *
  * @param processingItemIds - Array of item IDs that are currently in "processing" status
  */
 export function useProcessingPoll(processingItemIds: string[]) {
   const invalidateItems = useInvalidateItems();
-  const previousIdsRef = useRef<Set<string>>(new Set());
+  // Last updatedAt seen per item, to detect mid-processing changes
+  const lastSeenUpdatedAtRef = useRef<Map<string, string>>(new Map());
 
   const checkStatus = useCallback(async () => {
     if (processingItemIds.length === 0) return;
@@ -36,17 +40,31 @@ export function useProcessingPoll(processingItemIds: string[]) {
         `/api/v1/items/status?ids=${encodeURIComponent(idsParam)}`,
       );
 
-      // Check if any items have finished processing
-      const completedOrFailed = response.items.filter(
+      const lastSeen = lastSeenUpdatedAtRef.current;
+
+      // Items that finished processing
+      const finished = response.items.filter(
         (item) =>
           item.processingStatus === "completed" ||
           item.processingStatus === "failed",
       );
 
-      if (completedOrFailed.length > 0) {
+      // Items updated mid-processing (e.g. URL classified, analysis written).
+      // The first sighting only records a baseline, so we don't refetch
+      // items that haven't changed since the grid loaded them.
+      const updated = response.items.filter((item) => {
+        const previous = lastSeen.get(item.id);
+        lastSeen.set(item.id, item.updatedAt);
+        return previous !== undefined && previous !== item.updatedAt;
+      });
+
+      if (finished.length > 0 || updated.length > 0) {
         log.info(
-          { completedIds: completedOrFailed.map((i) => i.id) },
-          "Items finished processing, invalidating query",
+          {
+            finishedIds: finished.map((i) => i.id),
+            updatedIds: updated.map((i) => i.id),
+          },
+          "Processing items changed, invalidating query",
         );
         invalidateItems();
       }
@@ -58,13 +76,15 @@ export function useProcessingPoll(processingItemIds: string[]) {
   useEffect(() => {
     // Don't poll if no processing items
     if (processingItemIds.length === 0) {
-      previousIdsRef.current = new Set();
+      lastSeenUpdatedAtRef.current.clear();
       return;
     }
 
-    // Track previous IDs to avoid unnecessary refreshes
+    // Prune baselines for items that are no longer processing
     const currentIds = new Set(processingItemIds);
-    previousIdsRef.current = currentIds;
+    for (const id of lastSeenUpdatedAtRef.current.keys()) {
+      if (!currentIds.has(id)) lastSeenUpdatedAtRef.current.delete(id);
+    }
 
     // Start polling
     const intervalId = setInterval(checkStatus, POLL_INTERVAL_MS);
