@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-function isSaveDataEnabled(nav: Navigator): boolean {
-  if (!("connection" in nav)) return false;
+function getConnection(nav: Navigator): EventTarget | null {
+  if (!("connection" in nav)) return null;
   const { connection } = nav;
+  return connection instanceof EventTarget ? connection : null;
+}
+
+function isSaveDataEnabled(nav: Navigator): boolean {
+  const connection = getConnection(nav);
   return (
-    typeof connection === "object" &&
     connection !== null &&
     "saveData" in connection &&
     connection.saveData === true
@@ -29,7 +33,13 @@ export function useAutoplayAllowed(): boolean {
 
     update();
     mediaQuery.addEventListener("change", update);
-    return () => mediaQuery.removeEventListener("change", update);
+    // navigator.connection fires "change" when Data Saver / network conditions change
+    const connection = getConnection(navigator);
+    connection?.addEventListener("change", update);
+    return () => {
+      mediaQuery.removeEventListener("change", update);
+      connection?.removeEventListener("change", update);
+    };
   }, []);
 
   return allowed;
