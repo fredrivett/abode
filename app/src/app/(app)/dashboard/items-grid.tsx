@@ -152,8 +152,8 @@ export function ItemsGrid({
 
               // Derive display name - item.title is the single source of truth
               let name: string;
-              if (isProcessingUrl && item.sourceUrl) {
-                // For processing URLs, show the domain as the name
+              if (isProcessingUrl && !item.title && item.sourceUrl) {
+                // For processing URLs without a title yet, show the domain
                 try {
                   name = new URL(item.sourceUrl).hostname;
                 } catch {

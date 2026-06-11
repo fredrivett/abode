@@ -505,10 +505,13 @@ export function ItemCard({
   if (isTwitter && item.twitterDetails) {
     return (
       <>
-        <TwitterCard
-          twitterDetails={item.twitterDetails}
-          onClick={handleOpenDetail}
-        />
+        <div className="relative h-full w-full">
+          <ProcessingOverlay status={item.processingStatus} />
+          <TwitterCard
+            twitterDetails={item.twitterDetails}
+            onClick={handleOpenDetail}
+          />
+        </div>
 
         <ItemDetailDialogWrapper
           show={showDetailDialog}
@@ -533,11 +536,14 @@ export function ItemCard({
   if (isVideo && item.videoDetails) {
     return (
       <>
-        <VideoCard
-          videoDetails={item.videoDetails}
-          coverFileKey={item.coverFileKey}
-          onClick={handleOpenDetail}
-        />
+        <div className="relative h-full w-full">
+          <ProcessingOverlay status={item.processingStatus} />
+          <VideoCard
+            videoDetails={item.videoDetails}
+            coverFileKey={item.coverFileKey}
+            onClick={handleOpenDetail}
+          />
+        </div>
 
         <ItemDetailDialogWrapper
           show={showDetailDialog}
