@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getExtensionFromContentType,
   getHostname,
+  getSafeRedirectPath,
   isImageUrl,
   isValidUrl,
 } from "./url-utils";
@@ -158,6 +159,41 @@ describe("getHostname", () => {
   it("returns original string for relative URLs", () => {
     expect(getHostname("/path/to/page")).toBe("/path/to/page");
     expect(getHostname("./relative")).toBe("./relative");
+  });
+});
+
+describe("getSafeRedirectPath", () => {
+  it("returns a same-origin relative path unchanged", () => {
+    expect(getSafeRedirectPath("/save?url=https://example.com")).toBe(
+      "/save?url=https://example.com",
+    );
+  });
+
+  it("falls back to /dashboard when next is missing", () => {
+    expect(getSafeRedirectPath(undefined)).toBe("/dashboard");
+    expect(getSafeRedirectPath(null)).toBe("/dashboard");
+    expect(getSafeRedirectPath("")).toBe("/dashboard");
+  });
+
+  it("uses a custom fallback when provided", () => {
+    expect(getSafeRedirectPath(null, "/home")).toBe("/home");
+  });
+
+  it("rejects absolute URLs", () => {
+    expect(getSafeRedirectPath("https://evil.com")).toBe("/dashboard");
+    expect(getSafeRedirectPath("http://evil.com/path")).toBe("/dashboard");
+  });
+
+  it("rejects protocol-relative URLs", () => {
+    expect(getSafeRedirectPath("//evil.com")).toBe("/dashboard");
+  });
+
+  it("rejects backslash escape tricks", () => {
+    expect(getSafeRedirectPath("/\\evil.com")).toBe("/dashboard");
+  });
+
+  it("rejects paths that don't start with a slash", () => {
+    expect(getSafeRedirectPath("dashboard")).toBe("/dashboard");
   });
 });
 
