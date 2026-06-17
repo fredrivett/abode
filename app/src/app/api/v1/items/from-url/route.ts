@@ -9,6 +9,17 @@ import type { classifyUrlTask } from "../../../../../../trigger/classify-url";
 
 const log = createLogger("api/v1/items/from-url");
 
+// Where the save originated, for analytics (default "web")
+const VALID_ITEM_SOURCES = ["web", "share_target"] as const;
+type ItemSource = (typeof VALID_ITEM_SOURCES)[number];
+
+function isItemSource(value: unknown): value is ItemSource {
+  return (
+    typeof value === "string" &&
+    VALID_ITEM_SOURCES.includes(value as ItemSource)
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -22,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { url } = body;
+    const { url, source } = body;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
@@ -78,6 +89,7 @@ export async function POST(request: NextRequest) {
       properties: {
         item_id: item.id,
         url_domain: parsedUrl.hostname,
+        source: isItemSource(source) ? source : "web",
       },
     });
 
