@@ -83,7 +83,13 @@ export async function POST(request: NextRequest) {
         url: parsedUrl.href,
       });
     } catch (error) {
+      // Enqueue failed — mark the item failed so the UI surfaces a Retry
+      // action instead of spinning on "processing" forever
       log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
+      await db.item.update({
+        where: { id: item.id },
+        data: { processingStatus: "failed" },
+      });
     }
 
     // Track URL import
