@@ -86,7 +86,9 @@ export async function signupViaInvite(
   await page.getByRole("button", { name: /create account/i }).click();
 
   // Wait for "check your email" confirmation
-  await expect(page.getByText(/check your email/i)).toBeVisible({
+  await expect(
+    page.getByRole("heading", { name: /check your email/i }),
+  ).toBeVisible({
     timeout: 10000,
   });
 

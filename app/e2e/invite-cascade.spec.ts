@@ -316,7 +316,9 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     });
     await inviteePage.getByLabel(/password/i).fill(DEFAULT_PASSWORD);
     await inviteePage.getByRole("button", { name: /create account/i }).click();
-    await expect(inviteePage.getByText(/check your email/i)).toBeVisible({
+    await expect(
+      inviteePage.getByRole("heading", { name: /check your email/i }),
+    ).toBeVisible({
       timeout: 10000,
     });
 
