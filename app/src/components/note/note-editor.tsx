@@ -1,21 +1,10 @@
 "use client";
 
-import type { Editor } from "@tiptap/react";
+import { Markdown } from "@tiptap/markdown";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
-import { Markdown } from "tiptap-markdown";
 import { cn } from "@/lib/utils";
-
-/**
- * The Markdown extension augments editor storage at runtime but ships no types,
- * so we narrow access here rather than reaching into `any`.
- */
-type MarkdownStorage = { markdown: { getMarkdown: () => string } };
-
-function getMarkdown(editor: Editor): string {
-  return (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown();
-}
 
 type NoteEditorProps = {
   /** Initial markdown content */
@@ -35,9 +24,9 @@ const EDITOR_CLASS =
 /**
  * WYSIWYG note editor backed by markdown.
  *
- * Renders TipTap with a markdown serializer so the canonical stored format is
- * markdown — the same format the article reader renders. Edits are surfaced as
- * markdown via `onChange`; the caller owns persistence/debouncing.
+ * Renders TipTap with the official markdown extension so the canonical stored
+ * format is markdown — the same format the article reader renders. Edits are
+ * surfaced as markdown via `onChange`; the caller owns persistence/debouncing.
  */
 export function NoteEditor({
   content,
@@ -49,6 +38,8 @@ export function NoteEditor({
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
     content,
+    // Content (initial and via setContent) is provided as markdown
+    contentType: "markdown",
     editable,
     // Avoid SSR hydration mismatches in Next.js
     immediatelyRender: false,
@@ -59,7 +50,7 @@ export function NoteEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange?.(getMarkdown(editor));
+      onChange?.(editor.getMarkdown());
     },
   });
 
@@ -71,9 +62,11 @@ export function NoteEditor({
   // Sync external content changes that didn't originate from this editor
   useEffect(() => {
     if (!editor) return;
-    const current = getMarkdown(editor);
-    if (content !== current) {
-      editor.commands.setContent(content, { emitUpdate: false });
+    if (content !== editor.getMarkdown()) {
+      editor.commands.setContent(content, {
+        emitUpdate: false,
+        contentType: "markdown",
+      });
     }
   }, [editor, content]);
 

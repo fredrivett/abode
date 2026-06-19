@@ -117,6 +117,7 @@ type RawItemRow = {
   product_availability: string | null;
   product_images: unknown;
   product_cover_image_index: number | null;
+  note_content: string | null;
 };
 
 type RawLocationRow = {
@@ -227,9 +228,8 @@ function transformRawItemToItem(
             coverImageIndex: row.product_cover_image_index,
           } satisfies ProductDetails)
         : null,
-    // Note body isn't selected by the search SQL yet; notes still match on
-    // title/notes via the search vector. Surfacing note content is a follow-up.
-    noteDetails: null,
+    noteDetails:
+      row.note_content !== null ? { content: row.note_content } : null,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -624,13 +624,15 @@ async function executeFiltersOnlySearch(
       pd.currency as product_currency,
       pd.availability as product_availability,
       pd.images as product_images,
-      pd.cover_image_index as product_cover_image_index
+      pd.cover_image_index as product_cover_image_index,
+      nd.content as note_content
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
     LEFT JOIN item_video_details vd ON vd.item_id = items.id
     LEFT JOIN item_product_details pd ON pd.item_id = items.id
+    LEFT JOIN item_note_details nd ON nd.item_id = items.id
     ${colorRelevanceJoin}
     WHERE ${whereClause}
     ${cursorCondition}
@@ -880,13 +882,15 @@ async function executeRankedSearch(
       pd.currency as product_currency,
       pd.availability as product_availability,
       pd.images as product_images,
-      pd.cover_image_index as product_cover_image_index
+      pd.cover_image_index as product_cover_image_index,
+      nd.content as note_content
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
     LEFT JOIN item_article_details ad ON ad.item_id = i.id
     LEFT JOIN item_twitter_details td ON td.item_id = i.id
     LEFT JOIN item_video_details vd ON vd.item_id = i.id
     LEFT JOIN item_product_details pd ON pd.item_id = i.id
+    LEFT JOIN item_note_details nd ON nd.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,
     itemIds,

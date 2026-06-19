@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -45,6 +45,15 @@ export function NoteDetailView({
       setIsSaving(false);
     }
   }, 600);
+
+  // Flush any pending debounced save on unmount (e.g. closing the dialog)
+  // so the last edits within the debounce window aren't lost
+  useEffect(
+    () => () => {
+      save.flush();
+    },
+    [save],
+  );
 
   return (
     <div className={cn("flex h-full w-full flex-col bg-background", className)}>
