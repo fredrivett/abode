@@ -64,6 +64,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
@@ -82,6 +83,7 @@ import type {
   Item,
   ItemRoom,
 } from "@/lib/types/item";
+import { getAppBaseUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
@@ -893,6 +895,14 @@ function ItemDetailDialog({
     item.excludeFromPublicRooms ?? false,
   );
   const [isSavingExclude, setIsSavingExclude] = useState(false);
+  const [isShared, setIsShared] = useState(item.sharedAt != null);
+  const [sharedHighlights, setSharedHighlights] = useState(
+    item.sharedHighlights ?? false,
+  );
+  const [isSavingShare, setIsSavingShare] = useState(false);
+  const [isSavingSharedHighlights, setIsSavingSharedHighlights] =
+    useState(false);
+  const [hasCopiedShareLink, setHasCopiedShareLink] = useState(false);
   const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
     null,
   );
@@ -920,6 +930,7 @@ function ItemDetailDialog({
   );
   const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
   const isAdmin = useUserStore((state) => state.isAdmin) ?? false;
+  const username = useUserStore((state) => state.username);
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1098,6 +1109,79 @@ function ItemDetailDialog({
       toast.error("Failed to update setting");
     } finally {
       setIsSavingExclude(false);
+    }
+  };
+
+  const shareUrl = username
+    ? `${getAppBaseUrl()}/@${username}/items/${item.id}`
+    : null;
+
+  const handleShareToggle = async () => {
+    const newValue = !isShared;
+    setIsSavingShare(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, { shared: newValue });
+      setIsShared(newValue);
+      posthog.capture("item_share_toggled", {
+        item_id: item.id,
+        shared: newValue,
+      });
+      toast.success(newValue ? "Sharing enabled" : "Sharing stopped");
+    } catch (error) {
+      log.error({ error }, "Share toggle error");
+      toast.error("Failed to update sharing");
+    } finally {
+      setIsSavingShare(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareUrl) return;
+    setIsSavingShare(true);
+    try {
+      // Copying a link makes the item shareable if it wasn't already.
+      if (!isShared) {
+        await api.patch(`/api/v1/items/${item.id}`, { shared: true });
+        setIsShared(true);
+        posthog.capture("item_share_toggled", {
+          item_id: item.id,
+          shared: true,
+        });
+      }
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        setHasCopiedShareLink(true);
+        toast.success("Link copied — anyone with the link can view this");
+        setTimeout(() => setHasCopiedShareLink(false), 2000);
+      } else {
+        toast.error("Failed to copy link");
+      }
+    } catch (error) {
+      log.error({ error }, "Copy share link error");
+      toast.error("Failed to copy link");
+    } finally {
+      setIsSavingShare(false);
+    }
+  };
+
+  const handleSharedHighlightsToggle = async () => {
+    const newValue = !sharedHighlights;
+    setIsSavingSharedHighlights(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, {
+        sharedHighlights: newValue,
+      });
+      setSharedHighlights(newValue);
+      toast.success(
+        newValue
+          ? "Highlights included in shared view"
+          : "Highlights hidden from shared view",
+      );
+    } catch (error) {
+      log.error({ error }, "Shared highlights toggle error");
+      toast.error("Failed to update setting");
+    } finally {
+      setIsSavingSharedHighlights(false);
     }
   };
 
@@ -2288,6 +2372,106 @@ function ItemDetailDialog({
                       }
                       canEdit={canEdit}
                     />
+                  </div>
+                )}
+
+                {/* Share Setting - only shown to users who can edit */}
+                {canEdit && (
+                  <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                      Share
+                    </h3>
+                    <label className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Share via link
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isShared}
+                        onClick={handleShareToggle}
+                        disabled={isSavingShare}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          isShared
+                            ? "bg-green-700"
+                            : "bg-gray-200 dark:bg-gray-700",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                            isShared ? "translate-x-5" : "translate-x-0",
+                          )}
+                        />
+                      </button>
+                    </label>
+                    <p className="text-muted-foreground text-xs">
+                      When enabled, anyone with the link can view this item,
+                      even if it isn't in a public room.
+                    </p>
+
+                    {isShared && (
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={shareUrl ?? ""}
+                            onFocus={(e) => e.currentTarget.select()}
+                            className="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-600 text-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCopyShareLink}
+                            disabled={isSavingShare || !shareUrl}
+                          >
+                            {hasCopiedShareLink ? (
+                              <Check className="size-4" />
+                            ) : (
+                              <Copy className="size-4" />
+                            )}
+                            <span className="ml-1.5">Copy</span>
+                          </Button>
+                        </div>
+
+                        {isArticle && (
+                          <label className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Include my highlights
+                            </span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={sharedHighlights}
+                              onClick={handleSharedHighlightsToggle}
+                              disabled={isSavingSharedHighlights}
+                              className={cn(
+                                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                "disabled:cursor-not-allowed disabled:opacity-50",
+                                sharedHighlights
+                                  ? "bg-green-700"
+                                  : "bg-gray-200 dark:bg-gray-700",
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                                  sharedHighlights
+                                    ? "translate-x-5"
+                                    : "translate-x-0",
+                                )}
+                              />
+                            </button>
+                          </label>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

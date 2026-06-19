@@ -177,6 +177,9 @@ export type Item = {
   productDetails: ProductDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
+  // Direct sharing: non-null sharedAt ⟺ viewable via direct link.
+  sharedAt?: string | null;
+  sharedHighlights?: boolean;
   rooms?: ItemRoom[];
   externalLinks?: ExternalLink[];
 };

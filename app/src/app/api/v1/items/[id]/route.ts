@@ -52,6 +52,8 @@ export async function GET(
         userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
+        sharedAt: true,
+        sharedHighlights: true,
         locations: {
           select: {
             id: true,
@@ -173,6 +175,8 @@ export async function PATCH(
       userTags,
       title,
       notes,
+      shared,
+      sharedHighlights,
       twitterCoverMediaIndex,
       productCoverImageIndex,
     } = body;
@@ -181,6 +185,23 @@ export async function PATCH(
     if (notes !== undefined && notes !== null && typeof notes !== "string") {
       return NextResponse.json(
         { message: "Invalid notes field: must be a string or null" },
+        { status: 400 },
+      );
+    }
+
+    // Validate sharing fields
+    if (shared !== undefined && typeof shared !== "boolean") {
+      return NextResponse.json(
+        { message: "Invalid shared field: must be a boolean" },
+        { status: 400 },
+      );
+    }
+    if (
+      sharedHighlights !== undefined &&
+      typeof sharedHighlights !== "boolean"
+    ) {
+      return NextResponse.json(
+        { message: "Invalid sharedHighlights field: must be a boolean" },
         { status: 400 },
       );
     }
@@ -315,6 +336,12 @@ export async function PATCH(
         ...(userTags !== undefined && { userTags }),
         ...(title !== undefined && { title }),
         ...(notes !== undefined && { notes }),
+        // `shared` toggles direct-link sharing. Preserve the original
+        // sharedAt while it stays shared; clear it on un-share.
+        ...(shared !== undefined && {
+          sharedAt: shared ? (existingItem.sharedAt ?? new Date()) : null,
+        }),
+        ...(sharedHighlights !== undefined && { sharedHighlights }),
       },
       select: {
         id: true,
@@ -334,6 +361,8 @@ export async function PATCH(
         userTags: true,
         notes: true,
         excludeFromPublicRooms: true,
+        sharedAt: true,
+        sharedHighlights: true,
         locations: {
           select: {
             id: true,
