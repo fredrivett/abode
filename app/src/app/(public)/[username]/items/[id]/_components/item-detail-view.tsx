@@ -8,6 +8,7 @@ import { DateTime } from "@/components/ui/date-time";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { Item } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { ReadOnlyArticle, type ReadOnlyHighlight } from "./read-only-article";
 
@@ -131,7 +132,7 @@ export function ItemDetailView({
           {item.kind && <span className="capitalize">{item.kind}</span>}
           <span aria-hidden>·</span>
           <DateTime date={item.createdAt} />
-          {item.sourceUrl && (
+          {item.sourceUrl && isValidUrl(item.sourceUrl) && (
             <>
               <span aria-hidden>·</span>
               <a

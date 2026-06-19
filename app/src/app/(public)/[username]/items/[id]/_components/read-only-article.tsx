@@ -107,21 +107,23 @@ export function ReadOnlyArticle({
     const container = contentRef.current;
     if (!container) return;
 
-    const marks = container.querySelectorAll(
-      `mark[data-highlight-id="${scrollToHighlightId}"]`,
-    );
+    // Static selector + JS comparison — the highlight id comes from a
+    // user-controlled query param, so it must never be interpolated into a
+    // CSS selector (invalid characters would throw at runtime).
+    const marks = Array.from(
+      container.querySelectorAll<HTMLElement>("mark[data-highlight-id]"),
+    ).filter((mark) => mark.dataset.highlightId === scrollToHighlightId);
     if (marks.length === 0) return;
 
-    const firstMark = marks[0] as HTMLElement;
-    firstMark.scrollIntoView({ behavior: "smooth", block: "center" });
+    marks[0].scrollIntoView({ behavior: "smooth", block: "center" });
 
     for (const mark of marks) {
-      (mark as HTMLElement).dataset.flash = "";
+      mark.dataset.flash = "";
     }
 
     const timeout = setTimeout(() => {
       for (const mark of marks) {
-        delete (mark as HTMLElement).dataset.flash;
+        delete mark.dataset.flash;
       }
     }, 1500);
 
