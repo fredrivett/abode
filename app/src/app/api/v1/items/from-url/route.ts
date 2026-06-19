@@ -74,12 +74,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Trigger URL classification task
-    await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-      itemId: item.id,
-      userId: user.id,
-      url: parsedUrl.href,
-    });
+    // Trigger URL classification task — a queueing hiccup must not fail the
+    // save; the item is already persisted and can be retried/reprocessed
+    try {
+      await tasks.trigger<typeof classifyUrlTask>("classify-url", {
+        itemId: item.id,
+        userId: user.id,
+        url: parsedUrl.href,
+      });
+    } catch (error) {
+      log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
+    }
 
     // Track URL import
     const posthog = getPostHogClient();
