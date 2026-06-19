@@ -63,9 +63,13 @@ export async function updateSession(request: NextRequest) {
   if (user && isProtectedRoute) {
     const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (data && data.currentLevel === "aal1" && data.nextLevel === "aal2") {
-      // User has MFA enabled but hasn't completed the challenge
+      // User has MFA enabled but hasn't completed the challenge — preserve
+      // the original destination (e.g. /save?url=...) across verification
+      const next = request.nextUrl.pathname + request.nextUrl.search;
       const url = request.nextUrl.clone();
       url.pathname = "/login/verify-mfa";
+      url.search = "";
+      url.searchParams.set("next", next);
       return NextResponse.redirect(url);
     }
   }

@@ -45,12 +45,14 @@ export function isValidUrl(text: string): boolean {
  * falls back to the default destination.
  */
 export function getSafeRedirectPath(
-  next: string | null | undefined,
+  next: string | string[] | null | undefined,
   fallback = "/dashboard",
 ): string {
-  if (!next || !next.startsWith("/")) return fallback;
-  if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  return next;
+  // Repeated query params arrive as an array — take the first candidate
+  const value = Array.isArray(next) ? next[0] : next;
+  if (!value || !value.startsWith("/")) return fallback;
+  if (value.startsWith("//") || value.startsWith("/\\")) return fallback;
+  return value;
 }
 
 /**

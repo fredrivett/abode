@@ -195,6 +195,18 @@ describe("getSafeRedirectPath", () => {
   it("rejects paths that don't start with a slash", () => {
     expect(getSafeRedirectPath("dashboard")).toBe("/dashboard");
   });
+
+  it("takes the first candidate when given an array (repeated query param)", () => {
+    expect(getSafeRedirectPath(["/save?url=x", "/other"])).toBe("/save?url=x");
+  });
+
+  it("validates the first array element and falls back when unsafe", () => {
+    expect(getSafeRedirectPath(["//evil.com", "/safe"])).toBe("/dashboard");
+  });
+
+  it("falls back for an empty array", () => {
+    expect(getSafeRedirectPath([])).toBe("/dashboard");
+  });
 });
 
 describe("getExtensionFromContentType", () => {

@@ -6,7 +6,7 @@ import { getSafeRedirectPath } from "@/lib/url-utils";
 import { VerifyMFAForm } from "./verify-mfa-form";
 
 type Props = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string | string[] }>;
 };
 
 export default async function VerifyMFAPage({ searchParams }: Props) {

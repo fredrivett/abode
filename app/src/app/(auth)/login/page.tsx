@@ -4,7 +4,7 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string | string[] }>;
 }) {
   const { next } = await searchParams;
   const safeNext = getSafeRedirectPath(next);
