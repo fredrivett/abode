@@ -5,6 +5,7 @@ import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import type {
+  NoteDetails,
   ProductDetails,
   ProductImage,
   TwitterDetails,
@@ -223,6 +224,11 @@ export default async function RoomPage({ params }: Props) {
               coverImageIndex: true,
             },
           },
+          noteDetails: {
+            select: {
+              content: true,
+            },
+          },
         },
       },
     },
@@ -315,6 +321,9 @@ export default async function RoomPage({ params }: Props) {
           images: roomItem.item.productDetails.images as ProductImage[] | null,
           coverImageIndex: roomItem.item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
+      : null,
+    noteDetails: roomItem.item.noteDetails
+      ? ({ content: roomItem.item.noteDetails.content } satisfies NoteDetails)
       : null,
   }));
 

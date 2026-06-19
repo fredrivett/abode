@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+import { NoteComposer } from "./note-composer";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 /**
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
+      <NoteComposer />
       <SearchableItemsGrid
         initialItems={itemsForClient}
         initialCursor={initialCursor}

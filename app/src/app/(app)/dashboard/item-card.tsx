@@ -33,9 +33,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
-import { HighlightableArticle } from "@/components/article/highlightable-article";
+import { ArticleDetailView } from "@/components/article/article-detail-view";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
+import { NoteCard } from "@/components/note/note-card";
+import { NoteDetailView } from "@/components/note/note-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
@@ -172,6 +174,7 @@ export function ItemCard({
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
+  const isNote = item.kind === "note";
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
@@ -199,7 +202,8 @@ export function ItemCard({
         !isProcessingUrl &&
         !isTwitter &&
         !isVideo &&
-        !isFailedUrl
+        !isFailedUrl &&
+        !isNote
       ) {
         setError("Missing file");
       }
@@ -217,6 +221,7 @@ export function ItemCard({
     isTwitter,
     isVideo,
     isFailedUrl,
+    isNote,
   ]);
 
   useEffect(() => {
@@ -490,6 +495,38 @@ export function ItemCard({
           size={size}
           previewUrl={null}
           imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Note items render their text content directly (no cover image)
+  if (isNote) {
+    return (
+      <>
+        <div className="relative h-full w-full">
+          <ProcessingOverlay status={item.processingStatus} />
+          <NoteCard
+            title={item.title}
+            content={item.noteDetails?.content ?? ""}
+            onClick={handleOpenDetail}
+          />
+        </div>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={null}
           onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
@@ -1053,6 +1090,7 @@ function ItemDetailDialog({
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
+  const isNote = item.kind === "note";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1450,10 +1488,23 @@ function ItemDetailDialog({
             <div
               className={cn(
                 "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
-                !isArticle && !isProduct && "bg-gray-900",
+                !isArticle && !isProduct && !isNote && "bg-gray-900",
               )}
             >
-              {isArticle && item.articleDetails?.content ? (
+              {isNote ? (
+                <motion.div
+                  className="flex h-full w-full bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <NoteDetailView
+                    itemId={item.id}
+                    content={item.noteDetails?.content ?? ""}
+                    canEdit={canEdit}
+                  />
+                </motion.div>
+              ) : isArticle && item.articleDetails?.content ? (
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
                   className="flex h-full w-full bg-background"
@@ -1461,23 +1512,12 @@ function ItemDetailDialog({
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  {/* Article content */}
-                  <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
-                    <article className="mx-auto w-full max-w-prose">
-                      {/* Use meta.originalName for the article's original title (from HTML) */}
-                      {(meta.originalName as string | undefined) && (
-                        <h1 className="mb-6 font-bold font-serif text-2xl text-foreground md:text-3xl lg:mb-8 lg:text-4xl">
-                          {decodeHtmlEntities(meta.originalName as string)}
-                        </h1>
-                      )}
-                      <HighlightableArticle
-                        itemId={item.id}
-                        content={item.articleDetails.content}
-                        className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif"
-                        scrollToHighlightId={scrollToHighlightId}
-                      />
-                    </article>
-                  </div>
+                  <ArticleDetailView
+                    itemId={item.id}
+                    content={item.articleDetails.content}
+                    originalName={meta.originalName as string | undefined}
+                    scrollToHighlightId={scrollToHighlightId}
+                  />
                 </motion.div>
               ) : isTwitter && item.twitterDetails ? (
                 <motion.div

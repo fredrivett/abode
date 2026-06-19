@@ -84,6 +84,11 @@ export async function GET(
             content: true,
           },
         },
+        noteDetails: {
+          select: {
+            content: true,
+          },
+        },
         roomItems: {
           select: {
             room: {
@@ -177,6 +182,7 @@ export async function PATCH(
       notes,
       shared,
       sharedHighlights,
+      content,
       twitterCoverMediaIndex,
       productCoverImageIndex,
     } = body;
@@ -202,6 +208,14 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         { message: "Invalid sharedHighlights field: must be a boolean" },
+        { status: 400 },
+      );
+    }
+
+    // Validate note body content (user-editable markdown for note items)
+    if (content !== undefined && typeof content !== "string") {
+      return NextResponse.json(
+        { message: "Invalid content field: must be a string" },
         { status: 400 },
       );
     }
@@ -393,6 +407,11 @@ export async function PATCH(
             content: true,
           },
         },
+        noteDetails: {
+          select: {
+            content: true,
+          },
+        },
         roomItems: {
           select: {
             room: {
@@ -408,6 +427,15 @@ export async function PATCH(
         },
       },
     });
+
+    // Update note body content if provided (upsert so older notes still gain a row)
+    if (content !== undefined) {
+      await db.itemNoteDetails.upsert({
+        where: { itemId: id },
+        create: { itemId: id, content },
+        update: { content },
+      });
+    }
 
     // Update twitter cover media index if provided
     if (twitterCoverMediaIndex !== undefined) {

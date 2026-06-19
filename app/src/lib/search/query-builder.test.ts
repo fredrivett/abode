@@ -237,7 +237,7 @@ describe("buildTypeCondition", () => {
         filterType: "type",
         value: "invalid_type",
         reason:
-          '"invalid_type" is not a valid type. Valid types: image, article, twitter, video, product',
+          '"invalid_type" is not a valid type. Valid types: image, article, twitter, video, product, note',
       },
     ]);
   });
@@ -456,7 +456,8 @@ describe("buildSourceCondition", () => {
       {
         filterType: "source",
         value: "camera",
-        reason: '"camera" is not a valid source. Valid sources: upload, url',
+        reason:
+          '"camera" is not a valid source. Valid sources: upload, url, compose',
       },
     ]);
   });

@@ -146,6 +146,7 @@ export function ItemsGrid({
               const isTwitter = item.kind === "twitter";
               const isVideo = item.kind === "video";
               const isProduct = item.kind === "product";
+              const isNote = item.kind === "note";
               const isProcessingUrl =
                 item.sourceType === "url" &&
                 item.processingStatus === "processing";
@@ -209,6 +210,10 @@ export function ItemsGrid({
               } else if (isArticle || isProcessingUrl) {
                 width = 4;
                 height = 3;
+              } else if (isNote) {
+                // Notes are coverless text cards; a portrait-ish sticky note
+                width = 4;
+                height = 5;
               } else {
                 width = (meta.width as number | undefined) ?? 3;
                 height = (meta.height as number | undefined) ?? 4;

@@ -1,0 +1,74 @@
+"use client";
+
+import { Markdown } from "@tiptap/markdown";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+type NoteEditorProps = {
+  /** Initial markdown content */
+  content: string;
+  /** Whether the note can be edited */
+  editable?: boolean;
+  /** Called with the serialized markdown whenever the content changes */
+  onChange?: (markdown: string) => void;
+  /** Placeholder-ish empty state is handled by the caller; this focuses on input */
+  autoFocus?: boolean;
+  className?: string;
+};
+
+const EDITOR_CLASS =
+  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[1.5rem]";
+
+/**
+ * WYSIWYG note editor backed by markdown.
+ *
+ * Renders TipTap with the official markdown extension so the canonical stored
+ * format is markdown — the same format the article reader renders. Edits are
+ * surfaced as markdown via `onChange`; the caller owns persistence/debouncing.
+ */
+export function NoteEditor({
+  content,
+  editable = true,
+  onChange,
+  autoFocus = false,
+  className,
+}: NoteEditorProps) {
+  const editor = useEditor({
+    extensions: [StarterKit, Markdown],
+    content,
+    // Content (initial and via setContent) is provided as markdown
+    contentType: "markdown",
+    editable,
+    // Avoid SSR hydration mismatches in Next.js
+    immediatelyRender: false,
+    autofocus: autoFocus ? "end" : false,
+    editorProps: {
+      attributes: {
+        class: cn(EDITOR_CLASS, className),
+      },
+    },
+    onUpdate: ({ editor }) => {
+      onChange?.(editor.getMarkdown());
+    },
+  });
+
+  // Keep editability in sync when the prop changes
+  useEffect(() => {
+    editor?.setEditable(editable);
+  }, [editor, editable]);
+
+  // Sync external content changes that didn't originate from this editor
+  useEffect(() => {
+    if (!editor) return;
+    if (content !== editor.getMarkdown()) {
+      editor.commands.setContent(content, {
+        emitUpdate: false,
+        contentType: "markdown",
+      });
+    }
+  }, [editor, content]);
+
+  return <EditorContent editor={editor} />;
+}
