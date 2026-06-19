@@ -227,6 +227,9 @@ function transformRawItemToItem(
             coverImageIndex: row.product_cover_image_index,
           } satisfies ProductDetails)
         : null,
+    // Note body isn't selected by the search SQL yet; notes still match on
+    // title/notes via the search vector. Surfacing note content is a follow-up.
+    noteDetails: null,
     createdAt: row.created_at.toISOString(),
   };
 }

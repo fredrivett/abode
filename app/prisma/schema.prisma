@@ -60,11 +60,13 @@ enum ItemKind {
   twitter
   video
   product
+  note
 }
 
 enum SourceType {
   upload
   url
+  compose
 }
 
 enum ProcessingStatus {
@@ -175,6 +177,7 @@ model Item {
   twitterDetails    ItemTwitterDetails?
   videoDetails      ItemVideoDetails?
   productDetails    ItemProductDetails?
+  noteDetails       ItemNoteDetails?
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
@@ -343,6 +346,19 @@ model ItemProductDetails {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("item_product_details")
+}
+
+model ItemNoteDetails {
+  itemId    String   @id @map("item_id") @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // User-authored markdown body (canonical content for note items)
+  content   String   @default("")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("item_note_details")
 }
 
 model Room {

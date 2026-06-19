@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import type {
   ExternalLink,
   ImageColor,
+  NoteDetails,
   ProductDetails,
   ProductImage,
   TwitterDetails,
@@ -102,6 +103,11 @@ export const itemSelect = {
       coverImageIndex: true,
     },
   },
+  noteDetails: {
+    select: {
+      content: true,
+    },
+  },
   roomItems: {
     select: {
       room: {
@@ -196,6 +202,9 @@ export function transformItem(item: RawItem) {
           images: item.productDetails.images as ProductImage[] | null,
           coverImageIndex: item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
+      : null,
+    noteDetails: item.noteDetails
+      ? ({ content: item.noteDetails.content } satisfies NoteDetails)
       : null,
   };
 }

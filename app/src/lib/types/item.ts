@@ -85,6 +85,13 @@ export type ProductDetails = {
 };
 
 /**
+ * Note-specific details for user-authored markdown notes.
+ */
+export type NoteDetails = {
+  content: string;
+};
+
+/**
  * Color information from image analysis.
  *
  * This type supports colors from both:
@@ -175,6 +182,7 @@ export type Item = {
   twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
   videoDetails: VideoDetails | null;
   productDetails: ProductDetails | null;
+  noteDetails: NoteDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
   // Direct sharing: non-null sharedAt ⟺ viewable via direct link.
