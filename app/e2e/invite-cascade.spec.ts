@@ -3,6 +3,7 @@ import { createAndLogin } from "./helpers/auth";
 import { disconnectE2EPrisma, getE2EPrisma } from "./helpers/db";
 import {
   deleteAccountViaUI,
+  expectSignupConfirmation,
   getInviteTokenFromDB,
   sendInviteViaUI,
   signupViaInvite,
@@ -316,11 +317,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     });
     await inviteePage.getByLabel(/password/i).fill(DEFAULT_PASSWORD);
     await inviteePage.getByRole("button", { name: /create account/i }).click();
-    await expect(
-      inviteePage.getByRole("heading", { name: /check your email/i }),
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    await expectSignupConfirmation(inviteePage);
 
     // Now delete the inviter while the invitee hasn't confirmed yet
     await deleteAccountViaUI(inviterPage, inviter.password);

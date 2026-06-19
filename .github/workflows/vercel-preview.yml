@@ -48,7 +48,8 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (not `latest`) to avoid the release-resolution endpoint 504
+          version: 2.107.0
 
       - name: Get Supabase branch DB credentials
         env:

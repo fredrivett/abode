@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { ConsoleMessage, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { getE2EPrisma } from "./db";
 import { clearMailbox, getConfirmationPath } from "./mailpit";
@@ -61,43 +61,85 @@ export async function signupViaInvite(
   token: string,
   credentials: { email: string; username: string; password: string },
 ): Promise<void> {
-  // Clean up any leftover state from failed retries
-  await deleteUserByEmail(credentials.email);
-  await clearMailbox(credentials.email);
+  // Capture console + page errors so a flaky failure has diagnostics
+  const consoleLogs: string[] = [];
+  const onConsole = (msg: ConsoleMessage) =>
+    consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
+  const onPageError = (err: Error) =>
+    consoleLogs.push(`[pageerror] ${err.message}`);
+  page.on("console", onConsole);
+  page.on("pageerror", onPageError);
 
-  // Navigate to join page with token
-  await page.goto(`/join?token=${token}`);
+  try {
+    // Clean up any leftover state from failed retries
+    await deleteUserByEmail(credentials.email);
+    await clearMailbox(credentials.email);
 
-  // Wait for the form to load (email field should be pre-filled)
-  await expect(page.getByLabel(/email/i)).toBeVisible({ timeout: 10000 });
+    // Navigate to join page with token
+    await page.goto(`/join?token=${token}`);
 
-  // Fill username (clear auto-suggested value first)
-  const usernameInput = page.getByLabel(/username/i);
-  await usernameInput.clear();
-  await usernameInput.fill(credentials.username);
+    // Wait for the form to load (email field should be pre-filled)
+    await expect(page.getByLabel(/email/i)).toBeVisible({ timeout: 10000 });
 
-  // Wait for username availability check to complete
-  await expect(page.getByText("available")).toBeVisible({ timeout: 5000 });
+    // Fill username (clear auto-suggested value first)
+    const usernameInput = page.getByLabel(/username/i);
+    await usernameInput.clear();
+    await usernameInput.fill(credentials.username);
 
-  // Fill password
-  await page.getByLabel(/password/i).fill(credentials.password);
+    // Wait for username availability check to complete
+    await expect(page.getByText("available")).toBeVisible({ timeout: 5000 });
 
-  // Submit
-  await page.getByRole("button", { name: /create account/i }).click();
+    // Fill password
+    await page.getByLabel(/password/i).fill(credentials.password);
 
-  // Wait for "check your email" confirmation
-  await expect(
-    page.getByRole("heading", { name: /check your email/i }),
-  ).toBeVisible({
-    timeout: 10000,
-  });
+    // Submit — click() auto-waits for the button to be enabled and stable, so
+    // it won't fire until username validation has settled
+    await page.getByRole("button", { name: /create account/i }).click();
 
-  // Fetch confirmation link from Inbucket and navigate to it
-  const confirmPath = await getConfirmationPath(credentials.email);
-  await page.goto(confirmPath);
+    // The confirmation renders in-place via useActionState (no navigation)
+    // once the signup server action resolves — an auth round-trip + email
+    // dispatch that can lag under CI load, so allow a generous timeout
+    await expectSignupConfirmation(page, consoleLogs);
 
-  // Should end up on /dashboard after completeSignup runs
-  await expect(page).toHaveURL("/dashboard", { timeout: 20000 });
+    // Fetch confirmation link from Inbucket and navigate to it
+    const confirmPath = await getConfirmationPath(credentials.email);
+    await page.goto(confirmPath);
+
+    // Should end up on /dashboard after completeSignup runs
+    await expect(page).toHaveURL("/dashboard", { timeout: 20000 });
+  } finally {
+    page.off("console", onConsole);
+    page.off("pageerror", onPageError);
+  }
+}
+
+/**
+ * Assert the post-signup "check your email" heading, attaching diagnostics
+ * (error toasts + recent console output) if it never renders. The heading
+ * appears in-place after the signup server action resolves, so the timeout
+ * must cover an auth round-trip + email dispatch under CI load.
+ */
+export async function expectSignupConfirmation(
+  page: Page,
+  consoleLogs: string[] = [],
+): Promise<void> {
+  try {
+    await expect(
+      page.getByRole("heading", { name: /check your email/i }),
+    ).toBeVisible({ timeout: 30000 });
+  } catch (error) {
+    // Signup may have surfaced an error toast instead of the confirmation
+    const toasts = await page
+      .locator("[data-sonner-toast]")
+      .allInnerTexts()
+      .catch(() => []);
+    throw new Error(
+      `"check your email" never rendered after "create account". ` +
+        `Toasts: ${JSON.stringify(toasts)}. ` +
+        `Recent console: ${consoleLogs.slice(-20).join(" | ") || "(none)"}. ` +
+        `Cause: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 /**
