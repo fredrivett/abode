@@ -126,6 +126,8 @@ Use the shared `IsLoading` component from `@/components/ui/is-loading` for any l
 
 ## Testing
 
+**Always add tests for new logic and behavior — this is the default, not an afterthought.** When you add or change a function, API route, access-control rule, or user-facing flow, ship the tests in the same change. Prefer the cheapest layer that genuinely covers the behavior: a unit test for pure logic (e.g. access/permission helpers), an integration test for DB/service code, an E2E test for a user flow. Only skip tests when the change is purely cosmetic or there is genuinely nothing to assert — and when you skip, say so explicitly in the PR rather than leaving the tests checkbox silently unchecked. Untested logic is treated as incomplete work.
+
 When making styling/UI changes, the user sees them in real-time via the dev server — no build needed to verify.
 
 For automated tests, run from the `./app` directory:
