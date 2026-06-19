@@ -81,16 +81,18 @@ export async function getConfirmationPath(email: string): Promise<string> {
   const delayMs = 500;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Mailpit returns newest-first. Scan every message rather than a single
+    // one so an unrelated email (or the wrong index) can't shadow the
+    // confirmation, and keep polling if none has a link yet rather than
+    // throwing on the first message that lacks one.
     const messages = await listMessages(email);
-    if (messages.length > 0) {
-      const latest = messages[messages.length - 1];
-      const body = await getMessageBody(latest.ID);
+    for (const message of messages) {
+      const body = await getMessageBody(message.ID);
 
       // Extract confirmation link from HTML body
       const linkMatch = body.html.match(/href="([^"]*\/auth\/confirm\?[^"]*)"/);
       if (linkMatch) {
-        const fullUrl = linkMatch[1];
-        const url = new URL(fullUrl);
+        const url = new URL(linkMatch[1]);
         return `${url.pathname}${url.search}`;
       }
 
@@ -102,14 +104,14 @@ export async function getConfirmationPath(email: string): Promise<string> {
         const url = new URL(textMatch[1]);
         return `${url.pathname}${url.search}`;
       }
-
-      throw new Error(`Confirmation link not found in email for ${email}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
   throw new Error(
-    `No email received for ${email} after ${(maxAttempts * delayMs) / 1000}s`,
+    `No confirmation email received for ${email} after ${
+      (maxAttempts * delayMs) / 1000
+    }s`,
   );
 }

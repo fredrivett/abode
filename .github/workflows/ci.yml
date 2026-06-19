@@ -144,7 +144,8 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (not `latest`) to avoid the release-resolution endpoint 504
+          version: 2.107.0
 
       - name: Cache bun dependencies
         uses: actions/cache@v4
@@ -233,7 +234,8 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (not `latest`) to avoid the release-resolution endpoint 504
+          version: 2.107.0
 
       - name: Link Supabase project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
