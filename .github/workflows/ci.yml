@@ -142,7 +142,7 @@ jobs:
         with:
           bun-version: "1.3.5"
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
           # Pinned (not `latest`) to avoid the release-resolution endpoint 504
           version: 2.107.0
@@ -232,7 +232,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
           # Pinned (not `latest`) to avoid the release-resolution endpoint 504
           version: 2.107.0
