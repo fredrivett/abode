@@ -9,7 +9,6 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { createLogger } from "@/lib/logger.client";
-import { markdownToPlainText } from "@/lib/markdown";
 
 const log = createLogger("dashboard/note-composer");
 
@@ -27,7 +26,7 @@ export function NoteComposer() {
   // Remount the editor after a successful save to clear its content
   const [editorKey, setEditorKey] = useState(0);
 
-  const isEmpty = markdownToPlainText(markdown).length === 0;
+  const isEmpty = markdown.trim().length === 0;
 
   const reset = useCallback(() => {
     setMarkdown("");

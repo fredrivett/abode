@@ -33,7 +33,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
-import { HighlightableArticle } from "@/components/article/highlightable-article";
+import { ArticleDetailView } from "@/components/article/article-detail-view";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
@@ -1512,23 +1512,12 @@ function ItemDetailDialog({
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  {/* Article content */}
-                  <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
-                    <article className="mx-auto w-full max-w-prose">
-                      {/* Use meta.originalName for the article's original title (from HTML) */}
-                      {(meta.originalName as string | undefined) && (
-                        <h1 className="mb-6 font-bold font-serif text-2xl text-foreground md:text-3xl lg:mb-8 lg:text-4xl">
-                          {decodeHtmlEntities(meta.originalName as string)}
-                        </h1>
-                      )}
-                      <HighlightableArticle
-                        itemId={item.id}
-                        content={item.articleDetails.content}
-                        className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif"
-                        scrollToHighlightId={scrollToHighlightId}
-                      />
-                    </article>
-                  </div>
+                  <ArticleDetailView
+                    itemId={item.id}
+                    content={item.articleDetails.content}
+                    originalName={meta.originalName as string | undefined}
+                    scrollToHighlightId={scrollToHighlightId}
+                  />
                 </motion.div>
               ) : isTwitter && item.twitterDetails ? (
                 <motion.div
