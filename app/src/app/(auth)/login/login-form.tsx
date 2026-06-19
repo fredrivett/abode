@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { login } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(login, {});
 
   useEffect(() => {
@@ -17,6 +17,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-6">
+      {next && <input type="hidden" name="next" value={next} />}
       <div className="space-y-2">
         <label htmlFor="email" className="font-medium text-sm leading-none">
           Email

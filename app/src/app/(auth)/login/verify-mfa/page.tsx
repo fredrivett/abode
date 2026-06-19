@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
 import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
+import { getSafeRedirectPath } from "@/lib/url-utils";
 import { VerifyMFAForm } from "./verify-mfa-form";
 
 type Props = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string | string[] }>;
 };
 
 export default async function VerifyMFAPage({ searchParams }: Props) {
@@ -21,8 +22,7 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
   }
 
   const { next } = await searchParams;
-  const safeNext =
-    next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const safeNext = getSafeRedirectPath(next);
 
   // Check AAL level
   const aal = await getAAL(supabase);

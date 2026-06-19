@@ -1,6 +1,14 @@
+import { getSafeRedirectPath } from "@/lib/url-utils";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const { next } = await searchParams;
+  const safeNext = getSafeRedirectPath(next);
+
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="w-full max-w-sm space-y-6 px-4">
@@ -13,7 +21,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <LoginForm />
+        <LoginForm next={safeNext} />
 
         <p className="text-center text-gray-500 text-sm dark:text-gray-400">
           have an invite?{" "}

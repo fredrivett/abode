@@ -38,6 +38,24 @@ export function isValidUrl(text: string): boolean {
 }
 
 /**
+ * Resolves a post-login redirect target, guarding against open redirects.
+ *
+ * Only same-origin relative paths are allowed — anything that could escape to
+ * another origin (absolute URLs, protocol-relative `//`, backslash tricks)
+ * falls back to the default destination.
+ */
+export function getSafeRedirectPath(
+  next: string | string[] | null | undefined,
+  fallback = "/dashboard",
+): string {
+  // Repeated query params arrive as an array — take the first candidate
+  const value = Array.isArray(next) ? next[0] : next;
+  if (!value || !value.startsWith("/")) return fallback;
+  if (value.startsWith("//") || value.startsWith("/\\")) return fallback;
+  return value;
+}
+
+/**
  * Determines if a URL points to an image based on:
  * 1. Content-Type header (if provided) - this is authoritative when available
  * 2. URL file extension (fallback when no content type)
