@@ -36,10 +36,14 @@ test.describe("Save share target + login redirect", () => {
       await page.goto(`/save?url=${encodeURIComponent(sharedUrl)}`);
       await expect(page).toHaveURL(/\/login\?next=/);
 
-      // 2. Sign in
+      // 2. Sign in (wait for hydration so the form action actually fires)
+      await page.waitForLoadState("networkidle");
       await page.getByLabel(/email/i).fill(user.email);
       await page.getByLabel(/password/i).fill(user.password);
       await page.getByRole("button", { name: /sign in/i }).click();
+      await expect(page.getByText(/signing in/i)).toBeVisible({
+        timeout: 10000,
+      });
 
       // 3. Login returns to /save, which auto-saves and replaces to /dashboard
       await expect(page).toHaveURL("/dashboard", { timeout: 30000 });
