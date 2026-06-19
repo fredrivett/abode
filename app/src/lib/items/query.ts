@@ -33,6 +33,8 @@ export const itemSelect = {
   userTags: true,
   notes: true,
   excludeFromPublicRooms: true,
+  sharedAt: true,
+  sharedHighlights: true,
   locations: {
     select: {
       id: true,
@@ -140,6 +142,8 @@ export function transformItem(item: RawItem) {
     ocrText: item.imageDetails?.ocrText ?? null,
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
     excludeFromPublicRooms: item.excludeFromPublicRooms,
+    sharedAt: item.sharedAt?.toISOString() ?? null,
+    sharedHighlights: item.sharedHighlights,
     rooms: item.roomItems.map((ri) => ({
       id: ri.room.id,
       name: ri.room.name,

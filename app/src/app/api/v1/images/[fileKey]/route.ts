@@ -1,6 +1,7 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { canViewItem, itemAccessSelect } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -93,17 +94,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
       select: {
         id: true,
-        userId: true,
-        excludeFromPublicRooms: true,
-        roomItems: {
-          select: {
-            room: {
-              select: {
-                visibility: true,
-              },
-            },
-          },
-        },
+        ...itemAccessSelect,
       },
     });
 
@@ -117,19 +108,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check access permissions
-    const isOwner = user?.id === item.userId;
-    const isInPublicRoom = item.roomItems.some(
-      (ri) => ri.room.visibility === "public",
-    );
-    const isExcludedFromPublic = item.excludeFromPublicRooms;
-
-    // Allow access if:
-    // 1. User owns the item, OR
-    // 2. Item is in a public room AND not excluded from public rooms
-    const canAccess = isOwner || (isInPublicRoom && !isExcludedFromPublic);
-
-    if (!canAccess) {
+    // Allow access if the viewer owns the item, it's been directly shared,
+    // or it lives in a public room (and isn't excluded from public rooms).
+    if (!canViewItem(item, user?.id ?? null)) {
       return NextResponse.json(
         { message: "Access denied" },
         {

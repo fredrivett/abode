@@ -160,6 +160,11 @@ model Item {
   // Format: [{ url: string, platform: string }]
   externalLinks    Json?            @default("[]") @map("external_links")
 
+  // Direct sharing: non-null sharedAt ⟺ item is viewable via direct link.
+  // sharedHighlights controls whether the owner's highlights appear on the shared view.
+  sharedAt         DateTime?        @map("shared_at")
+  sharedHighlights Boolean          @default(false) @map("shared_highlights")
+
   // Relations
   user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   locations         ItemLocation[]
