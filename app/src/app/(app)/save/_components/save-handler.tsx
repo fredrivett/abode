@@ -38,6 +38,7 @@ export function SaveHandler({ url }: { url: string }) {
     } catch (error) {
       log.error({ error }, "Share target save failed");
       posthog.captureException(error);
+      toast.error("Couldn't save that link — try again");
       setStatus("error");
     }
   }, [url, router, invalidateItems]);

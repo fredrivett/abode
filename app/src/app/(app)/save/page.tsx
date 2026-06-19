@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
-import { extractSharedUrl } from "@/lib/share-target";
+import { extractSharedUrl, firstSharedValue } from "@/lib/share-target";
 import { SaveHandler } from "./_components/save-handler";
+import { ShareFailed } from "./_components/share-failed";
 
 /**
  * Share-sheet entry point: saves a shared URL to the user's items.
@@ -19,8 +18,11 @@ export default async function SavePage({
     title?: string | string[];
   }>;
 }) {
-  const sharedUrl = extractSharedUrl(await searchParams);
-  if (!sharedUrl) redirect(ROUTES.DASHBOARD);
+  const params = await searchParams;
+  const sharedUrl = extractSharedUrl(params);
+  if (!sharedUrl) {
+    return <ShareFailed rawValue={firstSharedValue(params)} />;
+  }
 
   return <SaveHandler url={sharedUrl} />;
 }

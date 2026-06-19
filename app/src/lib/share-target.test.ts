@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSharedUrl } from "./share-target";
+import { extractSharedUrl, firstSharedValue } from "./share-target";
 
 describe("extractSharedUrl", () => {
   it("returns the url param when it is a valid URL", () => {
@@ -53,5 +53,32 @@ describe("extractSharedUrl", () => {
   it("returns null when no params contain a URL", () => {
     expect(extractSharedUrl({})).toBeNull();
     expect(extractSharedUrl({ text: "just some text" })).toBeNull();
+  });
+});
+
+describe("firstSharedValue", () => {
+  it("returns the trimmed url value when present", () => {
+    expect(firstSharedValue({ url: "  hello  " })).toBe("hello");
+  });
+
+  it("surfaces an unparseable (e.g. double-encoded) value as-is", () => {
+    const doubleEncoded = "https%253A%252F%252Fexample.com";
+    expect(extractSharedUrl({ url: doubleEncoded })).toBeNull();
+    expect(firstSharedValue({ url: doubleEncoded })).toBe(doubleEncoded);
+  });
+
+  it("falls back across url → text → title", () => {
+    expect(firstSharedValue({ text: "from text" })).toBe("from text");
+    expect(firstSharedValue({ title: "from title" })).toBe("from title");
+  });
+
+  it("skips empty values and uses the first array element", () => {
+    expect(firstSharedValue({ url: "   ", text: "real" })).toBe("real");
+    expect(firstSharedValue({ url: ["first", "second"] })).toBe("first");
+  });
+
+  it("returns undefined when nothing was shared", () => {
+    expect(firstSharedValue({})).toBeUndefined();
+    expect(firstSharedValue({ url: "   " })).toBeUndefined();
   });
 });
