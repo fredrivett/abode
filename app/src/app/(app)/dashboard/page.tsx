@@ -4,13 +4,19 @@ import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { NoteComposer } from "./note-composer";
 import { SearchableItemsGrid } from "./searchable-items-grid";
+import { ShareToast } from "./share-toast";
 
 /**
  * Main dashboard page that server-renders the first page of the user's items.
  *
  * Passes initial data to `SearchableItemsGrid` for hydration.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ share?: string }>;
+}) {
+  const { share } = await searchParams;
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
     supabase.auth.getClaims(),
@@ -52,6 +58,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
+      <ShareToast share={share} />
       <NoteComposer />
       <SearchableItemsGrid
         initialItems={itemsForClient}

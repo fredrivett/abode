@@ -46,7 +46,7 @@ test.describe("Save share target + login redirect", () => {
       });
 
       // 3. Login returns to /save, which auto-saves and replaces to /dashboard
-      await expect(page).toHaveURL("/dashboard", { timeout: 30000 });
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 30000 });
 
       // 4. The shared URL was actually saved as an item for this user
       const prisma = getE2EPrisma();

@@ -110,6 +110,15 @@ describe("POST /api/v1/items/from-url", () => {
     });
   });
 
+  it("still returns 201 when the mark-failed update also throws", async () => {
+    mockTrigger.mockRejectedValue(new Error("no trigger key"));
+    mockItemUpdate.mockRejectedValue(new Error("db unavailable"));
+    const res = await POST(request({ url: "https://example.com/x" }));
+    // The item is already persisted — a best-effort mark-failed failure
+    // must not turn a successful save into an error.
+    expect(res.status).toBe(201);
+  });
+
   it("records the share_target source on the analytics event", async () => {
     await POST(
       request({ url: "https://example.com/x", source: "share_target" }),
