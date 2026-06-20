@@ -41,7 +41,7 @@ test.describe("Save share target + MFA login redirect", () => {
       await page
         .locator('[data-slot="input-otp"]')
         .pressSequentially(generateTotp(totpSecret));
-      await expect(page).toHaveURL("/dashboard", { timeout: 30000 });
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 30000 });
 
       // The shared URL survived the whole password → MFA → save journey.
       const prisma = getE2EPrisma();

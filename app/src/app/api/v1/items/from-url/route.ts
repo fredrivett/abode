@@ -1,24 +1,14 @@
-import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import {
+  createItemFromUrl,
+  InvalidUrlError,
+  isItemSource,
+} from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
-import { markMilestoneComplete } from "@/lib/milestones";
-import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
-import type { classifyUrlTask } from "../../../../../../trigger/classify-url";
 
 const log = createLogger("api/v1/items/from-url");
-
-// Where the save originated, for analytics (default "web")
-const VALID_ITEM_SOURCES = ["web", "share_target"] as const;
-type ItemSource = (typeof VALID_ITEM_SOURCES)[number];
-
-function isItemSource(value: unknown): value is ItemSource {
-  return (
-    typeof value === "string" &&
-    VALID_ITEM_SOURCES.includes(value as ItemSource)
-  );
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,75 +29,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
-    // Basic URL validation
-    let parsedUrl: URL;
     try {
-      parsedUrl = new URL(url);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        throw new Error("Invalid protocol");
-      }
-    } catch {
-      return NextResponse.json(
-        { message: "Invalid URL format" },
-        { status: 400 },
-      );
-    }
-
-    // Create the item with null kind (will be classified by background task)
-    const item = await db.item.create({
-      data: {
-        kind: null,
-        sourceType: "url",
-        sourceUrl: parsedUrl.href,
+      const item = await createItemFromUrl({
         userId: user.id,
-        processingStatus: "processing",
-      },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        sourceType: true,
-        sourceUrl: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    // Trigger URL classification task — a queueing hiccup must not fail the
-    // save; the item is already persisted and can be retried/reprocessed
-    try {
-      await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-        itemId: item.id,
-        userId: user.id,
-        url: parsedUrl.href,
-      });
-    } catch (error) {
-      // Enqueue failed — mark the item failed so the UI surfaces a Retry
-      // action instead of spinning on "processing" forever
-      log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
-      await db.item.update({
-        where: { id: item.id },
-        data: { processingStatus: "failed" },
-      });
-    }
-
-    // Track URL import
-    const posthog = getPostHogClient();
-    posthog?.capture({
-      distinctId: user.id,
-      event: "item_imported_from_url",
-      properties: {
-        item_id: item.id,
-        url_domain: parsedUrl.hostname,
+        url,
         source: isItemSource(source) ? source : "web",
-      },
-    });
-
-    // Mark milestone for saving first URL
-    void markMilestoneComplete(user.id, "save_first_url");
-
-    return NextResponse.json(item, { status: 201 });
+      });
+      return NextResponse.json(item, { status: 201 });
+    } catch (error) {
+      if (error instanceof InvalidUrlError) {
+        return NextResponse.json(
+          { message: "Invalid URL format" },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     log.error({ error }, "Item creation from URL error");
     captureServerException(error, undefined, {
