@@ -18,8 +18,10 @@ type NoteEditorProps = {
   className?: string;
 };
 
+// `max-md:text-[1rem]` keeps the editor root at 16px on small screens — prose-sm
+// would drop it to 14px, which makes iOS Safari auto-zoom the UI on focus
 const EDITOR_CLASS =
-  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[1.5rem]";
+  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
 
 /**
  * WYSIWYG note editor backed by markdown.
