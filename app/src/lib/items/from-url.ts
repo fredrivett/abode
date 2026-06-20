@@ -78,12 +78,21 @@ export async function createItemFromUrl({
       url: parsedUrl.href,
     });
   } catch (error) {
-    // Mark failed so the UI surfaces a Retry instead of spinning forever
+    // Mark failed so the UI surfaces a Retry instead of spinning forever.
+    // Best-effort: the item is already persisted, so a failure here must not
+    // fail the save (which would error after a successful insert).
     log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
-    await db.item.update({
-      where: { id: item.id },
-      data: { processingStatus: "failed" },
-    });
+    try {
+      await db.item.update({
+        where: { id: item.id },
+        data: { processingStatus: "failed" },
+      });
+    } catch (updateError) {
+      log.error(
+        { updateError, itemId: item.id },
+        "Failed to mark item failed after classify-url enqueue error",
+      );
+    }
   }
 
   getPostHogClient()?.capture({
