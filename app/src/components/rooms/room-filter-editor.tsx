@@ -268,13 +268,17 @@ export function RoomFilterEditor({
  */
 function PreviewItem({ item }: { item: Item }) {
   const meta = item.meta || {};
-  const isArticle = item.kind === "article";
+  const isArticleOrWebpage = item.kind === "article" || item.kind === "webpage";
   const name = item.title ?? "Untitled";
   const size = formatBytes(meta.size as number | undefined);
   const mimeType = meta.type as string | undefined;
 
-  const width = isArticle ? 16 : ((meta.width as number | undefined) ?? 3);
-  const height = isArticle ? 9 : ((meta.height as number | undefined) ?? 4);
+  const width = isArticleOrWebpage
+    ? 16
+    : ((meta.width as number | undefined) ?? 3);
+  const height = isArticleOrWebpage
+    ? 9
+    : ((meta.height as number | undefined) ?? 4);
 
   return (
     <Frame width={width} height={height}>

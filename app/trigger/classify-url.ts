@@ -489,13 +489,20 @@ export const classifyUrlTask = task({
         readingTime,
       });
 
-      logger.log("URL classified as article", {
+      // Classify as "article" only if we extracted substantial readable content,
+      // otherwise treat as a generic "webpage" (e.g. homepages, docs, profiles)
+      const MIN_ARTICLE_WORDS = 100;
+      const wordCount = articleContent?.split(/\s+/).length ?? 0;
+      const itemKind = wordCount >= MIN_ARTICLE_WORDS ? "article" : "webpage";
+
+      logger.log(`URL classified as ${itemKind}`, {
         itemId,
         url,
         title: metadata.title,
         domain: metadata.domain,
         hasOgImage: !!metadata.ogImage,
         hasContent: !!articleContent,
+        wordCount,
       });
 
       // Step 4: Download cover image if available
@@ -521,12 +528,12 @@ export const classifyUrlTask = task({
         }
       }
 
-      // Step 5: Update item with article data and track cover image storage
+      // Step 5: Update item with data and track cover image storage
       await db.$transaction(async (tx) => {
         await tx.item.update({
           where: { id: itemId, userId },
           data: {
-            kind: "article",
+            kind: itemKind,
             title: metadata.title,
             description: metadata.description,
             ...(coverResult && { coverFileKey: coverResult.fileKey }),
@@ -546,21 +553,23 @@ export const classifyUrlTask = task({
         }
       });
 
-      // Step 6: Upsert article details record (idempotent for retries)
-      const articleDetailsData = {
-        author: metadata.author,
-        domain: metadata.domain,
-        publishedAt: metadata.publishedAt,
-        readingTime,
-        content: articleContent,
-      };
-      await db.itemArticleDetails.upsert({
-        where: { itemId },
-        create: { itemId, ...articleDetailsData },
-        update: articleDetailsData,
-      });
+      // Step 6: Upsert article details record (idempotent for retries, only for articles with real content)
+      if (itemKind === "article") {
+        const articleDetailsData = {
+          author: metadata.author,
+          domain: metadata.domain,
+          publishedAt: metadata.publishedAt,
+          readingTime,
+          content: articleContent,
+        };
+        await db.itemArticleDetails.upsert({
+          where: { itemId },
+          create: { itemId, ...articleDetailsData },
+          update: articleDetailsData,
+        });
+      }
 
-      logger.log("Article processing complete", { itemId });
+      logger.log(`${itemKind} processing complete`, { itemId });
 
       // Step 7: Trigger enrichment (tags, text embedding, room sync)
       const sourceText =
@@ -577,7 +586,7 @@ export const classifyUrlTask = task({
       return {
         success: true,
         itemId,
-        kind: "article" as const,
+        kind: itemKind,
         metadata: {
           title: metadata.title,
           domain: metadata.domain,

@@ -94,10 +94,10 @@ export const backfillMilestonesTask = task({
       }
     }
 
-    // 3. save_first_url: Has item with kind='article' or kind='twitter'
+    // 3. save_first_url: Has item with kind='article', 'webpage', or 'twitter'
     const usersWithUrls = await db.item.groupBy({
       by: ["userId"],
-      where: { kind: { in: ["article", "twitter"] } },
+      where: { kind: { in: ["article", "webpage", "twitter"] } },
     });
     for (const { userId } of usersWithUrls) {
       if (shouldCreate(userId, "save_first_url")) {

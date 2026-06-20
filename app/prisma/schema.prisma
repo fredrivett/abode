@@ -61,6 +61,7 @@ enum ItemKind {
   video
   product
   note
+  webpage
 }
 
 enum SourceType {

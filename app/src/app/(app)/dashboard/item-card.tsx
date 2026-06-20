@@ -171,26 +171,28 @@ export function ItemCard({
   const [isAnimating, setIsAnimating] = useState(false);
 
   const isArticle = item.kind === "article";
+  const isWebpage = item.kind === "webpage";
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
   const isNote = item.kind === "note";
+  const isArticleOrWebpage = isArticle || isWebpage;
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
-  // For articles/products, use coverFileKey; for images, use fileKey
+  // For articles/webpages/products, use coverFileKey; for images, use fileKey
   const imageFileKey =
-    isArticle || isProduct ? item.coverFileKey : item.fileKey;
-  // Has displayable image: either it's an image type OR it's an article/product with a cover
+    isArticleOrWebpage || isProduct ? item.coverFileKey : item.fileKey;
+  // Has displayable image: either it's an image type OR it's an article/webpage/product with a cover
   const hasDisplayableImage =
     mimeType?.startsWith("image/") ||
-    (isArticle && !!item.coverFileKey) ||
+    (isArticleOrWebpage && !!item.coverFileKey) ||
     (isProduct && !!item.coverFileKey);
 
   useEffect(() => {
-    // Articles without a cover image don't need to load anything
+    // Articles/webpages without a cover image don't need to load anything
     // URL items that are still processing don't have a file yet - that's expected
     // Twitter items use TwitterCard which displays tweet content, not an image file
     // Video items use VideoCard which handles its own thumbnail display
@@ -198,7 +200,7 @@ export function ItemCard({
     if (!imageFileKey) {
       setPreviewUrl(null);
       if (
-        !isArticle &&
+        !isArticleOrWebpage &&
         !isProcessingUrl &&
         !isTwitter &&
         !isVideo &&
@@ -216,7 +218,7 @@ export function ItemCard({
     setPreviewUrl(proxyUrl);
   }, [
     imageFileKey,
-    isArticle,
+    isArticleOrWebpage,
     isProcessingUrl,
     isTwitter,
     isVideo,
@@ -345,8 +347,14 @@ export function ItemCard({
     );
   }
 
-  // Articles without cover images get a placeholder card
-  if (isArticle && !previewUrl && !imageFileKey) {
+  // Articles/webpages without cover images get a placeholder card
+  if (isArticleOrWebpage && !previewUrl && !imageFileKey) {
+    let placeholderDomain = item.articleDetails?.domain;
+    if (!placeholderDomain && item.sourceUrl) {
+      try {
+        placeholderDomain = new URL(item.sourceUrl).hostname;
+      } catch {}
+    }
     return (
       <>
         <button
@@ -367,12 +375,12 @@ export function ItemCard({
             >
               {itemName}
             </p>
-            {item.articleDetails?.domain && (
+            {placeholderDomain && (
               <p
                 className="text-gray-500 dark:text-gray-400"
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
-                {item.articleDetails.domain}
+                {placeholderDomain}
               </p>
             )}
           </div>
@@ -1087,10 +1095,12 @@ function ItemDetailDialog({
   const width = (meta.width as number | undefined) ?? 0;
   const height = (meta.height as number | undefined) ?? 0;
   const isArticle = item.kind === "article";
+  const isWebpage = item.kind === "webpage";
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
   const isNote = item.kind === "note";
+  const isArticleOrWebpage = isArticle || isWebpage;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1488,7 +1498,7 @@ function ItemDetailDialog({
             <div
               className={cn(
                 "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
-                !isArticle && !isProduct && !isNote && "bg-gray-900",
+                !isArticleOrWebpage && !isProduct && !isNote && "bg-gray-900",
               )}
             >
               {isNote ? (
@@ -1590,7 +1600,21 @@ function ItemDetailDialog({
                     className="py-8"
                   />
                 </motion.div>
-              ) : previewUrl && !isArticle && !isProduct ? (
+              ) : isWebpage && previewUrl ? (
+                <motion.div
+                  className="flex h-full w-full items-center justify-center bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
+                  <img
+                    src={fullQualityUrl || previewUrl}
+                    alt={name}
+                    className="max-h-[calc(100vh-2rem)] w-full object-contain"
+                  />
+                </motion.div>
+              ) : previewUrl && !isArticleOrWebpage && !isProduct ? (
                 <motion.div
                   layoutId={`item-image-${item.id}`}
                   className="relative"
@@ -1910,8 +1934,8 @@ function ItemDetailDialog({
                     </div>
                   )}
 
-                  {/* Article Cover Image (shown in details panel for articles) */}
-                  {isArticle && previewUrl && (
+                  {/* Cover Image (shown in details panel for articles/webpages) */}
+                  {isArticleOrWebpage && previewUrl && (
                     <div className="space-y-2">
                       <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                         Cover Image

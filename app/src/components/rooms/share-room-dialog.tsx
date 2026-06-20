@@ -149,8 +149,11 @@ function EmbedPreview({
     // Transform items to match API format (hardcoded to 12 items max)
     const items = roomItems.slice(0, 12).map((item) => {
       const meta = item.meta || {};
-      const isArticle = item.kind === "article";
-      const imageFileKey = isArticle ? item.coverFileKey : item.fileKey;
+      const isArticleOrWebpage =
+        item.kind === "article" || item.kind === "webpage";
+      const imageFileKey = isArticleOrWebpage
+        ? item.coverFileKey
+        : item.fileKey;
 
       return {
         id: item.id,
@@ -159,8 +162,8 @@ function EmbedPreview({
         imageUrl: imageFileKey
           ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
           : null,
-        width: isArticle ? 16 : ((meta.width as number) ?? 1),
-        height: isArticle ? 9 : ((meta.height as number) ?? 1),
+        width: isArticleOrWebpage ? 16 : ((meta.width as number) ?? 1),
+        height: isArticleOrWebpage ? 9 : ((meta.height as number) ?? 1),
       };
     });
 

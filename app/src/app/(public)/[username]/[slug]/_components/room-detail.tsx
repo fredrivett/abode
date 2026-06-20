@@ -387,7 +387,8 @@ export function RoomDetail({
             >
               {items.map((item) => {
                 const meta = item.meta || {};
-                const isArticle = item.kind === "article";
+                const isArticleOrWebpage =
+                  item.kind === "article" || item.kind === "webpage";
 
                 // item.title is the single source of truth for display name
                 const name = item.title ?? "Untitled";
@@ -395,11 +396,11 @@ export function RoomDetail({
                 const size = formatBytes(meta.size as number | undefined);
                 const mimeType = meta.type as string | undefined;
 
-                // For articles, use 4:3 aspect ratio; for images use actual dimensions or 3:4
-                const width = isArticle
+                // For articles/webpages, use 4:3 aspect ratio; for images use actual dimensions or 3:4
+                const width = isArticleOrWebpage
                   ? 4
                   : ((meta.width as number | undefined) ?? 3);
-                const height = isArticle
+                const height = isArticleOrWebpage
                   ? 3
                   : ((meta.height as number | undefined) ?? 4);
 
