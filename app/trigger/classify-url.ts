@@ -7,17 +7,12 @@ import { imageSize } from "image-size";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
+import { classifyItemKind } from "../src/lib/classify-item-kind";
 import db from "../src/lib/db";
 import {
   type BookMetadata,
   extractAllProductImageCandidates,
   extractArticleMetadata,
-  extractBookMetadata,
-  extractProductMetadata,
-  extractTweetId,
-  extractTwitterArticleId,
-  extractVimeoVideoId,
-  extractYouTubeVideoId,
   type ProductImageCandidate,
   type ProductMetadata,
   preserveSocialEmbeds,
@@ -25,7 +20,7 @@ import {
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
-import { getExtensionFromContentType, isImageUrl } from "../src/lib/url-utils";
+import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
 import { handleTwitterArticle } from "./handle-twitter-article";
@@ -190,6 +185,116 @@ async function uploadImageBuffer(
  * Vimeo/direct images, and falls back to article extraction via Readability.
  * Marks the item as `failed` on error.
  */
+type ReadableContent = {
+  articleContent: string | null;
+  readingTime: number | null;
+  wordCount: number;
+};
+
+/**
+ * Extracts readable article content from HTML via Mozilla Readability, converting
+ * it to markdown. Expensive (JSDOM + Readability + Turndown), so callers invoke it
+ * lazily and only when the article/webpage decision is actually reached.
+ */
+function extractReadableContent(
+  html: string,
+  fetchUrl: string,
+  itemId: string,
+): ReadableContent {
+  // Readability is battle-tested (powers Firefox Reader View) and produces
+  // clean article content without navigation, footers, or other page chrome.
+  let articleContent: string | null = null;
+  let readingTime: number | null = null;
+
+  try {
+    // Pre-process HTML: Remove hidden attribute from divs
+    // Modern React/Next.js sites use streaming SSR which renders content into
+    // hidden divs that are revealed via JavaScript hydration. Readability
+    // ignores hidden elements, so we need to unhide them first.
+    let processedHtml = html.replace(
+      /<div([^>]*)\s+hidden([^>]*)>/gi,
+      "<div$1$2>",
+    );
+
+    // Pre-process HTML: Preserve social media embeds before Readability runs
+    // Twitter/X embeds are blockquotes that would be stripped of their structure.
+    // We replace them with placeholder divs containing the tweet URL, then convert
+    // these to markdown markers after Readability extracts the content.
+    const embedResult = preserveSocialEmbeds(processedHtml);
+    processedHtml = embedResult.html;
+
+    if (embedResult.tweetIds.length > 0) {
+      logger.log("Twitter embeds detected and preserved", {
+        itemId,
+        tweetCount: embedResult.tweetIds.length,
+        tweetIds: embedResult.tweetIds,
+      });
+    } else {
+      logger.log("No Twitter embeds found in article HTML", { itemId });
+    }
+
+    const dom = new JSDOM(processedHtml, { url: fetchUrl });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+
+    if (article?.content) {
+      // Convert HTML to markdown for consistent storage and rendering
+      const turndown = new TurndownService({
+        headingStyle: "atx",
+        codeBlockStyle: "fenced",
+      });
+      // Preserve SVG elements as raw HTML in markdown output
+      // This allows inline SVGs (like logos, icons, charts) to render properly
+      // Cast needed because Turndown types only include HTMLElementTagNameMap, not SVG
+      turndown.keep(["svg"] as unknown as (keyof HTMLElementTagNameMap)[]);
+      articleContent = turndown.turndown(article.content);
+      const wordCount = articleContent.split(/\s+/).length;
+      if (wordCount > 0) {
+        readingTime = Math.ceil(wordCount / 200);
+      }
+
+      // Check if tweet markers survived the Readability + Turndown pipeline
+      const tweetMarkerMatches = articleContent.match(/\[\[TWEET:\d+\]\]/g);
+      const preservedTweetCount = tweetMarkerMatches?.length ?? 0;
+
+      logger.log("Content extracted with Readability", {
+        itemId,
+        contentLength: articleContent.length,
+        wordCount,
+        preservedTweetMarkers: preservedTweetCount,
+        tweetMarkersFound: tweetMarkerMatches ?? [],
+      });
+
+      if (
+        embedResult.tweetIds.length > 0 &&
+        preservedTweetCount !== embedResult.tweetIds.length
+      ) {
+        logger.warn("Tweet markers may have been lost during processing", {
+          itemId,
+          originalTweetCount: embedResult.tweetIds.length,
+          preservedTweetCount,
+          originalTweetIds: embedResult.tweetIds,
+        });
+      }
+    }
+  } catch (readabilityError) {
+    logger.warn("Failed to extract article content", {
+      itemId,
+      error: readabilityError,
+    });
+  }
+
+  logger.log("Article content extraction result", {
+    itemId,
+    contentExtracted: !!articleContent,
+    contentLength: articleContent?.length ?? 0,
+    readingTime,
+  });
+
+  const wordCount = articleContent?.split(/\s+/).length ?? 0;
+  return { articleContent, readingTime, wordCount };
+}
+
 export const classifyUrlTask = task({
   id: "classify-url",
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
@@ -202,126 +307,100 @@ export const classifyUrlTask = task({
     logger.log("Starting URL classification", { itemId, userId, url });
 
     try {
-      // Step 0: Check if this is a Twitter/X URL before any fetching
-      // For short URLs (like t.co), we need to resolve them first to get the actual destination
+      // Step 0: Resolve t.co short URLs (Twitter's shortener) up front so every
+      // downstream detector sees the real destination.
       let resolvedUrl = url;
-      const platform = detectPlatform(url);
+      let originalHostname: string | null = null;
+      try {
+        originalHostname = new URL(url).hostname;
+      } catch {}
 
-      if (platform === "twitter") {
-        let twitterUrl = url;
-
-        // If t.co short URL, resolve it first to get the destination
-        if (new URL(url).hostname === "t.co") {
-          logger.log("Resolving t.co short URL", { itemId, url });
-          try {
-            // Use a simple User-Agent for t.co resolution.
-            // With browser-like User-Agents, t.co returns a JavaScript redirect instead of HTTP redirect,
-            // which Node.js fetch can't follow. Simple User-Agents get proper HTTP 301/302 redirects.
-            const resolveResponse = await fetch(url, {
-              method: "HEAD",
-              redirect: "follow",
-              headers: {
-                "User-Agent": "AbodeBot/1.0",
-              },
-            });
-            twitterUrl = resolveResponse.url;
-            resolvedUrl = twitterUrl;
-            logger.log("Resolved t.co URL", {
+      if (detectPlatform(url) === "twitter" && originalHostname === "t.co") {
+        logger.log("Resolving t.co short URL", { itemId, url });
+        try {
+          // Use a simple User-Agent for t.co resolution.
+          // With browser-like User-Agents, t.co returns a JavaScript redirect instead of HTTP redirect,
+          // which Node.js fetch can't follow. Simple User-Agents get proper HTTP 301/302 redirects.
+          const resolveResponse = await fetch(url, {
+            method: "HEAD",
+            redirect: "follow",
+            headers: {
+              "User-Agent": "AbodeBot/1.0",
+            },
+          });
+          resolvedUrl = resolveResponse.url;
+          logger.log("Resolved t.co URL", {
+            itemId,
+            originalUrl: url,
+            resolvedUrl,
+          });
+        } catch (resolveError) {
+          logger.warn(
+            "Failed to resolve t.co URL, will try fetching directly",
+            {
               itemId,
-              originalUrl: url,
-              resolvedUrl: twitterUrl,
-            });
-          } catch (resolveError) {
-            logger.warn(
-              "Failed to resolve t.co URL, will try fetching directly",
-              { itemId, url, error: resolveError },
-            );
-          }
+              url,
+              error: resolveError,
+            },
+          );
         }
-
-        // Check if it's a tweet
-        const tweetId = extractTweetId(twitterUrl);
-        if (tweetId) {
-          logger.log("URL classified as Twitter/X post", {
-            itemId,
-            url: twitterUrl,
-            tweetId,
-          });
-          return await handleTwitterUrl({
-            itemId,
-            userId,
-            url: twitterUrl,
-            tweetId,
-          });
-        }
-
-        // Check if it's a Twitter Article
-        const articleId = extractTwitterArticleId(twitterUrl);
-        if (articleId) {
-          logger.log("URL classified as Twitter Article", {
-            itemId,
-            url: twitterUrl,
-            articleId,
-          });
-          return await handleTwitterArticle({
-            itemId,
-            userId,
-            url: twitterUrl,
-            articleId,
-          });
-        }
-
-        // Twitter URL without tweet/article ID (could be a profile or other page)
-        logger.warn("Twitter URL without tweet ID, treating as article", {
-          itemId,
-          url: twitterUrl,
-        });
       }
 
-      // Check for YouTube video
-      const youtubeVideoId = extractYouTubeVideoId(resolvedUrl);
-      if (youtubeVideoId) {
-        logger.log("URL classified as YouTube video", {
-          itemId,
-          url: resolvedUrl,
-          videoId: youtubeVideoId,
-        });
-        return await handleVideoUrl(
-          {
-            itemId,
-            userId,
-            url: resolvedUrl,
-            platform: "youtube",
-            videoId: youtubeVideoId,
-          },
-          supabase,
-        );
-      }
-
-      // Check for Vimeo video
-      const vimeoVideoId = extractVimeoVideoId(resolvedUrl);
-      if (vimeoVideoId) {
-        logger.log("URL classified as Vimeo video", {
-          itemId,
-          url: resolvedUrl,
-          videoId: vimeoVideoId,
-        });
-        return await handleVideoUrl(
-          {
-            itemId,
-            userId,
-            url: resolvedUrl,
-            platform: "vimeo",
-            videoId: vimeoVideoId,
-          },
-          supabase,
-        );
-      }
-
-      // Use resolvedUrl for all subsequent operations (may differ from original if t.co was resolved)
       const fetchUrl = resolvedUrl;
 
-      // Step 1: Fetch the URL with a HEAD request first to check content type
+      // Step 1: Classify from the URL alone (tweets, Twitter articles, videos) —
+      // no page fetch needed for these.
+      const urlClassification = classifyItemKind({
+        url,
+        resolvedUrl,
+        contentType: null,
+        html: null,
+      });
+      if (urlClassification?.kind === "twitter") {
+        logger.log("URL classified as Twitter/X post", {
+          itemId,
+          url: urlClassification.url,
+          tweetId: urlClassification.tweetId,
+        });
+        return await handleTwitterUrl({
+          itemId,
+          userId,
+          url: urlClassification.url,
+          tweetId: urlClassification.tweetId,
+        });
+      }
+      if (urlClassification?.kind === "twitterArticle") {
+        logger.log("URL classified as Twitter Article", {
+          itemId,
+          url: urlClassification.url,
+          articleId: urlClassification.articleId,
+        });
+        return await handleTwitterArticle({
+          itemId,
+          userId,
+          url: urlClassification.url,
+          articleId: urlClassification.articleId,
+        });
+      }
+      if (urlClassification?.kind === "video") {
+        logger.log(`URL classified as ${urlClassification.platform} video`, {
+          itemId,
+          url: urlClassification.url,
+          videoId: urlClassification.videoId,
+        });
+        return await handleVideoUrl(
+          {
+            itemId,
+            userId,
+            url: urlClassification.url,
+            platform: urlClassification.platform,
+            videoId: urlClassification.videoId,
+          },
+          supabase,
+        );
+      }
+
+      // Step 2: HEAD request to check the content type
       logger.log("Checking URL content type", { itemId, url: fetchUrl });
 
       let contentType: string | null = null;
@@ -341,13 +420,16 @@ export const classifyUrlTask = task({
         });
       }
 
-      // Check if it's a direct image URL
-      if (isImageUrl(fetchUrl, contentType ?? undefined)) {
+      // Step 3: Direct image URL (by extension or content-type)
+      if (
+        classifyItemKind({ url, resolvedUrl, contentType, html: null })
+          ?.kind === "image"
+      ) {
         logger.log("URL classified as direct image", { itemId, url: fetchUrl });
         return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
-      // Step 2: Fetch the full page content
+      // Step 4: Fetch the full page content
       logger.log("Fetching page content", { itemId, url: fetchUrl });
 
       const response = await fetch(fetchUrl, {
@@ -364,9 +446,29 @@ export const classifyUrlTask = task({
       }
 
       const finalContentType = response.headers.get("content-type");
+      const html = await response.text();
 
-      // Double-check if it's actually an image (some servers don't respond to HEAD)
-      if (isImageUrl(fetchUrl, finalContentType ?? undefined)) {
+      // Step 5: Classify from the page body — image re-check (some servers don't
+      // answer HEAD), then book, product, and finally article vs generic webpage.
+      // Article extraction (Readability) is expensive, so it runs lazily and only
+      // when the classifier actually needs the readable word count.
+      let readableContent: ReadableContent | null = null;
+      const getReadableContent = () => {
+        if (!readableContent) {
+          readableContent = extractReadableContent(html, fetchUrl, itemId);
+        }
+        return readableContent;
+      };
+
+      const classification = classifyItemKind({
+        url,
+        resolvedUrl,
+        contentType: finalContentType,
+        html,
+        getArticleWordCount: () => getReadableContent().wordCount,
+      });
+
+      if (classification?.kind === "image") {
         logger.log("URL classified as image after GET", {
           itemId,
           url: fetchUrl,
@@ -374,142 +476,49 @@ export const classifyUrlTask = task({
         return await handleImageUrl(itemId, userId, fetchUrl, supabase);
       }
 
-      // Step 3: Parse HTML and check for product before article
-      const html = await response.text();
-
-      // Step 3a: Check if this is a book page (before product — a book is a
-      // subset of "product", so book signals take precedence)
-      const bookMeta = extractBookMetadata(html, fetchUrl);
-      if (bookMeta) {
+      if (classification?.kind === "book") {
         logger.log("URL classified as book", {
           itemId,
           url: fetchUrl,
-          title: bookMeta.title,
-          authors: bookMeta.authors,
-          isbn: bookMeta.isbn,
+          title: classification.bookMeta.title,
+          authors: classification.bookMeta.authors,
+          isbn: classification.bookMeta.isbn,
         });
-        return await handleBookUrl(itemId, userId, bookMeta, supabase);
+        return await handleBookUrl(
+          itemId,
+          userId,
+          classification.bookMeta,
+          supabase,
+        );
       }
 
-      // Step 3b: Check if this is a product page
-      const productMeta = extractProductMetadata(html, fetchUrl);
-      if (productMeta) {
+      if (classification?.kind === "product") {
         const candidates = extractAllProductImageCandidates(html, fetchUrl);
         logger.log("URL classified as product", {
           itemId,
           url: fetchUrl,
-          title: productMeta.title,
-          brand: productMeta.brand,
-          price: productMeta.price,
+          title: classification.productMeta.title,
+          brand: classification.productMeta.brand,
+          price: classification.productMeta.price,
           candidateCount: candidates.length,
         });
         return await handleProductUrl(
           itemId,
           userId,
-          productMeta,
+          classification.productMeta,
           candidates,
           supabase,
         );
       }
 
-      const metadata = extractArticleMetadata(html, fetchUrl);
-
-      // Step 3.5: Extract article content using Mozilla Readability
-      // Readability is battle-tested (powers Firefox Reader View) and produces
-      // clean article content without navigation, footers, or other page chrome.
-      let articleContent: string | null = null;
-      let readingTime: number | null = null;
-
-      try {
-        // Pre-process HTML: Remove hidden attribute from divs
-        // Modern React/Next.js sites use streaming SSR which renders content into
-        // hidden divs that are revealed via JavaScript hydration. Readability
-        // ignores hidden elements, so we need to unhide them first.
-        let processedHtml = html.replace(
-          /<div([^>]*)\s+hidden([^>]*)>/gi,
-          "<div$1$2>",
-        );
-
-        // Pre-process HTML: Preserve social media embeds before Readability runs
-        // Twitter/X embeds are blockquotes that would be stripped of their structure.
-        // We replace them with placeholder divs containing the tweet URL, then convert
-        // these to markdown markers after Readability extracts the content.
-        const embedResult = preserveSocialEmbeds(processedHtml);
-        processedHtml = embedResult.html;
-
-        if (embedResult.tweetIds.length > 0) {
-          logger.log("Twitter embeds detected and preserved", {
-            itemId,
-            tweetCount: embedResult.tweetIds.length,
-            tweetIds: embedResult.tweetIds,
-          });
-        } else {
-          logger.log("No Twitter embeds found in article HTML", { itemId });
-        }
-
-        const dom = new JSDOM(processedHtml, { url: fetchUrl });
-        const reader = new Readability(dom.window.document);
-        const article = reader.parse();
-
-        if (article?.content) {
-          // Convert HTML to markdown for consistent storage and rendering
-          const turndown = new TurndownService({
-            headingStyle: "atx",
-            codeBlockStyle: "fenced",
-          });
-          // Preserve SVG elements as raw HTML in markdown output
-          // This allows inline SVGs (like logos, icons, charts) to render properly
-          // Cast needed because Turndown types only include HTMLElementTagNameMap, not SVG
-          turndown.keep(["svg"] as unknown as (keyof HTMLElementTagNameMap)[]);
-          articleContent = turndown.turndown(article.content);
-          const wordCount = articleContent.split(/\s+/).length;
-          if (wordCount > 0) {
-            readingTime = Math.ceil(wordCount / 200);
-          }
-
-          // Check if tweet markers survived the Readability + Turndown pipeline
-          const tweetMarkerMatches = articleContent.match(/\[\[TWEET:\d+\]\]/g);
-          const preservedTweetCount = tweetMarkerMatches?.length ?? 0;
-
-          logger.log("Content extracted with Readability", {
-            itemId,
-            contentLength: articleContent.length,
-            wordCount,
-            preservedTweetMarkers: preservedTweetCount,
-            tweetMarkersFound: tweetMarkerMatches ?? [],
-          });
-
-          if (
-            embedResult.tweetIds.length > 0 &&
-            preservedTweetCount !== embedResult.tweetIds.length
-          ) {
-            logger.warn("Tweet markers may have been lost during processing", {
-              itemId,
-              originalTweetCount: embedResult.tweetIds.length,
-              preservedTweetCount,
-              originalTweetIds: embedResult.tweetIds,
-            });
-          }
-        }
-      } catch (readabilityError) {
-        logger.warn("Failed to extract article content", {
-          itemId,
-          error: readabilityError,
-        });
-      }
-
-      logger.log("Article content extraction result", {
-        itemId,
-        contentExtracted: !!articleContent,
-        contentLength: articleContent?.length ?? 0,
-        readingTime,
-      });
-
-      // Classify as "article" only if we extracted substantial readable content,
-      // otherwise treat as a generic "webpage" (e.g. homepages, docs, profiles)
-      const MIN_ARTICLE_WORDS = 100;
-      const wordCount = articleContent?.split(/\s+/).length ?? 0;
-      const itemKind = wordCount >= MIN_ARTICLE_WORDS ? "article" : "webpage";
+      // Article or generic webpage
+      const itemKind =
+        classification?.kind === "article" ? "article" : "webpage";
+      const metadata =
+        classification && "metadata" in classification
+          ? classification.metadata
+          : extractArticleMetadata(html, fetchUrl);
+      const { articleContent, readingTime, wordCount } = getReadableContent();
 
       logger.log(`URL classified as ${itemKind}`, {
         itemId,
@@ -521,7 +530,7 @@ export const classifyUrlTask = task({
         wordCount,
       });
 
-      // Step 4: Download cover image if available
+      // Download cover image if available
       let coverResult: { fileKey: string; size: number } | null = null;
       if (metadata.ogImage) {
         logger.log("Downloading cover image", {
@@ -544,7 +553,7 @@ export const classifyUrlTask = task({
         }
       }
 
-      // Step 5: Update item with data and track cover image storage
+      // Update item with data and track cover image storage
       await db.$transaction(async (tx) => {
         await tx.item.update({
           where: { id: itemId, userId },
@@ -569,7 +578,7 @@ export const classifyUrlTask = task({
         }
       });
 
-      // Step 6: Upsert article details record (idempotent for retries, only for articles with real content)
+      // Upsert article details record (idempotent for retries, only for articles with real content)
       if (itemKind === "article") {
         const articleDetailsData = {
           author: metadata.author,
@@ -587,7 +596,7 @@ export const classifyUrlTask = task({
 
       logger.log(`${itemKind} processing complete`, { itemId });
 
-      // Step 7: Trigger enrichment (tags, text embedding, room sync)
+      // Trigger enrichment (tags, text embedding, room sync)
       const sourceText =
         articleContent ??
         [metadata.title, metadata.description].filter(Boolean).join(" ");
