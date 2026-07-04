@@ -62,6 +62,7 @@ enum ItemKind {
   product
   note
   webpage
+  book
 }
 
 enum SourceType {
@@ -178,6 +179,7 @@ model Item {
   twitterDetails    ItemTwitterDetails?
   videoDetails      ItemVideoDetails?
   productDetails    ItemProductDetails?
+  bookDetails       ItemBookDetails?
   noteDetails       ItemNoteDetails?
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
@@ -347,6 +349,23 @@ model ItemProductDetails {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("item_product_details")
+}
+
+model ItemBookDetails {
+  itemId      String    @id @map("item_id") @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  authors     String[]  @default([])
+  publisher   String?
+  publishedAt DateTime? @map("published_at")
+  isbn        String?
+  pageCount   Int?      @map("page_count")
+  domain      String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_book_details")
 }
 
 model ItemNoteDetails {

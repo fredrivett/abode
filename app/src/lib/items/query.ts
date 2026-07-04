@@ -4,6 +4,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type {
+  BookDetails,
   ExternalLink,
   ImageColor,
   NoteDetails,
@@ -101,6 +102,16 @@ export const itemSelect = {
       availability: true,
       images: true,
       coverImageIndex: true,
+    },
+  },
+  bookDetails: {
+    select: {
+      authors: true,
+      publisher: true,
+      publishedAt: true,
+      isbn: true,
+      pageCount: true,
+      domain: true,
     },
   },
   noteDetails: {
@@ -202,6 +213,16 @@ export function transformItem(item: RawItem) {
           images: item.productDetails.images as ProductImage[] | null,
           coverImageIndex: item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
+      : null,
+    bookDetails: item.bookDetails
+      ? ({
+          authors: item.bookDetails.authors,
+          publisher: item.bookDetails.publisher,
+          publishedAt: item.bookDetails.publishedAt?.toISOString() ?? null,
+          isbn: item.bookDetails.isbn,
+          pageCount: item.bookDetails.pageCount,
+          domain: item.bookDetails.domain,
+        } satisfies BookDetails)
       : null,
     noteDetails: item.noteDetails
       ? ({ content: item.noteDetails.content } satisfies NoteDetails)

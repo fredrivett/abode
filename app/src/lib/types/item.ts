@@ -85,6 +85,18 @@ export type ProductDetails = {
 };
 
 /**
+ * Book-specific details for book URLs (Goodreads, Google Books, etc.).
+ */
+export type BookDetails = {
+  authors: string[];
+  publisher: string | null;
+  publishedAt: string | null;
+  isbn: string | null;
+  pageCount: number | null;
+  domain: string | null;
+};
+
+/**
  * Note-specific details for user-authored markdown notes.
  */
 export type NoteDetails = {
@@ -182,6 +194,7 @@ export type Item = {
   twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
   videoDetails: VideoDetails | null;
   productDetails: ProductDetails | null;
+  bookDetails: BookDetails | null;
   noteDetails: NoteDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;

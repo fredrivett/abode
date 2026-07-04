@@ -9,8 +9,10 @@ import TurndownService from "turndown";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
+  type BookMetadata,
   extractAllProductImageCandidates,
   extractArticleMetadata,
+  extractBookMetadata,
   extractProductMetadata,
   extractTweetId,
   extractTwitterArticleId,
@@ -375,7 +377,21 @@ export const classifyUrlTask = task({
       // Step 3: Parse HTML and check for product before article
       const html = await response.text();
 
-      // Step 3a: Check if this is a product page
+      // Step 3a: Check if this is a book page (before product — a book is a
+      // subset of "product", so book signals take precedence)
+      const bookMeta = extractBookMetadata(html, fetchUrl);
+      if (bookMeta) {
+        logger.log("URL classified as book", {
+          itemId,
+          url: fetchUrl,
+          title: bookMeta.title,
+          authors: bookMeta.authors,
+          isbn: bookMeta.isbn,
+        });
+        return await handleBookUrl(itemId, userId, bookMeta, supabase);
+      }
+
+      // Step 3b: Check if this is a product page
       const productMeta = extractProductMetadata(html, fetchUrl);
       if (productMeta) {
         const candidates = extractAllProductImageCandidates(html, fetchUrl);
@@ -678,6 +694,102 @@ const SOURCE_RANK: Record<ProductImageCandidate["source"], number> = {
   og: 1,
   dom: 2,
 };
+
+async function handleBookUrl(
+  itemId: string,
+  userId: string,
+  bookMeta: BookMetadata,
+  supabase: SupabaseClient,
+) {
+  // Download the cover image (single og:image, like articles)
+  let coverResult: { fileKey: string; size: number } | null = null;
+  if (bookMeta.ogImage) {
+    const result = await downloadAndStoreImage(
+      bookMeta.ogImage,
+      userId,
+      supabase,
+    );
+    if (result) {
+      coverResult = { fileKey: result.fileKey, size: result.size };
+      logger.log("Book cover stored", { itemId, coverFileKey: result.fileKey });
+    }
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.item.update({
+      where: { id: itemId, userId },
+      data: {
+        kind: "book",
+        title: bookMeta.title,
+        description: bookMeta.description,
+        ...(coverResult && { coverFileKey: coverResult.fileKey }),
+        meta: {
+          originalName: bookMeta.title,
+          ...(coverResult && { coverSize: coverResult.size }),
+        },
+      },
+    });
+
+    if (coverResult && coverResult.size > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
+      });
+    }
+  });
+
+  const bookDetailsData = {
+    authors: bookMeta.authors,
+    publisher: bookMeta.publisher,
+    publishedAt: bookMeta.publishedAt,
+    isbn: bookMeta.isbn,
+    pageCount: bookMeta.pageCount,
+    domain: bookMeta.domain,
+  };
+  await db.itemBookDetails.upsert({
+    where: { itemId },
+    create: { itemId, ...bookDetailsData },
+    update: bookDetailsData,
+  });
+
+  logger.log("Book processing complete, triggering enrichment", { itemId });
+
+  const sourceText = [
+    bookMeta.title,
+    bookMeta.authors.join(", "),
+    bookMeta.description,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+    itemId,
+    userId,
+    sourceText: truncateToTokenLimit(sourceText, 8191),
+  });
+
+  // Trigger image analysis on cover for visual tagging and search
+  if (coverResult) {
+    await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
+      itemId,
+      userId,
+      fileKey: coverResult.fileKey,
+    });
+  }
+
+  return {
+    success: true,
+    itemId,
+    kind: "book" as const,
+    metadata: {
+      title: bookMeta.title,
+      domain: bookMeta.domain,
+      authors: bookMeta.authors,
+      isbn: bookMeta.isbn,
+      hasCover: !!coverResult,
+    },
+  };
+}
 
 async function handleProductUrl(
   itemId: string,

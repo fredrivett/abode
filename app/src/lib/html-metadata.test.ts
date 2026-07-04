@@ -5,6 +5,7 @@ import {
   extractAllProductImageCandidates,
   extractArticleMetadata,
   extractAuthor,
+  extractBookMetadata,
   extractDescription,
   extractDomain,
   extractJsonLdProduct,
@@ -17,6 +18,7 @@ import {
   extractTweetId,
   extractTwitterArticleId,
   inferCurrencyFromPriceContext,
+  isKnownBookUrl,
   isKnownProductUrl,
   parsePublishedDate,
   preserveSocialEmbeds,
@@ -1731,5 +1733,146 @@ describe("inferCurrencyFromPriceContext", () => {
       expect(result?.price).toBe("299.99");
       expect(result?.currency).toBe("GBP");
     });
+  });
+});
+
+describe("isKnownBookUrl", () => {
+  it("matches Goodreads book pages", () => {
+    expect(
+      isKnownBookUrl("https://www.goodreads.com/book/show/12345.The_Book"),
+    ).toBe(true);
+  });
+
+  it("matches Open Library work pages", () => {
+    expect(isKnownBookUrl("https://openlibrary.org/works/OL45804W")).toBe(true);
+  });
+
+  it("matches Google Books pages", () => {
+    expect(isKnownBookUrl("https://books.google.com/books?id=abc123")).toBe(
+      true,
+    );
+  });
+
+  it("does not match a Goodreads search page", () => {
+    expect(isKnownBookUrl("https://www.goodreads.com/search?q=dune")).toBe(
+      false,
+    );
+  });
+
+  it("does not match arbitrary domains", () => {
+    expect(isKnownBookUrl("https://example.com/some/page")).toBe(false);
+  });
+});
+
+describe("extractBookMetadata", () => {
+  it("detects a book via og:type=book with OG book tags", () => {
+    const html = `
+      <meta property="og:type" content="book">
+      <meta property="og:title" content="The Pragmatic Programmer">
+      <meta property="og:image" content="https://example.com/cover.jpg">
+      <meta property="book:isbn" content="9780135957059">
+      <meta property="book:release_date" content="2019-09-13">
+    `;
+    const result = extractBookMetadata(html, "https://example.com/book/123");
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("The Pragmatic Programmer");
+    expect(result?.isbn).toBe("9780135957059");
+    expect(result?.ogImage).toBe("https://example.com/cover.jpg");
+    expect(result?.publishedAt?.getFullYear()).toBe(2019);
+    expect(result?.domain).toBe("example.com");
+  });
+
+  it("detects a book via JSON-LD and extracts rich metadata", () => {
+    const html = `
+      <title>Dune</title>
+      <script type="application/ld+json">
+        {
+          "@type": "Book",
+          "name": "Dune",
+          "author": [{ "@type": "Person", "name": "Frank Herbert" }],
+          "isbn": "9780441013593",
+          "numberOfPages": 412,
+          "datePublished": "1965-08-01",
+          "publisher": { "@type": "Organization", "name": "Chilton Books" },
+          "image": "https://example.com/dune.jpg",
+          "description": "A stunning blend of adventure and mysticism."
+        }
+      </script>
+    `;
+    const result = extractBookMetadata(
+      html,
+      "https://www.goodreads.com/book/show/44767458",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.authors).toEqual(["Frank Herbert"]);
+    expect(result?.isbn).toBe("9780441013593");
+    expect(result?.pageCount).toBe(412);
+    expect(result?.publisher).toBe("Chilton Books");
+    expect(result?.publishedAt?.getFullYear()).toBe(1965);
+    expect(result?.description).toBe(
+      "A stunning blend of adventure and mysticism.",
+    );
+  });
+
+  it("supports the Goodreads books:* OG namespace and @type array", () => {
+    const html = `
+      <meta property="og:type" content="books.book">
+      <meta property="og:title" content="Project Hail Mary">
+      <meta property="books:isbn" content="9780593135204">
+      <meta property="books:page_count" content="496">
+      <script type="application/ld+json">
+        { "@type": ["Book", "Product"], "author": "Andy Weir" }
+      </script>
+    `;
+    const result = extractBookMetadata(
+      html,
+      "https://www.goodreads.com/book/show/54493401",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.authors).toEqual(["Andy Weir"]);
+    expect(result?.isbn).toBe("9780593135204");
+    expect(result?.pageCount).toBe(496);
+  });
+
+  it("ignores a URL-only OG author value", () => {
+    const html = `
+      <meta property="og:type" content="book">
+      <meta property="og:title" content="Some Book">
+      <meta property="book:author" content="https://example.com/author/42">
+      <meta property="book:isbn" content="1234567890">
+    `;
+    const result = extractBookMetadata(html, "https://example.com/book/1");
+    expect(result).not.toBeNull();
+    expect(result?.authors).toEqual([]);
+  });
+
+  it("returns null for a non-book page", () => {
+    const html = `
+      <meta property="og:type" content="article">
+      <meta property="og:title" content="Blog Post">
+    `;
+    expect(
+      extractBookMetadata(html, "https://blog.example.com/post"),
+    ).toBeNull();
+  });
+
+  it("returns null for a product page with no book signals", () => {
+    const html = `
+      <meta property="og:type" content="product">
+      <meta property="product:price:amount" content="19.99">
+    `;
+    expect(
+      extractBookMetadata(html, "https://shop.example.com/item"),
+    ).toBeNull();
+  });
+
+  it("detects a book from a known book URL even without metadata", () => {
+    const html = "<title>Some Book Page</title>";
+    const result = extractBookMetadata(
+      html,
+      "https://openlibrary.org/works/OL45804W",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.domain).toBe("openlibrary.org");
   });
 });

@@ -644,6 +644,217 @@ export function extractProductMetadata(
   };
 }
 
+// --- Book metadata extraction ---
+
+export type BookMetadata = {
+  title: string | null;
+  description: string | null;
+  domain: string;
+  authors: string[];
+  isbn: string | null;
+  publisher: string | null;
+  publishedAt: Date | null;
+  pageCount: number | null;
+  ogImage: string | null;
+};
+
+// High-confidence book-page URL patterns. Used only as a fallback signal when a
+// page lacks structured book metadata; kept tight to avoid false positives on
+// search/category pages.
+const BOOK_URL_PATTERNS: ReadonlyArray<{ domain: RegExp; path: RegExp }> = [
+  { domain: /(^|\.)goodreads\.com$/, path: /^\/book\/show\// },
+  { domain: /(^|\.)books\.google\.[a-z.]+$/, path: /^\/books(\/|\?|$)/ },
+  { domain: /(^|\.)openlibrary\.org$/, path: /^\/(works|books)\// },
+  { domain: /(^|\.)bookshop\.org$/, path: /^\/(p|books)\// },
+];
+
+/**
+ * Checks if a URL matches a known book-detail page pattern.
+ */
+export function isKnownBookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const pathname = parsed.pathname;
+    for (const { domain, path } of BOOK_URL_PATTERNS) {
+      if (domain.test(hostname) && path.test(pathname)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function findBookInJsonLd(data: any): any | null {
+  if (!data || typeof data !== "object") return null;
+
+  const type = data["@type"];
+  if (type === "Book" || (Array.isArray(type) && type.includes("Book"))) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findBookInJsonLd(item);
+      if (found) return found;
+    }
+  }
+
+  if (data["@graph"]) return findBookInJsonLd(data["@graph"]);
+
+  return null;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function parseJsonLdNames(value: any): string[] {
+  if (!value) return [];
+  const list = Array.isArray(value) ? value : [value];
+  const names: string[] = [];
+  for (const entry of list) {
+    if (typeof entry === "string") names.push(entry);
+    else if (typeof entry?.name === "string") names.push(entry.name);
+  }
+  return names.map((n) => n.trim()).filter(Boolean);
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function parseJsonLdImages(value: any): string[] {
+  const images: string[] = [];
+  if (!value) return images;
+  if (Array.isArray(value)) {
+    for (const img of value) {
+      const u = typeof img === "string" ? img : img?.url;
+      if (u) images.push(u);
+    }
+  } else if (typeof value === "string") {
+    images.push(value);
+  } else if (value?.url) {
+    images.push(value.url);
+  }
+  return images;
+}
+
+function parsePageCount(
+  value: string | number | null | undefined,
+): number | null {
+  if (value === null || value === undefined) return null;
+  const n =
+    typeof value === "number" ? value : Number.parseInt(String(value), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function splitAuthors(value: string): string[] {
+  return value
+    .split(/,|;|\band\b|&/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Extracts book data from JSON-LD structured data.
+ * Looks for `@type: "Book"` in script[type="application/ld+json"] blocks.
+ */
+export function extractJsonLdBook(html: string): {
+  authors: string[];
+  isbn: string | null;
+  publisher: string | null;
+  datePublished: string | null;
+  pageCount: number | null;
+  images: string[];
+  description: string | null;
+} | null {
+  const scriptRegex =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+
+  let match = scriptRegex.exec(html);
+  while (match !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      const book = findBookInJsonLd(data);
+      if (book) {
+        return {
+          authors: parseJsonLdNames(book.author),
+          isbn: book.isbn ? String(book.isbn) : null,
+          publisher: parseJsonLdNames(book.publisher)[0] ?? null,
+          datePublished: book.datePublished ? String(book.datePublished) : null,
+          pageCount: parsePageCount(book.numberOfPages),
+          images: parseJsonLdImages(book.image),
+          description:
+            typeof book.description === "string" ? book.description : null,
+        };
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+    match = scriptRegex.exec(html);
+  }
+
+  return null;
+}
+
+/**
+ * Extracts book metadata from HTML. Returns null if the page is not a book.
+ *
+ * Detection signals (any one is sufficient):
+ * 1. og:type is "book" or "books.book" (Facebook/Goodreads)
+ * 2. JSON-LD with @type: "Book"
+ * 3. Book-specific OG meta tags (book:isbn / books:isbn, book:release_date)
+ * 4. URL matches a known book-detail page pattern
+ *
+ * Book detection runs before product detection so that book pages that also
+ * expose product/price metadata (a book is a subset of "product") resolve to book.
+ */
+export function extractBookMetadata(
+  html: string,
+  url: string,
+): BookMetadata | null {
+  const ogType = extractOgType(html);
+  const isOgBook = ogType === "book" || ogType === "books.book";
+
+  const jsonLd = extractJsonLdBook(html);
+
+  // The OG book namespace is written as either `book:*` (spec) or `books:*`
+  // (Facebook legacy, used by Goodreads).
+  const isbnMeta =
+    extractMetaContent(html, "book:isbn") ??
+    extractMetaContent(html, "books:isbn");
+  const releaseDateMeta =
+    extractMetaContent(html, "book:release_date") ??
+    extractMetaContent(html, "books:release_date");
+  const authorMeta =
+    extractMetaContent(html, "book:author") ??
+    extractMetaContent(html, "books:author");
+  const pageCountMeta =
+    extractMetaContent(html, "book:page_count") ??
+    extractMetaContent(html, "books:page_count");
+
+  const hasBookOgTags = !!(isbnMeta || releaseDateMeta);
+
+  if (!isOgBook && !jsonLd && !hasBookOgTags && !isKnownBookUrl(url)) {
+    return null;
+  }
+
+  // Prefer JSON-LD author names (real names); the OG `book:author` value is
+  // often a profile URL, which we skip.
+  let authors = jsonLd?.authors ?? [];
+  if (authors.length === 0 && authorMeta && !/^https?:\/\//i.test(authorMeta)) {
+    authors = splitAuthors(authorMeta);
+  }
+
+  return {
+    title: extractTitle(html),
+    description: jsonLd?.description ?? extractDescription(html),
+    domain: extractDomain(url),
+    authors,
+    isbn: jsonLd?.isbn ?? isbnMeta ?? null,
+    publisher: jsonLd?.publisher ?? null,
+    publishedAt: parsePublishedDate(jsonLd?.datePublished ?? releaseDateMeta),
+    pageCount: jsonLd?.pageCount ?? parsePageCount(pageCountMeta),
+    ogImage: extractOgImage(html),
+  };
+}
+
 const CURRENCY_SYMBOL_MAP: ReadonlyArray<readonly [string, string]> = [
   ["R$", "BRL"],
   ["CA$", "CAD"],
