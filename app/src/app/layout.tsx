@@ -6,7 +6,8 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
-import { isDevelopment } from "@/env";
+import { GIT_BRANCH, isDevelopment } from "@/env";
+import { shortBranchName } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
 
 const geistSans = Geist({
@@ -33,8 +34,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Prefix the tab title with the git branch during local dev so parallel branch
+// checkouts are easy to tell apart. GIT_BRANCH is only injected in development,
+// so production is unaffected. Using a template also prefixes pages that set
+// their own title (e.g. "Help | abode").
+const branchName = shortBranchName(GIT_BRANCH);
+const branchPrefix = branchName ? `[${branchName}] ` : "";
+
 export const metadata: Metadata = {
-  title: "abode",
+  title: {
+    default: `${branchPrefix}abode`,
+    template: `${branchPrefix}%s`,
+  },
   description: "the home for your info",
   applicationName: "abode",
   icons: {

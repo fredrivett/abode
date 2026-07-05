@@ -11,6 +11,19 @@ try {
   revision = crypto.randomUUID();
 }
 
+// Local dev only: the current git branch, used to prefix the tab title so
+// parallel branch checkouts are easy to tell apart. Never injected in prod.
+let gitBranch: string | undefined;
+if (process.env.NODE_ENV === "development") {
+  try {
+    gitBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf-8",
+    }).trim();
+  } catch {
+    gitBranch = undefined;
+  }
+}
+
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
@@ -23,6 +36,7 @@ const nextConfig: NextConfig = {
   // linked back to the deploy that produced them.
   env: {
     NEXT_PUBLIC_BUILD_SHA: revision,
+    ...(gitBranch ? { NEXT_PUBLIC_GIT_BRANCH: gitBranch } : {}),
   },
   // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the
   // top-level export. Trigger ships its own nested zod v3, so externalizing
