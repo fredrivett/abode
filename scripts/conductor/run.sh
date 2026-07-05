@@ -77,4 +77,10 @@ echo ""
 echo "${green}${bold}✅  Local database is up to date — migrations applied and schema in sync${reset}"
 echo ""
 
+# Regenerate the Prisma client so it matches schema.prisma. The migrate checks
+# above cover the DB, but the generated client lives in node_modules and is only
+# (re)built on an actual install — a rebase/branch-switch that changes the schema
+# leaves it stale. This is cheap and idempotent, so run it on every boot.
+bun run prisma:generate
+
 bun run dev
