@@ -1,22 +1,26 @@
 "use client";
 
 import posthog from "posthog-js";
-import { useCallback, useState } from "react";
+import { type KeyboardEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { NoteEditor } from "@/components/note/note-editor";
+import { NOTE_PROSE_CLASS } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { gridCardStyle } from "@/lib/grid-styles";
 import { createLogger } from "@/lib/logger.client";
 
 const log = createLogger("dashboard/note-composer");
 
 /**
- * Inline note composer for the dashboard (mymind-style "take a note" box).
+ * Inline note composer — the first card in the grid (mymind-style "take a note").
  *
- * Collapsed it's a single prompt; focusing expands into a markdown WYSIWYG
- * editor. Saving creates a note item synchronously and refreshes the grid.
+ * Sized as a 1:1 card matching a note card. Collapsed it's a single prompt;
+ * clicking expands into a markdown WYSIWYG editor styled to match the note card
+ * preview, so typed text looks exactly as it will once saved. Saving creates a
+ * note item synchronously and refreshes the grid.
  */
 export function NoteComposer() {
   const invalidateItems = useInvalidateItems();
@@ -51,33 +55,56 @@ export function NoteComposer() {
     }
   }, [isEmpty, isSaving, markdown, invalidateItems, reset]);
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        reset();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        void handleSave();
+      }
+    },
+    [reset, handleSave],
+  );
+
   if (!expanded) {
     return (
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="w-full rounded-lg border border-border border-dashed bg-background px-4 py-3 text-left text-muted-foreground text-sm transition-colors hover:border-muted-foreground/40 hover:bg-muted/30"
+        className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-border border-dashed bg-card text-left text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+        style={{ ...gridCardStyle, padding: "1.25em" }}
       >
-        Take a note…
+        <span className="italic" style={{ fontSize: "0.875em" }}>
+          Take a note…
+        </span>
       </button>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
-      <NoteEditor
-        key={editorKey}
-        content=""
-        autoFocus
-        onChange={setMarkdown}
-        className="min-h-[4rem]"
-      />
-      <div className="mt-3 flex items-center justify-end gap-2">
+    // biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the inline composer
+    <div
+      className="relative flex h-full w-full flex-col overflow-hidden border border-border bg-card"
+      style={{ ...gridCardStyle, padding: "1.25em" }}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <NoteEditor
+          key={editorKey}
+          content=""
+          autoFocus
+          onChange={setMarkdown}
+          proseClassName={NOTE_PROSE_CLASS}
+        />
+      </div>
+      <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
         <Button variant="ghost" size="sm" onClick={reset} disabled={isSaving}>
           Cancel
         </Button>
         <Button size="sm" onClick={handleSave} disabled={isEmpty || isSaving}>
-          {isSaving ? <IsLoading label="Saving" /> : "Save note"}
+          {isSaving ? <IsLoading label="Saving" /> : "Save"}
         </Button>
       </div>
     </div>

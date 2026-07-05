@@ -16,12 +16,16 @@ type NoteEditorProps = {
   /** Placeholder-ish empty state is handled by the caller; this focuses on input */
   autoFocus?: boolean;
   className?: string;
+  /** Override the default prose styling (e.g. to match the note card preview) */
+  proseClassName?: string;
 };
 
 // `max-md:text-[1rem]` keeps the editor root at 16px on small screens — prose-sm
 // would drop it to 14px, which makes iOS Safari auto-zoom the UI on focus
-const EDITOR_CLASS =
-  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
+const EDITOR_BASE_CLASS =
+  "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
+const DEFAULT_PROSE_CLASS =
+  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none";
 
 /**
  * WYSIWYG note editor backed by markdown.
@@ -36,6 +40,7 @@ export function NoteEditor({
   onChange,
   autoFocus = false,
   className,
+  proseClassName,
 }: NoteEditorProps) {
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
@@ -48,7 +53,11 @@ export function NoteEditor({
     autofocus: autoFocus ? "end" : false,
     editorProps: {
       attributes: {
-        class: cn(EDITOR_CLASS, className),
+        class: cn(
+          EDITOR_BASE_CLASS,
+          proseClassName ?? DEFAULT_PROSE_CLASS,
+          className,
+        ),
       },
     },
     onUpdate: ({ editor }) => {

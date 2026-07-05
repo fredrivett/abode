@@ -15,7 +15,8 @@ const meta = {
   decorators: [
     (Story) => (
       <QueryClientProvider client={queryClient}>
-        <div className="mx-auto max-w-2xl">
+        {/* The composer fills a 1:1 grid card, so give it a square frame */}
+        <div className="aspect-square w-64">
           <Story />
         </div>
       </QueryClientProvider>

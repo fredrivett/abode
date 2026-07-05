@@ -3,6 +3,7 @@
 import Markdown from "markdown-to-jsx";
 import type { ReactNode } from "react";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { NOTE_PROSE_CLASS } from "./note-prose";
 
 type NoteCardProps = {
   title: string | null;
@@ -44,7 +45,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
       {hasBody ? (
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <Markdown
-            className="prose prose-sm dark:prose-invert prose-p:my-[0.4em] max-w-none prose-headings:font-semibold prose-headings:text-[1.05em] prose-headings:text-foreground text-muted-foreground"
+            className={NOTE_PROSE_CLASS}
             options={{
               forceBlock: true,
               overrides: { a: InlineText },
