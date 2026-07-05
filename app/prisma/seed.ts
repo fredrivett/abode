@@ -643,9 +643,52 @@ async function seed() {
       },
     });
 
+    // --- NOTE ITEMS ---
+
+    // Note with a title and a markdown body
+    await prisma.item.create({
+      data: {
+        userId,
+        kind: "note",
+        processingStatus: "completed",
+        sourceType: "compose",
+        title: "Reading list",
+        noteDetails: {
+          create: {
+            content: [
+              "Books to get through this quarter:",
+              "",
+              "- *The Timeless Way of Building* — Christopher Alexander",
+              "- *Seeing Like a State* — James C. Scott",
+              "- *The Beginning of Infinity* — David Deutsch",
+              "",
+              "Start with the Alexander — everyone keeps referencing it.",
+            ].join("\n"),
+          },
+        },
+      },
+    });
+
+    // Untitled note — body only
+    await prisma.item.create({
+      data: {
+        userId,
+        kind: "note",
+        processingStatus: "completed",
+        sourceType: "compose",
+        title: null,
+        noteDetails: {
+          create: {
+            content:
+              "Idea: a room that auto-collects everything tagged amber. The world craves amber, after all.",
+          },
+        },
+      },
+    });
+
     // --- USER STATS ---
 
-    const totalItems = 12;
+    const totalItems = 14;
     const totalStorage =
       BigInt(spiralUpload.size) +
       BigInt(meshUpload.size) +
@@ -734,7 +777,7 @@ async function seed() {
     console.log(`  Email: ${SEED_USER.email}`);
     console.log(`  Password: ${SEED_USER.password}`);
     console.log(
-      `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product)`,
+      `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 notes)`,
     );
     console.log(
       `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${smartRoom.name}`,

@@ -29,13 +29,13 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
   return (
     <button
       type="button"
-      className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-amber-200/60 bg-amber-50 text-left transition-colors hover:border-amber-300 dark:border-amber-900/40 dark:bg-amber-950/30 dark:hover:border-amber-800"
+      className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-border bg-card text-left transition-colors hover:border-foreground/20"
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onClick={onClick}
     >
       {title && (
         <p
-          className="mb-[0.5em] line-clamp-2 shrink-0 font-semibold text-amber-950 dark:text-amber-100"
+          className="mb-[0.5em] line-clamp-2 shrink-0 font-semibold text-foreground"
           style={{ fontSize: "1em" }}
         >
           {title}
@@ -44,7 +44,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
       {hasBody ? (
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <Markdown
-            className="prose prose-sm dark:prose-invert prose-p:my-[0.4em] max-w-none prose-headings:font-semibold prose-headings:text-[1.05em] prose-headings:text-amber-950 text-amber-900/80 dark:prose-headings:text-amber-100 dark:text-amber-100/70"
+            className="prose prose-sm dark:prose-invert prose-p:my-[0.4em] max-w-none prose-headings:font-semibold prose-headings:text-[1.05em] prose-headings:text-foreground text-muted-foreground"
             options={{
               forceBlock: true,
               overrides: { a: InlineText },
@@ -52,13 +52,11 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
           >
             {content}
           </Markdown>
-          {/* Fade out clipped content at the bottom */}
-          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-amber-50 to-transparent dark:from-amber-950" />
         </div>
       ) : (
         !title && (
           <p
-            className="text-amber-900/50 italic dark:text-amber-100/40"
+            className="text-muted-foreground/60 italic"
             style={{ fontSize: "0.875em" }}
           >
             Empty note
