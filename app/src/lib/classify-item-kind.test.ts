@@ -47,6 +47,15 @@ describe("classifyItemKind — URL-only signals (no HTML)", () => {
     expect(result?.kind).toBe("twitter");
   });
 
+  it("classifies a Twitter Article URL as twitterArticle", () => {
+    const result = classify({ url: "https://x.com/i/article/1234567890" });
+    expect(result).toEqual({
+      kind: "twitterArticle",
+      articleId: "1234567890",
+      url: "https://x.com/i/article/1234567890",
+    });
+  });
+
   it("classifies a YouTube URL as video", () => {
     const result = classify({
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -156,6 +165,35 @@ describe("classifyItemKind — HTML-based signals", () => {
       getArticleWordCount: () => 12,
     });
     expect(result).toMatchObject({ kind: "webpage" });
+  });
+
+  it("treats exactly MIN_ARTICLE_WORDS as an article, one below as a webpage", () => {
+    const html = `<meta property="og:type" content="article" />`;
+    const atThreshold = classify({
+      url: "https://blog.example.com/post",
+      contentType: "text/html",
+      html,
+      getArticleWordCount: () => 100,
+    });
+    expect(atThreshold?.kind).toBe("article");
+
+    const belowThreshold = classify({
+      url: "https://blog.example.com/post",
+      contentType: "text/html",
+      html,
+      getArticleWordCount: () => 99,
+    });
+    expect(belowThreshold?.kind).toBe("webpage");
+  });
+
+  it("defaults to webpage when no word-count callback is provided", () => {
+    const result = classifyItemKind({
+      url: "https://example.com",
+      resolvedUrl: "https://example.com",
+      contentType: "text/html",
+      html: "<title>Bare page</title>",
+    });
+    expect(result?.kind).toBe("webpage");
   });
 
   it("only invokes the article word-count callback when it reaches the article decision", () => {
