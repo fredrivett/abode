@@ -29,7 +29,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Collapsed by default ("Take a note…"); click to expand into the editor.
- * Saving hits the API, which is a no-op in Storybook.
+ * Always editable with a "Take a note…" placeholder; Save/Clear appear once you
+ * type. Saving hits the API, which is a no-op in Storybook.
  */
 export const Default: Story = {};

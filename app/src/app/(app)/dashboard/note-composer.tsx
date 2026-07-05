@@ -17,24 +17,22 @@ const log = createLogger("dashboard/note-composer");
 /**
  * Inline note composer — the first card in the grid (mymind-style "take a note").
  *
- * Sized as a 1:1 card matching a note card. Collapsed it's a single prompt;
- * clicking expands into a markdown WYSIWYG editor styled to match the note card
- * preview, so typed text looks exactly as it will once saved. Saving creates a
- * note item synchronously and refreshes the grid.
+ * Sized as a 1:1 card matching a note card. Always editable: a placeholder shows
+ * when empty, and Save/Clear appear once there's content. The editor is styled to
+ * match the note card preview, so typed text looks exactly as it will once saved.
+ * Saving creates a note item synchronously and refreshes the grid.
  */
 export function NoteComposer() {
   const invalidateItems = useInvalidateItems();
-  const [expanded, setExpanded] = useState(false);
   const [markdown, setMarkdown] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  // Remount the editor after a successful save to clear its content
+  // Remount the editor to clear its content after a save or clear
   const [editorKey, setEditorKey] = useState(0);
 
   const isEmpty = markdown.trim().length === 0;
 
   const reset = useCallback(() => {
     setMarkdown("");
-    setExpanded(false);
     setEditorKey((k) => k + 1);
   }, []);
 
@@ -68,45 +66,41 @@ export function NoteComposer() {
     [reset, handleSave],
   );
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={() => setExpanded(true)}
-        className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-border border-dashed bg-card text-left text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
-        style={{ ...gridCardStyle, padding: "1.25em" }}
-      >
-        <span className="italic" style={{ fontSize: "0.875em" }}>
-          Take a note…
-        </span>
-      </button>
-    );
-  }
-
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the inline composer
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden border border-border bg-card"
+      className="relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card"
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onKeyDown={handleKeyDown}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto">
+        {isEmpty && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 text-muted-foreground italic"
+            style={{ fontSize: "0.875em" }}
+          >
+            Take a note…
+          </span>
+        )}
         <NoteEditor
           key={editorKey}
           content=""
-          autoFocus
           onChange={setMarkdown}
           proseClassName={NOTE_PROSE_CLASS}
+          className="min-h-full"
         />
       </div>
-      <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
-        <Button variant="ghost" size="sm" onClick={reset} disabled={isSaving}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={handleSave} disabled={isEmpty || isSaving}>
-          {isSaving ? <IsLoading label="Saving" /> : "Save"}
-        </Button>
-      </div>
+      {!isEmpty && (
+        <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
+          <Button variant="ghost" size="sm" onClick={reset} disabled={isSaving}>
+            Clear
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <IsLoading label="Saving" /> : "Save"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
