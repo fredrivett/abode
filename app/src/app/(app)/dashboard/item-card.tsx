@@ -88,6 +88,7 @@ import type {
   ItemRoom,
 } from "@/lib/types/item";
 import { getAppBaseUrl } from "@/lib/url";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
@@ -211,7 +212,8 @@ export function ItemCard({
         !isTwitter &&
         !isVideo &&
         !isFailedUrl &&
-        !isNote
+        !isNote &&
+        !isBook
       ) {
         setError("Missing file");
       }
@@ -230,6 +232,7 @@ export function ItemCard({
     isVideo,
     isFailedUrl,
     isNote,
+    isBook,
   ]);
 
   useEffect(() => {
@@ -2077,7 +2080,7 @@ function ItemDetailDialog({
                         {item.bookDetails.domain && (
                           <div className="flex justify-between">
                             <span className="text-gray-500">Source</span>
-                            {item.sourceUrl ? (
+                            {item.sourceUrl && isValidUrl(item.sourceUrl) ? (
                               <a
                                 href={new URL(item.sourceUrl).origin}
                                 target="_blank"
@@ -2095,7 +2098,7 @@ function ItemDetailDialog({
                           </div>
                         )}
                       </div>
-                      {item.sourceUrl && (
+                      {item.sourceUrl && isValidUrl(item.sourceUrl) && (
                         <div className="mt-2 flex items-center gap-1">
                           <Button variant="outline" size="sm" asChild>
                             <a
