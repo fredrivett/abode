@@ -5,6 +5,7 @@ import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import type {
+  BookDetails,
   NoteDetails,
   ProductDetails,
   ProductImage,
@@ -224,6 +225,16 @@ export default async function RoomPage({ params }: Props) {
               coverImageIndex: true,
             },
           },
+          bookDetails: {
+            select: {
+              authors: true,
+              publisher: true,
+              publishedAt: true,
+              isbn: true,
+              pageCount: true,
+              domain: true,
+            },
+          },
           noteDetails: {
             select: {
               content: true,
@@ -321,6 +332,17 @@ export default async function RoomPage({ params }: Props) {
           images: roomItem.item.productDetails.images as ProductImage[] | null,
           coverImageIndex: roomItem.item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
+      : null,
+    bookDetails: roomItem.item.bookDetails
+      ? ({
+          authors: roomItem.item.bookDetails.authors,
+          publisher: roomItem.item.bookDetails.publisher,
+          publishedAt:
+            roomItem.item.bookDetails.publishedAt?.toISOString() ?? null,
+          isbn: roomItem.item.bookDetails.isbn,
+          pageCount: roomItem.item.bookDetails.pageCount,
+          domain: roomItem.item.bookDetails.domain,
+        } satisfies BookDetails)
       : null,
     noteDetails: roomItem.item.noteDetails
       ? ({ content: roomItem.item.noteDetails.content } satisfies NoteDetails)

@@ -147,6 +147,7 @@ export function ItemsGrid({
               const isTwitter = item.kind === "twitter";
               const isVideo = item.kind === "video";
               const isProduct = item.kind === "product";
+              const isBook = item.kind === "book";
               const isNote = item.kind === "note";
               const isProcessingUrl =
                 item.sourceType === "url" &&
@@ -208,6 +209,10 @@ export function ItemsGrid({
                   width = 1;
                   height = 1;
                 }
+              } else if (isBook) {
+                // Book covers are typically portrait, roughly 2:3
+                width = 2;
+                height = 3;
               } else if (isArticleOrWebpage || isProcessingUrl) {
                 width = 4;
                 height = 3;

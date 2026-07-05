@@ -237,7 +237,7 @@ describe("buildTypeCondition", () => {
         filterType: "type",
         value: "invalid_type",
         reason:
-          '"invalid_type" is not a valid type. Valid types: image, article, twitter, video, product, note, webpage',
+          '"invalid_type" is not a valid type. Valid types: image, article, twitter, video, product, note, webpage, book',
       },
     ]);
   });

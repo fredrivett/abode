@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+  Structure modelled on a real Goodreads book page
+  (https://www.goodreads.com/book/show/44767458-project-hail-mary).
+  Trimmed to the metadata our book classifier reads. Note Goodreads exposes
+  BOTH book signals (og:type=books.book, JSON-LD Book) and, historically,
+  price/offer markup — so this doubles as the "book beats product" precedence case.
+-->
+<html>
+<head>
+<meta property="og:type" content="books.book" />
+<meta property="og:title" content="Project Hail Mary" />
+<meta property="og:image" content="https://images.gr-assets.com/books/phm.jpg" />
+<meta property="og:description" content="A lone astronaut must save the earth from disaster." />
+<meta property="books:isbn" content="9780593135204" />
+<meta property="books:page_count" content="496" />
+<meta property="books:author" content="https://www.goodreads.com/author/show/105906.Andy_Weir" />
+<meta property="product:price:amount" content="18.99" />
+<meta property="product:price:currency" content="USD" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Book",
+  "name": "Project Hail Mary",
+  "author": [{ "@type": "Person", "name": "Andy Weir" }],
+  "isbn": "9780593135204",
+  "numberOfPages": 496,
+  "datePublished": "2021-05-04",
+  "publisher": { "@type": "Organization", "name": "Ballantine Books" }
+}
+</script>
+</head>
+<body>
+<h1>Project Hail Mary</h1>
+</body>
+</html>

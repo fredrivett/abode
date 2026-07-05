@@ -154,6 +154,20 @@ async function seed() {
       "image/gif",
     );
 
+    const switchCoverUpload = await uploadSeedImage(
+      supabase,
+      userId,
+      "book-switch.jpg",
+      "image/jpeg",
+    );
+
+    const fallingUpwardCoverUpload = await uploadSeedImage(
+      supabase,
+      userId,
+      "book-falling-upward.jpg",
+      "image/jpeg",
+    );
+
     console.log("Seed images uploaded");
     console.log("Creating seed items...");
 
@@ -643,6 +657,76 @@ async function seed() {
       },
     });
 
+    // --- BOOK ITEMS ---
+
+    const switchBook = await prisma.item.create({
+      data: {
+        userId,
+        kind: "book",
+        processingStatus: "completed",
+        sourceType: "url",
+        sourceUrl: "https://www.amazon.co.uk/dp/1847940323",
+        coverFileKey: switchCoverUpload.fileKey,
+        title: "Switch: How to Change Things When Change Is Hard",
+        description:
+          "Why is it so hard to make lasting change? The Heath brothers show how everyday people can unite their rational and emotional minds to make tough changes stick.",
+        tags: ["change", "psychology", "business", "self-help", "book"],
+        meta: {
+          originalName: "Switch: How to Change Things When Change Is Hard",
+          coverSize: switchCoverUpload.size,
+        },
+        externalLinks: [
+          { url: "https://www.amazon.co.uk/dp/1847940323", platform: "web" },
+        ],
+        bookDetails: {
+          create: {
+            authors: ["Chip Heath", "Dan Heath"],
+            publisher: "Random House Business",
+            publishedAt: new Date("2011-02-03"),
+            isbn: "9781847940322",
+            pageCount: 320,
+            domain: "amazon.co.uk",
+          },
+        },
+      },
+    });
+
+    const fallingUpwardBook = await prisma.item.create({
+      data: {
+        userId,
+        kind: "book",
+        processingStatus: "completed",
+        sourceType: "url",
+        sourceUrl: "https://www.goodreads.com/book/show/9963483-falling-upward",
+        coverFileKey: fallingUpwardCoverUpload.fileKey,
+        title: "Falling Upward: A Spirituality for the Two Halves of Life",
+        description:
+          "Richard Rohr explores the two halves of life, arguing that the setbacks and failures of the first half are what open us to the deeper spirituality of the second.",
+        tags: ["spirituality", "richard rohr", "philosophy", "faith", "book"],
+        meta: {
+          originalName:
+            "Falling Upward: A Spirituality for the Two Halves of Life",
+          coverSize: fallingUpwardCoverUpload.size,
+        },
+        externalLinks: [
+          {
+            url: "https://www.goodreads.com/book/show/9963483-falling-upward",
+            platform: "web",
+          },
+        ],
+        bookDetails: {
+          create: {
+            authors: ["Richard Rohr"],
+            publisher: "Jossey-Bass",
+            publishedAt: new Date("2011-04-25"),
+            isbn: "9780470907757",
+            pageCount: 240,
+            domain: "goodreads.com",
+          },
+        },
+      },
+    });
+
     // --- NOTE ITEMS ---
 
     // Note with a title and a markdown body
@@ -688,11 +772,13 @@ async function seed() {
 
     // --- USER STATS ---
 
-    const totalItems = 14;
+    const totalItems = 16;
     const totalStorage =
       BigInt(spiralUpload.size) +
       BigInt(meshUpload.size) +
-      BigInt(gifUpload.size);
+      BigInt(gifUpload.size) +
+      BigInt(switchCoverUpload.size) +
+      BigInt(fallingUpwardCoverUpload.size);
 
     await prisma.user.update({
       where: { id: userId },
@@ -762,6 +848,20 @@ async function seed() {
       },
     });
 
+    const bookshelfRoom = await prisma.room.create({
+      data: {
+        userId,
+        name: "Bookshelf",
+        slug: "bookshelf",
+        emoji: "📚",
+        type: "manual",
+        visibility: "private",
+        roomItems: {
+          create: [{ itemId: switchBook.id }, { itemId: fallingUpwardBook.id }],
+        },
+      },
+    });
+
     // --- MILESTONES ---
 
     await prisma.userMilestone.createMany({
@@ -777,10 +877,10 @@ async function seed() {
     console.log(`  Email: ${SEED_USER.email}`);
     console.log(`  Password: ${SEED_USER.password}`);
     console.log(
-      `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 notes)`,
+      `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
     console.log(
-      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${smartRoom.name}`,
+      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${smartRoom.name}, ${bookshelfRoom.name}`,
     );
   } finally {
     await prisma.$disconnect();

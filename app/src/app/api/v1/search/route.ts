@@ -28,6 +28,7 @@ import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  BookDetails,
   ImageColor,
   MatchReason,
   ProductDetails,
@@ -117,6 +118,12 @@ type RawItemRow = {
   product_availability: string | null;
   product_images: unknown;
   product_cover_image_index: number | null;
+  book_authors: string[] | null;
+  book_publisher: string | null;
+  book_published_at: Date | null;
+  book_isbn: string | null;
+  book_page_count: number | null;
+  book_domain: string | null;
   note_content: string | null;
 };
 
@@ -227,6 +234,19 @@ function transformRawItemToItem(
             images: row.product_images as ProductImage[] | null,
             coverImageIndex: row.product_cover_image_index,
           } satisfies ProductDetails)
+        : null,
+    bookDetails:
+      row.book_authors !== null ||
+      row.book_isbn !== null ||
+      row.book_domain !== null
+        ? ({
+            authors: row.book_authors ?? [],
+            publisher: row.book_publisher,
+            publishedAt: row.book_published_at?.toISOString() ?? null,
+            isbn: row.book_isbn,
+            pageCount: row.book_page_count,
+            domain: row.book_domain,
+          } satisfies BookDetails)
         : null,
     noteDetails:
       row.note_content !== null ? { content: row.note_content } : null,
@@ -625,6 +645,12 @@ async function executeFiltersOnlySearch(
       pd.availability as product_availability,
       pd.images as product_images,
       pd.cover_image_index as product_cover_image_index,
+      bd.authors as book_authors,
+      bd.publisher as book_publisher,
+      bd.published_at as book_published_at,
+      bd.isbn as book_isbn,
+      bd.page_count as book_page_count,
+      bd.domain as book_domain,
       nd.content as note_content
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
@@ -632,6 +658,7 @@ async function executeFiltersOnlySearch(
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
     LEFT JOIN item_video_details vd ON vd.item_id = items.id
     LEFT JOIN item_product_details pd ON pd.item_id = items.id
+    LEFT JOIN item_book_details bd ON bd.item_id = items.id
     LEFT JOIN item_note_details nd ON nd.item_id = items.id
     ${colorRelevanceJoin}
     WHERE ${whereClause}
@@ -883,6 +910,12 @@ async function executeRankedSearch(
       pd.availability as product_availability,
       pd.images as product_images,
       pd.cover_image_index as product_cover_image_index,
+      bd.authors as book_authors,
+      bd.publisher as book_publisher,
+      bd.published_at as book_published_at,
+      bd.isbn as book_isbn,
+      bd.page_count as book_page_count,
+      bd.domain as book_domain,
       nd.content as note_content
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
@@ -890,6 +923,7 @@ async function executeRankedSearch(
     LEFT JOIN item_twitter_details td ON td.item_id = i.id
     LEFT JOIN item_video_details vd ON vd.item_id = i.id
     LEFT JOIN item_product_details pd ON pd.item_id = i.id
+    LEFT JOIN item_book_details bd ON bd.item_id = i.id
     LEFT JOIN item_note_details nd ON nd.item_id = i.id
     WHERE i.id = ANY($1::uuid[])
   `,

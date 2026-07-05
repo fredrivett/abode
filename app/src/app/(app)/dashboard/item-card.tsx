@@ -3,6 +3,7 @@
 import type { ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
+  BookOpen,
   Check,
   Copy,
   DoorOpen,
@@ -35,6 +36,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleDetailView } from "@/components/article/article-detail-view";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
+import { BookDetailView } from "@/components/book/book-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
 import { NoteDetailView } from "@/components/note/note-detail-view";
@@ -86,6 +88,7 @@ import type {
   ItemRoom,
 } from "@/lib/types/item";
 import { getAppBaseUrl } from "@/lib/url";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
@@ -175,6 +178,7 @@ export function ItemCard({
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
+  const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
   const isProcessingUrl =
@@ -182,14 +186,17 @@ export function ItemCard({
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
-  // For articles/webpages/products, use coverFileKey; for images, use fileKey
+  // For articles/webpages/products/books, use coverFileKey; for images, use fileKey
   const imageFileKey =
-    isArticleOrWebpage || isProduct ? item.coverFileKey : item.fileKey;
-  // Has displayable image: either it's an image type OR it's an article/webpage/product with a cover
+    isArticleOrWebpage || isProduct || isBook
+      ? item.coverFileKey
+      : item.fileKey;
+  // Has displayable image: either it's an image type OR it's an article/webpage/product/book with a cover
   const hasDisplayableImage =
     mimeType?.startsWith("image/") ||
     (isArticleOrWebpage && !!item.coverFileKey) ||
-    (isProduct && !!item.coverFileKey);
+    (isProduct && !!item.coverFileKey) ||
+    (isBook && !!item.coverFileKey);
 
   useEffect(() => {
     // Articles/webpages without a cover image don't need to load anything
@@ -205,7 +212,8 @@ export function ItemCard({
         !isTwitter &&
         !isVideo &&
         !isFailedUrl &&
-        !isNote
+        !isNote &&
+        !isBook
       ) {
         setError("Missing file");
       }
@@ -224,6 +232,7 @@ export function ItemCard({
     isVideo,
     isFailedUrl,
     isNote,
+    isBook,
   ]);
 
   useEffect(() => {
@@ -323,6 +332,68 @@ export function ItemCard({
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
                 {item.productDetails.domain}
+              </p>
+            )}
+          </div>
+        </button>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Books without cover images get a placeholder card
+  if (isBook && !previewUrl && !imageFileKey) {
+    const bookAuthors = item.bookDetails?.authors ?? [];
+    const authorLine = bookAuthors.length > 0 ? bookAuthors.join(", ") : null;
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
+          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
+          onClick={handleOpenDetail}
+        >
+          <ProcessingOverlay status={item.processingStatus} />
+          <BookOpen
+            className="text-gray-400 dark:text-gray-500"
+            style={{ width: "3em", height: "3em" }}
+          />
+          <div className="text-center">
+            <p
+              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
+              style={{ fontSize: "0.875em" }}
+            >
+              {itemName}
+            </p>
+            {authorLine && (
+              <p
+                className="line-clamp-1 text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
+                {authorLine}
+              </p>
+            )}
+            {item.bookDetails?.domain && (
+              <p
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
+              >
+                {item.bookDetails.domain}
               </p>
             )}
           </div>
@@ -1099,6 +1170,7 @@ function ItemDetailDialog({
   const isTwitter = item.kind === "twitter";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
+  const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
 
@@ -1498,7 +1570,11 @@ function ItemDetailDialog({
             <div
               className={cn(
                 "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
-                !isArticleOrWebpage && !isProduct && !isNote && "bg-gray-900",
+                !isArticleOrWebpage &&
+                  !isProduct &&
+                  !isBook &&
+                  !isNote &&
+                  "bg-gray-900",
               )}
             >
               {isNote ? (
@@ -1585,6 +1661,21 @@ function ItemDetailDialog({
                     }
                   />
                 </motion.div>
+              ) : isBook && item.bookDetails ? (
+                <motion.div
+                  className="flex h-full w-full overflow-y-auto bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <BookDetailView
+                    bookDetails={item.bookDetails}
+                    title={item.title}
+                    sourceUrl={item.sourceUrl}
+                    coverFileKey={item.coverFileKey}
+                    className="py-8"
+                  />
+                </motion.div>
               ) : isVideo && item.videoDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
@@ -1614,7 +1705,7 @@ function ItemDetailDialog({
                     className="max-h-[calc(100vh-2rem)] w-full object-contain"
                   />
                 </motion.div>
-              ) : previewUrl && !isArticleOrWebpage && !isProduct ? (
+              ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
                 <motion.div
                   layoutId={`item-image-${item.id}`}
                   className="relative"
@@ -1909,6 +2000,114 @@ function ItemDetailDialog({
                             >
                               <ExternalLink className="size-3.5" />
                               View product
+                            </a>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => {
+                              if (item.sourceUrl) {
+                                navigator.clipboard.writeText(item.sourceUrl);
+                                setHasCopiedUrl(true);
+                                setTimeout(() => setHasCopiedUrl(false), 2000);
+                              }
+                            }}
+                            aria-label="Copy URL"
+                          >
+                            {hasCopiedUrl ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Book Details */}
+                  {isBook && item.bookDetails && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                        Book Info
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        {item.bookDetails.authors.length > 0 && (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500">
+                              {item.bookDetails.authors.length > 1
+                                ? "Authors"
+                                : "Author"}
+                            </span>
+                            <span className="text-right font-medium">
+                              {item.bookDetails.authors.join(", ")}
+                            </span>
+                          </div>
+                        )}
+                        {item.bookDetails.publisher && (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500">Publisher</span>
+                            <span className="text-right font-medium">
+                              {item.bookDetails.publisher}
+                            </span>
+                          </div>
+                        )}
+                        {item.bookDetails.publishedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Published</span>
+                            <DateTime
+                              date={item.bookDetails.publishedAt}
+                              className="font-medium"
+                            />
+                          </div>
+                        )}
+                        {item.bookDetails.pageCount && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Pages</span>
+                            <span className="font-medium">
+                              {item.bookDetails.pageCount}
+                            </span>
+                          </div>
+                        )}
+                        {item.bookDetails.isbn && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">ISBN</span>
+                            <span className="font-medium">
+                              {item.bookDetails.isbn}
+                            </span>
+                          </div>
+                        )}
+                        {item.bookDetails.domain && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Source</span>
+                            {item.sourceUrl && isValidUrl(item.sourceUrl) ? (
+                              <a
+                                href={new URL(item.sourceUrl).origin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                              >
+                                <ExternalLink className="size-3" />
+                                {item.bookDetails.domain}
+                              </a>
+                            ) : (
+                              <span className="font-medium">
+                                {item.bookDetails.domain}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {item.sourceUrl && isValidUrl(item.sourceUrl) && (
+                        <div className="mt-2 flex items-center gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <a
+                              href={item.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              View book
                             </a>
                           </Button>
                           <Button
