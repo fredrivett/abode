@@ -4,7 +4,11 @@ import posthog from "posthog-js";
 import { type KeyboardEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { NoteEditor } from "@/components/note/note-editor";
-import { NOTE_PROSE_CLASS } from "@/components/note/note-prose";
+import {
+  NOTE_PROSE_CLASS,
+  NOTE_PROSE_FONT_SIZE,
+  NOTE_PROSE_LINE_HEIGHT,
+} from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
@@ -78,7 +82,10 @@ export function NoteComposer() {
           <span
             aria-hidden
             className="pointer-events-none absolute inset-0 text-muted-foreground italic"
-            style={{ fontSize: "0.875em" }}
+            style={{
+              fontSize: NOTE_PROSE_FONT_SIZE,
+              lineHeight: NOTE_PROSE_LINE_HEIGHT,
+            }}
           >
             Take a note…
           </span>
@@ -88,6 +95,7 @@ export function NoteComposer() {
           content=""
           onChange={setMarkdown}
           proseClassName={NOTE_PROSE_CLASS}
+          proseFontSize={NOTE_PROSE_FONT_SIZE}
           className="min-h-full"
         />
       </div>

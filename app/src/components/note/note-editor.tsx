@@ -18,6 +18,12 @@ type NoteEditorProps = {
   className?: string;
   /** Override the default prose styling (e.g. to match the note card preview) */
   proseClassName?: string;
+  /**
+   * Root font-size applied as an inline style. Inline so it reliably beats
+   * prose-sm's root size while still losing to the max-md anti-zoom guard
+   * (which is `!important`) on small screens.
+   */
+  proseFontSize?: string;
 };
 
 // `max-md:text-[1rem]` keeps the editor root at 16px on small screens — prose-sm
@@ -41,6 +47,7 @@ export function NoteEditor({
   autoFocus = false,
   className,
   proseClassName,
+  proseFontSize,
 }: NoteEditorProps) {
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
@@ -58,6 +65,7 @@ export function NoteEditor({
           proseClassName ?? DEFAULT_PROSE_CLASS,
           className,
         ),
+        ...(proseFontSize ? { style: `font-size: ${proseFontSize}` } : {}),
       },
     },
     onUpdate: ({ editor }) => {
