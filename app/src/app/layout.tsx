@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
-import Script from "next/script";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
-import { isDevelopment } from "@/env";
 import { QueryProvider } from "@/lib/query-client";
 
 const geistSans = Geist({
@@ -69,22 +67,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        {isDevelopment && (
-          <>
-            <Script
-              src="//unpkg.com/react-grab@0.0.88/dist/index.global.js"
-              crossOrigin="anonymous"
-              strategy="beforeInteractive"
-            />
-            <Script
-              src="//unpkg.com/@react-grab/claude-code@0.0.88/dist/client.global.js"
-              crossOrigin="anonymous"
-              strategy="lazyOnload"
-            />
-          </>
-        )}
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >

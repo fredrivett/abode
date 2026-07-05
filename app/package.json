@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bunx react-grab-claude-code && bunx next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
+    "dev": "bunx next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
     "build": "next build --webpack",
     "start": "next start -p ${CONDUCTOR_PORT:-3300}",
     "lint": "bunx -p @biomejs/biome biome check",
@@ -113,7 +113,6 @@
     "@biomejs/biome": "2.2.0",
     "@chromatic-com/storybook": "^4.1.1",
     "@playwright/test": "^1.58.2",
-    "@react-grab/claude-code": "^0.0.88",
     "@storybook/addon-a11y": "^9.1.10",
     "@storybook/addon-docs": "^9.1.10",
     "@storybook/addon-onboarding": "^9.1.10",
