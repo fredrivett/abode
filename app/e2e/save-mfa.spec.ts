@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { getE2EPrisma } from "./helpers/db";
 import { createUserWithMfa } from "./helpers/mfa";
-import { generateTotp } from "./helpers/totp";
+import { generateTotp, waitForTotpWindowAfter } from "./helpers/totp";
 import { deleteUserByEmail } from "./helpers/user";
 
 test.describe("Save share target + MFA login redirect", () => {
@@ -14,6 +14,10 @@ test.describe("Save share target + MFA login redirect", () => {
       email,
       username: "save_mfa_user",
     });
+    // Setup just burned an enrollment TOTP; remember its window so the login
+    // challenge below uses a code from a later one (Supabase rejects reused
+    // periods, which would otherwise flake when the two land in the same window)
+    const mfaSetupAtMs = Date.now();
 
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -37,7 +41,10 @@ test.describe("Save share target + MFA login redirect", () => {
       expect(destination.searchParams.get("url")).toBe(sharedUrl);
 
       // Complete the challenge — verification returns us to /save, which saves
-      // the item and replaces to /dashboard.
+      // the item and replaces to /dashboard. Wait for a fresh TOTP window first
+      // so the challenge code can't collide with the enrollment code or roll
+      // over mid-entry.
+      await waitForTotpWindowAfter(mfaSetupAtMs);
       await page
         .locator('[data-slot="input-otp"]')
         .pressSequentially(generateTotp(totpSecret));

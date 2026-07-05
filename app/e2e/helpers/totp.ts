@@ -45,3 +45,27 @@ export function generateTotp(
 
   return (binary % 1_000_000).toString().padStart(6, "0");
 }
+
+/** The 30s TOTP window (counter) index containing `atMs`. */
+export function totpWindow(atMs: number = Date.now()): number {
+  return Math.floor(atMs / 1000 / 30);
+}
+
+/**
+ * Resolve once we're in a strictly later 30s TOTP window than the one holding
+ * `afterMs`.
+ *
+ * Supabase rejects a TOTP code whose period was already consumed, so the login
+ * challenge code must come from a different window than the enrollment code
+ * burned during MFA setup — otherwise the two collide intermittently and the
+ * challenge is rejected as a replay. Also guarantees a full window of runway so
+ * the code can't roll over mid-entry. No-ops (waits 0ms) once the window has
+ * already advanced, which is the common case after the login UI flow runs.
+ */
+export async function waitForTotpWindowAfter(afterMs: number): Promise<void> {
+  const nextWindowStartMs = (totpWindow(afterMs) + 1) * 30 * 1000;
+  const waitMs = nextWindowStartMs - Date.now();
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
