@@ -43,49 +43,57 @@ export function BookCover3D({
     <motion.div
       layoutId={layoutId}
       className={cn("group/book relative h-full w-full", className)}
-      style={{ perspective: "1200px" }}
+      style={{ containerType: "inline-size" }}
     >
-      {/* Contact shadow beneath the book */}
-      <div className="absolute inset-x-[8%] bottom-[-5%] h-[9%] rounded-[50%] bg-black/35 blur-lg transition-all duration-300 group-hover/book:bg-black/25" />
+      {/* Perspective in container-query units so the 3D depth is the same
+          fraction of the book at every size (px would differ between grid
+          tile and detail hero). cqw only resolves against an ANCESTOR
+          container, so this must live on a child of the container element */}
+      <div className="relative h-full w-full" style={{ perspective: "470cqw" }}>
+        {/* Contact shadow beneath the book */}
+        <div className="absolute inset-x-[8%] bottom-[-5%] h-[9%] rounded-[50%] bg-black/35 blur-lg transition-all duration-300 group-hover/book:bg-black/25" />
 
-      {/* Back cover — same board as the front, in shadow behind the pages */}
-      <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[2px_4px_12px_rgba(0,0,0,0.35)]">
-        {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
-        <img
-          src={src}
-          alt=""
-          aria-hidden
-          className="h-full w-full object-cover brightness-[0.5] saturate-[0.85]"
-          loading="lazy"
-        />
-      </div>
-
-      {/* Page block fore-edge — a plane receding from behind the cover's
-          fore-edge toward the back board, inset so the boards overhang */}
-      <div
-        className="absolute inset-y-[1.5%] left-[91%] w-[16%] origin-left [transform:rotateY(58deg)]"
-        style={{ background: PAGE_EDGE_BG }}
-      />
-
-      {/* Front cover, hinged at the spine */}
-      <div className="absolute inset-0 origin-left transition-transform duration-300 ease-out [transform:rotateY(-28deg)] group-hover/book:[transform:rotateY(-35deg)]">
-        <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[10px_10px_24px_-8px_rgba(0,0,0,0.5)]">
+        {/* Back cover — same board as the front, in shadow behind the pages */}
+        <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[2px_4px_12px_rgba(0,0,0,0.35)]">
           {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
           <img
             src={src}
-            alt={alt}
-            className="h-full w-full object-cover"
+            alt=""
+            aria-hidden
+            className="h-full w-full object-cover brightness-[0.5] saturate-[0.85]"
             loading="lazy"
           />
-          {/* Spine hinge groove down the left edge */}
-          <div
-            className="absolute inset-y-0 left-0 w-full"
-            style={{ background: SPINE_HINGE_BG }}
-          />
-          {/* Board edge catching the light at the fore-edge */}
-          <div className="absolute inset-y-0 right-0 w-[2%] bg-gradient-to-l from-white/30 to-transparent" />
-          {/* Subtle sheen */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/12 to-transparent" />
+        </div>
+
+        {/* Page block fore-edge — a plane receding from behind the cover's
+          fore-edge toward the back board, inset so the boards overhang. It
+          starts well left of the cover's projected edge so the printed back
+          board never peeks between cover and pages in the resting state */}
+        <div
+          className="absolute inset-y-[1.5%] left-[84%] w-[26%] origin-left [transform:rotateY(58deg)]"
+          style={{ background: PAGE_EDGE_BG }}
+        />
+
+        {/* Front cover, hinged at the spine and opening toward the viewer */}
+        <div className="absolute inset-0 origin-left transition-transform duration-300 ease-out [transform:rotateY(-28deg)] group-hover/book:[transform:rotateY(-35deg)]">
+          <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[10px_10px_24px_-8px_rgba(0,0,0,0.5)]">
+            {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
+            <img
+              src={src}
+              alt={alt}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+            {/* Spine hinge groove down the left edge */}
+            <div
+              className="absolute inset-y-0 left-0 w-full"
+              style={{ background: SPINE_HINGE_BG }}
+            />
+            {/* Board edge catching the light at the fore-edge */}
+            <div className="absolute inset-y-0 right-0 w-[2%] bg-gradient-to-l from-white/30 to-transparent" />
+            {/* Subtle sheen */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/12 to-transparent" />
+          </div>
         </div>
       </div>
     </motion.div>

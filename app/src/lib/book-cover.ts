@@ -15,8 +15,14 @@ export const DEFAULT_BOOK_COVER_RATIO = 2 / 3;
 const MIN_COVER_RATIO = 0.5;
 const MAX_COVER_RATIO = 1;
 
-/** Fraction of a grid tile's width used as padding around the book */
-export const BOOK_TILE_PADDING_FRACTION = 0.1;
+/**
+ * Padding around the book on grid tiles, as fractions of the tile's width
+ * (CSS % padding resolves against width on all four sides). Vertical is
+ * larger because the 3D cover pops taller toward the viewer and the contact
+ * shadow hangs below, which visually eats the top/bottom gaps.
+ */
+export const BOOK_TILE_PADDING_X = 0.16;
+export const BOOK_TILE_PADDING_Y = 0.22;
 
 /**
  * Width/height ratio for a book cover from item meta, clamped to a
@@ -41,19 +47,18 @@ export function getBookCoverRatio(
 
 /**
  * Masonry frame dimensions for a book grid tile: the inner cover keeps its
- * true aspect ratio, surrounded by equal padding on all sides.
+ * true aspect ratio, surrounded by the padding fractions above.
  *
  * Works at any tile width because CSS percentage padding resolves against
- * width for all four sides — the card pads with
- * `BOOK_TILE_PADDING_FRACTION * 100`%, and this frame ratio accounts for it.
+ * width for all four sides — the card pads with the same fractions, and
+ * this frame ratio accounts for them.
  */
 export function getBookTileFrame(
   meta: Record<string, unknown> | null | undefined,
 ): { width: number; height: number } {
-  const innerWidth = 1 - 2 * BOOK_TILE_PADDING_FRACTION;
+  const innerWidth = 1 - 2 * BOOK_TILE_PADDING_X;
   return {
     width: 1,
-    height:
-      innerWidth / getBookCoverRatio(meta) + 2 * BOOK_TILE_PADDING_FRACTION,
+    height: innerWidth / getBookCoverRatio(meta) + 2 * BOOK_TILE_PADDING_Y,
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BOOK_TILE_PADDING_FRACTION,
+  BOOK_TILE_PADDING_X,
+  BOOK_TILE_PADDING_Y,
   DEFAULT_BOOK_COVER_RATIO,
   getBookCoverRatio,
   getBookTileFrame,
@@ -41,21 +42,23 @@ describe("getBookCoverRatio", () => {
 });
 
 describe("getBookTileFrame", () => {
-  it("preserves the cover ratio inside equal padding", () => {
+  it("preserves the cover ratio inside the padding", () => {
     const { width, height } = getBookTileFrame({
       coverWidth: 318,
       coverHeight: 461,
     });
-    // Inner box after removing padding from all sides must match the cover
-    const pad = BOOK_TILE_PADDING_FRACTION;
-    const innerRatio = (width - 2 * pad * width) / (height - 2 * pad * width);
+    // Inner box after removing padding (fractions of width) must match cover
+    const innerRatio =
+      (width - 2 * BOOK_TILE_PADDING_X * width) /
+      (height - 2 * BOOK_TILE_PADDING_Y * width);
     expect(innerRatio).toBeCloseTo(318 / 461);
   });
 
   it("uses the 2:3 fallback when dimensions are missing", () => {
     const { width, height } = getBookTileFrame(null);
-    const pad = BOOK_TILE_PADDING_FRACTION;
-    const innerRatio = (width - 2 * pad * width) / (height - 2 * pad * width);
+    const innerRatio =
+      (width - 2 * BOOK_TILE_PADDING_X * width) /
+      (height - 2 * BOOK_TILE_PADDING_Y * width);
     expect(innerRatio).toBeCloseTo(DEFAULT_BOOK_COVER_RATIO);
   });
 });

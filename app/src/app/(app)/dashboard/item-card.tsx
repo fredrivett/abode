@@ -70,7 +70,8 @@ import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
-  BOOK_TILE_PADDING_FRACTION,
+  BOOK_TILE_PADDING_X,
+  BOOK_TILE_PADDING_Y,
   getBookCoverRatio,
 } from "@/lib/book-cover";
 import { copyToClipboard } from "@/lib/copy";
@@ -694,11 +695,11 @@ export function ItemCard({
         <button
           type="button"
           className="group relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950"
-          // % padding resolves against width on all sides, so this is equal
-          // spacing all round; getBookTileFrame bakes it into the tile ratio
+          // % padding resolves against width on all sides, so these fractions
+          // are of tile width; getBookTileFrame bakes them into the tile ratio
           style={{
             ...gridCardStyle,
-            padding: `${BOOK_TILE_PADDING_FRACTION * 100}%`,
+            padding: `${BOOK_TILE_PADDING_Y * 100}% ${BOOK_TILE_PADDING_X * 100}%`,
           }}
           onClick={handleOpenDetail}
         >
