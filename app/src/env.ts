@@ -12,4 +12,8 @@ export const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 // Git SHA of the running build, injected via next.config.ts `env`.
 export const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA;
 
+// Local dev only: current git branch, injected via next.config.ts `env`.
+// Undefined in production builds.
+export const GIT_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH;
+
 export const isDevelopment = process.env.NODE_ENV === "development";
