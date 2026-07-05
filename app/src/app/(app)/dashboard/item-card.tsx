@@ -69,6 +69,10 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import {
+  BOOK_TILE_PADDING_FRACTION,
+  getBookCoverRatio,
+} from "@/lib/book-cover";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
@@ -689,8 +693,13 @@ export function ItemCard({
       <>
         <button
           type="button"
-          className="group relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 px-[12%] py-[9%] dark:from-neutral-900 dark:to-neutral-950"
-          style={gridCardStyle}
+          className="group relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950"
+          // % padding resolves against width on all sides, so this is equal
+          // spacing all round; getBookTileFrame bakes it into the tile ratio
+          style={{
+            ...gridCardStyle,
+            padding: `${BOOK_TILE_PADDING_FRACTION * 100}%`,
+          }}
           onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
@@ -1707,6 +1716,7 @@ function ItemDetailDialog({
                     title={item.title}
                     sourceUrl={item.sourceUrl}
                     coverFileKey={item.coverFileKey}
+                    coverRatio={getBookCoverRatio(item.meta)}
                     className="py-8"
                   />
                 </div>

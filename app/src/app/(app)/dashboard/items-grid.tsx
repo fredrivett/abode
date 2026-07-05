@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { getBookTileFrame } from "@/lib/book-cover";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
@@ -210,9 +211,8 @@ export function ItemsGrid({
                   height = 1;
                 }
               } else if (isBook) {
-                // Book covers are typically portrait, roughly 2:3
-                width = 2;
-                height = 3;
+                // Cover's ingested aspect ratio plus equal padding all round
+                ({ width, height } = getBookTileFrame(item.meta));
               } else if (isArticleOrWebpage || isProcessingUrl) {
                 width = 4;
                 height = 3;

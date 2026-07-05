@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ type BookDetailViewProps = {
   title?: string | null;
   sourceUrl?: string | null;
   coverFileKey?: string | null;
+  /** Cover width/height ratio (see getBookCoverRatio); defaults to 2:3 */
+  coverRatio?: number;
   className?: string;
 };
 
@@ -26,6 +29,7 @@ export function BookDetailView({
   title,
   sourceUrl,
   coverFileKey,
+  coverRatio = DEFAULT_BOOK_COVER_RATIO,
   className,
 }: BookDetailViewProps) {
   const { authors, domain } = bookDetails;
@@ -40,7 +44,10 @@ export function BookDetailView({
     >
       <div className="mx-auto w-full max-w-sm space-y-8">
         {coverFileKey && (
-          <div className="mx-auto aspect-[2/3] w-full max-w-[240px]">
+          <div
+            className="mx-auto w-full max-w-[240px]"
+            style={{ aspectRatio: coverRatio }}
+          >
             <BookCover3D
               src={getProxyImageUrl(coverFileKey, "full")}
               alt={title ?? "Book cover"}

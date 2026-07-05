@@ -711,7 +711,12 @@ async function handleBookUrl(
   supabase: SupabaseClient,
 ) {
   // Download the cover image (single og:image, like articles)
-  let coverResult: { fileKey: string; size: number } | null = null;
+  let coverResult: {
+    fileKey: string;
+    size: number;
+    width: number;
+    height: number;
+  } | null = null;
   if (bookMeta.ogImage) {
     const result = await downloadAndStoreImage(
       bookMeta.ogImage,
@@ -719,7 +724,12 @@ async function handleBookUrl(
       supabase,
     );
     if (result) {
-      coverResult = { fileKey: result.fileKey, size: result.size };
+      coverResult = {
+        fileKey: result.fileKey,
+        size: result.size,
+        width: result.width,
+        height: result.height,
+      };
       logger.log("Book cover stored", { itemId, coverFileKey: result.fileKey });
     }
   }
@@ -735,6 +745,13 @@ async function handleBookUrl(
         meta: {
           originalName: bookMeta.title,
           ...(coverResult && { coverSize: coverResult.size }),
+          // Cover aspect ratio drives the book display (see lib/book-cover.ts)
+          ...(coverResult &&
+            coverResult.width > 0 &&
+            coverResult.height > 0 && {
+              coverWidth: coverResult.width,
+              coverHeight: coverResult.height,
+            }),
         },
       },
     });
