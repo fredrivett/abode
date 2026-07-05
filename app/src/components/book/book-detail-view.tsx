@@ -2,15 +2,20 @@
 
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
+import { BookCover3D } from "./book-cover-3d";
 
 type BookDetailViewProps = {
+  itemId: string;
   bookDetails: BookDetails;
   title?: string | null;
   sourceUrl?: string | null;
   coverFileKey?: string | null;
+  /** Cover width/height ratio (see getBookCoverRatio); defaults to 2:3 */
+  coverRatio?: number;
   className?: string;
 };
 
@@ -19,10 +24,12 @@ type BookDetailViewProps = {
  * Shows the cover, title, authors, and a link to the original page.
  */
 export function BookDetailView({
+  itemId,
   bookDetails,
   title,
   sourceUrl,
   coverFileKey,
+  coverRatio = DEFAULT_BOOK_COVER_RATIO,
   className,
 }: BookDetailViewProps) {
   const { authors, domain } = bookDetails;
@@ -35,15 +42,16 @@ export function BookDetailView({
         className,
       )}
     >
-      <div className="mx-auto w-full max-w-sm space-y-6">
+      <div className="mx-auto w-full max-w-sm space-y-8">
         {coverFileKey && (
-          <div className="mx-auto max-w-[240px] overflow-hidden rounded-xl shadow-lg">
-            {/* biome-ignore lint/a11y/useAltText: book cover image */}
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL */}
-            <img
+          <div
+            className="mx-auto w-full max-w-[240px]"
+            style={{ aspectRatio: coverRatio }}
+          >
+            <BookCover3D
               src={getProxyImageUrl(coverFileKey, "full")}
-              className="w-full object-contain"
-              loading="lazy"
+              alt={title ?? "Book cover"}
+              layoutId={`item-image-${itemId}`}
             />
           </div>
         )}

@@ -36,6 +36,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleDetailView } from "@/components/article/article-detail-view";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
+import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
@@ -68,6 +69,11 @@ import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import {
+  BOOK_TILE_PADDING_X,
+  BOOK_TILE_PADDING_Y,
+  getBookCoverRatio,
+} from "@/lib/book-cover";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
@@ -669,6 +675,48 @@ export function ItemCard({
           size={size}
           previewUrl={null}
           imageFileKey={null}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Books with a cover get the 3D book treatment on a neutral surface
+  if (isBook && previewUrl) {
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950"
+          // % padding resolves against width on all sides, so these fractions
+          // are of tile width; getBookTileFrame bakes them into the tile ratio
+          style={{
+            ...gridCardStyle,
+            padding: `${BOOK_TILE_PADDING_Y * 100}% ${BOOK_TILE_PADDING_X * 100}%`,
+          }}
+          onClick={handleOpenDetail}
+        >
+          <ProcessingOverlay status={item.processingStatus} />
+          <BookCover3D
+            src={previewUrl}
+            alt={itemName}
+            layoutId={`item-image-${item.id}`}
+          />
+        </button>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={previewUrl}
+          imageFileKey={imageFileKey}
           onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
@@ -1662,20 +1710,17 @@ function ItemDetailDialog({
                   />
                 </motion.div>
               ) : isBook && item.bookDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
+                <div className="flex h-full w-full overflow-y-auto bg-background">
                   <BookDetailView
+                    itemId={item.id}
                     bookDetails={item.bookDetails}
                     title={item.title}
                     sourceUrl={item.sourceUrl}
                     coverFileKey={item.coverFileKey}
+                    coverRatio={getBookCoverRatio(item.meta)}
                     className="py-8"
                   />
-                </motion.div>
+                </div>
               ) : isVideo && item.videoDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"

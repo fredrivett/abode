@@ -674,6 +674,9 @@ async function seed() {
         meta: {
           originalName: "Switch: How to Change Things When Change Is Hard",
           coverSize: switchCoverUpload.size,
+          // Actual dimensions of seed-assets/book-switch.jpg
+          coverWidth: 324,
+          coverHeight: 500,
         },
         externalLinks: [
           { url: "https://www.amazon.co.uk/dp/1847940323", platform: "web" },
@@ -707,6 +710,9 @@ async function seed() {
           originalName:
             "Falling Upward: A Spirituality for the Two Halves of Life",
           coverSize: fallingUpwardCoverUpload.size,
+          // Actual dimensions of seed-assets/book-falling-upward.jpg
+          coverWidth: 318,
+          coverHeight: 461,
         },
         externalLinks: [
           {
