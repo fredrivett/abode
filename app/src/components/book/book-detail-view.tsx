@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
+import { BookCover3D } from "./book-cover-3d";
 
 type BookDetailViewProps = {
+  itemId: string;
   bookDetails: BookDetails;
   title?: string | null;
   sourceUrl?: string | null;
@@ -19,6 +21,7 @@ type BookDetailViewProps = {
  * Shows the cover, title, authors, and a link to the original page.
  */
 export function BookDetailView({
+  itemId,
   bookDetails,
   title,
   sourceUrl,
@@ -35,15 +38,13 @@ export function BookDetailView({
         className,
       )}
     >
-      <div className="mx-auto w-full max-w-sm space-y-6">
+      <div className="mx-auto w-full max-w-sm space-y-8">
         {coverFileKey && (
-          <div className="mx-auto max-w-[240px] overflow-hidden rounded-xl shadow-lg">
-            {/* biome-ignore lint/a11y/useAltText: book cover image */}
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL */}
-            <img
+          <div className="mx-auto aspect-[2/3] w-full max-w-[240px]">
+            <BookCover3D
               src={getProxyImageUrl(coverFileKey, "full")}
-              className="w-full object-contain"
-              loading="lazy"
+              alt={title ?? "Book cover"}
+              layoutId={`item-image-${itemId}`}
             />
           </div>
         )}

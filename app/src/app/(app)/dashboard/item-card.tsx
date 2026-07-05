@@ -36,6 +36,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleDetailView } from "@/components/article/article-detail-view";
 import { HighlightsPanel } from "@/components/article/highlights-panel";
+import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
@@ -669,6 +670,43 @@ export function ItemCard({
           size={size}
           previewUrl={null}
           imageFileKey={null}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Books with a cover get the 3D book treatment on a neutral surface
+  if (isBook && previewUrl) {
+    return (
+      <>
+        <button
+          type="button"
+          className="group relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 px-[12%] py-[9%] dark:from-neutral-900 dark:to-neutral-950"
+          style={gridCardStyle}
+          onClick={handleOpenDetail}
+        >
+          <ProcessingOverlay status={item.processingStatus} />
+          <BookCover3D
+            src={previewUrl}
+            alt={itemName}
+            layoutId={`item-image-${item.id}`}
+          />
+        </button>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={previewUrl}
+          imageFileKey={imageFileKey}
           onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
@@ -1662,20 +1700,16 @@ function ItemDetailDialog({
                   />
                 </motion.div>
               ) : isBook && item.bookDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
+                <div className="flex h-full w-full overflow-y-auto bg-background">
                   <BookDetailView
+                    itemId={item.id}
                     bookDetails={item.bookDetails}
                     title={item.title}
                     sourceUrl={item.sourceUrl}
                     coverFileKey={item.coverFileKey}
                     className="py-8"
                   />
-                </motion.div>
+                </div>
               ) : isVideo && item.videoDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
