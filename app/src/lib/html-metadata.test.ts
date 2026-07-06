@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   extractAllProductImageCandidates,
+  extractAmazonCoverImage,
   extractArticleMetadata,
   extractAuthor,
   extractBookMetadata,
@@ -20,6 +21,7 @@ import {
   inferCurrencyFromPriceContext,
   isKnownBookUrl,
   isKnownProductUrl,
+  isValidIsbn10,
   parsePublishedDate,
   preserveSocialEmbeds,
 } from "./html-metadata";
@@ -32,6 +34,16 @@ const aaronFrancisFixture = readFileSync(
 
 const audioTechnicaFixture = readFileSync(
   join(__dirname, "__fixtures__/audio-technica-product-snippet.html"),
+  "utf-8",
+);
+
+const amazonBookFixture = readFileSync(
+  join(__dirname, "__fixtures__/amazon-book-snippet.html"),
+  "utf-8",
+);
+
+const amazonKindleBookFixture = readFileSync(
+  join(__dirname, "__fixtures__/amazon-kindle-book-snippet.html"),
   "utf-8",
 );
 
@@ -1874,5 +1886,164 @@ describe("extractBookMetadata", () => {
     );
     expect(result).not.toBeNull();
     expect(result?.domain).toBe("openlibrary.org");
+  });
+});
+
+describe("extractBookMetadata (Amazon)", () => {
+  it("detects a print book and parses title, authors, ISBN, and cover", () => {
+    const result = extractBookMetadata(
+      amazonBookFixture,
+      "https://www.amazon.co.uk/dp/1847940323?ref=cm_sw_r_ffobk",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe(
+      "Switch: How to change things when change is hard",
+    );
+    expect(result?.authors).toEqual(["Dan Heath", "Chip Heath"]);
+    // ISBN-13 from the title wins over the ISBN-10 ASIN
+    expect(result?.isbn).toBe("9781847940322");
+    expect(result?.domain).toBe("amazon.co.uk");
+    // Size modifier stripped from the cover URL
+    expect(result?.ogImage).toBe(
+      "https://m.media-amazon.com/images/I/61SzLAD7bfL.jpg",
+    );
+  });
+
+  it("detects a Kindle edition (B0 ASIN) via the Books title marker", () => {
+    const result = extractBookMetadata(
+      amazonKindleBookFixture,
+      "https://www.amazon.co.uk/dp/B005TKD512",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe(
+      "Switch: How to change things when change is hard",
+    );
+    expect(result?.authors).toEqual(["Chip Heath", "Dan Heath"]);
+    expect(result?.isbn).toBeNull();
+    expect(result?.ogImage).toBe(
+      "https://m.media-amazon.com/images/I/719JuZrBrIL.jpg",
+    );
+  });
+
+  it("detects a print book via ISBN-10 ASIN even when the title is unhelpful", () => {
+    const result = extractBookMetadata(
+      "<title>Robot Check</title>",
+      "https://www.amazon.com/dp/0135957052",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.isbn).toBe("0135957052");
+  });
+
+  it("accepts an ISBN-10 ASIN with an X check digit", () => {
+    const result = extractBookMetadata(
+      "<title>Whatever</title>",
+      "https://www.amazon.com/gp/product/043942089X",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.isbn).toBe("043942089X");
+  });
+
+  it("rejects non-book Amazon products", () => {
+    const html =
+      "<title>Sony WH-1000XM5 Noise Cancelling Headphones: Amazon.co.uk: Electronics</title>";
+    expect(
+      extractBookMetadata(html, "https://www.amazon.co.uk/dp/B09XS7JWHH"),
+    ).toBeNull();
+  });
+
+  it("rejects a numeric ASIN that fails the ISBN-10 checksum", () => {
+    expect(
+      extractBookMetadata(
+        "<title>Whatever</title>",
+        "https://www.amazon.com/dp/1234567890",
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects Amazon pages without a product-detail path", () => {
+    expect(
+      extractBookMetadata(
+        amazonBookFixture,
+        "https://www.amazon.co.uk/s?k=switch+heath",
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects Books-style titles on non-Amazon hosts", () => {
+    const html =
+      "<title>Switch: Amazon.co.uk: Heath, Dan: 9781847940322: Books</title>";
+    expect(
+      extractBookMetadata(html, "https://example.com/dp/1847940323"),
+    ).toBeNull();
+  });
+
+  it("detects the mobile /gp/aw/d/ URL shape", () => {
+    const result = extractBookMetadata(
+      "<title>Whatever</title>",
+      "https://www.amazon.co.uk/gp/aw/d/1847940323",
+    );
+    expect(result).not.toBeNull();
+    expect(result?.isbn).toBe("1847940323");
+  });
+
+  it("does not detect an unresolved amzn.eu short link (needs redirect resolution)", () => {
+    expect(
+      extractBookMetadata(amazonBookFixture, "https://amzn.eu/d/04gXpZji"),
+    ).toBeNull();
+  });
+});
+
+describe("isValidIsbn10", () => {
+  it("accepts valid ISBN-10s", () => {
+    expect(isValidIsbn10("1847940323")).toBe(true);
+    expect(isValidIsbn10("0135957052")).toBe(true);
+  });
+
+  it("accepts an X check digit, case-insensitively", () => {
+    expect(isValidIsbn10("043942089X")).toBe(true);
+    expect(isValidIsbn10("043942089x")).toBe(true);
+  });
+
+  it("rejects a failing checksum", () => {
+    expect(isValidIsbn10("1234567890")).toBe(false);
+    expect(isValidIsbn10("1847940324")).toBe(false);
+  });
+
+  it("rejects malformed values", () => {
+    expect(isValidIsbn10("B005TKD512")).toBe(false); // Kindle ASIN
+    expect(isValidIsbn10("184794032")).toBe(false); // too short
+    expect(isValidIsbn10("18479403233")).toBe(false); // too long
+    expect(isValidIsbn10("18479X0323")).toBe(false); // X not in last position
+    expect(isValidIsbn10("")).toBe(false);
+  });
+});
+
+describe("extractAmazonCoverImage", () => {
+  it("prefers data-old-hires and strips the size modifier", () => {
+    const html =
+      '<img id="landingImage" src="https://m.media-amazon.com/images/I/41Sm._SY445_.jpg" data-old-hires="https://m.media-amazon.com/images/I/719JuZrBrIL._SL1500_.jpg"/>';
+    expect(extractAmazonCoverImage(html)).toBe(
+      "https://m.media-amazon.com/images/I/719JuZrBrIL.jpg",
+    );
+  });
+
+  it("falls back to the first data-a-dynamic-image URL", () => {
+    const html =
+      '<img id="landingImage" data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/61SzLAD7bfL._SY342_.jpg&quot;:[342,222]}"/>';
+    expect(extractAmazonCoverImage(html)).toBe(
+      "https://m.media-amazon.com/images/I/61SzLAD7bfL.jpg",
+    );
+  });
+
+  it("falls back to src when no richer source exists", () => {
+    const html =
+      '<img class="cover" id="imgBlkFront" src="https://m.media-amazon.com/images/I/41Sm._SY445_.jpg"/>';
+    expect(extractAmazonCoverImage(html)).toBe(
+      "https://m.media-amazon.com/images/I/41Sm.jpg",
+    );
+  });
+
+  it("returns null when the page has no cover image element", () => {
+    expect(extractAmazonCoverImage("<img id='other' src='x.jpg'/>")).toBeNull();
   });
 });
