@@ -4,6 +4,8 @@ updates:
     directory: "/app"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       # Group non-major updates into a single PR to cut review noise
@@ -16,6 +18,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       actions:
         update-types:
