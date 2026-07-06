@@ -1,5 +1,6 @@
 import { logger, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { pruneStaleItemDetails } from "../src/lib/item-details";
 import type { enrichItemTask } from "./enrich-item";
 
 type HandleTwitterArticlePayload = {
@@ -51,6 +52,9 @@ export async function handleTwitterArticle(
       },
     },
   });
+
+  // Drop detail rows from a prior kind (e.g. this was a product before)
+  await pruneStaleItemDetails(db, itemId, "article");
 
   // Upsert article details record with minimal info (idempotent for retries)
   const articleDetailsData = {

@@ -18,6 +18,7 @@ import {
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
+import { pruneStaleItemDetails } from "../src/lib/item-details";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
@@ -569,6 +570,9 @@ export const classifyUrlTask = task({
           },
         });
 
+        // Drop detail rows from a prior kind (e.g. this was a product before)
+        await pruneStaleItemDetails(tx, itemId, itemKind);
+
         // Update storage accounting for cover image
         if (coverResult && coverResult.size > 0) {
           await tx.user.update({
@@ -669,6 +673,9 @@ async function handleImageUrl(
       },
     });
 
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "image");
+
     // Update storage accounting
     if (imageResult.size > 0) {
       await tx.user.update({
@@ -755,6 +762,9 @@ async function handleBookUrl(
         },
       },
     });
+
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "book");
 
     if (coverResult && coverResult.size > 0) {
       await tx.user.update({
@@ -957,6 +967,9 @@ async function handleProductUrl(
         },
       },
     });
+
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "product");
 
     if (totalImageSize > 0) {
       await tx.user.update({

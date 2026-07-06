@@ -3,6 +3,7 @@ import { logger, tasks } from "@trigger.dev/sdk";
 import { fetchTweet, type Tweet } from "react-tweet/api";
 import { translateToEnglish } from "../src/lib/ai/translate-to-english";
 import db from "../src/lib/db";
+import { pruneStaleItemDetails } from "../src/lib/item-details";
 import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
 import type {
   ExternalLink,
@@ -194,6 +195,9 @@ export async function handleTwitterUrl(
             ],
       },
     });
+
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "twitter");
 
     // Upsert twitter details record (idempotent for retries)
     // For JSON fields, use Prisma.JsonNull for null values, or cast to InputJsonValue

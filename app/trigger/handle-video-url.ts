@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { pruneStaleItemDetails } from "../src/lib/item-details";
 import {
   fetchVideoMetadata,
   getBestYouTubeThumbnailUrl,
@@ -164,6 +165,9 @@ export async function handleVideoUrl(
         },
       },
     });
+
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "video");
 
     // Update storage accounting for thumbnail
     if (thumbnailResult && thumbnailResult.size > 0) {
