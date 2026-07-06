@@ -47,14 +47,26 @@ const OWNED_DETAIL_MODELS: Record<ItemKind, readonly ItemDetailModel[]> = {
   webpage: [],
 };
 
+export type PruneItemDetailsOptions = {
+  /**
+   * Whether image details should be kept. Book/product own image details only
+   * when a cover is actually (re)analysed — a coverless reanalysis has no
+   * analyze-image run to refresh them, so the previous cover's analysis is
+   * stale and should be pruned. Defaults to true (keep whatever the kind owns).
+   */
+  keepImageDetails?: boolean;
+};
+
 /**
  * Detail tables to delete when an item is (re)classified as `keepKind`.
  * Pure — anything not owned by the new kind is stale. Exported for tests.
  */
 export function staleDetailModelsForKind(
   keepKind: ItemKind,
+  options: PruneItemDetailsOptions = {},
 ): ItemDetailModel[] {
   const owned = new Set(OWNED_DETAIL_MODELS[keepKind]);
+  if (options.keepImageDetails === false) owned.delete("itemImageDetails");
   return ALL_DETAIL_MODELS.filter((model) => !owned.has(model));
 }
 
@@ -91,10 +103,11 @@ export async function pruneStaleItemDetails(
   client: Prisma.TransactionClient,
   itemId: string,
   keepKind: ItemKind,
+  options: PruneItemDetailsOptions = {},
 ): Promise<void> {
   const delegates = detailDelegates(client);
   await Promise.all(
-    staleDetailModelsForKind(keepKind).map((model) =>
+    staleDetailModelsForKind(keepKind, options).map((model) =>
       delegates[model].deleteMany({ where: { itemId } }),
     ),
   );

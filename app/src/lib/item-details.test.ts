@@ -40,6 +40,26 @@ describe("staleDetailModelsForKind", () => {
     expect(stale).toContain("itemNoteDetails");
   });
 
+  it("prunes image details for a coverless book/product reanalysis", () => {
+    // No cover => no analyze-image run to refresh image details, so the
+    // previous cover's stale analysis must be dropped.
+    expect(
+      staleDetailModelsForKind("product", { keepImageDetails: false }),
+    ).toContain("itemImageDetails");
+    expect(
+      staleDetailModelsForKind("book", { keepImageDetails: false }),
+    ).toContain("itemImageDetails");
+  });
+
+  it("keeps image details for book/product when a cover will be analysed", () => {
+    expect(
+      staleDetailModelsForKind("product", { keepImageDetails: true }),
+    ).not.toContain("itemImageDetails");
+    expect(
+      staleDetailModelsForKind("book", { keepImageDetails: true }),
+    ).not.toContain("itemImageDetails");
+  });
+
   it("never lists a kind's own table as stale", () => {
     expect(staleDetailModelsForKind("image")).not.toContain("itemImageDetails");
     expect(staleDetailModelsForKind("twitter")).not.toContain(

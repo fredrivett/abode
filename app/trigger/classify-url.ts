@@ -573,7 +573,10 @@ export const classifyUrlTask = task({
             kind: itemKind,
             title: metadata.title,
             description: metadata.description,
-            ...(coverResult && { coverFileKey: coverResult.fileKey }),
+            // Clear file columns the new kind doesn't use so they never point
+            // at a blob deleteReplacedFiles is about to remove
+            fileKey: null,
+            coverFileKey: coverResult ? coverResult.fileKey : null,
             meta: {
               originalName: metadata.title,
               ...(coverResult && { coverSize: coverResult.size }),
@@ -682,6 +685,8 @@ async function handleImageUrl(
       data: {
         kind: "image",
         fileKey: imageResult.fileKey,
+        // An image has no separate cover; clear any stale one
+        coverFileKey: null,
         meta: {
           size: imageResult.size,
           type: imageResult.contentType,
@@ -771,7 +776,10 @@ async function handleBookUrl(
         kind: "book",
         title: bookMeta.title,
         description: bookMeta.description,
-        ...(coverResult && { coverFileKey: coverResult.fileKey }),
+        // Clear file columns the new kind doesn't use so they never point
+        // at a blob deleteReplacedFiles is about to remove
+        fileKey: null,
+        coverFileKey: coverResult ? coverResult.fileKey : null,
         meta: {
           originalName: bookMeta.title,
           ...(coverResult && { coverSize: coverResult.size }),
@@ -786,8 +794,11 @@ async function handleBookUrl(
       },
     });
 
-    // Drop detail rows from a prior kind (e.g. this was an article before)
-    await pruneStaleItemDetails(tx, itemId, "book");
+    // Drop detail rows from a prior kind (e.g. this was an article before).
+    // Keep image details only if a cover will be analysed to refresh them.
+    await pruneStaleItemDetails(tx, itemId, "book", {
+      keepImageDetails: !!coverResult,
+    });
 
     return oldFileKeys;
   });
@@ -993,7 +1004,10 @@ async function handleProductUrl(
         kind: "product",
         title: productMeta.title,
         description: productMeta.description,
-        ...(coverFileKey && { coverFileKey }),
+        // Clear file columns the new kind doesn't use so they never point
+        // at a blob deleteReplacedFiles is about to remove
+        fileKey: null,
+        coverFileKey,
         meta: {
           originalName: productMeta.title,
           ...(coverSize > 0 && { coverSize }),
@@ -1001,8 +1015,11 @@ async function handleProductUrl(
       },
     });
 
-    // Drop detail rows from a prior kind (e.g. this was an article before)
-    await pruneStaleItemDetails(tx, itemId, "product");
+    // Drop detail rows from a prior kind (e.g. this was an article before).
+    // Keep image details only if a cover will be analysed to refresh them.
+    await pruneStaleItemDetails(tx, itemId, "product", {
+      keepImageDetails: !!coverFileKey,
+    });
 
     return oldFileKeys;
   });

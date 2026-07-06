@@ -167,7 +167,10 @@ export async function handleVideoUrl(
       data: {
         kind: "video",
         title: metadata.title,
-        ...(thumbnailResult && { coverFileKey: thumbnailResult.fileKey }),
+        // Clear file columns the new kind doesn't use so they never point
+        // at a blob deleteReplacedFiles is about to remove
+        fileKey: null,
+        coverFileKey: thumbnailResult ? thumbnailResult.fileKey : null,
         meta: {
           originalName: metadata.title,
           ...(thumbnailResult && { coverSize: thumbnailResult.size }),
