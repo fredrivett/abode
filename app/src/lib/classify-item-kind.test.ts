@@ -148,8 +148,9 @@ describe("classifyItemKind — HTML-based signals", () => {
   });
 
   it("classifies an Amazon short link as book once redirects resolve", () => {
-    // https://amzn.eu/d/04gXpZji → 301 → the amazon.co.uk product page; the
-    // pipeline classifies on the resolved URL (short-link paths carry no ASIN)
+    // https://amzn.eu/d/04gXpZji → 301 → the amazon.co.uk product page. The
+    // classify-url task captures the post-redirect response.url as
+    // resolvedUrl — required here, since short-link paths carry no ASIN
     const result = classifyItemKind({
       url: "https://amzn.eu/d/04gXpZji",
       resolvedUrl:
