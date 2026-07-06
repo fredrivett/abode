@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import {
   extractProductImageKeys,
+  filesToRemove,
   getItemStorageBytes,
 } from "../src/lib/item-storage";
 
@@ -64,8 +65,7 @@ export async function deleteReplacedFiles(
   oldFileKeys: string[],
   keepFileKeys: string[],
 ): Promise<void> {
-  const keep = new Set(keepFileKeys);
-  const toRemove = [...new Set(oldFileKeys)].filter((key) => !keep.has(key));
+  const toRemove = filesToRemove(oldFileKeys, keepFileKeys);
   if (toRemove.length === 0) return;
 
   const { error } = await supabase.storage.from("items").remove(toRemove);

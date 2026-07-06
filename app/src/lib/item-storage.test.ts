@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { extractProductImageKeys, getItemStorageBytes } from "./item-storage";
+import {
+  extractProductImageKeys,
+  filesToRemove,
+  getItemStorageBytes,
+} from "./item-storage";
 
 describe("getItemStorageBytes", () => {
   it("counts an uploaded image's size", () => {
@@ -46,5 +50,24 @@ describe("extractProductImageKeys", () => {
     expect(extractProductImageKeys(null)).toEqual([]);
     expect(extractProductImageKeys(undefined)).toEqual([]);
     expect(extractProductImageKeys("nope")).toEqual([]);
+  });
+});
+
+describe("filesToRemove", () => {
+  it("removes all previous keys when nothing is reused", () => {
+    expect(filesToRemove(["a", "b"], [])).toEqual(["a", "b"]);
+  });
+
+  it("keeps a key still in use by the new data", () => {
+    // A cover re-selected under the same key must not be deleted
+    expect(filesToRemove(["cover", "old"], ["cover"])).toEqual(["old"]);
+  });
+
+  it("de-duplicates repeated old keys", () => {
+    expect(filesToRemove(["a", "a", "b"], [])).toEqual(["a", "b"]);
+  });
+
+  it("returns empty when every old key is still in use", () => {
+    expect(filesToRemove(["a", "b"], ["a", "b"])).toEqual([]);
   });
 });

@@ -38,3 +38,16 @@ export function extractProductImageKeys(
   }
   return keys;
 }
+
+/**
+ * The subset of an item's previous file keys to remove from storage:
+ * de-duplicated and excluding any key still in use by the new data (new uploads
+ * use fresh UUIDs, so `keepFileKeys` is a safety net rather than a common case).
+ */
+export function filesToRemove(
+  oldFileKeys: string[],
+  keepFileKeys: string[],
+): string[] {
+  const keep = new Set(keepFileKeys);
+  return [...new Set(oldFileKeys)].filter((key) => !keep.has(key));
+}
