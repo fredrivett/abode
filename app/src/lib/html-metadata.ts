@@ -685,6 +685,168 @@ export function isKnownBookUrl(url: string): boolean {
   }
 }
 
+// Amazon product-detail path shapes: /dp/ASIN, /gp/product/ASIN, /gp/aw/d/ASIN
+const AMAZON_ASIN_PATH =
+  /\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?:[/?]|$)/i;
+
+function isAmazonHost(hostname: string): boolean {
+  return /(^|\.)amazon\.[a-z]{2,3}(\.[a-z]{2})?$/.test(hostname);
+}
+
+/**
+ * ISBN-10 check-digit validation (mod 11; positions weighted 10..2, check
+ * character X = 10). Print-book ASINs are the book's ISBN-10, so a valid
+ * ISBN-10 ASIN positively identifies an Amazon page as a book.
+ */
+export function isValidIsbn10(value: string): boolean {
+  if (!/^\d{9}[\dX]$/i.test(value)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += (10 - i) * Number(value[i]);
+  const last = value[9].toUpperCase();
+  sum += last === "X" ? 10 : Number(last);
+  return sum % 11 === 0;
+}
+
+// Amazon <title> category markers for book pages across locales
+const AMAZON_BOOK_TITLE_MARKERS = new Set([
+  "books",
+  "bücher",
+  "livres",
+  "libros",
+  "libri",
+]);
+
+type AmazonTitleParts = {
+  title: string;
+  authors: string[];
+  isbn: string | null;
+};
+
+/**
+ * Parses Amazon's structured page <title>. Two observed shapes:
+ * - Print:  "Title: Amazon.co.uk: Last, First, Last, First: 9781847940322: Books"
+ * - Kindle: "Title eBook : Last, First: Amazon.co.uk: Books"
+ * Returns null unless the trailing Books category marker is present.
+ */
+function parseAmazonTitle(rawTitle: string): AmazonTitleParts | null {
+  const segments = rawTitle.split(":").map((s) => s.trim());
+  if (segments.length < 3) return null;
+  const marker = segments[segments.length - 1].toLowerCase();
+  if (!AMAZON_BOOK_TITLE_MARKERS.has(marker)) return null;
+
+  const amazonIdx = segments.findIndex((s) => /^amazon\.[a-z.]+$/i.test(s));
+  if (amazonIdx <= 0) return null;
+
+  const isbnSegment = segments.find((s) => /^97[89][\d-]{10,14}$/.test(s));
+  const isAuthorSegment = (s: string | undefined) =>
+    !!s && s.includes(",") && !/^97[89]/.test(s);
+
+  // Authors sit after the Amazon segment on print pages, before it on Kindle
+  let authorSegment: string | null = null;
+  let titleEnd = amazonIdx;
+  if (isAuthorSegment(segments[amazonIdx + 1])) {
+    authorSegment = segments[amazonIdx + 1];
+  } else if (isAuthorSegment(segments[amazonIdx - 1])) {
+    authorSegment = segments[amazonIdx - 1];
+    titleEnd = amazonIdx - 1;
+  }
+  if (titleEnd < 1) return null;
+
+  const title = segments
+    .slice(0, titleEnd)
+    .join(": ")
+    .replace(/\s+eBook$/i, "");
+
+  return {
+    title,
+    authors: authorSegment ? parseAmazonAuthors(authorSegment) : [],
+    isbn: isbnSegment ? isbnSegment.replace(/-/g, "") : null,
+  };
+}
+
+// Amazon lists authors as "Last, First" pairs; fold them back to "First Last"
+function parseAmazonAuthors(segment: string): string[] {
+  const tokens = segment
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (tokens.length >= 2 && tokens.length % 2 === 0) {
+    const authors: string[] = [];
+    for (let i = 0; i < tokens.length; i += 2) {
+      authors.push(`${tokens[i + 1]} ${tokens[i]}`);
+    }
+    return authors;
+  }
+  return tokens.length > 0 ? [segment.trim()] : [];
+}
+
+/**
+ * Extracts the cover image from an Amazon book page (they expose no
+ * og:image). Prefers the hi-res source, then the responsive image set, then
+ * the plain src; strips Amazon's `._SY342_`-style size modifier to get the
+ * full-size image.
+ */
+export function extractAmazonCoverImage(html: string): string | null {
+  const imgTag = html.match(
+    /<img[^>]*id="(?:landingImage|ebooksImgBlkFront|imgBlkFront)"[^>]*>/i,
+  )?.[0];
+  if (!imgTag) return null;
+
+  const oldHires = imgTag.match(/data-old-hires="([^"]+)"/i)?.[1];
+  // data-a-dynamic-image is an entity-encoded JSON map keyed by URL
+  const dynamicFirst = imgTag
+    .match(/data-a-dynamic-image="([^"]+)"/i)?.[1]
+    ?.match(/https:\/\/[^&"]+/)?.[0];
+  const src = imgTag.match(/\ssrc="([^"]+)"/i)?.[1];
+
+  const url = oldHires ?? dynamicFirst ?? src;
+  if (!url) return null;
+  return url.replace(/\._[^./]+_(\.[a-z]{3,4})$/i, "$1");
+}
+
+/**
+ * Amazon-specific book detection. Amazon pages ship no structured metadata
+ * (no og:type, JSON-LD, or book:* tags), so a page is treated as a book when
+ * it is a product-detail URL and either the ASIN is a valid ISBN-10 (print
+ * books) or the <title> carries Amazon's Books category marker (Kindle
+ * editions and 979-prefixed ISBNs, which have no ISBN-10 ASIN).
+ */
+function extractAmazonBookMetadata(
+  html: string,
+  url: string,
+): BookMetadata | null {
+  let hostname: string;
+  let pathname: string;
+  try {
+    const parsed = new URL(url);
+    hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    pathname = parsed.pathname;
+  } catch {
+    return null;
+  }
+  if (!isAmazonHost(hostname)) return null;
+
+  const asin = pathname.match(AMAZON_ASIN_PATH)?.[1];
+  if (!asin) return null;
+
+  const rawTitle = extractTitle(html);
+  const titleParts = rawTitle ? parseAmazonTitle(rawTitle) : null;
+  const asinIsbn = isValidIsbn10(asin) ? asin.toUpperCase() : null;
+  if (!asinIsbn && !titleParts) return null;
+
+  return {
+    title: titleParts?.title ?? rawTitle,
+    description: extractDescription(html),
+    domain: extractDomain(url),
+    authors: titleParts?.authors ?? [],
+    isbn: titleParts?.isbn ?? asinIsbn,
+    publisher: null,
+    publishedAt: null,
+    pageCount: null,
+    ogImage: extractAmazonCoverImage(html),
+  };
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
 function findBookInJsonLd(data: any): any | null {
   if (!data || typeof data !== "object") return null;
@@ -801,6 +963,8 @@ export function extractJsonLdBook(html: string): {
  * 2. JSON-LD with @type: "Book"
  * 3. Book-specific OG meta tags (book:isbn / books:isbn, book:release_date)
  * 4. URL matches a known book-detail page pattern
+ * 5. Amazon product-detail page with an ISBN-10 ASIN or a Books-category
+ *    title (Amazon pages expose no structured metadata at all)
  *
  * Book detection runs before product detection so that book pages that also
  * expose product/price metadata (a book is a subset of "product") resolve to book.
@@ -832,7 +996,8 @@ export function extractBookMetadata(
   const hasBookOgTags = !!(isbnMeta || releaseDateMeta);
 
   if (!isOgBook && !jsonLd && !hasBookOgTags && !isKnownBookUrl(url)) {
-    return null;
+    // Amazon ships none of the structured signals; detect via ASIN/title
+    return extractAmazonBookMetadata(html, url);
   }
 
   // Prefer JSON-LD author names (real names); the OG `book:author` value is

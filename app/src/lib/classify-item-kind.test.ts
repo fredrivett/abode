@@ -11,6 +11,14 @@ const audioTechnicaProductFixture = readFileSync(
   join(__dirname, "__fixtures__/audio-technica-product-snippet.html"),
   "utf-8",
 );
+const amazonBookFixture = readFileSync(
+  join(__dirname, "__fixtures__/amazon-book-snippet.html"),
+  "utf-8",
+);
+const amazonKindleBookFixture = readFileSync(
+  join(__dirname, "__fixtures__/amazon-kindle-book-snippet.html"),
+  "utf-8",
+);
 
 /** Helper: classify with sensible defaults, overriding as needed. */
 function classify(overrides: {
@@ -137,6 +145,63 @@ describe("classifyItemKind — HTML-based signals", () => {
       html: goodreadsBookFixture,
     });
     expect(result?.kind).toBe("book");
+  });
+
+  it("classifies an Amazon short link as book once redirects resolve", () => {
+    // https://amzn.eu/d/04gXpZji → 301 → the amazon.co.uk product page. The
+    // classify-url task captures the post-redirect response.url as
+    // resolvedUrl — required here, since short-link paths carry no ASIN
+    const result = classifyItemKind({
+      url: "https://amzn.eu/d/04gXpZji",
+      resolvedUrl:
+        "https://www.amazon.co.uk/dp/1847940323?ref=cm_sw_r_ffobk_cso_cp_mwn_dp",
+      contentType: "text/html",
+      html: amazonBookFixture,
+    });
+    expect(result?.kind).toBe("book");
+    if (result?.kind === "book") {
+      expect(result.bookMeta.title).toBe(
+        "Switch: How to change things when change is hard",
+      );
+      expect(result.bookMeta.authors).toEqual(["Dan Heath", "Chip Heath"]);
+      expect(result.bookMeta.isbn).toBe("9781847940322");
+    }
+  });
+
+  it("classifies an Amazon slug URL as book", () => {
+    const result = classifyItemKind({
+      url: "https://www.amazon.co.uk/Switch-change-things-when-hard/dp/1847940323",
+      resolvedUrl:
+        "https://www.amazon.co.uk/Switch-change-things-when-hard/dp/1847940323",
+      contentType: "text/html",
+      html: amazonBookFixture,
+    });
+    expect(result?.kind).toBe("book");
+  });
+
+  it("classifies an Amazon Kindle edition as book", () => {
+    const result = classifyItemKind({
+      url: "https://www.amazon.co.uk/dp/B005TKD512",
+      resolvedUrl: "https://www.amazon.co.uk/dp/B005TKD512",
+      contentType: "text/html",
+      html: amazonKindleBookFixture,
+    });
+    expect(result?.kind).toBe("book");
+    if (result?.kind === "book") {
+      expect(result.bookMeta.authors).toEqual(["Chip Heath", "Dan Heath"]);
+    }
+  });
+
+  it("does not classify a non-book Amazon product as book", () => {
+    const html =
+      "<title>Sony WH-1000XM5 Noise Cancelling Headphones: Amazon.co.uk: Electronics</title>";
+    const result = classifyItemKind({
+      url: "https://www.amazon.co.uk/dp/B09XS7JWHH",
+      resolvedUrl: "https://www.amazon.co.uk/dp/B09XS7JWHH",
+      contentType: "text/html",
+      html,
+    });
+    expect(result?.kind).not.toBe("book");
   });
 
   it("classifies long readable content as article", () => {

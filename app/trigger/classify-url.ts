@@ -346,7 +346,7 @@ export const classifyUrlTask = task({
         }
       }
 
-      const fetchUrl = resolvedUrl;
+      let fetchUrl = resolvedUrl;
 
       // Step 1: Classify from the URL alone (tweets, Twitter articles, videos) —
       // no page fetch needed for these.
@@ -443,6 +443,19 @@ export const classifyUrlTask = task({
 
       if (!response.ok) {
         throw new Error(`Failed to fetch URL: ${response.status}`);
+      }
+
+      // The GET follows redirects (amzn.eu → amazon.co.uk, bit.ly, etc.) —
+      // classify and extract against the destination so URL-pattern signals
+      // (book/product detection) and relative URLs resolve correctly.
+      if (response.url && response.url !== fetchUrl) {
+        logger.log("URL redirected during fetch", {
+          itemId,
+          from: fetchUrl,
+          to: response.url,
+        });
+        resolvedUrl = response.url;
+        fetchUrl = response.url;
       }
 
       const finalContentType = response.headers.get("content-type");
