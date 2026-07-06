@@ -1,8 +1,16 @@
 import type { ItemKind, Prisma } from "@prisma/client";
 
 /**
- * All per-kind detail tables. Each item kind stores its type-specific data in a
- * separate optional 1:1 table.
+ * A per-kind detail model — every Prisma model named `Item<Something>Details`.
+ * Derived from the schema so the set stays authoritative.
+ */
+type ItemDetailModel = Uncapitalize<
+  Extract<Prisma.ModelName, `Item${string}Details`>
+>;
+
+/**
+ * Runtime list of the detail models, needed to iterate them. Each item kind
+ * stores its type-specific data in a separate optional 1:1 table.
  */
 const ALL_DETAIL_MODELS = [
   "itemArticleDetails",
@@ -12,9 +20,15 @@ const ALL_DETAIL_MODELS = [
   "itemProductDetails",
   "itemBookDetails",
   "itemNoteDetails",
-] as const;
+] as const satisfies readonly ItemDetailModel[];
 
-type ItemDetailModel = (typeof ALL_DETAIL_MODELS)[number];
+// Compile-time completeness guard: a new Item*Details model in the schema that
+// isn't listed in ALL_DETAIL_MODELS makes this Exclude non-never, which then
+// violates the `extends never` constraint and fails typecheck.
+type AssertNever<T extends never> = T;
+type _AllDetailModelsListed = AssertNever<
+  Exclude<ItemDetailModel, (typeof ALL_DETAIL_MODELS)[number]>
+>;
 
 /**
  * The detail tables that legitimately hold data for an item of a given kind.
