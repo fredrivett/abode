@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { api } from "./api-client";
 import { useInvalidateItems } from "./api-hooks";
 import { createLogger } from "./logger.client";
+import { useInvalidateFilterOptions } from "./search/use-filter-options";
 
 const log = createLogger("use-processing-poll");
 
@@ -18,6 +19,44 @@ type StatusResponse = {
 
 const POLL_INTERVAL_MS = 1500; // Poll every 1.5 seconds
 
+type PollItemStatus = StatusResponse["items"][number];
+
+/**
+ * Given the latest status for the polled items and the last-seen `updatedAt`
+ * per item, work out which items finished and which changed mid-processing.
+ * Mutates `lastSeen`, recording the newest `updatedAt` for each item.
+ *
+ * The first sighting of an item only records a baseline (never counted as
+ * "updated"), so we don't refetch items that haven't changed since the grid
+ * loaded them.
+ */
+export function detectProcessingChanges(
+  items: PollItemStatus[],
+  lastSeen: Map<string, string>,
+): {
+  finished: PollItemStatus[];
+  updated: PollItemStatus[];
+  changed: boolean;
+} {
+  const finished = items.filter(
+    (item) =>
+      item.processingStatus === "completed" ||
+      item.processingStatus === "failed",
+  );
+
+  const updated = items.filter((item) => {
+    const previous = lastSeen.get(item.id);
+    lastSeen.set(item.id, item.updatedAt);
+    return previous !== undefined && previous !== item.updatedAt;
+  });
+
+  return {
+    finished,
+    updated,
+    changed: finished.length > 0 || updated.length > 0,
+  };
+}
+
 /**
  * Hook that polls the server for progress on processing items.
  * Invalidates the items query when an item finishes (completed/failed) or is
@@ -28,6 +67,7 @@ const POLL_INTERVAL_MS = 1500; // Poll every 1.5 seconds
  */
 export function useProcessingPoll(processingItemIds: string[]) {
   const invalidateItems = useInvalidateItems();
+  const invalidateFilterOptions = useInvalidateFilterOptions();
   // Last updatedAt seen per item, to detect mid-processing changes
   const lastSeenUpdatedAtRef = useRef<Map<string, string>>(new Map());
 
@@ -40,25 +80,12 @@ export function useProcessingPoll(processingItemIds: string[]) {
         `/api/v1/items/status?ids=${encodeURIComponent(idsParam)}`,
       );
 
-      const lastSeen = lastSeenUpdatedAtRef.current;
-
-      // Items that finished processing
-      const finished = response.items.filter(
-        (item) =>
-          item.processingStatus === "completed" ||
-          item.processingStatus === "failed",
+      const { finished, updated, changed } = detectProcessingChanges(
+        response.items,
+        lastSeenUpdatedAtRef.current,
       );
 
-      // Items updated mid-processing (e.g. URL classified, analysis written).
-      // The first sighting only records a baseline, so we don't refetch
-      // items that haven't changed since the grid loaded them.
-      const updated = response.items.filter((item) => {
-        const previous = lastSeen.get(item.id);
-        lastSeen.set(item.id, item.updatedAt);
-        return previous !== undefined && previous !== item.updatedAt;
-      });
-
-      if (finished.length > 0 || updated.length > 0) {
+      if (changed) {
         log.info(
           {
             finishedIds: finished.map((i) => i.id),
@@ -67,11 +94,14 @@ export function useProcessingPoll(processingItemIds: string[]) {
           "Processing items changed, invalidating query",
         );
         invalidateItems();
+        // Classification/analysis can introduce a new kind, source, tag, etc,
+        // so refresh the filter options that power the search autocomplete
+        invalidateFilterOptions();
       }
     } catch (error) {
       log.error({ error }, "Failed to check processing status");
     }
-  }, [processingItemIds, invalidateItems]);
+  }, [processingItemIds, invalidateItems, invalidateFilterOptions]);
 
   useEffect(() => {
     // Don't poll if no processing items
