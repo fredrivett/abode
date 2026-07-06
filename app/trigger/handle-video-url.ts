@@ -8,6 +8,10 @@ import {
   getBestYouTubeThumbnailUrl,
 } from "../src/lib/video-metadata";
 import type { enrichItemTask } from "./enrich-item";
+import {
+  deleteReplacedFiles,
+  reclaimReplacedStorage,
+} from "./reclaim-item-storage";
 
 export type VideoPlatform = "youtube" | "vimeo";
 
@@ -149,7 +153,14 @@ export async function handleVideoUrl(
   }
 
   // Update item and create video details in a transaction
-  await db.$transaction(async (tx) => {
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous thumbnail's storage before overwriting meta
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: thumbnailResult?.size ?? 0,
+    });
+
     // Update item with video metadata
     await tx.item.update({
       where: { id: itemId, userId },
@@ -169,14 +180,6 @@ export async function handleVideoUrl(
     // Drop detail rows from a prior kind (e.g. this was an article before)
     await pruneStaleItemDetails(tx, itemId, "video");
 
-    // Update storage accounting for thumbnail
-    if (thumbnailResult && thumbnailResult.size > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(thumbnailResult.size) } },
-      });
-    }
-
     // Upsert video details record (idempotent for retries)
     const videoDetailsData = {
       platform,
@@ -192,7 +195,16 @@ export async function handleVideoUrl(
       create: { itemId, ...videoDetailsData },
       update: videoDetailsData,
     });
+
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new thumbnail is committed
+  await deleteReplacedFiles(
+    supabase,
+    replacedFileKeys,
+    thumbnailResult ? [thumbnailResult.fileKey] : [],
+  );
 
   logger.log("Video item saved", { itemId, platform, videoId });
 

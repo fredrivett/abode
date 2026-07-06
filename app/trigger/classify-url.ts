@@ -27,6 +27,10 @@ import type { enrichItemTask } from "./enrich-item";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
+import {
+  deleteReplacedFiles,
+  reclaimReplacedStorage,
+} from "./reclaim-item-storage";
 
 type ClassifyUrlPayload = {
   itemId: string;
@@ -554,8 +558,15 @@ export const classifyUrlTask = task({
         }
       }
 
-      // Update item with data and track cover image storage
-      await db.$transaction(async (tx) => {
+      // Update item with data and reconcile cover image storage
+      const replacedFileKeys = await db.$transaction(async (tx) => {
+        // Reclaim the previous cover's storage before overwriting meta
+        const oldFileKeys = await reclaimReplacedStorage(tx, {
+          itemId,
+          userId,
+          addedBytes: coverResult?.size ?? 0,
+        });
+
         await tx.item.update({
           where: { id: itemId, userId },
           data: {
@@ -573,14 +584,15 @@ export const classifyUrlTask = task({
         // Drop detail rows from a prior kind (e.g. this was a product before)
         await pruneStaleItemDetails(tx, itemId, itemKind);
 
-        // Update storage accounting for cover image
-        if (coverResult && coverResult.size > 0) {
-          await tx.user.update({
-            where: { id: userId },
-            data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
-          });
-        }
+        return oldFileKeys;
       });
+
+      // Delete the previous blobs now the new cover is committed
+      await deleteReplacedFiles(
+        supabase,
+        replacedFileKeys,
+        coverResult ? [coverResult.fileKey] : [],
+      );
 
       // Upsert article details record (idempotent for retries, only for articles with real content)
       if (itemKind === "article") {
@@ -656,8 +668,15 @@ async function handleImageUrl(
     throw new Error("Failed to download image from URL");
   }
 
-  // Update item with image data and track storage
-  await db.$transaction(async (tx) => {
+  // Update item with image data and reconcile storage
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous file's storage before overwriting meta
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: imageResult.size,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
@@ -676,14 +695,11 @@ async function handleImageUrl(
     // Drop detail rows from a prior kind (e.g. this was an article before)
     await pruneStaleItemDetails(tx, itemId, "image");
 
-    // Update storage accounting
-    if (imageResult.size > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(imageResult.size) } },
-      });
-    }
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new image is committed
+  await deleteReplacedFiles(supabase, replacedFileKeys, [imageResult.fileKey]);
 
   // Trigger image analysis
   await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
@@ -741,7 +757,14 @@ async function handleBookUrl(
     }
   }
 
-  await db.$transaction(async (tx) => {
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous cover's storage before overwriting meta
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: coverResult?.size ?? 0,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
@@ -766,13 +789,15 @@ async function handleBookUrl(
     // Drop detail rows from a prior kind (e.g. this was an article before)
     await pruneStaleItemDetails(tx, itemId, "book");
 
-    if (coverResult && coverResult.size > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
-      });
-    }
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new cover is committed
+  await deleteReplacedFiles(
+    supabase,
+    replacedFileKeys,
+    coverResult ? [coverResult.fileKey] : [],
+  );
 
   const bookDetailsData = {
     authors: bookMeta.authors,
@@ -951,9 +976,17 @@ async function handleProductUrl(
   });
 
   const coverFileKey = storedImages[0]?.fileKey ?? null;
-  const totalImageSize = storedImages.reduce((sum, img) => sum + img.size, 0);
+  const coverSize = storedImages[0]?.size ?? 0;
 
-  await db.$transaction(async (tx) => {
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous images' storage before overwriting meta. Storage is
+    // accounted per the cover only (meta.coverSize), matching reconcile-user-data.
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: coverSize,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
@@ -963,7 +996,7 @@ async function handleProductUrl(
         ...(coverFileKey && { coverFileKey }),
         meta: {
           originalName: productMeta.title,
-          ...(totalImageSize > 0 && { coverSize: storedImages[0]?.size }),
+          ...(coverSize > 0 && { coverSize }),
         },
       },
     });
@@ -971,13 +1004,15 @@ async function handleProductUrl(
     // Drop detail rows from a prior kind (e.g. this was an article before)
     await pruneStaleItemDetails(tx, itemId, "product");
 
-    if (totalImageSize > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(totalImageSize) } },
-      });
-    }
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new images are committed
+  await deleteReplacedFiles(
+    supabase,
+    replacedFileKeys,
+    storedImages.map((image) => image.fileKey),
+  );
 
   const productDetailsData = {
     domain: productMeta.domain,
