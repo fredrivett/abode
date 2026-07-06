@@ -27,12 +27,6 @@ export default defineConfig({
     {
       name: "setup",
       testMatch: /.*\.setup\.ts/,
-      // Auth setup gates all 23 authenticated tests, and its single sign-in is
-      // the most cold-start-sensitive step in the suite (first Supabase auth +
-      // first-compile of the dashboard route). Retry it in CI so a transient
-      // hiccup doesn't skip the whole suite; a genuinely broken login still
-      // fails every attempt, so this doesn't mask real regressions.
-      retries: process.env.CI ? 2 : 0,
     },
     {
       name: "chromium",
