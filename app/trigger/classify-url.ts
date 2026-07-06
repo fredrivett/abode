@@ -18,6 +18,7 @@ import {
   preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
+import { pruneStaleItemDetails } from "../src/lib/item-details";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
@@ -26,6 +27,10 @@ import type { enrichItemTask } from "./enrich-item";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
+import {
+  deleteReplacedFiles,
+  reclaimReplacedStorage,
+} from "./reclaim-item-storage";
 
 type ClassifyUrlPayload = {
   itemId: string;
@@ -566,15 +571,25 @@ export const classifyUrlTask = task({
         }
       }
 
-      // Update item with data and track cover image storage
-      await db.$transaction(async (tx) => {
+      // Update item with data and reconcile cover image storage
+      const replacedFileKeys = await db.$transaction(async (tx) => {
+        // Reclaim the previous cover's storage before overwriting meta
+        const oldFileKeys = await reclaimReplacedStorage(tx, {
+          itemId,
+          userId,
+          addedBytes: coverResult?.size ?? 0,
+        });
+
         await tx.item.update({
           where: { id: itemId, userId },
           data: {
             kind: itemKind,
             title: metadata.title,
             description: metadata.description,
-            ...(coverResult && { coverFileKey: coverResult.fileKey }),
+            // Clear file columns the new kind doesn't use so they never point
+            // at a blob deleteReplacedFiles is about to remove
+            fileKey: null,
+            coverFileKey: coverResult ? coverResult.fileKey : null,
             meta: {
               originalName: metadata.title,
               ...(coverResult && { coverSize: coverResult.size }),
@@ -582,14 +597,18 @@ export const classifyUrlTask = task({
           },
         });
 
-        // Update storage accounting for cover image
-        if (coverResult && coverResult.size > 0) {
-          await tx.user.update({
-            where: { id: userId },
-            data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
-          });
-        }
+        // Drop detail rows from a prior kind (e.g. this was a product before)
+        await pruneStaleItemDetails(tx, itemId, itemKind);
+
+        return oldFileKeys;
       });
+
+      // Delete the previous blobs now the new cover is committed
+      await deleteReplacedFiles(
+        supabase,
+        replacedFileKeys,
+        coverResult ? [coverResult.fileKey] : [],
+      );
 
       // Upsert article details record (idempotent for retries, only for articles with real content)
       if (itemKind === "article") {
@@ -665,13 +684,22 @@ async function handleImageUrl(
     throw new Error("Failed to download image from URL");
   }
 
-  // Update item with image data and track storage
-  await db.$transaction(async (tx) => {
+  // Update item with image data and reconcile storage
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous file's storage before overwriting meta
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: imageResult.size,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
         kind: "image",
         fileKey: imageResult.fileKey,
+        // An image has no separate cover; clear any stale one
+        coverFileKey: null,
         meta: {
           size: imageResult.size,
           type: imageResult.contentType,
@@ -682,14 +710,14 @@ async function handleImageUrl(
       },
     });
 
-    // Update storage accounting
-    if (imageResult.size > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(imageResult.size) } },
-      });
-    }
+    // Drop detail rows from a prior kind (e.g. this was an article before)
+    await pruneStaleItemDetails(tx, itemId, "image");
+
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new image is committed
+  await deleteReplacedFiles(supabase, replacedFileKeys, [imageResult.fileKey]);
 
   // Trigger image analysis
   await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
@@ -747,14 +775,24 @@ async function handleBookUrl(
     }
   }
 
-  await db.$transaction(async (tx) => {
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous cover's storage before overwriting meta
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: coverResult?.size ?? 0,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
         kind: "book",
         title: bookMeta.title,
         description: bookMeta.description,
-        ...(coverResult && { coverFileKey: coverResult.fileKey }),
+        // Clear file columns the new kind doesn't use so they never point
+        // at a blob deleteReplacedFiles is about to remove
+        fileKey: null,
+        coverFileKey: coverResult ? coverResult.fileKey : null,
         meta: {
           originalName: bookMeta.title,
           ...(coverResult && { coverSize: coverResult.size }),
@@ -769,13 +807,21 @@ async function handleBookUrl(
       },
     });
 
-    if (coverResult && coverResult.size > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(coverResult.size) } },
-      });
-    }
+    // Drop detail rows from a prior kind (e.g. this was an article before).
+    // Keep image details only if a cover will be analysed to refresh them.
+    await pruneStaleItemDetails(tx, itemId, "book", {
+      keepImageDetails: !!coverResult,
+    });
+
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new cover is committed
+  await deleteReplacedFiles(
+    supabase,
+    replacedFileKeys,
+    coverResult ? [coverResult.fileKey] : [],
+  );
 
   const bookDetailsData = {
     authors: bookMeta.authors,
@@ -954,30 +1000,49 @@ async function handleProductUrl(
   });
 
   const coverFileKey = storedImages[0]?.fileKey ?? null;
-  const totalImageSize = storedImages.reduce((sum, img) => sum + img.size, 0);
+  const coverSize = storedImages[0]?.size ?? 0;
 
-  await db.$transaction(async (tx) => {
+  const replacedFileKeys = await db.$transaction(async (tx) => {
+    // Reclaim the previous images' storage before overwriting meta. Storage is
+    // accounted per the cover only (meta.coverSize), matching reconcile-user-data.
+    const oldFileKeys = await reclaimReplacedStorage(tx, {
+      itemId,
+      userId,
+      addedBytes: coverSize,
+    });
+
     await tx.item.update({
       where: { id: itemId, userId },
       data: {
         kind: "product",
         title: productMeta.title,
         description: productMeta.description,
-        ...(coverFileKey && { coverFileKey }),
+        // Clear file columns the new kind doesn't use so they never point
+        // at a blob deleteReplacedFiles is about to remove
+        fileKey: null,
+        coverFileKey,
         meta: {
           originalName: productMeta.title,
-          ...(totalImageSize > 0 && { coverSize: storedImages[0]?.size }),
+          ...(coverSize > 0 && { coverSize }),
         },
       },
     });
 
-    if (totalImageSize > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { storageUsedBytes: { increment: BigInt(totalImageSize) } },
-      });
-    }
+    // Drop detail rows from a prior kind (e.g. this was an article before).
+    // Keep image details only if a cover will be analysed to refresh them.
+    await pruneStaleItemDetails(tx, itemId, "product", {
+      keepImageDetails: !!coverFileKey,
+    });
+
+    return oldFileKeys;
   });
+
+  // Delete the previous blobs now the new images are committed
+  await deleteReplacedFiles(
+    supabase,
+    replacedFileKeys,
+    storedImages.map((image) => image.fileKey),
+  );
 
   const productDetailsData = {
     domain: productMeta.domain,
