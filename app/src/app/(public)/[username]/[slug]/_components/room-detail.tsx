@@ -19,6 +19,7 @@ import type { CSSProperties } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { GridItemReveal } from "@/components/grid/grid-item-reveal";
 import { EmbedStatsDialog } from "@/components/rooms/embed-stats-dialog";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { ShareRoomDialog } from "@/components/rooms/share-room-dialog";
@@ -385,7 +386,7 @@ export function RoomDetail({
               gap={gap}
               style={{ overflow: "visible !important" }}
             >
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const meta = item.meta || {};
                 const isArticleOrWebpage =
                   item.kind === "article" || item.kind === "webpage";
@@ -406,13 +407,15 @@ export function RoomDetail({
 
                 return (
                   <Frame key={item.id} width={width} height={height}>
-                    <ItemCard
-                      item={item}
-                      name={name}
-                      size={size}
-                      mimeType={mimeType}
-                      canEdit={isOwner}
-                    />
+                    <GridItemReveal index={index}>
+                      <ItemCard
+                        item={item}
+                        name={name}
+                        size={size}
+                        mimeType={mimeType}
+                        canEdit={isOwner}
+                      />
+                    </GridItemReveal>
                   </Frame>
                 );
               })}

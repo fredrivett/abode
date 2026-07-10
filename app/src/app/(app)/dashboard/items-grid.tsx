@@ -4,6 +4,7 @@ import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
 import type { CSSProperties } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
+import { GridItemReveal } from "@/components/grid/grid-item-reveal";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useGridDensity } from "@/hooks/use-grid-density";
@@ -141,7 +142,7 @@ export function ItemsGrid({
             gap={gap}
             style={{ overflow: "visible !important" }}
           >
-            {items.map((item) => {
+            {items.map((item, index) => {
               const meta = item.meta || {};
               const isArticleOrWebpage =
                 item.kind === "article" || item.kind === "webpage";
@@ -227,14 +228,14 @@ export function ItemsGrid({
 
               return (
                 <Frame key={item.id} width={width} height={height}>
-                  <div className="h-full">
+                  <GridItemReveal index={index}>
                     <ItemCard
                       item={item}
                       name={name}
                       size={size}
                       mimeType={mimeType}
                     />
-                  </div>
+                  </GridItemReveal>
                 </Frame>
               );
             })}
