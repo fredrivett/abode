@@ -25,6 +25,15 @@ export const NOTE_PROSE_FONT_SIZE = "max(0.75rem, 0.875em)";
  */
 export const NOTE_PROSE_LINE_HEIGHT = 1.7142857;
 
+/**
+ * Loose-list items wrap their content in a `<p>`, whose top/bottom margins
+ * otherwise double the gap between items. Zero the first/last child's outer
+ * margins so spacing comes from the list item alone. Shared by the note card /
+ * composer prose and the detail-view editor.
+ */
+export const LOOSE_LIST_MARGIN_FIX =
+  "[&_li>*:first-child]:mt-0 [&_li>*:last-child]:mb-0";
+
 const NOTE_PROSE_PARTS = [
   // Base scale and colors
   "prose prose-sm dark:prose-invert max-w-none text-muted-foreground",
@@ -37,9 +46,7 @@ const NOTE_PROSE_PARTS = [
   "prose-p:my-[0.4em]",
   "prose-headings:my-[0.4em]",
   "prose-ul:my-[0.4em] prose-ol:my-[0.4em] prose-li:my-[0.15em]",
-  // Loose-list items wrap their content in <p>; drop that paragraph's outer
-  // margins so item spacing comes from the list item, not doubled inside it
-  "[&_li>*:first-child]:mt-0 [&_li>*:last-child]:mb-0",
+  LOOSE_LIST_MARGIN_FIX,
   "prose-blockquote:my-[0.5em]",
   "prose-pre:my-[0.5em]",
   "prose-hr:my-[0.75em]",

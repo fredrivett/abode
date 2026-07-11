@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { LOOSE_LIST_MARGIN_FIX } from "./note-prose";
 
 // A document whose first node must be a heading, so the note always opens with
 // a title line (Notion-style). The required heading can't be deleted, only
@@ -48,8 +49,7 @@ type NoteEditorProps = {
 // would drop it to 14px, which makes iOS Safari auto-zoom the UI on focus
 const EDITOR_BASE_CLASS =
   "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
-const DEFAULT_PROSE_CLASS =
-  "prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none";
+const DEFAULT_PROSE_CLASS = `prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none ${LOOSE_LIST_MARGIN_FIX}`;
 
 /**
  * WYSIWYG note editor backed by markdown.
