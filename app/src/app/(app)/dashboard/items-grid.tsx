@@ -9,6 +9,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { getBookTileFrame } from "@/lib/book-cover";
+import { noteDisplayName } from "@/lib/items/note-title";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
@@ -173,6 +174,12 @@ export function ItemsGrid({
                 } catch {
                   name = "Processing URL";
                 }
+              } else if (isNote && !item.title) {
+                // Title-less notes (body doesn't open with a heading) fall back
+                // to their first line rather than showing "Untitled"
+                name =
+                  noteDisplayName(item.noteDetails?.content ?? "") ??
+                  "Untitled";
               } else {
                 name = item.title ?? "Untitled";
               }
