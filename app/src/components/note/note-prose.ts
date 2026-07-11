@@ -40,10 +40,11 @@ export const LOOSE_LIST_MARGIN_FIX =
 const NOTE_PROSE_PARTS = [
   // Base scale and colors
   "prose prose-sm dark:prose-invert max-w-none text-muted-foreground",
-  // Headings flattened to near-body size; distinct via weight and color. With
-  // sizes flattened they sit on the body rhythm: inherit the root line-height
-  // (prose-sm gives headings tighter leading tuned for large display sizes)
-  "prose-headings:font-semibold prose-headings:text-[1.05em] prose-headings:text-foreground prose-headings:leading-[inherit]",
+  // Compact descending scale so heading levels are distinguishable without the
+  // article-sized jumps prose-sm defaults to; em-relative so they track the
+  // note's --note-prose-size everywhere
+  "prose-headings:font-semibold prose-headings:text-foreground prose-headings:leading-[1.25]",
+  "prose-h1:text-[1.25em] prose-h2:text-[1.15em] prose-h3:text-[1.05em] prose-h4:text-[1em] prose-h5:text-[0.9em] prose-h6:text-[0.85em]",
   // Tight, even vertical rhythm across block types — prose-sm's defaults are
   // tuned for full articles and read too loose inside a small card
   "prose-p:my-[0.4em]",

@@ -17,7 +17,7 @@ const TitleDocument = Document.extend({ content: "heading block*" });
 // size from the shared prose. `[&>*:first-child]` has real specificity, so it
 // beats the plugin's `:where()` heading rules.
 const TITLE_HEADING_CLASS =
-  "[&>*:first-child]:font-serif [&>*:first-child]:font-semibold [&>*:first-child]:text-[1.3em] [&>*:first-child]:leading-[1.2] [&>*:first-child]:text-foreground [&>*:first-child]:mb-[0.5em]";
+  "[&>*:first-child]:font-serif [&>*:first-child]:font-semibold [&>*:first-child]:text-[1.4em] [&>*:first-child]:leading-[1.2] [&>*:first-child]:text-foreground [&>*:first-child]:mb-[0.5em]";
 
 type NoteEditorProps = {
   /** Initial markdown content */
