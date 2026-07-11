@@ -37,6 +37,9 @@ const NOTE_PROSE_PARTS = [
   "prose-p:my-[0.4em]",
   "prose-headings:my-[0.4em]",
   "prose-ul:my-[0.4em] prose-ol:my-[0.4em] prose-li:my-[0.15em]",
+  // Loose-list items wrap their content in <p>; drop that paragraph's outer
+  // margins so item spacing comes from the list item, not doubled inside it
+  "[&_li>*:first-child]:mt-0 [&_li>*:last-child]:mb-0",
   "prose-blockquote:my-[0.5em]",
   "prose-pre:my-[0.5em]",
   "prose-hr:my-[0.75em]",
