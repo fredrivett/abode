@@ -32,6 +32,10 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // Build directory. Overridable so the E2E dev server can use its own dir
+  // (`.next-e2e`) and run alongside a normal `bun run dev` without fighting
+  // over `.next/dev/lock`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Expose the build's git SHA to client + server so analytics/errors can be
   // linked back to the deploy that produced them.
   env: {
