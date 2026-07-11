@@ -6,7 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { LOOSE_LIST_MARGIN_FIX } from "./note-prose";
+import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
 
 // A document whose first node must be a heading, so the note always opens with
 // a title line (Notion-style). The required heading can't be deleted, only
@@ -29,14 +29,6 @@ type NoteEditorProps = {
   /** Placeholder-ish empty state is handled by the caller; this focuses on input */
   autoFocus?: boolean;
   className?: string;
-  /** Override the default prose styling (e.g. to match the note card preview) */
-  proseClassName?: string;
-  /**
-   * Root font-size applied as an inline style. Inline so it reliably beats
-   * prose-sm's root size while still losing to the max-md anti-zoom guard
-   * (which is `!important`) on small screens.
-   */
-  proseFontSize?: string;
   /**
    * Require the first line to be a heading and style it as a title
    * (Notion-style). Use for composing; the detail view keeps the title in the
@@ -49,7 +41,6 @@ type NoteEditorProps = {
 // would drop it to 14px, which makes iOS Safari auto-zoom the UI on focus
 const EDITOR_BASE_CLASS =
   "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
-const DEFAULT_PROSE_CLASS = `prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none ${LOOSE_LIST_MARGIN_FIX}`;
 
 /**
  * WYSIWYG note editor backed by markdown.
@@ -64,8 +55,6 @@ export function NoteEditor({
   onChange,
   autoFocus = false,
   className,
-  proseClassName,
-  proseFontSize,
   titleFirst = false,
 }: NoteEditorProps) {
   const extensions = useMemo(
@@ -89,11 +78,13 @@ export function NoteEditor({
       attributes: {
         class: cn(
           EDITOR_BASE_CLASS,
-          proseClassName ?? DEFAULT_PROSE_CLASS,
+          NOTE_PROSE_CLASS,
           titleFirst && TITLE_HEADING_CLASS,
           className,
         ),
-        ...(proseFontSize ? { style: `font-size: ${proseFontSize}` } : {}),
+        // Size comes from `--note-prose-size` (set per surface); this inline
+        // style beats prose-sm's root without `!important`
+        style: `font-size: ${NOTE_PROSE_FONT_SIZE}`,
       },
     },
     onUpdate: ({ editor }) => {

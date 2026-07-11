@@ -58,7 +58,9 @@ export function NoteDetailView({
   return (
     <div className={cn("flex h-full w-full flex-col bg-background", className)}>
       <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
-        <div className="mx-auto w-full max-w-prose">
+        {/* Full-screen editor: comfortable fixed size instead of the grid's
+            density-scaled note prose */}
+        <div className="mx-auto w-full max-w-prose [--note-prose-size:1rem] md:[--note-prose-size:1.0625rem]">
           <NoteEditor
             content={content}
             editable={canEdit}

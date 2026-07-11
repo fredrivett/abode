@@ -12,12 +12,15 @@
  * which in turn lets the editor's `max-md:text-[1rem]!` iOS anti-zoom guard
  * win on small screens.
  *
- * `0.875em` tracks grid density (the card root is
- * `calc(var(--grid-font-scale) * 1rem)`), clamped to a ~12px readability
- * floor. Every prose element is `em`-relative to this root, so the whole
- * scale shrinks, grows, and floors together.
+ * The value is driven by `--note-prose-size` so a single prose class serves
+ * every surface: contexts set the var to pick a size. The fallback is the grid
+ * behaviour — `0.875em` tracks grid density (the card root is
+ * `calc(var(--grid-font-scale) * 1rem)`), clamped to a ~12px readability floor.
+ * Every prose element is `em`-relative to this root, so the whole scale scales
+ * together. The full-screen detail editor sets a comfortable fixed size instead.
  */
-export const NOTE_PROSE_FONT_SIZE = "max(0.75rem, 0.875em)";
+export const NOTE_PROSE_FONT_SIZE =
+  "var(--note-prose-size, max(0.75rem, 0.875em))";
 
 /**
  * prose-sm's root line-height, shared so non-prose text (e.g. the composer

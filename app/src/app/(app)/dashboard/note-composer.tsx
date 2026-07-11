@@ -4,10 +4,7 @@ import posthog from "posthog-js";
 import { type KeyboardEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { NoteEditor } from "@/components/note/note-editor";
-import {
-  NOTE_PROSE_CLASS,
-  NOTE_PROSE_FONT_SIZE,
-} from "@/components/note/note-prose";
+import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
@@ -92,8 +89,6 @@ export function NoteComposer() {
           key={editorKey}
           content=""
           onChange={setMarkdown}
-          proseClassName={NOTE_PROSE_CLASS}
-          proseFontSize={NOTE_PROSE_FONT_SIZE}
           className="min-h-full"
           titleFirst
         />
