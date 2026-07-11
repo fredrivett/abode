@@ -1,10 +1,22 @@
 "use client";
 
+import Document from "@tiptap/extension-document";
 import { Markdown } from "@tiptap/markdown";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+
+// A document whose first node must be a heading, so the note always opens with
+// a title line (Notion-style). The required heading can't be deleted, only
+// edited — an empty document is normalised to a single empty heading.
+const TitleDocument = Document.extend({ content: "heading block*" });
+
+// Style the mandatory first line as a title, overriding the flattened heading
+// size from the shared prose. `[&>*:first-child]` has real specificity, so it
+// beats the plugin's `:where()` heading rules.
+const TITLE_HEADING_CLASS =
+  "[&>*:first-child]:font-serif [&>*:first-child]:font-semibold [&>*:first-child]:text-[1.3em] [&>*:first-child]:leading-[1.2] [&>*:first-child]:text-foreground [&>*:first-child]:mb-[0.5em]";
 
 type NoteEditorProps = {
   /** Initial markdown content */
@@ -24,6 +36,12 @@ type NoteEditorProps = {
    * (which is `!important`) on small screens.
    */
   proseFontSize?: string;
+  /**
+   * Require the first line to be a heading and style it as a title
+   * (Notion-style). Use for composing; the detail view keeps the title in the
+   * header instead.
+   */
+  titleFirst?: boolean;
 };
 
 // `max-md:text-[1rem]` keeps the editor root at 16px on small screens — prose-sm
@@ -48,9 +66,18 @@ export function NoteEditor({
   className,
   proseClassName,
   proseFontSize,
+  titleFirst = false,
 }: NoteEditorProps) {
+  const extensions = useMemo(
+    () =>
+      titleFirst
+        ? [TitleDocument, StarterKit.configure({ document: false }), Markdown]
+        : [StarterKit, Markdown],
+    [titleFirst],
+  );
+
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions,
     content,
     // Content (initial and via setContent) is provided as markdown
     contentType: "markdown",
@@ -63,6 +90,7 @@ export function NoteEditor({
         class: cn(
           EDITOR_BASE_CLASS,
           proseClassName ?? DEFAULT_PROSE_CLASS,
+          titleFirst && TITLE_HEADING_CLASS,
           className,
         ),
         ...(proseFontSize ? { style: `font-size: ${proseFontSize}` } : {}),

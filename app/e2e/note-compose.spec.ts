@@ -12,7 +12,7 @@ test.describe("Note composer", () => {
     await disconnectE2EPrisma();
   });
 
-  test("a leading heading becomes the title; a plain note falls back to its first line", async ({
+  test("the required first line becomes the note title without typing markdown", async ({
     browser,
   }) => {
     const user = await createUser({
@@ -39,9 +39,10 @@ test.describe("Note composer", () => {
 
     const composer = page.locator(".ProseMirror").first();
 
-    // 1. Heading → title, lifted out of the body
+    // The first line is a required title — type it as plain text (no `#`),
+    // press Enter to drop into the body, then type the body.
     await composer.click();
-    await page.keyboard.type("# Reading list");
+    await page.keyboard.type("Reading list");
     await page.keyboard.press("Enter");
     await page.keyboard.type("Books to read this quarter.");
     await page.getByRole("button", { name: /^save$/i }).click();
@@ -54,34 +55,16 @@ test.describe("Note composer", () => {
     await readingCard.click();
 
     // The dialog's accessible name comes from the item title, so a dialog
-    // named "Reading list" proves the heading was promoted to the title.
+    // named "Reading list" proves the first line became the title even though
+    // no markdown heading was typed.
     await expect(
       page.getByRole("dialog", { name: /Reading list/i }),
     ).toBeVisible();
     const dialog = page.getByRole("dialog");
-    // The body keeps the remaining content but not the promoted heading
+    // The body keeps the remaining content but not the title
     const body = dialog.locator(".ProseMirror");
     await expect(body).toContainText("Books to read this quarter.");
     await expect(body).not.toContainText("Reading list");
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toBeHidden();
-
-    // 2. Plain-text note → no promoted title, but the name falls back to the
-    // first line rather than "Untitled"
-    await composer.click();
-    await page.keyboard.type("A plain thought with no heading");
-    await page.getByRole("button", { name: /^save$/i }).click();
-
-    const plainCard = page
-      .getByRole("button")
-      .filter({ hasText: "A plain thought with no heading" });
-    await expect(plainCard).toBeVisible();
-    await plainCard.click();
-
-    // Named after its first line, not "Untitled"
-    await expect(
-      page.getByRole("dialog", { name: /A plain thought with no heading/i }),
-    ).toBeVisible();
     await expect(page.getByRole("dialog", { name: /Untitled/i })).toHaveCount(
       0,
     );

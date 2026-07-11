@@ -7,7 +7,6 @@ import { NoteEditor } from "@/components/note/note-editor";
 import {
   NOTE_PROSE_CLASS,
   NOTE_PROSE_FONT_SIZE,
-  NOTE_PROSE_LINE_HEIGHT,
 } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -33,7 +32,9 @@ export function NoteComposer() {
   // Remount the editor to clear its content after a save or clear
   const [editorKey, setEditorKey] = useState(0);
 
-  const isEmpty = markdown.trim().length === 0;
+  // The editor always holds a title heading, so an "empty" note serializes to
+  // just heading markers/whitespace — strip those before checking.
+  const isEmpty = markdown.replace(/[#\s]/g, "").length === 0;
 
   const reset = useCallback(() => {
     setMarkdown("");
@@ -81,11 +82,8 @@ export function NoteComposer() {
         {isEmpty && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 text-muted-foreground italic"
-            style={{
-              fontSize: NOTE_PROSE_FONT_SIZE,
-              lineHeight: NOTE_PROSE_LINE_HEIGHT,
-            }}
+            className="pointer-events-none absolute inset-0 font-semibold font-serif text-muted-foreground/70 leading-[1.2]"
+            style={{ fontSize: `calc(1.3 * ${NOTE_PROSE_FONT_SIZE})` }}
           >
             Take a note…
           </span>
@@ -97,6 +95,7 @@ export function NoteComposer() {
           proseClassName={NOTE_PROSE_CLASS}
           proseFontSize={NOTE_PROSE_FONT_SIZE}
           className="min-h-full"
+          titleFirst
         />
       </div>
       {!isEmpty && (
