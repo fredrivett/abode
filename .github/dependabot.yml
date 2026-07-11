@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    # Wait 7 days before proposing a newly published version — a window for
+    # malicious/broken releases to be caught and yanked before we adopt them
+    cooldown:
+      default-days: 7
     groups:
       # Group non-major updates into a single PR to cut review noise
       minor-and-patch:
@@ -16,6 +20,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       actions:
         update-types:
