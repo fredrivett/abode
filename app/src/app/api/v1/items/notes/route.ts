@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
-import { itemSelect, transformItem } from "@/lib/items/query";
+import { createNote } from "@/lib/items/create-note";
+import { transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -42,19 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const item = await db.item.create({
-      data: {
-        kind: "note",
-        sourceType: "compose",
-        processingStatus: "completed",
-        userId: user.id,
-        title: title?.trim() || null,
-        noteDetails: {
-          create: { content: typeof content === "string" ? content : "" },
-        },
-      },
-      select: itemSelect,
-    });
+    const item = await createNote(user.id, { content, title });
 
     const posthog = getPostHogClient();
     posthog?.capture({

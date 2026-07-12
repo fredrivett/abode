@@ -9,7 +9,14 @@ describe("getAppBaseUrl", () => {
   };
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
+    // Strip vars these tests exercise so nothing ambient (e.g. Conductor's
+    // CONDUCTOR_PORT) leaks in and each test controls exactly what it sets
+    const clean: Record<string, string | undefined> = { ...originalEnv };
+    delete clean.CONDUCTOR_PORT;
+    delete clean.VERCEL_URL;
+    delete clean.VERCEL_ENV;
+    delete clean.NODE_ENV;
+    process.env = clean as NodeJS.ProcessEnv;
   });
 
   afterEach(() => {

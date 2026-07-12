@@ -3,6 +3,7 @@
 import Markdown from "markdown-to-jsx";
 import type { ReactNode } from "react";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
 
 type NoteCardProps = {
   title: string | null;
@@ -11,9 +12,10 @@ type NoteCardProps = {
 };
 
 // The whole card is a <button>, so links can't render as anchors (invalid
-// nesting). Render them as plain text in the preview.
+// nesting). Render them as styled text so they keep their link affordance —
+// the same underline treatment `.prose a` gets from globals.css.
 function InlineText({ children }: { children?: ReactNode }) {
-  return <span>{children}</span>;
+  return <span className="underline decoration-current/40">{children}</span>;
 }
 
 /**
@@ -35,8 +37,8 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
     >
       {title && (
         <p
-          className="mb-[0.5em] line-clamp-2 shrink-0 font-semibold text-foreground"
-          style={{ fontSize: "1em" }}
+          className="mb-[0.5em] line-clamp-2 shrink-0 font-semibold font-serif text-foreground"
+          style={{ fontSize: "max(0.875rem, 1em)" }}
         >
           {title}
         </p>
@@ -44,7 +46,8 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
       {hasBody ? (
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <Markdown
-            className="prose prose-sm dark:prose-invert prose-p:my-[0.4em] max-w-none prose-headings:font-semibold prose-headings:text-[1.05em] prose-headings:text-foreground text-muted-foreground"
+            className={NOTE_PROSE_CLASS}
+            style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
             options={{
               forceBlock: true,
               overrides: { a: InlineText },
@@ -52,12 +55,17 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
           >
             {content}
           </Markdown>
+          {/* Fade out clipped content; invisible over empty card background */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-card"
+          />
         </div>
       ) : (
         !title && (
           <p
             className="text-muted-foreground/60 italic"
-            style={{ fontSize: "0.875em" }}
+            style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
           >
             Empty note
           </p>

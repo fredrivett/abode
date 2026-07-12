@@ -9,10 +9,12 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { getBookTileFrame } from "@/lib/book-cover";
+import { noteDisplayName } from "@/lib/items/note-title";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { ItemCard } from "./item-card";
+import { NoteComposer } from "./note-composer";
 
 function formatBytes(bytes?: number | null) {
   if (!bytes || bytes <= 0) return "0 B";
@@ -141,6 +143,15 @@ export function ItemsGrid({
             gap={gap}
             style={{ overflow: "visible !important" }}
           >
+            {/* The note composer lives in the grid as the first card; hide it
+                while searching so results aren't diluted. */}
+            {!hasActiveSearch && (
+              <Frame key="note-composer" width={1} height={1}>
+                <div className="h-full">
+                  <NoteComposer />
+                </div>
+              </Frame>
+            )}
             {items.map((item) => {
               const meta = item.meta || {};
               const isArticleOrWebpage =
@@ -163,6 +174,12 @@ export function ItemsGrid({
                 } catch {
                   name = "Processing URL";
                 }
+              } else if (isNote && !item.title) {
+                // Title-less notes (body doesn't open with a heading) fall back
+                // to their first line rather than showing "Untitled"
+                name =
+                  noteDisplayName(item.noteDetails?.content ?? "") ??
+                  "Untitled";
               } else {
                 name = item.title ?? "Untitled";
               }
@@ -217,9 +234,9 @@ export function ItemsGrid({
                 width = 4;
                 height = 3;
               } else if (isNote) {
-                // Notes are coverless text cards; a portrait-ish sticky note
-                width = 4;
-                height = 5;
+                // Notes are coverless text cards; a square sticky note
+                width = 1;
+                height = 1;
               } else {
                 width = (meta.width as number | undefined) ?? 3;
                 height = (meta.height as number | undefined) ?? 4;
