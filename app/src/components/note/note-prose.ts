@@ -23,12 +23,6 @@ export const NOTE_PROSE_FONT_SIZE =
   "var(--note-prose-size, max(0.75rem, 0.875em))";
 
 /**
- * prose-sm's root line-height, shared so non-prose text (e.g. the composer
- * placeholder) aligns with the first line of a paragraph.
- */
-export const NOTE_PROSE_LINE_HEIGHT = 1.7142857;
-
-/**
  * Loose-list items wrap their content in a `<p>`, whose top/bottom margins
  * otherwise double the gap between items. Zero the first/last child's outer
  * margins so spacing comes from the list item alone. Shared by the note card /
