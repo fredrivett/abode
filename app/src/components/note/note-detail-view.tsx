@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
+import { useUpdateCachedNoteContent } from "@/lib/api-hooks";
 import { createLogger } from "@/lib/logger.client";
 import { cn } from "@/lib/utils";
 import { NoteEditor } from "./note-editor";
@@ -32,8 +33,12 @@ export function NoteDetailView({
 }: NoteDetailViewProps) {
   const [isSaving, setIsSaving] = useState(false);
   const hasTrackedRef = useRef(false);
+  // Latest content we've persisted; null until the note is actually edited
+  const savedContentRef = useRef<string | null>(null);
+  const updateCachedNoteContent = useUpdateCachedNoteContent();
 
   const save = useDebouncedCallback(async (value: string) => {
+    savedContentRef.current = value;
     setIsSaving(true);
     try {
       await api.patch(`/api/v1/items/${itemId}`, { content: value });
@@ -46,13 +51,18 @@ export function NoteDetailView({
     }
   }, 600);
 
-  // Flush any pending debounced save on unmount (e.g. closing the dialog)
-  // so the last edits within the debounce window aren't lost
+  // On unmount (e.g. closing the dialog): flush the last debounced save so no
+  // edits are lost, then patch just this item in the items cache so the card
+  // preview and a re-opened detail view show the saved content — without
+  // refetching every loaded page. Skipped entirely if the note wasn't edited.
   useEffect(
     () => () => {
-      save.flush();
+      void save.flush();
+      if (savedContentRef.current !== null) {
+        updateCachedNoteContent(itemId, savedContentRef.current);
+      }
     },
-    [save],
+    [save, updateCachedNoteContent, itemId],
   );
 
   return (

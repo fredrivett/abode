@@ -5,6 +5,7 @@ import type {
   SourceType,
 } from "@prisma/client";
 import {
+  type InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -73,6 +74,41 @@ export function useItemsInfinite(ssrData?: ItemsInitialData) {
           }
         : undefined,
   });
+}
+
+/**
+ * Returns a stable callback that patches a single note item's content directly
+ * in the items cache — no refetch. Use after saving a note edit so the grid
+ * card and a re-opened detail view reflect the change without reloading every
+ * loaded page from the API.
+ */
+export function useUpdateCachedNoteContent() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (itemId: string, content: string) => {
+      queryClient.setQueryData<InfiniteData<ItemsPageResponse>>(
+        ITEMS_QUERY_KEY,
+        (old) =>
+          old
+            ? {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  items: page.items.map((item) =>
+                    item.id === itemId && item.noteDetails
+                      ? {
+                          ...item,
+                          noteDetails: { ...item.noteDetails, content },
+                        }
+                      : item,
+                  ),
+                })),
+              }
+            : old,
+      );
+    },
+    [queryClient],
+  );
 }
 
 // Example usage patterns for your API routes

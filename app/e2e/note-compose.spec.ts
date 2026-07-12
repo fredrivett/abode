@@ -69,6 +69,16 @@ test.describe("Note composer", () => {
       0,
     );
 
+    // Editing the body in the detail view persists after closing: append text,
+    // close the dialog, and the grid card reflects the saved edit (the cache is
+    // patched on close, not left stale).
+    await body.click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" Start with Alexander.");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(page.getByText(/Start with Alexander\./)).toBeVisible();
+
     await context.close();
   });
 });
