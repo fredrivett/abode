@@ -47,11 +47,13 @@ test.describe("Note composer", () => {
     await page.keyboard.type("Books to read this quarter.");
     await page.getByRole("button", { name: /^save$/i }).click();
 
-    // Card appears with the body text; open its detail dialog
+    // Card appears with the body text; open its detail dialog. Generous timeout
+    // because CI runs 4-way parallel against a cold dev server, so this first
+    // POST /notes waits on on-demand Turbopack route compilation under load.
     const readingCard = page
       .getByRole("button")
       .filter({ hasText: "Books to read this quarter." });
-    await expect(readingCard).toBeVisible();
+    await expect(readingCard).toBeVisible({ timeout: 30_000 });
     await readingCard.click();
 
     // The dialog's accessible name comes from the item title, so a dialog
@@ -59,11 +61,13 @@ test.describe("Note composer", () => {
     // no markdown heading was typed.
     await expect(
       page.getByRole("dialog", { name: /Reading list/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
     const dialog = page.getByRole("dialog");
     // The body keeps the remaining content but not the title
     const body = dialog.locator(".ProseMirror");
-    await expect(body).toContainText("Books to read this quarter.");
+    await expect(body).toContainText("Books to read this quarter.", {
+      timeout: 15_000,
+    });
     await expect(body).not.toContainText("Reading list");
     await expect(page.getByRole("dialog", { name: /Untitled/i })).toHaveCount(
       0,
@@ -77,7 +81,9 @@ test.describe("Note composer", () => {
     await page.keyboard.type(" Start with Alexander.");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
-    await expect(page.getByText(/Start with Alexander\./)).toBeVisible();
+    await expect(page.getByText(/Start with Alexander\./)).toBeVisible({
+      timeout: 15_000,
+    });
 
     await context.close();
   });
