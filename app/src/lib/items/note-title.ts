@@ -45,6 +45,9 @@ export function promoteNoteHeading(content: string): {
   if (!match) return { title: null, content };
 
   const title = truncate(match[1].trim());
+  // A heading with no text (e.g. "#   ") isn't a title — leave the note intact
+  // rather than storing an empty title and discarding the line
+  if (!title) return { title: null, content };
 
   const body = lines.slice(start + 1);
   // Drop blank lines that separated the heading from the body

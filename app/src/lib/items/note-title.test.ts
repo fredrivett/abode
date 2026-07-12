@@ -46,6 +46,13 @@ describe("promoteNoteHeading", () => {
     });
   });
 
+  test("does not promote a whitespace-only heading (empty title)", () => {
+    expect(promoteNoteHeading("#   \n\nbody")).toEqual({
+      title: null,
+      content: "#   \n\nbody",
+    });
+  });
+
   test.each([
     ["a plain paragraph", "Just a thought\nmore text"],
     ["a bullet list", "* milk\n* eggs"],
