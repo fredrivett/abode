@@ -56,6 +56,33 @@ export function getSafeRedirectPath(
 }
 
 /**
+ * Normalizes a user-entered website URL for storage.
+ *
+ * Trims whitespace and prepends `https://` when no protocol is given (so
+ * "example.com" becomes "https://example.com"). Returns the normalized URL, or
+ * `null` for empty input or anything that isn't a valid http(s) URL.
+ */
+export function normalizeWebsiteUrl(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Already has an http(s) scheme — validate as-is
+  if (/^https?:\/\//i.test(trimmed)) {
+    return isValidUrl(trimmed) ? trimmed : null;
+  }
+
+  // A scheme prefix that isn't http(s) — e.g. ftp:, mailto:, javascript: — is
+  // rejected rather than coerced. The negative lookahead keeps a "host:port"
+  // colon (followed by a digit) from being mistaken for a scheme.
+  if (/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(trimmed)) {
+    return null;
+  }
+
+  const candidate = `https://${trimmed}`;
+  return isValidUrl(candidate) ? candidate : null;
+}
+
+/**
  * Determines if a URL points to an image based on:
  * 1. Content-Type header (if provided) - this is authoritative when available
  * 2. URL file extension (fallback when no content type)

@@ -5,6 +5,7 @@ import {
   getSafeRedirectPath,
   isImageUrl,
   isValidUrl,
+  normalizeWebsiteUrl,
 } from "./url-utils";
 
 describe("isValidUrl", () => {
@@ -32,6 +33,58 @@ describe("isValidUrl", () => {
     expect(isValidUrl("file:///path/to/file")).toBe(false);
     expect(isValidUrl("javascript:alert(1)")).toBe(false);
     expect(isValidUrl("data:text/html,<h1>Test</h1>")).toBe(false);
+  });
+});
+
+describe("normalizeWebsiteUrl", () => {
+  it("keeps valid http(s) URLs as-is", () => {
+    expect(normalizeWebsiteUrl("https://example.com")).toBe(
+      "https://example.com",
+    );
+    expect(normalizeWebsiteUrl("http://example.com/path")).toBe(
+      "http://example.com/path",
+    );
+  });
+
+  it("prepends https:// when the protocol is missing", () => {
+    expect(normalizeWebsiteUrl("example.com")).toBe("https://example.com");
+    expect(normalizeWebsiteUrl("www.example.com/path")).toBe(
+      "https://www.example.com/path",
+    );
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(normalizeWebsiteUrl("  example.com  ")).toBe("https://example.com");
+    expect(normalizeWebsiteUrl(" https://example.com ")).toBe(
+      "https://example.com",
+    );
+  });
+
+  it("returns null for empty or whitespace-only input", () => {
+    expect(normalizeWebsiteUrl("")).toBeNull();
+    expect(normalizeWebsiteUrl("   ")).toBeNull();
+  });
+
+  it("returns null for non-http(s) protocols", () => {
+    expect(normalizeWebsiteUrl("javascript:alert(1)")).toBeNull();
+    expect(normalizeWebsiteUrl("ftp://example.com")).toBeNull();
+    expect(normalizeWebsiteUrl("mailto:me@example.com")).toBeNull();
+  });
+
+  it("returns null for input that can't form a valid URL", () => {
+    expect(normalizeWebsiteUrl("not a url")).toBeNull();
+  });
+
+  it("does not mistake a host:port for a scheme", () => {
+    expect(normalizeWebsiteUrl("example.com:8080")).toBe(
+      "https://example.com:8080",
+    );
+  });
+
+  it("is case-insensitive about the protocol prefix", () => {
+    expect(normalizeWebsiteUrl("HTTPS://example.com")).toBe(
+      "HTTPS://example.com",
+    );
   });
 });
 
