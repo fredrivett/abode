@@ -37,8 +37,9 @@ echo "$status_output"
 
 if [ "$status_ok" -eq 0 ]; then
   # An unreachable DB is a different failure from pending migrations — Prisma
-  # emits P1001 for it. Don't mislabel it; tell the user to start the local DB.
-  if printf '%s' "$status_output" | grep -q "P1001"; then
+  # emits a "P1001:" error token for it. Match the token (not any occurrence of
+  # the string) so a migration name containing "P1001" isn't mistaken for it.
+  if printf '%s' "$status_output" | grep -qE '(^|[[:space:]])P1001:'; then
     echo ""
     echo "${red}${bold}${rule}${reset}"
     echo "${red}${bold}❌  Can't reach the local database${reset}"
