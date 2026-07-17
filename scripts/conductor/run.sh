@@ -27,15 +27,49 @@ reset=$'\033[0m'
 rule="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Check 1: pending (generated but unapplied) migrations.
-# `prisma migrate status` exits non-zero when migrations are pending or the
-# schema has drifted. `if !` keeps set -e from tripping on that expected failure.
-if ! bunx prisma migrate status; then
+# `prisma migrate status` exits non-zero when migrations are pending, the schema
+# has drifted, or the DB is unreachable. Capture its output so we can echo it and
+# also parse the pending migration names into our banner. `|| status_ok=0` keeps
+# set -e from tripping on that expected failure.
+status_ok=1
+status_output=$(bunx prisma migrate status 2>&1) || status_ok=0
+echo "$status_output"
+
+if [ "$status_ok" -eq 0 ]; then
+  # An unreachable DB is a different failure from pending migrations — Prisma
+  # emits P1001 for it. Don't mislabel it; tell the user to start the local DB.
+  if printf '%s' "$status_output" | grep -q "P1001"; then
+    echo ""
+    echo "${red}${bold}${rule}${reset}"
+    echo "${red}${bold}❌  Can't reach the local database${reset}"
+    echo "${red}${bold}${rule}${reset}"
+    echo ""
+    echo "  Start the local Supabase stack, then start dev again:"
+    echo ""
+    echo "      ${bold}${cyan}cd app && bun run supabase:start${reset}"
+    echo ""
+    exit 1
+  fi
+
+  # Prisma lists the not-yet-applied migration names on their own lines after a
+  # "have not yet been applied" header, ending at the next blank line.
+  pending=$(printf '%s\n' "$status_output" \
+    | awk '/have not yet been applied/{grab=1;next} grab&&NF==0{grab=0} grab{print}')
+
   echo ""
   echo "${red}${bold}${rule}${reset}"
   echo "${red}${bold}❌  Local database is out of date — pending migrations${reset}"
   echo "${red}${bold}${rule}${reset}"
   echo ""
-  echo "  Apply the pending migration, then start dev again:"
+  if [ -n "$pending" ]; then
+    echo "  Pending migration(s):"
+    echo ""
+    printf '%s\n' "$pending" | while IFS= read -r m; do
+      [ -n "$m" ] && echo "      ${bold}${cyan}${m}${reset}"
+    done
+    echo ""
+  fi
+  echo "  Apply the pending migration(s), then start dev again:"
   echo ""
   echo "      ${bold}${cyan}cd app && bunx prisma migrate deploy${reset}"
   echo ""
