@@ -1,17 +1,10 @@
-import { Search } from "lucide-react";
 import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { SearchDemo } from "./_components/search-demo";
 
 // TODO: repo is private until the security audit; make public before launch
 const GITHUB_URL = "https://github.com/fredrivett/abode";
-
-// three ways to gather, not fetch: visual, place + time, topical cluster
-const SEARCH_EXAMPLES = [
-  "orange armchair",
-  "paris trip june 2026",
-  "essays on typography",
-];
 
 export default function Home() {
   return (
@@ -31,17 +24,9 @@ export default function Home() {
           <span className="whitespace-nowrap">note-to-self</span>. then find it
           the way you think.
         </p>
-        <ul className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          {SEARCH_EXAMPLES.map((example) => (
-            <li
-              key={example}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3.5 py-1.5 text-foreground text-sm"
-            >
-              <Search className="size-3.5 text-muted-foreground" aria-hidden />
-              {example}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-7 w-full">
+          <SearchDemo />
+        </div>
         <p className="mt-4 text-muted-foreground text-sm">
           no folders, no tags, no digging.
         </p>
