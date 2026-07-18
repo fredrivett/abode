@@ -102,12 +102,19 @@ export function ProfileSettings({
       }
 
       const updated = await response.json();
+      const normalizedWebsite = updated.website ?? "";
+
+      // Capture which fields actually changed before we overwrite the saved state
+      const updatedFields = [
+        ...(firstName !== savedFirstName ? ["first_name"] : []),
+        ...(lastName !== savedLastName ? ["last_name"] : []),
+        ...(normalizedWebsite !== savedWebsite ? ["website"] : []),
+      ];
 
       // Update local saved state to track changes; reflect the server-normalized
       // website (e.g. "example.com" saved as "https://example.com")
       setSavedFirstName(firstName);
       setSavedLastName(lastName);
-      const normalizedWebsite = updated.website ?? "";
       setWebsite(normalizedWebsite);
       setSavedWebsite(normalizedWebsite);
 
@@ -131,7 +138,7 @@ export function ProfileSettings({
 
       // Track profile update event
       posthog.capture("profile_updated", {
-        updated_fields: ["first_name", "last_name", "website"],
+        updated_fields: updatedFields,
       });
 
       toast.success("Profile updated");
