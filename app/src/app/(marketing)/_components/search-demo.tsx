@@ -128,7 +128,10 @@ export function SearchDemo() {
               {token.kind === "text" ? (
                 token.text
               ) : (
-                <FilterChip filter={toFilter(token.facet, token.value)} />
+                <FilterChip
+                  filter={toFilter(token.facet, token.value)}
+                  className="mx-1"
+                />
               )}
             </Fragment>
           ))}
