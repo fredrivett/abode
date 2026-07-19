@@ -68,12 +68,12 @@ export function WaitlistForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="enter your email"
           required
-          className="h-10 flex-1 rounded-l-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
+          className="h-11 flex-1 rounded-l-md border border-gray-200 bg-white px-4 py-2 text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
           disabled={formState === "submitting"}
         />
         <Button
           type="submit"
-          className="h-10 rounded-l-none"
+          className="h-11 rounded-l-none px-5 text-base"
           disabled={formState === "submitting" || !email.trim()}
         >
           {formState === "submitting" ? (
