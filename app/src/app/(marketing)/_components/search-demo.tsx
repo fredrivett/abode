@@ -2,13 +2,13 @@
 
 import { Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { type FilterType, getFilterColorClass } from "@/lib/search/types";
-import { cn } from "@/lib/utils";
+import { FilterChip } from "@/components/search/filter-chip";
+import type { Filter, FilterType } from "@/lib/search/types";
 
 // A token is either plain typed text or a value that maps to a real facet
 // (and so pops into a chip on "space"). Only genuine facet values tag-ify —
-// connective words stay as text. This mirrors the product's tinting via
-// getFilterColorClass; the "emoji + value" chip look is a homepage flourish.
+// connective words stay as text. Chips render via the app's real FilterChip,
+// so the homepage and product stay visually identical.
 type Token =
   | { kind: "text"; text: string }
   | { kind: "chip"; facet: FilterType; value: string };
@@ -30,16 +30,6 @@ const QUERIES: Token[][] = [
     { kind: "chip", facet: "tag", value: "typography" },
   ],
 ];
-
-// colour chips get a swatch; every other facet shows its emoji
-const FACET_EMOJI: Partial<Record<FilterType, string>> = {
-  type: "✳️",
-  tag: "🏷️",
-  object: "📦",
-  source: "🔗",
-  date: "📅",
-  location: "📍",
-};
 
 type Frame = { committed: Token[]; typing: string; duration: number };
 
@@ -85,26 +75,16 @@ function buildFrames(query: Token[]): Frame[] {
   return frames;
 }
 
-function FacetChip({ facet, value }: { facet: FilterType; value: string }) {
-  return (
-    <span
-      className={cn(
-        "-top-0.5 relative mx-0.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 align-middle font-medium text-[0.9em] leading-none",
-        getFilterColorClass(facet),
-      )}
-    >
-      {facet === "color" ? (
-        <span
-          className="size-3 rounded-sm border border-current/25"
-          style={{ backgroundColor: value }}
-        />
-      ) : (
-        <span aria-hidden>{FACET_EMOJI[facet]}</span>
-      )}
-      {value}
-    </span>
-  );
-}
+// sizing/alignment tweaks so the shared FilterChip sits inline in the typed query
+const CHIP_CLASS =
+  "-top-0.5 relative mx-0.5 px-1.5 py-0.5 align-middle text-[0.9em] leading-none";
+
+const toFilter = (facet: FilterType, value: string): Filter => ({
+  id: `${facet}:${value}`,
+  type: facet,
+  value,
+  negated: false,
+});
 
 const tokenKey = (token: Token) =>
   token.kind === "chip"
@@ -152,7 +132,10 @@ export function SearchDemo() {
               {token.kind === "text" ? (
                 token.text
               ) : (
-                <FacetChip facet={token.facet} value={token.value} />
+                <FilterChip
+                  filter={toFilter(token.facet, token.value)}
+                  className={CHIP_CLASS}
+                />
               )}
             </Fragment>
           ))}

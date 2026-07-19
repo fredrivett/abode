@@ -33,12 +33,16 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
         className,
       )}
     >
-      <span className="opacity-70">{meta.label}:</span>
-      {filter.type === "color" && (
+      {/* facet is conveyed by the emoji + accent colour; keep the label for screen readers */}
+      <span className="sr-only">{meta.label}:</span>
+      {filter.type === "color" ? (
         <span
-          className="size-3 rounded-sm border border-current/20"
+          aria-hidden
+          className="size-3 rounded-full border border-current/20"
           style={{ backgroundColor: filter.value }}
         />
+      ) : (
+        <span aria-hidden>{meta.icon}</span>
       )}
       <span
         className={cn(
@@ -76,15 +80,15 @@ function getDisplayValue(filter: Filter): string {
 
   if (filter.type === "date") {
     const formatDate = (dateStr: string) => {
-      try {
-        return new Date(dateStr).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-      } catch {
-        return dateStr;
-      }
+      // only reformat canonical ISO dates; show friendly/free-text values as typed
+      if (!/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr;
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     };
 
     switch (filter.dateOperator) {
