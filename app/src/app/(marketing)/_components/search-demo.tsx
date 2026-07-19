@@ -115,7 +115,7 @@ export function SearchDemo() {
   const frame = reducedMotion ? STATIC_FRAME : frames[index];
 
   return (
-    <div className="mx-auto w-full max-w-xl">
+    <div className="mx-auto w-full max-w-md">
       <div
         aria-hidden
         className="flex h-14 items-center gap-2.5 overflow-hidden rounded-xl border border-border bg-muted/30 px-4 text-left text-foreground text-lg shadow-sm"
