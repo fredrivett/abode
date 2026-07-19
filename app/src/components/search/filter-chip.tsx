@@ -27,7 +27,8 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 py-0.75 font-normal text-base",
+        // 15px — sits between text-sm (14px) and text-base (16px)
+        "gap-1 py-0.75 font-normal text-[0.9375rem]",
         onRemove ? "pr-1" : "pr-2",
         getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
