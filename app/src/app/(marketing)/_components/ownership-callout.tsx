@@ -8,7 +8,7 @@ import { GitHubStars, StarButton } from "./github-stars";
  */
 export function OwnershipCallout() {
   return (
-    <div className="-bottom-11 pointer-events-none absolute left-full ml-6 hidden w-52 text-left xl:block">
+    <div className="-bottom-17 pointer-events-none absolute left-full ml-6 hidden w-52 text-left xl:block">
       {/* solid connector arcing up and over, arrowhead pointing down-left at "yours." */}
       <svg
         aria-hidden="true"
