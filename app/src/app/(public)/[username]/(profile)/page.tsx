@@ -165,16 +165,6 @@ export default async function ProfilePage({ params }: Props) {
               <p className="mt-1 text-muted-foreground">@{user.username}</p>
             )}
 
-            <p className="mt-4 text-muted-foreground text-sm">
-              {user.memberNumber &&
-                `Member #${formatMemberNumber(user.memberNumber)}, since `}
-              {!user.memberNumber && "Member since "}
-              {new Intl.DateTimeFormat("en-US", {
-                month: "long",
-                year: "numeric",
-              }).format(user.createdAt)}
-            </p>
-
             {user.website && (
               <a
                 href={user.website}
@@ -186,6 +176,16 @@ export default async function ProfilePage({ params }: Props) {
                 {getHostname(user.website)}
               </a>
             )}
+
+            <p className="mt-4 text-muted-foreground text-sm">
+              {user.memberNumber &&
+                `Member #${formatMemberNumber(user.memberNumber)}, since `}
+              {!user.memberNumber && "Member since "}
+              {new Intl.DateTimeFormat("en-US", {
+                month: "long",
+                year: "numeric",
+              }).format(user.createdAt)}
+            </p>
 
             {user.referredBy && (
               <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
