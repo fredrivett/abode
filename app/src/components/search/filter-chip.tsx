@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { collapseDateRange } from "@/lib/search/date-range-label";
 import {
   FILTER_TYPES,
   type Filter,
@@ -97,7 +98,10 @@ function getDisplayValue(filter: Filter): string {
       case "before":
         return `before ${formatDate(filter.value)}`;
       case "between":
-        return `${formatDate(filter.value)} – ${formatDate(filter.endDate || "")}`;
+        return (
+          collapseDateRange(filter.value, filter.endDate || "") ??
+          `${formatDate(filter.value)} – ${formatDate(filter.endDate || "")}`
+        );
       default:
         return formatDate(filter.value);
     }

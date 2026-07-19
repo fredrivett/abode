@@ -66,6 +66,43 @@ export const NoneValue: Story = {
   args: { filter: filter({ type: "location", value: "(none)" }) },
 };
 
+// Date ranges collapse to the simplest label that exactly covers the span.
+export const DateWholeMonth: Story = {
+  name: "Date · whole month → 'June 2026'",
+  args: {
+    filter: filter({
+      type: "date",
+      value: "2026-06-01",
+      dateOperator: "between",
+      endDate: "2026-06-30",
+    }),
+  },
+};
+
+export const DateWholeYear: Story = {
+  name: "Date · whole year → '2026'",
+  args: {
+    filter: filter({
+      type: "date",
+      value: "2026-01-01",
+      dateOperator: "between",
+      endDate: "2026-12-31",
+    }),
+  },
+};
+
+export const DatePartialRange: Story = {
+  name: "Date · partial range (no collapse)",
+  args: {
+    filter: filter({
+      type: "date",
+      value: "2026-06-05",
+      dateOperator: "between",
+      endDate: "2026-06-20",
+    }),
+  },
+};
+
 export const AllFacets: Story = {
   args: { filter: filter({ type: "type", value: "article" }) },
   render: () => (
