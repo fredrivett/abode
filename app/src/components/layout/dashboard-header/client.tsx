@@ -73,7 +73,7 @@ const NAV_ITEMS: NavItem[] = [
  */
 function HeaderSearchSection() {
   const { state: searchState, setState: setSearchState } = useSearch();
-  const { getFilterValuesForType } = useFilterOptions();
+  const { filterOptions, getFilterValuesForType } = useFilterOptions();
 
   return (
     <div className="order-3 flex w-full basis-full items-center gap-2 lg:order-2 lg:w-auto lg:min-w-48 lg:flex-1 lg:basis-auto">
@@ -82,6 +82,7 @@ function HeaderSearchSection() {
           value={searchState}
           onChange={setSearchState}
           getFilterValues={getFilterValuesForType}
+          filterOptions={filterOptions}
           placeholder="Find..."
           focusShortcut
         />
