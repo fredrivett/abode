@@ -27,8 +27,7 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
     <Badge
       variant="outline"
       className={cn(
-        // Badge is a full pill by default; filter chips read better softly rounded
-        "gap-1 rounded-md py-0.75 font-normal text-sm",
+        "gap-1 py-0.75 font-normal text-sm",
         onRemove ? "pr-1" : "pr-2",
         getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
