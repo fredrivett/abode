@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { type FilterType, getFilterColorClass } from "@/lib/search/types";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +105,7 @@ function FacetChip({ facet, value }: { facet: FilterType; value: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium text-[0.9em]",
+        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 align-middle font-medium text-[0.9em]",
         getFilterColorClass(facet),
       )}
     >
@@ -158,18 +158,28 @@ export function SearchDemo() {
     <div className="mx-auto w-full max-w-xl">
       <div
         aria-hidden
-        className="flex min-h-13 items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-4 py-3 text-left text-foreground text-lg shadow-sm"
+        className="flex h-14 items-center gap-2.5 overflow-hidden rounded-xl border border-border bg-muted/30 px-4 text-left text-foreground text-lg shadow-sm"
       >
         <Search className="size-4 shrink-0 text-muted-foreground" />
-        <div className="flex flex-1 flex-wrap items-center gap-x-1.5 gap-y-1.5">
-          {frame.committed.map(renderToken)}
-          <span className="inline-flex items-center">
-            {frame.typing}
-            {!reducedMotion && (
-              <span className="ml-px inline-block h-[1.15em] w-0.5 animate-pulse bg-foreground/70 align-middle" />
-            )}
-          </span>
-        </div>
+        <span className="min-w-0 flex-1 whitespace-nowrap">
+          {frame.committed.map((token, i) => (
+            <Fragment
+              key={
+                token.kind === "chip"
+                  ? `${token.facet}:${token.value}`
+                  : `text:${token.text}`
+              }
+            >
+              {i > 0 && " "}
+              {renderToken(token, i)}
+            </Fragment>
+          ))}
+          {frame.typing && frame.committed.length > 0 ? " " : null}
+          {frame.typing}
+          {!reducedMotion && (
+            <span className="ml-px inline-block h-[1.15em] w-0.5 animate-pulse bg-foreground/70 align-middle" />
+          )}
+        </span>
       </div>
       <span className="sr-only">
         Search abode in plain language — for example: orange armchair; paris
