@@ -86,6 +86,33 @@ describe("normalizeWebsiteUrl", () => {
       "HTTPS://example.com",
     );
   });
+
+  it("rejects bare single-label hosts without a TLD", () => {
+    // Regression: "fredrivett" was being coerced to "https://fredrivett"
+    expect(normalizeWebsiteUrl("fredrivett")).toBeNull();
+    expect(normalizeWebsiteUrl("https://fredrivett")).toBeNull();
+    expect(normalizeWebsiteUrl("localhost")).toBeNull();
+  });
+
+  it("rejects hostnames with an implausible TLD", () => {
+    expect(normalizeWebsiteUrl("example.c")).toBeNull();
+    expect(normalizeWebsiteUrl("example.")).toBeNull();
+    expect(normalizeWebsiteUrl(".com")).toBeNull();
+  });
+
+  it("rejects IP-address hosts", () => {
+    expect(normalizeWebsiteUrl("192.168.1.1")).toBeNull();
+  });
+
+  it("accepts real dotted domains, including multi-level TLDs", () => {
+    expect(normalizeWebsiteUrl("fredrivett.com")).toBe(
+      "https://fredrivett.com",
+    );
+    expect(normalizeWebsiteUrl("sub.example.co.uk")).toBe(
+      "https://sub.example.co.uk",
+    );
+    expect(normalizeWebsiteUrl("example.io")).toBe("https://example.io");
+  });
 });
 
 describe("isImageUrl", () => {
