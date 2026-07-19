@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer";
 import { GIT_BRANCH } from "@/env";
 import { shortBranchName } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -78,10 +79,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >
+        {/* Applies the persisted theme before first paint so every route
+            (including auth pages that render no header/toggle) avoids a flash
+            of the wrong mode. Must run before the rest of the tree renders. */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, constant-built theme bootstrap script */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <QueryProvider>
           <div className="flex flex-1 flex-col">{children}</div>
           <Suspense>
