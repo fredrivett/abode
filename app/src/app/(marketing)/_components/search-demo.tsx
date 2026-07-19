@@ -130,7 +130,7 @@ export function SearchDemo() {
               ) : (
                 <FilterChip
                   filter={toFilter(token.facet, token.value)}
-                  className="mx-1"
+                  className="mx-0.75"
                 />
               )}
             </Fragment>
