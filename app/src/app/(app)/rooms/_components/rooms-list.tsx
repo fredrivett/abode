@@ -1,9 +1,8 @@
 "use client";
 
-import { DoorOpen, Hand, Plus, Sparkles } from "lucide-react";
+import { DoorOpen, Plus } from "lucide-react";
 import Link from "next/link";
-import { FilterBadges } from "@/components/rooms/filter-badges";
-import { Badge } from "@/components/ui/badge";
+import { RoomCard } from "@/components/rooms/room-card";
 import { Button } from "@/components/ui/button";
 import type { RoomWithSlug } from "@/lib/types/room";
 
@@ -66,50 +65,16 @@ export function RoomsList({ initialRooms, username }: RoomsListProps) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rooms.map((room) => (
-            <Link
+            <RoomCard
               key={room.id}
               href={`/@${username}/${room.slug}`}
-              className="group relative flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="flex items-center gap-2 font-medium font-serif text-lg leading-none">
-                  {room.emoji && <span aria-hidden>{room.emoji}</span>}
-                  {room.name}
-                </h3>
-                {room.visibility === "public" && (
-                  <Badge variant="secondary" className="text-xs">
-                    Public
-                  </Badge>
-                )}
-              </div>
-              <div className="mt-2 flex items-center gap-2 text-muted-foreground text-sm">
-                <span>
-                  {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
-                </span>
-                {room.type === "smart" ? (
-                  <>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Sparkles className="size-3" />
-                      Dynamic
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Hand className="size-3" />
-                      Static
-                    </span>
-                  </>
-                )}
-              </div>
-              {room.type === "smart" && room.filters && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  <FilterBadges filters={room.filters} compact />
-                </div>
-              )}
-            </Link>
+              name={room.name}
+              emoji={room.emoji}
+              itemCount={room.itemCount}
+              type={room.type}
+              showPublicBadge={room.visibility === "public"}
+              filters={room.filters}
+            />
           ))}
         </div>
       )}

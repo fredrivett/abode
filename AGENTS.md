@@ -124,6 +124,14 @@ Use the `Button` component from `@/components/ui/button` instead of hardcoded an
 
 Use the shared `IsLoading` component from `@/components/ui/is-loading` for any loading indicator in buttons or displays instead of hardcoded ellipses (`...`).
 
+### Storybook Stories
+
+**Every reusable component gets a `*.stories.tsx` alongside it** — this is the default, not optional. Add or update the story in the same change as the component.
+
+- The story is the component's test layer: cover each meaningful branch/prop variant (states, gated badges, empty/edge cases) as a separate named story, and check them in `bun run storybook`. We don't use `@testing-library/react` render tests for presentational components — stories replace them.
+- Pure, non-visual logic still belongs in a unit test (`*.test.ts`) as usual; the story covers the rendered variants.
+- Follow the existing convention (`title: "<Area>/<Component>"`, `tags: ["autodocs"]`) — see `src/components/ui/count-badge.stories.tsx` and `src/components/rooms/room-card.stories.tsx`.
+
 ## Testing
 
 **Always add tests for new logic and behavior — this is the default, not an afterthought.** When you add or change a function, API route, access-control rule, or user-facing flow, ship the tests in the same change. Prefer the cheapest layer that genuinely covers the behavior: a unit test for pure logic (e.g. access/permission helpers), an integration test for DB/service code, an E2E test for a user flow. Only skip tests when the change is purely cosmetic or there is genuinely nothing to assert — and when you skip, say so explicitly in the PR rather than leaving the tests checkbox silently unchecked. Untested logic is treated as incomplete work.
