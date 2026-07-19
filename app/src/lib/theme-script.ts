@@ -23,7 +23,7 @@ export const THEME_INIT_SCRIPT = `(function(){try{
 var d=document.documentElement;
 var pref=null;
 var m=document.cookie.match(/(?:^|; )${THEME_COOKIE_KEY}=([^;]*)/);
-if(m){var c=decodeURIComponent(m[1]).toLowerCase();if(c==="light"||c==="dark"||c==="auto"){pref=c;}}
+if(m){var c=m[1].toLowerCase();if(c==="light"||c==="dark"||c==="auto"){pref=c;}}
 if(!pref){pref="auto";}
 var mode=pref;
 if(pref==="auto"){mode=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}

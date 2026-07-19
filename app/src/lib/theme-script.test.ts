@@ -122,6 +122,16 @@ describe("THEME_INIT_SCRIPT", () => {
     const state = runThemeScript();
     expect(state.preference).toBe("auto");
   });
+
+  it("does not abort on a malformed (undecodable) cookie value", () => {
+    // A bare "%" is invalid percent-encoding — decodeURIComponent would throw
+    // and, inside the script's try/catch, abort the whole bootstrap leaving no
+    // theme applied. Reading the raw value must instead fall through to auto.
+    setCookie(`${THEME_COOKIE_KEY}=%; path=/`);
+    const state = runThemeScript();
+    expect(state.preference).toBe("auto");
+    expect(state.dataTheme).toBe("light");
+  });
 });
 
 /**
