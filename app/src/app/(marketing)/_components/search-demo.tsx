@@ -24,7 +24,9 @@ const QUERIES: Token[][] = [
     { kind: "chip", facet: "date", value: "june 2026" },
   ],
   [
-    { kind: "text", text: "essays on" },
+    // real ItemKind is "article"; shown plural (label-less) so it reads naturally
+    { kind: "chip", facet: "type", value: "articles" },
+    { kind: "text", text: "on" },
     { kind: "chip", facet: "tag", value: "typography" },
   ],
 ];
@@ -163,7 +165,7 @@ export function SearchDemo() {
       </div>
       <span className="sr-only">
         Search abode in plain language — for example: orange armchair; paris
-        trip june 2026; essays on typography.
+        trip june 2026; articles on typography.
       </span>
     </div>
   );
