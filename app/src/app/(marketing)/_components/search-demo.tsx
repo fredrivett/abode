@@ -105,7 +105,7 @@ function FacetChip({ facet, value }: { facet: FilterType; value: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 align-middle font-medium text-[0.9em]",
+        "mx-0.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 align-middle font-medium text-[0.9em] leading-none",
         getFilterColorClass(facet),
       )}
     >
@@ -161,7 +161,7 @@ export function SearchDemo() {
         className="flex h-14 items-center gap-2.5 overflow-hidden rounded-xl border border-border bg-muted/30 px-4 text-left text-foreground text-lg shadow-sm"
       >
         <Search className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 whitespace-nowrap">
+        <span className="min-w-0 flex-1 whitespace-nowrap leading-10">
           {frame.committed.map((token, i) => (
             <Fragment
               key={
