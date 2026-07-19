@@ -161,7 +161,7 @@ export function SearchDemo() {
         className="flex h-14 items-center gap-2.5 overflow-hidden rounded-xl border border-border bg-muted/30 px-4 text-left text-foreground text-lg shadow-sm"
       >
         <Search className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 whitespace-nowrap leading-10">
+        <span className="min-w-0 flex-1 whitespace-nowrap">
           {frame.committed.map((token, i) => (
             <Fragment
               key={
