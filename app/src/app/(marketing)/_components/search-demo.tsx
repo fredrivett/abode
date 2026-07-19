@@ -75,10 +75,6 @@ function buildFrames(query: Token[]): Frame[] {
   return frames;
 }
 
-// sizing/alignment tweaks so the shared FilterChip sits inline in the typed query
-const CHIP_CLASS =
-  "-top-0.5 relative mx-0.5 px-1.5 py-0.5 align-middle text-[0.9em] leading-none";
-
 const toFilter = (facet: FilterType, value: string): Filter => ({
   id: `${facet}:${value}`,
   type: facet,
@@ -132,10 +128,7 @@ export function SearchDemo() {
               {token.kind === "text" ? (
                 token.text
               ) : (
-                <FilterChip
-                  filter={toFilter(token.facet, token.value)}
-                  className={CHIP_CLASS}
-                />
+                <FilterChip filter={toFilter(token.facet, token.value)} />
               )}
             </Fragment>
           ))}
