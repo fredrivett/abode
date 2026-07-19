@@ -124,13 +124,13 @@ Use the `Button` component from `@/components/ui/button` instead of hardcoded an
 
 Use the shared `IsLoading` component from `@/components/ui/is-loading` for any loading indicator in buttons or displays instead of hardcoded ellipses (`...`).
 
-### Storybook Stories
+### Component stories and tests
 
-**Every reusable component gets a `*.stories.tsx` alongside it** — this is the default, not optional. Add or update the story in the same change as the component.
+Stories and tests do different jobs — they complement each other, neither replaces the other:
 
-- The story is the component's test layer: cover each meaningful branch/prop variant (states, gated badges, empty/edge cases) as a separate named story, and check them in `bun run storybook`. We don't use `@testing-library/react` render tests for presentational components — stories replace them.
-- Pure, non-visual logic still belongs in a unit test (`*.test.ts`) as usual; the story covers the rendered variants.
-- Follow the existing convention (`title: "<Area>/<Component>"`, `tags: ["autodocs"]`) — see `src/components/ui/count-badge.stories.tsx` and `src/components/rooms/room-card.stories.tsx`.
+- **Stories (`*.stories.tsx`) cover appearance.** Every reusable component gets one alongside it, with a named story per meaningful variant. Stories are also executed in CI as browser render tests via the Storybook Vitest addon (the `storybook` project), so they catch render crashes across variants. They're blind to logic — a story renders green even when the wrong thing renders. Follow the existing convention (`title: "<Area>/<Component>"`, `tags: ["autodocs"]`) — see `src/components/rooms/room-card.stories.tsx`.
+- **RTL tests (`*.test.tsx`) cover logic.** For any component with real branching or behavior (gated badges, conditional content, pluralization, interaction), add a colocated React Testing Library test asserting the rendered output per branch — see `src/components/rooms/room-card.test.tsx`. These run in the fast `unit` (jsdom) project. RTL is blind to appearance (jsdom has no layout engine), which is exactly why stories still carry the visual side. A purely presentational component with no branching doesn't need one — don't add ceremony where there's nothing to assert.
+- **Pure, non-visual logic** belongs in a plain unit test (`*.test.ts`) as usual.
 
 ## Testing
 
