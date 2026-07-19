@@ -36,28 +36,28 @@ export default function Home() {
           no folders, no tags, no digging.
         </p>
 
-        <div className="mt-9 w-full max-w-sm">
+        <div className="mt-9 w-full max-w-sm rounded-2xl bg-muted/30 p-3">
           <WaitlistForm />
-          <p className="mt-4 text-muted-foreground text-sm">
-            or{" "}
+          <p className="mt-3 text-center text-muted-foreground text-sm">
+            already have an invite?{" "}
             <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noreferrer"
+              href="/join"
               className="font-medium text-foreground hover:underline"
             >
-              run it yourself →
+              join here
             </a>
           </p>
         </div>
 
-        <p className="mt-6 text-muted-foreground text-sm">
-          already have an invite?{" "}
+        <p className="mt-4 text-muted-foreground text-sm">
+          or{" "}
           <a
-            href="/join"
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
             className="font-medium text-foreground hover:underline"
           >
-            join here
+            run it yourself →
           </a>
         </p>
       </main>
