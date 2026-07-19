@@ -6,12 +6,14 @@ import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeWebsiteUrl } from "@/lib/url-utils";
 
 const log = createLogger("api/v1/user/profile");
 
 const profileUpdateSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
+  website: z.string().max(2048).optional(),
 });
 
 export async function GET(_request: NextRequest) {
@@ -34,6 +36,7 @@ export async function GET(_request: NextRequest) {
         username: true,
         firstName: true,
         lastName: true,
+        website: true,
         avatarUrl: true,
         createdAt: true,
         updatedAt: true,
@@ -79,24 +82,43 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { firstName, lastName } = parsed.data;
+    const { firstName, lastName, website } = parsed.data;
+
+    // Normalize the website: empty clears it, otherwise it must be a valid URL
+    let websiteValue: string | null | undefined;
+    if (website !== undefined) {
+      if (website.trim() === "") {
+        websiteValue = null;
+      } else {
+        const normalized = normalizeWebsiteUrl(website);
+        if (!normalized) {
+          return NextResponse.json(
+            { message: "Invalid website URL" },
+            { status: 400 },
+          );
+        }
+        websiteValue = normalized;
+      }
+    }
 
     const updatedUser = await db.user.update({
       where: { id: user.id },
       data: {
         ...(firstName !== undefined && { firstName: firstName || null }),
         ...(lastName !== undefined && { lastName: lastName || null }),
+        ...(websiteValue !== undefined && { website: websiteValue }),
       },
       select: {
         firstName: true,
         lastName: true,
         avatarUrl: true,
+        website: true,
       },
     });
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "user_update", {
-      fields: ["firstName", "lastName"],
+      fields: ["firstName", "lastName", "website"],
     });
 
     // Check if profile is now complete: (firstName OR lastName) AND avatarUrl

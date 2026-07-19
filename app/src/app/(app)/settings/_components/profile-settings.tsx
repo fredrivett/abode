@@ -17,6 +17,7 @@ import { requestEmailChange } from "../actions";
 type ProfileSettingsProps = {
   firstName?: string | null;
   lastName?: string | null;
+  website?: string | null;
   username?: string | null;
   email?: string | null;
   initialAvatarUrl?: string | null;
@@ -26,6 +27,7 @@ type ProfileSettingsProps = {
 export function ProfileSettings({
   firstName: initialFirstName,
   lastName: initialLastName,
+  website: initialWebsite,
   username,
   email,
   initialAvatarUrl,
@@ -33,8 +35,10 @@ export function ProfileSettings({
 }: ProfileSettingsProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
+  const [website, setWebsite] = useState(initialWebsite ?? "");
   const [savedFirstName, setSavedFirstName] = useState(initialFirstName ?? "");
   const [savedLastName, setSavedLastName] = useState(initialLastName ?? "");
+  const [savedWebsite, setSavedWebsite] = useState(initialWebsite ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   // Email change state
@@ -48,8 +52,10 @@ export function ProfileSettings({
   const { setFirstName: setStoreFirstName, setLastName: setStoreLastName } =
     useUserStore();
 
-  const hasNameChanges =
-    firstName !== savedFirstName || lastName !== savedLastName;
+  const hasProfileChanges =
+    firstName !== savedFirstName ||
+    lastName !== savedLastName ||
+    website !== savedWebsite;
 
   const hasEmailChanged =
     newEmail.trim().toLowerCase() !== (email ?? "").toLowerCase();
@@ -78,22 +84,39 @@ export function ProfileSettings({
     }
   }, [emailState, newEmail]);
 
-  const handleSaveName = async () => {
+  const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
       const response = await fetch("/api/v1/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName }),
+        body: JSON.stringify({ firstName, lastName, website }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        const message =
+          response.status === 400
+            ? "Please enter a valid website URL"
+            : "Failed to update profile";
+        throw new Error(message);
       }
 
-      // Update local saved state to track changes
+      const updated = await response.json();
+      const normalizedWebsite = updated.website ?? "";
+
+      // Capture which fields actually changed before we overwrite the saved state
+      const updatedFields = [
+        ...(firstName !== savedFirstName ? ["first_name"] : []),
+        ...(lastName !== savedLastName ? ["last_name"] : []),
+        ...(normalizedWebsite !== savedWebsite ? ["website"] : []),
+      ];
+
+      // Update local saved state to track changes; reflect the server-normalized
+      // website (e.g. "example.com" saved as "https://example.com")
       setSavedFirstName(firstName);
       setSavedLastName(lastName);
+      setWebsite(normalizedWebsite);
+      setSavedWebsite(normalizedWebsite);
 
       // Update zustand store so header reflects changes immediately
       setStoreFirstName(firstName || null);
@@ -115,13 +138,15 @@ export function ProfileSettings({
 
       // Track profile update event
       posthog.capture("profile_updated", {
-        updated_fields: ["first_name", "last_name"],
+        updated_fields: updatedFields,
       });
 
       toast.success("Profile updated");
     } catch (error) {
       posthog.captureException(error);
-      toast.error("Failed to update profile");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update profile",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -167,6 +192,20 @@ export function ProfileSettings({
               />
             </div>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              type="url"
+              inputMode="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://your-site.com"
+            />
+            <p className="text-muted-foreground text-xs">
+              Shown on your public profile.
+            </p>
+          </div>
           <form action={emailAction} className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <div className="flex gap-2">
@@ -196,11 +235,11 @@ export function ProfileSettings({
               </p>
             )}
           </form>
-          {hasNameChanges && (
+          {hasProfileChanges && (
             <Button
               type="button"
               size="sm"
-              onClick={handleSaveName}
+              onClick={handleSaveProfile}
               disabled={isSaving}
               className="self-start"
             >

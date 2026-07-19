@@ -1,4 +1,4 @@
-import { DoorOpen, Hand, Sparkles, UserPlus, Users } from "lucide-react";
+import { DoorOpen, Globe, Hand, Sparkles, UserPlus, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,6 +9,7 @@ import { ProfileTag } from "@/components/user/profile-tag";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
+import { getHostname } from "@/lib/url-utils";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -38,6 +39,7 @@ const getUser = cache(async (username: string) => {
       username: true,
       firstName: true,
       lastName: true,
+      website: true,
       avatarUrl: true,
       createdAt: true,
       memberNumber: true,
@@ -161,6 +163,18 @@ export default async function ProfilePage({ params }: Props) {
 
             {showUsername && (
               <p className="mt-1 text-muted-foreground">@{user.username}</p>
+            )}
+
+            {user.website && (
+              <a
+                href={user.website}
+                target="_blank"
+                rel="me noopener noreferrer nofollow"
+                className="mt-4 inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+              >
+                <Globe className="size-4" />
+                {getHostname(user.website)}
+              </a>
             )}
 
             <p className="mt-4 text-muted-foreground text-sm">

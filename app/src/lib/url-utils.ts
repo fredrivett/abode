@@ -56,6 +56,56 @@ export function getSafeRedirectPath(
 }
 
 /**
+ * Checks that a hostname looks like a real public domain: at least two labels,
+ * no empty labels, and a TLD of two or more letters.
+ *
+ * This rejects bare single-label hosts like "fredrivett" (which `new URL`
+ * otherwise accepts as a valid host) and numeric/IP hosts, which aren't useful
+ * for a personal website link.
+ */
+function hasPublicDomainHostname(hostname: string): boolean {
+  const labels = hostname.split(".");
+  if (labels.length < 2) return false;
+  if (labels.some((label) => label.length === 0)) return false;
+  const tld = labels[labels.length - 1];
+  return /^[a-z]{2,}$/i.test(tld);
+}
+
+/**
+ * Normalizes a user-entered website URL for storage.
+ *
+ * Trims whitespace and prepends `https://` when no protocol is given (so
+ * "example.com" becomes "https://example.com"). Returns the normalized URL, or
+ * `null` for empty input, non-http(s) URLs, or anything without a real dotted
+ * domain (e.g. "fredrivett" is rejected rather than coerced to "https://fredrivett").
+ */
+export function normalizeWebsiteUrl(input: string): string | null {
+  const trimmed = input.trim();
+
+  // A scheme prefix that isn't http(s) — e.g. ftp:, mailto:, javascript: — is
+  // rejected rather than coerced. The negative lookahead keeps a "host:port"
+  // colon (followed by a digit) from being mistaken for a scheme.
+  const hasHttpScheme = /^https?:\/\//i.test(trimmed);
+  if (!hasHttpScheme && /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(trimmed)) {
+    return null;
+  }
+
+  const candidate = hasHttpScheme ? trimmed : `https://${trimmed}`;
+
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (!hasPublicDomainHostname(url.hostname)) return null;
+
+  return candidate;
+}
+
+/**
  * Determines if a URL points to an image based on:
  * 1. Content-Type header (if provided) - this is authoritative when available
  * 2. URL file extension (fallback when no content type)
