@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { GITHUB_URL } from "@/lib/github";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { OwnershipCallout } from "./_components/ownership-callout";
 import { SearchDemo } from "./_components/search-demo";
-
-// TODO: repo is private until the security audit; make public before launch
-const GITHUB_URL = "https://github.com/fredrivett/abode";
 
 export default function Home() {
   return (
@@ -13,9 +12,15 @@ export default function Home() {
         <AccountDeletedToast />
       </Suspense>
       <main className="flex w-full max-w-2xl flex-col items-center px-4 py-20 text-center">
-        <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-          your home should be yours.
-        </h1>
+        <div className="relative w-full">
+          <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
+            your home should be{" "}
+            <span className="rounded-lg bg-foreground/[0.07] px-2 py-0.5">
+              yours.
+            </span>
+          </h1>
+          <OwnershipCallout />
+        </div>
         <p className="mt-6 font-medium text-foreground text-xl sm:text-2xl">
           save everything. sort nothing. own it all.
         </p>
