@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { DateRangePicker } from "./date-range-picker";
 import { FilterChips } from "./filter-chip";
 import { FilterDropdown } from "./filter-dropdown";
-import { SuggestionStrip } from "./suggestion-strip";
+import { SuggestionDropdown } from "./suggestion-dropdown";
 
 type SearchInputProps = {
   value: SearchState;
@@ -392,10 +392,11 @@ export function SearchInput({
       </div>
 
       {/* Free-text → filter suggestions */}
-      <SuggestionStrip
+      <SuggestionDropdown
+        open={isFocused}
         suggestions={suggestions}
         onApply={handleApplySuggestion}
-        className="mt-2"
+        anchorRef={inputRef}
       />
 
       {/* Filter dropdown (for types and non-date values) */}

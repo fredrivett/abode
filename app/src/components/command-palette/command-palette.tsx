@@ -30,7 +30,7 @@ import { RoomIcon } from "@/components/rooms/room-icon";
 import { DateRangePicker } from "@/components/search/date-range-picker";
 import { FilterChips } from "@/components/search/filter-chip";
 import { FilterDropdown } from "@/components/search/filter-dropdown";
-import { SuggestionStrip } from "@/components/search/suggestion-strip";
+import { SuggestionDropdown } from "@/components/search/suggestion-dropdown";
 import { Badge } from "@/components/ui/badge";
 import {
   CommandDialog,
@@ -619,16 +619,6 @@ export function CommandPalette() {
           </div>
         )}
 
-        {/* Free-text → filter suggestions */}
-        {suggestions.length > 0 && (
-          <div className="border-b px-3 py-2">
-            <SuggestionStrip
-              suggestions={suggestions}
-              onApply={handleApplySuggestion}
-            />
-          </div>
-        )}
-
         <CommandList className="scroll-shadow-y max-h-[calc(100vh-8rem)]">
           {/* Only show empty state for unauthenticated users - authenticated users always have search */}
           {!isAuthenticated && <CommandEmpty>No results found.</CommandEmpty>}
@@ -932,6 +922,14 @@ export function CommandPalette() {
           )}
         </CommandList>
       </CommandDialog>
+
+      {/* Free-text → filter suggestions */}
+      <SuggestionDropdown
+        open={suggestions.length > 0}
+        suggestions={suggestions}
+        onApply={handleApplySuggestion}
+        anchorRef={inputRef}
+      />
 
       {/* Filter dropdown (for types and non-date values) */}
       <FilterDropdown
