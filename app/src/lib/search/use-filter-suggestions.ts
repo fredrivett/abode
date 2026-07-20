@@ -1,7 +1,7 @@
 "use client";
 
 import posthog from "posthog-js";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FiltersResponse } from "./api";
 import { detectSuggestions, type Suggestion } from "./detect-suggestions";
 import type { Filter } from "./types";
@@ -28,12 +28,21 @@ export function useFilterSuggestions({
   surface,
   enabled = true,
 }: UseFilterSuggestionsArgs): Suggestion[] {
+  // Debounce so detection doesn't run on every keystroke — matching a query
+  // against all of the user's known values is O(values) and, run synchronously
+  // in the keystroke render, makes typing feel laggy.
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 150);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const suggestions = useMemo(
     () =>
       enabled
-        ? detectSuggestions(query, filterOptions, filters, new Date())
+        ? detectSuggestions(debouncedQuery, filterOptions, filters, new Date())
         : [],
-    [enabled, query, filterOptions, filters],
+    [enabled, debouncedQuery, filterOptions, filters],
   );
 
   const shownRef = useRef(false);
