@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Pre-commit secret scan. Blocks a commit if gitleaks finds a secret in the
+# staged changes. Activate once per clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# gitleaks is a standalone Go binary (no npm package) — install via your OS
+# package manager or a release binary: https://github.com/gitleaks/gitleaks#installing
+# (e.g. `brew install gitleaks`, or download from the GitHub releases page).
+# CI runs the same scan (.github/workflows/security.yml), so this is a fast
+# local backstop, not the only line of defence.
+
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "⚠️  gitleaks not installed — skipping local secret scan."
+  echo "   Install it so commits are checked before push:"
+  echo "   https://github.com/gitleaks/gitleaks#installing"
+  echo "   CI will still scan on push/PR."
+  exit 0
+fi
+
+# --staged scans only what is about to be committed; --redact keeps secrets out of output.
+if ! gitleaks protect --staged --redact --verbose; then
+  echo
+  echo "❌ gitleaks found a potential secret in your staged changes (see above)."
+  echo "   Remove/rotate it before committing. If it is a false positive, add an"
+  echo "   allow rule to a .gitleaks.toml or use 'git commit --no-verify' knowingly."
+  exit 1
+fi

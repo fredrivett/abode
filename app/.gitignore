@@ -26,7 +26,13 @@
 
 # misc
 .DS_Store
+
+# secrets / credentials (never commit)
 *.pem
+*.key
+*.p12
+*-service-account*.json
+gha-creds-*.json
 
 # debug
 npm-debug.log*
