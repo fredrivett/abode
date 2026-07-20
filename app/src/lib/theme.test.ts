@@ -4,7 +4,6 @@ import {
   clearStoredThemePreference,
   getActiveTheme,
   getCurrentPreference,
-  getStoredThemePreference,
   storeThemePreference,
 } from "./theme";
 
@@ -14,7 +13,6 @@ describe("theme", () => {
     document.documentElement.removeAttribute("data-theme-preference");
     document.documentElement.className = "";
     document.documentElement.style.cssText = "";
-    window.localStorage.clear();
     // biome-ignore lint/suspicious/noDocumentCookie: test needs cookie state
     document.cookie = "theme=; path=/; max-age=0";
   });
@@ -46,26 +44,19 @@ describe("theme", () => {
     expect(getCurrentPreference()).toBe("dark");
   });
 
-  test("getStoredThemePreference reads localStorage and validates values", () => {
-    expect(getStoredThemePreference()).toBeNull();
-
-    window.localStorage.setItem("abode:theme-preference", "dark");
-    expect(getStoredThemePreference()).toBe("dark");
-
-    window.localStorage.setItem("abode:theme-preference", "nope");
-    expect(getStoredThemePreference()).toBeNull();
-  });
-
-  test("storeThemePreference persists localStorage and cookie", () => {
+  test("storeThemePreference persists the theme cookie", () => {
     storeThemePreference("auto");
-    expect(window.localStorage.getItem("abode:theme-preference")).toBe("auto");
     expect(document.cookie).toContain("theme=auto");
   });
 
-  test("clearStoredThemePreference removes stored preference", () => {
+  test("stored cookie is readable via getCurrentPreference", () => {
+    storeThemePreference("dark");
+    expect(getCurrentPreference()).toBe("dark");
+  });
+
+  test("clearStoredThemePreference removes the theme cookie", () => {
     storeThemePreference("dark");
     clearStoredThemePreference();
-    expect(window.localStorage.getItem("abode:theme-preference")).toBeNull();
     expect(document.cookie).not.toContain("theme=dark");
   });
 });

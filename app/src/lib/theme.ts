@@ -11,12 +11,11 @@ export function getNextTheme(current: ThemePreference): ThemePreference {
   return THEME_SEQUENCE[(index + 1) % THEME_SEQUENCE.length];
 }
 
-const HTML_THEME_DATA_ATTR = "data-theme";
-const HTML_THEME_PREFERENCE_ATTR = "data-theme-preference";
-const HTML_COLOR_SCHEME_PROP = "color-scheme";
-const HTML_DARK_MODE_CLASS = "dark";
-const THEME_COOKIE_KEY = "theme";
-const THEME_LOCAL_STORAGE_KEY = "abode:theme-preference";
+export const HTML_THEME_DATA_ATTR = "data-theme";
+export const HTML_THEME_PREFERENCE_ATTR = "data-theme-preference";
+export const HTML_COLOR_SCHEME_PROP = "color-scheme";
+export const HTML_DARK_MODE_CLASS = "dark";
+export const THEME_COOKIE_KEY = "theme";
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
 function isDomAvailable(): boolean {
@@ -97,40 +96,15 @@ export function getCurrentPreference(): ThemePreference {
   return "auto";
 }
 
-function parseStoredPreference(value: string | null | undefined) {
-  if (!value) return null;
-  const lower = value.toLowerCase();
-  if (lower === "light" || lower === "dark" || lower === "auto") {
-    return lower as ThemePreference;
-  }
-  return null;
-}
-
 /**
- * Reads the persisted theme preference from localStorage.
+ * Persists the theme preference to a `theme` cookie.
  *
- * Returns `null` on the server or when no valid preference is stored.
- */
-export function getStoredThemePreference(): ThemePreference | null {
-  if (!isDomAvailable()) return null;
-  const raw = window.localStorage.getItem(THEME_LOCAL_STORAGE_KEY);
-  return parseStoredPreference(raw);
-}
-
-/**
- * Persists the theme preference to both localStorage and a `theme` cookie.
- *
- * The cookie is SameSite=Lax with a one-year expiry so the server can read
- * the preference on initial page load.
+ * The cookie is the single source of truth: it is readable both client-side
+ * (by the theme bootstrap script and runtime) and, unlike localStorage, by the
+ * server. SameSite=Lax with a one-year expiry.
  */
 export function storeThemePreference(preference: ThemePreference): void {
   if (!isDomAvailable()) return;
-
-  try {
-    window.localStorage.setItem(THEME_LOCAL_STORAGE_KEY, preference);
-  } catch {
-    // Swallow storage exceptions (e.g. private mode)
-  }
 
   const cookieValue = [
     `${THEME_COOKIE_KEY}=${preference}`,
@@ -148,15 +122,10 @@ export function storeThemePreference(preference: ThemePreference): void {
 }
 
 /**
- * Removes the persisted theme preference from both localStorage and the cookie.
+ * Removes the persisted theme preference by clearing the `theme` cookie.
  */
 export function clearStoredThemePreference(): void {
   if (!isDomAvailable()) return;
-  try {
-    window.localStorage.removeItem(THEME_LOCAL_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
   // biome-ignore lint/suspicious/noDocumentCookie: using document.cookie for compatibility
   document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }

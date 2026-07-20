@@ -6,7 +6,6 @@ import {
   applyThemePreference,
   getCurrentPreference,
   getNextTheme,
-  getStoredThemePreference,
   storeThemePreference,
   type ThemePreference,
   type UseThemePreferenceReturn,
@@ -15,9 +14,9 @@ import {
 /**
  * Manages the user's theme preference (light/dark/auto).
  *
- * On mount, restores the preference from localStorage (or falls back to the
- * DOM/cookie value) and applies it. The returned `toggle` cycles through
- * auto -> light -> dark and persists the choice.
+ * On mount, restores the preference from the DOM attribute the bootstrap script
+ * set (falling back to the `theme` cookie) and applies it. The returned
+ * `toggle` cycles through auto -> light -> dark and persists the choice.
  */
 export function useThemePreference(): UseThemePreferenceReturn {
   const [mounted, setMounted] = useState(false);
@@ -30,8 +29,7 @@ export function useThemePreference(): UseThemePreferenceReturn {
   useEffect(() => {
     if (!mounted) return;
 
-    const stored = getStoredThemePreference();
-    const initialPreference = stored ?? getCurrentPreference();
+    const initialPreference = getCurrentPreference();
 
     setPreference(initialPreference);
     applyThemePreference(initialPreference);
