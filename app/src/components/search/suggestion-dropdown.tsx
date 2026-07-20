@@ -67,14 +67,14 @@ export function SuggestionDropdown({
               onApply(suggestion);
             }}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left outline-none",
+              "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left outline-none",
               index === 0 ? "bg-accent" : "hover:bg-accent",
             )}
           >
             <FilterChip filter={toPreviewFilter(suggestion)} />
             {index === 0 && (
               <span className="ml-auto">
-                <Kbd>Tab</Kbd>
+                <Kbd className="bg-background">Tab</Kbd>
               </span>
             )}
           </button>
