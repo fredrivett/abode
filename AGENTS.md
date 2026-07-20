@@ -124,6 +124,14 @@ Use the `Button` component from `@/components/ui/button` instead of hardcoded an
 
 Use the shared `IsLoading` component from `@/components/ui/is-loading` for any loading indicator in buttons or displays instead of hardcoded ellipses (`...`).
 
+### Component stories and tests
+
+Stories and tests do different jobs — they complement each other, neither replaces the other:
+
+- **Stories (`*.stories.tsx`) cover appearance.** Every reusable component gets one alongside it, with a named story per meaningful variant. Stories are also executed in CI as browser render tests via the Storybook Vitest addon (the `storybook` project), so they catch render crashes across variants. They're blind to logic — a story renders green even when the wrong thing renders. Follow the existing convention (`title: "<Area>/<Component>"`, `tags: ["autodocs"]`) — see `src/components/rooms/room-card.stories.tsx`.
+- **RTL tests (`*.test.tsx`) cover logic.** For any component with real branching or behavior (gated badges, conditional content, pluralization, interaction), add a colocated React Testing Library test asserting the rendered output per branch — see `src/components/rooms/room-card.test.tsx`. These run in the fast `unit` (jsdom) project. RTL is blind to appearance (jsdom has no layout engine), which is exactly why stories still carry the visual side. A purely presentational component with no branching doesn't need one — don't add ceremony where there's nothing to assert.
+- **Pure, non-visual logic** belongs in a plain unit test (`*.test.ts`) as usual.
+
 ## Testing
 
 **Always add tests for new logic and behavior — this is the default, not an afterthought.** When you add or change a function, API route, access-control rule, or user-facing flow, ship the tests in the same change. Prefer the cheapest layer that genuinely covers the behavior: a unit test for pure logic (e.g. access/permission helpers), an integration test for DB/service code, an E2E test for a user flow. Only skip tests when the change is purely cosmetic or there is genuinely nothing to assert — and when you skip, say so explicitly in the PR rather than leaving the tests checkbox silently unchecked. Untested logic is treated as incomplete work.

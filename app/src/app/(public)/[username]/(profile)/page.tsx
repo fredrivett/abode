@@ -1,10 +1,9 @@
-import { DoorOpen, Globe, Hand, Sparkles, UserPlus, Users } from "lucide-react";
+import { DoorOpen, Globe, UserPlus, Users } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { RoomCard } from "@/components/rooms/room-card";
 import { ProfileViewTracker } from "@/components/tracking/profile-view-tracker";
-import { Badge } from "@/components/ui/badge";
 import { ProfileTag } from "@/components/user/profile-tag";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
@@ -218,44 +217,14 @@ export default async function ProfilePage({ params }: Props) {
               </h2>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {publicRooms.map((room) => (
-                  <Link
+                  <RoomCard
                     key={room.id}
                     href={`/@${user.username}/${room.slug}`}
-                    className="flex flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="flex items-center gap-2 font-medium font-serif text-lg leading-none">
-                        {room.emoji && <span aria-hidden>{room.emoji}</span>}
-                        {room.name}
-                      </h3>
-                      <Badge variant="secondary" className="text-xs">
-                        Public
-                      </Badge>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-muted-foreground text-sm">
-                      <span>
-                        {room._count.roomItems}{" "}
-                        {room._count.roomItems === 1 ? "item" : "items"}
-                      </span>
-                      {room.type === "smart" ? (
-                        <>
-                          <span>·</span>
-                          <span className="inline-flex items-center gap-1">
-                            <Sparkles className="size-3" />
-                            Dynamic
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span>·</span>
-                          <span className="inline-flex items-center gap-1">
-                            <Hand className="size-3" />
-                            Static
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </Link>
+                    name={room.name}
+                    emoji={room.emoji}
+                    itemCount={room._count.roomItems}
+                    type={room.type}
+                  />
                 ))}
               </div>
             </div>
