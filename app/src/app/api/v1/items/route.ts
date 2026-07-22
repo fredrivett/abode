@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
-import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -15,7 +15,6 @@ import {
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { getFileSizeFromMeta } from "@/lib/utils";
-import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
@@ -192,40 +191,10 @@ export async function POST(request: NextRequest) {
       return newItem;
     });
 
-    // Trigger image analysis via Trigger.dev (returns immediately).
-    // The item is already committed above; if enrichment can't be enqueued
-    // (Trigger unconfigured/unreachable) don't fail the request — mark the
-    // item failed so the UI offers Retry, and still return success.
-    // Graceful degradation — see AGENTS.md.
+    // Enqueue image enrichment. The item is already committed above; enqueue
+    // failures don't fail the request (graceful degradation — see AGENTS.md).
     if (kind === "image" && fileKey) {
-      try {
-        await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-          itemId: item.id,
-          userId: user.id,
-          fileKey,
-        });
-      } catch (error) {
-        log.error(
-          { error, itemId: item.id },
-          "Failed to enqueue image analysis",
-        );
-        captureServerException(error, user.id, {
-          route: "POST /api/v1/items",
-          stage: "trigger:analyze-image",
-          itemId: item.id,
-        });
-        await db.item
-          .update({
-            where: { id: item.id },
-            data: { processingStatus: "failed" },
-          })
-          .catch((updateError) => {
-            log.error(
-              { updateError, itemId: item.id },
-              "Failed to mark item failed after enqueue error",
-            );
-          });
-      }
+      await enqueueImageAnalysis({ itemId: item.id, userId: user.id, fileKey });
     }
 
     // Log activity (fire-and-forget)
