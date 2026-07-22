@@ -4,9 +4,14 @@ supabase-e2e/supabase/config.toml
 
 # misc
 .DS_Store
-*.pem
 .supabase
-!.env.example
+
+# secrets / credentials (never commit)
+*.pem
+*.key
+*.p12
+*-service-account*.json
+gha-creds-*.json
 
 # env files (can opt-in for committing if needed)
 .env*

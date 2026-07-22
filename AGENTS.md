@@ -5,6 +5,10 @@
 - Be concise. Preserve important meaning but remove fluff, sacrifice grammar for the sake of concision.
 - Understand that multiple agents may be working at once, so don't revert if you find changes you didn't make.
 
+## Public repo
+
+This repository is public/open-source. Everything you write into git or GitHub is world-readable — commit messages, branch names, PR and issue text, code comments, and screenshots, not just code. Never put secrets, real user data (e.g. emails), private/internal URLs, or sensitive business context in any of them. The gitleaks hook and CI only scan committed code, not PR/commit text or images — those are on you.
+
 ## Commands
 
 Run from the `./app` directory unless noted. `bun run check:fix` is the primary quality gate after any code change.
