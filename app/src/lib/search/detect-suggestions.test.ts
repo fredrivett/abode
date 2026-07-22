@@ -54,6 +54,32 @@ describe("detectSuggestions", () => {
     expect(out.map((s) => s.facet)).toEqual(["color", "tag"]);
   });
 
+  it("ranks same-word matches type > colour > object > tag", () => {
+    const out = detect("orange", {
+      tag: ["orange"],
+      object: ["orange"],
+      color: ["orange"],
+    });
+    expect(out.map((s) => s.facet)).toEqual(["color", "object", "tag"]);
+  });
+
+  it("matches type, source and object facets", () => {
+    expect(detect("book", { type: ["book"] })[0]).toMatchObject({
+      facet: "type",
+    });
+    expect(detect("upload", { source: ["upload"] })[0]).toMatchObject({
+      facet: "source",
+    });
+    expect(detect("tree", { object: ["tree"] })[0]).toMatchObject({
+      facet: "object",
+    });
+  });
+
+  it("orders suggestions for different words by position in the query", () => {
+    const out = detect("book 2026", { type: ["book"] });
+    expect(out.map((s) => s.facet)).toEqual(["type", "date"]);
+  });
+
   it("drops a match that partially overlaps a longer one", () => {
     // "york" sits inside "new york" — keep only the longer location
     const out = detect("new york", { location: ["new york", "york"] });

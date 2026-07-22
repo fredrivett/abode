@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { FiltersResponse } from "@/lib/search/api";
 import type { SearchState } from "@/lib/search/types";
 import { SearchInput } from "./search-input";
@@ -57,6 +58,17 @@ export const WithSuggestions: Story = {
       filterOptions={FILTER_OPTIONS}
     />
   ),
+  // Tab applies the first suggestion (location: paris), removing it from the query.
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("textbox");
+    await userEvent.click(input);
+    await userEvent.keyboard("{Tab}");
+    await waitFor(() => {
+      expect(input).toHaveValue("june 2026");
+      expect(canvas.getByText("paris")).toBeInTheDocument();
+    });
+  },
 };
 
 // "orange" is both a colour and a tag → both are offered.
@@ -64,6 +76,18 @@ export const AmbiguousMatch: Story = {
   render: () => (
     <StatefulSearchInput initialQuery="orange" filterOptions={FILTER_OPTIONS} />
   ),
+  // Colour is the default; ArrowDown selects the tag, and Tab applies that one.
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("textbox");
+    await userEvent.click(input);
+    await userEvent.keyboard("{ArrowDown}{Tab}");
+    await waitFor(() => {
+      expect(input).toHaveValue("");
+      // the applied chip is the tag (its screen-reader label), not the colour
+      expect(canvas.getByText("Tag:")).toBeInTheDocument();
+    });
+  },
 };
 
 // No filterOptions passed → suggestions are off, plain text only.
