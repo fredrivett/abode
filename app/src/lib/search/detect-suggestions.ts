@@ -41,8 +41,8 @@ const FACET_PRIORITY: FilterType[] = [
   "date",
   "location",
   "source",
-  "object",
   "color",
+  "object",
   "tag",
 ];
 
