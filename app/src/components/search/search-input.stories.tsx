@@ -8,7 +8,7 @@ const FILTER_OPTIONS: FiltersResponse = {
   location: ["paris", "new york"],
   color: ["orange", "teal"],
   type: ["article", "image"],
-  tag: ["typography"],
+  tag: ["typography", "orange"],
 };
 
 function StatefulSearchInput({
@@ -56,6 +56,13 @@ export const WithSuggestions: Story = {
       initialQuery="paris june 2026"
       filterOptions={FILTER_OPTIONS}
     />
+  ),
+};
+
+// "orange" is both a colour and a tag → both are offered.
+export const AmbiguousMatch: Story = {
+  render: () => (
+    <StatefulSearchInput initialQuery="orange" filterOptions={FILTER_OPTIONS} />
   ),
 };
 

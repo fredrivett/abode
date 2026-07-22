@@ -48,11 +48,17 @@ describe("detectSuggestions", () => {
     expect(out[0]).toMatchObject({ facet: "location", value: "paris" });
   });
 
-  it("prefers a less-ambiguous facet on an identical span", () => {
-    // "orange" is both a known tag and colour; tag ranks above colour
+  it("offers every facet that matches the same word", () => {
+    // "orange" is both a known tag and colour; both should be offered
     const out = detect("orange", { tag: ["orange"], color: ["orange"] });
+    expect(out.map((s) => s.facet)).toEqual(["tag", "color"]);
+  });
+
+  it("drops a match that partially overlaps a longer one", () => {
+    // "york" sits inside "new york" — keep only the longer location
+    const out = detect("new york", { location: ["new york", "york"] });
     expect(out).toHaveLength(1);
-    expect(out[0].facet).toBe("tag");
+    expect(out[0].value).toBe("new york");
   });
 
   it("skips values already applied as filters", () => {

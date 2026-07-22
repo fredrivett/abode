@@ -90,7 +90,7 @@ export function detectSuggestions(
 
   const fresh = candidates.filter((c) => !isAlreadyApplied(c, filters));
 
-  // Resolve overlaps: earliest start, then longest span, then facet priority.
+  // Order: earliest start, then longest span, then facet priority.
   fresh.sort(
     (a, b) =>
       a.start - b.start ||
@@ -98,12 +98,17 @@ export function detectSuggestions(
       FACET_PRIORITY.indexOf(a.facet) - FACET_PRIORITY.indexOf(b.facet),
   );
 
+  // Drop matches that partially overlap an already-selected one (e.g. "york"
+  // inside "new york"), but KEEP alternatives covering the exact same word so
+  // an ambiguous token like "orange" can offer both its colour and tag.
   const selected: Suggestion[] = [];
   for (const candidate of fresh) {
-    const overlaps = selected.some(
-      (s) => candidate.start < s.end && s.start < candidate.end,
-    );
-    if (!overlaps) selected.push(candidate);
+    const conflicts = selected.some((s) => {
+      const sameSpan = s.start === candidate.start && s.end === candidate.end;
+      const overlaps = candidate.start < s.end && s.start < candidate.end;
+      return overlaps && !sameSpan;
+    });
+    if (!conflicts) selected.push(candidate);
   }
 
   return selected;
