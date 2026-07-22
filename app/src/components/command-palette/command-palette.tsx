@@ -337,12 +337,6 @@ export function CommandPalette() {
   // Handle backspace at start of input to remove last filter
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Tab applies the first free-text filter suggestion
-      if (e.key === "Tab" && !e.shiftKey && suggestions.length > 0) {
-        e.preventDefault();
-        handleApplySuggestion(suggestions[0]);
-        return;
-      }
       if (
         e.key === "Backspace" &&
         searchState.filters.length > 0 &&
@@ -357,7 +351,7 @@ export function CommandPalette() {
         }));
       }
     },
-    [searchState.filters.length, suggestions, handleApplySuggestion],
+    [searchState.filters.length],
   );
 
   const handleCloseDropdown = useCallback(() => {

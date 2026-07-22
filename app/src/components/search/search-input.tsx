@@ -260,13 +260,6 @@ export function SearchInput({
       return;
     }
 
-    // Tab applies the first free-text filter suggestion
-    if (e.key === "Tab" && !e.shiftKey && suggestions.length > 0) {
-      e.preventDefault();
-      handleApplySuggestion(suggestions[0]);
-      return;
-    }
-
     // Backspace at start removes last filter
     const cursorAtStart =
       input.selectionStart === 0 && input.selectionEnd === 0;
