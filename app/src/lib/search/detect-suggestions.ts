@@ -22,8 +22,8 @@ export type Suggestion = {
   endDate?: string;
 };
 
-// Grounded facets, in the order that wins ties on an identical span (least
-// ambiguous first, so a word that is both a known tag and colour prefers tag).
+// Grounded facets to scan against the user's own values. Order here is
+// irrelevant — FACET_PRIORITY decides ranking.
 const GROUNDED_FACETS: (keyof FiltersResponse)[] = [
   "location",
   "type",
@@ -33,8 +33,18 @@ const GROUNDED_FACETS: (keyof FiltersResponse)[] = [
   "color",
 ];
 
-// Priority for overlap tie-breaks: dates first, then the grounded order above.
-const FACET_PRIORITY: FilterType[] = ["date", ...GROUNDED_FACETS];
+// Ranking when several facets match the same word (lower index = shown first /
+// the default Tab row). Most specific/reliable first; tag (any free-text label,
+// so the most collision-prone) last.
+const FACET_PRIORITY: FilterType[] = [
+  "type",
+  "date",
+  "location",
+  "source",
+  "object",
+  "color",
+  "tag",
+];
 
 /** Whole-word (space/boundary delimited) occurrences of `value` in `query`. */
 function findValueSpans(

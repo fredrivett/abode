@@ -48,10 +48,10 @@ describe("detectSuggestions", () => {
     expect(out[0]).toMatchObject({ facet: "location", value: "paris" });
   });
 
-  it("offers every facet that matches the same word", () => {
-    // "orange" is both a known tag and colour; both should be offered
+  it("offers every facet that matches the same word, colour before tag", () => {
+    // "orange" is both a known tag and colour; both offered, colour ranks first
     const out = detect("orange", { tag: ["orange"], color: ["orange"] });
-    expect(out.map((s) => s.facet)).toEqual(["tag", "color"]);
+    expect(out.map((s) => s.facet)).toEqual(["color", "tag"]);
   });
 
   it("drops a match that partially overlaps a longer one", () => {
