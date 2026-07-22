@@ -1,27 +1,34 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Marketing page", () => {
-  test("should display the homepage with logo and tagline", async ({
-    page,
-  }) => {
+  test("should display the hero and waitlist form", async ({ page }) => {
     await page.goto("/");
 
-    // Check the title exists
-    await expect(page.getByRole("heading", { name: "abode" })).toBeVisible();
+    // Hero headline + subline
+    await expect(
+      page.getByRole("heading", { name: /your home should be yours/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("save everything. sort nothing. own it all."),
+    ).toBeVisible();
 
-    // Check the tagline
-    await expect(page.getByText("your digital home")).toBeVisible();
+    // Waitlist form
+    await expect(page.getByPlaceholder("enter your email")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /join waitlist/i }),
+    ).toBeVisible();
 
-    // Check theme toggle is present
+    // Theme toggle is present
     await expect(page.getByRole("button", { name: /theme/i })).toBeVisible();
   });
 
-  test("should have accessible elements", async ({ page }) => {
+  test("should have an accessible abode brand mark", async ({ page }) => {
     await page.goto("/");
 
-    // The sr-only text should be accessible
-    const heading = page.getByRole("heading", { name: "abode" });
-    await expect(heading).toBeVisible();
+    // The abode logo (an SVG with an accessible label) is present in the header
+    await expect(
+      page.getByRole("img", { name: "abode" }).first(),
+    ).toBeVisible();
   });
 
   // The theme bootstrap script must live in <head>, not as a `body > script`.
