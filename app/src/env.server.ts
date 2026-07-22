@@ -25,16 +25,14 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), // server-only secret
 
-  // Email (server-only)
-  RESEND_API_KEY: z.string().min(1),
+  // Email (server-only) — optional enhancement; when absent, email features
+  // (invites, waitlist, admin notifications) degrade gracefully. See AGENTS.md.
+  RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
   RESEND_REPLY_TO_EMAIL: z.string().optional(),
 
   // AI (server-only)
   OPENAI_API_KEY: z.string().optional(),
-
-  // Maps (server-only)
-  GOOGLE_MAPS_API_KEY: z.string().optional(),
 
   // PostHog (optional analytics)
   NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),

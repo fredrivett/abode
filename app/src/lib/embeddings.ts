@@ -6,6 +6,17 @@ import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/embeddings");
 
+/**
+ * Whether Replicate (CLIP image embeddings) is configured.
+ *
+ * Replicate is an optional enhancement — see the graceful degradation
+ * principle in AGENTS.md. Callers should skip visual-embedding work when
+ * this returns false rather than letting the pipeline fail.
+ */
+export function isReplicateConfigured(): boolean {
+  return Boolean(process.env.REPLICATE_API_TOKEN);
+}
+
 let replicateClient: Replicate | null = null;
 function getReplicateClient(): Replicate {
   if (replicateClient) return replicateClient;

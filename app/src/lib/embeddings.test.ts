@@ -1,5 +1,9 @@
-import { describe, expect, test } from "vitest";
-import { extractClipEmbedding, normalizeVector } from "./embeddings";
+import { afterEach, describe, expect, test } from "vitest";
+import {
+  extractClipEmbedding,
+  isReplicateConfigured,
+  normalizeVector,
+} from "./embeddings";
 
 describe("normalizeVector", () => {
   test("normalizes a vector to unit length", () => {
@@ -34,5 +38,28 @@ describe("extractClipEmbedding", () => {
     expect(() => extractClipEmbedding([123])).toThrow(
       "Unexpected output format: first element is number",
     );
+  });
+});
+
+describe("isReplicateConfigured", () => {
+  const original = process.env.REPLICATE_API_TOKEN;
+  afterEach(() => {
+    if (original === undefined) delete process.env.REPLICATE_API_TOKEN;
+    else process.env.REPLICATE_API_TOKEN = original;
+  });
+
+  test("true when a token is set", () => {
+    process.env.REPLICATE_API_TOKEN = "r8_test";
+    expect(isReplicateConfigured()).toBe(true);
+  });
+
+  test("false when the token is absent", () => {
+    delete process.env.REPLICATE_API_TOKEN;
+    expect(isReplicateConfigured()).toBe(false);
+  });
+
+  test("false when the token is an empty string", () => {
+    process.env.REPLICATE_API_TOKEN = "";
+    expect(isReplicateConfigured()).toBe(false);
   });
 });

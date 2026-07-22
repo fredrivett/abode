@@ -143,14 +143,36 @@ export async function sendEmail(options: {
     return sendEmailLocal(options);
   }
 
-  // Production: use Resend
+  // Production: use Resend if configured, otherwise skip gracefully
+  if (!isEmailConfigured()) {
+    log.warn({ to: options.to }, "Email skipped (Resend not configured)");
+    return { success: false, error: "Email not configured" };
+  }
   return sendEmailResend(options);
 }
 
 /**
- * Check if email sending is configured
- * Note: RESEND_API_KEY is now required at build time, so this always returns true
+ * Pure predicate for whether email is configured, given the environment.
+ * Extracted from isEmailConfigured for testability.
+ */
+export function resolveEmailConfigured(params: {
+  isDevelopment: boolean;
+  hasResendKey: boolean;
+}): boolean {
+  // Dev routes to local Inbucket and needs no key; elsewhere a Resend key is required
+  return params.isDevelopment || params.hasResendKey;
+}
+
+/**
+ * Whether email sending is configured.
+ *
+ * Optional enhancement (graceful degradation — see AGENTS.md). Callers should
+ * gate email paths on this and skip cleanly when it returns false rather than
+ * failing the surrounding request.
  */
 export function isEmailConfigured(): boolean {
-  return true;
+  return resolveEmailConfigured({
+    isDevelopment,
+    hasResendKey: Boolean(env.RESEND_API_KEY),
+  });
 }

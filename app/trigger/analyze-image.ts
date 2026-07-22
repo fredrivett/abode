@@ -7,6 +7,7 @@ import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import {
   generateImageEmbedding,
+  isReplicateConfigured,
   upsertVisualVector,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
@@ -287,42 +288,53 @@ export const analyzeImageTask = task({
 
       logger.log("Item updated with analysis", { itemId });
 
-      // Step 4: Generate embeddings
-      logger.log("Starting embedding generation", { itemId });
+      // Step 4: Generate visual embedding (CLIP via Replicate) — optional.
+      // Replicate is an optional enhancement: skip cleanly when it isn't
+      // configured, and never let a Replicate failure fail the whole item
+      // (graceful degradation — see AGENTS.md).
+      let visualVectorId: string | null = null;
+      if (isReplicateConfigured()) {
+        try {
+          // Get signed URL for the image (valid for 1 hour)
+          const { data: urlData, error: urlError } = await supabase.storage
+            .from("items")
+            .createSignedUrl(fileKey, 3600);
 
-      // Get signed URL for the image (valid for 1 hour)
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from("items")
-        .createSignedUrl(fileKey, 3600);
+          if (urlError || !urlData) {
+            throw new Error(
+              `Failed to create signed URL: ${formatStorageError(urlError)}`,
+            );
+          }
 
-      if (urlError || !urlData) {
-        throw new Error(
-          `Failed to create signed URL: ${formatStorageError(urlError)}`,
-        );
+          logger.log("Generating visual embedding with CLIP", { itemId });
+          const visualEmbedding = await generateImageEmbedding(
+            urlData.signedUrl,
+          );
+
+          visualVectorId = await upsertVisualVector({
+            itemId,
+            userId,
+            model: "clip-vit-base-patch32",
+            embedding: visualEmbedding,
+          });
+
+          logger.log("Visual embedding stored", { itemId, visualVectorId });
+        } catch (error) {
+          // Optional enhancement failing must not fail the item — log, report, continue
+          logger.warn("Visual embedding skipped (Replicate error)", {
+            itemId,
+            error,
+          });
+          captureServerException(error, userId, {
+            source: "analyze-image:visual-embedding",
+            itemId,
+          });
+        }
+      } else {
+        logger.log("Visual embedding skipped (Replicate not configured)", {
+          itemId,
+        });
       }
-
-      logger.log("Signed URL created", { itemId });
-
-      // Generate visual embedding (CLIP via Replicate)
-      logger.log("Generating visual embedding with CLIP", { itemId });
-
-      const visualEmbedding = await generateImageEmbedding(urlData.signedUrl);
-
-      logger.log("Visual embedding generated", {
-        itemId,
-        model: "clip-vit-base-patch32",
-        vectorLength: visualEmbedding.length,
-      });
-
-      // Store visual embedding
-      const visualVectorId = await upsertVisualVector({
-        itemId,
-        userId,
-        model: "clip-vit-base-patch32",
-        embedding: visualEmbedding,
-      });
-
-      logger.log("Visual embedding stored", { itemId, visualVectorId });
 
       logger.log("Image analysis complete", { itemId });
 
