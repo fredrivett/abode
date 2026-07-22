@@ -102,7 +102,7 @@ if (!isValidOtpType(type)) {
 
 abode must run on a **minimal core** (Postgres + Supabase) so it's genuinely self-hostable. Everything else is an **optional enhancement** that lights up when its key is present and degrades cleanly when it isn't. This is a core principle — follow it whenever you touch a third-party integration.
 
-The canonical list of services and their tiers (required / recommended core / optional) lives in the **[External services table in the README](README.md#external-services)** — keep that as the single source of truth; don't duplicate the list here.
+The canonical list of services and their tiers (required / recommended core / optional) is the **[External services table in the README](README.md#external-services)**. When you add or change a service, update that table.
 
 **The pattern** (see `isReplicateConfigured()` in `src/lib/embeddings.ts` + its use in `trigger/analyze-image.ts` for the reference implementation):
 

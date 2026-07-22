@@ -58,44 +58,13 @@ Self-hosted instances send **no telemetry** unless you set your own PostHog key.
 
 ## Development
 
-- `bin/install` — installs dependencies inside `app/` (run after cloning or when packages change).
-- `bin/dev` — sources `.env` / `.env.local`, then starts the Next.js dev server on http://localhost:3300.
-- Both scripts automatically start Supabase locally (via `bunx supabase start`) when Docker and the Supabase CLI are available.
-- Prereqs: [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) and Docker running in the background.
-- On first run, the scripts symlink `app/.env` → `../.env.local` so Next.js picks up your root env values.
-- Supabase local services use dedicated ports to avoid clashes with other repos.
+**Prerequisites:** [Bun](https://bun.sh), [Docker](https://www.docker.com/) (for local Supabase), and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
 
-### Port Allocation
+1. Copy `.env.example` to `.env` and fill in your keys — only the **Required** tier from [External services](#external-services) is needed to boot.
+2. `bin/install` — install dependencies (runs inside `app/`).
+3. `bin/dev` — start the dev server on http://localhost:3300 (also starts local Supabase via Docker when available).
 
-All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conductor). Each Conductor workspace gets 10 ports (`+0` to `+9`).
-
-| Offset | Service                 | Runtime Status                  |
-| ------ | ----------------------- | ------------------------------- |
-| +0     | Next.js dev server      | Active (Conductor `run` script) |
-| +1     | Supabase API (kong)     | Active (E2E tests only)         |
-| +2     | Supabase DB (postgres)  | Active (E2E tests only)         |
-| +3     | Mailpit web UI          | Active (E2E tests only)         |
-| +4     | Mailpit SMTP            | Active (E2E tests only)         |
-| +5     | E2E test Next.js server | Active during `test:e2e` only   |
-| +6     | Studio                  | Excluded (`-x studio`)          |
-| +7     | Analytics               | Excluded (`-x logflare,vector`) |
-| +8     | Pooler                  | Disabled                        |
-| +9     | Edge Runtime            | Excluded (`-x edge-runtime`)    |
-
-- **+0** is always in use by the Conductor dev server
-- **+1 to +4** are used by the isolated Supabase instance started during E2E tests (`supabase-e2e/`)
-- **+5** is the shadow DB port in Supabase config (never bound at runtime), reused for the E2E test Next.js server
-- **+6 to +9** are assigned in `config.toml` but services are excluded via `-x` flags and never bind
-
-### Starting Supabase Manually
-
-If you need to start Supabase manually (outside of `bin/dev`):
-
-```bash
-./scripts/start-supabase.sh
-```
-
-**Note:** This script includes a workaround for a [known Supabase bug](https://github.com/orgs/supabase/discussions/20753) where custom email templates fail to load due to a race condition. The script restarts the auth container after startup to ensure templates are loaded. This workaround can be removed once Supabase fixes the underlying issue.
+More contributor detail — environment plumbing, port allocation, running Supabase manually, and the quality gate — is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 
