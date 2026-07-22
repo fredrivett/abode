@@ -7,6 +7,8 @@
  * most common book cover shape.
  */
 
+import type { ImageColor } from "@/lib/types/item";
+
 export const DEFAULT_BOOK_COVER_RATIO = 2 / 3;
 
 // Clamp to portrait-ish shapes: narrower than 1:2 or wider than square is
@@ -61,4 +63,17 @@ export function getBookTileFrame(
     width: 1,
     height: innerWidth / getBookCoverRatio(meta) + 2 * BOOK_TILE_PADDING_Y,
   };
+}
+
+/**
+ * Most dominant color (by Vision score) from an analysed cover, as a hex
+ * string. Used as an opaque placeholder behind the lazy-loaded cover image so
+ * the book shows its own primary color instead of a transparent gap while the
+ * image loads. Returns undefined when the cover has no color data yet.
+ */
+export function getDominantCoverColor(
+  colors: ImageColor[] | null | undefined,
+): string | undefined {
+  if (!colors || colors.length === 0) return undefined;
+  return [...colors].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0]?.hex;
 }

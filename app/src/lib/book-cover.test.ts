@@ -5,6 +5,7 @@ import {
   DEFAULT_BOOK_COVER_RATIO,
   getBookCoverRatio,
   getBookTileFrame,
+  getDominantCoverColor,
 } from "./book-cover";
 
 describe("getBookCoverRatio", () => {
@@ -60,5 +61,41 @@ describe("getBookTileFrame", () => {
       (width - 2 * BOOK_TILE_PADDING_X * width) /
       (height - 2 * BOOK_TILE_PADDING_Y * width);
     expect(innerRatio).toBeCloseTo(DEFAULT_BOOK_COVER_RATIO);
+  });
+});
+
+describe("getDominantCoverColor", () => {
+  it("returns the highest-scoring color's hex", () => {
+    expect(
+      getDominantCoverColor([
+        { hex: "#111111", name: "black", score: 0.2 },
+        { hex: "#eeeeee", name: "white", score: 0.7 },
+        { hex: "#ff0000", name: "red", score: 0.5 },
+      ]),
+    ).toBe("#eeeeee");
+  });
+
+  it("does not mutate the input order", () => {
+    const colors = [
+      { hex: "#111111", name: "black", score: 0.2 },
+      { hex: "#eeeeee", name: "white", score: 0.7 },
+    ];
+    getDominantCoverColor(colors);
+    expect(colors[0]?.hex).toBe("#111111");
+  });
+
+  it("treats a missing score as zero", () => {
+    expect(
+      getDominantCoverColor([
+        { hex: "#111111", name: "black" },
+        { hex: "#eeeeee", name: "white", score: 0.1 },
+      ]),
+    ).toBe("#eeeeee");
+  });
+
+  it("returns undefined when there are no colors", () => {
+    expect(getDominantCoverColor([])).toBeUndefined();
+    expect(getDominantCoverColor(null)).toBeUndefined();
+    expect(getDominantCoverColor(undefined)).toBeUndefined();
   });
 });

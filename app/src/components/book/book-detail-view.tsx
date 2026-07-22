@@ -16,6 +16,8 @@ type BookDetailViewProps = {
   coverFileKey?: string | null;
   /** Cover width/height ratio (see getBookCoverRatio); defaults to 2:3 */
   coverRatio?: number;
+  /** Dominant cover color, used as an opaque fill while the image loads */
+  coverColor?: string;
   className?: string;
 };
 
@@ -30,6 +32,7 @@ export function BookDetailView({
   sourceUrl,
   coverFileKey,
   coverRatio = DEFAULT_BOOK_COVER_RATIO,
+  coverColor,
   className,
 }: BookDetailViewProps) {
   const { authors, domain } = bookDetails;
@@ -52,6 +55,7 @@ export function BookDetailView({
               src={getProxyImageUrl(coverFileKey, "full")}
               alt={title ?? "Book cover"}
               layoutId={`item-image-${itemId}`}
+              coverColor={coverColor}
             />
           </div>
         )}
