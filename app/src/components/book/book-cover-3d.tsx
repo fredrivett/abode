@@ -11,6 +11,12 @@ type BookCover3DProps = {
   layoutId?: string;
   /** Extra classes for the outer (sizing) box. */
   className?: string;
+  /**
+   * Opaque fill behind the cover image (the cover's dominant color), so the
+   * book shows its own primary color instead of a transparent gap while the
+   * lazy image loads. Falls back to a neutral surface when absent.
+   */
+  coverColor?: string;
 };
 
 // Page fore-edge: striations under a light-to-shadow wash. Rendered on a
@@ -38,6 +44,7 @@ export function BookCover3D({
   alt,
   layoutId,
   className,
+  coverColor,
 }: BookCover3DProps) {
   return (
     <motion.div
@@ -54,7 +61,10 @@ export function BookCover3D({
         <div className="absolute inset-x-[8%] bottom-[-5%] h-[9%] rounded-[50%] bg-black/35 blur-lg transition-all duration-300 group-hover/book:bg-black/25" />
 
         {/* Back cover — same board as the front, in shadow behind the pages */}
-        <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[2px_4px_12px_rgba(0,0,0,0.35)]">
+        <div
+          className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] bg-neutral-200 shadow-[2px_4px_12px_rgba(0,0,0,0.35)] dark:bg-neutral-800"
+          style={{ backgroundColor: coverColor }}
+        >
           {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
           <img
             src={src}
@@ -76,7 +86,10 @@ export function BookCover3D({
 
         {/* Front cover, hinged at the spine and opening toward the viewer */}
         <div className="absolute inset-0 origin-left transition-transform duration-300 ease-out [transform:rotateY(-28deg)] group-hover/book:[transform:rotateY(-35deg)]">
-          <div className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] shadow-[10px_10px_24px_-8px_rgba(0,0,0,0.5)]">
+          <div
+            className="absolute inset-0 overflow-hidden rounded-[2px] rounded-r-[4px] bg-neutral-200 shadow-[10px_10px_24px_-8px_rgba(0,0,0,0.5)] dark:bg-neutral-800"
+            style={{ backgroundColor: coverColor }}
+          >
             {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
             <img
               src={src}

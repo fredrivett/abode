@@ -73,6 +73,7 @@ import {
   BOOK_TILE_PADDING_X,
   BOOK_TILE_PADDING_Y,
   getBookCoverRatio,
+  getDominantCoverColor,
 } from "@/lib/book-cover";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
@@ -708,6 +709,7 @@ export function ItemCard({
             src={previewUrl}
             alt={itemName}
             layoutId={`item-image-${item.id}`}
+            coverColor={getDominantCoverColor(item.colors)}
           />
         </button>
 
@@ -1718,6 +1720,7 @@ function ItemDetailDialog({
                     sourceUrl={item.sourceUrl}
                     coverFileKey={item.coverFileKey}
                     coverRatio={getBookCoverRatio(item.meta)}
+                    coverColor={getDominantCoverColor(item.colors)}
                     className="py-8"
                   />
                 </div>

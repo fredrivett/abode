@@ -30,6 +30,25 @@ export const Detail: Story = {
   ],
 };
 
+// The opaque cover-color fill shown behind the image while it lazy-loads. A
+// transparent 1x1 image sits on top so the dominant-color placeholder shows.
+const TRANSPARENT_PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+export const ColorPlaceholder: Story = {
+  args: {
+    src: TRANSPARENT_PIXEL,
+    coverColor: "#1f6f3c",
+  },
+  decorators: [
+    (Story) => (
+      <div className="aspect-[2/3] w-[240px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 // Grid-tile treatment at a large tile width: the item-card surface with the
 // shared padding fraction, so book pop-out vs padding can be eyeballed
 export const GridTile: Story = {
