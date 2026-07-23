@@ -4,7 +4,7 @@
   <img src="app/public/abode.svg" alt="Abode" width="127">
 </picture>
 
-# 🏠 abode
+# 🏡 abode
 
 **your home should be yours.**
 
@@ -12,19 +12,19 @@ save everything. sort nothing. own it all.
 
 save the link, the photo, the tweet, the note-to-self — then find it the way you think. no folders, no tags, no digging.
 
-→ [abode.fyi](https://www.abode.fyi)
+🏡 [abode.fyi](https://www.abode.fyi)
 
 ## Open source & self-hostable
 
-abode is open source under **AGPL-3.0**. Use the hosted version if you want it managed — or **run it yourself and own your data, free, forever.**
+abode is open source under **AGPL-3.0**. Use the hosted version if you want it managed, eject anytime to **run it yourself and own your data, free, forever.**
 
-Self-hosting is currently best-effort and unsupported: the code's all here and the docs are as clear as we can make them, but abode's a small project, so there's no SLA and fixes land when they land. The hosted version is the supported option. Issues and PRs are welcome — replies may just be slow.
+Self-hosting is currently a work-in-progress best-effort: the code's all here and the docs are evolving, but abode's a small project, so please bear with me. The hosted version is the supported option. Issues and PRs are welcome — replies may just be slow at times.
 
 ## What it is
 
-The mymind you can own — beautiful like Sublime, open like Ghost. Your mind shouldn't live on someone else's server.
+Open-source, self-hostable app for saving images, links, tweets, videos, and articles. Visual, minimal, serendipitous; single-player first.
 
-Open-source, self-hostable library for saving images, links, tweets, videos, and articles. Visual, minimal, serendipitous; single-player first.
+Your mind shouldn't be trapped on someone else's server, and you shouldn't need to commit to a lifelong subscription to access it.
 
 ## Stack
 
@@ -69,6 +69,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 ## Roadmap
 
 **Done (v0):**
+
 - Capture via website (URL, file, text/quote, tweets)
 - Masonry gallery, full-text + semantic search, filters
 - Metadata extraction + article parsing (Mozilla Readability)
@@ -78,12 +79,14 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Admin dashboard, waitlist, invite system
 
 **Next:**
+
 - Browser extension
 - Public rooms / shelves
 - Better feed heuristics
 - Export / portability
 
 **Later:**
+
 - Mobile capture
 - Self-hosting guide + Docker Compose
 
