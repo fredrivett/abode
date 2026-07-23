@@ -34,16 +34,16 @@ Next.js 16 (React 19) · Tailwind CSS 4 · shadcn/ui · Zustand · TanStack Quer
 
 The only thing you _must_ provision to self-host is a database and Supabase. Everything else is an enhancement that lights up when you add its key and [degrades cleanly](AGENTS.md#optional-services--graceful-degradation) when you don't.
 
-| Service | Tier | Unlocks | Without it |
-| --- | --- | --- | --- |
-| PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | **Required** | the app itself | won't run |
-| [Trigger.dev](https://trigger.dev) | **Recommended core** | runs the enrichment pipeline | capture + full-text search work, but no auto-enrichment |
-| [OpenAI](https://openai.com) | **Recommended core** | titles, descriptions, tags, OCR, semantic search | items stay bare; full-text search only |
-| [Replicate](https://replicate.com) (CLIP) | Optional | image embeddings (for future "similar image") | skipped |
-| [Google Cloud Vision](https://cloud.google.com/vision) | Optional | dominant-colour extraction | skipped |
-| [Mapbox](https://mapbox.com) | Optional | location + static map thumbnails | skipped |
-| [Resend](https://resend.com) | Optional | invite / waitlist / admin emails | email features off |
-| [PostHog](https://posthog.com) | Optional | product analytics | no telemetry (the default) |
+| Service                                                       | Tier                 | Unlocks                                          | Without it                                              |
+| ------------------------------------------------------------- | -------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | **Required**         | the app itself                                   | won't run                                               |
+| [Trigger.dev](https://trigger.dev)                            | **Recommended core** | runs the enrichment pipeline                     | capture + full-text search work, but no auto-enrichment |
+| [OpenAI](https://openai.com)                                  | **Recommended core** | titles, descriptions, tags, OCR, semantic search | items stay bare; full-text search only                  |
+| [Replicate](https://replicate.com) (CLIP)                     | Optional             | image embeddings (for future "similar image")    | skipped                                                 |
+| [Google Cloud Vision](https://cloud.google.com/vision)        | Optional             | dominant-colour extraction                       | skipped                                                 |
+| [Mapbox](https://mapbox.com)                                  | Optional             | location + static map thumbnails                 | skipped                                                 |
+| [Resend](https://resend.com)                                  | Optional             | invite / waitlist / admin emails                 | email features off                                      |
+| [PostHog](https://posthog.com)                                | Optional             | product analytics                                | no telemetry (the default)                              |
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
 
