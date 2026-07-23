@@ -70,25 +70,29 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 **Done (v0):**
 
-- Capture via website (URL, file, text/quote, tweets)
+- Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
 - Masonry gallery, full-text + semantic search, filters
 - Metadata extraction + article parsing (Mozilla Readability)
 - OCR + auto-tagging (OpenAI)
+- Dominant-colour extraction, palette bar + colour search
 - pgvector text embeddings blended into search
+- Location (auto + manual) + map thumbnails (Mapbox)
 - Rooms (manual + smart collections)
+- Public rooms, profiles + room embedding
+- Article highlighting (with per-highlight notes)
+- Command palette (⌘K) + keyboard navigation
 - Admin dashboard, waitlist, invite system
 
 **Next:**
 
 - Browser extension
-- Public rooms / shelves
-- Better feed heuristics
-- Export / portability
+- Similar images (via existing CLIP image embeddings)
+- Export / eject
+- Self-hosting guide + Docker Compose
 
 **Later:**
 
-- Mobile capture
-- Self-hosting guide + Docker Compose
+- Expo mobile app
 
 ## License
 
