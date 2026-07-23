@@ -1,4 +1,4 @@
-import { read, write } from "@/lib/db";
+import { write } from "@/lib/db";
 import { isBlankNote } from "./note-title";
 
 /**
@@ -9,9 +9,16 @@ import { isBlankNote } from "./note-title";
  * table and never touches the grid, search, rooms, or public profile.
  */
 
-/** Returns the user's saved draft markdown, or null when there's none. */
+/**
+ * Returns the user's saved draft markdown, or null when there's none.
+ *
+ * Reads from the primary (not the read replica): the draft is fetched during
+ * dashboard SSR immediately after an autosave, so replica lag would render a
+ * stale/empty draft and briefly lose the latest keystrokes — the opposite of
+ * what this feature promises.
+ */
 export async function getNoteDraft(userId: string): Promise<string | null> {
-  const draft = await read.noteDraft.findUnique({ where: { userId } });
+  const draft = await write.noteDraft.findUnique({ where: { userId } });
   if (!draft || isBlankNote(draft.content)) return null;
   return draft.content;
 }
