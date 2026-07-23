@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
-import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -15,7 +15,6 @@ import {
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { getFileSizeFromMeta } from "@/lib/utils";
-import type { analyzeImageTask } from "../../../../../trigger/analyze-image";
 
 const log = createLogger("api/v1/items");
 
@@ -192,13 +191,10 @@ export async function POST(request: NextRequest) {
       return newItem;
     });
 
-    // Trigger image analysis via Trigger.dev (returns immediately)
+    // Enqueue image enrichment. The item is already committed above; enqueue
+    // failures don't fail the request (graceful degradation — see AGENTS.md).
     if (kind === "image" && fileKey) {
-      await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-        itemId: item.id,
-        userId: user.id,
-        fileKey,
-      });
+      await enqueueImageAnalysis({ itemId: item.id, userId: user.id, fileKey });
     }
 
     // Log activity (fire-and-forget)

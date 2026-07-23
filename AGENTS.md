@@ -102,6 +102,22 @@ if (!isValidOtpType(type)) {
 // type is now narrowed to OtpType
 ```
 
+## Optional Services & Graceful Degradation
+
+abode must run on a **minimal core** (Postgres + Supabase) so it's genuinely self-hostable. Everything else is an **optional enhancement** that lights up when its key is present and degrades cleanly when it isn't. This is a core principle — follow it whenever you touch a third-party integration.
+
+The canonical list of services and their tiers (required / recommended core / optional) is the **[External services table in the README](README.md#external-services)**. When you add or change a service, update that table.
+
+**The pattern** (see `isReplicateConfigured()` in `src/lib/embeddings.ts` + its use in `trigger/analyze-image.ts` for the reference implementation):
+
+1. Expose an `isXConfigured(): boolean` predicate that checks for the key. Never assume an optional key is set.
+2. **Not configured → skip cleanly.** No throw, an `info`/`log` line, and continue. A missing optional key is a valid deployment, not an error.
+3. **Configured but errored → catch and continue.** Log a `warn`, report via `captureServerException`, but don't fail the surrounding work — one optional enhancement failing must never fail item capture or the whole enrichment task.
+4. Don't do setup work (signed URLs, client init, fetches) for a service you're going to skip — guard first.
+5. Env schema (`env.server.ts`): optional-service keys are `.optional()`, never `.min(1)`. Only core-tier keys are required.
+
+When you add a new integration, decide its tier, add the predicate, and wire the skip/catch paths — with tests for both the configured and unconfigured branches.
+
 ## Code Formatting
 
 - Lean towards self-documenting code, but add comments where necessary.
