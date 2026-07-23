@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useConfirmAction } from "@/hooks/use-confirm-action";
 import {
   useDeleteHighlight,
   useItemHighlights,
@@ -103,7 +104,12 @@ function HighlightCard({
   isDeleting: boolean;
   canEdit: boolean;
 }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  // Two-step confirm so a stray click can't delete a highlight; reverts to the
+  // idle icon once the pointer leaves the card for a moment.
+  const deleteConfirm = useConfirmAction({
+    onConfirm: onDelete,
+    revertDelayMs: 2000,
+  });
 
   // Truncate text for display
   const displayText =
@@ -111,22 +117,12 @@ function HighlightCard({
       ? `${highlight.text.slice(0, 100)}...`
       : highlight.text;
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirmDelete) {
-      onDelete();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-    }
-  };
-
   return (
     <button
       type="button"
       className="group w-full cursor-pointer rounded-md border border-border p-3 text-left transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10"
       onClick={onClick}
-      onMouseLeave={() => setConfirmDelete(false)}
+      {...deleteConfirm.hoverProps}
     >
       <div className="flex items-start justify-between gap-2">
         <blockquote className="flex-1 border-yellow-400 border-l-2 pl-2 text-foreground/80 text-sm italic">
@@ -136,17 +132,20 @@ function HighlightCard({
         {canEdit && (
           <Button
             variant="ghost"
-            size={confirmDelete ? "sm" : "icon"}
+            size={deleteConfirm.confirming ? "sm" : "icon"}
             className={
-              confirmDelete
+              deleteConfirm.confirming
                 ? "shrink-0 gap-1 text-destructive hover:text-destructive"
                 : "size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
             }
-            onClick={handleDeleteClick}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteConfirm.onClick();
+            }}
             disabled={isDeleting}
           >
             <Trash2 className="size-3.5" />
-            {confirmDelete && "Confirm?"}
+            {deleteConfirm.confirming && "Confirm?"}
           </Button>
         )}
       </div>
