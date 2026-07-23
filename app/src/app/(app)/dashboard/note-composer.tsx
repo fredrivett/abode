@@ -1,9 +1,8 @@
 "use client";
 
 import posthog from "posthog-js";
-import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
+import { type KeyboardEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { useDebouncedCallback } from "use-debounce";
 import { NoteEditor } from "@/components/note/note-editor";
 import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
@@ -12,17 +11,8 @@ import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { createLogger } from "@/lib/logger.client";
-import {
-  clearNoteDraft,
-  isBlankNote,
-  readNoteDraft,
-  writeNoteDraft,
-} from "@/lib/note-draft";
 
 const log = createLogger("dashboard/note-composer");
-
-// Delay before an edit is written to the draft store
-const DRAFT_SAVE_DEBOUNCE_MS = 1000;
 
 /**
  * Inline note composer — the first card in the grid (mymind-style "take a note").
@@ -35,82 +25,18 @@ const DRAFT_SAVE_DEBOUNCE_MS = 1000;
 export function NoteComposer() {
   const invalidateItems = useInvalidateItems();
   const [markdown, setMarkdown] = useState("");
-  // The content the editor mounts with — starts empty, hydrated from any saved
-  // draft after mount and reset to "" on save/clear (see `reset`)
-  const [editorContent, setEditorContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   // Remount the editor to clear its content after a save or clear
   const [editorKey, setEditorKey] = useState(0);
-  // True while an edit is waiting to be flushed to the draft store — used to gate
-  // the beforeunload guard so we only warn when something is genuinely unsaved
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  // Hold the editor's first render until the saved draft (if any) is read, so it
-  // mounts once with the draft as its initial content. Otherwise it would mount
-  // empty — and the required-heading normalisation fires an empty `onChange` that
-  // races the draft, clobbering `markdown` back to empty.
-  const [hydrated, setHydrated] = useState(false);
 
-  const isEmpty = isBlankNote(markdown);
-
-  const saveDraft = useDebouncedCallback((value: string) => {
-    writeNoteDraft(value);
-    setHasUnsavedChanges(false);
-  }, DRAFT_SAVE_DEBOUNCE_MS);
-
-  // Repopulate the composer from a saved draft on load. Runs after mount (not in
-  // a state initializer) to avoid touching localStorage during SSR/hydration.
-  useEffect(() => {
-    const draft = readNoteDraft();
-    if (draft) {
-      setMarkdown(draft);
-      setEditorContent(draft);
-    }
-    setHydrated(true);
-  }, []);
-
-  // Flush any pending draft write on unmount so nothing is lost on navigation
-  useEffect(() => () => saveDraft.flush(), [saveDraft]);
-
-  // Warn before leaving while a draft write is still pending, and flush it
-  // synchronously so the draft survives even if the user leaves anyway.
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      saveDraft.flush();
-      e.preventDefault();
-      // Legacy signal some browsers still require to show the leave prompt
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges, saveDraft]);
-
-  const handleChange = useCallback(
-    (value: string) => {
-      setMarkdown(value);
-      if (isBlankNote(value)) {
-        // The editor can emit a blank update on mount/reset (heading
-        // normalisation) or when the user clears the text — that's nothing to
-        // save, so drop any pending write and disarm the unsaved-changes guard.
-        saveDraft.cancel();
-        setHasUnsavedChanges(false);
-        clearNoteDraft();
-        return;
-      }
-      setHasUnsavedChanges(true);
-      saveDraft(value);
-    },
-    [saveDraft],
-  );
+  // The editor always holds a title heading, so an "empty" note serializes to
+  // just heading markers/whitespace — strip those before checking.
+  const isEmpty = markdown.replace(/[#\s]/g, "").length === 0;
 
   const reset = useCallback(() => {
-    saveDraft.cancel();
-    clearNoteDraft();
-    setHasUnsavedChanges(false);
     setMarkdown("");
-    setEditorContent("");
     setEditorKey((k) => k + 1);
-  }, [saveDraft]);
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (isEmpty || isSaving) return;
@@ -159,15 +85,13 @@ export function NoteComposer() {
             Take a note…
           </span>
         )}
-        {hydrated && (
-          <NoteEditor
-            key={editorKey}
-            content={editorContent}
-            onChange={handleChange}
-            className="min-h-full"
-            titleFirst
-          />
-        )}
+        <NoteEditor
+          key={editorKey}
+          content=""
+          onChange={setMarkdown}
+          className="min-h-full"
+          titleFirst
+        />
       </div>
       {!isEmpty && (
         <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
