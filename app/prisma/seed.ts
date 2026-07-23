@@ -160,17 +160,17 @@ async function seed() {
       "image/gif",
     );
 
-    const switchCoverUpload = await uploadSeedImage(
+    const mobyCoverUpload = await uploadSeedImage(
       supabase,
       userId,
-      "book-switch.jpg",
+      "book-moby-dick.jpg",
       "image/jpeg",
     );
 
-    const fallingUpwardCoverUpload = await uploadSeedImage(
+    const willowsCoverUpload = await uploadSeedImage(
       supabase,
       userId,
-      "book-falling-upward.jpg",
+      "book-wind-in-the-willows.jpg",
       "image/jpeg",
     );
 
@@ -622,75 +622,79 @@ async function seed() {
 
     // --- BOOK ITEMS ---
 
-    const switchBook = await prisma.item.create({
+    const mobyBook = await prisma.item.create({
       data: {
         userId,
         kind: "book",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://www.amazon.co.uk/dp/1847940323",
-        coverFileKey: switchCoverUpload.fileKey,
-        title: "Switch: How to Change Things When Change Is Hard",
+        sourceUrl:
+          "https://standardebooks.org/ebooks/herman-melville/moby-dick",
+        coverFileKey: mobyCoverUpload.fileKey,
+        title: "Moby-Dick; or, The Whale",
         description:
-          "Why is it so hard to make lasting change? The Heath brothers show how everyday people can unite their rational and emotional minds to make tough changes stick.",
-        tags: ["change", "psychology", "business", "self-help", "book"],
+          "Ishmael's account of Captain Ahab's obsessive hunt for the white whale that took his leg — a sprawling meditation on obsession, nature, and fate.",
+        tags: ["fiction", "classic", "adventure", "book"],
         meta: {
-          originalName: "Switch: How to Change Things When Change Is Hard",
-          coverSize: switchCoverUpload.size,
-          // Actual dimensions of seed-assets/book-switch.jpg
-          coverWidth: 324,
-          coverHeight: 500,
-        },
-        externalLinks: [
-          { url: "https://www.amazon.co.uk/dp/1847940323", platform: "web" },
-        ],
-        bookDetails: {
-          create: {
-            authors: ["Chip Heath", "Dan Heath"],
-            publisher: "Random House Business",
-            publishedAt: new Date("2011-02-03"),
-            isbn: "9781847940322",
-            pageCount: 320,
-            domain: "amazon.co.uk",
-          },
-        },
-      },
-    });
-
-    const fallingUpwardBook = await prisma.item.create({
-      data: {
-        userId,
-        kind: "book",
-        processingStatus: "completed",
-        sourceType: "url",
-        sourceUrl: "https://www.goodreads.com/book/show/9963483-falling-upward",
-        coverFileKey: fallingUpwardCoverUpload.fileKey,
-        title: "Falling Upward: A Spirituality for the Two Halves of Life",
-        description:
-          "Richard Rohr explores the two halves of life, arguing that the setbacks and failures of the first half are what open us to the deeper spirituality of the second.",
-        tags: ["spirituality", "richard rohr", "philosophy", "faith", "book"],
-        meta: {
-          originalName:
-            "Falling Upward: A Spirituality for the Two Halves of Life",
-          coverSize: fallingUpwardCoverUpload.size,
-          // Actual dimensions of seed-assets/book-falling-upward.jpg
-          coverWidth: 318,
-          coverHeight: 461,
+          originalName: "Moby-Dick; or, The Whale",
+          coverSize: mobyCoverUpload.size,
+          // Actual dimensions of seed-assets/book-moby-dick.jpg
+          coverWidth: 1400,
+          coverHeight: 2100,
         },
         externalLinks: [
           {
-            url: "https://www.goodreads.com/book/show/9963483-falling-upward",
+            url: "https://standardebooks.org/ebooks/herman-melville/moby-dick",
             platform: "web",
           },
         ],
         bookDetails: {
           create: {
-            authors: ["Richard Rohr"],
-            publisher: "Jossey-Bass",
-            publishedAt: new Date("2011-04-25"),
-            isbn: "9780470907757",
+            authors: ["Herman Melville"],
+            publisher: "Harper & Brothers",
+            publishedAt: new Date("1851-11-14"),
+            isbn: null,
+            pageCount: 635,
+            domain: "standardebooks.org",
+          },
+        },
+      },
+    });
+
+    const willowsBook = await prisma.item.create({
+      data: {
+        userId,
+        kind: "book",
+        processingStatus: "completed",
+        sourceType: "url",
+        sourceUrl:
+          "https://standardebooks.org/ebooks/kenneth-grahame/the-wind-in-the-willows",
+        coverFileKey: willowsCoverUpload.fileKey,
+        title: "The Wind in the Willows",
+        description:
+          "Mole, Rat, Toad, and Badger idle and adventure along the riverbank in Kenneth Grahame's gentle classic of English childhood.",
+        tags: ["fiction", "classic", "children", "book"],
+        meta: {
+          originalName: "The Wind in the Willows",
+          coverSize: willowsCoverUpload.size,
+          // Actual dimensions of seed-assets/book-wind-in-the-willows.jpg
+          coverWidth: 1400,
+          coverHeight: 2100,
+        },
+        externalLinks: [
+          {
+            url: "https://standardebooks.org/ebooks/kenneth-grahame/the-wind-in-the-willows",
+            platform: "web",
+          },
+        ],
+        bookDetails: {
+          create: {
+            authors: ["Kenneth Grahame"],
+            publisher: "Methuen",
+            publishedAt: new Date("1908-10-08"),
+            isbn: null,
             pageCount: 240,
-            domain: "goodreads.com",
+            domain: "standardebooks.org",
           },
         },
       },
@@ -746,8 +750,8 @@ async function seed() {
       BigInt(spiralUpload.size) +
       BigInt(meshUpload.size) +
       BigInt(gifUpload.size) +
-      BigInt(switchCoverUpload.size) +
-      BigInt(fallingUpwardCoverUpload.size);
+      BigInt(mobyCoverUpload.size) +
+      BigInt(willowsCoverUpload.size);
 
     await prisma.user.update({
       where: { id: userId },
@@ -826,7 +830,7 @@ async function seed() {
         type: "manual",
         visibility: "private",
         roomItems: {
-          create: [{ itemId: switchBook.id }, { itemId: fallingUpwardBook.id }],
+          create: [{ itemId: mobyBook.id }, { itemId: willowsBook.id }],
         },
       },
     });
