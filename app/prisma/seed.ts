@@ -5,7 +5,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SEED_USER = {
   email: "seed@preview.abode.fyi",
-  password: "preview-seed-123!",
   username: "seed_user",
   firstName: "Seed",
   lastName: "User",
@@ -53,11 +52,18 @@ async function createSeedUser(
   supabase: SupabaseClient,
   prisma: PrismaClient,
 ): Promise<string> {
+  const password = process.env.SEED_USER_PASSWORD;
+  if (!password) {
+    throw new Error(
+      "SEED_USER_PASSWORD is not set — set it in your environment (and in the Vercel preview env) to run the preview seed.",
+    );
+  }
+
   await deleteExistingSeedUser(prisma);
 
   const { data, error } = await supabase.auth.admin.createUser({
     email: SEED_USER.email,
-    password: SEED_USER.password,
+    password,
     email_confirm: true,
     user_metadata: { pending_username: SEED_USER.username },
   });
@@ -881,7 +887,6 @@ async function seed() {
 
     console.log("Preview seed complete!");
     console.log(`  Email: ${SEED_USER.email}`);
-    console.log(`  Password: ${SEED_USER.password}`);
     console.log(
       `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
