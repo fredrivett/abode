@@ -14,6 +14,7 @@ import { NoteEditor } from "@/components/note/note-editor";
 import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useConfirmAction } from "@/hooks/use-confirm-action";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
@@ -104,23 +105,6 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
     };
   }, []);
 
-  const handleChange = useCallback(
-    (value: string) => {
-      setMarkdown(value);
-      contentRef.current = value;
-      if (value === savedContentRef.current) {
-        // Back to the persisted state — or a spurious blank emit from the
-        // editor's heading normalisation on mount/reset. Nothing to save.
-        persistDraft.cancel();
-        dirtyRef.current = false;
-        return;
-      }
-      dirtyRef.current = true;
-      persistDraft(value);
-    },
-    [persistDraft],
-  );
-
   // Return the composer to its empty state and drop any pending draft write.
   const resetComposer = useCallback(() => {
     persistDraft.cancel();
@@ -142,6 +126,32 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
     resetComposer();
   }, [resetComposer]);
 
+  // Two-step confirm so an accidental click can't discard the draft: first
+  // click arms the button ("Confirm clear?"), the second clears.
+  const clearConfirm = useConfirmAction({
+    onConfirm: handleClear,
+    revertDelayMs: 2000,
+  });
+
+  const handleChange = useCallback(
+    (value: string) => {
+      // Any editing disarms a pending "Confirm clear"
+      clearConfirm.reset();
+      setMarkdown(value);
+      contentRef.current = value;
+      if (value === savedContentRef.current) {
+        // Back to the persisted state — or a spurious blank emit from the
+        // editor's heading normalisation on mount/reset. Nothing to save.
+        persistDraft.cancel();
+        dirtyRef.current = false;
+        return;
+      }
+      dirtyRef.current = true;
+      persistDraft(value);
+    },
+    [persistDraft, clearConfirm.reset],
+  );
+
   const handleSave = useCallback(async () => {
     if (isEmpty || isSaving) return;
     setIsSaving(true);
@@ -151,6 +161,7 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
       posthog.capture("note_created", { source: "composer" });
       invalidateItems();
       resetComposer();
+      clearConfirm.reset();
       toast.success("Note saved");
     } catch (error) {
       log.error({ error }, "Note create error");
@@ -158,19 +169,26 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [isEmpty, isSaving, markdown, invalidateItems, resetComposer]);
+  }, [
+    isEmpty,
+    isSaving,
+    markdown,
+    invalidateItems,
+    resetComposer,
+    clearConfirm.reset,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        handleClear();
+        clearConfirm.onClick();
       } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         void handleSave();
       }
     },
-    [handleClear, handleSave],
+    [clearConfirm.onClick, handleSave],
   );
 
   return (
@@ -203,10 +221,16 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleClear}
+            onClick={clearConfirm.onClick}
+            {...clearConfirm.hoverProps}
             disabled={isSaving}
+            className={
+              clearConfirm.confirming
+                ? "text-destructive hover:text-destructive"
+                : undefined
+            }
           >
-            Clear
+            {clearConfirm.confirming ? "Confirm clear?" : "Clear"}
           </Button>
           <Button size="sm" onClick={handleSave} disabled={isSaving}>
             {isSaving ? <IsLoading label="Saving" /> : "Save"}
