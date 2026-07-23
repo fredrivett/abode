@@ -345,58 +345,34 @@ async function seed() {
 
     // --- TWEET ITEMS ---
 
-    // Tweet with multiple images
-    const tweetMultiImage = await prisma.item.create({
+    // Tweet — maps themed (goes in the Maps & Geography room)
+    const mapsTweet = await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/youwillmakemaps/status/2037768343349080182",
-        title: "Tweet by @youwillmakemaps",
-        description: "The world craves amber.",
-        tags: ["maps", "cartography", "amber", "photography"],
+        sourceUrl: "https://x.com/corameridian/status/1901000000000000001",
+        title: "Tweet by @corameridian",
+        description:
+          "Every map is out of date the second it's printed. That's the fun part.",
+        tags: ["maps", "cartography", "design"],
         externalLinks: [
           {
-            url: "https://x.com/youwillmakemaps/status/2037768343349080182",
+            url: "https://x.com/corameridian/status/1901000000000000001",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2037768343349080182",
-            authorName: "Evan Applegate",
-            authorUsername: "youwillmakemaps",
+            tweetId: "1901000000000000001",
+            authorName: "Cora Meridian",
+            authorUsername: "corameridian",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1899462242137161728/MBcOeNTL_normal.png",
-            text: "The world craves amber.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=corameridian",
+            text: "Every map is out of date the second it's printed. That's the fun part.",
             postedAt: new Date("2026-03-28T05:46:47.000Z"),
-            media: [
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEea_ZDaoAAJjzS.jpg",
-                width: 2731,
-                height: 4096,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebQX6bwAArV94.jpg",
-                width: 3024,
-                height: 4032,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebWT7a4AAmFw6.jpg",
-                width: 2810,
-                height: 4096,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebfK-asAAiPWv.jpg",
-                width: 4096,
-                height: 2323,
-              },
-            ],
+            media: Prisma.JsonNull,
             quotedTweetId: null,
             card: Prisma.JsonNull,
           },
@@ -404,47 +380,34 @@ async function seed() {
       },
     });
 
-    // Tweet with single image
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/biancodavinci/status/2029957776693207118",
-        title: "Tweet by @BiancoDavinci",
+        sourceUrl: "https://x.com/jonahpierce/status/1901000000000000002",
+        title: "Tweet by @jonahpierce",
         description:
-          "View from a window at the Mill Valley Public Library in California.",
-        tags: [
-          "photography",
-          "library",
-          "california",
-          "landscape",
-          "architecture",
-        ],
+          "Found a reading nook on the top floor with a view over the whole valley. New favourite place to disappear.",
+        tags: ["reading", "libraries", "quiet"],
         externalLinks: [
           {
-            url: "https://x.com/biancodavinci/status/2029957776693207118",
+            url: "https://x.com/jonahpierce/status/1901000000000000002",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2029957776693207118",
-            authorName: "DaVinci",
-            authorUsername: "BiancoDavinci",
+            tweetId: "1901000000000000002",
+            authorName: "Jonah Pierce",
+            authorUsername: "jonahpierce",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1906685221778374656/tU2D_wLF_normal.jpg",
-            text: "View from a window at the Mill Valley Public Library in California.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=jonahpierce",
+            text: "Found a reading nook on the top floor with a view over the whole valley. New favourite place to disappear.",
             postedAt: new Date("2026-03-06T16:30:23.000Z"),
-            media: [
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HCvb05ZXIAMqN8J.jpg",
-                width: 1080,
-                height: 1334,
-              },
-            ],
+            media: Prisma.JsonNull,
             quotedTweetId: null,
             card: Prisma.JsonNull,
           },
@@ -452,73 +415,67 @@ async function seed() {
       },
     });
 
-    // Tweet with link card
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/nbaschez/status/2034444963656933683",
-        title: "Tweet by @nbaschez",
+        sourceUrl: "https://x.com/nadiabuilds/status/1901000000000000003",
+        title: "Tweet by @nadiabuilds",
         description:
-          "This is the most interesting thing I've read in like 3 years",
-        tags: ["startups", "punditry", "entrepreneurship", "reading"],
+          "The best thing I've read all year on why most startup advice ages so badly.",
+        tags: ["startups", "reading"],
         externalLinks: [
           {
-            url: "https://x.com/nbaschez/status/2034444963656933683",
+            url: "https://x.com/nadiabuilds/status/1901000000000000003",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2034444963656933683",
-            authorName: "Nathan Baschez",
-            authorUsername: "nbaschez",
+            tweetId: "1901000000000000003",
+            authorName: "Nadia Okafor",
+            authorUsername: "nadiabuilds",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1694966386957938688/PtayrF_x_normal.jpg",
-            text: "This is the most interesting thing I've read in like 3 years",
+              "https://api.dicebear.com/9.x/glass/svg?seed=nadiabuilds",
+            text: "The best thing I've read all year on why most startup advice ages so badly.",
             postedAt: new Date("2026-03-19T01:40:52.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
-            card: {
-              title: "Startup Punditry's 25 Years of Failure",
-              description:
-                "Startup pundits sold us a failed science of entrepreneurship. The Red Queen offers something better.",
-              url: "https://colossus.com/article/we-have-learned-nothing-startup-pundits/",
-              imageUrl:
-                "https://pbs.twimg.com/card_img/2036410874752024576/um9fgKpu?format=jpg&name=800x419",
-            },
+            card: Prisma.JsonNull,
           },
         },
       },
     });
 
-    // Tweet with no images
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/marclou/status/2030300952025256231",
-        title: "Tweet by @marclou",
-        description: "Every great startup began as a bad idea.",
-        tags: ["startups", "ideas", "entrepreneurship"],
+        sourceUrl: "https://x.com/theomarsh/status/1901000000000000004",
+        title: "Tweet by @theomarsh",
+        description:
+          "Every great product started as something people said would never work.",
+        tags: ["startups", "ideas"],
         externalLinks: [
           {
-            url: "https://x.com/marclou/status/2030300952025256231",
+            url: "https://x.com/theomarsh/status/1901000000000000004",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2030300952025256231",
-            authorName: "Marc Lou",
-            authorUsername: "marclou",
+            tweetId: "1901000000000000004",
+            authorName: "Theo Marsh",
+            authorUsername: "theomarsh",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1514863683574599681/9k7PqDTA_normal.jpg",
-            text: "Every great startup began as a bad idea.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=theomarsh",
+            text: "Every great product started as something people said would never work.",
             postedAt: new Date("2026-03-07T15:14:02.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
@@ -535,17 +492,17 @@ async function seed() {
         kind: "article",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/WillManidis/status/2023405488277508141",
+        sourceUrl: "https://x.com/annaquill/status/1901000000000000005",
         title: "Twitter Article",
         description: "Twitter Article (content not available for preview)",
         tags: ["history", "article"],
         meta: {
-          twitterArticleId: "2023405488277508141",
-          originalUrl: "https://x.com/WillManidis/status/2023405488277508141",
+          twitterArticleId: "1901000000000000005",
+          originalUrl: "https://x.com/annaquill/status/1901000000000000005",
         },
         externalLinks: [
           {
-            url: "https://x.com/WillManidis/status/2023405488277508141",
+            url: "https://x.com/annaquill/status/1901000000000000005",
             platform: "twitter",
           },
         ],
@@ -601,23 +558,23 @@ async function seed() {
         kind: "video",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://vimeo.com/78837099",
-        title: "Momentum Youth Church — Launch Video",
-        tags: ["video", "promo", "youth", "church", "community"],
-        meta: { originalName: "Momentum Youth Church — Launch Video" },
+        sourceUrl: "https://vimeo.com/125896742",
+        title: "Danny Macaskill: The Ridge",
+        tags: ["cycling", "scotland", "film", "adventure"],
+        meta: { originalName: "Danny Macaskill: The Ridge" },
         externalLinks: [
-          { url: "https://vimeo.com/78837099", platform: "vimeo" },
+          { url: "https://vimeo.com/125896742", platform: "vimeo" },
         ],
         videoDetails: {
           create: {
             platform: "vimeo",
-            videoId: "78837099",
-            channelName: "Fred Rivett",
-            channelUrl: "https://vimeo.com/fredrivett",
-            duration: 141,
-            embedUrl: "https://player.vimeo.com/video/78837099",
+            videoId: "125896742",
+            channelName: "Cut Media",
+            channelUrl: "https://vimeo.com/cutmedia1",
+            duration: 406,
+            embedUrl: "https://player.vimeo.com/video/125896742",
             thumbnailUrl:
-              "https://i.vimeocdn.com/video/454379595-02813f38ecad3ed7cf07e37b7fc536d241dec188c870426158bcf97f639b5c78-d_640",
+              "https://i.vimeocdn.com/video/516157704-4817e615cb3e9d8c251f94a2f5366aaec2049bbe62255bd6a04eadb01d72ab24-d_295x166?region=us",
           },
         },
       },
@@ -776,7 +733,7 @@ async function seed() {
         noteDetails: {
           create: {
             content:
-              "Idea: a room that auto-collects everything tagged amber. The world craves amber, after all.",
+              "Idea: a room that auto-collects everything tagged maps. I keep saving them anyway.",
           },
         },
       },
@@ -829,7 +786,7 @@ async function seed() {
         type: "manual",
         visibility: "public",
         roomItems: {
-          create: [{ itemId: tweetMultiImage.id }],
+          create: [{ itemId: mapsTweet.id }],
         },
       },
     });
