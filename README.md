@@ -68,7 +68,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 ## Roadmap
 
-**Done (v0):**
+**✅ Done (v0):**
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
 - Masonry gallery, full-text + semantic search, filters
@@ -83,14 +83,14 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Command palette (⌘K) + keyboard navigation
 - Admin dashboard, waitlist, invite system
 
-**Next:**
+**🔜 Next:**
 
 - Browser extension
 - Similar images (via existing CLIP image embeddings)
 - Export / eject
 - Self-hosting guide + Docker Compose
 
-**Later:**
+**🔮 Later:**
 
 - Expo mobile app
 
