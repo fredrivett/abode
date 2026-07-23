@@ -87,4 +87,68 @@ test.describe("Note composer", () => {
 
     await context.close();
   });
+
+  test("auto-saves the note as a server-side draft, repopulated on load", async ({
+    browser,
+  }) => {
+    const user = await createUser({
+      email: "note-draft@test.local",
+      username: "note_draft_user",
+    });
+
+    // The composer only appears once the grid has an item, so seed one.
+    await getE2EPrisma().item.create({
+      data: {
+        userId: user.id,
+        kind: "note",
+        sourceType: "compose",
+        processingStatus: "completed",
+        title: "Seed note",
+        noteDetails: { create: { content: "Seed body" } },
+      },
+    });
+
+    const readDraft = () =>
+      getE2EPrisma()
+        .noteDraft.findUnique({ where: { userId: user.id } })
+        .then((d) => d?.content ?? null);
+
+    // Type a draft in one browser, then close it without saving.
+    const typing = await browser.newContext();
+    const typingPage = await typing.newPage();
+    await loginAs(typingPage, user);
+    await typingPage.goto("/dashboard");
+    await typingPage.locator(".ProseMirror").first().click();
+    await typingPage.keyboard.type("Draft title");
+    await typingPage.keyboard.press("Enter");
+    await typingPage.keyboard.type("Unsaved thoughts to keep.");
+
+    // The debounced autosave (1s) persists the draft to the server.
+    await expect
+      .poll(readDraft, { timeout: 10_000 })
+      .toContain("Unsaved thoughts to keep.");
+    await typing.close();
+
+    // A completely separate browser (no shared storage) repopulates the draft
+    // from the server on load — proving it's server-side, not local.
+    const fresh = await browser.newContext();
+    const freshPage = await fresh.newPage();
+    await loginAs(freshPage, user);
+    await freshPage.goto("/dashboard");
+    const composer = freshPage.locator(".ProseMirror").first();
+    await expect(composer).toContainText("Unsaved thoughts to keep.", {
+      timeout: 15_000,
+    });
+    await expect(composer).toContainText("Draft title");
+
+    // Saving empties the composer (the placeholder only shows when empty) and
+    // clears the server draft in the same request.
+    await freshPage.getByRole("button", { name: /^save$/i }).click();
+    await expect(freshPage.getByText("Take a note…")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect.poll(readDraft, { timeout: 10_000 }).toBeNull();
+
+    await fresh.close();
+  });
 });

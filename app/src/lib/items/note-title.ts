@@ -57,6 +57,16 @@ export function promoteNoteHeading(content: string): {
 }
 
 /**
+ * True when note markdown has no real content. The composer always holds a
+ * title heading, so an "empty" note serializes to just heading markers and
+ * whitespace — strip those before checking. Used to gate draft persistence
+ * (both client and server) so a blank composer never stores a draft.
+ */
+export function isBlankNote(markdown: string): boolean {
+  return markdown.replace(/[#\s]/g, "").length === 0;
+}
+
+/**
  * Best-effort display name for a note that has no stored title — the first
  * non-empty line with any leading block marker stripped. Used only as a
  * fallback so title-less notes aren't shown as "Untitled"; never stored.

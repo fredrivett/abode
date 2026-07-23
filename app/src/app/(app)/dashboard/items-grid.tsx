@@ -37,6 +37,8 @@ type ItemsGridProps = {
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
   total?: number;
+  /** Server-rendered composer draft, passed straight to the note composer */
+  initialNoteDraft?: string | null;
 };
 
 /**
@@ -50,6 +52,7 @@ export function ItemsGrid({
   isLoadingMore,
   onLoadMore,
   total,
+  initialNoteDraft,
 }: ItemsGridProps) {
   const {
     frameWidth,
@@ -148,7 +151,7 @@ export function ItemsGrid({
             {!hasActiveSearch && (
               <Frame key="note-composer" width={1} height={1}>
                 <div className="h-full">
-                  <NoteComposer />
+                  <NoteComposer initialDraft={initialNoteDraft} />
                 </div>
               </Frame>
             )}

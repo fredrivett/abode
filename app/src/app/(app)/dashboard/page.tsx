@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { getNoteDraft } from "@/lib/items/note-draft";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +28,7 @@ export default async function DashboardPage({
   // Fetch only first page + 1 to check if there are more
   const fetchLimit = DEFAULT_PAGE_SIZE + 1;
 
-  const [rawItems, total] = user
+  const [rawItems, total, initialNoteDraft] = user
     ? await Promise.all([
         db.item.findMany({
           where: { userId: user.id },
@@ -36,8 +37,9 @@ export default async function DashboardPage({
           select: itemSelect,
         }),
         db.item.count({ where: { userId: user.id } }),
+        getNoteDraft(user.id),
       ])
-    : [[], 0];
+    : [[], 0, null];
 
   // Check if there are more results
   const hasMore = rawItems.length > DEFAULT_PAGE_SIZE;
@@ -63,6 +65,7 @@ export default async function DashboardPage({
         initialCursor={initialCursor}
         initialHasMore={hasMore}
         initialTotal={total}
+        initialNoteDraft={initialNoteDraft}
       />
     </div>
   );

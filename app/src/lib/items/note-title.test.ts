@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { noteDisplayName, promoteNoteHeading } from "./note-title";
+import { isBlankNote, noteDisplayName, promoteNoteHeading } from "./note-title";
 
 describe("promoteNoteHeading", () => {
   test("lifts a leading heading into the title and strips it from the body", () => {
@@ -92,4 +92,20 @@ describe("noteDisplayName", () => {
     expect(noteDisplayName("")).toBeNull();
     expect(noteDisplayName("\n  \n")).toBeNull();
   });
+});
+
+describe("isBlankNote", () => {
+  test.each(["", "# ", "#\n\n", "##   \n # \n", "   "])(
+    "treats %j as blank",
+    (markdown) => {
+      expect(isBlankNote(markdown)).toBe(true);
+    },
+  );
+
+  test.each(["# Title", "#\n\nbody", "plain text"])(
+    "treats %j as not blank",
+    (markdown) => {
+      expect(isBlankNote(markdown)).toBe(false);
+    },
+  );
 });

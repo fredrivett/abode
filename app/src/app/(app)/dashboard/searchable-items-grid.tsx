@@ -13,6 +13,8 @@ type SearchableItemsGridProps = {
   initialCursor: string | null;
   initialHasMore: boolean;
   initialTotal: number;
+  /** Server-rendered composer draft, avoiding a client fetch on load */
+  initialNoteDraft: string | null;
 };
 
 /**
@@ -26,6 +28,7 @@ export function SearchableItemsGrid({
   initialCursor,
   initialHasMore,
   initialTotal,
+  initialNoteDraft,
 }: SearchableItemsGridProps) {
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
@@ -110,6 +113,7 @@ export function SearchableItemsGrid({
       isLoadingMore={isFetchingNextPage}
       onLoadMore={loadMore}
       total={displayTotal}
+      initialNoteDraft={initialNoteDraft}
     />
   );
 }
