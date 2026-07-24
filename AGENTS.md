@@ -255,6 +255,7 @@ bun run prisma:migrate --name your_migration_name
 - **Never run `prisma migrate reset`** — this destroys all data.
 - **Never run `prisma db push`** — this bypasses migration history and can cause drift.
 - **Never manually create migration folders/files** — `prisma:migrate` creates properly timestamped folders and SQL files.
+- **Every new table must enable RLS (default-deny)** — add `ALTER TABLE "<table>" ENABLE ROW LEVEL SECURITY;` in the same migration (Prisma can't express RLS in the schema, so use `prisma migrate dev --create-only` then add the SQL). Without it the table is reachable by the anon/authenticated Supabase roles. Enforced by the `rls-coverage` integration test.
 
 If a migration cannot be generated from schema changes (extremely rare), discuss with the team before manually writing SQL.
 
@@ -270,7 +271,7 @@ The `supabase-e2e/` directory contains config for an isolated Supabase instance 
 
 When a recurring defect is fixed, append a one-line entry here — but first try to convert the lesson into a deterministic check (type, lint, or test) via the `learn` skill in `.agents/skills/learn/`. Use this list only for context a check can't capture.
 
-- _No entries yet._
+- New Postgres tables must enable RLS (default-deny) or they're reachable by the anon/authenticated Supabase roles — enforced by `src/lib/__tests__/rls-coverage.integration.test.ts`.
 
 ## Trigger.dev
 
