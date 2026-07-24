@@ -354,8 +354,7 @@ async function seed() {
         sourceType: "url",
         sourceUrl: "https://x.com/corameridian/status/1901000000000000001",
         title: "Tweet by @corameridian",
-        description:
-          "Every map is out of date the second it's printed. That's the fun part.",
+        description: "Every map is out of date the moment it's printed.",
         tags: ["maps", "cartography", "design"],
         externalLinks: [
           {
@@ -370,7 +369,7 @@ async function seed() {
             authorUsername: "corameridian",
             authorAvatarUrl:
               "https://api.dicebear.com/9.x/glass/svg?seed=corameridian",
-            text: "Every map is out of date the second it's printed. That's the fun part.",
+            text: "Every map is out of date the moment it's printed.",
             postedAt: new Date("2026-03-28T05:46:47.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
@@ -390,7 +389,7 @@ async function seed() {
         sourceUrl: "https://x.com/jonahpierce/status/1901000000000000002",
         title: "Tweet by @jonahpierce",
         description:
-          "Found a reading nook on the top floor with a view over the whole valley. New favourite place to disappear.",
+          "Found a reading nook on the top floor of the library today — the one with the window that looks out over the whole valley — and stayed far longer than I meant to. There's something about a room designed for exactly one thing (sitting, reading, being quiet) that makes the rest of the day feel negotiable. No notifications, no small talk, just the specific weight of a book and the specific light of late afternoon. I keep saving links to 'focus systems' and 'productivity stacks', but the only system that has ever actually worked for me is finding a corner nobody else has claimed and refusing to leave until I've finished a chapter. New favourite place to disappear.",
         tags: ["reading", "libraries", "quiet"],
         externalLinks: [
           {
@@ -405,7 +404,7 @@ async function seed() {
             authorUsername: "jonahpierce",
             authorAvatarUrl:
               "https://api.dicebear.com/9.x/glass/svg?seed=jonahpierce",
-            text: "Found a reading nook on the top floor with a view over the whole valley. New favourite place to disappear.",
+            text: "Found a reading nook on the top floor of the library today — the one with the window that looks out over the whole valley — and stayed far longer than I meant to. There's something about a room designed for exactly one thing (sitting, reading, being quiet) that makes the rest of the day feel negotiable. No notifications, no small talk, just the specific weight of a book and the specific light of late afternoon. I keep saving links to 'focus systems' and 'productivity stacks', but the only system that has ever actually worked for me is finding a corner nobody else has claimed and refusing to leave until I've finished a chapter. New favourite place to disappear.",
             postedAt: new Date("2026-03-06T16:30:23.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
@@ -425,7 +424,7 @@ async function seed() {
         sourceUrl: "https://x.com/nadiabuilds/status/1901000000000000003",
         title: "Tweet by @nadiabuilds",
         description:
-          "The best thing I've read all year on why most startup advice ages so badly.",
+          "Most startup advice ages badly because it's survivor pattern-matching dressed up as a law. What worked for one founder, in one market, at one moment gets frozen into a rule and repeated for a decade — until everyone forgets it was mostly luck wearing a nice jacket. Read widely, copy no one.",
         tags: ["startups", "reading"],
         externalLinks: [
           {
@@ -440,7 +439,7 @@ async function seed() {
             authorUsername: "nadiabuilds",
             authorAvatarUrl:
               "https://api.dicebear.com/9.x/glass/svg?seed=nadiabuilds",
-            text: "The best thing I've read all year on why most startup advice ages so badly.",
+            text: "Most startup advice ages badly because it's survivor pattern-matching dressed up as a law. What worked for one founder, in one market, at one moment gets frozen into a rule and repeated for a decade — until everyone forgets it was mostly luck wearing a nice jacket. Read widely, copy no one.",
             postedAt: new Date("2026-03-19T01:40:52.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
