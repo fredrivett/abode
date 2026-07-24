@@ -1073,6 +1073,7 @@ function ItemDetailDialog({
     null,
   );
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
+  const [hasCopiedId, setHasCopiedId] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const hasTrackedNotesUpdate = useRef(false);
@@ -1331,6 +1332,17 @@ function ItemDetailDialog({
       toast.error("Failed to copy link");
     } finally {
       setIsSavingShare(false);
+    }
+  };
+
+  const handleCopyId = async () => {
+    const copied = await copyToClipboard(item.id);
+    if (copied) {
+      setHasCopiedId(true);
+      toast.success("Item ID copied");
+      setTimeout(() => setHasCopiedId(false), 2000);
+    } else {
+      toast.error("Failed to copy ID");
     }
   };
 
@@ -1847,9 +1859,26 @@ function ItemDetailDialog({
                 <div className="flex-1 space-y-6">
                   {/* Basic Info */}
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                      Details
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                        Details
+                      </h3>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={handleCopyId}
+                          title={`Copy item ID: ${item.id}`}
+                          className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
+                        >
+                          {hasCopiedId ? (
+                            <Check className="size-3" />
+                          ) : (
+                            <Copy className="size-3" />
+                          )}
+                          {item.id.split("-")[0]}
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Type</span>
