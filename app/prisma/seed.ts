@@ -638,8 +638,8 @@ async function seed() {
           originalName: "Moby-Dick; or, The Whale",
           coverSize: mobyCoverUpload.size,
           // Actual dimensions of seed-assets/book-moby-dick.jpg
-          coverWidth: 1400,
-          coverHeight: 2100,
+          coverWidth: 800,
+          coverHeight: 1200,
         },
         externalLinks: [
           {
@@ -677,8 +677,8 @@ async function seed() {
           originalName: "The Wind in the Willows",
           coverSize: willowsCoverUpload.size,
           // Actual dimensions of seed-assets/book-wind-in-the-willows.jpg
-          coverWidth: 1400,
-          coverHeight: 2100,
+          coverWidth: 800,
+          coverHeight: 1200,
         },
         externalLinks: [
           {
