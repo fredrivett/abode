@@ -4,6 +4,7 @@ import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
@@ -97,8 +98,33 @@ export function TwitterCard({
             </div>
           )}
         </div>
+      ) : twitterDetails.text ? (
+        // No media - show the tweet text (with author), clipped with a fade
+        <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden p-4 text-left">
+          <div className="flex shrink-0 items-center gap-2">
+            {twitterDetails.authorAvatarUrl ? (
+              // biome-ignore lint/a11y/useAltText: author avatar
+              // biome-ignore lint/performance/noImgElement: external avatar URL
+              <img
+                src={twitterDetails.authorAvatarUrl}
+                className="size-6 shrink-0 rounded-full"
+                loading="lazy"
+              />
+            ) : null}
+            <span className="truncate font-semibold text-gray-800 text-sm dark:text-gray-200">
+              {twitterDetails.authorName ?? `@${twitterDetails.authorUsername}`}
+            </span>
+          </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <p className="whitespace-pre-wrap text-gray-900 text-sm leading-snug dark:text-gray-100">
+              {parseTweetText(twitterDetails.text)}
+            </p>
+            {/* Fade out clipped text; invisible over empty card background */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-white dark:from-gray-900" />
+          </div>
+        </div>
       ) : (
-        // No media - centered X branding, grows to fill available space
+        // No media and no text - centered X branding, grows to fill available space
         <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
           <TwitterIcon className="size-12 text-gray-300 dark:text-gray-600" />
         </div>
