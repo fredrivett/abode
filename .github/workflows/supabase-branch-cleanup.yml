@@ -1,0 +1,56 @@
+name: Supabase Branch Cleanup
+
+# Safety net for Supabase preview branch teardown. The Supabase GitHub
+# integration normally deletes a preview branch when its PR closes, but leaks
+# happen (e.g. a merge before delete_branch_on_merge was enabled). Left
+# unchecked these exhaust the project's concurrent-branch limit and block
+# preview deploys on every new PR. This deletes the branch on PR close as a
+# belt-and-suspenders backstop; it's a no-op when the integration already did.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+concurrency:
+  group: supabase-branch-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  delete-preview-branch:
+    name: Delete Supabase preview branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Delete Supabase branch for this PR
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          # Passed via env (not inline) to avoid shell injection from head_ref
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/branches")
+          # The branches endpoint returns an array; anything else is an API error
+          if ! echo "$RESPONSE" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            echo "Supabase branches API did not return an array. Response:"
+            echo "$RESPONSE"
+            exit 1
+          fi
+          BRANCH_ID=$(echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch) | .id')
+          if [ -z "$BRANCH_ID" ]; then
+            echo "No Supabase branch for '$BRANCH_NAME' — already cleaned up. Nothing to do."
+            exit 0
+          fi
+          echo "Deleting Supabase branch '$BRANCH_NAME' (id=$BRANCH_ID)..."
+          HTTP=$(curl -s -o /tmp/delete-response.json -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/branches/$BRANCH_ID")
+          cat /tmp/delete-response.json
+          echo ""
+          if [ "$HTTP" -ge 300 ]; then
+            echo "Delete failed with HTTP $HTTP"
+            exit 1
+          fi
+          echo "Deleted Supabase branch '$BRANCH_NAME'."
