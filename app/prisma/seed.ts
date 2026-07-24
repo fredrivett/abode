@@ -551,7 +551,7 @@ async function seed() {
     });
 
     // Vimeo video
-    await prisma.item.create({
+    const vimeoItem = await prisma.item.create({
       data: {
         userId,
         kind: "video",
@@ -808,17 +808,17 @@ async function seed() {
       },
     });
 
-    const smartRoom = await prisma.room.create({
+    const videosRoom = await prisma.room.create({
       data: {
         userId,
         name: "All Videos",
         slug: "all-videos",
         emoji: "📺",
-        type: "smart",
+        type: "manual",
         visibility: "private",
-        filters: [
-          { id: "kind-video", type: "type", value: "video", negated: false },
-        ],
+        roomItems: {
+          create: [{ itemId: youtubeItem.id }, { itemId: vimeoItem.id }],
+        },
       },
     });
 
@@ -853,7 +853,7 @@ async function seed() {
       `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
     console.log(
-      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${smartRoom.name}, ${bookshelfRoom.name}`,
+      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${videosRoom.name}, ${bookshelfRoom.name}`,
     );
   } finally {
     await prisma.$disconnect();
