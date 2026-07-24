@@ -5,7 +5,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SEED_USER = {
   email: "seed@preview.abode.fyi",
-  password: "preview-seed-123!",
   username: "seed_user",
   firstName: "Seed",
   lastName: "User",
@@ -53,11 +52,18 @@ async function createSeedUser(
   supabase: SupabaseClient,
   prisma: PrismaClient,
 ): Promise<string> {
+  const password = process.env.SEED_USER_PASSWORD;
+  if (!password) {
+    throw new Error(
+      "SEED_USER_PASSWORD is not set — set it in your environment (and in the Vercel preview env) to run the preview seed.",
+    );
+  }
+
   await deleteExistingSeedUser(prisma);
 
   const { data, error } = await supabase.auth.admin.createUser({
     email: SEED_USER.email,
-    password: SEED_USER.password,
+    password,
     email_confirm: true,
     user_metadata: { pending_username: SEED_USER.username },
   });
@@ -154,17 +160,17 @@ async function seed() {
       "image/gif",
     );
 
-    const switchCoverUpload = await uploadSeedImage(
+    const mobyCoverUpload = await uploadSeedImage(
       supabase,
       userId,
-      "book-switch.jpg",
+      "book-moby-dick.jpg",
       "image/jpeg",
     );
 
-    const fallingUpwardCoverUpload = await uploadSeedImage(
+    const willowsCoverUpload = await uploadSeedImage(
       supabase,
       userId,
-      "book-falling-upward.jpg",
+      "book-wind-in-the-willows.jpg",
       "image/jpeg",
     );
 
@@ -339,58 +345,33 @@ async function seed() {
 
     // --- TWEET ITEMS ---
 
-    // Tweet with multiple images
-    const tweetMultiImage = await prisma.item.create({
+    // Tweet — maps themed (goes in the Maps & Geography room)
+    const mapsTweet = await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/youwillmakemaps/status/2037768343349080182",
-        title: "Tweet by @youwillmakemaps",
-        description: "The world craves amber.",
-        tags: ["maps", "cartography", "amber", "photography"],
+        sourceUrl: "https://x.com/corameridian/status/1901000000000000001",
+        title: "Tweet by @corameridian",
+        description: "Every map is out of date the moment it's printed.",
+        tags: ["maps", "cartography", "design"],
         externalLinks: [
           {
-            url: "https://x.com/youwillmakemaps/status/2037768343349080182",
+            url: "https://x.com/corameridian/status/1901000000000000001",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2037768343349080182",
-            authorName: "Evan Applegate",
-            authorUsername: "youwillmakemaps",
+            tweetId: "1901000000000000001",
+            authorName: "Cora Meridian",
+            authorUsername: "corameridian",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1899462242137161728/MBcOeNTL_normal.png",
-            text: "The world craves amber.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=corameridian",
+            text: "Every map is out of date the moment it's printed.",
             postedAt: new Date("2026-03-28T05:46:47.000Z"),
-            media: [
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEea_ZDaoAAJjzS.jpg",
-                width: 2731,
-                height: 4096,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebQX6bwAArV94.jpg",
-                width: 3024,
-                height: 4032,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebWT7a4AAmFw6.jpg",
-                width: 2810,
-                height: 4096,
-              },
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HEebfK-asAAiPWv.jpg",
-                width: 4096,
-                height: 2323,
-              },
-            ],
+            media: Prisma.JsonNull,
             quotedTweetId: null,
             card: Prisma.JsonNull,
           },
@@ -398,47 +379,34 @@ async function seed() {
       },
     });
 
-    // Tweet with single image
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/biancodavinci/status/2029957776693207118",
-        title: "Tweet by @BiancoDavinci",
+        sourceUrl: "https://x.com/jonahpierce/status/1901000000000000002",
+        title: "Tweet by @jonahpierce",
         description:
-          "View from a window at the Mill Valley Public Library in California.",
-        tags: [
-          "photography",
-          "library",
-          "california",
-          "landscape",
-          "architecture",
-        ],
+          "Found a reading nook on the top floor of the library today — the one with the window that looks out over the whole valley — and stayed far longer than I meant to. There's something about a room designed for exactly one thing (sitting, reading, being quiet) that makes the rest of the day feel negotiable. No notifications, no small talk, just the specific weight of a book and the specific light of late afternoon. I keep saving links to 'focus systems' and 'productivity stacks', but the only system that has ever actually worked for me is finding a corner nobody else has claimed and refusing to leave until I've finished a chapter. New favourite place to disappear.",
+        tags: ["reading", "libraries", "quiet"],
         externalLinks: [
           {
-            url: "https://x.com/biancodavinci/status/2029957776693207118",
+            url: "https://x.com/jonahpierce/status/1901000000000000002",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2029957776693207118",
-            authorName: "DaVinci",
-            authorUsername: "BiancoDavinci",
+            tweetId: "1901000000000000002",
+            authorName: "Jonah Pierce",
+            authorUsername: "jonahpierce",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1906685221778374656/tU2D_wLF_normal.jpg",
-            text: "View from a window at the Mill Valley Public Library in California.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=jonahpierce",
+            text: "Found a reading nook on the top floor of the library today — the one with the window that looks out over the whole valley — and stayed far longer than I meant to. There's something about a room designed for exactly one thing (sitting, reading, being quiet) that makes the rest of the day feel negotiable. No notifications, no small talk, just the specific weight of a book and the specific light of late afternoon. I keep saving links to 'focus systems' and 'productivity stacks', but the only system that has ever actually worked for me is finding a corner nobody else has claimed and refusing to leave until I've finished a chapter. New favourite place to disappear.",
             postedAt: new Date("2026-03-06T16:30:23.000Z"),
-            media: [
-              {
-                type: "photo",
-                url: "https://pbs.twimg.com/media/HCvb05ZXIAMqN8J.jpg",
-                width: 1080,
-                height: 1334,
-              },
-            ],
+            media: Prisma.JsonNull,
             quotedTweetId: null,
             card: Prisma.JsonNull,
           },
@@ -446,73 +414,67 @@ async function seed() {
       },
     });
 
-    // Tweet with link card
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/nbaschez/status/2034444963656933683",
-        title: "Tweet by @nbaschez",
+        sourceUrl: "https://x.com/nadiabuilds/status/1901000000000000003",
+        title: "Tweet by @nadiabuilds",
         description:
-          "This is the most interesting thing I've read in like 3 years",
-        tags: ["startups", "punditry", "entrepreneurship", "reading"],
+          "Most startup advice ages badly because it's survivor pattern-matching dressed up as a law. What worked for one founder, in one market, at one moment gets frozen into a rule and repeated for a decade — until everyone forgets it was mostly luck wearing a nice jacket. Read widely, copy no one.",
+        tags: ["startups", "reading"],
         externalLinks: [
           {
-            url: "https://x.com/nbaschez/status/2034444963656933683",
+            url: "https://x.com/nadiabuilds/status/1901000000000000003",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2034444963656933683",
-            authorName: "Nathan Baschez",
-            authorUsername: "nbaschez",
+            tweetId: "1901000000000000003",
+            authorName: "Nadia Okafor",
+            authorUsername: "nadiabuilds",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1694966386957938688/PtayrF_x_normal.jpg",
-            text: "This is the most interesting thing I've read in like 3 years",
+              "https://api.dicebear.com/9.x/glass/svg?seed=nadiabuilds",
+            text: "Most startup advice ages badly because it's survivor pattern-matching dressed up as a law. What worked for one founder, in one market, at one moment gets frozen into a rule and repeated for a decade — until everyone forgets it was mostly luck wearing a nice jacket. Read widely, copy no one.",
             postedAt: new Date("2026-03-19T01:40:52.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
-            card: {
-              title: "Startup Punditry's 25 Years of Failure",
-              description:
-                "Startup pundits sold us a failed science of entrepreneurship. The Red Queen offers something better.",
-              url: "https://colossus.com/article/we-have-learned-nothing-startup-pundits/",
-              imageUrl:
-                "https://pbs.twimg.com/card_img/2036410874752024576/um9fgKpu?format=jpg&name=800x419",
-            },
+            card: Prisma.JsonNull,
           },
         },
       },
     });
 
-    // Tweet with no images
+    // Tweet — text only
     await prisma.item.create({
       data: {
         userId,
         kind: "twitter",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/marclou/status/2030300952025256231",
-        title: "Tweet by @marclou",
-        description: "Every great startup began as a bad idea.",
-        tags: ["startups", "ideas", "entrepreneurship"],
+        sourceUrl: "https://x.com/theomarsh/status/1901000000000000004",
+        title: "Tweet by @theomarsh",
+        description:
+          "Every great product started as something people said would never work.",
+        tags: ["startups", "ideas"],
         externalLinks: [
           {
-            url: "https://x.com/marclou/status/2030300952025256231",
+            url: "https://x.com/theomarsh/status/1901000000000000004",
             platform: "twitter",
           },
         ],
         twitterDetails: {
           create: {
-            tweetId: "2030300952025256231",
-            authorName: "Marc Lou",
-            authorUsername: "marclou",
+            tweetId: "1901000000000000004",
+            authorName: "Theo Marsh",
+            authorUsername: "theomarsh",
             authorAvatarUrl:
-              "https://pbs.twimg.com/profile_images/1514863683574599681/9k7PqDTA_normal.jpg",
-            text: "Every great startup began as a bad idea.",
+              "https://api.dicebear.com/9.x/glass/svg?seed=theomarsh",
+            text: "Every great product started as something people said would never work.",
             postedAt: new Date("2026-03-07T15:14:02.000Z"),
             media: Prisma.JsonNull,
             quotedTweetId: null,
@@ -529,17 +491,17 @@ async function seed() {
         kind: "article",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://x.com/WillManidis/status/2023405488277508141",
+        sourceUrl: "https://x.com/annaquill/status/1901000000000000005",
         title: "Twitter Article",
         description: "Twitter Article (content not available for preview)",
         tags: ["history", "article"],
         meta: {
-          twitterArticleId: "2023405488277508141",
-          originalUrl: "https://x.com/WillManidis/status/2023405488277508141",
+          twitterArticleId: "1901000000000000005",
+          originalUrl: "https://x.com/annaquill/status/1901000000000000005",
         },
         externalLinks: [
           {
-            url: "https://x.com/WillManidis/status/2023405488277508141",
+            url: "https://x.com/annaquill/status/1901000000000000005",
             platform: "twitter",
           },
         ],
@@ -580,7 +542,7 @@ async function seed() {
             videoId: "4iQmPv_dTI0",
             channelName: "NPR Music",
             channelUrl: "https://www.youtube.com/@nprmusic",
-            duration: null,
+            duration: 1560,
             embedUrl: "https://www.youtube-nocookie.com/embed/4iQmPv_dTI0",
             thumbnailUrl: "https://i.ytimg.com/vi/4iQmPv_dTI0/hqdefault.jpg",
           },
@@ -589,29 +551,29 @@ async function seed() {
     });
 
     // Vimeo video
-    await prisma.item.create({
+    const vimeoItem = await prisma.item.create({
       data: {
         userId,
         kind: "video",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://vimeo.com/78837099",
-        title: "Momentum Youth Church — Launch Video",
-        tags: ["video", "promo", "youth", "church", "community"],
-        meta: { originalName: "Momentum Youth Church — Launch Video" },
+        sourceUrl: "https://vimeo.com/125896742",
+        title: "Danny Macaskill: The Ridge",
+        tags: ["cycling", "scotland", "film", "adventure"],
+        meta: { originalName: "Danny Macaskill: The Ridge" },
         externalLinks: [
-          { url: "https://vimeo.com/78837099", platform: "vimeo" },
+          { url: "https://vimeo.com/125896742", platform: "vimeo" },
         ],
         videoDetails: {
           create: {
             platform: "vimeo",
-            videoId: "78837099",
-            channelName: "Fred Rivett",
-            channelUrl: "https://vimeo.com/fredrivett",
-            duration: 141,
-            embedUrl: "https://player.vimeo.com/video/78837099",
+            videoId: "125896742",
+            channelName: "Cut Media",
+            channelUrl: "https://vimeo.com/cutmedia1",
+            duration: 406,
+            embedUrl: "https://player.vimeo.com/video/125896742",
             thumbnailUrl:
-              "https://i.vimeocdn.com/video/454379595-02813f38ecad3ed7cf07e37b7fc536d241dec188c870426158bcf97f639b5c78-d_640",
+              "https://i.vimeocdn.com/video/516157704-4817e615cb3e9d8c251f94a2f5366aaec2049bbe62255bd6a04eadb01d72ab24-d_295x166?region=us",
           },
         },
       },
@@ -659,75 +621,79 @@ async function seed() {
 
     // --- BOOK ITEMS ---
 
-    const switchBook = await prisma.item.create({
+    const mobyBook = await prisma.item.create({
       data: {
         userId,
         kind: "book",
         processingStatus: "completed",
         sourceType: "url",
-        sourceUrl: "https://www.amazon.co.uk/dp/1847940323",
-        coverFileKey: switchCoverUpload.fileKey,
-        title: "Switch: How to Change Things When Change Is Hard",
+        sourceUrl:
+          "https://standardebooks.org/ebooks/herman-melville/moby-dick",
+        coverFileKey: mobyCoverUpload.fileKey,
+        title: "Moby-Dick; or, The Whale",
         description:
-          "Why is it so hard to make lasting change? The Heath brothers show how everyday people can unite their rational and emotional minds to make tough changes stick.",
-        tags: ["change", "psychology", "business", "self-help", "book"],
+          "Ishmael's account of Captain Ahab's obsessive hunt for the white whale that took his leg — a sprawling meditation on obsession, nature, and fate.",
+        tags: ["fiction", "classic", "adventure", "book"],
         meta: {
-          originalName: "Switch: How to Change Things When Change Is Hard",
-          coverSize: switchCoverUpload.size,
-          // Actual dimensions of seed-assets/book-switch.jpg
-          coverWidth: 324,
-          coverHeight: 500,
-        },
-        externalLinks: [
-          { url: "https://www.amazon.co.uk/dp/1847940323", platform: "web" },
-        ],
-        bookDetails: {
-          create: {
-            authors: ["Chip Heath", "Dan Heath"],
-            publisher: "Random House Business",
-            publishedAt: new Date("2011-02-03"),
-            isbn: "9781847940322",
-            pageCount: 320,
-            domain: "amazon.co.uk",
-          },
-        },
-      },
-    });
-
-    const fallingUpwardBook = await prisma.item.create({
-      data: {
-        userId,
-        kind: "book",
-        processingStatus: "completed",
-        sourceType: "url",
-        sourceUrl: "https://www.goodreads.com/book/show/9963483-falling-upward",
-        coverFileKey: fallingUpwardCoverUpload.fileKey,
-        title: "Falling Upward: A Spirituality for the Two Halves of Life",
-        description:
-          "Richard Rohr explores the two halves of life, arguing that the setbacks and failures of the first half are what open us to the deeper spirituality of the second.",
-        tags: ["spirituality", "richard rohr", "philosophy", "faith", "book"],
-        meta: {
-          originalName:
-            "Falling Upward: A Spirituality for the Two Halves of Life",
-          coverSize: fallingUpwardCoverUpload.size,
-          // Actual dimensions of seed-assets/book-falling-upward.jpg
-          coverWidth: 318,
-          coverHeight: 461,
+          originalName: "Moby-Dick; or, The Whale",
+          coverSize: mobyCoverUpload.size,
+          // Actual dimensions of seed-assets/book-moby-dick.jpg
+          coverWidth: 800,
+          coverHeight: 1200,
         },
         externalLinks: [
           {
-            url: "https://www.goodreads.com/book/show/9963483-falling-upward",
+            url: "https://standardebooks.org/ebooks/herman-melville/moby-dick",
             platform: "web",
           },
         ],
         bookDetails: {
           create: {
-            authors: ["Richard Rohr"],
-            publisher: "Jossey-Bass",
-            publishedAt: new Date("2011-04-25"),
-            isbn: "9780470907757",
+            authors: ["Herman Melville"],
+            publisher: "Harper & Brothers",
+            publishedAt: new Date("1851-11-14"),
+            isbn: null,
+            pageCount: 635,
+            domain: "standardebooks.org",
+          },
+        },
+      },
+    });
+
+    const willowsBook = await prisma.item.create({
+      data: {
+        userId,
+        kind: "book",
+        processingStatus: "completed",
+        sourceType: "url",
+        sourceUrl:
+          "https://standardebooks.org/ebooks/kenneth-grahame/the-wind-in-the-willows",
+        coverFileKey: willowsCoverUpload.fileKey,
+        title: "The Wind in the Willows",
+        description:
+          "Mole, Rat, Toad, and Badger idle and adventure along the riverbank in Kenneth Grahame's gentle classic of English childhood.",
+        tags: ["fiction", "classic", "children", "book"],
+        meta: {
+          originalName: "The Wind in the Willows",
+          coverSize: willowsCoverUpload.size,
+          // Actual dimensions of seed-assets/book-wind-in-the-willows.jpg
+          coverWidth: 800,
+          coverHeight: 1200,
+        },
+        externalLinks: [
+          {
+            url: "https://standardebooks.org/ebooks/kenneth-grahame/the-wind-in-the-willows",
+            platform: "web",
+          },
+        ],
+        bookDetails: {
+          create: {
+            authors: ["Kenneth Grahame"],
+            publisher: "Methuen",
+            publishedAt: new Date("1908-10-08"),
+            isbn: null,
             pageCount: 240,
-            domain: "goodreads.com",
+            domain: "standardebooks.org",
           },
         },
       },
@@ -770,7 +736,7 @@ async function seed() {
         noteDetails: {
           create: {
             content:
-              "Idea: a room that auto-collects everything tagged amber. The world craves amber, after all.",
+              "Idea: a room that auto-collects everything tagged maps. I keep saving them anyway.",
           },
         },
       },
@@ -783,8 +749,8 @@ async function seed() {
       BigInt(spiralUpload.size) +
       BigInt(meshUpload.size) +
       BigInt(gifUpload.size) +
-      BigInt(switchCoverUpload.size) +
-      BigInt(fallingUpwardCoverUpload.size);
+      BigInt(mobyCoverUpload.size) +
+      BigInt(willowsCoverUpload.size);
 
     await prisma.user.update({
       where: { id: userId },
@@ -823,7 +789,7 @@ async function seed() {
         type: "manual",
         visibility: "public",
         roomItems: {
-          create: [{ itemId: tweetMultiImage.id }],
+          create: [{ itemId: mapsTweet.id }],
         },
       },
     });
@@ -842,15 +808,17 @@ async function seed() {
       },
     });
 
-    const smartRoom = await prisma.room.create({
+    const videosRoom = await prisma.room.create({
       data: {
         userId,
         name: "All Videos",
         slug: "all-videos",
         emoji: "📺",
-        type: "smart",
+        type: "manual",
         visibility: "private",
-        filters: { kind: ["video"] },
+        roomItems: {
+          create: [{ itemId: youtubeItem.id }, { itemId: vimeoItem.id }],
+        },
       },
     });
 
@@ -863,7 +831,7 @@ async function seed() {
         type: "manual",
         visibility: "private",
         roomItems: {
-          create: [{ itemId: switchBook.id }, { itemId: fallingUpwardBook.id }],
+          create: [{ itemId: mobyBook.id }, { itemId: willowsBook.id }],
         },
       },
     });
@@ -881,12 +849,11 @@ async function seed() {
 
     console.log("Preview seed complete!");
     console.log(`  Email: ${SEED_USER.email}`);
-    console.log(`  Password: ${SEED_USER.password}`);
     console.log(
       `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
     console.log(
-      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${smartRoom.name}, ${bookshelfRoom.name}`,
+      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${videosRoom.name}, ${bookshelfRoom.name}`,
     );
   } finally {
     await prisma.$disconnect();
