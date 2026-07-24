@@ -45,10 +45,12 @@ export function VideoDetailView({
   const { platform, videoId, channelName, channelUrl, duration, embedUrl } =
     videoDetails;
 
-  // Use stored thumbnail from Supabase via proxy (detail size)
+  // Prefer the downloaded cover (proxied); fall back to the platform's external
+  // thumbnail when there's no local cover yet (e.g. seed data, or before
+  // enrichment downloads it).
   const thumbnailUrl = coverFileKey
     ? getProxyImageUrl(coverFileKey, "detail")
-    : null;
+    : videoDetails.thumbnailUrl;
 
   const watchUrl = sourceUrl ?? getWatchUrl(platform, videoId);
   const PlatformBadgeIcon = platform === "youtube" ? YouTubeIcon : VimeoIcon;
