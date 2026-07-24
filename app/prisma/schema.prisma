@@ -51,6 +51,7 @@ model User {
   articleHighlights ArticleHighlight[]
   activityLogs      ActivityLog[]
   milestones        UserMilestone[]
+  noteDraft         NoteDraft?
 
   @@map("users")
 }
@@ -380,6 +381,20 @@ model ItemNoteDetails {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_note_details")
+}
+
+/// Singleton in-progress draft for the inline note composer, one per user.
+/// This is ephemeral compose text, not an Item — it never appears in the grid,
+/// search, rooms, or public profile. Cleared when the note is saved.
+model NoteDraft {
+  userId    String   @id @map("user_id") @db.Uuid
+  content   String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("note_drafts")
 }
 
 model Room {

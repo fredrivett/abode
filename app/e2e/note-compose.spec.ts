@@ -6,7 +6,10 @@ import { createUser } from "./helpers/user";
 // Uses its own dedicated user (not the shared authenticated one) so seeding
 // items here can't break the empty-state "Welcome home" test.
 test.describe("Note composer", () => {
-  test.describe.configure({ timeout: 120_000 });
+  // Serial: each test provisions its own Supabase auth user, and creating
+  // several concurrently overwhelms the local auth service ("Database error
+  // creating new user"). Running them one at a time removes that contention.
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
 
   test.afterAll(async () => {
     await disconnectE2EPrisma();
@@ -84,6 +87,137 @@ test.describe("Note composer", () => {
     await expect(page.getByText(/Start with Alexander\./)).toBeVisible({
       timeout: 15_000,
     });
+
+    await context.close();
+  });
+
+  test("auto-saves the note as a server-side draft, repopulated on load", async ({
+    browser,
+  }) => {
+    const user = await createUser({
+      email: "note-draft@test.local",
+      username: "note_draft_user",
+    });
+
+    // The composer only appears once the grid has an item, so seed one.
+    await getE2EPrisma().item.create({
+      data: {
+        userId: user.id,
+        kind: "note",
+        sourceType: "compose",
+        processingStatus: "completed",
+        title: "Seed note",
+        noteDetails: { create: { content: "Seed body" } },
+      },
+    });
+
+    const readDraft = () =>
+      getE2EPrisma()
+        .noteDraft.findUnique({ where: { userId: user.id } })
+        .then((d) => d?.content ?? null);
+
+    // Type a draft in one browser, then close it without saving.
+    const typing = await browser.newContext();
+    const typingPage = await typing.newPage();
+    await loginAs(typingPage, user);
+    await typingPage.goto("/dashboard");
+    await typingPage.locator(".ProseMirror").first().click();
+    await typingPage.keyboard.type("Draft title");
+    await typingPage.keyboard.press("Enter");
+    await typingPage.keyboard.type("Unsaved thoughts to keep.");
+
+    // The debounced autosave (1s) persists the draft to the server.
+    await expect
+      .poll(readDraft, { timeout: 10_000 })
+      .toContain("Unsaved thoughts to keep.");
+    await typing.close();
+
+    // A completely separate browser (no shared storage) repopulates the draft
+    // from the server on load — proving it's server-side, not local.
+    const fresh = await browser.newContext();
+    const freshPage = await fresh.newPage();
+    await loginAs(freshPage, user);
+    await freshPage.goto("/dashboard");
+    const composer = freshPage.locator(".ProseMirror").first();
+    await expect(composer).toContainText("Unsaved thoughts to keep.", {
+      timeout: 15_000,
+    });
+    await expect(composer).toContainText("Draft title");
+
+    // Saving empties the composer (the placeholder only shows when empty) and
+    // clears the server draft in the same request.
+    await freshPage.getByRole("button", { name: /^save$/i }).click();
+    await expect(freshPage.getByText("Take a note…")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect.poll(readDraft, { timeout: 10_000 }).toBeNull();
+
+    await fresh.close();
+  });
+
+  test("clearing a draft takes a two-step confirm that reverts on hover-off", async ({
+    browser,
+  }) => {
+    const user = await createUser({
+      email: "note-clear@test.local",
+      username: "note_clear_user",
+    });
+
+    await getE2EPrisma().item.create({
+      data: {
+        userId: user.id,
+        kind: "note",
+        sourceType: "compose",
+        processingStatus: "completed",
+        title: "Seed note",
+        noteDetails: { create: { content: "Seed body" } },
+      },
+    });
+
+    const readDraft = () =>
+      getE2EPrisma()
+        .noteDraft.findUnique({ where: { userId: user.id } })
+        .then((d) => d?.content ?? null);
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await loginAs(page, user);
+    await page.goto("/dashboard");
+
+    await page.locator(".ProseMirror").first().click();
+    await page.keyboard.type("Draft to clear");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Body to discard.");
+    await expect
+      .poll(readDraft, { timeout: 10_000 })
+      .toContain("Body to discard.");
+
+    const clearButton = page.getByRole("button", { name: /^clear$/i });
+    const confirmButton = page.getByRole("button", {
+      name: /^confirm clear\?$/i,
+    });
+
+    // First click only arms the confirm — nothing is cleared yet.
+    await clearButton.click();
+    await expect(confirmButton).toBeVisible();
+    await expect(page.locator(".ProseMirror").first()).toContainText(
+      "Body to discard.",
+    );
+    expect(await readDraft()).toContain("Body to discard.");
+
+    // Moving off the armed button reverts it to "Clear" after ~3s.
+    await page.getByRole("button", { name: /^save$/i }).hover();
+    await expect(clearButton).toBeVisible({ timeout: 5_000 });
+    await expect(confirmButton).toHaveCount(0);
+    expect(await readDraft()).toContain("Body to discard.");
+
+    // Re-arm, then a second click actually clears the composer and the draft.
+    await clearButton.click();
+    await confirmButton.click();
+    await expect(page.getByText("Take a note…")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect.poll(readDraft, { timeout: 10_000 }).toBeNull();
 
     await context.close();
   });

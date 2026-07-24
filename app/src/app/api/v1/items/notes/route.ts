@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createNote } from "@/lib/items/create-note";
+import { clearNoteDraft } from "@/lib/items/note-draft";
 import { transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await createNote(user.id, { content, title });
+
+    // The composer's save path — creating the note clears its in-progress draft
+    // in the same request, so the client needs no extra call.
+    await clearNoteDraft(user.id);
 
     const posthog = getPostHogClient();
     posthog?.capture({
