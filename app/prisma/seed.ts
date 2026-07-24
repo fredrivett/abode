@@ -542,7 +542,7 @@ async function seed() {
             videoId: "4iQmPv_dTI0",
             channelName: "NPR Music",
             channelUrl: "https://www.youtube.com/@nprmusic",
-            duration: null,
+            duration: 1560,
             embedUrl: "https://www.youtube-nocookie.com/embed/4iQmPv_dTI0",
             thumbnailUrl: "https://i.ytimg.com/vi/4iQmPv_dTI0/hqdefault.jpg",
           },
@@ -816,7 +816,9 @@ async function seed() {
         emoji: "📺",
         type: "smart",
         visibility: "private",
-        filters: { kind: ["video"] },
+        filters: [
+          { id: "kind-video", type: "type", value: "video", negated: false },
+        ],
       },
     });
 
