@@ -20,7 +20,9 @@ export function FilterBadges({
   compact = false,
   chipClassName,
 }: FilterBadgesProps) {
-  if (filters.length === 0) return null;
+  // Guard against malformed room.filters (e.g. legacy/bad JSON that isn't an
+  // array) — a single bad room shouldn't crash the whole rooms page.
+  if (!Array.isArray(filters) || filters.length === 0) return null;
 
   if (compact) {
     return (
