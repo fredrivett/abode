@@ -24,12 +24,14 @@ export function VideoCard({
   onClick,
   className,
 }: VideoCardProps) {
-  const { platform, channelName, duration } = videoDetails;
+  const { platform, duration } = videoDetails;
 
-  // Use stored thumbnail from Supabase via proxy
+  // Prefer the downloaded cover (proxied); fall back to the platform's external
+  // thumbnail when there's no local cover yet (e.g. seed data, or before
+  // enrichment downloads it).
   const thumbnailUrl = coverFileKey
     ? getProxyImageUrl(coverFileKey, "grid")
-    : null;
+    : videoDetails.thumbnailUrl;
 
   const PlatformBadgeIcon = platform === "youtube" ? YouTubeIcon : VimeoIcon;
 
@@ -100,18 +102,6 @@ export function VideoCard({
           <PlatformBadgeIcon className="h-[0.75em] w-[0.75em] text-white" />
         </div>
       </div>
-
-      {/* Channel info (fixed size footer) */}
-      {channelName && (
-        <div className="shrink-0" style={{ padding: "0.75em" }}>
-          <p
-            className="truncate text-left text-gray-700 dark:text-gray-300"
-            style={{ fontSize: "0.875em" }}
-          >
-            {channelName}
-          </p>
-        </div>
-      )}
     </button>
   );
 }
