@@ -16,22 +16,10 @@ const NON_APP_TABLES = new Set<string>([
   "_prisma_migrations", // Prisma's own migration ledger
 ]);
 
-// Tables whose RLS + auth.uid() policies are created inside `IF EXISTS (auth
-// schema)` guards (migrations 20251208211300, 20251210003700). RLS IS enabled
-// in production (Supabase has the `auth` schema), but the guarded block no-ops
-// on this test DB (no `auth` schema), so this enable-only test can't observe
-// it. Their policy shape belongs in an E2E check against real Supabase.
-const AUTH_GUARDED_RLS_TABLES = new Set<string>([
-  "items",
-  "item_visual_vectors",
-  "item_text_vectors",
-]);
-
-// A new app table should get RLS in its migration, not an entry here.
-const RLS_EXEMPT_TABLES = new Set<string>([
-  ...NON_APP_TABLES,
-  ...AUTH_GUARDED_RLS_TABLES,
-]);
+// A new app table should get RLS in its migration, not an entry here. (Every
+// app table — including items and the vector tables, previously exempt — now
+// enables RLS unconditionally, so nothing else needs exempting.)
+const RLS_EXEMPT_TABLES = new Set<string>([...NON_APP_TABLES]);
 
 describe("row level security coverage", () => {
   it("every application table in public has RLS enabled", async () => {
