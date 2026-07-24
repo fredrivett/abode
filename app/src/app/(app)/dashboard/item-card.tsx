@@ -220,7 +220,8 @@ export function ItemCard({
         !isVideo &&
         !isFailedUrl &&
         !isNote &&
-        !isBook
+        !isBook &&
+        !isProduct
       ) {
         setError("Missing file");
       }
@@ -240,6 +241,7 @@ export function ItemCard({
     isFailedUrl,
     isNote,
     isBook,
+    isProduct,
   ]);
 
   useEffect(() => {
