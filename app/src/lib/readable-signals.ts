@@ -68,7 +68,9 @@ const EMPTY: ReadableSignals = {
  * unguarded replace produced.
  */
 export function revealStreamingContent(html: string): string {
-  return html.replace(/<div([^>]*)\s+hidden(?!=)([^>]*)>/gi, "<div$1$2>");
+  // `(?!\s*=)` rejects a valued attribute even with HTML-legal whitespace
+  // around the `=` (e.g. `hidden = "until-found"`), matching only bare `hidden`.
+  return html.replace(/<div([^>]*)\s+hidden(?!\s*=)([^>]*)>/gi, "<div$1$2>");
 }
 
 function countWords(text: string): number {

@@ -32,6 +32,11 @@ describe("revealStreamingContent", () => {
     expect(out).not.toContain("<div=");
   });
 
+  it('leaves hidden = "until-found" hidden despite whitespace around =', () => {
+    const html = '<div hidden = "until-found">show more</div>';
+    expect(revealStreamingContent(html)).toBe(html);
+  });
+
   it("does not touch unrelated attributes containing 'hidden'", () => {
     const html = '<div data-hidden="true">c</div>';
     expect(revealStreamingContent(html)).toBe(html);
