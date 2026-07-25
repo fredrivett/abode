@@ -47,7 +47,7 @@ jobs:
           exit 1
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v1
         with:
           # Pinned (not `latest`) to avoid the release-resolution endpoint 504
           version: 2.107.0
