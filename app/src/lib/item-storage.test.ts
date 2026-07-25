@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractProductImageKeys,
+  extractTwitterImageKeys,
   filesToRemove,
   getItemStorageBytes,
 } from "./item-storage";
@@ -50,6 +51,37 @@ describe("extractProductImageKeys", () => {
     expect(extractProductImageKeys(null)).toEqual([]);
     expect(extractProductImageKeys(undefined)).toEqual([]);
     expect(extractProductImageKeys("nope")).toEqual([]);
+  });
+});
+
+describe("extractTwitterImageKeys", () => {
+  it("pulls fileKeys from media stills and the card image", () => {
+    const media = [
+      { type: "photo", url: "https://x/a", fileKey: "u/a.jpg" },
+      { type: "video", posterUrl: "https://x/b", fileKey: "u/b.jpg" },
+    ];
+    const card = {
+      title: "t",
+      imageUrl: "https://x/c",
+      imageFileKey: "u/c.jpg",
+    };
+    expect(extractTwitterImageKeys(media, card)).toEqual([
+      "u/a.jpg",
+      "u/b.jpg",
+      "u/c.jpg",
+    ]);
+  });
+
+  it("skips media/card entries without a re-hosted key", () => {
+    const media = [{ type: "photo", url: "https://x/a" }, { fileKey: "" }];
+    const card = { title: "t", imageUrl: "https://x/c" };
+    expect(extractTwitterImageKeys(media, card)).toEqual([]);
+  });
+
+  it("returns empty for null/non-array/non-object input", () => {
+    expect(extractTwitterImageKeys(null, null)).toEqual([]);
+    expect(extractTwitterImageKeys(undefined, undefined)).toEqual([]);
+    expect(extractTwitterImageKeys("nope", "nope")).toEqual([]);
   });
 });
 
