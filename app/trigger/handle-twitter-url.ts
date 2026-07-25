@@ -351,72 +351,83 @@ export async function handleTwitterUrl(
   // Update item and create twitter details in a transaction
   const normalizedUrl = normalizeUrl(url);
 
-  const replacedFileKeys = await db.$transaction(async (tx) => {
-    // Reclaim the previous images' storage before overwriting meta. Accounting
-    // is cover-only (meta.coverSize), matching products / reconcile-user-data.
-    const oldFileKeys = await reclaimReplacedStorage(tx, {
-      itemId,
-      userId,
-      addedBytes: rehosted.coverSize,
+  let replacedFileKeys: string[];
+  try {
+    replacedFileKeys = await db.$transaction(async (tx) => {
+      // Reclaim the previous images' storage before overwriting meta. Accounting
+      // is cover-only (meta.coverSize), matching products / reconcile-user-data.
+      const oldFileKeys = await reclaimReplacedStorage(tx, {
+        itemId,
+        userId,
+        addedBytes: rehosted.coverSize,
+      });
+
+      const item = await tx.item.findUniqueOrThrow({
+        where: { id: itemId, userId },
+        select: { externalLinks: true },
+      });
+
+      const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
+      const hasLink = existingLinks.some(
+        (link) => normalizeUrl(link.url) === normalizedUrl,
+      );
+
+      await tx.item.update({
+        where: { id: itemId, userId },
+        data: {
+          kind: "twitter",
+          title: `Tweet by @${details.authorUsername}`,
+          description: descriptionEn?.slice(0, 200) ?? null,
+          // Clear file columns the new kind doesn't use so they never point at a
+          // blob deleteReplacedFiles is about to remove
+          fileKey: null,
+          coverFileKey: rehosted.coverFileKey,
+          meta:
+            rehosted.coverSize > 0
+              ? { coverSize: rehosted.coverSize }
+              : Prisma.JsonNull,
+          externalLinks: hasLink
+            ? undefined
+            : [
+                ...existingLinks,
+                { url: normalizedUrl, platform: detectPlatform(normalizedUrl) },
+              ],
+        },
+      });
+
+      // Drop detail rows from a prior kind (e.g. this was an article before)
+      await pruneStaleItemDetails(tx, itemId, "twitter");
+
+      // Upsert twitter details record (idempotent for retries)
+      // For JSON fields, use Prisma.JsonNull for null values, or cast to InputJsonValue
+      const detailsData = {
+        tweetId: details.tweetId,
+        authorName: details.authorName,
+        authorUsername: details.authorUsername,
+        authorAvatarUrl: details.authorAvatarUrl,
+        text: details.text,
+        postedAt: details.postedAt ? new Date(details.postedAt) : null,
+        media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        quotedTweetId: details.quotedTweetId,
+        card: (details.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      };
+      await tx.itemTwitterDetails.upsert({
+        where: { itemId },
+        create: { itemId, ...detailsData },
+        update: detailsData,
+      });
+
+      return oldFileKeys;
     });
-
-    const item = await tx.item.findUniqueOrThrow({
-      where: { id: itemId, userId },
-      select: { externalLinks: true },
-    });
-
-    const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
-    const hasLink = existingLinks.some(
-      (link) => normalizeUrl(link.url) === normalizedUrl,
-    );
-
-    await tx.item.update({
-      where: { id: itemId, userId },
-      data: {
-        kind: "twitter",
-        title: `Tweet by @${details.authorUsername}`,
-        description: descriptionEn?.slice(0, 200) ?? null,
-        // Clear file columns the new kind doesn't use so they never point at a
-        // blob deleteReplacedFiles is about to remove
-        fileKey: null,
-        coverFileKey: rehosted.coverFileKey,
-        meta:
-          rehosted.coverSize > 0
-            ? { coverSize: rehosted.coverSize }
-            : Prisma.JsonNull,
-        externalLinks: hasLink
-          ? undefined
-          : [
-              ...existingLinks,
-              { url: normalizedUrl, platform: detectPlatform(normalizedUrl) },
-            ],
-      },
-    });
-
-    // Drop detail rows from a prior kind (e.g. this was an article before)
-    await pruneStaleItemDetails(tx, itemId, "twitter");
-
-    // Upsert twitter details record (idempotent for retries)
-    // For JSON fields, use Prisma.JsonNull for null values, or cast to InputJsonValue
-    const detailsData = {
-      tweetId: details.tweetId,
-      authorName: details.authorName,
-      authorUsername: details.authorUsername,
-      authorAvatarUrl: details.authorAvatarUrl,
-      text: details.text,
-      postedAt: details.postedAt ? new Date(details.postedAt) : null,
-      media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-      quotedTweetId: details.quotedTweetId,
-      card: (details.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-    };
-    await tx.itemTwitterDetails.upsert({
-      where: { itemId },
-      create: { itemId, ...detailsData },
-      update: detailsData,
-    });
-
-    return oldFileKeys;
-  });
+  } catch (error) {
+    // The images were uploaded before this transaction; a failed commit orphans
+    // them (no row references them). Delete them so Trigger retries don't
+    // accumulate orphans. Best-effort — never masks the original error. Only
+    // safe here because the commit didn't happen; post-commit failures below
+    // must not reach this path or they'd delete referenced blobs.
+    await deleteReplacedFiles(supabase, rehosted.storedFileKeys, []);
+    throw error;
+  }
 
   // Delete the previous blobs now the new images are committed
   await deleteReplacedFiles(
