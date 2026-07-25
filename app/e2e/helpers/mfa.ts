@@ -1,6 +1,25 @@
+import { expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { generateTotp } from "./totp";
 import { createUser, type TestUser } from "./user";
+
+/**
+ * Enter a 6-digit MFA code into the verify-mfa challenge and submit it.
+ *
+ * The verify-mfa form is a client component: if we type before it hydrates,
+ * React discards the keystrokes and the controlled value never reaches 6
+ * digits, so `onComplete` never fires and the page stalls on the challenge.
+ * Retype until the input actually holds the full code (defeating the
+ * type-before-hydration race), then the form auto-submits via `onComplete`.
+ */
+export async function enterMfaCode(page: Page, code: string): Promise<void> {
+  const otp = page.locator('[data-slot="input-otp"]');
+  await otp.waitFor({ state: "visible" });
+  await expect(async () => {
+    await otp.fill(code);
+    await expect(otp).toHaveValue(code, { timeout: 500 });
+  }).toPass({ timeout: 15_000 });
+}
 
 /**
  * Create a confirmed user with a verified TOTP factor enrolled.
