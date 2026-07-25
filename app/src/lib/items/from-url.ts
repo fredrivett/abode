@@ -8,7 +8,7 @@ import { getPostHogClient } from "@/lib/posthog-server";
 const log = createLogger("lib/items/from-url");
 
 // Where the save originated, for analytics (default "web")
-const VALID_ITEM_SOURCES = ["web", "share_target"] as const;
+const VALID_ITEM_SOURCES = ["web", "share_target", "extension"] as const;
 export type ItemSource = (typeof VALID_ITEM_SOURCES)[number];
 
 export function isItemSource(value: unknown): value is ItemSource {

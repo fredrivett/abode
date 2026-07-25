@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock dependencies before importing the route handler. vi.hoisted ensures
 // these are initialized before the hoisted vi.mock factories reference them.
 const {
-  mockGetUser,
+  mockAuth,
   mockItemCreate,
   mockItemUpdate,
   mockTrigger,
   mockCapture,
   mockMarkMilestoneComplete,
 } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+  mockAuth: vi.fn(),
   mockItemCreate: vi.fn(),
   mockItemUpdate: vi.fn(),
   mockTrigger: vi.fn(),
@@ -18,9 +18,11 @@ const {
   mockMarkMilestoneComplete: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser: mockGetUser } }),
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: mockAuth,
 }));
+
+vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://www.abode.fyi" }));
 
 vi.mock("@/lib/db", () => ({
   default: { item: { create: mockItemCreate, update: mockItemUpdate } },
@@ -48,20 +50,30 @@ vi.mock("@/lib/logger.server", () => ({
   }),
 }));
 
-import { POST } from "./route";
+import { OPTIONS, POST } from "./route";
 
 const ITEM_ID = "item_1";
 
-function request(body: Record<string, unknown>) {
-  return { json: async () => body } as unknown as Parameters<typeof POST>[0];
+function request(
+  body: Record<string, unknown>,
+  { authorization, origin }: { authorization?: string; origin?: string } = {},
+) {
+  return {
+    json: async () => body,
+    headers: {
+      get: (key: string) => {
+        const k = key.toLowerCase();
+        if (k === "authorization") return authorization ?? null;
+        if (k === "origin") return origin ?? null;
+        return null;
+      },
+    },
+  } as unknown as Parameters<typeof POST>[0];
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetUser.mockResolvedValue({
-    data: { user: { id: "user_1" } },
-    error: null,
-  });
+  mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "cookie" });
   mockItemCreate.mockResolvedValue({
     id: ITEM_ID,
     userId: "user_1",
@@ -78,7 +90,7 @@ beforeEach(() => {
 
 describe("POST /api/v1/items/from-url", () => {
   it("returns 401 when unauthenticated", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    mockAuth.mockResolvedValue(null);
     const res = await POST(request({ url: "https://example.com/x" }));
     expect(res.status).toBe(401);
     expect(mockItemCreate).not.toHaveBeenCalled();
@@ -96,6 +108,22 @@ describe("POST /api/v1/items/from-url", () => {
     expect(mockTrigger).toHaveBeenCalledOnce();
     // No failure → item is never downgraded to "failed"
     expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("saves via a bearer-authenticated request (the extension path)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "bearer" });
+    const res = await POST(
+      request(
+        { url: "https://example.com/x", source: "extension" },
+        { authorization: "Bearer token-abc" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({ source: "extension" }),
+      }),
+    );
   });
 
   it("still returns 201 and marks the item failed when the enqueue throws", async () => {
@@ -137,6 +165,30 @@ describe("POST /api/v1/items/from-url", () => {
       expect.objectContaining({
         properties: expect.objectContaining({ source: "web" }),
       }),
+    );
+  });
+
+  it("echoes CORS headers for an extension origin", async () => {
+    const res = await POST(
+      request(
+        { url: "https://example.com/x" },
+        { origin: "chrome-extension://abcdef" },
+      ),
+    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
+      "chrome-extension://abcdef",
+    );
+  });
+});
+
+describe("OPTIONS /api/v1/items/from-url", () => {
+  it("answers the CORS preflight with 204", async () => {
+    const res = await OPTIONS(
+      request({}, { origin: "chrome-extension://abc" }),
+    );
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
+      "chrome-extension://abc",
     );
   });
 });
