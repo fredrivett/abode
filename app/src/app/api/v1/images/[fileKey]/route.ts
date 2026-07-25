@@ -1,7 +1,7 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
-import { canViewItem, itemAccessSelect } from "@/lib/items/access";
+import { canViewItem } from "@/lib/items/access";
+import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -76,27 +76,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Find the item by fileKey, coverFileKey, or any fileKey in the
-    // product gallery (ItemProductDetails.images is a JSON array of
-    // { fileKey, url, width?, height? } — JSONB contains lets us match
-    // without scanning every row).
-    const item = await db.item.findFirst({
-      where: {
-        OR: [
-          { fileKey },
-          { coverFileKey: fileKey },
-          {
-            productDetails: {
-              images: { array_contains: [{ fileKey }] },
-            },
-          },
-        ],
-      },
-      select: {
-        id: true,
-        ...itemAccessSelect,
-      },
-    });
+    // Find the item that owns this key (its own fileKey/coverFileKey or a key
+    // embedded in product/tweet JSON), with the fields needed to authorize.
+    const item = await findItemOwningImageKey(fileKey);
 
     if (!item) {
       return NextResponse.json(
