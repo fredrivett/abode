@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, HardDrive, Home, Users } from "lucide-react";
+import { Box, HardDrive, Home, Sparkles, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBytes } from "@/lib/utils";
 
@@ -11,9 +11,17 @@ type StatsCardsProps = {
     rooms: number;
     storageBytes: string;
   };
+  embeddings?: {
+    imageItems: number;
+    withEmbeddings: number;
+  };
 };
 
-export function StatsCards({ totals }: StatsCardsProps) {
+export function StatsCards({ totals, embeddings }: StatsCardsProps) {
+  const coveragePct =
+    embeddings && embeddings.imageItems > 0
+      ? Math.round((embeddings.withEmbeddings / embeddings.imageItems) * 100)
+      : null;
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -63,6 +71,26 @@ export function StatsCards({ totals }: StatsCardsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {embeddings && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="font-medium text-sm">
+              Image Embedding Coverage
+            </CardTitle>
+            <Sparkles className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="font-bold text-2xl">
+              {coveragePct === null ? "—" : `${coveragePct}%`}
+            </div>
+            <p className="mt-1 text-muted-foreground text-xs">
+              {embeddings.withEmbeddings.toLocaleString()} of{" "}
+              {embeddings.imageItems.toLocaleString()} images
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

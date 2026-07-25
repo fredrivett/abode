@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { getGlobalDailyActivity } from "@/lib/activity";
+import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
 import db from "@/lib/db";
 import { ActivityChart } from "../_components/activity-chart";
 import { ActivityHeatmap } from "../_components/activity-heatmap";
@@ -8,7 +9,7 @@ import { StatsCards } from "../_components/stats-cards";
 
 export default async function AdminPage() {
   // Get aggregate counts
-  const [userCount, itemCount, roomCount, totalStorageResult] =
+  const [userCount, itemCount, roomCount, totalStorageResult, embeddings] =
     await Promise.all([
       db.user.count(),
       db.item.count(),
@@ -16,6 +17,7 @@ export default async function AdminPage() {
       db.user.aggregate({
         _sum: { storageUsedBytes: true },
       }),
+      getVisualEmbeddingCoverage(),
     ]);
 
   const totalStorageBytes =
@@ -78,7 +80,7 @@ export default async function AdminPage() {
         </header>
 
         <div className="mt-8 space-y-6">
-          <StatsCards totals={totals} />
+          <StatsCards totals={totals} embeddings={embeddings} />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <ActivityChart dailyActivity={dailyActivity} />
