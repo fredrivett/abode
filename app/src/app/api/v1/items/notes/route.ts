@@ -1,30 +1,37 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import { preflight, withCors } from "@/lib/http/cors";
 import { createNote } from "@/lib/items/create-note";
 import { clearNoteDraft } from "@/lib/items/note-draft";
 import { transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/notes");
+
+// Cross-origin preflight for the browser extension's "save selection as note".
+export function OPTIONS(request: NextRequest) {
+  return preflight(request);
+}
 
 /**
  * Creates a user-authored note item.
  *
- * Notes are composed in-app (markdown), so there's no URL fetch or background
- * classification — the item is created synchronously and marked completed.
+ * Notes are composed in-app (markdown) or captured from a page selection via
+ * the extension, so there's no URL fetch or background classification — the
+ * item is created synchronously and marked completed.
  */
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+  return withCors(request, await handlePost(request));
+}
 
-    if (authError || !user) {
+async function handlePost(request: NextRequest): Promise<NextResponse> {
+  try {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user;
 
     const body = await request.json().catch(() => ({}));
     const { content, title } = body;

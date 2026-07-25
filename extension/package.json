@@ -1,0 +1,31 @@
+{
+  "name": "abode-extension",
+  "description": "Save the link, the photo, the tweet — to abode, in one click.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "WXT_ABODE_LOCAL=1 wxt",
+    "dev:firefox": "WXT_ABODE_LOCAL=1 wxt -b firefox",
+    "build": "wxt build",
+    "build:local": "WXT_ABODE_LOCAL=1 wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.86.2",
+    "react": "19.2.1",
+    "react-dom": "19.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@wxt-dev/module-react": "1.2.2",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "wxt": "0.20.27"
+  }
+}

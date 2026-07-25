@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import { preflight, withCors } from "@/lib/http/cors";
 import {
   createItemFromUrl,
   InvalidUrlError,
@@ -6,21 +8,26 @@ import {
 } from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/from-url");
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+// Cross-origin preflight for the browser extension (and future first-party
+// clients). Bearer-authed, so no credentials are involved — see lib/http/cors.
+export function OPTIONS(request: NextRequest) {
+  return preflight(request);
+}
 
-    if (authError || !user) {
+export async function POST(request: NextRequest) {
+  return withCors(request, await handlePost(request));
+}
+
+async function handlePost(request: NextRequest): Promise<NextResponse> {
+  try {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user;
 
     const body = await request.json();
     const { url, source } = body;

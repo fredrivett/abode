@@ -1,0 +1,10 @@
+@import "../../assets/theme.css";
+
+html,
+body {
+  margin: 0;
+}
+
+#root {
+  width: 340px;
+}
