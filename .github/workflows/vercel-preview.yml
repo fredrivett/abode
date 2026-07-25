@@ -12,6 +12,10 @@ concurrency:
 jobs:
   deploy-preview:
     name: Deploy Preview
+    # Dependabot PRs don't receive the repo's Actions secrets (SUPABASE/VERCEL
+    # tokens live in a separate Dependabot store), so previews can't build —
+    # skip them instead of failing on the Supabase-branch wait
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
