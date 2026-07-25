@@ -9,6 +9,7 @@ import {
   generateImageEmbedding,
   isReplicateConfigured,
   upsertVisualVector,
+  VISUAL_EMBEDDING_MODEL,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
@@ -315,7 +316,7 @@ export const analyzeImageTask = task({
           visualVectorId = await upsertVisualVector({
             itemId,
             userId,
-            model: "clip-vit-base-patch32",
+            model: VISUAL_EMBEDDING_MODEL,
             embedding: visualEmbedding,
           });
 
