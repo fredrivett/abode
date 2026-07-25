@@ -173,6 +173,92 @@ export function extractOgType(html: string): string | null {
 }
 
 /**
+ * schema.org types that positively identify a page as an article. Article is the
+ * parent; the rest are the subtypes publishers/CMSs actually emit.
+ */
+const ARTICLE_JSONLD_TYPES = new Set([
+  "Article",
+  "NewsArticle",
+  "BlogPosting",
+  "TechArticle",
+  "ScholarlyArticle",
+  "Report",
+  "AdvertiserContentArticle",
+  "SocialMediaPosting",
+]);
+
+/**
+ * Searches JSON-LD data for a node whose `@type` (string or array) is one of the
+ * recognised article types. Descends into arrays, `@graph`, and the page's
+ * primary-entity pointers (`mainEntity` / `mainEntityOfPage`), e.g. a WebPage
+ * whose `mainEntity` is an Article.
+ *
+ * Deliberately NOT a blanket recursion over every property: a listing/index page
+ * that merely *embeds* articles (an ItemList of BlogPosting, a related-posts
+ * widget) must stay a webpage, not be promoted to article by a nested reference.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
+function findArticleTypeInJsonLd(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+
+  const type = data["@type"];
+  const types = Array.isArray(type) ? type : [type];
+  for (const t of types) {
+    if (typeof t === "string" && ARTICLE_JSONLD_TYPES.has(t)) return t;
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findArticleTypeInJsonLd(item);
+      if (found) return found;
+    }
+  }
+
+  for (const key of ["@graph", "mainEntity", "mainEntityOfPage"]) {
+    const found = findArticleTypeInJsonLd(data[key]);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+/**
+ * Returns the matched article `@type` from JSON-LD structured data, or null.
+ */
+export function extractJsonLdArticleType(html: string): string | null {
+  const scriptRegex =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+
+  let match = scriptRegex.exec(html);
+  while (match !== null) {
+    try {
+      const found = findArticleTypeInJsonLd(JSON.parse(match[1]));
+      if (found) return found;
+    } catch {
+      // Invalid JSON, skip
+    }
+    match = scriptRegex.exec(html);
+  }
+  return null;
+}
+
+/**
+ * True when the page *declares itself* an article via standard publisher
+ * metadata: `og:type=article`, an article-typed JSON-LD node, or an
+ * `article:published_time` tag. This is the authoritative, length-independent
+ * signal — a real article can carry it while extracting few words, and (unlike
+ * word count) a link-dense homepage never sets it. Note some CMSs ship an
+ * article with `og:type=website` but a `BlogPosting`/published-time signal, so
+ * all three are checked independently.
+ */
+export function hasArticleStructuredData(html: string): boolean {
+  if (extractOgType(html)?.toLowerCase() === "article") return true;
+  if (extractJsonLdArticleType(html)) return true;
+  if (extractMetaContent(html, "article:published_time")) return true;
+  return false;
+}
+
+/**
  * Extracts product data from JSON-LD structured data.
  * Looks for `@type: "Product"` in script[type="application/ld+json"] blocks.
  */

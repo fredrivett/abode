@@ -29,14 +29,56 @@ import {
   extractTwitterArticleId,
   extractVimeoVideoId,
   extractYouTubeVideoId,
+  hasArticleStructuredData,
   type ProductMetadata,
 } from "./html-metadata";
 import type { ForcibleKind } from "./item-kind-reassignment";
 import { detectPlatform } from "./platforms";
 import { isImageUrl } from "./url-utils";
 
-/** Below this word count a page is treated as a generic webpage, not an article. */
-export const MIN_ARTICLE_WORDS = 100;
+/**
+ * Structural fingerprint of a page's readable content, used to spot metadata-less
+ * articles (e.g. minimalist personal essays) without promoting link-dense
+ * homepages, listings, or thin "about" pages. See `isArticleContent`.
+ */
+export type ArticleContentSignals = {
+  wordCount: number;
+  /** 0..1 anchor-text ratio of the extracted content; low = prose, high = hub. */
+  linkDensity: number;
+  /** Words in the single longest paragraph; a proxy for "sustained prose". */
+  longestParagraphWords: number;
+};
+
+/**
+ * A page with no explicit article metadata is only treated as an article when
+ * its content reads like sustained prose: link density below this ceiling AND a
+ * paragraph of at least MIN_ARTICLE_PARAGRAPH_WORDS. Thresholds are calibrated
+ * against fixtures in classify-item-kind.test.ts (homepages/listings vs essays).
+ */
+const MAX_ARTICLE_LINK_DENSITY = 0.25;
+const MIN_ARTICLE_PARAGRAPH_WORDS = 90;
+
+const EMPTY_SIGNALS: ArticleContentSignals = {
+  wordCount: 0,
+  linkDensity: 0,
+  longestParagraphWords: 0,
+};
+
+/**
+ * Decides article vs generic webpage. Two tiers:
+ * 1. The publisher declares an article via standard metadata (authoritative).
+ * 2. Otherwise the content structurally looks like a long-form prose article.
+ */
+function isArticleContent(
+  html: string,
+  signals: ArticleContentSignals,
+): boolean {
+  if (hasArticleStructuredData(html)) return true;
+  return (
+    signals.linkDensity < MAX_ARTICLE_LINK_DENSITY &&
+    signals.longestParagraphWords >= MIN_ARTICLE_PARAGRAPH_WORDS
+  );
+}
 
 export type ItemClassification =
   | { kind: "twitter"; tweetId: string; url: string }
@@ -63,11 +105,11 @@ export type ClassifyItemKindInput = {
   /** The fetched page HTML, or null before the body has been downloaded. */
   html: string | null;
   /**
-   * Lazily computes the readable article word count (via Readability upstream).
+   * Lazily computes the readable-content signals (via Readability upstream).
    * Only invoked when reaching the article/webpage decision, so non-article
-   * pages never pay for content extraction. Defaults to 0.
+   * pages never pay for content extraction. Defaults to empty signals.
    */
-  getArticleWordCount?: () => number;
+  getArticleSignals?: () => ArticleContentSignals;
   /**
    * When set, bypass the heuristic and classify the page as this kind (a user
    * manually reassigning the item). Only web-family kinds are forcible, and all
@@ -88,7 +130,7 @@ function classifyForcedKind(
   forcedKind: ForcibleKind,
   html: string,
   resolvedUrl: string,
-  getArticleWordCount?: () => number,
+  getArticleSignals?: () => ArticleContentSignals,
 ): ItemClassification {
   if (forcedKind === "book") {
     const bookMeta =
@@ -104,10 +146,10 @@ function classifyForcedKind(
     return { kind: "product", productMeta };
   }
 
-  // article | webpage — the word-count threshold no longer gates the kind; the
-  // user's choice wins. Metadata is always available for a fetched page.
+  // article | webpage — the heuristic no longer gates the kind; the user's
+  // choice wins. Metadata is always available for a fetched page.
   const metadata = extractArticleMetadata(html, resolvedUrl);
-  const wordCount = getArticleWordCount?.() ?? 0;
+  const wordCount = (getArticleSignals?.() ?? EMPTY_SIGNALS).wordCount;
   return { kind: forcedKind, metadata, wordCount };
 }
 
@@ -162,7 +204,7 @@ export function classifyItemKind(
       forcedKind,
       html,
       resolvedUrl,
-      input.getArticleWordCount,
+      input.getArticleSignals,
     );
   }
 
@@ -213,9 +255,10 @@ export function classifyItemKind(
   const productMeta = extractProductMetadata(html, resolvedUrl);
   if (productMeta) return { kind: "product", productMeta };
 
-  // Fall back to article vs generic webpage based on readable content length.
+  // Fall back to article vs generic webpage: explicit article metadata, else a
+  // prose-shaped readable-content fingerprint.
   const metadata = extractArticleMetadata(html, resolvedUrl);
-  const wordCount = input.getArticleWordCount?.() ?? 0;
-  const kind = wordCount >= MIN_ARTICLE_WORDS ? "article" : "webpage";
-  return { kind, metadata, wordCount };
+  const signals = input.getArticleSignals?.() ?? EMPTY_SIGNALS;
+  const kind = isArticleContent(html, signals) ? "article" : "webpage";
+  return { kind, metadata, wordCount: signals.wordCount };
 }

@@ -1,8 +1,25 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { classifyItemKind } from "./classify-item-kind";
+import {
+  type ArticleContentSignals,
+  classifyItemKind,
+} from "./classify-item-kind";
 import type { ForcibleKind } from "./item-kind-reassignment";
+
+/** Readable-content signals shaped like a long-form prose article. */
+const PROSE_SIGNALS: ArticleContentSignals = {
+  wordCount: 800,
+  linkDensity: 0.02,
+  longestParagraphWords: 120,
+};
+
+/** Readable-content signals shaped like a link hub / thin page (not an article). */
+const NON_PROSE_SIGNALS: ArticleContentSignals = {
+  wordCount: 40,
+  linkDensity: 0.4,
+  longestParagraphWords: 12,
+};
 
 const goodreadsBookFixture = readFileSync(
   join(__dirname, "__fixtures__/goodreads-book-snippet.html"),
@@ -27,7 +44,7 @@ function classify(overrides: {
   resolvedUrl?: string;
   contentType?: string | null;
   html?: string | null;
-  getArticleWordCount?: () => number;
+  getArticleSignals?: () => ArticleContentSignals;
   forcedKind?: ForcibleKind;
 }) {
   const url = overrides.url ?? "https://example.com/thing";
@@ -36,7 +53,7 @@ function classify(overrides: {
     resolvedUrl: overrides.resolvedUrl ?? url,
     contentType: overrides.contentType ?? null,
     html: overrides.html ?? null,
-    getArticleWordCount: overrides.getArticleWordCount,
+    getArticleSignals: overrides.getArticleSignals,
     forcedKind: overrides.forcedKind,
   });
 }
@@ -207,54 +224,81 @@ describe("classifyItemKind — HTML-based signals", () => {
     expect(result?.kind).not.toBe("book");
   });
 
-  it("classifies long readable content as article", () => {
-    const html = `
-      <meta property="og:type" content="article" />
-      <meta property="og:title" content="A Long Read" />
-    `;
+  it("classifies a page that declares itself an article (og:type) as article", () => {
+    const html = `<meta property="og:type" content="article" />`;
+    // No prose signals at all — the explicit declaration alone wins.
     const result = classify({
       url: "https://blog.example.com/post",
       contentType: "text/html",
       html,
-      getArticleWordCount: () => 800,
+      getArticleSignals: () => NON_PROSE_SIGNALS,
     });
-    expect(result).toMatchObject({ kind: "article" });
+    expect(result?.kind).toBe("article");
   });
 
-  it("classifies thin content as a generic webpage", () => {
-    const html = `
-      <meta property="og:type" content="website" />
-      <title>Homepage</title>
-    `;
+  it("classifies a page with an article JSON-LD type as article", () => {
+    const html = `<script type="application/ld+json">{"@type":"BlogPosting","headline":"x"}</script>`;
+    const result = classify({
+      url: "https://blog.example.com/post",
+      contentType: "text/html",
+      html,
+      getArticleSignals: () => NON_PROSE_SIGNALS,
+    });
+    expect(result?.kind).toBe("article");
+  });
+
+  it("classifies a page with article:published_time as article", () => {
+    const html = `<meta property="article:published_time" content="2025-01-01T00:00:00Z" />`;
+    const result = classify({
+      url: "https://blog.example.com/post",
+      contentType: "text/html",
+      html,
+      getArticleSignals: () => NON_PROSE_SIGNALS,
+    });
+    expect(result?.kind).toBe("article");
+  });
+
+  it("classifies metadata-less prose (low link density, long paragraph) as article", () => {
+    const result = classify({
+      url: "https://essays.example.com/thoughts",
+      contentType: "text/html",
+      html: "<title>An essay</title>",
+      getArticleSignals: () => PROSE_SIGNALS,
+    });
+    expect(result?.kind).toBe("article");
+  });
+
+  it("classifies a link-dense homepage (no article metadata) as webpage", () => {
+    // og:type=website plus link-heavy content — a homepage, not an article.
     const result = classify({
       url: "https://example.com",
       contentType: "text/html",
-      html,
-      getArticleWordCount: () => 12,
+      html: `<meta property="og:type" content="website" /><title>Homepage</title>`,
+      getArticleSignals: () => ({
+        wordCount: 900,
+        linkDensity: 0.5,
+        longestParagraphWords: 30,
+      }),
     });
-    expect(result).toMatchObject({ kind: "webpage" });
+    expect(result?.kind).toBe("webpage");
   });
 
-  it("treats exactly MIN_ARTICLE_WORDS as an article, one below as a webpage", () => {
-    const html = `<meta property="og:type" content="article" />`;
-    const atThreshold = classify({
-      url: "https://blog.example.com/post",
+  it("classifies a low-link page without a sustained paragraph as webpage", () => {
+    // Prose-ish but fragmented (e.g. a thin about page): no long paragraph.
+    const result = classify({
+      url: "https://example.com/about",
       contentType: "text/html",
-      html,
-      getArticleWordCount: () => 100,
+      html: "<title>About</title>",
+      getArticleSignals: () => ({
+        wordCount: 320,
+        linkDensity: 0.02,
+        longestParagraphWords: 52,
+      }),
     });
-    expect(atThreshold?.kind).toBe("article");
-
-    const belowThreshold = classify({
-      url: "https://blog.example.com/post",
-      contentType: "text/html",
-      html,
-      getArticleWordCount: () => 99,
-    });
-    expect(belowThreshold?.kind).toBe("webpage");
+    expect(result?.kind).toBe("webpage");
   });
 
-  it("defaults to webpage when no word-count callback is provided", () => {
+  it("defaults to webpage when no signals callback is provided", () => {
     const result = classifyItemKind({
       url: "https://example.com",
       resolvedUrl: "https://example.com",
@@ -264,11 +308,11 @@ describe("classifyItemKind — HTML-based signals", () => {
     expect(result?.kind).toBe("webpage");
   });
 
-  it("only invokes the article word-count callback when it reaches the article decision", () => {
+  it("only invokes the article signals callback when it reaches the article decision", () => {
     let called = 0;
-    const countFn = () => {
+    const signalsFn = () => {
       called++;
-      return 500;
+      return PROSE_SIGNALS;
     };
     // A book page should short-circuit before the article/webpage decision.
     classifyItemKind({
@@ -276,7 +320,7 @@ describe("classifyItemKind — HTML-based signals", () => {
       resolvedUrl: "https://www.goodreads.com/book/show/1",
       contentType: "text/html",
       html: goodreadsBookFixture,
-      getArticleWordCount: countFn,
+      getArticleSignals: signalsFn,
     });
     expect(called).toBe(0);
   });
@@ -287,7 +331,7 @@ describe("classifyItemKind — HTML-based signals", () => {
       url: "https://twitter.com/someuser",
       contentType: "text/html",
       html,
-      getArticleWordCount: () => 0,
+      getArticleSignals: () => NON_PROSE_SIGNALS,
     });
     expect(result?.kind).toBe("webpage");
   });
@@ -303,20 +347,20 @@ describe("classifyItemKind — forcedKind (manual reassignment)", () => {
     ).toBeNull();
   });
 
-  it("forces webpage as article regardless of word count", () => {
+  it("forces a webpage-shaped page as article regardless of signals", () => {
     const result = classify({
       html: articleHtml,
       forcedKind: "article",
-      getArticleWordCount: () => 3, // well below MIN_ARTICLE_WORDS
+      getArticleSignals: () => NON_PROSE_SIGNALS, // would heuristically be webpage
     });
     expect(result?.kind).toBe("article");
   });
 
-  it("forces a long article as webpage regardless of word count", () => {
+  it("forces a prose-shaped page as webpage regardless of signals", () => {
     const result = classify({
       html: articleHtml,
       forcedKind: "webpage",
-      getArticleWordCount: () => 5000,
+      getArticleSignals: () => PROSE_SIGNALS, // would heuristically be article
     });
     expect(result?.kind).toBe("webpage");
   });

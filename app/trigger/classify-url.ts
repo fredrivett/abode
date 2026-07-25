@@ -1,12 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { Readability } from "@mozilla/readability";
 import type { ProcessingErrorReason } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { imageSize } from "image-size";
-import { JSDOM } from "jsdom";
-import TurndownService from "turndown";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import { classifyItemKind } from "../src/lib/classify-item-kind";
 import db from "../src/lib/db";
@@ -16,7 +13,6 @@ import {
   extractArticleMetadata,
   type ProductImageCandidate,
   type ProductMetadata,
-  preserveSocialEmbeds,
 } from "../src/lib/html-metadata";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
@@ -29,6 +25,10 @@ import {
 } from "../src/lib/items/processing-error";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
+import {
+  extractReadableSignals,
+  type ReadableSignals,
+} from "../src/lib/readable-signals";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
@@ -210,114 +210,53 @@ async function uploadImageBuffer(
  * Vimeo/direct images, and falls back to article extraction via Readability.
  * Marks the item as `failed` on error.
  */
-type ReadableContent = {
-  articleContent: string | null;
-  readingTime: number | null;
-  wordCount: number;
-};
-
 /**
- * Extracts readable article content from HTML via Mozilla Readability, converting
- * it to markdown. Expensive (JSDOM + Readability + Turndown), so callers invoke it
- * lazily and only when the article/webpage decision is actually reached.
+ * Extracts readable article content and classification signals via Mozilla
+ * Readability. Expensive (JSDOM + Readability + Turndown), so callers invoke it
+ * lazily and only when the article/webpage decision is actually reached. The
+ * pure extraction lives in `extractReadableSignals`; this wrapper adds logging.
  */
 function extractReadableContent(
   html: string,
   fetchUrl: string,
   itemId: string,
-): ReadableContent {
-  // Readability is battle-tested (powers Firefox Reader View) and produces
-  // clean article content without navigation, footers, or other page chrome.
-  let articleContent: string | null = null;
-  let readingTime: number | null = null;
+): ReadableSignals {
+  const signals = extractReadableSignals(html, fetchUrl);
 
-  try {
-    // Pre-process HTML: Remove hidden attribute from divs
-    // Modern React/Next.js sites use streaming SSR which renders content into
-    // hidden divs that are revealed via JavaScript hydration. Readability
-    // ignores hidden elements, so we need to unhide them first.
-    let processedHtml = html.replace(
-      /<div([^>]*)\s+hidden([^>]*)>/gi,
-      "<div$1$2>",
-    );
-
-    // Pre-process HTML: Preserve social media embeds before Readability runs
-    // Twitter/X embeds are blockquotes that would be stripped of their structure.
-    // We replace them with placeholder divs containing the tweet URL, then convert
-    // these to markdown markers after Readability extracts the content.
-    const embedResult = preserveSocialEmbeds(processedHtml);
-    processedHtml = embedResult.html;
-
-    if (embedResult.tweetIds.length > 0) {
-      logger.log("Twitter embeds detected and preserved", {
-        itemId,
-        tweetCount: embedResult.tweetIds.length,
-        tweetIds: embedResult.tweetIds,
-      });
-    } else {
-      logger.log("No Twitter embeds found in article HTML", { itemId });
-    }
-
-    const dom = new JSDOM(processedHtml, { url: fetchUrl });
-    const reader = new Readability(dom.window.document);
-    const article = reader.parse();
-
-    if (article?.content) {
-      // Convert HTML to markdown for consistent storage and rendering
-      const turndown = new TurndownService({
-        headingStyle: "atx",
-        codeBlockStyle: "fenced",
-      });
-      // Preserve SVG elements as raw HTML in markdown output
-      // This allows inline SVGs (like logos, icons, charts) to render properly
-      // Cast needed because Turndown types only include HTMLElementTagNameMap, not SVG
-      turndown.keep(["svg"] as unknown as (keyof HTMLElementTagNameMap)[]);
-      articleContent = turndown.turndown(article.content);
-      const wordCount = articleContent.split(/\s+/).length;
-      if (wordCount > 0) {
-        readingTime = Math.ceil(wordCount / 200);
-      }
-
-      // Check if tweet markers survived the Readability + Turndown pipeline
-      const tweetMarkerMatches = articleContent.match(/\[\[TWEET:\d+\]\]/g);
-      const preservedTweetCount = tweetMarkerMatches?.length ?? 0;
-
-      logger.log("Content extracted with Readability", {
-        itemId,
-        contentLength: articleContent.length,
-        wordCount,
-        preservedTweetMarkers: preservedTweetCount,
-        tweetMarkersFound: tweetMarkerMatches ?? [],
-      });
-
-      if (
-        embedResult.tweetIds.length > 0 &&
-        preservedTweetCount !== embedResult.tweetIds.length
-      ) {
-        logger.warn("Tweet markers may have been lost during processing", {
-          itemId,
-          originalTweetCount: embedResult.tweetIds.length,
-          preservedTweetCount,
-          originalTweetIds: embedResult.tweetIds,
-        });
-      }
-    }
-  } catch (readabilityError) {
+  if (signals.error) {
     logger.warn("Failed to extract article content", {
       itemId,
-      error: readabilityError,
+      error: signals.error,
     });
+  }
+
+  if (signals.tweetIds.length > 0) {
+    logger.log("Twitter embeds detected and preserved", {
+      itemId,
+      tweetCount: signals.tweetIds.length,
+      tweetIds: signals.tweetIds,
+    });
+    if (signals.preservedTweetCount !== signals.tweetIds.length) {
+      logger.warn("Tweet markers may have been lost during processing", {
+        itemId,
+        originalTweetCount: signals.tweetIds.length,
+        preservedTweetCount: signals.preservedTweetCount,
+        originalTweetIds: signals.tweetIds,
+      });
+    }
   }
 
   logger.log("Article content extraction result", {
     itemId,
-    contentExtracted: !!articleContent,
-    contentLength: articleContent?.length ?? 0,
-    readingTime,
+    contentExtracted: !!signals.articleContent,
+    contentLength: signals.articleContent?.length ?? 0,
+    wordCount: signals.wordCount,
+    linkDensity: signals.linkDensity,
+    longestParagraphWords: signals.longestParagraphWords,
+    readingTime: signals.readingTime,
   });
 
-  const wordCount = articleContent?.split(/\s+/).length ?? 0;
-  return { articleContent, readingTime, wordCount };
+  return signals;
 }
 
 export const classifyUrlTask = task({
@@ -500,8 +439,8 @@ export const classifyUrlTask = task({
       // Step 5: Classify from the page body — image re-check (some servers don't
       // answer HEAD), then book, product, and finally article vs generic webpage.
       // Article extraction (Readability) is expensive, so it runs lazily and only
-      // when the classifier actually needs the readable word count.
-      let readableContent: ReadableContent | null = null;
+      // when the classifier actually needs the readable-content signals.
+      let readableContent: ReadableSignals | null = null;
       const getReadableContent = () => {
         if (!readableContent) {
           readableContent = extractReadableContent(html, fetchUrl, itemId);
@@ -514,7 +453,14 @@ export const classifyUrlTask = task({
         resolvedUrl,
         contentType: finalContentType,
         html,
-        getArticleWordCount: () => getReadableContent().wordCount,
+        getArticleSignals: () => {
+          const c = getReadableContent();
+          return {
+            wordCount: c.wordCount,
+            linkDensity: c.linkDensity,
+            longestParagraphWords: c.longestParagraphWords,
+          };
+        },
         forcedKind,
       });
 
