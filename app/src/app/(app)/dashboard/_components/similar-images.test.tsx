@@ -82,14 +82,21 @@ describe("SimilarImages", () => {
       ([event]) => event === "similar_images_viewed",
     );
     expect(viewed).toHaveLength(1);
-    expect(viewed[0][1]).toMatchObject({ item_id: "source-1", result_count: 1 });
+    expect(viewed[0][1]).toMatchObject({
+      item_id: "source-1",
+      result_count: 1,
+    });
   });
 
   it("captures a click event and calls onNavigate", () => {
     setResults([sampleItem]);
     const onNavigate = vi.fn();
     render(
-      <SimilarImages itemId="source-1" enabled={true} onNavigate={onNavigate} />,
+      <SimilarImages
+        itemId="source-1"
+        enabled={true}
+        onNavigate={onNavigate}
+      />,
     );
 
     fireEvent.click(screen.getByRole("link"));
