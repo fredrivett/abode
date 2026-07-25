@@ -46,26 +46,52 @@ export function generateTotp(
   return (binary % 1_000_000).toString().padStart(6, "0");
 }
 
+const TOTP_PERIOD_MS = 30 * 1000;
+
+/**
+ * Minimum time that must remain in the current window before we hand a code to
+ * the challenge, so it can't roll over between generation, entry, and verify.
+ */
+const MIN_TOTP_RUNWAY_MS = 6 * 1000;
+
 /** The 30s TOTP window (counter) index containing `atMs`. */
 export function totpWindow(atMs: number = Date.now()): number {
   return Math.floor(atMs / 1000 / 30);
 }
 
+/** ms remaining in the TOTP window that contains `atMs`. */
+function runwayRemainingMs(atMs: number): number {
+  return (totpWindow(atMs) + 1) * TOTP_PERIOD_MS - atMs;
+}
+
 /**
- * Resolve once we're in a strictly later 30s TOTP window than the one holding
- * `afterMs`.
+ * Resolve once the current 30s TOTP window is safe to generate a login code in,
+ * meaning it is BOTH:
+ *   (a) strictly later than the window holding `afterMs`, and
+ *   (b) has at least `MIN_TOTP_RUNWAY_MS` left.
  *
- * Supabase rejects a TOTP code whose period was already consumed, so the login
- * challenge code must come from a different window than the enrollment code
- * burned during MFA setup — otherwise the two collide intermittently and the
- * challenge is rejected as a replay. Also guarantees a full window of runway so
- * the code can't roll over mid-entry. No-ops (waits 0ms) once the window has
- * already advanced, which is the common case after the login UI flow runs.
+ * (a) avoids a replay: Supabase rejects a code whose period was already
+ * consumed, so the login challenge must not reuse the enrollment window burned
+ * during MFA setup. (b) avoids a rollover: without it the "common case" (window
+ * already advanced) could hand back a code with only a few ms of life, which
+ * then expires between entry and verify and is rejected — stalling the test on
+ * the challenge. Loops rather than computing a single sleep so both conditions
+ * are re-checked after waking (converges in at most two windows).
  */
 export async function waitForTotpWindowAfter(afterMs: number): Promise<void> {
-  const nextWindowStartMs = (totpWindow(afterMs) + 1) * 30 * 1000;
-  const waitMs = nextWindowStartMs - Date.now();
-  if (waitMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  const enrollmentWindow = totpWindow(afterMs);
+  for (;;) {
+    const now = Date.now();
+    if (
+      totpWindow(now) > enrollmentWindow &&
+      runwayRemainingMs(now) >= MIN_TOTP_RUNWAY_MS
+    ) {
+      return;
+    }
+    // Sleep just past the next window boundary, then re-check both conditions.
+    const nextWindowStartMs = (totpWindow(now) + 1) * TOTP_PERIOD_MS;
+    await new Promise((resolve) =>
+      setTimeout(resolve, nextWindowStartMs - now + 10),
+    );
   }
 }

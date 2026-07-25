@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { getE2EPrisma } from "./helpers/db";
-import { createUserWithMfa } from "./helpers/mfa";
+import { createUserWithMfa, enterMfaCode } from "./helpers/mfa";
 import { generateTotp, waitForTotpWindowAfter } from "./helpers/totp";
 import { deleteUserByEmail } from "./helpers/user";
 
@@ -45,9 +45,7 @@ test.describe("Save share target + MFA login redirect", () => {
       // so the challenge code can't collide with the enrollment code or roll
       // over mid-entry.
       await waitForTotpWindowAfter(mfaSetupAtMs);
-      await page
-        .locator('[data-slot="input-otp"]')
-        .pressSequentially(generateTotp(totpSecret));
+      await enterMfaCode(page, generateTotp(totpSecret));
       await expect(page).toHaveURL(/\/dashboard/, { timeout: 30000 });
 
       // The shared URL survived the whole password → MFA → save journey.
