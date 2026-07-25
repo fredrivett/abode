@@ -18,7 +18,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Run Semgrep
-        run: semgrep scan --config p/owasp-top-ten --config p/github-actions --error
+        # __fixtures__ holds saved copies of real third-party pages used as test
+        # input (never served or executed). Scanning them yields false positives
+        # (e.g. plaintext http links in scraped HTML), so exclude them.
+        run: semgrep scan --config p/owasp-top-ten --config p/github-actions --error --exclude='__fixtures__'
 
   gitleaks:
     name: Gitleaks (secret scanning)
