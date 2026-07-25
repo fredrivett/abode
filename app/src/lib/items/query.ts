@@ -23,6 +23,7 @@ export const itemSelect = {
   id: true,
   kind: true,
   processingStatus: true,
+  processingError: true,
   fileKey: true,
   meta: true,
   sourceType: true,
