@@ -128,6 +128,28 @@ function mediaStillUrl(item: TwitterMedia): string | null {
   return item.type === "photo" ? item.url : (item.posterUrl ?? null);
 }
 
+// Only re-host raster formats the renderers actually support. Notably excludes
+// SVG: the image proxy serves stored bytes same-origin as image/svg+xml, so a
+// persisted SVG (e.g. a malicious link-card image) becomes active content when
+// opened directly. Card images come from arbitrary third-party pages, so this
+// allowlist is a real boundary, not a formality.
+const IMAGE_EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+};
+
+/**
+ * Storage extension for a re-hostable image content-type, or null to reject it
+ * (unsupported or unsafe, e.g. SVG). Exported for testing.
+ */
+export function imageExtForContentType(contentType: string): string | null {
+  const baseType = contentType.split(";")[0].trim().toLowerCase();
+  return IMAGE_EXT_BY_CONTENT_TYPE[baseType] ?? null;
+}
+
 /**
  * Downloads an image from a URL and stores it in Supabase storage.
  * Returns the file key and byte size, or null on any failure (skip cleanly).
@@ -153,8 +175,9 @@ async function downloadAndStoreImage(
     }
 
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().startsWith("image/")) {
-      logger.warn("Tweet image had non-image content-type", {
+    const ext = imageExtForContentType(contentType);
+    if (!ext) {
+      logger.warn("Tweet image had unsupported content-type", {
         imageUrl,
         contentType: contentType || "(none)",
       });
@@ -162,14 +185,6 @@ async function downloadAndStoreImage(
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const extMap: Record<string, string> = {
-      "image/jpeg": ".jpg",
-      "image/jpg": ".jpg",
-      "image/png": ".png",
-      "image/gif": ".gif",
-      "image/webp": ".webp",
-    };
-    const ext = extMap[contentType.split(";")[0]] || ".jpg";
     const fileKey = `${userId}/${randomUUID()}${ext}`;
 
     const { error: uploadError } = await supabase.storage
