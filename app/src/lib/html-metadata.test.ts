@@ -9,6 +9,7 @@ import {
   extractBookMetadata,
   extractDescription,
   extractDomain,
+  extractJsonLdArticleType,
   extractJsonLdProduct,
   extractMetaContent,
   extractOgImage,
@@ -18,6 +19,7 @@ import {
   extractTitle,
   extractTweetId,
   extractTwitterArticleId,
+  hasArticleStructuredData,
   inferCurrencyFromPriceContext,
   isKnownBookUrl,
   isKnownProductUrl,
@@ -2045,5 +2047,102 @@ describe("extractAmazonCoverImage", () => {
 
   it("returns null when the page has no cover image element", () => {
     expect(extractAmazonCoverImage("<img id='other' src='x.jpg'/>")).toBeNull();
+  });
+});
+
+describe("extractJsonLdArticleType", () => {
+  const ld = (obj: unknown) =>
+    `<script type="application/ld+json">${JSON.stringify(obj)}</script>`;
+
+  it("matches a top-level article node", () => {
+    expect(extractJsonLdArticleType(ld({ "@type": "NewsArticle" }))).toBe(
+      "NewsArticle",
+    );
+  });
+
+  it("matches an article node inside @graph", () => {
+    const html = ld({
+      "@graph": [{ "@type": "WebPage" }, { "@type": "BlogPosting" }],
+    });
+    expect(extractJsonLdArticleType(html)).toBe("BlogPosting");
+  });
+
+  it("matches an article-typed @type array", () => {
+    expect(
+      extractJsonLdArticleType(ld({ "@type": ["CreativeWork", "Article"] })),
+    ).toBe("Article");
+  });
+
+  it("matches an article referenced via mainEntity", () => {
+    const html = ld({
+      "@type": "WebPage",
+      mainEntity: { "@type": "Article", headline: "x" },
+    });
+    expect(extractJsonLdArticleType(html)).toBe("Article");
+  });
+
+  it("matches an article referenced via mainEntityOfPage", () => {
+    const html = ld({
+      "@type": "WebPage",
+      mainEntityOfPage: { "@type": "BlogPosting" },
+    });
+    expect(extractJsonLdArticleType(html)).toBe("BlogPosting");
+  });
+
+  it("does NOT match a listing page that merely embeds articles", () => {
+    // An index/collection page: articles are nested in an ItemList, not the
+    // page's own type. Promoting this to article is the bug we must avoid.
+    const html = ld({
+      "@type": "CollectionPage",
+      mainEntity: {
+        "@type": "ItemList",
+        itemListElement: [
+          { "@type": "BlogPosting", headline: "a" },
+          { "@type": "BlogPosting", headline: "b" },
+        ],
+      },
+    });
+    expect(extractJsonLdArticleType(html)).toBeNull();
+  });
+
+  it("returns null when there is no article node", () => {
+    expect(
+      extractJsonLdArticleType(ld({ "@type": "WebSite", name: "Home" })),
+    ).toBeNull();
+    expect(
+      extractJsonLdArticleType("<html><body>no ld</body></html>"),
+    ).toBeNull();
+  });
+});
+
+describe("hasArticleStructuredData", () => {
+  it("is true for og:type=article", () => {
+    expect(
+      hasArticleStructuredData(`<meta property="og:type" content="article" />`),
+    ).toBe(true);
+  });
+
+  it("is true for article:published_time", () => {
+    expect(
+      hasArticleStructuredData(
+        `<meta property="article:published_time" content="2025-01-01" />`,
+      ),
+    ).toBe(true);
+  });
+
+  it("is true for an article JSON-LD type", () => {
+    expect(
+      hasArticleStructuredData(
+        `<script type="application/ld+json">{"@type":"BlogPosting"}</script>`,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for a homepage that only declares itself a website", () => {
+    expect(
+      hasArticleStructuredData(
+        `<meta property="og:type" content="website" /><script type="application/ld+json">{"@type":"WebSite"}</script>`,
+      ),
+    ).toBe(false);
   });
 });

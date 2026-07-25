@@ -188,8 +188,14 @@ const ARTICLE_JSONLD_TYPES = new Set([
 ]);
 
 /**
- * Recursively searches JSON-LD data for a node whose `@type` (string or array)
- * is one of the recognised article types. Handles `@graph` and nested arrays.
+ * Searches JSON-LD data for a node whose `@type` (string or array) is one of the
+ * recognised article types. Descends into arrays, `@graph`, and the page's
+ * primary-entity pointers (`mainEntity` / `mainEntityOfPage`), e.g. a WebPage
+ * whose `mainEntity` is an Article.
+ *
+ * Deliberately NOT a blanket recursion over every property: a listing/index page
+ * that merely *embeds* articles (an ItemList of BlogPosting, a related-posts
+ * widget) must stay a webpage, not be promoted to article by a nested reference.
  */
 // biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
 function findArticleTypeInJsonLd(data: any): string | null {
@@ -208,7 +214,10 @@ function findArticleTypeInJsonLd(data: any): string | null {
     }
   }
 
-  if (data["@graph"]) return findArticleTypeInJsonLd(data["@graph"]);
+  for (const key of ["@graph", "mainEntity", "mainEntityOfPage"]) {
+    const found = findArticleTypeInJsonLd(data[key]);
+    if (found) return found;
+  }
 
   return null;
 }
