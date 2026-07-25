@@ -102,6 +102,7 @@ import { useUserStore } from "@/stores/user-store";
 import { AddToRoomPopover } from "./_components/add-to-room-popover";
 import { ColorHighlightOverlay } from "./_components/color-highlight-overlay";
 import { ColorsBar } from "./_components/colors-bar";
+import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 
@@ -1884,9 +1885,16 @@ function ItemDetailDialog({
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Type</span>
-                        <span className="font-medium capitalize">
-                          {item.kind ?? "unknown"}
-                        </span>
+                        <ItemTypeField
+                          itemId={item.id}
+                          kind={item.kind}
+                          sourceType={item.sourceType}
+                          canEdit={canEdit}
+                          onReassigned={(status) => {
+                            setCurrentProcessingStatus(status);
+                            invalidateItems();
+                          }}
+                        />
                       </div>
                       {item.sourceType !== "url" && (
                         <div className="flex justify-between">

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { classifyItemKind } from "./classify-item-kind";
+import type { ForcibleKind } from "./item-kind-reassignment";
 
 const goodreadsBookFixture = readFileSync(
   join(__dirname, "__fixtures__/goodreads-book-snippet.html"),
@@ -27,6 +28,7 @@ function classify(overrides: {
   contentType?: string | null;
   html?: string | null;
   getArticleWordCount?: () => number;
+  forcedKind?: ForcibleKind;
 }) {
   const url = overrides.url ?? "https://example.com/thing";
   return classifyItemKind({
@@ -35,6 +37,7 @@ function classify(overrides: {
     contentType: overrides.contentType ?? null,
     html: overrides.html ?? null,
     getArticleWordCount: overrides.getArticleWordCount,
+    forcedKind: overrides.forcedKind,
   });
 }
 
@@ -287,5 +290,87 @@ describe("classifyItemKind — HTML-based signals", () => {
       getArticleWordCount: () => 0,
     });
     expect(result?.kind).toBe("webpage");
+  });
+});
+
+describe("classifyItemKind — forcedKind (manual reassignment)", () => {
+  const articleHtml =
+    "<title>A Great Read</title><meta name='description' content='desc'>";
+
+  it("returns null while HTML is absent (caller must fetch the body)", () => {
+    expect(
+      classify({ url: "https://example.com/x", forcedKind: "article" }),
+    ).toBeNull();
+  });
+
+  it("forces webpage as article regardless of word count", () => {
+    const result = classify({
+      html: articleHtml,
+      forcedKind: "article",
+      getArticleWordCount: () => 3, // well below MIN_ARTICLE_WORDS
+    });
+    expect(result?.kind).toBe("article");
+  });
+
+  it("forces a long article as webpage regardless of word count", () => {
+    const result = classify({
+      html: articleHtml,
+      forcedKind: "webpage",
+      getArticleWordCount: () => 5000,
+    });
+    expect(result?.kind).toBe("webpage");
+  });
+
+  it("uses real book metadata when the page has it", () => {
+    const result = classify({
+      url: "https://www.goodreads.com/book/show/1",
+      resolvedUrl: "https://www.goodreads.com/book/show/1",
+      contentType: "text/html",
+      html: goodreadsBookFixture,
+      forcedKind: "book",
+    });
+    expect(result?.kind).toBe("book");
+    if (result?.kind === "book") {
+      expect(result.bookMeta.title).toBeTruthy();
+    }
+  });
+
+  it("forces product on a plain page with sparse best-effort metadata", () => {
+    const result = classify({
+      url: "https://example.com/thing",
+      html: articleHtml,
+      forcedKind: "product",
+    });
+    expect(result?.kind).toBe("product");
+    if (result?.kind === "product") {
+      // No structured product signals on the page → nullable fields stay empty
+      expect(result.productMeta.price).toBeNull();
+      expect(result.productMeta.brand).toBeNull();
+      expect(result.productMeta.domain).toBe("example.com");
+    }
+  });
+
+  it("forces book on a plain page with sparse best-effort metadata", () => {
+    const result = classify({
+      url: "https://example.com/thing",
+      html: articleHtml,
+      forcedKind: "book",
+    });
+    expect(result?.kind).toBe("book");
+    if (result?.kind === "book") {
+      expect(result.bookMeta.authors).toEqual([]);
+      expect(result.bookMeta.isbn).toBeNull();
+    }
+  });
+
+  it("ignores twitter/video URL signals when a kind is forced", () => {
+    const result = classify({
+      url: "https://x.com/user/status/123",
+      resolvedUrl: "https://x.com/user/status/123",
+      contentType: "text/html",
+      html: articleHtml,
+      forcedKind: "article",
+    });
+    expect(result?.kind).toBe("article");
   });
 });
