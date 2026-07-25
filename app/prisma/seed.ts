@@ -139,24 +139,31 @@ async function seed() {
     // Upload images to Supabase Storage
     console.log("Uploading seed images...");
 
-    const spiralUpload = await uploadSeedImage(
+    const redArchUpload = await uploadSeedImage(
       supabase,
       userId,
-      "spiral-orange.jpeg",
+      "red-arch-sculpture.jpg",
       "image/jpeg",
     );
 
-    const meshUpload = await uploadSeedImage(
+    const atriumUpload = await uploadSeedImage(
       supabase,
       userId,
-      "mesh-branding.jpeg",
+      "glass-atrium-roof.jpg",
+      "image/jpeg",
+    );
+
+    const sunsetUpload = await uploadSeedImage(
+      supabase,
+      userId,
+      "city-sunset-river.jpg",
       "image/jpeg",
     );
 
     const gifUpload = await uploadSeedImage(
       supabase,
       userId,
-      "roots-faq.gif",
+      "muybridge-horse.gif",
       "image/gif",
     );
 
@@ -179,93 +186,171 @@ async function seed() {
 
     // --- IMAGE ITEMS ---
 
-    const spiralItem = await prisma.item.create({
+    const redArchItem = await prisma.item.create({
       data: {
         userId,
         kind: "image",
         processingStatus: "completed",
         sourceType: "upload",
-        fileKey: spiralUpload.fileKey,
-        title: "Push Back — Spiral Typography",
+        fileKey: redArchUpload.fileKey,
+        title: "Red Arch Sculpture",
         description:
-          "Bold orange spiral design on a dark wall featuring the words 'PUSH BACK' integrated into concentric circles.",
+          "A bold red circular canopy arching over a footbridge, framed by blue glass towers under a clear sky.",
         tags: [
-          "typography",
-          "street art",
-          "orange",
-          "spiral",
-          "graphic design",
-          "mural",
+          "architecture",
+          "sculpture",
+          "red",
+          "city",
+          "bridge",
+          "photography",
         ],
         meta: {
-          originalName: "Spiral Orange Symbol Design.jpeg",
-          size: spiralUpload.size,
+          originalName: "red-arch-sculpture.jpg",
+          size: redArchUpload.size,
           type: "image/jpeg",
-          width: 1080,
-          height: 1350,
+          width: 1920,
+          height: 2400,
         },
         imageDetails: {
           create: {
-            objects: ["wall", "sign", "art"],
+            objects: ["bridge", "sculpture", "building", "water"],
             colors: [
               {
-                hex: "#E8641B",
-                name: "orange",
-                score: 0.45,
-                l: 57,
-                a: 52,
-                b: 62,
-              },
-              { hex: "#1A1A1A", name: "black", score: 0.42, l: 10, a: 0, b: 0 },
-              {
-                hex: "#D4561A",
-                name: "dark orange",
-                score: 0.08,
+                hex: "#D93A1E",
+                name: "red",
+                score: 0.4,
                 l: 48,
-                a: 44,
+                a: 62,
                 b: 52,
               },
+              {
+                hex: "#3E6E8C",
+                name: "blue",
+                score: 0.35,
+                l: 44,
+                a: -8,
+                b: -24,
+              },
+              { hex: "#1A1A1A", name: "black", score: 0.12, l: 10, a: 0, b: 0 },
             ],
-            ocrText: "PUSH BACK",
           },
         },
       },
     });
 
-    const meshItem = await prisma.item.create({
+    const atriumItem = await prisma.item.create({
       data: {
         userId,
         kind: "image",
         processingStatus: "completed",
         sourceType: "upload",
-        fileKey: meshUpload.fileKey,
-        title: "Mesh Branding Close-up",
+        fileKey: atriumUpload.fileKey,
+        title: "Glass Atrium Roof",
         description:
-          "Macro shot of the Mesh logo printed on material, with a subtle vignette and chromatic detail.",
-        tags: ["branding", "logo", "macro", "typography", "product", "detail"],
+          "Looking straight up at a symmetric steel-and-glass atrium roof, curved lattice beams converging against a blue sky.",
+        tags: [
+          "architecture",
+          "geometry",
+          "glass",
+          "steel",
+          "symmetry",
+          "photography",
+        ],
         meta: {
-          originalName: "Close-up of Mesh Branding.jpeg",
-          size: meshUpload.size,
+          originalName: "glass-atrium-roof.jpg",
+          size: atriumUpload.size,
           type: "image/jpeg",
-          width: 1200,
-          height: 675,
+          width: 1920,
+          height: 2557,
         },
         imageDetails: {
           create: {
-            objects: ["text", "logo"],
+            objects: ["ceiling", "glass", "structure", "light"],
             colors: [
-              { hex: "#C8C8C8", name: "silver", score: 0.5, l: 80, a: 0, b: 0 },
               {
-                hex: "#333333",
+                hex: "#4A7A9C",
+                name: "blue",
+                score: 0.5,
+                l: 49,
+                a: -6,
+                b: -22,
+              },
+              {
+                hex: "#2A2A2A",
                 name: "dark gray",
-                score: 0.25,
-                l: 20,
+                score: 0.3,
+                l: 17,
                 a: 0,
                 b: 0,
               },
-              { hex: "#CC3333", name: "red", score: 0.1, l: 40, a: 55, b: 35 },
+              {
+                hex: "#E8A63C",
+                name: "amber",
+                score: 0.08,
+                l: 72,
+                a: 20,
+                b: 62,
+              },
             ],
-            ocrText: "MESH",
+          },
+        },
+      },
+    });
+
+    const sunsetItem = await prisma.item.create({
+      data: {
+        userId,
+        kind: "image",
+        processingStatus: "completed",
+        sourceType: "upload",
+        fileKey: sunsetUpload.fileKey,
+        title: "City Sunset over the River",
+        description:
+          "A city skyline silhouetted against a pink-and-orange sunset over the river, a boat passing in the foreground.",
+        tags: [
+          "sunset",
+          "skyline",
+          "city",
+          "river",
+          "silhouette",
+          "photography",
+        ],
+        meta: {
+          originalName: "city-sunset-river.jpg",
+          size: sunsetUpload.size,
+          type: "image/jpeg",
+          width: 1920,
+          height: 2558,
+        },
+        imageDetails: {
+          create: {
+            objects: ["sky", "building", "water", "boat"],
+            colors: [
+              {
+                hex: "#E67A3C",
+                name: "orange",
+                score: 0.38,
+                l: 62,
+                a: 34,
+                b: 56,
+              },
+              {
+                hex: "#2B3A5C",
+                name: "dark blue",
+                score: 0.34,
+                l: 25,
+                a: 4,
+                b: -26,
+              },
+              {
+                hex: "#14161F",
+                name: "black",
+                score: 0.18,
+                l: 8,
+                a: 1,
+                b: -6,
+              },
+            ],
           },
         },
       },
@@ -278,29 +363,51 @@ async function seed() {
         processingStatus: "completed",
         sourceType: "upload",
         fileKey: gifUpload.fileKey,
-        title: "Roots Loan Assumption FAQ",
+        title: "The Horse in Motion",
         description:
-          "Animated FAQ graphic explaining loan assumption from Roots, with step-by-step visual walkthrough.",
-        tags: ["finance", "faq", "animated", "infographic", "real estate"],
+          "Eadweard Muybridge's 1878 chronophotography study of a galloping horse and rider — the pioneering motion sequence often called the first movie.",
+        tags: [
+          "animation",
+          "history",
+          "photography",
+          "motion",
+          "black and white",
+          "vintage",
+        ],
         meta: {
-          originalName: "Roots Loan Assumption FAQ.gif",
+          originalName: "muybridge-horse.gif",
           size: gifUpload.size,
           type: "image/gif",
-          width: 800,
-          height: 600,
+          width: 498,
+          height: 374,
         },
         imageDetails: {
           create: {
-            objects: ["text", "graphic"],
+            objects: ["horse", "person", "animal"],
             colors: [
-              { hex: "#FFFFFF", name: "white", score: 0.6, l: 100, a: 0, b: 0 },
               {
-                hex: "#2D5F2D",
-                name: "green",
-                score: 0.2,
-                l: 37,
-                a: -30,
-                b: 25,
+                hex: "#E8E4DA",
+                name: "off-white",
+                score: 0.52,
+                l: 91,
+                a: 0,
+                b: 4,
+              },
+              {
+                hex: "#2A2622",
+                name: "black",
+                score: 0.3,
+                l: 15,
+                a: 1,
+                b: 3,
+              },
+              {
+                hex: "#8A857C",
+                name: "gray",
+                score: 0.12,
+                l: 55,
+                a: 0,
+                b: 4,
               },
             ],
           },
@@ -310,7 +417,7 @@ async function seed() {
 
     // --- ARTICLE ITEM ---
 
-    const articleItem = await prisma.item.create({
+    await prisma.item.create({
       data: {
         userId,
         kind: "article",
@@ -744,10 +851,11 @@ async function seed() {
 
     // --- USER STATS ---
 
-    const totalItems = 16;
+    const totalItems = 17;
     const totalStorage =
-      BigInt(spiralUpload.size) +
-      BigInt(meshUpload.size) +
+      BigInt(redArchUpload.size) +
+      BigInt(atriumUpload.size) +
+      BigInt(sunsetUpload.size) +
       BigInt(gifUpload.size) +
       BigInt(mobyCoverUpload.size) +
       BigInt(willowsCoverUpload.size);
@@ -762,19 +870,19 @@ async function seed() {
 
     // --- ROOMS ---
 
-    const designRoom = await prisma.room.create({
+    const photographyRoom = await prisma.room.create({
       data: {
         userId,
-        name: "Design Inspiration",
-        slug: "design-inspiration",
-        emoji: "🎨",
+        name: "Photography",
+        slug: "photography",
+        emoji: "📷",
         type: "manual",
         visibility: "private",
         roomItems: {
           create: [
-            { itemId: spiralItem.id },
-            { itemId: meshItem.id },
-            { itemId: articleItem.id },
+            { itemId: redArchItem.id },
+            { itemId: atriumItem.id },
+            { itemId: sunsetItem.id },
           ],
         },
       },
@@ -850,10 +958,10 @@ async function seed() {
     console.log("Preview seed complete!");
     console.log(`  Email: ${SEED_USER.email}`);
     console.log(
-      `  Items: ${totalItems} (3 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
+      `  Items: ${totalItems} (4 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
     console.log(
-      `  Rooms: ${designRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${videosRoom.name}, ${bookshelfRoom.name}`,
+      `  Rooms: ${photographyRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${videosRoom.name}, ${bookshelfRoom.name}`,
     );
   } finally {
     await prisma.$disconnect();
