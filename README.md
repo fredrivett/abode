@@ -93,6 +93,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 **🔮 Later:**
 
 - Expo mobile app
+- Self-hosted / privacy model option — run image analysis + embeddings without third-party APIs
 
 ## License
 
