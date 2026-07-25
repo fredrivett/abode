@@ -69,10 +69,10 @@ export async function POST(
       );
     }
 
-    // Set status back to processing
+    // Set status back to processing and clear any prior failure reason
     await db.item.update({
       where: { id },
-      data: { processingStatus: "processing" },
+      data: { processingStatus: "processing", processingError: null },
     });
 
     // Trigger the appropriate task using the item owner's userId

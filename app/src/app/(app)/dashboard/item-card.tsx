@@ -80,6 +80,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { createLogger } from "@/lib/logger.client";
 import {
   shouldCompleteAddFirstTag,
@@ -2483,37 +2484,42 @@ function ItemDetailDialog({
                       />
                     </div>
                   ) : currentProcessingStatus === "failed" ? (
-                    <div className="space-y-3">
-                      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                          <p>
-                            Analysis failed. You can retry or delete the item.
-                          </p>
-                        </div>
-                      </div>
-                      {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRetry}
-                          disabled={isRetrying}
-                          className="w-full"
-                        >
-                          {isRetrying ? (
-                            <IsLoading
-                              label="Retrying"
-                              iconClassName="size-3"
-                            />
-                          ) : (
-                            <>
-                              <RefreshCw className="size-3.5" />
-                              Retry analysis
-                            </>
+                    (() => {
+                      const errorCopy = getProcessingErrorCopy(
+                        item.processingError,
+                      );
+                      return (
+                        <div className="space-y-3">
+                          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                              <p>{errorCopy.message}</p>
+                            </div>
+                          </div>
+                          {canEdit && errorCopy.retryable && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleRetry}
+                              disabled={isRetrying}
+                              className="w-full"
+                            >
+                              {isRetrying ? (
+                                <IsLoading
+                                  label="Retrying"
+                                  iconClassName="size-3"
+                                />
+                              ) : (
+                                <>
+                                  <RefreshCw className="size-3.5" />
+                                  Retry analysis
+                                </>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                      )}
-                    </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
                       <p>No analysis available.</p>

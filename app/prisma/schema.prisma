@@ -80,6 +80,18 @@ enum ProcessingStatus {
   failed
 }
 
+// Safe, closed vocabulary describing why processing failed. Set alongside
+// `processingStatus = failed` and mapped to user-facing copy in the UI. Never
+// stores raw error text (which can leak tokens, internal paths, or 3rd-party
+// details) — those stay in logs/PostHog.
+enum ProcessingErrorReason {
+  source_blocked // 401/403/429 — paywall or bot protection
+  source_not_found // 404/410 — page gone
+  source_unreachable // network error, timeout, DNS, 5xx
+  unsupported_content // fetched but couldn't parse/classify
+  unknown // catch-all
+}
+
 enum RoomType {
   smart
   manual
@@ -132,6 +144,9 @@ model Item {
   userId           String           @map("user_id") @db.Uuid
   kind             ItemKind?
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
+
+  // Why processing failed (only set when processingStatus = failed). Null otherwise.
+  processingError  ProcessingErrorReason? @map("processing_error")
 
   // Source tracking
   sourceType       SourceType?      @map("source_type")

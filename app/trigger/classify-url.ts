@@ -20,6 +20,11 @@ import {
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import type { ForcibleKind } from "../src/lib/item-kind-reassignment";
+import {
+  classifyFailureReason,
+  FetchError,
+  UnsupportedContentError,
+} from "../src/lib/items/processing-error";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
@@ -465,7 +470,7 @@ export const classifyUrlTask = task({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.status}`);
+        throw new FetchError(response.status, fetchUrl);
       }
 
       // The GET follows redirects (amzn.eu → amazon.co.uk, bit.ly, etc.) —
@@ -677,10 +682,13 @@ export const classifyUrlTask = task({
         url,
       });
 
-      // Mark item as failed
+      // Mark item as failed with a safe, user-facing reason code
       await db.item.update({
         where: { id: itemId, userId },
-        data: { processingStatus: "failed" },
+        data: {
+          processingStatus: "failed",
+          processingError: classifyFailureReason(error),
+        },
       });
 
       throw error;
@@ -700,7 +708,8 @@ async function handleImageUrl(
   const imageResult = await downloadAndStoreImage(url, userId, supabase);
 
   if (!imageResult) {
-    throw new Error("Failed to download image from URL");
+    // Classified as a direct image but the bytes couldn't be fetched/read as one
+    throw new UnsupportedContentError("Failed to download image from URL");
   }
 
   // Update item with image data and reconcile storage

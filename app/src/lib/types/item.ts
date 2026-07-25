@@ -8,6 +8,7 @@
 import type {
   ItemKind,
   ItemLocation as PrismaItemLocation,
+  ProcessingErrorReason,
   ProcessingStatus,
   RoomType,
   SourceType,
@@ -172,6 +173,7 @@ export type Item = {
   id: string;
   kind: ItemKind | null;
   processingStatus: ProcessingStatus;
+  processingError?: ProcessingErrorReason | null;
   fileKey: string | null;
   coverFileKey: string | null;
   meta: Record<string, unknown> | null;
