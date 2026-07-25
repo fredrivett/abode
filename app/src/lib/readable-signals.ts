@@ -50,6 +50,21 @@ const EMPTY: ReadableSignals = {
   preservedTweetCount: 0,
 };
 
+/**
+ * Reveals React/Next.js streaming-SSR content, which is emitted inside
+ * `<div hidden>` and swapped in on hydration — Readability skips hidden nodes,
+ * so real article bodies would otherwise be missed.
+ *
+ * Only the *bare* `hidden` boolean attribute is stripped. `hidden="until-found"`
+ * (collapsed accordions / "show more" sections) is intentionally left hidden, so
+ * author-hidden content isn't surfaced into the article/webpage decision — and
+ * the negative lookahead also avoids the malformed `<div="until-found">` the
+ * unguarded replace produced.
+ */
+export function revealStreamingContent(html: string): string {
+  return html.replace(/<div([^>]*)\s+hidden(?!=)([^>]*)>/gi, "<div$1$2>");
+}
+
 function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -96,12 +111,7 @@ export function extractReadableSignals(
   url: string,
 ): ReadableSignals {
   try {
-    // Unhide streaming-SSR content: modern React/Next.js sites render into
-    // hidden divs revealed via hydration; Readability ignores hidden elements.
-    let processedHtml = html.replace(
-      /<div([^>]*)\s+hidden([^>]*)>/gi,
-      "<div$1$2>",
-    );
+    let processedHtml = revealStreamingContent(html);
 
     // Preserve Twitter/X embeds (blockquotes) as markers before Readability
     // strips their structure; they're converted back to markdown downstream.
