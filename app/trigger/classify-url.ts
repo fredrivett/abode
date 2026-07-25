@@ -335,12 +335,15 @@ export const classifyUrlTask = task({
           url: urlClassification.url,
           tweetId: urlClassification.tweetId,
         });
-        return await handleTwitterUrl({
-          itemId,
-          userId,
-          url: urlClassification.url,
-          tweetId: urlClassification.tweetId,
-        });
+        return await handleTwitterUrl(
+          {
+            itemId,
+            userId,
+            url: urlClassification.url,
+            tweetId: urlClassification.tweetId,
+          },
+          supabase,
+        );
       }
       if (urlClassification?.kind === "twitterArticle") {
         logger.log("URL classified as Twitter Article", {
