@@ -48,6 +48,10 @@ export const RATE_LIMITS = {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1 minute - add/remove external links
   },
+  similarImages: {
+    maxRequests: 60,
+    windowMs: 60 * 1000, // 1 minute - visual similarity lookups on detail view
+  },
   emojiSuggest: {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1 minute - AI emoji suggestions

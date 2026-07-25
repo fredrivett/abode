@@ -44,6 +44,11 @@ Most "always / never" rules live in the relevant sections below. In addition, **
 - Rewriting git history, force-pushing, or deleting branches.
 - Deploying to production or promoting a deployment.
 
+## Git Commits
+
+- Commit only when the user asks — don't auto-commit after every change.
+- When you do commit, split the work into **logical chunks**: one commit per coherent, self-contained change (e.g. schema/migration, then lib + tests, then API route, then UI) rather than a single catch-all commit. Each commit should build and pass checks on its own.
+
 ## App URL
 
 **Production URL:** `https://www.abode.fyi`

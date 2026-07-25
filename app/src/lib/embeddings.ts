@@ -7,6 +7,13 @@ import { createLogger } from "@/lib/logger.server";
 const log = createLogger("lib/embeddings");
 
 /**
+ * Model identifier stored on `item_visual_vectors.model` for CLIP visual
+ * embeddings. Shared so writers (analyze-image) and readers (similar-images)
+ * agree on the value.
+ */
+export const VISUAL_EMBEDDING_MODEL = "clip-vit-base-patch32";
+
+/**
  * Whether Replicate (CLIP image embeddings) is configured.
  *
  * Replicate is an optional enhancement — see the graceful degradation

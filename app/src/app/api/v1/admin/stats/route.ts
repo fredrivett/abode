@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getGlobalDailyActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +22,7 @@ export async function GET() {
     }
 
     // Get aggregate counts
-    const [userCount, itemCount, roomCount, totalStorageResult] =
+    const [userCount, itemCount, roomCount, totalStorageResult, embeddings] =
       await Promise.all([
         db.user.count(),
         db.item.count(),
@@ -29,6 +30,7 @@ export async function GET() {
         db.user.aggregate({
           _sum: { storageUsedBytes: true },
         }),
+        getVisualEmbeddingCoverage(),
       ]);
 
     const totalStorageBytes =
@@ -47,6 +49,7 @@ export async function GET() {
         rooms: roomCount,
         storageBytes: totalStorageBytes.toString(),
       },
+      embeddings,
       dailyActivity,
       activityOverview: activityOverview.map((day) => ({
         date: day.date,

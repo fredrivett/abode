@@ -106,6 +106,7 @@ import { ColorsBar } from "./_components/colors-bar";
 import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
+import { SimilarImages } from "./_components/similar-images";
 
 const log = createLogger("dashboard/item-card");
 
@@ -2526,6 +2527,14 @@ function ItemDetailDialog({
                     </div>
                   )}
                 </div>
+
+                {/* Similar images - visual discovery from the owner's library.
+                    Renders nothing when there are no matches above threshold. */}
+                <SimilarImages
+                  itemId={item.id}
+                  enabled={open && item.kind === "image"}
+                  onNavigate={() => onOpenChange(false)}
+                />
 
                 {/* Rooms - only shown to users who can edit */}
                 {canEdit && (
