@@ -24,11 +24,13 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoomIcon } from "@/components/rooms/room-icon";
 import { DateRangePicker } from "@/components/search/date-range-picker";
 import { FilterChips } from "@/components/search/filter-chip";
 import { FilterDropdown } from "@/components/search/filter-dropdown";
+import { SuggestionDropdown } from "@/components/search/suggestion-dropdown";
 import { Badge } from "@/components/ui/badge";
 import {
   CommandDialog,
@@ -44,6 +46,7 @@ import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
 import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
 import { useSearch } from "@/lib/search";
+import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
@@ -54,6 +57,7 @@ import {
   serializeSearchParams,
 } from "@/lib/search/types";
 import { useFilterOptions } from "@/lib/search/use-filter-options";
+import { useFilterSuggestions } from "@/lib/search/use-filter-suggestions";
 import {
   applyThemePreference,
   getCurrentPreference,
@@ -104,7 +108,7 @@ export function CommandPalette() {
   const dateFilterAppliedRef = useRef(false);
 
   // Filter values loading
-  const { getFilterValuesForType } = useFilterOptions();
+  const { filterOptions, getFilterValuesForType } = useFilterOptions();
   const getFilterValuesRef = useRef(getFilterValuesForType);
   getFilterValuesRef.current = getFilterValuesForType;
   const [filterValues, setFilterValues] = useState<string[]>([]);
@@ -128,6 +132,16 @@ export function CommandPalette() {
   // Query text alone should still show the normal command list with search at bottom
   const hasActiveFilters = searchState.filters.length > 0;
   const hasQueryText = searchState.query.trim().length > 0;
+
+  // Free-text → filter suggestions (off while an @-dropdown/date picker is open)
+  const suggestions = useFilterSuggestions({
+    query: searchState.query,
+    filterOptions,
+    filters: searchState.filters,
+    surface: "command-palette",
+    enabled:
+      page === "main" && hasQueryText && !filterDropdownOpen && !datePickerOpen,
+  });
 
   // Fetch user profile
   const { data: profile } = useQuery<UserProfile>({
@@ -288,6 +302,37 @@ export function CommandPalette() {
     }));
     inputRef.current?.focus();
   }, []);
+
+  // Promote a free-text suggestion to a filter (removes its span from the query)
+  const handleApplySuggestion = useCallback(
+    (suggestion: Suggestion) => {
+      const newFilter: Filter = {
+        id: createFilterId(),
+        type: suggestion.facet,
+        value: suggestion.value,
+        negated: false,
+        dateOperator: suggestion.dateOperator,
+        endDate: suggestion.endDate,
+      };
+      const filterMeta = FILTER_TYPES[newFilter.type];
+      const newFilters = filterMeta.multiple
+        ? [...searchState.filters, newFilter]
+        : [
+            ...searchState.filters.filter((f) => f.type !== newFilter.type),
+            newFilter,
+          ];
+      setSearchState({
+        query: removeSpan(searchState.query, suggestion.start, suggestion.end),
+        filters: newFilters,
+      });
+      posthog.capture("search_suggestion_accepted", {
+        surface: "command-palette",
+        facet: suggestion.facet,
+      });
+      inputRef.current?.focus();
+    },
+    [searchState],
+  );
 
   // Handle backspace at start of input to remove last filter
   const handleInputKeyDown = useCallback(
@@ -871,6 +916,14 @@ export function CommandPalette() {
           )}
         </CommandList>
       </CommandDialog>
+
+      {/* Free-text → filter suggestions */}
+      <SuggestionDropdown
+        open={suggestions.length > 0}
+        suggestions={suggestions}
+        onApply={handleApplySuggestion}
+        anchorRef={inputRef}
+      />
 
       {/* Filter dropdown (for types and non-date values) */}
       <FilterDropdown

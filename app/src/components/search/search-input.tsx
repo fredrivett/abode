@@ -1,11 +1,14 @@
 "use client";
 
 import { Filter as FilterIcon, RefreshCw } from "lucide-react";
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import type { FiltersResponse } from "@/lib/search/api";
+import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { getFilterTriggerQuery } from "@/lib/search/get-filter-trigger-query";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
@@ -15,15 +18,19 @@ import {
   type FilterType,
   type SearchState,
 } from "@/lib/search/types";
+import { useFilterSuggestions } from "@/lib/search/use-filter-suggestions";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "./date-range-picker";
 import { FilterChips } from "./filter-chip";
 import { FilterDropdown } from "./filter-dropdown";
+import { SuggestionDropdown } from "./suggestion-dropdown";
 
 type SearchInputProps = {
   value: SearchState;
   onChange: (state: SearchState) => void;
   getFilterValues?: (type: FilterType) => Promise<string[]>;
+  /** All known filter values; when provided, free-text is offered as filter suggestions. */
+  filterOptions?: FiltersResponse;
   placeholder?: string;
   className?: string;
   /** When true, input and filters are disabled (view-only mode). */
@@ -36,6 +43,7 @@ export function SearchInput({
   value,
   onChange,
   getFilterValues,
+  filterOptions,
   placeholder = "Find...",
   className,
   disabled = false,
@@ -62,6 +70,19 @@ export function SearchInput({
 
   const datePickerOpen =
     filterContext.mode === "values" && filterContext.filterType === "date";
+
+  // Free-text → filter suggestions (off while an @-dropdown/date picker is open)
+  const suggestions = useFilterSuggestions({
+    query: value.query,
+    filterOptions,
+    filters: value.filters,
+    surface: "search-input",
+    enabled:
+      !disabled &&
+      !dropdownOpen &&
+      !datePickerOpen &&
+      value.query.trim().length > 0,
+  });
 
   // Load filter values when entering values mode (for non-date types)
   useEffect(() => {
@@ -172,6 +193,31 @@ export function SearchInput({
       inputRef.current?.focus();
     },
     [value, onChange, filterContext, addFilterToList],
+  );
+
+  // Promote a free-text suggestion to a filter: strip its span from the query
+  // and add the filter (same "replaces the text" semantics as the demo).
+  const handleApplySuggestion = useCallback(
+    (suggestion: Suggestion) => {
+      const newFilter: Filter = {
+        id: createFilterId(),
+        type: suggestion.facet,
+        value: suggestion.value,
+        negated: false,
+        dateOperator: suggestion.dateOperator,
+        endDate: suggestion.endDate,
+      };
+      onChange({
+        query: removeSpan(value.query, suggestion.start, suggestion.end),
+        filters: addFilterToList(value.filters, newFilter),
+      });
+      posthog.capture("search_suggestion_accepted", {
+        surface: "search-input",
+        facet: suggestion.facet,
+      });
+      inputRef.current?.focus();
+    },
+    [value, onChange, addFilterToList],
   );
 
   const handleAddDateFilter = useCallback(
@@ -337,6 +383,14 @@ export function SearchInput({
           )}
         </div>
       </div>
+
+      {/* Free-text → filter suggestions */}
+      <SuggestionDropdown
+        open={isFocused}
+        suggestions={suggestions}
+        onApply={handleApplySuggestion}
+        anchorRef={inputRef}
+      />
 
       {/* Filter dropdown (for types and non-date values) */}
       <FilterDropdown

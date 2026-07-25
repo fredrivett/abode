@@ -156,7 +156,18 @@ Stories and tests do different jobs — they complement each other, neither repl
 
 **Always add tests for new logic and behavior — this is the default, not an afterthought.** When you add or change a function, API route, access-control rule, or user-facing flow, ship the tests in the same change. Prefer the cheapest layer that genuinely covers the behavior: a unit test for pure logic (e.g. access/permission helpers), an integration test for DB/service code, an E2E test for a user flow. Only skip tests when the change is purely cosmetic or there is genuinely nothing to assert — and when you skip, say so explicitly in the PR rather than leaving the tests checkbox silently unchecked. Untested logic is treated as incomplete work.
 
-When making styling/UI changes, the user sees them in real-time via the dev server — no build needed to verify.
+### Visual verification (UI changes)
+
+When you make a styling/UI change, **visually verify it yourself — don't rely on `tsc`/tests passing.** The user sees changes live via the dev server, but you should confirm the result with a screenshot before calling it done.
+
+Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`):
+
+```bash
+agent-browser open http://localhost:${CONDUCTOR_PORT:-3300}
+agent-browser screenshot /tmp/check.png   # then Read the image to inspect it
+```
+
+Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive. If `agent-browser` isn't installed: `npm install -g agent-browser && agent-browser install`.
 
 For automated tests, run from the `./app` directory:
 

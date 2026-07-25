@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { AbodeLogo } from "@/components/abode-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { WaitlistForm } from "@/components/waitlist-form";
-import { XLink } from "@/components/x-link";
+import { GITHUB_URL } from "@/lib/github";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { OwnershipCallout } from "./_components/ownership-callout";
+import { SearchDemo } from "./_components/search-demo";
 
 export default function Home() {
   return (
@@ -11,28 +11,55 @@ export default function Home() {
       <Suspense>
         <AccountDeletedToast />
       </Suspense>
-      <main className="flex flex-col items-center px-4 text-center">
-        <h1 className="mb-6 flex flex-col items-center">
-          <span className="sr-only">abode</span>
-          <AbodeLogo className="h-14 w-auto text-foreground" aria-hidden />
-        </h1>
-        <p className="mb-8 font-semibold font-serif text-muted-foreground text-xl">
-          your digital home
+      <main className="flex w-full max-w-2xl flex-col items-center px-4 py-20 text-center">
+        <div className="relative w-full">
+          <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
+            your home should be{" "}
+            <span className="rounded-lg bg-foreground/[0.07] px-2 py-0.5">
+              yours.
+            </span>
+          </h1>
+          <OwnershipCallout />
+        </div>
+        <p className="mt-6 font-medium text-foreground text-xl sm:text-2xl">
+          save everything. sort nothing. own it all.
         </p>
-        <WaitlistForm />
+        <p className="mt-5 max-w-xl text-balance text-lg text-muted-foreground leading-relaxed">
+          save the link, the photo, the tweet, the{" "}
+          <span className="whitespace-nowrap">note-to-self</span>. then find it
+          the way you think.
+        </p>
+        <div className="mt-7 w-full">
+          <SearchDemo />
+        </div>
         <p className="mt-4 text-muted-foreground text-sm">
-          already have an invite?{" "}
+          no folders, no tags, no digging.
+        </p>
+
+        <div className="mt-9 w-full max-w-sm rounded-2xl bg-muted/30 p-3">
+          <WaitlistForm />
+          <p className="mt-3 text-center text-muted-foreground text-sm">
+            already have an invite?{" "}
+            <a
+              href="/join"
+              className="font-medium text-foreground hover:underline"
+            >
+              join here
+            </a>
+          </p>
+        </div>
+
+        <p className="mt-4 text-muted-foreground text-sm">
+          or{" "}
           <a
-            href="/join"
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
             className="font-medium text-foreground hover:underline"
           >
-            join here
+            run it yourself →
           </a>
         </p>
-        <div className="mt-8 flex items-center gap-2">
-          <ThemeToggle />
-          <XLink />
-        </div>
       </main>
     </div>
   );

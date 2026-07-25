@@ -7,6 +7,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { rankFilterValues } from "@/lib/search/rank-filter-values";
 import {
   FILTER_TYPES,
   type FilterType,
@@ -65,10 +66,7 @@ export function FilterDropdown({
       values = [NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE, ...filterValues];
     }
 
-    if (!searchText) return values;
-    return values.filter((v) =>
-      v.toLowerCase().includes(searchText.toLowerCase()),
-    );
+    return rankFilterValues(values, searchText);
   }, [filterValues, searchText, currentFilterType]);
 
   const itemCount =

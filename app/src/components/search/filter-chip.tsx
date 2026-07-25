@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { collapseDateRange } from "@/lib/search/date-range-label";
 import {
   FILTER_TYPES,
   type Filter,
@@ -26,19 +27,24 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 py-0.75 font-normal text-sm",
+        // 15px — sits between text-sm (14px) and text-base (16px)
+        "gap-1.5 py-0.75 font-normal text-[0.9375rem]",
         onRemove ? "pr-1" : "pr-2",
         getFilterColorClass(filter.type),
         filter.negated && "line-through decoration-destructive/50",
         className,
       )}
     >
-      <span className="opacity-70">{meta.label}:</span>
-      {filter.type === "color" && (
+      {/* facet is conveyed by the emoji + accent colour; keep the label for screen readers */}
+      <span className="sr-only">{meta.label}:</span>
+      {filter.type === "color" ? (
         <span
-          className="size-3 rounded-sm border border-current/20"
+          aria-hidden
+          className="size-3 rounded-full border border-current/20"
           style={{ backgroundColor: filter.value }}
         />
+      ) : (
+        <span aria-hidden>{meta.icon}</span>
       )}
       <span
         className={cn(
@@ -76,15 +82,15 @@ function getDisplayValue(filter: Filter): string {
 
   if (filter.type === "date") {
     const formatDate = (dateStr: string) => {
-      try {
-        return new Date(dateStr).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-      } catch {
-        return dateStr;
-      }
+      // only reformat canonical ISO dates; show friendly/free-text values as typed
+      if (!/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr;
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     };
 
     switch (filter.dateOperator) {
@@ -93,7 +99,10 @@ function getDisplayValue(filter: Filter): string {
       case "before":
         return `before ${formatDate(filter.value)}`;
       case "between":
-        return `${formatDate(filter.value)} – ${formatDate(filter.endDate || "")}`;
+        return (
+          collapseDateRange(filter.value, filter.endDate || "") ??
+          `${formatDate(filter.value)} – ${formatDate(filter.endDate || "")}`
+        );
       default:
         return formatDate(filter.value);
     }
