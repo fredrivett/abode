@@ -59,7 +59,9 @@ export async function signIn(
 }
 
 export async function signOut(): Promise<void> {
-  await supabase().auth.signOut();
+  // Local scope only: clears this extension's stored session without revoking
+  // the user's web or other-device sessions (Supabase defaults to global).
+  await supabase().auth.signOut({ scope: "local" });
 }
 
 export async function getSession(): Promise<Session | null> {
