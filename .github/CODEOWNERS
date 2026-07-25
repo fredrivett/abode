@@ -1,0 +1,7 @@
+# Code owners for abode.
+# GitHub auto-requests review from the owner on any PR that changes matching
+# files — except PRs opened by the owner themselves. This makes every incoming
+# PR (Dependabot, contributors) request @fredrivett's review by default.
+# Docs: https://docs.github.com/articles/about-code-owners
+
+* @fredrivett
