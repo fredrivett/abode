@@ -11,10 +11,14 @@ const VARIANTS: Record<Variant, string> = {
 export function Button({
   className = "",
   variant = "primary",
+  // Default to "button" so this shared primitive never submits a form by
+  // accident; callers that want submission pass type="submit" explicitly.
+  type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
   return (
     <button
+      type={type}
       className={`inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 ${VARIANTS[variant]} ${className}`}
       {...props}
     />
