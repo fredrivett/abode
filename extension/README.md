@@ -34,30 +34,35 @@ cp .env.example .env      # fill in your Supabase URL + anon key (see below)
 bun run dev               # launches a dev browser with the extension loaded
 ```
 
-`bun run dev` opens a browser with the unpacked extension and hot-reloads on change. In dev, `host_permissions` include `http://localhost/*` so it works against a local abode dev server.
+`bun run dev` opens a browser with the unpacked extension and hot-reloads on change. In dev, `host_permissions` include `http://localhost/*` and the save target is **auto-derived from this checkout's port** — Conductor's `CONDUCTOR_PORT`, or `:3300` for a plain checkout — so it hits whichever local abode server this branch runs. No per-workspace config needed.
 
-### Load a production build unpacked (Chrome)
+### Load unpacked into your own browser (Chrome)
+
+To test in your everyday browser instead of the dev one, build and load unpacked:
 
 ```bash
-bun run build             # outputs .output/chrome-mv3/
+bun run build:local       # dev-mode build → targets your local abode server (workspace port / :3300)
+# or: bun run build       # production build → targets https://www.abode.fyi
 ```
 
 1. Open `chrome://extensions`.
 2. Toggle **Developer mode** (top-right).
-3. Click **Load unpacked** and select `extension/.output/chrome-mv3`.
+3. Click **Load unpacked** and select `extension/.output/chrome-mv3` (re-click the ↻ reload icon after each rebuild).
 4. Pin the abode icon, sign in, and save.
+
+Use `build:local` to point at your running dev server; use `build` for a real (store) build.
 
 ## Configuration
 
 Config comes from `WXT_`-prefixed env vars (see `.env.example`). All are **public** — never put the Supabase service-role key here.
 
-| Var | What | Default (dev) |
+| Var | What | Default |
 | --- | --- | --- |
-| `WXT_ABODE_BASE_URL` | The abode web app to save to | `http://localhost:3300` |
+| `WXT_ABODE_BASE_URL` | The abode web app to save to (override) | dev → `localhost:${CONDUCTOR_PORT:-3300}`, prod build → `https://www.abode.fyi` |
 | `WXT_SUPABASE_URL` | Supabase project URL (auth) | `http://localhost:55321` |
 | `WXT_SUPABASE_ANON_KEY` | Supabase anon/publishable key | — |
 
-Use `.env` for local dev and `.env.production` for a store build (WXT loads the right file per mode). A production build (`bun run build`) also drops `localhost` from `host_permissions`.
+`WXT_ABODE_BASE_URL` is normally left **unset** — the build derives the local-dev target from the workspace port and uses the prod URL for production builds. Set it only to override. Use `.env` for local dev and `.env.production` for a store build (WXT loads the right file per mode). A production build (`bun run build`) also drops `localhost` from `host_permissions`.
 
 ## Versioning & release
 

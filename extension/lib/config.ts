@@ -1,10 +1,21 @@
+// Baked at build time from wxt.config.ts. __ABODE_LOCAL__ is true for a local
+// build (bun run dev / build:local); __ABODE_DEV_BASE_URL__ is the workspace's
+// abode origin (CONDUCTOR_PORT, else :3300).
+declare const __ABODE_LOCAL__: boolean;
+declare const __ABODE_DEV_BASE_URL__: string;
+
+// An explicit WXT_ABODE_BASE_URL always wins (e.g. .env.production → prod).
+// Otherwise: local builds target the workspace server; normal builds target prod.
+const abodeBaseUrl =
+  import.meta.env.WXT_ABODE_BASE_URL ||
+  (__ABODE_LOCAL__ ? __ABODE_DEV_BASE_URL__ : "https://www.abode.fyi");
+
 /**
  * Runtime config, sourced from WXT env vars (see .env.example). Values are
- * public — the same URL/anon key the web app ships. Defaults target local dev.
+ * public — the same URL/anon key the web app ships.
  */
 export const CONFIG = {
-  abodeBaseUrl:
-    import.meta.env.WXT_ABODE_BASE_URL ?? "http://localhost:3300",
+  abodeBaseUrl,
   supabaseUrl: import.meta.env.WXT_SUPABASE_URL ?? "http://localhost:55321",
   supabaseAnonKey: import.meta.env.WXT_SUPABASE_ANON_KEY ?? "",
 } as const;
