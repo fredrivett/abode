@@ -38,6 +38,12 @@ export type ReadableSignals = {
   tweetIds: string[];
   /** How many `[[TWEET:id]]` markers survived the Readability + Turndown pass. */
   preservedTweetCount: number;
+  /**
+   * Set only when Readability/JSDOM *threw*. Distinguishes a parse failure from
+   * a genuine no-content page (both otherwise yield empty signals) so a caller
+   * that can log — this module is intentionally side-effect-free — can warn.
+   */
+  error?: unknown;
 };
 
 const EMPTY: ReadableSignals = {
@@ -153,7 +159,7 @@ export function extractReadableSignals(
       tweetIds: embedResult.tweetIds,
       preservedTweetCount,
     };
-  } catch {
-    return EMPTY;
+  } catch (error) {
+    return { ...EMPTY, error };
   }
 }

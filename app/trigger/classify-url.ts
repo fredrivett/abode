@@ -223,6 +223,13 @@ function extractReadableContent(
 ): ReadableSignals {
   const signals = extractReadableSignals(html, fetchUrl);
 
+  if (signals.error) {
+    logger.warn("Failed to extract article content", {
+      itemId,
+      error: signals.error,
+    });
+  }
+
   if (signals.tweetIds.length > 0) {
     logger.log("Twitter embeds detected and preserved", {
       itemId,

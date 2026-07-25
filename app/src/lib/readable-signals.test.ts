@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { revealStreamingContent } from "./readable-signals";
+import {
+  extractReadableSignals,
+  revealStreamingContent,
+} from "./readable-signals";
 
 describe("revealStreamingContent", () => {
   it("strips a bare hidden attribute (React streaming SSR)", () => {
@@ -32,5 +35,25 @@ describe("revealStreamingContent", () => {
   it("does not touch unrelated attributes containing 'hidden'", () => {
     const html = '<div data-hidden="true">c</div>';
     expect(revealStreamingContent(html)).toBe(html);
+  });
+});
+
+describe("extractReadableSignals", () => {
+  // `error` uniquely marks a Readability/JSDOM throw, so the (side-effect-free)
+  // module's caller can warn without confusing it for a genuine no-content page.
+  it("leaves error unset when content is extracted", () => {
+    const html = `<html><body><article><p>${"word ".repeat(120)}</p></article></body></html>`;
+    const signals = extractReadableSignals(html, "https://example.com/post");
+    expect(signals.articleContent).not.toBeNull();
+    expect(signals.error).toBeUndefined();
+  });
+
+  it("leaves error unset for a genuine no-content page", () => {
+    const signals = extractReadableSignals(
+      "<html><body></body></html>",
+      "https://example.com/",
+    );
+    expect(signals.articleContent).toBeNull();
+    expect(signals.error).toBeUndefined();
   });
 });
