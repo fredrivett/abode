@@ -191,7 +191,7 @@ function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <p className="text-center text-xs text-muted-foreground">
-        Right-click any link, image, or selection to save it too.
+        Or right-click a link, image, or selection to save just that.
       </p>
     </div>
   );
