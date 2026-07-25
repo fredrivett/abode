@@ -39,6 +39,14 @@ jobs:
           for i in $(seq 1 60); do
             RESPONSE=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
               "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/branches")
+            # The branches endpoint returns an array; anything else is an API error
+            # (expired token, bad project ref, branching disabled). Surface it instead
+            # of letting jq fail with a cryptic "Cannot index string" further down
+            if ! echo "$RESPONSE" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              echo "Supabase branches API did not return an array. Response:"
+              echo "$RESPONSE"
+              exit 1
+            fi
             STATUS=$(echo "$RESPONSE" | jq -r --arg branch "$BRANCH_NAME" '.[] | select(.git_branch == $branch) | .status')
             echo "Attempt $i/60: status=$STATUS"
             if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "FUNCTIONS_DEPLOYED" ]; then
