@@ -5,7 +5,6 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { createLogger } from "@/lib/logger.server";
-import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/reassign");
@@ -111,16 +110,8 @@ export async function POST(
       "Reassigning item kind",
     );
 
-    getPostHogClient()?.capture({
-      distinctId: user.id,
-      event: "item_type_reassigned",
-      properties: {
-        item_id: id,
-        from_kind: item.kind,
-        to_kind: kind,
-      },
-    });
-
+    // The item_type_reassigned analytics event is captured client-side (see
+    // item-type-field.tsx), matching the item_retry flow — don't double-count.
     void logActivity(user.id, "item_update", { itemId: id });
 
     return NextResponse.json({

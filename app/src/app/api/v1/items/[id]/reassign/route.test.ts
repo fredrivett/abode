@@ -5,14 +5,12 @@ const {
   mockItemFindUnique,
   mockItemUpdate,
   mockTrigger,
-  mockCapture,
   mockLogActivity,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
   mockItemUpdate: vi.fn(),
   mockTrigger: vi.fn(),
-  mockCapture: vi.fn(),
   mockLogActivity: vi.fn(),
 }));
 
@@ -28,11 +26,6 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@trigger.dev/sdk", () => ({
   tasks: { trigger: mockTrigger },
-}));
-
-vi.mock("@/lib/posthog-server", () => ({
-  getPostHogClient: () => ({ capture: mockCapture }),
-  captureServerException: vi.fn(),
 }));
 
 vi.mock("@/lib/activity", () => ({ logActivity: mockLogActivity }));
@@ -143,15 +136,6 @@ describe("POST /api/v1/items/[id]/reassign", () => {
       url: "https://example.com/x",
       forcedKind: "article",
     });
-    expect(mockCapture).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: "item_type_reassigned",
-        properties: expect.objectContaining({
-          from_kind: "webpage",
-          to_kind: "article",
-        }),
-      }),
-    );
   });
 
   it("restores the prior status and returns 500 when the enqueue throws", async () => {
@@ -163,6 +147,5 @@ describe("POST /api/v1/items/[id]/reassign", () => {
       where: { id: ITEM_ID },
       data: { processingStatus: "completed" },
     });
-    expect(mockCapture).not.toHaveBeenCalled();
   });
 });
