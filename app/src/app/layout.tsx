@@ -80,14 +80,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies the persisted theme before first paint so every route
+            (including auth pages that render no header/toggle) avoids a flash
+            of the wrong mode. Lives in <head> so it runs before the body
+            renders, and so it's not a `body > script` — PostHog's loader
+            (instrumentation-client) inserts its own script before the first
+            `body > script`, which would otherwise shift this node's DOM
+            position and break hydration. */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, constant-built theme bootstrap script */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
       >
-        {/* Applies the persisted theme before first paint so every route
-            (including auth pages that render no header/toggle) avoids a flash
-            of the wrong mode. Must run before the rest of the tree renders. */}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, constant-built theme bootstrap script */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <QueryProvider>
           <div className="flex flex-1 flex-col">{children}</div>
           <Suspense>
