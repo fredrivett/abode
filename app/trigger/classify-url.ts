@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Readability } from "@mozilla/readability";
+import type { ProcessingErrorReason } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
@@ -23,7 +24,8 @@ import type { ForcibleKind } from "../src/lib/item-kind-reassignment";
 import {
   classifyFailureReason,
   FetchError,
-  UnsupportedContentError,
+  ProcessingFailure,
+  reasonFromStatus,
 } from "../src/lib/items/processing-error";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
@@ -71,29 +73,47 @@ function getSupabaseConfig() {
  * Downloads an image from a URL and stores it in Supabase storage.
  * Returns the file key, content type, and size for the caller to handle.
  */
-async function downloadAndStoreImage(
-  imageUrl: string,
-  userId: string,
-  supabase: SupabaseClient,
-): Promise<{
+type StoredImage = {
   fileKey: string;
   contentType: string;
   size: number;
   width: number;
   height: number;
-} | null> {
+};
+
+type StoreImageResult =
+  | ({ ok: true } & StoredImage)
+  | { ok: false; reason: ProcessingErrorReason };
+
+async function downloadAndStoreImage(
+  imageUrl: string,
+  userId: string,
+  supabase: SupabaseClient,
+): Promise<StoreImageResult> {
   const fetched = await fetchImageBuffer(imageUrl);
-  if (!fetched) return null;
-  return uploadImageBuffer(fetched, userId, supabase);
+  if (!fetched.ok) return fetched;
+  const stored = await uploadImageBuffer(fetched, userId, supabase);
+  // Upload to our own storage failed — infra issue, worth retrying
+  if (!stored) return { ok: false, reason: "source_unreachable" };
+  return { ok: true, ...stored };
 }
 
-async function fetchImageBuffer(imageUrl: string): Promise<{
+type ImageBuffer = {
   imageUrl: string;
   buffer: Buffer;
   contentType: string;
   width: number;
   height: number;
-} | null> {
+};
+
+// Discriminated so callers that treat a failure as fatal (the direct-image
+// path) can surface a precise reason, while cover-image callers still skip
+// gracefully on `!ok`.
+type ImageFetchResult =
+  | ({ ok: true } & ImageBuffer)
+  | { ok: false; reason: ProcessingErrorReason };
+
+async function fetchImageBuffer(imageUrl: string): Promise<ImageFetchResult> {
   try {
     const response = await fetch(imageUrl, {
       headers: {
@@ -107,7 +127,7 @@ async function fetchImageBuffer(imageUrl: string): Promise<{
         imageUrl,
         status: response.status,
       });
-      return null;
+      return { ok: false, reason: reasonFromStatus(response.status) };
     }
 
     // Some sites (e.g. anti-bot pages) return 200 OK with an HTML error
@@ -119,7 +139,7 @@ async function fetchImageBuffer(imageUrl: string): Promise<{
         imageUrl,
         contentType: contentType || "(none)",
       });
-      return null;
+      return { ok: false, reason: "unsupported_content" };
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -140,33 +160,21 @@ async function fetchImageBuffer(imageUrl: string): Promise<{
         size: buffer.length,
         err,
       });
-      return null;
+      return { ok: false, reason: "unsupported_content" };
     }
 
-    return { imageUrl, buffer, contentType, width, height };
+    return { ok: true, imageUrl, buffer, contentType, width, height };
   } catch (error) {
     logger.error("Image fetch failed: network error", { imageUrl, error });
-    return null;
+    return { ok: false, reason: classifyFailureReason(error) };
   }
 }
 
 async function uploadImageBuffer(
-  fetched: {
-    imageUrl: string;
-    buffer: Buffer;
-    contentType: string;
-    width: number;
-    height: number;
-  },
+  fetched: ImageBuffer,
   userId: string,
   supabase: SupabaseClient,
-): Promise<{
-  fileKey: string;
-  contentType: string;
-  size: number;
-  width: number;
-  height: number;
-} | null> {
+): Promise<StoredImage | null> {
   const ext = getExtensionFromContentType(fetched.contentType);
   const fileKey = `${userId}/${randomUUID()}${ext}`;
 
@@ -586,7 +594,7 @@ export const classifyUrlTask = task({
           supabase,
         );
 
-        if (result) {
+        if (result.ok) {
           coverResult = { fileKey: result.fileKey, size: result.size };
           logger.log("Cover image stored", {
             itemId,
@@ -707,9 +715,13 @@ async function handleImageUrl(
   // Download and store the image
   const imageResult = await downloadAndStoreImage(url, userId, supabase);
 
-  if (!imageResult) {
-    // Classified as a direct image but the bytes couldn't be fetched/read as one
-    throw new UnsupportedContentError("Failed to download image from URL");
+  if (!imageResult.ok) {
+    // Classified as a direct image but the bytes couldn't be fetched/stored;
+    // surface the precise reason (blocked / not-found / unsupported / unreachable)
+    throw new ProcessingFailure(
+      imageResult.reason,
+      "Failed to download image from URL",
+    );
   }
 
   // Update item with image data and reconcile storage
@@ -792,7 +804,7 @@ async function handleBookUrl(
       userId,
       supabase,
     );
-    if (result) {
+    if (result.ok) {
       coverResult = {
         fileKey: result.fileKey,
         size: result.size,
@@ -944,8 +956,8 @@ async function handleProductUrl(
   const fetched = await Promise.all(
     toFetch.map(async (candidate) => {
       const result = await fetchImageBuffer(candidate.url);
-      return result
-        ? { ...result, source: candidate.source, ok: true as const }
+      return result.ok
+        ? { ...result, source: candidate.source }
         : { url: candidate.url, source: candidate.source, ok: false as const };
     }),
   );

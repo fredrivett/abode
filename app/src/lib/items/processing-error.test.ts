@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   classifyFailureReason,
   FetchError,
-  UnsupportedContentError,
+  ProcessingFailure,
+  reasonFromStatus,
 } from "./processing-error";
 
 describe("classifyFailureReason", () => {
@@ -26,9 +27,12 @@ describe("classifyFailureReason", () => {
     );
   });
 
-  it("maps unsupported content errors", () => {
-    expect(classifyFailureReason(new UnsupportedContentError())).toBe(
-      "unsupported_content",
+  it("returns the reason verbatim for a ProcessingFailure", () => {
+    expect(
+      classifyFailureReason(new ProcessingFailure("unsupported_content")),
+    ).toBe("unsupported_content");
+    expect(classifyFailureReason(new ProcessingFailure("source_blocked"))).toBe(
+      "source_blocked",
     );
   });
 
@@ -75,5 +79,15 @@ describe("classifyFailureReason", () => {
     expect(
       validReasons.has(classifyFailureReason(new FetchError(403, secretUrl))),
     ).toBe(true);
+  });
+});
+
+describe("reasonFromStatus", () => {
+  it("maps HTTP status codes to reason codes", () => {
+    expect(reasonFromStatus(403)).toBe("source_blocked");
+    expect(reasonFromStatus(429)).toBe("source_blocked");
+    expect(reasonFromStatus(404)).toBe("source_not_found");
+    expect(reasonFromStatus(410)).toBe("source_not_found");
+    expect(reasonFromStatus(500)).toBe("source_unreachable");
   });
 });

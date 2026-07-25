@@ -18,15 +18,22 @@ export class FetchError extends Error {
   url?: string;
 }
 
-/** Error thrown when fetched content can't be parsed/classified into a known kind. */
-export class UnsupportedContentError extends Error {
-  constructor(message = "Unsupported content") {
-    super(message);
-    this.name = "UnsupportedContentError";
+/**
+ * Error carrying an already-determined reason code. Use when the failure reason
+ * is known at the throw site (e.g. surfaced out of a helper that can't throw)
+ * so `classifyFailureReason` returns it verbatim.
+ */
+export class ProcessingFailure extends Error {
+  readonly reason: ProcessingErrorReason;
+
+  constructor(reason: ProcessingErrorReason, message?: string) {
+    super(message ?? `Processing failed: ${reason}`);
+    this.name = "ProcessingFailure";
+    this.reason = reason;
   }
 }
 
-function reasonFromStatus(status: number): ProcessingErrorReason {
+export function reasonFromStatus(status: number): ProcessingErrorReason {
   if (status === 401 || status === 403 || status === 429)
     return "source_blocked";
   if (status === 404 || status === 410) return "source_not_found";
@@ -70,8 +77,8 @@ function isNetworkError(error: unknown): boolean {
  * Never returns raw error text — the raw error stays in logs/PostHog.
  */
 export function classifyFailureReason(error: unknown): ProcessingErrorReason {
+  if (error instanceof ProcessingFailure) return error.reason;
   if (error instanceof FetchError) return reasonFromStatus(error.status);
-  if (error instanceof UnsupportedContentError) return "unsupported_content";
   if (isNetworkError(error)) return "source_unreachable";
 
   // Fallback: legacy errors thrown as `Failed to fetch URL: <status>`
