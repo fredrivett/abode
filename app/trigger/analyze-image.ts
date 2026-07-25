@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
+import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import db from "../src/lib/db";
 import {
   generateImageEmbedding,
@@ -241,6 +242,29 @@ export const analyzeImageTask = task({
 
       const { analysis } = openaiResult;
 
+      // Record paid AI usage for the two calls that always run (the Replicate
+      // call is recorded in its own guarded branch below). Best-effort — never
+      // throws, so it can't fail analysis.
+      recordAiUsage({
+        userId,
+        itemId,
+        provider: "google_vision",
+        operation: "vision_analysis",
+        model: "IMAGE_PROPERTIES",
+        images: 1,
+        source: "ingestion",
+      });
+      recordAiUsage({
+        userId,
+        itemId,
+        provider: "openai",
+        operation: "vision_analysis",
+        model: openaiResult.model,
+        inputTokens: openaiResult.usage.promptTokens,
+        outputTokens: openaiResult.usage.completionTokens,
+        source: "ingestion",
+      });
+
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
 
@@ -317,6 +341,16 @@ export const analyzeImageTask = task({
             userId,
             model: "clip-vit-base-patch32",
             embedding: visualEmbedding,
+          });
+
+          recordAiUsage({
+            userId,
+            itemId,
+            provider: "replicate",
+            operation: "image_embedding",
+            model: "clip-vit-base-patch32",
+            images: 1,
+            source: "ingestion",
           });
 
           logger.log("Visual embedding stored", { itemId, visualVectorId });
