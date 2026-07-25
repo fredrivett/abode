@@ -2,10 +2,9 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useMemo } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
-import { IsLoading } from "@/components/ui/is-loading";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { getBookTileFrame } from "@/lib/book-cover";
@@ -14,6 +13,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { ItemCard } from "./item-card";
+import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
 import { NoteComposer } from "./note-composer";
 
 function formatBytes(bytes?: number | null) {
@@ -67,6 +67,13 @@ export function ItemsGrid({
     isLoading: isLoadingMore ?? false,
     onLoadMore: onLoadMore ?? (() => {}),
   });
+
+  // Fresh random order per load; stable across re-renders while loading so the
+  // placeholders don't reshuffle mid-fetch.
+  const skeletonFrames = useMemo(
+    () => (isLoadingMore ? shuffleSkeletonFrames() : []),
+    [isLoadingMore],
+  );
 
   if (!hasHydrated) {
     return null;
@@ -258,20 +265,22 @@ export function ItemsGrid({
                 </Frame>
               );
             })}
+            {/* While the next page loads, tease it with skeleton cards so the
+                grid grows in place rather than showing a spinner below it. */}
+            {skeletonFrames.map(({ id, width, height }) => (
+              <Frame key={id} width={width} height={height}>
+                <div className="h-full">
+                  <ItemCardSkeleton />
+                </div>
+              </Frame>
+            ))}
           </BalancedMasonryGrid>
         </div>
       )}
 
-      {/* Infinite scroll trigger and loading indicator */}
+      {/* Infinite scroll trigger and end-of-list footer */}
       {items.length > 0 && (
         <div ref={loadMoreRef} className="mt-auto flex justify-center pt-18">
-          {isLoadingMore && (
-            <IsLoading
-              label="Loading more"
-              iconClassName="size-5"
-              className="text-muted-foreground"
-            />
-          )}
           {!hasMore &&
             items.length > 0 &&
             total !== undefined &&
