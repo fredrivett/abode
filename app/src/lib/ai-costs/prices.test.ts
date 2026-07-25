@@ -45,9 +45,9 @@ describe("openAiChatCostUsd", () => {
 
 describe("replicateImageCostUsd", () => {
   test("computes flat per-image cost", () => {
-    expect(replicateImageCostUsd("clip-vit-base-patch32", 1)).toBe(0.001);
+    expect(replicateImageCostUsd("clip-vit-base-patch32", 1)).toBe(0.00022);
     expect(replicateImageCostUsd("clip-vit-base-patch32", 3)).toBeCloseTo(
-      0.003,
+      0.00066,
       10,
     );
   });

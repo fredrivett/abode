@@ -1,13 +1,13 @@
 /**
  * AI cost price tables + pure cost calculators.
  *
- * Numbers are hand-maintained ESTIMATES sourced from public provider pricing
- * pages (each entry carries a source URL + `// checked YYYY-MM`). They are
- * estimate-grade and NOT self-policing — a later reconciliation PR compares
- * them to real invoices. When a model isn't in the table the calculators
- * return `null` so the caller can still emit an event with `cost_usd: null`,
- * and the coverage test (`prices.test.ts`) fails CI if a model the code
- * actually calls lacks a price.
+ * Numbers are hand-maintained and verified against public provider pricing
+ * pages (each entry carries a source URL + `// checked YYYY-MM`). They remain
+ * approximations — the Replicate figure especially — and are NOT self-policing:
+ * a later reconciliation PR compares them to real invoices. When a model isn't
+ * in the table the calculators return `null` so the caller can still emit an
+ * event with `cost_usd: null`, and the coverage test (`prices.test.ts`) fails
+ * CI if a model the code actually calls lacks a price.
  */
 
 // https://openai.com/api/pricing/ — checked 2026-07
@@ -16,19 +16,21 @@ const OPENAI_EMBEDDING_PRICES = {
 } as const;
 
 // https://openai.com/api/pricing/ — checked 2026-07
-// Keyed by the base model id; `openAiChatCostUsd` resolves dated variants
-// (e.g. "gpt-4o-mini-2024-07-18") via longest-prefix match.
+// gpt-4o-mini is a legacy model (superseded by gpt-4.1-mini) still billed at
+// its original rate. Keyed by the base model id; `openAiChatCostUsd` resolves
+// dated variants (e.g. "gpt-4o-mini-2024-07-18") via longest-prefix match.
 const OPENAI_CHAT_PRICES = {
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.6 },
 } as const;
 
 // https://replicate.com/andreasjansson/clip-features — checked 2026-07
-// Flat per-image estimate. NOTE: the label "clip-vit-base-patch32" is the
-// value we store/emit as `model`, but the actually-billed Replicate model is
-// `andreasjansson/clip-features` (per-second hardware billing). `.run()`
-// returns no metrics, so we can't derive real cost per call yet.
+// Flat per-run average ($0.00022, Nvidia T4, ~1s/run). NOTE: the label
+// "clip-vit-base-patch32" is the value we store/emit as `model`, but the
+// actually-billed Replicate model is `andreasjansson/clip-features`
+// (per-second hardware billing). `.run()` returns no metrics, so this is the
+// published average rather than a per-call measurement.
 const REPLICATE_PRICES = {
-  "clip-vit-base-patch32": { perImageUsd: 0.001 },
+  "clip-vit-base-patch32": { perImageUsd: 0.00022 },
 } as const;
 
 // https://cloud.google.com/vision/pricing — checked 2026-07
