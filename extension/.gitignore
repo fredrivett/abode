@@ -1,0 +1,13 @@
+node_modules
+# WXT
+.wxt
+.output
+web-ext.config.ts
+stats.html
+# env
+.env
+.env.*
+!.env.example
+# misc
+*.zip
+.DS_Store
