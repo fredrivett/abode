@@ -13,7 +13,7 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--read-only",
-        "--project-ref=wksalveyxphvxhuwkcrv",
+        "--project-ref=${SUPABASE_PROJECT_REF}",
         "--features=database,debug,development,functions,branching,account,storage"
       ],
       "env": {

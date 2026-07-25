@@ -20,6 +20,9 @@ gha-creds-*.json
 # ai coding
 .claude
 
+# setup-wizard artifacts (leak internal project ids / dashboard links)
+*-setup-report.md
+
 /node_modules
 
 # Treck generated data
