@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import {
   extractProductImageKeys,
+  extractTwitterImageKeys,
   filesToRemove,
   getItemStorageBytes,
 } from "../src/lib/item-storage";
@@ -34,6 +35,7 @@ export async function reclaimReplacedStorage(
       fileKey: true,
       coverFileKey: true,
       productDetails: { select: { images: true } },
+      twitterDetails: { select: { media: true, card: true } },
     },
   });
   if (!existing) return [];
@@ -51,6 +53,10 @@ export async function reclaimReplacedStorage(
     existing.fileKey,
     existing.coverFileKey,
     ...extractProductImageKeys(existing.productDetails?.images),
+    ...extractTwitterImageKeys(
+      existing.twitterDetails?.media,
+      existing.twitterDetails?.card,
+    ),
   ].filter((key): key is string => typeof key === "string" && key.length > 0);
 }
 

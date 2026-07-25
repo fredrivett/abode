@@ -1,6 +1,24 @@
-import { transformTweetData } from "@app/trigger/handle-twitter-url";
+import {
+  imageExtForContentType,
+  rehostTwitterImages,
+  transformTweetData,
+} from "@app/trigger/handle-twitter-url";
 import type { Tweet } from "react-tweet/api";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { TwitterDetails } from "@/components/twitter/types";
+
+const baseDetails: TwitterDetails = {
+  tweetId: "1",
+  authorName: "A",
+  authorUsername: "a",
+  authorAvatarUrl: null,
+  text: null,
+  postedAt: null,
+  media: null,
+  quotedTweetId: null,
+  card: null,
+  coverMediaIndex: null,
+};
 
 describe("transformTweetData", () => {
   describe("basic tweet fields", () => {
@@ -337,5 +355,141 @@ describe("transformTweetData", () => {
 
       expect(result.postedAt).toBeNull();
     });
+  });
+});
+
+describe("imageExtForContentType", () => {
+  it("maps supported raster formats to an extension", () => {
+    expect(imageExtForContentType("image/jpeg")).toBe(".jpg");
+    expect(imageExtForContentType("image/png")).toBe(".png");
+    expect(imageExtForContentType("image/gif")).toBe(".gif");
+    expect(imageExtForContentType("image/webp")).toBe(".webp");
+  });
+
+  it("ignores charset params and casing", () => {
+    expect(imageExtForContentType("IMAGE/JPEG; charset=binary")).toBe(".jpg");
+  });
+
+  it("rejects SVG (would be served as same-origin active content)", () => {
+    expect(imageExtForContentType("image/svg+xml")).toBeNull();
+  });
+
+  it("rejects unknown or empty content-types", () => {
+    expect(imageExtForContentType("image/avif")).toBeNull();
+    expect(imageExtForContentType("text/html")).toBeNull();
+    expect(imageExtForContentType("")).toBeNull();
+  });
+});
+
+describe("rehostTwitterImages", () => {
+  // Deterministic downloader: derives a stable key/size from the URL.
+  const fakeDownload = (url: string) =>
+    Promise.resolve({ fileKey: `key/${url.split("/").pop()}`, size: 100 });
+
+  it("re-hosts photo stills and attaches fileKeys", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      media: [
+        { type: "photo", url: "https://pbs.twimg.com/a.jpg" },
+        { type: "photo", url: "https://pbs.twimg.com/b.jpg" },
+      ],
+    };
+
+    const result = await rehostTwitterImages(details, fakeDownload);
+
+    expect(result.media?.map((m) => m.fileKey)).toEqual([
+      "key/a.jpg",
+      "key/b.jpg",
+    ]);
+    // Original twimg URL is preserved as a fallback
+    expect(result.media?.[0].url).toBe("https://pbs.twimg.com/a.jpg");
+    expect(result.storedFileKeys).toEqual(["key/a.jpg", "key/b.jpg"]);
+  });
+
+  it("re-hosts the video poster (not the video bytes)", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      media: [
+        {
+          type: "video",
+          url: "https://pbs.twimg.com/vid.jpg",
+          posterUrl: "https://pbs.twimg.com/poster.jpg",
+          variants: [{ type: "video/mp4", src: "https://video/x.mp4" }],
+        },
+      ],
+    };
+
+    const download = vi.fn(fakeDownload);
+    const result = await rehostTwitterImages(details, download);
+
+    // Only the poster is downloaded — never the mp4 variant
+    expect(download).toHaveBeenCalledExactlyOnceWith(
+      "https://pbs.twimg.com/poster.jpg",
+    );
+    expect(result.media?.[0].fileKey).toBe("key/poster.jpg");
+  });
+
+  it("re-hosts the link-card image", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      card: {
+        title: "t",
+        description: "d",
+        url: "https://ex.com",
+        imageUrl: "https://ex.com/card.jpg",
+      },
+    };
+
+    const result = await rehostTwitterImages(details, fakeDownload);
+
+    expect(result.card?.imageFileKey).toBe("key/card.jpg");
+    expect(result.coverFileKey).toBe("key/card.jpg");
+  });
+
+  it("selects the cover from coverMediaIndex, sized accordingly", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      coverMediaIndex: 1,
+      media: [
+        { type: "photo", url: "https://pbs.twimg.com/a.jpg" },
+        { type: "photo", url: "https://pbs.twimg.com/b.jpg" },
+      ],
+    };
+
+    const result = await rehostTwitterImages(details, fakeDownload);
+
+    expect(result.coverFileKey).toBe("key/b.jpg");
+    expect(result.coverSize).toBe(100);
+  });
+
+  it("is best-effort: a failed download leaves the original url and no key", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      media: [
+        { type: "photo", url: "https://pbs.twimg.com/ok.jpg" },
+        { type: "photo", url: "https://pbs.twimg.com/bad.jpg" },
+      ],
+    };
+
+    const download = (url: string) =>
+      url.includes("bad") ? Promise.resolve(null) : fakeDownload(url);
+
+    const result = await rehostTwitterImages(details, download);
+
+    expect(result.media?.[0].fileKey).toBe("key/ok.jpg");
+    expect(result.media?.[1].fileKey).toBeUndefined();
+    expect(result.media?.[1].url).toBe("https://pbs.twimg.com/bad.jpg");
+    expect(result.storedFileKeys).toEqual(["key/ok.jpg"]);
+  });
+
+  it("returns null media and no cover when there is nothing to host", async () => {
+    const download = vi.fn(fakeDownload);
+    const result = await rehostTwitterImages(baseDetails, download);
+
+    expect(download).not.toHaveBeenCalled();
+    expect(result.media).toBeNull();
+    expect(result.coverFileKey).toBeNull();
+    expect(result.coverSize).toBe(0);
+    expect(result.storedFileKeys).toEqual([]);
   });
 });

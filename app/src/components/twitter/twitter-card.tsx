@@ -4,6 +4,7 @@ import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { cn } from "@/lib/utils";
@@ -29,13 +30,15 @@ export function TwitterCard({
   const { media, card } = twitterDetails;
   const autoplayAllowed = useAutoplayAllowed();
 
-  // Get preview image: use cover media index, falling back to first item or link card
+  // Get preview image: use cover media index, falling back to first item or
+  // link card. Prefer our re-hosted copy, falling back to the original twimg URL.
   const coverIndex = twitterDetails.coverMediaIndex ?? 0;
   const coverMedia = media?.[coverIndex] ?? media?.[0];
   const previewImage =
     coverMedia?.type === "photo"
-      ? coverMedia.url
-      : (coverMedia?.posterUrl ?? card?.imageUrl ?? null);
+      ? twitterImageSrc(coverMedia.fileKey, coverMedia.url, "grid")
+      : (twitterImageSrc(coverMedia?.fileKey, coverMedia?.posterUrl, "grid") ??
+        twitterImageSrc(card?.imageFileKey, card?.imageUrl, "grid"));
 
   const isPlayable =
     coverMedia?.type === "video" || coverMedia?.type === "animated_gif";
@@ -57,7 +60,14 @@ export function TwitterCard({
       {/* Media preview area - grows to fill available space */}
       {shouldAutoplay && videoSrc ? (
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
-          <AutoplayVideo src={videoSrc} posterUrl={coverMedia?.posterUrl} />
+          <AutoplayVideo
+            src={videoSrc}
+            posterUrl={twitterImageSrc(
+              coverMedia?.fileKey,
+              coverMedia?.posterUrl,
+              "grid",
+            )}
+          />
           {/* GIF badge */}
           {coverMedia?.type === "animated_gif" && (
             <div

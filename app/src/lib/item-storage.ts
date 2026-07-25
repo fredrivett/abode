@@ -40,6 +40,32 @@ export function extractProductImageKeys(
 }
 
 /**
+ * File keys of the images re-hosted for a tweet: each media still (photo or
+ * video/gif poster) plus the link-card image. Like products, a tweet stores
+ * several images; only the cover is accounted for in `meta.coverSize`, but all
+ * of them must be deleted on reanalysis so they don't leak.
+ */
+export function extractTwitterImageKeys(
+  media: Prisma.JsonValue | null | undefined,
+  card: Prisma.JsonValue | null | undefined,
+): string[] {
+  const keys: string[] = [];
+  if (Array.isArray(media)) {
+    for (const item of media) {
+      if (item && typeof item === "object" && "fileKey" in item) {
+        const key = (item as Record<string, unknown>).fileKey;
+        if (typeof key === "string" && key.length > 0) keys.push(key);
+      }
+    }
+  }
+  if (card && typeof card === "object" && "imageFileKey" in card) {
+    const key = (card as Record<string, unknown>).imageFileKey;
+    if (typeof key === "string" && key.length > 0) keys.push(key);
+  }
+  return keys;
+}
+
+/**
  * The subset of an item's previous file keys to remove from storage:
  * de-duplicated and excluding any key still in use by the new data (new uploads
  * use fresh UUIDs, so `keepFileKeys` is a safety net rather than a common case).

@@ -10,6 +10,10 @@ export type TwitterMedia = {
   url: string;
   width?: number;
   height?: number;
+  // Our re-hosted copy of the still image (the photo, or a video/gif poster).
+  // Absent for items captured before re-hosting, or when the download failed —
+  // renderers fall back to `url`/`posterUrl` (the original twimg URL).
+  fileKey?: string;
   // For videos
   posterUrl?: string;
   variants?: Array<{
@@ -34,6 +38,8 @@ export type TwitterDetails = {
     description: string;
     url: string;
     imageUrl: string | null;
+    // Our re-hosted copy of the card image (fallback: imageUrl)
+    imageFileKey?: string | null;
   } | null;
   coverMediaIndex: number | null;
 };

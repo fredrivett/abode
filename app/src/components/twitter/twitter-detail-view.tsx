@@ -6,6 +6,7 @@ import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { getHostname } from "@/lib/url-utils";
@@ -134,9 +135,13 @@ export function TwitterDetailView({
           >
             {card.imageUrl && (
               // biome-ignore lint/a11y/useAltText: link card preview
-              // biome-ignore lint/performance/noImgElement: external link card URL
+              // biome-ignore lint/performance/noImgElement: proxied or external link card URL
               <img
-                src={card.imageUrl}
+                src={twitterImageSrc(
+                  card.imageFileKey,
+                  card.imageUrl,
+                  "detail",
+                )}
                 className="aspect-video w-full object-cover"
                 loading="lazy"
               />
@@ -214,7 +219,7 @@ function CoverImageMedia({
       {item.type === "video" || item.type === "animated_gif" ? (
         <video
           src={getTwitterVideoSrc(item, "highest")}
-          poster={item.posterUrl}
+          poster={twitterImageSrc(item.fileKey, item.posterUrl, "detail")}
           controls={item.type === "video"}
           autoPlay={item.type === "animated_gif"}
           loop={item.type === "animated_gif"}
@@ -226,9 +231,9 @@ function CoverImageMedia({
         </video>
       ) : (
         // biome-ignore lint/a11y/useAltText: tweet media
-        // biome-ignore lint/performance/noImgElement: external Twitter media URL
+        // biome-ignore lint/performance/noImgElement: proxied or external Twitter media URL
         <img
-          src={item.url}
+          src={twitterImageSrc(item.fileKey, item.url, "detail")}
           className="h-full w-full object-cover"
           loading="lazy"
         />
