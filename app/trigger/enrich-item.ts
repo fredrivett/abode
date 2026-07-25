@@ -6,6 +6,7 @@ import {
 } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import { generateTextEmbedding, upsertTextVector } from "../src/lib/embeddings";
+import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { captureServerException } from "../src/lib/posthog-server";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
@@ -108,7 +109,10 @@ export const enrichItemTask = task({
 
       await db.item.update({
         where: { id: itemId, userId },
-        data: { processingStatus: "failed" },
+        data: {
+          processingStatus: "failed",
+          processingError: classifyFailureReason(error),
+        },
       });
 
       throw error;

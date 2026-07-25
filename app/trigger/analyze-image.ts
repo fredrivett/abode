@@ -12,6 +12,7 @@ import {
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
+import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImageColorsOnly } from "../src/lib/vision";
@@ -373,13 +374,16 @@ export const analyzeImageTask = task({
         itemId,
       });
 
-      // Mark item as failed
+      // Mark item as failed with a safe, user-facing reason code
       await db.item.update({
         where: {
           id: itemId,
           userId: userId, // Multi-tenant isolation
         },
-        data: { processingStatus: "failed" },
+        data: {
+          processingStatus: "failed",
+          processingError: classifyFailureReason(error),
+        },
       });
 
       // Re-throw so Trigger.dev can retry
