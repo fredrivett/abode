@@ -19,6 +19,7 @@ import {
 } from "../src/lib/html-metadata";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
+import type { ForcibleKind } from "../src/lib/item-kind-reassignment";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
@@ -36,6 +37,12 @@ type ClassifyUrlPayload = {
   itemId: string;
   userId: string;
   url: string;
+  /**
+   * When set, the user is manually reassigning the item's kind: skip the
+   * heuristic and re-run enrichment for this kind instead. Only web-family
+   * kinds are forcible (see item-kind-reassignment).
+   */
+  forcedKind?: ForcibleKind;
 };
 
 function getSupabaseConfig() {
@@ -304,12 +311,17 @@ export const classifyUrlTask = task({
   id: "classify-url",
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
   run: async (payload: ClassifyUrlPayload) => {
-    const { itemId, userId, url } = payload;
+    const { itemId, userId, url, forcedKind } = payload;
 
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    logger.log("Starting URL classification", { itemId, userId, url });
+    logger.log("Starting URL classification", {
+      itemId,
+      userId,
+      url,
+      forcedKind,
+    });
 
     try {
       // Step 0: Resolve t.co short URLs (Twitter's shortener) up front so every
@@ -354,13 +366,17 @@ export const classifyUrlTask = task({
       let fetchUrl = resolvedUrl;
 
       // Step 1: Classify from the URL alone (tweets, Twitter articles, videos) —
-      // no page fetch needed for these.
-      const urlClassification = classifyItemKind({
-        url,
-        resolvedUrl,
-        contentType: null,
-        html: null,
-      });
+      // no page fetch needed for these. Skipped when a kind is forced: those
+      // source-locked kinds aren't reassignable, so a forced kind can never be
+      // one of them.
+      const urlClassification = forcedKind
+        ? null
+        : classifyItemKind({
+            url,
+            resolvedUrl,
+            contentType: null,
+            html: null,
+          });
       if (urlClassification?.kind === "twitter") {
         logger.log("URL classified as Twitter/X post", {
           itemId,
@@ -425,8 +441,10 @@ export const classifyUrlTask = task({
         });
       }
 
-      // Step 3: Direct image URL (by extension or content-type)
+      // Step 3: Direct image URL (by extension or content-type). Skipped when a
+      // kind is forced — image isn't a reassignable target.
       if (
+        !forcedKind &&
         classifyItemKind({ url, resolvedUrl, contentType, html: null })
           ?.kind === "image"
       ) {
@@ -484,6 +502,7 @@ export const classifyUrlTask = task({
         contentType: finalContentType,
         html,
         getArticleWordCount: () => getReadableContent().wordCount,
+        forcedKind,
       });
 
       if (classification?.kind === "image") {

@@ -31,6 +31,7 @@ import {
   extractYouTubeVideoId,
   type ProductMetadata,
 } from "./html-metadata";
+import type { ForcibleKind } from "./item-kind-reassignment";
 import { detectPlatform } from "./platforms";
 import { isImageUrl } from "./url-utils";
 
@@ -67,7 +68,81 @@ export type ClassifyItemKindInput = {
    * pages never pay for content extraction. Defaults to 0.
    */
   getArticleWordCount?: () => number;
+  /**
+   * When set, bypass the heuristic and classify the page as this kind (a user
+   * manually reassigning the item). Only web-family kinds are forcible, and all
+   * are derived from page HTML — so this only takes effect once `html` is
+   * present. Structured metadata for the forced kind is extracted best-effort:
+   * a page lacking product/book signals still yields a valid (sparse) result.
+   */
+  forcedKind?: ForcibleKind;
 };
+
+/**
+ * Build the classification for a user-forced kind from page HTML. Article and
+ * webpage always have extractable metadata; product and book fall back to a
+ * sparse shape derived from generic page metadata when the page has no
+ * structured product/book data (all their extra fields are optional).
+ */
+function classifyForcedKind(
+  forcedKind: ForcibleKind,
+  html: string,
+  resolvedUrl: string,
+  getArticleWordCount?: () => number,
+): ItemClassification {
+  if (forcedKind === "book") {
+    const bookMeta =
+      extractBookMetadata(html, resolvedUrl) ??
+      sparseBookMetadata(html, resolvedUrl);
+    return { kind: "book", bookMeta };
+  }
+
+  if (forcedKind === "product") {
+    const productMeta =
+      extractProductMetadata(html, resolvedUrl) ??
+      sparseProductMetadata(html, resolvedUrl);
+    return { kind: "product", productMeta };
+  }
+
+  // article | webpage — the word-count threshold no longer gates the kind; the
+  // user's choice wins. Metadata is always available for a fetched page.
+  const metadata = extractArticleMetadata(html, resolvedUrl);
+  const wordCount = getArticleWordCount?.() ?? 0;
+  return { kind: forcedKind, metadata, wordCount };
+}
+
+function sparseBookMetadata(html: string, resolvedUrl: string): BookMetadata {
+  const meta = extractArticleMetadata(html, resolvedUrl);
+  return {
+    title: meta.title,
+    description: meta.description,
+    domain: meta.domain,
+    ogImage: meta.ogImage,
+    authors: [],
+    isbn: null,
+    publisher: null,
+    publishedAt: null,
+    pageCount: null,
+  };
+}
+
+function sparseProductMetadata(
+  html: string,
+  resolvedUrl: string,
+): ProductMetadata {
+  const meta = extractArticleMetadata(html, resolvedUrl);
+  return {
+    title: meta.title,
+    description: meta.description,
+    domain: meta.domain,
+    ogImage: meta.ogImage,
+    price: null,
+    currency: null,
+    brand: null,
+    availability: null,
+    imageUrls: meta.ogImage ? [meta.ogImage] : [],
+  };
+}
 
 /**
  * Decides the item kind from pre-fetched page artifacts.
@@ -77,7 +152,19 @@ export type ClassifyItemKindInput = {
 export function classifyItemKind(
   input: ClassifyItemKindInput,
 ): ItemClassification | null {
-  const { url, resolvedUrl, contentType, html } = input;
+  const { url, resolvedUrl, contentType, html, forcedKind } = input;
+
+  // A user-forced kind overrides all heuristics, but every forcible kind is
+  // derived from the page body — so wait for the HTML before deciding.
+  if (forcedKind) {
+    if (html === null) return null;
+    return classifyForcedKind(
+      forcedKind,
+      html,
+      resolvedUrl,
+      input.getArticleWordCount,
+    );
+  }
 
   // Twitter/X posts and articles are decided from the resolved URL. A Twitter
   // URL that is neither a tweet nor an article (e.g. a profile) falls through

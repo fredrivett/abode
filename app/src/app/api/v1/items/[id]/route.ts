@@ -173,7 +173,6 @@ export async function PATCH(
       meta,
       sourceType,
       sourceUrl,
-      kind,
       coverFileKey,
       excludeFromPublicRooms,
       tags,
@@ -327,8 +326,10 @@ export async function PATCH(
       JSON.stringify(userTags.slice().sort()) !==
         JSON.stringify(existingItem.userTags.slice().sort());
 
+    // `kind` is intentionally not updatable here: changing an item's kind
+    // requires re-running enrichment and pruning stale detail rows, which the
+    // dedicated reassign endpoint (POST /api/v1/items/[id]/reassign) handles.
     const filterRelevantFieldsChanged =
-      (kind !== undefined && kind !== existingItem.kind) ||
       (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
       (excludeFromPublicRooms !== undefined &&
         excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
@@ -343,7 +344,6 @@ export async function PATCH(
         ...(meta !== undefined && { meta }),
         ...(sourceType !== undefined && { sourceType }),
         ...(sourceUrl !== undefined && { sourceUrl }),
-        ...(kind !== undefined && { kind }),
         ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
