@@ -134,7 +134,7 @@ export function CommandPalette() {
   const hasQueryText = searchState.query.trim().length > 0;
 
   // Free-text → filter suggestions (off while an @-dropdown/date picker is open)
-  const suggestions = useFilterSuggestions({
+  const { suggestions, markAccepted } = useFilterSuggestions({
     query: searchState.query,
     filterOptions,
     filters: searchState.filters,
@@ -325,13 +325,14 @@ export function CommandPalette() {
         query: removeSpan(searchState.query, suggestion.start, suggestion.end),
         filters: newFilters,
       });
+      markAccepted();
       posthog.capture("search_suggestion_accepted", {
         surface: "command-palette",
         facet: suggestion.facet,
       });
       inputRef.current?.focus();
     },
-    [searchState],
+    [searchState, markAccepted],
   );
 
   // Handle backspace at start of input to remove last filter
