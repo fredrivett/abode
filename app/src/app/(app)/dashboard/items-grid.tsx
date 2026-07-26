@@ -76,15 +76,20 @@ export function ItemsGrid({
     [isLoadingMore],
   );
 
-  // Enable the frame reflow transition only after the first paint. The masonry
-  // engine sets each frame's `transform` on its initial (synchronous) layout;
+  // Enable the frame transition only after the first paint. The masonry engine
+  // sets each frame's `transform` on its initial (synchronous) layout;
   // transitioning that from the start would cascade every card in from the top
-  // on load. Once mounted, later relayouts (a card finishing analysis and
-  // changing aspect) animate their neighbours smoothly instead of snapping.
-  const [enableReflowTransition, setEnableReflowTransition] = useState(false);
-  useEffect(() => setEnableReflowTransition(true), []);
-  const frameStyle: CSSProperties | undefined = enableReflowTransition
-    ? { transition: "transform 0.3s ease" }
+  // on load. Once mounted, when a card finishing analysis changes its aspect,
+  // both animate together over the same duration: `transform` slides its
+  // neighbours (the reflow) and `aspect-ratio` resizes its own box — so the
+  // card grows into the slot the reflow opens instead of snapping and
+  // overlapping. (We transition `aspect-ratio` directly rather than via an
+  // @property number var, because Tailwind/Lightning CSS strips hand-authored
+  // @property rules from the build.)
+  const [enableFrameTransition, setEnableFrameTransition] = useState(false);
+  useEffect(() => setEnableFrameTransition(true), []);
+  const frameTransition = enableFrameTransition
+    ? "transform 0.3s ease, aspect-ratio 0.3s ease"
     : undefined;
 
   if (!hasHydrated) {
@@ -280,7 +285,14 @@ export function ItemsGrid({
                   key={item.id}
                   width={width}
                   height={height}
-                  style={frameStyle}
+                  style={{
+                    // Override the library's var-based aspect-ratio with a
+                    // concrete ratio so it can be transitioned directly; the
+                    // library's own --width/--height (from the width/height
+                    // props, read by the layout engine) stay instant targets.
+                    aspectRatio: `${width} / ${height}`,
+                    transition: frameTransition,
+                  }}
                 >
                   <div className="h-full">
                     <ItemCard
