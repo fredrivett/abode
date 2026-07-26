@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { DateTime } from "@/components/ui/date-time";
 import {
   Table,
   TableBody,
@@ -131,17 +132,21 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                   {formatBytes(BigInt(user.storageUsedBytes))}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {new Date(user.createdAt).toLocaleDateString()}
+                  <DateTime date={user.createdAt} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {user.lastActiveAt
-                    ? new Date(user.lastActiveAt).toLocaleDateString()
-                    : "-"}
+                  {user.lastActiveAt ? (
+                    <DateTime date={user.lastActiveAt} />
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {user.lastItemAddedAt
-                    ? new Date(user.lastItemAddedAt).toLocaleDateString()
-                    : "-"}
+                  {user.lastItemAddedAt ? (
+                    <DateTime date={user.lastItemAddedAt} />
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
               </TableRow>
             ))
