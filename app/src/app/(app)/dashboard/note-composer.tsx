@@ -20,7 +20,6 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { isBlankNote } from "@/lib/items/note-title";
 import { createLogger } from "@/lib/logger.client";
-import { cn } from "@/lib/utils";
 
 const log = createLogger("dashboard/note-composer");
 
@@ -198,10 +197,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the inline composer
     <div
-      className={cn(
-        "relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card",
-        disabled && "opacity-50",
-      )}
+      className="relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card"
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onKeyDown={handleKeyDown}
     >

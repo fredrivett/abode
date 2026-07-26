@@ -121,7 +121,7 @@ export function SearchableItemsGrid({
       items={displayItems}
       hasActiveSearch={searchResults.hasActiveSearch}
       showComposer={showComposer}
-      composerDisabled={isSearchPending}
+      isSearchPending={isSearchPending}
       onClearSearch={clearAll}
       hasMore={showLoadMore}
       isLoadingMore={isFetchingNextPage}

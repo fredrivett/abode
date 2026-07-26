@@ -12,6 +12,7 @@ import { noteDisplayName } from "@/lib/items/note-title";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
+import { cn } from "@/lib/utils";
 import { ItemCard } from "./item-card";
 import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
 import { NoteComposer } from "./note-composer";
@@ -34,8 +35,8 @@ type ItemsGridProps = {
   hasActiveSearch?: boolean;
   /** Show the note composer (the full-list view, not resolved search results) */
   showComposer?: boolean;
-  /** Grey out the composer while a search is in flight */
-  composerDisabled?: boolean;
+  /** Dim and disable the whole grid while a search is in flight */
+  isSearchPending?: boolean;
   onClearSearch?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -52,7 +53,7 @@ export function ItemsGrid({
   items,
   hasActiveSearch,
   showComposer,
-  composerDisabled,
+  isSearchPending,
   onClearSearch,
   hasMore,
   isLoadingMore,
@@ -153,7 +154,15 @@ export function ItemsGrid({
           </div>
         )
       ) : (
-        <div className={items.length <= 4 ? "flex justify-center" : ""}>
+        <div
+          className={cn(
+            items.length <= 4 && "flex justify-center",
+            // Dim + block the whole grid while search results are loading
+            isSearchPending &&
+              "pointer-events-none opacity-50 transition-opacity",
+          )}
+          aria-busy={isSearchPending}
+        >
           <BalancedMasonryGrid
             frameWidth={frameWidth}
             gap={gap}
@@ -168,7 +177,7 @@ export function ItemsGrid({
                 <div className="h-full">
                   <NoteComposer
                     initialDraft={initialNoteDraft}
-                    disabled={composerDisabled}
+                    disabled={isSearchPending}
                   />
                 </div>
               </Frame>

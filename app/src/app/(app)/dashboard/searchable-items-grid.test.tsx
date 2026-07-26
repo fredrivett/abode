@@ -26,7 +26,7 @@ vi.mock("@/lib/use-processing-poll", () => ({
 type CapturedProps = {
   items: Item[];
   showComposer?: boolean;
-  composerDisabled?: boolean;
+  isSearchPending?: boolean;
 };
 
 let captured: CapturedProps = { items: [] };
@@ -99,7 +99,7 @@ describe("SearchableItemsGrid", () => {
     renderGrid();
     expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
     expect(captured.showComposer).toBe(true);
-    expect(captured.composerDisabled).toBe(false);
+    expect(captured.isSearchPending).toBe(false);
   });
 
   it("shows resolved search results and hides the composer when a search completes", () => {
@@ -127,9 +127,9 @@ describe("SearchableItemsGrid", () => {
     renderGrid();
     // Still the full list (not flipped or emptied) so the grid doesn't reflow...
     expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
-    // ...but the composer is present and disabled, not removed
+    // ...but the composer is present and the grid is marked pending (dimmed)
     expect(captured.showComposer).toBe(true);
-    expect(captured.composerDisabled).toBe(true);
+    expect(captured.isSearchPending).toBe(true);
   });
 
   it("keeps the previous results in flight instead of flipping to the full list", () => {
@@ -156,8 +156,10 @@ describe("SearchableItemsGrid", () => {
     );
     rerenderGrid(rerender);
 
-    // Still the previous match, composer stays hidden (we're showing results)
+    // Still the previous match, composer stays hidden (we're showing results),
+    // and the grid is dimmed while the new query loads
     expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
     expect(captured.showComposer).toBe(false);
+    expect(captured.isSearchPending).toBe(true);
   });
 });
