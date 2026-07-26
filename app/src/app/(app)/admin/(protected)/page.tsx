@@ -7,6 +7,10 @@ import { ActivityChart } from "../_components/activity-chart";
 import { ActivityHeatmap } from "../_components/activity-heatmap";
 import { StatsCards } from "../_components/stats-cards";
 
+export const metadata = {
+  title: "Admin | abode",
+};
+
 export default async function AdminPage() {
   // Get aggregate counts
   const [userCount, itemCount, roomCount, totalStorageResult, embeddings] =

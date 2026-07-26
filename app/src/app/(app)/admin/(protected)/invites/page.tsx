@@ -8,6 +8,10 @@ import { InvitesTable } from "../../_components/invites-table";
 
 const PAGE_SIZE = 20;
 
+export const metadata = {
+  title: "Invites | Admin | abode",
+};
+
 type SearchParams = Promise<{
   page?: string;
   search?: string;

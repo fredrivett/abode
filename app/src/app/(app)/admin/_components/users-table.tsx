@@ -26,6 +26,8 @@ type User = {
   itemCount: number;
   roomCount: number;
   createdAt: string;
+  lastActiveAt: string | null;
+  lastItemAddedAt: string | null;
 };
 
 type Pagination = {
@@ -62,13 +64,15 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
             <TableHead className="text-right">Rooms</TableHead>
             <TableHead className="text-right">Storage</TableHead>
             <TableHead>Joined</TableHead>
+            <TableHead>Last active</TableHead>
+            <TableHead>Last item added</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={8}
                 className="text-center text-muted-foreground"
               >
                 No users found
@@ -110,7 +114,16 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                   </Link>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {user.username ? `@${user.username}` : "-"}
+                  {user.username ? (
+                    <Link
+                      href={`/@${user.username}`}
+                      className="hover:text-foreground hover:underline"
+                    >
+                      @{user.username}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell className="text-right">{user.itemCount}</TableCell>
                 <TableCell className="text-right">{user.roomCount}</TableCell>
@@ -119,6 +132,16 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {user.lastActiveAt
+                    ? new Date(user.lastActiveAt).toLocaleDateString()
+                    : "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {user.lastItemAddedAt
+                    ? new Date(user.lastItemAddedAt).toLocaleDateString()
+                    : "-"}
                 </TableCell>
               </TableRow>
             ))

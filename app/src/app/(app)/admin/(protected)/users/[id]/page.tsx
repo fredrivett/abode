@@ -21,6 +21,20 @@ import { formatBytes, getUserInitials } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
 
+export async function generateMetadata({ params }: { params: PageParams }) {
+  const { id } = await params;
+  const user = await db.user.findUnique({
+    where: { id },
+    select: { email: true, firstName: true, lastName: true },
+  });
+
+  const name = user
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email
+    : "User";
+
+  return { title: `${name} | Users | Admin | abode` };
+}
+
 function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
   // Calculate totals
   const totals = activity.reduce(
@@ -256,7 +270,12 @@ export default async function AdminUserDetailPage({
                   <AtSign className="size-4 text-muted-foreground" />
                   <div>
                     <p className="text-muted-foreground text-xs">Username</p>
-                    <p className="text-sm">@{user.username}</p>
+                    <Link
+                      href={`/@${user.username}`}
+                      className="text-sm hover:underline"
+                    >
+                      @{user.username}
+                    </Link>
                   </div>
                 </div>
               )}
