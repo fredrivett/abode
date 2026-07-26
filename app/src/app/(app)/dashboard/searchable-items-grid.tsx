@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useItemsInfinite } from "@/lib/api-hooks";
 import { useSearch, useSearchResults } from "@/lib/search";
@@ -77,25 +77,33 @@ export function SearchableItemsGrid({
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Remember the last resolved search results so an in-flight query keeps
+  // showing them instead of flipping back to the full list on every keystroke.
+  // Cleared when search is cleared; on the very first search it stays null so
+  // we fall back to the full paginated list until the first results land.
+  const lastSearchResultsRef = useRef<Item[] | null>(null);
+  const isSearchPending = searchResults.isSearching || searchResults.isLoading;
+  if (!searchResults.hasActiveSearch) {
+    lastSearchResultsRef.current = null;
+  } else if (!isSearchPending) {
+    lastSearchResultsRef.current = searchResults.items;
+  }
+
   const searchItems = useMemo((): Item[] | null => {
     // No active search - use initial items
     if (!searchResults.hasActiveSearch) {
       return null;
     }
 
-    // Still searching - keep showing previous items
-    if (searchResults.isSearching || searchResults.isLoading) {
-      return null;
+    // Still searching - keep showing the last resolved results (null on the
+    // first search, which falls back to the full list below)
+    if (isSearchPending) {
+      return lastSearchResultsRef.current;
     }
 
     // Search complete - items are already in the correct format
     return searchResults.items;
-  }, [
-    searchResults.items,
-    searchResults.hasActiveSearch,
-    searchResults.isSearching,
-    searchResults.isLoading,
-  ]);
+  }, [searchResults.items, searchResults.hasActiveSearch, isSearchPending]);
 
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
