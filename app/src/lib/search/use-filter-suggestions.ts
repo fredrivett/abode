@@ -76,6 +76,17 @@ export function useFilterSuggestions({
     }
   }, [suggestions, surface]);
 
+  // If the surface tears down while a shown session is still open (e.g. the
+  // palette closes or the page unmounts), count it as dismissed so the session
+  // still gets a terminal event.
+  useEffect(() => {
+    return () => {
+      if (shownRef.current && !acceptedRef.current) {
+        posthog.capture("search_suggestions_dismissed", { surface });
+      }
+    };
+  }, [surface]);
+
   const markAccepted = useCallback(() => {
     acceptedRef.current = true;
   }, []);

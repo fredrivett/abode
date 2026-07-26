@@ -77,7 +77,10 @@ export function SearchInput({
     filterOptions,
     filters: value.filters,
     surface: "search-input",
+    // gated on focus so the session aligns with the visible dropdown and ends
+    // (dismissed if unaccepted) on blur
     enabled:
+      isFocused &&
       !disabled &&
       !dropdownOpen &&
       !datePickerOpen &&

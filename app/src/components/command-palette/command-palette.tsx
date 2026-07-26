@@ -139,8 +139,13 @@ export function CommandPalette() {
     filterOptions,
     filters: searchState.filters,
     surface: "command-palette",
+    // gated on `open` so closing the dialog ends the session (dismissed if unaccepted)
     enabled:
-      page === "main" && hasQueryText && !filterDropdownOpen && !datePickerOpen,
+      open &&
+      page === "main" &&
+      hasQueryText &&
+      !filterDropdownOpen &&
+      !datePickerOpen,
   });
 
   // Fetch user profile
