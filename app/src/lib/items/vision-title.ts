@@ -13,3 +13,17 @@ import type { ItemKind } from "@prisma/client";
 export function visionOwnsTitle(kind: ItemKind | null): boolean {
   return kind === "image";
 }
+
+/**
+ * Whether an image (re)analysis may write the item's title/description.
+ *
+ * On top of {@link visionOwnsTitle}, a user who has manually edited the title
+ * has taken ownership of the item's naming — so re-analysis (bulk
+ * reprocessing, admin retry) must not overwrite it with a fresh vision caption.
+ */
+export function visionMayWriteTitle(item: {
+  kind: ItemKind | null;
+  titleEditedByUser: boolean;
+}): boolean {
+  return visionOwnsTitle(item.kind) && !item.titleEditedByUser;
+}

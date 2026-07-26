@@ -349,7 +349,8 @@ export async function PATCH(
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
         ...(tags !== undefined && { tags }),
         ...(userTags !== undefined && { userTags }),
-        ...(title !== undefined && { title }),
+        // Mark the title as user-owned so re-analysis won't overwrite it
+        ...(title !== undefined && { title, titleEditedByUser: true }),
         ...(notes !== undefined && { notes }),
         // `shared` toggles direct-link sharing. Preserve the original
         // sharedAt while it stays shared; clear it on un-share.

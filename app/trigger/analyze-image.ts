@@ -15,7 +15,7 @@ import {
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
-import { visionOwnsTitle } from "../src/lib/items/vision-title";
+import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImageColorsOnly } from "../src/lib/vision";
@@ -280,12 +280,13 @@ export const analyzeImageTask = task({
         visionApiFeatures: ["IMAGE_PROPERTIES"],
       };
 
-      // Only plain image uploads derive their title/description from vision.
-      // Books/products/tweets have a better title from their own metadata, so
-      // analysing their cover must not clobber it (image details still written).
-      const { kind } = await db.item.findFirstOrThrow({
+      // Only plain image uploads derive their title/description from vision, and
+      // only until the user edits the title. Books/products/tweets have a better
+      // title from their own metadata; a user-edited title must survive
+      // re-analysis. Image details (objects/colours/OCR) are written regardless.
+      const item = await db.item.findFirstOrThrow({
         where: { id: itemId, userId },
-        select: { kind: true },
+        select: { kind: true, titleEditedByUser: true },
       });
 
       const imageDetailsUpsert = db.itemImageDetails.upsert({
@@ -309,7 +310,7 @@ export const analyzeImageTask = task({
 
       // Update Item and ImageDetails in a transaction for consistency
       const ops: Prisma.PrismaPromise<unknown>[] = [];
-      if (visionOwnsTitle(kind)) {
+      if (visionMayWriteTitle(item)) {
         ops.push(
           db.item.update({
             where: {
