@@ -78,13 +78,8 @@ export const enrichItemTask = task({
         const { embedding: textEmbedding, totalTokens } =
           await generateTextEmbedding(embeddingInput);
 
-        const textVectorId = await upsertTextVector({
-          itemId,
-          userId,
-          model: "text-embedding-3-small",
-          embedding: textEmbedding,
-        });
-
+        // Record the billed embedding call before persistence — a failure of
+        // the DB write below must not drop the cost of a request already made.
         recordAiUsage({
           userId,
           itemId,
@@ -93,6 +88,13 @@ export const enrichItemTask = task({
           model: "text-embedding-3-small",
           totalTokens,
           source: "ingestion",
+        });
+
+        const textVectorId = await upsertTextVector({
+          itemId,
+          userId,
+          model: "text-embedding-3-small",
+          embedding: textEmbedding,
         });
 
         logger.log("Text embedding stored", { itemId, textVectorId });
