@@ -153,8 +153,9 @@ export function imageExtForContentType(contentType: string): string | null {
 /**
  * Downloads an image from a URL and stores it in Supabase storage.
  * Returns the file key and byte size, or null on any failure (skip cleanly).
+ * Exported for reuse by the tweet-image backfill task.
  */
-async function downloadAndStoreImage(
+export async function downloadAndStoreImage(
   imageUrl: string,
   userId: string,
   supabase: SupabaseClient,
@@ -231,7 +232,7 @@ type RehostResult = {
  * Exported for testing (with an injected downloader).
  */
 export async function rehostTwitterImages(
-  details: TwitterDetails,
+  details: Pick<TwitterDetails, "media" | "card" | "coverMediaIndex">,
   download: TweetImageDownloader,
 ): Promise<RehostResult> {
   const sizeByKey = new Map<string, number>();
@@ -259,12 +260,15 @@ export async function rehostTwitterImages(
     }
   }
 
-  // Cover mirrors the grid preview: the cover media's still, else the first
-  // media's still, else the card image.
+  // Cover mirrors the grid preview: the chosen cover media's still, else the
+  // first media that actually hosted (a rotted cover must not null the cover
+  // when a later image succeeded, or that upload leaks), else the card image.
+  // This makes coverFileKey null iff nothing was hosted (storedFileKeys empty).
   const coverIndex = details.coverMediaIndex ?? 0;
+  const firstHostedMediaKey = media?.find((m) => m.fileKey)?.fileKey;
   const coverFileKey =
     media?.[coverIndex]?.fileKey ??
-    media?.[0]?.fileKey ??
+    firstHostedMediaKey ??
     card?.imageFileKey ??
     null;
 

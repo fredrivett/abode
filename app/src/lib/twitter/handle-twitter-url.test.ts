@@ -482,6 +482,30 @@ describe("rehostTwitterImages", () => {
     expect(result.storedFileKeys).toEqual(["key/ok.jpg"]);
   });
 
+  it("falls the cover back to the first hosted media when the cover slot fails", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      coverMediaIndex: 0,
+      media: [
+        { type: "photo", url: "https://pbs.twimg.com/rotted.jpg" }, // cover, fails
+        { type: "photo", url: "https://pbs.twimg.com/live.jpg" }, // succeeds
+      ],
+    };
+
+    const download = (url: string) =>
+      url.includes("rotted") ? Promise.resolve(null) : fakeDownload(url);
+
+    const result = await rehostTwitterImages(details, download);
+
+    expect(result.media?.[0].fileKey).toBeUndefined();
+    expect(result.media?.[1].fileKey).toBe("key/live.jpg");
+    // Cover falls back to the hosted image, not null — so its upload isn't
+    // orphaned and coverFileKey is null iff nothing was hosted.
+    expect(result.coverFileKey).toBe("key/live.jpg");
+    expect(result.coverSize).toBe(100);
+    expect(result.storedFileKeys).toEqual(["key/live.jpg"]);
+  });
+
   it("returns null media and no cover when there is nothing to host", async () => {
     const download = vi.fn(fakeDownload);
     const result = await rehostTwitterImages(baseDetails, download);
