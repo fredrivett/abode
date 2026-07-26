@@ -153,8 +153,9 @@ export function imageExtForContentType(contentType: string): string | null {
 /**
  * Downloads an image from a URL and stores it in Supabase storage.
  * Returns the file key and byte size, or null on any failure (skip cleanly).
+ * Exported for reuse by the tweet-image backfill task.
  */
-async function downloadAndStoreImage(
+export async function downloadAndStoreImage(
   imageUrl: string,
   userId: string,
   supabase: SupabaseClient,
@@ -231,7 +232,7 @@ type RehostResult = {
  * Exported for testing (with an injected downloader).
  */
 export async function rehostTwitterImages(
-  details: TwitterDetails,
+  details: Pick<TwitterDetails, "media" | "card" | "coverMediaIndex">,
   download: TweetImageDownloader,
 ): Promise<RehostResult> {
   const sizeByKey = new Map<string, number>();
