@@ -260,12 +260,15 @@ export async function rehostTwitterImages(
     }
   }
 
-  // Cover mirrors the grid preview: the cover media's still, else the first
-  // media's still, else the card image.
+  // Cover mirrors the grid preview: the chosen cover media's still, else the
+  // first media that actually hosted (a rotted cover must not null the cover
+  // when a later image succeeded, or that upload leaks), else the card image.
+  // This makes coverFileKey null iff nothing was hosted (storedFileKeys empty).
   const coverIndex = details.coverMediaIndex ?? 0;
+  const firstHostedMediaKey = media?.find((m) => m.fileKey)?.fileKey;
   const coverFileKey =
     media?.[coverIndex]?.fileKey ??
-    media?.[0]?.fileKey ??
+    firstHostedMediaKey ??
     card?.imageFileKey ??
     null;
 

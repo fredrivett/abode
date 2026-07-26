@@ -124,8 +124,9 @@ export const backfillTweetImageItemTask = task({
       downloadAndStoreImage(imageUrl, userId, supabase),
     );
 
-    if (!rehosted.coverFileKey) {
-      // Nothing hostable, or every source URL has already rotted away.
+    if (rehosted.storedFileKeys.length === 0) {
+      // Nothing hostable, or every source URL has already rotted away. No blobs
+      // were uploaded, so there's nothing to persist or clean up.
       logger.warn("No tweet images could be re-hosted", { itemId });
       return { success: true, hosted: 0, skipped: "nothing-hosted" };
     }
