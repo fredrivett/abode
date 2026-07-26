@@ -2,13 +2,14 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import { type CSSProperties, useMemo } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { getBookTileFrame } from "@/lib/book-cover";
 import { noteDisplayName } from "@/lib/items/note-title";
+import { readAspectHint } from "@/lib/items/provisional-aspect";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
@@ -74,6 +75,22 @@ export function ItemsGrid({
     () => (isLoadingMore ? shuffleSkeletonFrames() : []),
     [isLoadingMore],
   );
+
+  // Enable the frame transition only after the first paint. The masonry engine
+  // sets each frame's `transform` on its initial (synchronous) layout;
+  // transitioning that from the start would cascade every card in from the top
+  // on load. Once mounted, when a card finishing analysis changes its aspect,
+  // both animate together over the same duration: `transform` slides its
+  // neighbours (the reflow) and `aspect-ratio` resizes its own box — so the
+  // card grows into the slot the reflow opens instead of snapping and
+  // overlapping. (We transition `aspect-ratio` directly rather than via an
+  // @property number var, because Tailwind/Lightning CSS strips hand-authored
+  // @property rules from the build.)
+  const [enableFrameTransition, setEnableFrameTransition] = useState(false);
+  useEffect(() => setEnableFrameTransition(true), []);
+  const frameTransition = enableFrameTransition
+    ? "transform 0.3s ease, aspect-ratio 0.3s ease"
+    : undefined;
 
   if (!hasHydrated) {
     return null;
@@ -174,6 +191,11 @@ export function ItemsGrid({
               const isProcessingUrl =
                 item.sourceType === "url" &&
                 item.processingStatus === "processing";
+              // A URL whose kind hasn't resolved yet — still processing or
+              // failed. Both render the icon placeholder card and should share
+              // the provisional aspect so it doesn't snap between states.
+              const isUnresolvedUrl =
+                item.sourceType === "url" && item.kind === null;
 
               // Derive display name - item.title is the single source of truth
               let name: string;
@@ -240,7 +262,13 @@ export function ItemsGrid({
               } else if (isBook) {
                 // Cover's ingested aspect ratio plus equal padding all round
                 ({ width, height } = getBookTileFrame(item.meta));
-              } else if (isArticleOrWebpage || isProcessingUrl) {
+              } else if (isUnresolvedUrl) {
+                // Use the insert-time aspect hint (video/twitter) when present
+                // so the card lands at its final shape; otherwise 4:3.
+                const hint = readAspectHint(meta);
+                width = hint?.width ?? 4;
+                height = hint?.height ?? 3;
+              } else if (isArticleOrWebpage) {
                 width = 4;
                 height = 3;
               } else if (isNote) {
@@ -253,7 +281,19 @@ export function ItemsGrid({
               }
 
               return (
-                <Frame key={item.id} width={width} height={height}>
+                <Frame
+                  key={item.id}
+                  width={width}
+                  height={height}
+                  style={{
+                    // Override the library's var-based aspect-ratio with a
+                    // concrete ratio so it can be transitioned directly; the
+                    // library's own --width/--height (from the width/height
+                    // props, read by the layout engine) stay instant targets.
+                    aspectRatio: `${width} / ${height}`,
+                    transition: frameTransition,
+                  }}
+                >
                   <div className="h-full">
                     <ItemCard
                       item={item}

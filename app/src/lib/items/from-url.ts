@@ -1,6 +1,7 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
+import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -50,6 +51,11 @@ export async function createItemFromUrl({
     throw new InvalidUrlError("Invalid URL format");
   }
 
+  // Seed a provisional aspect for URL-decidable kinds (video/twitter) so the
+  // grid renders the processing card at its final shape and doesn't jump when
+  // analysis completes. Unknowable kinds keep the grid's 4:3 default.
+  const aspectHint = provisionalUrlAspect(parsedUrl.href);
+
   const item = await db.item.create({
     data: {
       kind: null,
@@ -57,6 +63,7 @@ export async function createItemFromUrl({
       sourceUrl: parsedUrl.href,
       userId,
       processingStatus: "processing",
+      ...(aspectHint ? { meta: { aspectHint } } : {}),
     },
     select: {
       id: true,
