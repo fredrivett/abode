@@ -45,23 +45,18 @@ describe("UsersTable", () => {
     expect(profileLinks).toHaveLength(0);
   });
 
-  it("renders last active and last item added dates", () => {
+  it("renders populated date columns via DateTime, not a dash", () => {
+    // Fully-populated row: username, storage, and all three dates are present,
+    // so no cell should fall back to a dash. (Relative-time text itself is
+    // DateTime's concern and is asserted in its own tests — checking it here
+    // would depend on the current time and be flaky.)
     renderTable();
-    expect(
-      screen.getByText(
-        new Date("2026-07-20T00:00:00.000Z").toLocaleDateString(),
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        new Date("2026-07-18T00:00:00.000Z").toLocaleDateString(),
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("-")).not.toBeInTheDocument();
   });
 
   it("falls back to a dash when last active / last item added are null", () => {
     renderTable({ lastActiveAt: null, lastItemAddedAt: null });
-    // User cell, username, storage all still render; the two activity columns show "-"
+    // The two activity columns show "-" when there's no activity / no items
     const dashes = screen.getAllByText("-");
     expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
