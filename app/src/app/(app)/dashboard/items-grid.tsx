@@ -86,6 +86,12 @@ export function ItemsGrid({
     return null;
   }
 
+  // While a search is in flight, dim the shown state and block interaction so
+  // both the grid and a retained empty ("No results") state read as loading.
+  const busyClass = isSearchPending
+    ? "pointer-events-none opacity-50 transition-opacity"
+    : undefined;
+
   return (
     <div
       ref={containerRef}
@@ -100,7 +106,13 @@ export function ItemsGrid({
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
+          <div
+            className={cn(
+              "flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center",
+              busyClass,
+            )}
+            aria-busy={isSearchPending}
+          >
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
@@ -155,12 +167,7 @@ export function ItemsGrid({
         )
       ) : (
         <div
-          className={cn(
-            items.length <= 4 && "flex justify-center",
-            // Dim + block the whole grid while search results are loading
-            isSearchPending &&
-              "pointer-events-none opacity-50 transition-opacity",
-          )}
+          className={cn(items.length <= 4 && "flex justify-center", busyClass)}
           aria-busy={isSearchPending}
         >
           <BalancedMasonryGrid
