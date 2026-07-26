@@ -8,6 +8,7 @@ import { imageSize } from "image-size";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
+import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import { classifyItemKind } from "../src/lib/classify-item-kind";
 import db from "../src/lib/db";
 import {
@@ -935,11 +936,29 @@ async function handleProductUrl(
 
   let pickedCandidates: ProductImageCandidate[] = candidates;
   if (candidates.length > 1) {
-    const keptIndices = await selectProductImagesWithLLM({
+    const {
+      indices: keptIndices,
+      usage,
+      model,
+    } = await selectProductImagesWithLLM({
       imageUrls: candidates.map((c) => c.url),
       productTitle: productMeta.title,
       domain: productMeta.domain,
     });
+
+    if (usage && model) {
+      recordAiUsage({
+        userId,
+        itemId,
+        provider: "openai",
+        operation: "image_filtering",
+        model,
+        inputTokens: usage.promptTokens,
+        outputTokens: usage.completionTokens,
+        source: "ingestion",
+      });
+    }
+
     const keptSet = new Set(keptIndices);
     pickedCandidates = keptIndices.map((i) => candidates[i]);
     logger.log("Product images filtered by LLM", {

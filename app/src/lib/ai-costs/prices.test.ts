@@ -32,6 +32,14 @@ describe("openAiChatCostUsd", () => {
     );
   });
 
+  test("prices gpt-4.1-nano (product-image filtering)", () => {
+    // 1M input @ $0.10 + 1M output @ $0.40 = $0.50
+    expect(openAiChatCostUsd("gpt-4.1-nano", 1_000_000, 1_000_000)).toBeCloseTo(
+      0.5,
+      10,
+    );
+  });
+
   test("resolves dated model variants via prefix match", () => {
     expect(
       openAiChatCostUsd("gpt-4o-mini-2024-07-18", 1_000_000, 0),

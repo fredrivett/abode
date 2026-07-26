@@ -29,7 +29,8 @@ export type AiProvider = "openai" | "replicate" | "google_vision";
 export type AiOperation =
   | "text_embedding"
   | "image_embedding"
-  | "vision_analysis";
+  | "vision_analysis"
+  | "image_filtering";
 export type AiUsageSource = "ingestion" | "search";
 
 export interface RecordAiUsageParams {
@@ -66,10 +67,11 @@ function computeCostUsd(params: RecordAiUsageParams): number | null {
     images = 1,
   } = params;
 
-  if (provider === "openai" && operation === "text_embedding") {
-    return openAiEmbeddingCostUsd(model, totalTokens);
-  }
-  if (provider === "openai" && operation === "vision_analysis") {
+  if (provider === "openai") {
+    if (operation === "text_embedding") {
+      return openAiEmbeddingCostUsd(model, totalTokens);
+    }
+    // vision_analysis / image_filtering — both are chat-model calls
     return openAiChatCostUsd(model, inputTokens, outputTokens);
   }
   if (provider === "replicate") {

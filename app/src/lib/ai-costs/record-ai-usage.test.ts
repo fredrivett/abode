@@ -41,6 +41,21 @@ describe("recordAiUsage", () => {
     expect(arg.properties.source).toBe("ingestion");
   });
 
+  test("prices image_filtering as a chat call", () => {
+    recordAiUsage({
+      userId: "user-1",
+      itemId: "item-1",
+      provider: "openai",
+      operation: "image_filtering",
+      model: "gpt-4.1-nano",
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+    });
+
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(capture.mock.calls[0][0].properties.cost_usd).toBeCloseTo(0.5, 10);
+  });
+
   test("emits cost_usd: null for an unknown model", () => {
     recordAiUsage({
       userId: "user-1",

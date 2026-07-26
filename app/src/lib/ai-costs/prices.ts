@@ -21,6 +21,7 @@ const OPENAI_EMBEDDING_PRICES = {
 // dated variants (e.g. "gpt-4o-mini-2024-07-18") via longest-prefix match.
 const OPENAI_CHAT_PRICES = {
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.6 },
+  "gpt-4.1-nano": { inputPerMillion: 0.1, outputPerMillion: 0.4 },
 } as const;
 
 // https://replicate.com/andreasjansson/clip-features — checked 2026-07
@@ -52,7 +53,7 @@ type GoogleVisionFeature = keyof typeof GOOGLE_VISION_PRICES;
  */
 export const KNOWN_AI_MODELS = {
   openAiEmbedding: ["text-embedding-3-small"],
-  openAiChat: ["gpt-4o-mini"],
+  openAiChat: ["gpt-4o-mini", "gpt-4.1-nano"],
   replicate: ["clip-vit-base-patch32"],
   googleVision: ["IMAGE_PROPERTIES"],
 } as const;
