@@ -6,6 +6,10 @@ import { WaitlistTable } from "../../_components/waitlist-table";
 
 const PAGE_SIZE = 20;
 
+export const metadata = {
+  title: "Waitlist | Admin | abode",
+};
+
 type SearchParams = Promise<{ page?: string }>;
 
 export default async function AdminWaitlistPage(props: {

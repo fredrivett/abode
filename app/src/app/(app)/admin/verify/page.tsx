@@ -5,6 +5,10 @@ import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { AdminVerifyForm } from "./admin-verify-form";
 
+export const metadata = {
+  title: "Verify | Admin | abode",
+};
+
 export default async function AdminVerifyPage() {
   const supabase = await createClient();
 

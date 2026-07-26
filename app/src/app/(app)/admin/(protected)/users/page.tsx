@@ -7,6 +7,10 @@ import { UsersTable } from "../../_components/users-table";
 
 const PAGE_SIZE = 20;
 
+export const metadata = {
+  title: "Users | Admin | abode",
+};
+
 type SearchParams = Promise<{ page?: string; search?: string }>;
 
 export default async function AdminUsersPage(props: {
@@ -56,6 +60,29 @@ export default async function AdminUsersPage(props: {
     skip: (page - 1) * PAGE_SIZE,
   });
 
+  const userIds = users.map((user) => user.id);
+
+  // Last activity (any tracked action) and last item added, per user on this page
+  const [lastActivity, lastItems] = await Promise.all([
+    db.activityLog.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds } },
+      _max: { createdAt: true },
+    }),
+    db.item.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds } },
+      _max: { createdAt: true },
+    }),
+  ]);
+
+  const lastActiveByUser = new Map(
+    lastActivity.map((row) => [row.userId, row._max.createdAt]),
+  );
+  const lastItemByUser = new Map(
+    lastItems.map((row) => [row.userId, row._max.createdAt]),
+  );
+
   const formattedUsers = users.map((user) => ({
     id: user.id,
     email: user.email,
@@ -68,6 +95,8 @@ export default async function AdminUsersPage(props: {
     itemCount: user._count.items,
     roomCount: user._count.rooms,
     createdAt: user.createdAt.toISOString(),
+    lastActiveAt: lastActiveByUser.get(user.id)?.toISOString() ?? null,
+    lastItemAddedAt: lastItemByUser.get(user.id)?.toISOString() ?? null,
   }));
 
   const pagination = {
