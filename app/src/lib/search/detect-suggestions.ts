@@ -65,6 +65,15 @@ function findValueSpans(
   return spans;
 }
 
+/** Char spans wrapped in double quotes, e.g. the "..." in `"paris" trip`. */
+function quotedRanges(query: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (const match of query.matchAll(/"[^"]*"/g)) {
+    ranges.push({ start: match.index, end: match.index + match[0].length });
+  }
+  return ranges;
+}
+
 function isAlreadyApplied(suggestion: Suggestion, filters: Filter[]): boolean {
   return filters.some(
     (f) =>
@@ -98,7 +107,15 @@ export function detectSuggestions(
     candidates.push(dateMatchToSuggestion(match));
   }
 
-  const fresh = candidates.filter((c) => !isAlreadyApplied(c, filters));
+  // A double-quoted span is an explicit "search this literally" escape hatch —
+  // never suggest a filter for anything inside it.
+  const quoted = quotedRanges(query);
+  const isQuoted = (c: Suggestion) =>
+    quoted.some((q) => c.start < q.end && q.start < c.end);
+
+  const fresh = candidates.filter(
+    (c) => !isAlreadyApplied(c, filters) && !isQuoted(c),
+  );
 
   // Order: earliest start, then longest span, then facet priority.
   fresh.sort(

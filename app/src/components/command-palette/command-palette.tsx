@@ -134,13 +134,18 @@ export function CommandPalette() {
   const hasQueryText = searchState.query.trim().length > 0;
 
   // Free-text → filter suggestions (off while an @-dropdown/date picker is open)
-  const suggestions = useFilterSuggestions({
+  const { suggestions, markAccepted } = useFilterSuggestions({
     query: searchState.query,
     filterOptions,
     filters: searchState.filters,
     surface: "command-palette",
+    // gated on `open` so closing the dialog ends the session (dismissed if unaccepted)
     enabled:
-      page === "main" && hasQueryText && !filterDropdownOpen && !datePickerOpen,
+      open &&
+      page === "main" &&
+      hasQueryText &&
+      !filterDropdownOpen &&
+      !datePickerOpen,
   });
 
   // Fetch user profile
@@ -325,13 +330,14 @@ export function CommandPalette() {
         query: removeSpan(searchState.query, suggestion.start, suggestion.end),
         filters: newFilters,
       });
+      markAccepted();
       posthog.capture("search_suggestion_accepted", {
         surface: "command-palette",
         facet: suggestion.facet,
       });
       inputRef.current?.focus();
     },
-    [searchState],
+    [searchState, markAccepted],
   );
 
   // Handle backspace at start of input to remove last filter

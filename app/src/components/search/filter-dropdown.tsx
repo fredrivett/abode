@@ -7,6 +7,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { colorSwatchCss } from "@/lib/search/color-utils";
 import { rankFilterValues } from "@/lib/search/rank-filter-values";
 import {
   FILTER_TYPES,
@@ -257,7 +258,7 @@ export function FilterDropdown({
                       <>
                         <div
                           className="size-4 rounded-full border"
-                          style={{ backgroundColor: value }}
+                          style={{ backgroundColor: colorSwatchCss(value) }}
                         />
                         <span>{value}</span>
                       </>

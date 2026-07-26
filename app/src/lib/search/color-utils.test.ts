@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   colorProximity,
+  colorSwatchCss,
   colorsMatch,
   deltaE,
   getColorNames,
@@ -466,6 +467,22 @@ describe("hexToLab", () => {
       expect(labDirect?.l).toBeCloseTo(labManual.l, 10);
       expect(labDirect?.a).toBeCloseTo(labManual.a, 10);
       expect(labDirect?.b).toBeCloseTo(labManual.b, 10);
+    });
+  });
+
+  describe("colorSwatchCss", () => {
+    it("resolves a canonical name to its hex", () => {
+      expect(colorSwatchCss("orange")).toBe("#FFA500");
+    });
+
+    it("passes a hex value through (normalised)", () => {
+      expect(colorSwatchCss("#ff5733")).toBe("#FF5733");
+    });
+
+    it("strips spaces so free-text names match CSS extended keywords", () => {
+      // "dark orange" isn't valid CSS with the space; "darkorange" is a keyword
+      expect(colorSwatchCss("dark orange")).toBe("darkorange");
+      expect(colorSwatchCss("Light Blue")).toBe("lightblue");
     });
   });
 });

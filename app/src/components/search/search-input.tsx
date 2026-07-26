@@ -72,12 +72,15 @@ export function SearchInput({
     filterContext.mode === "values" && filterContext.filterType === "date";
 
   // Free-text → filter suggestions (off while an @-dropdown/date picker is open)
-  const suggestions = useFilterSuggestions({
+  const { suggestions, markAccepted } = useFilterSuggestions({
     query: value.query,
     filterOptions,
     filters: value.filters,
     surface: "search-input",
+    // gated on focus so the session aligns with the visible dropdown and ends
+    // (dismissed if unaccepted) on blur
     enabled:
+      isFocused &&
       !disabled &&
       !dropdownOpen &&
       !datePickerOpen &&
@@ -211,13 +214,14 @@ export function SearchInput({
         query: removeSpan(value.query, suggestion.start, suggestion.end),
         filters: addFilterToList(value.filters, newFilter),
       });
+      markAccepted();
       posthog.capture("search_suggestion_accepted", {
         surface: "search-input",
         facet: suggestion.facet,
       });
       inputRef.current?.focus();
     },
-    [value, onChange, addFilterToList],
+    [value, onChange, addFilterToList, markAccepted],
   );
 
   const handleAddDateFilter = useCallback(
