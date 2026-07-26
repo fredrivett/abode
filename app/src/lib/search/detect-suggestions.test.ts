@@ -97,6 +97,16 @@ describe("detectSuggestions", () => {
   it("returns nothing for an empty query", () => {
     expect(detect("   ", { location: ["paris"] })).toEqual([]);
   });
+
+  it("never suggests inside a double-quoted (literal) span", () => {
+    expect(detect('"trip to paris"', { location: ["paris"] })).toEqual([]);
+    expect(detect('"june 2026"', {})).toEqual([]);
+  });
+
+  it("still suggests unquoted words alongside a quoted one", () => {
+    const out = detect('paris "june 2026"', { location: ["paris"] });
+    expect(out.map((s) => s.facet)).toEqual(["location"]);
+  });
 });
 
 describe("removeSpan", () => {
