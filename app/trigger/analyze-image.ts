@@ -15,6 +15,7 @@ import {
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
+import { visionOwnsTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import { analyzeImageColorsOnly } from "../src/lib/vision";
@@ -279,39 +280,51 @@ export const analyzeImageTask = task({
         visionApiFeatures: ["IMAGE_PROPERTIES"],
       };
 
+      // Only plain image uploads derive their title/description from vision.
+      // Books/products/tweets have a better title from their own metadata, so
+      // analysing their cover must not clobber it (image details still written).
+      const { kind } = await db.item.findFirstOrThrow({
+        where: { id: itemId, userId },
+        select: { kind: true },
+      });
+
+      const imageDetailsUpsert = db.itemImageDetails.upsert({
+        where: { itemId },
+        create: {
+          itemId,
+          objects: analysis.objects,
+          ocrText: analysis.ocrText,
+          colors: colors,
+          visionData,
+          captureDate,
+        },
+        update: {
+          objects: analysis.objects,
+          ocrText: analysis.ocrText,
+          colors: colors,
+          visionData,
+          captureDate,
+        },
+      });
+
       // Update Item and ImageDetails in a transaction for consistency
-      await db.$transaction([
-        // Update shared fields on Item
-        db.item.update({
-          where: {
-            id: itemId,
-            userId: userId, // Multi-tenant isolation
-          },
-          data: {
-            title: analysis.title,
-            description: analysis.description,
-          },
-        }),
-        // Create/update image-specific details
-        db.itemImageDetails.upsert({
-          where: { itemId },
-          create: {
-            itemId,
-            objects: analysis.objects,
-            ocrText: analysis.ocrText,
-            colors: colors,
-            visionData,
-            captureDate,
-          },
-          update: {
-            objects: analysis.objects,
-            ocrText: analysis.ocrText,
-            colors: colors,
-            visionData,
-            captureDate,
-          },
-        }),
-      ]);
+      const ops: Prisma.PrismaPromise<unknown>[] = [];
+      if (visionOwnsTitle(kind)) {
+        ops.push(
+          db.item.update({
+            where: {
+              id: itemId,
+              userId: userId, // Multi-tenant isolation
+            },
+            data: {
+              title: analysis.title,
+              description: analysis.description,
+            },
+          }),
+        );
+      }
+      ops.push(imageDetailsUpsert);
+      await db.$transaction(ops);
 
       logger.log("Item updated with analysis", { itemId });
 
