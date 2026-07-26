@@ -107,6 +107,10 @@ export function SearchableItemsGrid({
 
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
+  // Composer shows on the full-list view (searchItems null); once we're
+  // displaying search results it's hidden. While the first search is in flight
+  // we're still on the full list, so keep it mounted but disabled.
+  const showComposer = searchItems === null;
   const showLoadMore = !searchResults.hasActiveSearch && hasNextPage;
   const displayTotal = searchResults.hasActiveSearch
     ? searchResults.total
@@ -116,6 +120,8 @@ export function SearchableItemsGrid({
     <ItemsGrid
       items={displayItems}
       hasActiveSearch={searchResults.hasActiveSearch}
+      showComposer={showComposer}
+      composerDisabled={isSearchPending}
       onClearSearch={clearAll}
       hasMore={showLoadMore}
       isLoadingMore={isFetchingNextPage}

@@ -20,6 +20,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { isBlankNote } from "@/lib/items/note-title";
 import { createLogger } from "@/lib/logger.client";
+import { cn } from "@/lib/utils";
 
 const log = createLogger("dashboard/note-composer");
 
@@ -30,6 +31,8 @@ const DRAFT_ENDPOINT = "/api/v1/note-draft";
 type NoteComposerProps = {
   /** Server-rendered draft to repopulate the composer with on load */
   initialDraft?: string | null;
+  /** Greys out and blocks interaction while a search is in flight */
+  disabled?: boolean;
 };
 
 /**
@@ -45,7 +48,7 @@ type NoteComposerProps = {
  * from the server (no fetch on load) and cleared server-side when the note is
  * saved.
  */
-export function NoteComposer({ initialDraft }: NoteComposerProps) {
+export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const invalidateItems = useInvalidateItems();
   const initialContent = initialDraft ?? "";
   const [markdown, setMarkdown] = useState(initialContent);
@@ -180,6 +183,7 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (disabled) return;
       if (e.key === "Escape") {
         e.preventDefault();
         clearConfirm.onClick();
@@ -188,13 +192,16 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
         void handleSave();
       }
     },
-    [clearConfirm.onClick, handleSave],
+    [disabled, clearConfirm.onClick, handleSave],
   );
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the inline composer
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card"
+      className={cn(
+        "relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card",
+        disabled && "opacity-50",
+      )}
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onKeyDown={handleKeyDown}
     >
@@ -211,6 +218,7 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
         <NoteEditor
           key={editorKey}
           content={editorContent}
+          editable={!disabled}
           onChange={handleChange}
           className="min-h-full"
           titleFirst
@@ -223,7 +231,7 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
             size="sm"
             onClick={clearConfirm.onClick}
             {...clearConfirm.hoverProps}
-            disabled={isSaving}
+            disabled={isSaving || disabled}
             className={
               clearConfirm.confirming
                 ? "text-destructive hover:text-destructive"
@@ -232,7 +240,11 @@ export function NoteComposer({ initialDraft }: NoteComposerProps) {
           >
             {clearConfirm.confirming ? "Confirm clear?" : "Clear"}
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving || disabled}
+          >
             {isSaving ? <IsLoading label="Saving" /> : "Save"}
           </Button>
         </div>

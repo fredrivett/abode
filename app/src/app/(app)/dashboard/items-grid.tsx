@@ -32,6 +32,10 @@ function formatBytes(bytes?: number | null) {
 type ItemsGridProps = {
   items: Item[];
   hasActiveSearch?: boolean;
+  /** Show the note composer (the full-list view, not resolved search results) */
+  showComposer?: boolean;
+  /** Grey out the composer while a search is in flight */
+  composerDisabled?: boolean;
   onClearSearch?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -47,6 +51,8 @@ type ItemsGridProps = {
 export function ItemsGrid({
   items,
   hasActiveSearch,
+  showComposer,
+  composerDisabled,
   onClearSearch,
   hasMore,
   isLoadingMore,
@@ -153,12 +159,17 @@ export function ItemsGrid({
             gap={gap}
             style={{ overflow: "visible !important" }}
           >
-            {/* The note composer lives in the grid as the first card; hide it
-                while searching so results aren't diluted. */}
-            {!hasActiveSearch && (
+            {/* The note composer lives in the grid as the first card. It stays
+                on the full-list view (including while the first search is still
+                in flight, just disabled) and is hidden once results are shown,
+                so it doesn't reflow the grid the instant the user types. */}
+            {showComposer && (
               <Frame key="note-composer" width={1} height={1}>
                 <div className="h-full">
-                  <NoteComposer initialDraft={initialNoteDraft} />
+                  <NoteComposer
+                    initialDraft={initialNoteDraft}
+                    disabled={composerDisabled}
+                  />
                 </div>
               </Frame>
             )}

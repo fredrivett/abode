@@ -23,10 +23,16 @@ vi.mock("@/lib/use-processing-poll", () => ({
   useProcessingPoll: vi.fn(),
 }));
 
-let capturedItems: Item[] = [];
+type CapturedProps = {
+  items: Item[];
+  showComposer?: boolean;
+  composerDisabled?: boolean;
+};
+
+let captured: CapturedProps = { items: [] };
 vi.mock("./items-grid", () => ({
-  ItemsGrid: (props: { items: Item[] }) => {
-    capturedItems = props.items;
+  ItemsGrid: (props: CapturedProps) => {
+    captured = props;
     return null;
   },
 }));
@@ -68,21 +74,35 @@ function renderGrid() {
   );
 }
 
+function rerenderGrid(rerender: (ui: React.ReactElement) => void) {
+  rerender(
+    <SearchableItemsGrid
+      initialItems={FULL_LIST}
+      initialCursor={null}
+      initialHasMore={false}
+      initialTotal={FULL_LIST.length}
+      initialNoteDraft={null}
+    />,
+  );
+}
+
 describe("SearchableItemsGrid", () => {
   beforeEach(() => {
-    capturedItems = [];
+    captured = { items: [] };
     mockUseSearchResults.mockReset();
   });
 
-  it("shows the full paginated list when there is no active search", () => {
+  it("shows the full list and an enabled composer when there is no active search", () => {
     mockUseSearchResults.mockReturnValue(
       makeSearchResults({ hasActiveSearch: false }),
     );
     renderGrid();
-    expect(capturedItems.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+    expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+    expect(captured.showComposer).toBe(true);
+    expect(captured.composerDisabled).toBe(false);
   });
 
-  it("shows resolved search results when a search completes", () => {
+  it("shows resolved search results and hides the composer when a search completes", () => {
     mockUseSearchResults.mockReturnValue(
       makeSearchResults({
         hasActiveSearch: true,
@@ -92,10 +112,11 @@ describe("SearchableItemsGrid", () => {
       }),
     );
     renderGrid();
-    expect(capturedItems.map((i) => i.id)).toEqual(["match-a"]);
+    expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
+    expect(captured.showComposer).toBe(false);
   });
 
-  it("falls back to the full list while the first search is in flight", () => {
+  it("keeps the full list with a disabled composer while the first search is in flight", () => {
     mockUseSearchResults.mockReturnValue(
       makeSearchResults({
         hasActiveSearch: true,
@@ -104,7 +125,11 @@ describe("SearchableItemsGrid", () => {
       }),
     );
     renderGrid();
-    expect(capturedItems.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+    // Still the full list (not flipped or emptied) so the grid doesn't reflow...
+    expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+    // ...but the composer is present and disabled, not removed
+    expect(captured.showComposer).toBe(true);
+    expect(captured.composerDisabled).toBe(true);
   });
 
   it("keeps the previous results in flight instead of flipping to the full list", () => {
@@ -118,7 +143,7 @@ describe("SearchableItemsGrid", () => {
       }),
     );
     const { rerender } = renderGrid();
-    expect(capturedItems.map((i) => i.id)).toEqual(["match-a"]);
+    expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
 
     // Next keystroke: a new query is in flight (previous items still held)
     mockUseSearchResults.mockReturnValue(
@@ -129,17 +154,10 @@ describe("SearchableItemsGrid", () => {
         total: 1,
       }),
     );
-    rerender(
-      <SearchableItemsGrid
-        initialItems={FULL_LIST}
-        initialCursor={null}
-        initialHasMore={false}
-        initialTotal={FULL_LIST.length}
-        initialNoteDraft={null}
-      />,
-    );
+    rerenderGrid(rerender);
 
-    // Should still show the previous match, NOT the full unfiltered list
-    expect(capturedItems.map((i) => i.id)).toEqual(["match-a"]);
+    // Still the previous match, composer stays hidden (we're showing results)
+    expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
+    expect(captured.showComposer).toBe(false);
   });
 });
