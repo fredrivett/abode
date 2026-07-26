@@ -162,6 +162,9 @@ model Item {
   // AI-generated metadata (shared across all item types)
   title            String?
   description      String?
+  // Set once the user manually edits the title, so re-analysis (e.g.
+  // reprocess-images) never overwrites their title with a fresh vision caption.
+  titleEditedByUser Boolean         @default(false) @map("title_edited_by_user")
   tags             String[]         @default([])  // Auto-generated labels (Vision API)
   userTags         String[]         @default([]) @map("user_tags") // User-added manual tags
 
