@@ -66,6 +66,19 @@ export function normalizeColor(color: string): string | null {
 }
 
 /**
+ * Resolve a stored colour value to a CSS colour usable as a swatch background.
+ * Colour names come from image analysis and can be free-text (e.g. "dark
+ * orange"), which isn't valid CSS with the space. Prefer a hex via
+ * normalizeColor; otherwise strip spaces, matching most CSS extended keywords
+ * (darkorange, lightblue, forestgreen, …).
+ */
+export function colorSwatchCss(value: string): string {
+  return (
+    normalizeColor(value) ?? value.trim().replace(/\s+/g, "").toLowerCase()
+  );
+}
+
+/**
  * Parse hex color to RGB components.
  */
 export function hexToRgb(

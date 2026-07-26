@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { colorSwatchCss } from "@/lib/search/color-utils";
 import { collapseDateRange } from "@/lib/search/date-range-label";
 import {
   FILTER_TYPES,
@@ -41,7 +42,7 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
         <span
           aria-hidden
           className="size-3 rounded-full border border-current/20"
-          style={{ backgroundColor: filter.value }}
+          style={{ backgroundColor: colorSwatchCss(filter.value) }}
         />
       ) : (
         <span aria-hidden>{meta.icon}</span>

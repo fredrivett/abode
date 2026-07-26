@@ -40,6 +40,11 @@ export const Color: Story = {
 export const ColorHex: Story = {
   args: { filter: filter({ type: "color", value: "#FF5733" }) },
 };
+// Free-text colour name from image analysis; the swatch resolves it to CSS.
+export const ColorFreeText: Story = {
+  name: "Color · free-text (dark orange)",
+  args: { filter: filter({ type: "color", value: "dark orange" }) },
+};
 export const Source: Story = {
   args: { filter: filter({ type: "source", value: "instagram" }) },
 };
