@@ -41,7 +41,10 @@ export async function getQueryEmbedding(query: string): Promise<number[]> {
   log.debug({ query: normalized }, "Query embedding cache miss, generating");
 
   // Generate new embedding
-  const embedding = await generateTextEmbedding(normalized);
+  // NOTE: search-side AI usage is intentionally not recorded here yet — this
+  // path has no userId in scope and is LRU-cached (low volume). Deferred to a
+  // follow-up that threads userId through the search stack.
+  const { embedding } = await generateTextEmbedding(normalized);
 
   // Cache the result
   queryEmbeddingCache.set(normalized, embedding);

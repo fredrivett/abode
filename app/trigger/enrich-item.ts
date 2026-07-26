@@ -4,6 +4,7 @@ import {
   generateTagsFromText,
   truncateToTokenLimit,
 } from "../src/lib/ai/generate-tags-from-content";
+import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import db from "../src/lib/db";
 import { generateTextEmbedding, upsertTextVector } from "../src/lib/embeddings";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
@@ -74,7 +75,20 @@ export const enrichItemTask = task({
           embeddingInputLength: embeddingInput.length,
         });
 
-        const textEmbedding = await generateTextEmbedding(embeddingInput);
+        const { embedding: textEmbedding, totalTokens } =
+          await generateTextEmbedding(embeddingInput);
+
+        // Record the billed embedding call before persistence — a failure of
+        // the DB write below must not drop the cost of a request already made.
+        recordAiUsage({
+          userId,
+          itemId,
+          provider: "openai",
+          operation: "text_embedding",
+          model: "text-embedding-3-small",
+          totalTokens,
+          source: "ingestion",
+        });
 
         const textVectorId = await upsertTextVector({
           itemId,

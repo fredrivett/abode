@@ -170,11 +170,19 @@ export async function generateImageEmbedding(
   }
 }
 
+export type TextEmbeddingResult = {
+  embedding: number[];
+  totalTokens: number;
+};
+
 /**
  * Generate text embedding using OpenAI text-embedding-3-small
- * Returns a normalized 1536-dimensional vector
+ * Returns a normalized 1536-dimensional vector plus the tokens billed, so
+ * callers can record usage cost.
  */
-export async function generateTextEmbedding(text: string): Promise<number[]> {
+export async function generateTextEmbedding(
+  text: string,
+): Promise<TextEmbeddingResult> {
   try {
     log.info({ textLength: text.length }, "Generating text embedding");
 
@@ -203,7 +211,7 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
       "Text embedding generated",
     );
 
-    return normalized;
+    return { embedding: normalized, totalTokens: response.usage.total_tokens };
   } catch (error) {
     // Log detailed error information
     const errorDetails = {
