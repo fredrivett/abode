@@ -59,6 +59,36 @@ describe("getVisualEmbeddingCoverage integration", () => {
     expect(coverage.withEmbeddings).toBe(1);
   });
 
+  test("ignores vectors on items reassigned away from image (no >100%)", async () => {
+    const user = await createUser("coverage@example.com");
+    await createImage(user.id, true); // one genuine image with a vector
+
+    // Simulate an item that earned a visual vector as an image, then was
+    // reassigned to another kind — the orphaned vector must not be counted.
+    const { write } = await import("@/lib/db");
+    const { upsertVisualVector } = await import("@/lib/embeddings");
+    const reassigned = await write.item.create({
+      data: { id: crypto.randomUUID(), userId: user.id, kind: "image" },
+    });
+    await upsertVisualVector({
+      itemId: reassigned.id,
+      userId: user.id,
+      model: VISUAL_EMBEDDING_MODEL,
+      embedding: new Array<number>(768)
+        .fill(0)
+        .map((_, i) => (i === 0 ? 1 : 0)),
+    });
+    await write.item.update({
+      where: { id: reassigned.id },
+      data: { kind: "product" },
+    });
+
+    const coverage = await getVisualEmbeddingCoverage();
+
+    expect(coverage.imageItems).toBe(1);
+    expect(coverage.withEmbeddings).toBe(1);
+  });
+
   test("reports zero coverage on an empty platform", async () => {
     const coverage = await getVisualEmbeddingCoverage();
     expect(coverage).toEqual({ imageItems: 0, withEmbeddings: 0 });
