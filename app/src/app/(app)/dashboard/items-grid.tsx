@@ -13,6 +13,7 @@ import { readAspectHint } from "@/lib/items/provisional-aspect";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
+import { cn } from "@/lib/utils";
 import { ItemCard } from "./item-card";
 import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
 import { NoteComposer } from "./note-composer";
@@ -33,6 +34,10 @@ function formatBytes(bytes?: number | null) {
 type ItemsGridProps = {
   items: Item[];
   hasActiveSearch?: boolean;
+  /** Show the note composer (the full-list view, not resolved search results) */
+  showComposer?: boolean;
+  /** Dim and disable the whole grid while a search is in flight */
+  isSearchPending?: boolean;
   onClearSearch?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -48,6 +53,8 @@ type ItemsGridProps = {
 export function ItemsGrid({
   items,
   hasActiveSearch,
+  showComposer,
+  isSearchPending,
   onClearSearch,
   hasMore,
   isLoadingMore,
@@ -96,6 +103,12 @@ export function ItemsGrid({
     return null;
   }
 
+  // While a search is in flight, dim the shown state and block interaction so
+  // both the grid and a retained empty ("No results") state read as loading.
+  const busyClass = isSearchPending
+    ? "pointer-events-none opacity-50 transition-opacity"
+    : undefined;
+
   return (
     <div
       ref={containerRef}
@@ -110,7 +123,13 @@ export function ItemsGrid({
       {items.length === 0 ? (
         hasActiveSearch ? (
           // Empty state for search with no results
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
+          <div
+            className={cn(
+              "flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center",
+              busyClass,
+            )}
+            aria-busy={isSearchPending}
+          >
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
               <SearchX className="size-14 text-muted-foreground" />
               <div className="space-y-2">
@@ -164,18 +183,26 @@ export function ItemsGrid({
           </div>
         )
       ) : (
-        <div className={items.length <= 4 ? "flex justify-center" : ""}>
+        <div
+          className={cn(items.length <= 4 && "flex justify-center", busyClass)}
+          aria-busy={isSearchPending}
+        >
           <BalancedMasonryGrid
             frameWidth={frameWidth}
             gap={gap}
             style={{ overflow: "visible !important" }}
           >
-            {/* The note composer lives in the grid as the first card; hide it
-                while searching so results aren't diluted. */}
-            {!hasActiveSearch && (
+            {/* The note composer lives in the grid as the first card. It stays
+                on the full-list view (including while the first search is still
+                in flight, just disabled) and is hidden once results are shown,
+                so it doesn't reflow the grid the instant the user types. */}
+            {showComposer && (
               <Frame key="note-composer" width={1} height={1}>
                 <div className="h-full">
-                  <NoteComposer initialDraft={initialNoteDraft} />
+                  <NoteComposer
+                    initialDraft={initialNoteDraft}
+                    disabled={isSearchPending}
+                  />
                 </div>
               </Frame>
             )}
