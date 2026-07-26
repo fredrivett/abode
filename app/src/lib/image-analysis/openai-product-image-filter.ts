@@ -77,9 +77,14 @@ Drop:
 
 Order does not matter — only keep/drop matters. If unsure about an image, include it. If no images clearly show the product, return {"productImageIndices": []}.`;
 
+  // The API call and the parse are in separate try blocks on purpose: once the
+  // request returns it has been billed, so a downstream JSON/schema failure
+  // must still surface usage/model to the caller — otherwise a paid call goes
+  // unrecorded. Only a failure of the request itself yields `usage: null`.
+  let response: OpenAI.Chat.ChatCompletion;
   try {
     const client = getOpenAiClient();
-    const response = await client.chat.completions.create({
+    response = await client.chat.completions.create({
       model: "gpt-4.1-nano",
       messages: [
         {
@@ -100,13 +105,21 @@ Order does not matter — only keep/drop matters. If unsure about an image, incl
       temperature: 0,
       response_format: { type: "json_object" },
     });
+  } catch (error) {
+    log.error(
+      { error, domain, candidateCount: imageUrls.length },
+      "LLM product-image filter request failed, falling back to all candidates",
+    );
+    return { indices: allIndices, usage: null, model: null };
+  }
 
-    const usage = {
-      promptTokens: response.usage?.prompt_tokens ?? 0,
-      completionTokens: response.usage?.completion_tokens ?? 0,
-    };
-    const model = response.model;
+  const usage = {
+    promptTokens: response.usage?.prompt_tokens ?? 0,
+    completionTokens: response.usage?.completion_tokens ?? 0,
+  };
+  const model = response.model;
 
+  try {
     const content = response.choices[0]?.message?.content;
     if (!content) {
       log.warn(
@@ -138,10 +151,12 @@ Order does not matter — only keep/drop matters. If unsure about an image, incl
       model,
     };
   } catch (error) {
+    // Parse/schema failure AFTER a billed request — keep usage/model so the
+    // caller still records the cost.
     log.error(
       { error, domain, candidateCount: imageUrls.length },
-      "LLM product-image filter failed, falling back to all candidates",
+      "LLM product-image filter parse failed, falling back to all candidates",
     );
-    return { indices: allIndices, usage: null, model: null };
+    return { indices: allIndices, usage, model };
   }
 }
