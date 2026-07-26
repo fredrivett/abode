@@ -215,10 +215,24 @@ export const analyzeImageTask = task({
 
       const mimeType = getMimeTypeFromFileKey(fileKey);
 
+      // Record each paid call's usage the moment it resolves, inside its own
+      // branch — not after the Promise.all. Both calls run concurrently; if one
+      // rejects, Promise.all rejects and skips everything after it, so a shared
+      // post-await recording would drop the sibling's already-incurred cost.
+      // recordAiUsage never throws, so it can't affect the Promise.all outcome.
       const [colors, openaiResult] = await Promise.all([
         (async () => {
           logger.log("Extracting colors with Vision API", { itemId });
           const result = await analyzeImageColorsOnly(buffer);
+          recordAiUsage({
+            userId,
+            itemId,
+            provider: "google_vision",
+            operation: "vision_analysis",
+            model: "IMAGE_PROPERTIES",
+            images: 1,
+            source: "ingestion",
+          });
           logger.log("Vision API color extraction complete", {
             itemId,
             colorCount: result.length,
@@ -228,6 +242,16 @@ export const analyzeImageTask = task({
         (async () => {
           logger.log("Analyzing image with OpenAI Vision", { itemId });
           const result = await analyzeImageWithOpenAI(buffer, mimeType);
+          recordAiUsage({
+            userId,
+            itemId,
+            provider: "openai",
+            operation: "vision_analysis",
+            model: result.model,
+            inputTokens: result.usage.promptTokens,
+            outputTokens: result.usage.completionTokens,
+            source: "ingestion",
+          });
           logger.log("OpenAI Vision analysis complete", {
             itemId,
             title: result.analysis.title,
@@ -241,29 +265,6 @@ export const analyzeImageTask = task({
       ]);
 
       const { analysis } = openaiResult;
-
-      // Record paid AI usage for the two calls that always run (the Replicate
-      // call is recorded in its own guarded branch below). Best-effort — never
-      // throws, so it can't fail analysis.
-      recordAiUsage({
-        userId,
-        itemId,
-        provider: "google_vision",
-        operation: "vision_analysis",
-        model: "IMAGE_PROPERTIES",
-        images: 1,
-        source: "ingestion",
-      });
-      recordAiUsage({
-        userId,
-        itemId,
-        provider: "openai",
-        operation: "vision_analysis",
-        model: openaiResult.model,
-        inputTokens: openaiResult.usage.promptTokens,
-        outputTokens: openaiResult.usage.completionTokens,
-        source: "ingestion",
-      });
 
       // Step 3: Update item with analysis results
       logger.log("Updating item with analysis results", { itemId });
