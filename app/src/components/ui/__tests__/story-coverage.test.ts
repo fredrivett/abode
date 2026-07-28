@@ -9,6 +9,15 @@ const dirname =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
+// A component file is a .tsx that isn't a story or a colocated test
+function isComponentFile(name: string): boolean {
+  return (
+    name.endsWith(".tsx") &&
+    !name.endsWith(".stories.tsx") &&
+    !name.endsWith(".test.tsx")
+  );
+}
+
 function getUiComponentAndStoryFiles() {
   const uiDir = path.join(dirname, "..");
   const files = fs.readdirSync(uiDir, { withFileTypes: true });
@@ -22,7 +31,7 @@ function getUiComponentAndStoryFiles() {
       const subFiles = fs.readdirSync(subDir);
 
       subFiles.forEach((subFile) => {
-        if (subFile.endsWith(".tsx") && !subFile.endsWith(".stories.tsx")) {
+        if (isComponentFile(subFile)) {
           componentFiles.push(`${file.name}/${subFile}`);
         } else if (subFile.endsWith(".stories.tsx")) {
           storyFiles.push(`${file.name}/${subFile}`);
@@ -32,7 +41,7 @@ function getUiComponentAndStoryFiles() {
       return;
     }
 
-    if (file.name.endsWith(".tsx") && !file.name.endsWith(".stories.tsx")) {
+    if (isComponentFile(file.name)) {
       componentFiles.push(file.name);
       return;
     }

@@ -2,9 +2,12 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import type { ComponentProps } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import {
   Table,
   TableBody,
@@ -14,6 +17,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatBytes, getUserInitials } from "@/lib/utils";
+import type { UserSortColumn } from "./users-sort";
+
+// Typed wrapper so headers only accept columns the server can actually sort by,
+// keeping the generic SortableTableHead reusable for other tables.
+function UserSortHead({
+  column,
+  ...props
+}: { column: UserSortColumn } & Omit<
+  ComponentProps<typeof SortableTableHead>,
+  "column"
+>) {
+  return <SortableTableHead column={column} {...props} />;
+}
 
 type User = {
   id: string;
@@ -41,16 +57,17 @@ type Pagination = {
 type UsersTableProps = {
   users: User[];
   pagination: Pagination;
-  search: string;
 };
 
-export function UsersTable({ users, pagination, search }: UsersTableProps) {
+export function UsersTable({ users, pagination }: UsersTableProps) {
   const { page, totalPages, totalCount } = pagination;
+  const searchParams = useSearchParams();
 
+  // Preserve the current query (search, sort, dir, …) and only swap the page,
+  // so paging keeps the active search and server-side ordering.
   const buildPageUrl = (newPage: number) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
     params.set("page", newPage.toString());
-    if (search) params.set("search", search);
     return `/admin/users?${params.toString()}`;
   };
 
@@ -59,12 +76,18 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
-            <TableHead>Username</TableHead>
-            <TableHead className="text-right">Items</TableHead>
-            <TableHead className="text-right">Rooms</TableHead>
-            <TableHead className="text-right">Storage</TableHead>
-            <TableHead>Joined</TableHead>
+            <UserSortHead column="user">User</UserSortHead>
+            <UserSortHead column="username">Username</UserSortHead>
+            <UserSortHead column="items" align="right" className="text-right">
+              Items
+            </UserSortHead>
+            <UserSortHead column="rooms" align="right" className="text-right">
+              Rooms
+            </UserSortHead>
+            <UserSortHead column="storage" align="right" className="text-right">
+              Storage
+            </UserSortHead>
+            <UserSortHead column="joined">Joined</UserSortHead>
             <TableHead>Last active</TableHead>
             <TableHead>Last item added</TableHead>
           </TableRow>

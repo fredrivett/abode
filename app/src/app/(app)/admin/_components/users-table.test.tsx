@@ -1,6 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UsersTable } from "./users-table";
+
+// UsersTable reads the URL via next/navigation (SortableTableHead + pagination)
+const nav = vi.hoisted(() => ({ params: new URLSearchParams() }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/admin/users",
+  useSearchParams: () => nav.params,
+}));
 
 type UserRow = Parameters<typeof UsersTable>[0]["users"][number];
 
@@ -20,17 +28,23 @@ const baseUser: UserRow = {
   lastItemAddedAt: "2026-07-18T00:00:00.000Z",
 };
 
-function renderTable(overrides: Partial<UserRow> = {}) {
+function renderTable(
+  overrides: Partial<UserRow> = {},
+  pagination = { page: 1, pageSize: 20, totalCount: 1, totalPages: 1 },
+) {
   return render(
     <UsersTable
       users={[{ ...baseUser, ...overrides }]}
-      pagination={{ page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }}
-      search=""
+      pagination={pagination}
     />,
   );
 }
 
 describe("UsersTable", () => {
+  beforeEach(() => {
+    nav.params = new URLSearchParams();
+  });
+
   it("links the username to the public profile", () => {
     renderTable();
     const link = screen.getByRole("link", { name: "@george" });
@@ -59,5 +73,16 @@ describe("UsersTable", () => {
     // The two activity columns show "-" when there's no activity / no items
     const dashes = screen.getAllByText("-");
     expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("preserves the active sort and search when paginating", () => {
+    nav.params = new URLSearchParams("search=ada&sort=items&dir=desc");
+    renderTable({}, { page: 1, pageSize: 20, totalCount: 40, totalPages: 2 });
+    const next = screen.getByRole("link", { name: /next/i });
+    const href = next.getAttribute("href") ?? "";
+    expect(href).toContain("sort=items");
+    expect(href).toContain("dir=desc");
+    expect(href).toContain("search=ada");
+    expect(href).toContain("page=2");
   });
 });
