@@ -81,6 +81,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
+import { supportsSimilarImages } from "@/lib/items/similar-images-support";
 import { createLogger } from "@/lib/logger.client";
 import {
   shouldCompleteAddFirstTag,
@@ -2532,7 +2533,7 @@ function ItemDetailDialog({
                     Renders nothing when there are no matches above threshold. */}
                 <SimilarImages
                   itemId={item.id}
-                  enabled={open && item.kind === "image"}
+                  enabled={open && supportsSimilarImages(item.kind)}
                   onNavigate={() => onOpenChange(false)}
                 />
 
