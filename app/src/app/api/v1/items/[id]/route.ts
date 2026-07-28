@@ -467,6 +467,9 @@ export async function PATCH(
           where: { id },
           data: { coverFileKey: newCoverFileKey },
         });
+        // Reflect the swap in the response — updatedItem was read before this
+        // second update, so it still holds the pre-swap coverFileKey
+        updatedItem.coverFileKey = newCoverFileKey;
         await tasks.trigger<typeof analyzeMediaCoverTask>(
           "analyze-media-cover",
           {
@@ -499,6 +502,8 @@ export async function PATCH(
             where: { id },
             data: { coverFileKey: selectedImage.fileKey },
           });
+          // Reflect the swap in the response (read before this second update)
+          updatedItem.coverFileKey = selectedImage.fileKey;
         }
       }
     }
