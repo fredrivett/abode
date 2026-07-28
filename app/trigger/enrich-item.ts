@@ -121,8 +121,11 @@ export const enrichItemTask = task({
         itemId,
       });
 
-      await db.item.update({
-        where: { id: itemId, userId },
+      // Only transition to failed if the item hasn't already completed — a
+      // re-enrichment (e.g. cover re-analysis after a swap) must not regress a
+      // completed item to failed.
+      await db.item.updateMany({
+        where: { id: itemId, userId, processingStatus: { not: "completed" } },
         data: {
           processingStatus: "failed",
           processingError: classifyFailureReason(error),

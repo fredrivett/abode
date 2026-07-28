@@ -4,21 +4,17 @@ import type { Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
-import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import db from "../src/lib/db";
 import {
-  generateImageEmbedding,
-  isReplicateConfigured,
   upsertVisualVector,
   VISUAL_EMBEDDING_MODEL,
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
-import { analyzeImageWithOpenAI } from "../src/lib/image-analysis/openai-vision";
+import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
-import { analyzeImageColorsOnly } from "../src/lib/vision";
 import type { enrichItemTask } from "./enrich-item";
 
 type AnalyzeImagePayload = {
@@ -40,12 +36,12 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".avif": "image/avif",
 };
 
-function getMimeTypeFromFileKey(fileKey: string): string {
+export function getMimeTypeFromFileKey(fileKey: string): string {
   const ext = extname(fileKey).toLowerCase();
   return EXTENSION_TO_MIME[ext] || "image/jpeg";
 }
 
-function getSupabaseConfig() {
+export function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -62,7 +58,7 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-function formatStorageError(error: unknown) {
+export function formatStorageError(error: unknown) {
   if (!error) return "Unknown storage error";
   if (error instanceof Error) {
     if (error.message) return error.message;
@@ -212,78 +208,34 @@ export const analyzeImageTask = task({
         });
       }
 
-      // Step 2: Analyze image with hybrid approach (Vision API colors + OpenAI Vision)
+      // Step 2: Run the shared vision pipeline (colours + OpenAI Vision + CLIP)
       logger.log("Analyzing image with hybrid approach", { itemId });
 
       const mimeType = getMimeTypeFromFileKey(fileKey);
+      const analysis = await analyzeImageBytes({
+        buffer,
+        mimeType,
+        itemId,
+        userId,
+        getSignedUrl: async () => {
+          // Signed URL for the image (valid for 1 hour) — CLIP needs a URL
+          const { data: urlData, error: urlError } = await supabase.storage
+            .from("items")
+            .createSignedUrl(fileKey, 3600);
+          if (urlError || !urlData) {
+            throw new Error(
+              `Failed to create signed URL: ${formatStorageError(urlError)}`,
+            );
+          }
+          return urlData.signedUrl;
+        },
+      });
 
-      // Record each paid call's usage the moment it resolves, inside its own
-      // branch — not after the Promise.all. Both calls run concurrently; if one
-      // rejects, Promise.all rejects and skips everything after it, so a shared
-      // post-await recording would drop the sibling's already-incurred cost.
-      // recordAiUsage never throws, so it can't affect the Promise.all outcome.
-      const [colors, openaiResult] = await Promise.all([
-        (async () => {
-          logger.log("Extracting colors with Vision API", { itemId });
-          const result = await analyzeImageColorsOnly(buffer);
-          recordAiUsage({
-            userId,
-            itemId,
-            provider: "google_vision",
-            operation: "vision_analysis",
-            model: "IMAGE_PROPERTIES",
-            images: 1,
-            source: "ingestion",
-          });
-          logger.log("Vision API color extraction complete", {
-            itemId,
-            colorCount: result.length,
-          });
-          return result;
-        })(),
-        (async () => {
-          logger.log("Analyzing image with OpenAI Vision", { itemId });
-          const result = await analyzeImageWithOpenAI(buffer, mimeType);
-          recordAiUsage({
-            userId,
-            itemId,
-            provider: "openai",
-            operation: "vision_analysis",
-            model: result.model,
-            inputTokens: result.usage.promptTokens,
-            outputTokens: result.usage.completionTokens,
-            source: "ingestion",
-          });
-          logger.log("OpenAI Vision analysis complete", {
-            itemId,
-            title: result.analysis.title,
-            tagCount: result.analysis.tags.length,
-            objectCount: result.analysis.objects.length,
-            hasOcr: !!result.analysis.ocrText,
-            usage: result.usage,
-          });
-          return result;
-        })(),
-      ]);
-
-      const { analysis } = openaiResult;
-
-      // Step 3: Update item with analysis results
+      // Step 3: Persist analysis. Only plain image uploads derive their
+      // title/description from vision, and only until the user edits the title
+      // (see visionMayWriteTitle). Image details are written for every kind.
       logger.log("Updating item with analysis results", { itemId });
 
-      const visionData = {
-        source: "hybrid",
-        openai: {
-          model: openaiResult.model,
-          usage: openaiResult.usage,
-        },
-        visionApiFeatures: ["IMAGE_PROPERTIES"],
-      };
-
-      // Only plain image uploads derive their title/description from vision, and
-      // only until the user edits the title. Books/products/tweets have a better
-      // title from their own metadata; a user-edited title must survive
-      // re-analysis. Image details (objects/colours/OCR) are written regardless.
       const item = await db.item.findFirstOrThrow({
         where: { id: itemId, userId },
         select: { kind: true, titleEditedByUser: true },
@@ -295,15 +247,15 @@ export const analyzeImageTask = task({
           itemId,
           objects: analysis.objects,
           ocrText: analysis.ocrText,
-          colors: colors,
-          visionData,
+          colors: analysis.colors,
+          visionData: analysis.visionData,
           captureDate,
         },
         update: {
           objects: analysis.objects,
           ocrText: analysis.ocrText,
-          colors: colors,
-          visionData,
+          colors: analysis.colors,
+          visionData: analysis.visionData,
           captureDate,
         },
       });
@@ -329,50 +281,22 @@ export const analyzeImageTask = task({
 
       logger.log("Item updated with analysis", { itemId });
 
-      // Step 4: Generate visual embedding (CLIP via Replicate) — optional.
-      // Replicate is an optional enhancement: skip cleanly when it isn't
-      // configured, and never let a Replicate failure fail the whole item
-      // (graceful degradation — see AGENTS.md).
+      // Step 4: Persist the CLIP visual embedding if one was produced
+      // (analyzeImageBytes returns null when Replicate is unconfigured/errored).
+      // The embedding is an optional enhancement, so persisting it must not fail
+      // item processing — a write error is logged/reported and swallowed.
       let visualVectorId: string | null = null;
-      if (isReplicateConfigured()) {
+      if (analysis.embedding) {
         try {
-          // Get signed URL for the image (valid for 1 hour)
-          const { data: urlData, error: urlError } = await supabase.storage
-            .from("items")
-            .createSignedUrl(fileKey, 3600);
-
-          if (urlError || !urlData) {
-            throw new Error(
-              `Failed to create signed URL: ${formatStorageError(urlError)}`,
-            );
-          }
-
-          logger.log("Generating visual embedding with CLIP", { itemId });
-          const visualEmbedding = await generateImageEmbedding(
-            urlData.signedUrl,
-          );
-
           visualVectorId = await upsertVisualVector({
             itemId,
             userId,
-            model: VISUAL_EMBEDDING_MODEL,
-            embedding: visualEmbedding,
+            model: analysis.embeddingModel ?? VISUAL_EMBEDDING_MODEL,
+            embedding: analysis.embedding,
           });
-
-          recordAiUsage({
-            userId,
-            itemId,
-            provider: "replicate",
-            operation: "image_embedding",
-            model: "clip-vit-base-patch32",
-            images: 1,
-            source: "ingestion",
-          });
-
           logger.log("Visual embedding stored", { itemId, visualVectorId });
         } catch (error) {
-          // Optional enhancement failing must not fail the item — log, report, continue
-          logger.warn("Visual embedding skipped (Replicate error)", {
+          logger.warn("Visual embedding persistence skipped (write error)", {
             itemId,
             error,
           });
@@ -381,10 +305,6 @@ export const analyzeImageTask = task({
             itemId,
           });
         }
-      } else {
-        logger.log("Visual embedding skipped (Replicate not configured)", {
-          itemId,
-        });
       }
 
       logger.log("Image analysis complete", { itemId });
@@ -411,7 +331,7 @@ export const analyzeImageTask = task({
           tagCount: analysis.tags.length,
           objectCount: analysis.objects.length,
           hasOcr: !!analysis.ocrText,
-          colorCount: colors.length,
+          colorCount: analysis.colors.length,
         },
         embeddings: {
           visualVectorId,

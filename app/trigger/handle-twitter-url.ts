@@ -12,6 +12,7 @@ import type {
   TwitterDetails,
   TwitterMedia,
 } from "../src/lib/types/item";
+import type { analyzeMediaCoverTask } from "./analyze-media-cover";
 import type { enrichItemTask } from "./enrich-item";
 import {
   deleteReplacedFiles,
@@ -442,13 +443,30 @@ export async function handleTwitterUrl(
 
   logger.log("Twitter item saved", { itemId, tweetId });
 
-  // Trigger enrichment (tags, text embedding, room sync)
-  logger.log("Triggering item enrichment", { itemId, userId });
-  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
-    itemId,
-    userId,
-    sourceText: details.text ?? undefined,
-  });
+  // Enrichment (tags, text embedding, room sync). A tweet with a re-hosted
+  // cover is enriched by analyze-media-cover as a single job that blends the
+  // cover's objects/OCR with the tweet text — so we don't queue a second,
+  // text-only enrich here that would race it. A cover-less tweet enriches from
+  // its text directly.
+  if (rehosted.coverFileKey) {
+    logger.log("Triggering cover image analysis + enrichment", {
+      itemId,
+      fileKey: rehosted.coverFileKey,
+    });
+    await tasks.trigger<typeof analyzeMediaCoverTask>("analyze-media-cover", {
+      itemId,
+      userId,
+      fileKey: rehosted.coverFileKey,
+      extraSourceText: details.text ?? undefined,
+    });
+  } else {
+    logger.log("Triggering item enrichment", { itemId, userId });
+    await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+      itemId,
+      userId,
+      sourceText: details.text ?? undefined,
+    });
+  }
 
   return {
     success: true,

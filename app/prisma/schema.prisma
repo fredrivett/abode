@@ -47,6 +47,7 @@ model User {
   locations         ItemLocation[]
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
+  mediaAnalyses     ItemMediaAnalysis[]
   rooms             Room[]
   articleHighlights ArticleHighlight[]
   activityLogs      ActivityLog[]
@@ -194,6 +195,7 @@ model Item {
   locations         ItemLocation[]
   visualVectors     ItemVisualVector[]
   textVectors       ItemTextVector[]
+  mediaAnalyses     ItemMediaAnalysis[]
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
   twitterDetails    ItemTwitterDetails?
@@ -279,6 +281,42 @@ model ItemTextVector {
   @@index([itemId])
   @@index([userId])
   @@map("item_text_vectors")
+}
+
+// Per-image vision analysis, keyed by the stored image (file_key), for
+// multi-image kinds (e.g. tweets) whose displayed cover can change. Acts as a
+// cache so swapping the cover re-points to an already-analysed image instead of
+// re-running vision. The current cover's row is mirrored into item_image_details
+// + item_visual_vectors, which stay 1-per-item and drive search/similar-images
+// unchanged. Single-image kinds (image upload, book) don't use this table.
+model ItemMediaAnalysis {
+  id      String @id @default(uuid()) @db.Uuid
+  itemId  String @map("item_id") @db.Uuid
+  userId  String @map("user_id") @db.Uuid
+  fileKey String @map("file_key") // storage key of the analysed image
+
+  // Vision output (mirrors ItemImageDetails' analysis fields)
+  objects    String[] @default([]) // Detected objects
+  colors     Json? // Color palette
+  ocrText    String?  @map("ocr_text")
+  tags       String[] @default([]) // Vision tags → enrich-item precomputedTags
+  visionData Json?    @map("vision_data") // Raw Vision API response
+
+  // CLIP visual embedding — optional (Replicate is an optional service)
+  embedding      Unsupported("vector")? // vector(768)
+  embeddingModel String?                @map("embedding_model") // e.g. "clip-vit-base-patch32"
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([itemId, fileKey])
+  @@index([itemId])
+  @@index([userId])
+  @@map("item_media_analysis")
 }
 
 model ItemArticleDetails {
