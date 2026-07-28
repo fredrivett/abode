@@ -11,7 +11,10 @@
 
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
-import { tweetCoverAnalysisBackfillWhere } from "../src/lib/items/tweet-cover-analysis-backfill";
+import {
+  coverNeedsAnalysis,
+  tweetCoverAnalysisBackfillWhere,
+} from "../src/lib/items/tweet-cover-analysis-backfill";
 import type { analyzeMediaCoverTask } from "./analyze-media-cover";
 
 const BATCH_SIZE = 500;
@@ -28,16 +31,22 @@ export const backfillTweetCoverAnalysisTask = task({
         userId: true,
         coverFileKey: true,
         twitterDetails: { select: { text: true } },
+        mediaAnalyses: { select: { fileKey: true } },
       },
     });
-
-    logger.info(`Found ${items.length} tweets needing cover analysis`);
-    if (items.length === 0) return { total: 0, triggered: 0 };
 
     const batchItems = items
       // coverFileKey is non-null per the where clause; this also narrows the type
       .filter((it): it is typeof it & { coverFileKey: string } =>
         Boolean(it.coverFileKey),
+      )
+      // Only tweets whose *current* cover hasn't been analysed (a cache row for
+      // an old cover must not exclude them)
+      .filter((it) =>
+        coverNeedsAnalysis(
+          it.coverFileKey,
+          it.mediaAnalyses.map((m) => m.fileKey),
+        ),
       )
       .map((it) => ({
         payload: {
@@ -47,6 +56,11 @@ export const backfillTweetCoverAnalysisTask = task({
           extraSourceText: it.twitterDetails?.text ?? undefined,
         },
       }));
+
+    logger.info(
+      `Scanned ${items.length} re-hosted tweets, ${batchItems.length} need cover analysis`,
+    );
+    if (batchItems.length === 0) return { total: items.length, triggered: 0 };
 
     for (let i = 0; i < batchItems.length; i += BATCH_SIZE) {
       const chunk = batchItems.slice(i, i + BATCH_SIZE);

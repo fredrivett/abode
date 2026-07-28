@@ -1,17 +1,24 @@
 import type { Prisma } from "@prisma/client";
 
 /**
- * Tweets eligible for the cover-analysis backfill: tweets whose images are
- * already re-hosted (`coverFileKey` set) but that have no per-image analysis yet
- * (`item_media_analysis` empty). Runs after the re-hosting backfill.
- *
- * `mediaAnalyses: { none: {} }` makes it idempotent — once a tweet's cover is
- * analysed it has a cache row and drops out, so the backfill is safe to re-run.
+ * Prefilter for the cover-analysis backfill: tweets whose images are re-hosted
+ * (`coverFileKey` set). Whether the *current* cover still needs analysis is
+ * decided per-row by {@link coverNeedsAnalysis} — a tweet may already have a
+ * cache row for a *previous* cover, which mustn't exclude it, so we can't filter
+ * that here (Prisma relation filters can't correlate on `coverFileKey`).
  */
 export function tweetCoverAnalysisBackfillWhere(): Prisma.ItemWhereInput {
-  return {
-    kind: "twitter",
-    coverFileKey: { not: null },
-    mediaAnalyses: { none: {} },
-  };
+  return { kind: "twitter", coverFileKey: { not: null } };
+}
+
+/**
+ * True when a tweet's current cover has no analysis cache row yet, so the
+ * backfill should (re)analyse it. Keyed on the current cover, not on whether any
+ * analysis exists, so a stale row for an old cover doesn't skip the tweet.
+ */
+export function coverNeedsAnalysis(
+  coverFileKey: string,
+  analysedFileKeys: string[],
+): boolean {
+  return !analysedFileKeys.includes(coverFileKey);
 }
