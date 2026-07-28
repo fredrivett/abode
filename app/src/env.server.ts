@@ -38,6 +38,13 @@ const envSchema = z.object({
   NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),
 
+  // Usage limits — when "true", per-user daily AI limits actually block (429).
+  // Optional; absent/anything-else = shadow mode (count + log, don't block).
+  // The boolean coercion lives in `isUsageLimitsEnforced()` (usage-limits.ts),
+  // which reads process.env directly for Trigger.dev import safety; this entry
+  // just validates/documents the flag at build time.
+  USAGE_LIMITS_ENFORCED: z.string().optional(),
+
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
 });
