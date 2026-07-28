@@ -19,8 +19,11 @@ export function parseSortParams<TColumn extends string>(
   params: { sort?: string | null; dir?: string | null },
   allowedColumns: readonly TColumn[],
 ): SortState<TColumn> {
+  // `.includes` would type its argument as `TColumn`, but we're testing an
+  // untrusted `string`; comparing each element keeps `allowedColumns` narrow
+  // and needs no cast. The `as TColumn` below is sound once membership holds.
   const column =
-    params.sort && (allowedColumns as readonly string[]).includes(params.sort)
+    params.sort && allowedColumns.some((allowed) => allowed === params.sort)
       ? (params.sort as TColumn)
       : null;
   const direction: SortDirection = params.dir === "desc" ? "desc" : "asc";
