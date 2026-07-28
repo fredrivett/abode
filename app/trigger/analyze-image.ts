@@ -36,12 +36,12 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".avif": "image/avif",
 };
 
-function getMimeTypeFromFileKey(fileKey: string): string {
+export function getMimeTypeFromFileKey(fileKey: string): string {
   const ext = extname(fileKey).toLowerCase();
   return EXTENSION_TO_MIME[ext] || "image/jpeg";
 }
 
-function getSupabaseConfig() {
+export function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -58,7 +58,7 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-function formatStorageError(error: unknown) {
+export function formatStorageError(error: unknown) {
   if (!error) return "Unknown storage error";
   if (error instanceof Error) {
     if (error.message) return error.message;

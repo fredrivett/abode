@@ -12,6 +12,7 @@ import type {
   TwitterDetails,
   TwitterMedia,
 } from "../src/lib/types/item";
+import type { analyzeMediaCoverTask } from "./analyze-media-cover";
 import type { enrichItemTask } from "./enrich-item";
 import {
   deleteReplacedFiles,
@@ -442,13 +443,30 @@ export async function handleTwitterUrl(
 
   logger.log("Twitter item saved", { itemId, tweetId });
 
-  // Trigger enrichment (tags, text embedding, room sync)
+  // Trigger enrichment (tags, text embedding, room sync). This completes the
+  // item from the tweet text alone; cover analysis (below) refines it.
   logger.log("Triggering item enrichment", { itemId, userId });
   await tasks.trigger<typeof enrichItemTask>("enrich-item", {
     itemId,
     userId,
     sourceText: details.text ?? undefined,
   });
+
+  // Analyse the cover image (objects/OCR/colours/embedding) into the per-image
+  // cache and mirror it to the item-level search/similar surfaces. Best-effort
+  // refinement — a failure here never fails the (already-enriched) tweet.
+  if (rehosted.coverFileKey) {
+    logger.log("Triggering cover image analysis", {
+      itemId,
+      fileKey: rehosted.coverFileKey,
+    });
+    await tasks.trigger<typeof analyzeMediaCoverTask>("analyze-media-cover", {
+      itemId,
+      userId,
+      fileKey: rehosted.coverFileKey,
+      extraSourceText: details.text ?? undefined,
+    });
+  }
 
   return {
     success: true,

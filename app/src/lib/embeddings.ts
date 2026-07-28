@@ -286,3 +286,50 @@ export async function upsertTextVector({
 
   return id;
 }
+
+/**
+ * Set the CLIP embedding on an existing item_media_analysis row (raw SQL — the
+ * column is pgvector, which Prisma can't write directly, same as
+ * upsertVisualVector above). The row's non-vector columns are written
+ * separately via Prisma.
+ */
+export async function setMediaAnalysisEmbedding({
+  itemId,
+  fileKey,
+  embedding,
+}: {
+  itemId: string;
+  fileKey: string;
+  embedding: number[];
+}) {
+  const vectorLiteral = toVectorLiteral(embedding);
+  await db.$executeRaw`
+    UPDATE "item_media_analysis"
+    SET "embedding" = ${vectorLiteral}::vector
+    WHERE "item_id" = ${itemId}::uuid AND "file_key" = ${fileKey}
+  `;
+}
+
+/**
+ * Copy a cached image's embedding into the item's 1-per-item visual vector (the
+ * mirror that drives similar-images). DB-side copy so the pgvector value never
+ * round-trips through JS. No-op when the cached row has no embedding (e.g.
+ * Replicate unconfigured), leaving any existing vector untouched.
+ */
+export async function mirrorMediaEmbeddingToVisualVector({
+  itemId,
+  fileKey,
+  model = VISUAL_EMBEDDING_MODEL,
+}: {
+  itemId: string;
+  fileKey: string;
+  model?: string;
+}) {
+  await db.$executeRaw`
+    INSERT INTO "item_visual_vectors" ("id", "item_id", "user_id", "model", "embedding")
+    SELECT gen_random_uuid(), "item_id", "user_id", ${model}, "embedding"
+    FROM "item_media_analysis"
+    WHERE "item_id" = ${itemId}::uuid AND "file_key" = ${fileKey} AND "embedding" IS NOT NULL
+    ON CONFLICT ("item_id", "model") DO UPDATE SET "embedding" = EXCLUDED."embedding"
+  `;
+}
