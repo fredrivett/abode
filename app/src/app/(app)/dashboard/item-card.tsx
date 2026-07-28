@@ -185,9 +185,12 @@ export function ItemCard({
   const [isAnimating, setIsAnimating] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  // Tiny blurred placeholder captured at upload time (LQIP), stored in meta
+  // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
+  // imageDetails; fall back to the meta copy captured client-side at upload time
+  // (instant, before analysis has run).
   const blurDataUrl =
-    typeof item.meta?.blurDataUrl === "string" ? item.meta.blurDataUrl : null;
+    item.blurDataUrl ??
+    (typeof item.meta?.blurDataUrl === "string" ? item.meta.blurDataUrl : null);
 
   const isArticle = item.kind === "article";
   const isWebpage = item.kind === "webpage";

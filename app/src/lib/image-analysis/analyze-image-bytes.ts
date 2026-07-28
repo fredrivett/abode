@@ -6,6 +6,7 @@ import {
 } from "../embeddings";
 import { captureServerException } from "../posthog-server";
 import { analyzeImageColorsOnly } from "../vision";
+import { generateBlurDataUrl } from "./blur-placeholder";
 import { analyzeImageWithOpenAI } from "./openai-vision";
 
 type OpenAiVisionResult = Awaited<ReturnType<typeof analyzeImageWithOpenAI>>;
@@ -25,6 +26,8 @@ export type ImageVisionAnalysis = {
   /** CLIP visual embedding, or null when Replicate is unconfigured or errored. */
   embedding: number[] | null;
   embeddingModel: string | null;
+  /** Tiny blurred-placeholder data URL (LQIP), or null if the image can't be decoded. */
+  blurDataUrl: string | null;
 };
 
 /**
@@ -52,7 +55,7 @@ export async function analyzeImageBytes(params: {
   // — not after the Promise.all. If one rejects, Promise.all skips everything
   // after it, so a shared post-await recording would drop the sibling's cost.
   // recordAiUsage never throws, so it can't affect the Promise.all outcome.
-  const [colors, openaiResult] = await Promise.all([
+  const [colors, openaiResult, blurDataUrl] = await Promise.all([
     (async () => {
       const result = await analyzeImageColorsOnly(buffer);
       recordAiUsage({
@@ -80,6 +83,8 @@ export async function analyzeImageBytes(params: {
       });
       return result;
     })(),
+    // LQIP blur placeholder — local compute, best-effort (never throws)
+    generateBlurDataUrl(buffer),
   ]);
 
   const { analysis } = openaiResult;
@@ -129,5 +134,6 @@ export async function analyzeImageBytes(params: {
     visionData,
     embedding,
     embeddingModel,
+    blurDataUrl,
   };
 }

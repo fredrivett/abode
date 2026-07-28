@@ -190,6 +190,8 @@ export type Item = {
   colors: ImageColor[];
   ocrText: string | null;
   captureDate: string | null;
+  /** Tiny blurred-placeholder data URL (LQIP), shown while the full image loads */
+  blurDataUrl: string | null;
   // Relations
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;

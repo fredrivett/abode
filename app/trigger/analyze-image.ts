@@ -251,6 +251,7 @@ export const analyzeImageTask = task({
           ocrText: analysis.ocrText,
           colors: analysis.colors,
           visionData: analysis.visionData,
+          blurDataUrl: analysis.blurDataUrl,
           captureDate,
         },
         update: {
@@ -258,6 +259,7 @@ export const analyzeImageTask = task({
           ocrText: analysis.ocrText,
           colors: analysis.colors,
           visionData: analysis.visionData,
+          blurDataUrl: analysis.blurDataUrl,
           captureDate,
         },
       });

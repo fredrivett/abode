@@ -58,6 +58,7 @@ export const itemSelect = {
       colors: true,
       ocrText: true,
       captureDate: true,
+      blurDataUrl: true,
     },
   },
   articleDetails: {
@@ -159,6 +160,7 @@ export function transformItem(item: RawItem) {
     colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
     ocrText: item.imageDetails?.ocrText ?? null,
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
+    blurDataUrl: item.imageDetails?.blurDataUrl ?? null,
     excludeFromPublicRooms: item.excludeFromPublicRooms,
     sharedAt: item.sharedAt?.toISOString() ?? null,
     sharedHighlights: item.sharedHighlights,
