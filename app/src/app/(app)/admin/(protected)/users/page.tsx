@@ -5,6 +5,10 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
 import db from "@/lib/db";
 import { parseSortParams, type SortState } from "@/lib/table-sort";
+import {
+  USER_SORT_COLUMNS,
+  type UserSortColumn,
+} from "../../_components/users-sort";
 import { UsersTable } from "../../_components/users-table";
 
 const PAGE_SIZE = 20;
@@ -12,19 +16,6 @@ const PAGE_SIZE = 20;
 export const metadata = {
   title: "Users | Admin | abode",
 };
-
-// Columns the DB can order by directly; the derived "last active" / "last item
-// added" columns are aggregates computed per page and aren't sortable here.
-const USER_SORT_COLUMNS = [
-  "user",
-  "username",
-  "items",
-  "rooms",
-  "storage",
-  "joined",
-] as const;
-
-type UserSortColumn = (typeof USER_SORT_COLUMNS)[number];
 
 function buildUserOrderBy(
   sort: SortState<UserSortColumn>,

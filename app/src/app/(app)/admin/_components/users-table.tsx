@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
@@ -15,6 +16,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatBytes, getUserInitials } from "@/lib/utils";
+import type { UserSortColumn } from "./users-sort";
+
+// Typed wrapper so headers only accept columns the server can actually sort by,
+// keeping the generic SortableTableHead reusable for other tables.
+function UserSortHead({
+  column,
+  ...props
+}: { column: UserSortColumn } & Omit<
+  ComponentProps<typeof SortableTableHead>,
+  "column"
+>) {
+  return <SortableTableHead column={column} {...props} />;
+}
 
 type User = {
   id: string;
@@ -60,30 +74,18 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <SortableTableHead column="user">User</SortableTableHead>
-            <SortableTableHead column="username">Username</SortableTableHead>
-            <SortableTableHead
-              column="items"
-              align="right"
-              className="text-right"
-            >
+            <UserSortHead column="user">User</UserSortHead>
+            <UserSortHead column="username">Username</UserSortHead>
+            <UserSortHead column="items" align="right" className="text-right">
               Items
-            </SortableTableHead>
-            <SortableTableHead
-              column="rooms"
-              align="right"
-              className="text-right"
-            >
+            </UserSortHead>
+            <UserSortHead column="rooms" align="right" className="text-right">
               Rooms
-            </SortableTableHead>
-            <SortableTableHead
-              column="storage"
-              align="right"
-              className="text-right"
-            >
+            </UserSortHead>
+            <UserSortHead column="storage" align="right" className="text-right">
               Storage
-            </SortableTableHead>
-            <SortableTableHead column="joined">Joined</SortableTableHead>
+            </UserSortHead>
+            <UserSortHead column="joined">Joined</UserSortHead>
             <TableHead>Last active</TableHead>
             <TableHead>Last item added</TableHead>
           </TableRow>
