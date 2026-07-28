@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
+import { getUsersUsageToday } from "@/lib/admin/usage-stats";
 import db from "@/lib/db";
 import { parseSortParams, type SortState } from "@/lib/table-sort";
 import {
@@ -106,7 +107,7 @@ export default async function AdminUsersPage(props: {
   const userIds = users.map((user) => user.id);
 
   // Last activity (any tracked action) and last item added, per user on this page
-  const [lastActivity, lastItems] = await Promise.all([
+  const [lastActivity, lastItems, usageToday] = await Promise.all([
     db.activityLog.groupBy({
       by: ["userId"],
       where: { userId: { in: userIds } },
@@ -117,6 +118,7 @@ export default async function AdminUsersPage(props: {
       where: { userId: { in: userIds } },
       _max: { createdAt: true },
     }),
+    getUsersUsageToday(userIds),
   ]);
 
   const lastActiveByUser = new Map(
@@ -140,6 +142,11 @@ export default async function AdminUsersPage(props: {
     createdAt: user.createdAt.toISOString(),
     lastActiveAt: lastActiveByUser.get(user.id)?.toISOString() ?? null,
     lastItemAddedAt: lastItemByUser.get(user.id)?.toISOString() ?? null,
+    usageToday: usageToday.get(user.id) ?? {
+      actionCount: 0,
+      costUsd: 0,
+      overCap: false,
+    },
   }));
 
   const pagination = {

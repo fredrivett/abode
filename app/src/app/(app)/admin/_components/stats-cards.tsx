@@ -1,8 +1,16 @@
 "use client";
 
-import { Box, HardDrive, Home, Sparkles, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Box,
+  DollarSign,
+  HardDrive,
+  Home,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes, formatUsd } from "@/lib/utils";
 
 type StatsCardsProps = {
   totals: {
@@ -15,9 +23,13 @@ type StatsCardsProps = {
     imageItems: number;
     withEmbeddings: number;
   };
+  usage?: {
+    totalCostUsd: number;
+    usersOverCap: number;
+  };
 };
 
-export function StatsCards({ totals, embeddings }: StatsCardsProps) {
+export function StatsCards({ totals, embeddings, usage }: StatsCardsProps) {
   const coveragePct =
     embeddings && embeddings.imageItems > 0
       ? Math.round((embeddings.withEmbeddings / embeddings.imageItems) * 100)
@@ -71,6 +83,53 @@ export function StatsCards({ totals, embeddings }: StatsCardsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {usage && (
+        <>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="font-medium text-sm">
+                AI Spend Today
+              </CardTitle>
+              <DollarSign className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="font-bold text-2xl">
+                {formatUsd(usage.totalCostUsd)}
+              </div>
+              <p className="mt-1 text-muted-foreground text-xs">
+                across all users, resets at UTC midnight
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="font-medium text-sm">
+                Users Over Cap Today
+              </CardTitle>
+              <AlertTriangle
+                className={cn(
+                  "size-4",
+                  usage.usersOverCap > 0
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              />
+            </CardHeader>
+            <CardContent>
+              <div
+                className={cn(
+                  "font-bold text-2xl",
+                  usage.usersOverCap > 0 && "text-destructive",
+                )}
+              >
+                {usage.usersOverCap.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {embeddings && (
         <Card>

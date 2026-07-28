@@ -15,9 +15,13 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type DailyActivityStats, getUserDailyActivity } from "@/lib/activity";
+import {
+  getUserUsageBreakdown,
+  type UserUsageBreakdown,
+} from "@/lib/admin/usage-stats";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
-import { formatBytes, getUserInitials } from "@/lib/utils";
+import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -175,6 +179,51 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
   );
 }
 
+function UsageTodayCard({ usage }: { usage: UserUsageBreakdown }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">AI Usage (Today)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground text-sm">Spend today</span>
+          <span className="font-medium text-sm">
+            {formatUsd(usage.totalCostUsd)}
+          </span>
+        </div>
+        {usage.overCap && (
+          <p className="font-medium text-destructive text-xs">Over daily cap</p>
+        )}
+        <hr />
+        <div className="space-y-1">
+          {usage.buckets.map((bucket) => (
+            <div
+              key={bucket.bucket}
+              className="flex items-center justify-between text-sm"
+            >
+              <span className="text-muted-foreground">{bucket.label}</span>
+              <span
+                className={cn(
+                  "tabular-nums",
+                  bucket.count >= bucket.limit &&
+                    "font-medium text-destructive",
+                )}
+              >
+                {bucket.count} / {bucket.limit}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Counts reset at UTC midnight. Spend is the total across all AI
+          operations (per-bucket spend isn't tracked separately).
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function AdminUserDetailPage({
   params,
 }: {
@@ -209,7 +258,10 @@ export default async function AdminUserDetailPage({
     notFound();
   }
 
-  const dailyActivity = await getUserDailyActivity(id, 14);
+  const [dailyActivity, usageBreakdown] = await Promise.all([
+    getUserDailyActivity(id, 14),
+    getUserUsageBreakdown(id),
+  ]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
@@ -345,6 +397,9 @@ export default async function AdminUserDetailPage({
           <div className="lg:col-span-2">
             <ActivityBreakdown activity={dailyActivity} />
           </div>
+
+          {/* AI usage today */}
+          <UsageTodayCard usage={usageBreakdown} />
         </div>
       </div>
     </div>
