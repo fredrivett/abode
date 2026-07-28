@@ -40,6 +40,21 @@ export function formatBytesParts(bytes: bigint | number): {
 }
 
 /**
+ * Format a USD amount for display. Sub-cent amounts (common for per-call AI
+ * spend) keep 4 decimals so they don't collapse to "$0.00"; everything else
+ * uses standard 2-decimal currency formatting with thousands separators.
+ */
+export function formatUsd(amount: number): string {
+  if (amount > 0 && amount < 0.01) {
+    return `$${amount.toFixed(4)}`;
+  }
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+}
+
+/**
  * Get initials from a user's first name, last name, or email.
  * Simpler version for admin panel where we have these as separate params.
  */

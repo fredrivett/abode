@@ -5,6 +5,7 @@ import { createLogger } from "@/lib/logger.server";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
+import { guardDailyLimit } from "@/lib/usage-limits";
 import type { syncRoomItemsTask } from "../../../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/items/[id]/location");
@@ -36,6 +37,18 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Setting a manual location reverse-geocodes via Mapbox (paid per call).
+    const guard = await guardDailyLimit(user.id, "location");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
     }
 
     const body = await request.json();

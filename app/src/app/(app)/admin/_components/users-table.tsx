@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatBytes, getUserInitials } from "@/lib/utils";
+import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
 import type { UserSortColumn } from "./users-sort";
 
 // Typed wrapper so headers only accept columns the server can actually sort by,
@@ -45,6 +45,11 @@ type User = {
   createdAt: string;
   lastActiveAt: string | null;
   lastItemAddedAt: string | null;
+  usageToday: {
+    actionCount: number;
+    costUsd: number;
+    overCap: boolean;
+  };
 };
 
 type Pagination = {
@@ -90,13 +95,14 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
             <UserSortHead column="joined">Joined</UserSortHead>
             <TableHead>Last active</TableHead>
             <TableHead>Last item added</TableHead>
+            <TableHead className="text-right">Usage today</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={8}
+                colSpan={9}
                 className="text-center text-muted-foreground"
               >
                 No users found
@@ -169,6 +175,26 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
                     <DateTime date={user.lastItemAddedAt} />
                   ) : (
                     "-"
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {user.usageToday.actionCount === 0 &&
+                  user.usageToday.costUsd === 0 ? (
+                    <span className="text-muted-foreground">-</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "tabular-nums",
+                        user.usageToday.overCap &&
+                          "font-medium text-destructive",
+                      )}
+                      title={
+                        user.usageToday.overCap ? "Over daily cap" : undefined
+                      }
+                    >
+                      {user.usageToday.actionCount} ·{" "}
+                      {formatUsd(user.usageToday.costUsd)}
+                    </span>
                   )}
                 </TableCell>
               </TableRow>

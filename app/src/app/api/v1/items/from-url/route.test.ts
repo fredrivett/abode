@@ -9,6 +9,7 @@ const {
   mockTrigger,
   mockCapture,
   mockMarkMilestoneComplete,
+  mockGuard,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockItemCreate: vi.fn(),
@@ -16,11 +17,14 @@ const {
   mockTrigger: vi.fn(),
   mockCapture: vi.fn(),
   mockMarkMilestoneComplete: vi.fn(),
+  mockGuard: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authenticate-request", () => ({
   authenticateRequest: mockAuth,
 }));
+
+vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
 
 vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://www.abode.fyi" }));
 
@@ -74,6 +78,18 @@ function request(
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "cookie" });
+  // Default: within the daily limit — proceed.
+  mockGuard.mockResolvedValue({
+    ok: true,
+    action: "allow",
+    check: {
+      allowed: true,
+      count: 1,
+      limit: 150,
+      retryAfterSeconds: 3600,
+      bucket: "ingestion",
+    },
+  });
   mockItemCreate.mockResolvedValue({
     id: ITEM_ID,
     userId: "user_1",
@@ -99,6 +115,24 @@ describe("POST /api/v1/items/from-url", () => {
   it("returns 400 for a non-http(s) URL", async () => {
     const res = await POST(request({ url: "javascript:alert(1)" }));
     expect(res.status).toBe(400);
+    expect(mockItemCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 with Retry-After (via CORS) and creates nothing when over limit + enforced", async () => {
+    mockGuard.mockResolvedValue({
+      ok: false,
+      action: "block",
+      check: {
+        allowed: false,
+        count: 151,
+        limit: 150,
+        retryAfterSeconds: 3600,
+        bucket: "ingestion",
+      },
+    });
+    const res = await POST(request({ url: "https://example.com/x" }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("3600");
     expect(mockItemCreate).not.toHaveBeenCalled();
   });
 

@@ -6,17 +6,21 @@ const {
   mockItemUpdate,
   mockTrigger,
   mockLogActivity,
+  mockGuard,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
   mockItemUpdate: vi.fn(),
   mockTrigger: vi.fn(),
   mockLogActivity: vi.fn(),
+  mockGuard: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
 }));
+
+vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
 
 vi.mock("@/lib/db", () => ({
   default: {
@@ -68,6 +72,18 @@ beforeEach(() => {
   mockItemFindUnique.mockResolvedValue(webpageItem);
   mockItemUpdate.mockResolvedValue({});
   mockTrigger.mockResolvedValue({ id: "run_1" });
+  // Default: within the daily limit — proceed.
+  mockGuard.mockResolvedValue({
+    ok: true,
+    action: "allow",
+    check: {
+      allowed: true,
+      count: 1,
+      limit: 20,
+      retryAfterSeconds: 3600,
+      bucket: "reanalysis",
+    },
+  });
 });
 
 describe("POST /api/v1/items/[id]/reassign", () => {
@@ -147,5 +163,48 @@ describe("POST /api/v1/items/[id]/reassign", () => {
       where: { id: ITEM_ID },
       data: { processingStatus: "completed" },
     });
+  });
+
+  it("counts every reassign attempt against the reanalysis bucket", async () => {
+    await call({ kind: "article" });
+    expect(mockGuard).toHaveBeenCalledWith("user_1", "reanalysis");
+  });
+
+  it("returns 429 with Retry-After and does no paid work when over limit + enforced", async () => {
+    mockGuard.mockResolvedValue({
+      ok: false,
+      action: "block",
+      check: {
+        allowed: false,
+        count: 21,
+        limit: 20,
+        retryAfterSeconds: 3600,
+        bucket: "reanalysis",
+      },
+    });
+    const res = await call({ kind: "article" });
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("3600");
+    // Blocked before touching the item or enqueuing the paid pipeline.
+    expect(mockItemFindUnique).not.toHaveBeenCalled();
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it("never blocks in shadow mode even when the action is over limit", async () => {
+    // Shadow mode: over limit (allowed:false) but guard returns ok:true.
+    mockGuard.mockResolvedValue({
+      ok: true,
+      action: "shadow",
+      check: {
+        allowed: false,
+        count: 21,
+        limit: 20,
+        retryAfterSeconds: 3600,
+        bucket: "reanalysis",
+      },
+    });
+    const res = await call({ kind: "article" });
+    expect(res.status).toBe(200);
+    expect(mockTrigger).toHaveBeenCalledOnce();
   });
 });

@@ -6,6 +6,7 @@ import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/retry");
 
@@ -23,6 +24,18 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Retry re-runs the full paid pipeline; cap it (keyed by the caller).
+    const guard = await guardDailyLimit(user.id, "reanalysis");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
     }
 
     const isAdmin = await hasFullAdminAccess(supabase);

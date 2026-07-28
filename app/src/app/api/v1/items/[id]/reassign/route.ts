@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
+import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/reassign");
 
@@ -30,6 +31,18 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Reassignment re-runs the full paid classify → enrich pipeline; cap it.
+    const guard = await guardDailyLimit(user.id, "reanalysis");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
     }
 
     const body = await request.json();

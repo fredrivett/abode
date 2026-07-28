@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const capture = vi.fn();
 const getPostHogClient = vi.fn();
 const captureServerException = vi.fn();
+const accrueUsageCost = vi.fn();
 
 vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => getPostHogClient(),
   captureServerException: (...args: unknown[]) =>
     captureServerException(...args),
+}));
+
+vi.mock("@/lib/usage-limits", () => ({
+  accrueUsageCost: (...args: unknown[]) => accrueUsageCost(...args),
 }));
 
 import { recordAiUsage } from "./record-ai-usage";
@@ -16,6 +21,7 @@ beforeEach(() => {
   capture.mockReset();
   getPostHogClient.mockReset();
   captureServerException.mockReset();
+  accrueUsageCost.mockReset();
   getPostHogClient.mockReturnValue({ capture });
 });
 
@@ -99,5 +105,27 @@ describe("recordAiUsage", () => {
       }),
     ).not.toThrow();
     expect(captureServerException).toHaveBeenCalledTimes(1);
+  });
+
+  test("accrues the durable cost even when PostHog capture throws", () => {
+    capture.mockImplementation(() => {
+      throw new Error("posthog down");
+    });
+
+    recordAiUsage({
+      userId: "user-1",
+      provider: "openai",
+      operation: "text_embedding",
+      model: "text-embedding-3-small",
+      totalTokens: 1000,
+      source: "ingestion",
+    });
+
+    // Accrual runs before capture, so a throwing client can't skip it.
+    expect(accrueUsageCost).toHaveBeenCalledWith(
+      "user-1",
+      "ingestion",
+      expect.any(Number),
+    );
   });
 });

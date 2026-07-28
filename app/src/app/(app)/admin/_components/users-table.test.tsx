@@ -26,6 +26,7 @@ const baseUser: UserRow = {
   createdAt: "2026-02-12T00:00:00.000Z",
   lastActiveAt: "2026-07-20T00:00:00.000Z",
   lastItemAddedAt: "2026-07-18T00:00:00.000Z",
+  usageToday: { actionCount: 5, costUsd: 0.12, overCap: false },
 };
 
 function renderTable(
@@ -84,5 +85,19 @@ describe("UsersTable", () => {
     expect(href).toContain("dir=desc");
     expect(href).toContain("search=ada");
     expect(href).toContain("page=2");
+  });
+
+  it("shows today's usage spend", () => {
+    renderTable({
+      usageToday: { actionCount: 7, costUsd: 1.5, overCap: false },
+    });
+    expect(screen.getByText(/\$1\.50/)).toBeInTheDocument();
+  });
+
+  it("highlights users over their daily cap", () => {
+    renderTable({
+      usageToday: { actionCount: 40, costUsd: 3, overCap: true },
+    });
+    expect(screen.getByTitle("Over daily cap")).toHaveClass("text-destructive");
   });
 });

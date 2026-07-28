@@ -8,6 +8,7 @@ import {
 } from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
+import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/from-url");
 
@@ -28,6 +29,18 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     const user = auth.user;
+
+    // Durable per-user daily cap (each URL import = several paid AI calls).
+    const guard = await guardDailyLimit(user.id, "ingestion");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
+    }
 
     const body = await request.json();
     const { url, source } = body;
