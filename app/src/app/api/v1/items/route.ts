@@ -14,6 +14,7 @@ import {
 } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
+import { guardDailyLimit } from "@/lib/usage-limits";
 import { getFileSizeFromMeta } from "@/lib/utils";
 
 const log = createLogger("api/v1/items");
@@ -128,6 +129,19 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Durable per-user daily cap (counts every attempt; only blocks when
+    // USAGE_LIMITS_ENFORCED). Each item = several paid AI calls.
+    const guard = await guardDailyLimit(user.id, "ingestion");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
     }
 
     const body = await request.json();
