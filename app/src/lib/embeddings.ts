@@ -311,10 +311,14 @@ export async function setMediaAnalysisEmbedding({
 }
 
 /**
- * Copy a cached image's embedding into the item's 1-per-item visual vector (the
- * mirror that drives similar-images). DB-side copy so the pgvector value never
- * round-trips through JS. No-op when the cached row has no embedding (e.g.
- * Replicate unconfigured), leaving any existing vector untouched.
+ * Sync the item's 1-per-item visual vector (the mirror that drives
+ * similar-images) to a cached cover image. DB-side copy so the pgvector value
+ * never round-trips through JS.
+ *
+ * If the cover has an embedding, upsert it. If it doesn't (e.g. a transient
+ * Replicate failure when that image was analysed), clear any existing vector —
+ * otherwise a swap would leave the previous cover's vector in place and
+ * similar-images would keep matching the old cover.
  */
 export async function mirrorMediaEmbeddingToVisualVector({
   itemId,
@@ -325,11 +329,20 @@ export async function mirrorMediaEmbeddingToVisualVector({
   fileKey: string;
   model?: string;
 }) {
-  await db.$executeRaw`
+  const affected = await db.$executeRaw`
     INSERT INTO "item_visual_vectors" ("id", "item_id", "user_id", "model", "embedding")
     SELECT gen_random_uuid(), "item_id", "user_id", ${model}, "embedding"
     FROM "item_media_analysis"
     WHERE "item_id" = ${itemId}::uuid AND "file_key" = ${fileKey} AND "embedding" IS NOT NULL
     ON CONFLICT ("item_id", "model") DO UPDATE SET "embedding" = EXCLUDED."embedding"
   `;
+
+  // 0 rows ⇒ the selected cover has no embedding; drop any stale vector so
+  // similar-images stops matching the previously-mirrored cover.
+  if (affected === 0) {
+    await db.$executeRaw`
+      DELETE FROM "item_visual_vectors"
+      WHERE "item_id" = ${itemId}::uuid AND "model" = ${model}
+    `;
+  }
 }

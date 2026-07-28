@@ -143,4 +143,33 @@ describe("media-analysis persistence", () => {
     expect(await objectsNow()).toEqual(["chair"]);
     expect(await read.itemMediaAnalysis.count({ where: { itemId } })).toBe(2);
   });
+
+  test("swapping to a cover without an embedding clears the stale visual vector", async () => {
+    const { read } = await import("@/lib/db");
+    const { userId, itemId } = await seedTweet();
+    const withEmbedding = `${userId}/a.jpg`;
+    const noEmbedding = `${userId}/b.jpg`;
+
+    await upsertMediaAnalysis({
+      itemId,
+      userId,
+      fileKey: withEmbedding,
+      analysis: analysis(),
+    });
+    // e.g. a transient Replicate failure left this image with no embedding
+    await upsertMediaAnalysis({
+      itemId,
+      userId,
+      fileKey: noEmbedding,
+      analysis: analysis({ embedding: null, embeddingModel: null }),
+    });
+
+    await mirrorCoverAnalysisToItem({ itemId, fileKey: withEmbedding });
+    expect(await read.itemVisualVector.count({ where: { itemId } })).toBe(1);
+
+    // Swapping to the embedding-less cover must clear the previous vector, not
+    // leave similar-images matching the old cover
+    await mirrorCoverAnalysisToItem({ itemId, fileKey: noEmbedding });
+    expect(await read.itemVisualVector.count({ where: { itemId } })).toBe(0);
+  });
 });
