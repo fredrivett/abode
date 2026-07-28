@@ -187,11 +187,7 @@ export default async function AdminUsersPage(props: {
             />
           </form>
 
-          <UsersTable
-            users={formattedUsers}
-            pagination={pagination}
-            search={search}
-          />
+          <UsersTable users={formattedUsers} pagination={pagination} />
         </div>
       </div>
     </div>

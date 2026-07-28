@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { ComponentProps } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -56,16 +57,17 @@ type Pagination = {
 type UsersTableProps = {
   users: User[];
   pagination: Pagination;
-  search: string;
 };
 
-export function UsersTable({ users, pagination, search }: UsersTableProps) {
+export function UsersTable({ users, pagination }: UsersTableProps) {
   const { page, totalPages, totalCount } = pagination;
+  const searchParams = useSearchParams();
 
+  // Preserve the current query (search, sort, dir, …) and only swap the page,
+  // so paging keeps the active search and server-side ordering.
   const buildPageUrl = (newPage: number) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
     params.set("page", newPage.toString());
-    if (search) params.set("search", search);
     return `/admin/users?${params.toString()}`;
   };
 
