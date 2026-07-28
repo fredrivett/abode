@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { UsersTable } from "./users-table";
+
+// UsersTable renders SortableTableHead, which reads the URL via next/navigation
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/admin/users",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 type UserRow = Parameters<typeof UsersTable>[0]["users"][number];
 

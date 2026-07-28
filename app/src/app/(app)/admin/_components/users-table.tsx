@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import {
   Table,
   TableBody,
@@ -59,12 +60,30 @@ export function UsersTable({ users, pagination, search }: UsersTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
-            <TableHead>Username</TableHead>
-            <TableHead className="text-right">Items</TableHead>
-            <TableHead className="text-right">Rooms</TableHead>
-            <TableHead className="text-right">Storage</TableHead>
-            <TableHead>Joined</TableHead>
+            <SortableTableHead column="user">User</SortableTableHead>
+            <SortableTableHead column="username">Username</SortableTableHead>
+            <SortableTableHead
+              column="items"
+              align="right"
+              className="text-right"
+            >
+              Items
+            </SortableTableHead>
+            <SortableTableHead
+              column="rooms"
+              align="right"
+              className="text-right"
+            >
+              Rooms
+            </SortableTableHead>
+            <SortableTableHead
+              column="storage"
+              align="right"
+              className="text-right"
+            >
+              Storage
+            </SortableTableHead>
+            <SortableTableHead column="joined">Joined</SortableTableHead>
             <TableHead>Last active</TableHead>
             <TableHead>Last item added</TableHead>
           </TableRow>

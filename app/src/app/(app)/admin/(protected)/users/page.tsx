@@ -1,8 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
 import db from "@/lib/db";
+import { parseSortParams, type SortState } from "@/lib/table-sort";
 import { UsersTable } from "../../_components/users-table";
 
 const PAGE_SIZE = 20;
@@ -11,7 +13,45 @@ export const metadata = {
   title: "Users | Admin | abode",
 };
 
-type SearchParams = Promise<{ page?: string; search?: string }>;
+// Columns the DB can order by directly; the derived "last active" / "last item
+// added" columns are aggregates computed per page and aren't sortable here.
+const USER_SORT_COLUMNS = [
+  "user",
+  "username",
+  "items",
+  "rooms",
+  "storage",
+  "joined",
+] as const;
+
+function buildUserOrderBy(
+  sort: SortState,
+): Prisma.UserOrderByWithRelationInput {
+  const direction = sort.direction;
+  switch (sort.column) {
+    case "user":
+      return { firstName: { sort: direction, nulls: "last" } };
+    case "username":
+      return { username: { sort: direction, nulls: "last" } };
+    case "items":
+      return { items: { _count: direction } };
+    case "rooms":
+      return { rooms: { _count: direction } };
+    case "storage":
+      return { storageUsedBytes: direction };
+    case "joined":
+      return { createdAt: direction };
+    default:
+      return { createdAt: "desc" };
+  }
+}
+
+type SearchParams = Promise<{
+  page?: string;
+  search?: string;
+  sort?: string;
+  dir?: string;
+}>;
 
 export default async function AdminUsersPage(props: {
   searchParams: SearchParams;
@@ -19,6 +59,10 @@ export default async function AdminUsersPage(props: {
   const searchParams = await props.searchParams;
   const page = Math.max(1, parseInt(searchParams.page || "1", 10));
   const search = searchParams.search?.trim() || "";
+  const sort = parseSortParams(
+    { sort: searchParams.sort, dir: searchParams.dir },
+    USER_SORT_COLUMNS,
+  );
 
   // Build where clause
   const where = search
@@ -55,7 +99,7 @@ export default async function AdminUsersPage(props: {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: buildUserOrderBy(sort),
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
   });
