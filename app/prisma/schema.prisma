@@ -53,6 +53,7 @@ model User {
   activityLogs      ActivityLog[]
   milestones        UserMilestone[]
   noteDraft         NoteDraft?
+  usageDaily        UsageDaily[]
 
   @@map("users")
 }
@@ -613,4 +614,28 @@ model WaitlistEntry {
 
   @@index([createdAt])
   @@map("waitlist_entries")
+}
+
+// ============================================================================
+// Usage limits (durable per-user daily AI/spend rollup)
+// ============================================================================
+
+// Compact daily rollup used to bound how much a single account can spend on
+// paid AI/Mapbox calls per day (see plan-user-daily-limits.md). Grows slowly
+// (≤ a handful of rows per user per day); the hot-path check is a single PK
+// upsert. `count` gates user actions per bucket; `costUsd` accrues the true
+// downstream $ at the recordAiUsage seam as a secondary backstop.
+model UsageDaily {
+  userId    String   @map("user_id") @db.Uuid
+  day       DateTime @db.Date // UTC day
+  bucket    String // "ingestion" | "reanalysis" | "location" | "search" | "emoji"
+  count     Int      @default(0) // user-initiated actions in this bucket today
+  costUsd   Decimal  @default(0) @db.Decimal(10, 4) @map("cost_usd") // downstream paid $ accrued
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day, bucket])
+  @@index([day]) // admin roll-ups + retention pruning
+  @@map("usage_daily")
 }
