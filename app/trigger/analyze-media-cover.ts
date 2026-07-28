@@ -7,6 +7,7 @@ import {
   mirrorCoverAnalysisToItem,
   upsertMediaAnalysis,
 } from "../src/lib/items/media-analysis";
+import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { captureServerException } from "../src/lib/posthog-server";
 import {
   formatStorageError,
@@ -28,14 +29,16 @@ type AnalyzeMediaCoverPayload = {
 
 /**
  * Analyse one media image (a multi-image item's cover) into the per-image cache
- * (item_media_analysis), then mirror it into the 1-per-item surfaces that drive
- * search + similar-images, and re-enrich so tags + the text embedding follow the
- * cover. Idempotent + cache-aware: an already-analysed image (e.g. a cover the
- * user swaps back to) skips vision entirely and just re-mirrors.
+ * (item_media_analysis), mirror it into the 1-per-item surfaces that drive
+ * search + similar-images, and enrich so tags + the text embedding follow the
+ * cover (blended with the item's own text). Idempotent + cache-aware: an
+ * already-analysed image (e.g. a cover the user swaps back to) skips vision and
+ * just re-mirrors.
  *
- * A refinement, not the item's primary processing — the caller has already
- * enriched the item from its own text, so a failure here degrades cleanly
- * (retries; never touches processingStatus).
+ * For a tweet captured with a cover this is the sole enrichment (no racing
+ * text-only enrich); for a cover swap it re-runs against the already-completed
+ * item. On failure it only marks a not-yet-completed item failed, so a swap or
+ * backfill can't regress a completed item.
  */
 export const analyzeMediaCoverTask = task({
   id: "analyze-media-cover",
@@ -46,13 +49,20 @@ export const analyzeMediaCoverTask = task({
     try {
       return await analyseCover(payload);
     } catch (error) {
-      // A cover-analysis failure must not fail item capture (the item is already
-      // enriched from its own text). Report and rethrow so Trigger retries;
-      // never touch processingStatus.
       captureServerException(error, userId, {
         task: "analyze-media-cover",
         itemId,
         fileKey,
+      });
+      // Reflect the failure only if the item hasn't already completed: at
+      // capture this is the primary enrichment (mark failed, like analyze-image),
+      // but a swap/backfill refinement must not regress a completed item.
+      await db.item.updateMany({
+        where: { id: itemId, userId, processingStatus: { not: "completed" } },
+        data: {
+          processingStatus: "failed",
+          processingError: classifyFailureReason(error),
+        },
       });
       throw error;
     }
@@ -111,6 +121,23 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
       itemId,
       fileKey,
     });
+  }
+
+  // Staleness guard: if the cover was swapped since this job was queued, skip
+  // mirroring/enriching so a stale job can't clobber the current cover's
+  // search + similar-images. The cache write above is still valid (keyed by
+  // fileKey) and speeds up a later swap back to this image.
+  const item = await db.item.findFirst({
+    where: { id: itemId, userId },
+    select: { coverFileKey: true },
+  });
+  if (item?.coverFileKey !== fileKey) {
+    logger.log("Cover changed since queued — skipping stale mirror/enrich", {
+      itemId,
+      fileKey,
+      currentCover: item?.coverFileKey ?? null,
+    });
+    return { success: true, itemId, fileKey, skipped: "stale-cover" };
   }
 
   // Mirror the cover's analysis into the item-level search/similar surfaces

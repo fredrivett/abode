@@ -443,20 +443,13 @@ export async function handleTwitterUrl(
 
   logger.log("Twitter item saved", { itemId, tweetId });
 
-  // Trigger enrichment (tags, text embedding, room sync). This completes the
-  // item from the tweet text alone; cover analysis (below) refines it.
-  logger.log("Triggering item enrichment", { itemId, userId });
-  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
-    itemId,
-    userId,
-    sourceText: details.text ?? undefined,
-  });
-
-  // Analyse the cover image (objects/OCR/colours/embedding) into the per-image
-  // cache and mirror it to the item-level search/similar surfaces. Best-effort
-  // refinement — a failure here never fails the (already-enriched) tweet.
+  // Enrichment (tags, text embedding, room sync). A tweet with a re-hosted
+  // cover is enriched by analyze-media-cover as a single job that blends the
+  // cover's objects/OCR with the tweet text — so we don't queue a second,
+  // text-only enrich here that would race it. A cover-less tweet enriches from
+  // its text directly.
   if (rehosted.coverFileKey) {
-    logger.log("Triggering cover image analysis", {
+    logger.log("Triggering cover image analysis + enrichment", {
       itemId,
       fileKey: rehosted.coverFileKey,
     });
@@ -465,6 +458,13 @@ export async function handleTwitterUrl(
       userId,
       fileKey: rehosted.coverFileKey,
       extraSourceText: details.text ?? undefined,
+    });
+  } else {
+    logger.log("Triggering item enrichment", { itemId, userId });
+    await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+      itemId,
+      userId,
+      sourceText: details.text ?? undefined,
     });
   }
 
