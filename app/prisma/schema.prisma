@@ -630,7 +630,7 @@ model UsageDaily {
   day       DateTime @db.Date // UTC day
   bucket    String // "ingestion" | "reanalysis" | "location" | "search" | "emoji"
   count     Int      @default(0) // user-initiated actions in this bucket today
-  costUsd   Decimal  @default(0) @db.Decimal(10, 4) @map("cost_usd") // downstream paid $ accrued
+  costUsd   Decimal  @default(0) @db.Decimal(12, 8) @map("cost_usd") // downstream paid $ accrued (8dp retains sub-cent AI costs, e.g. a ~$0.00002 embedding)
   updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

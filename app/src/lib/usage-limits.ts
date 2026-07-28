@@ -165,16 +165,25 @@ export async function guardDailyLimit(
       { userId, bucket, count: check.count, limit: check.limit },
       "Daily usage limit would block (shadow mode — not enforced)",
     );
-    getPostHogClient()?.capture({
-      distinctId: userId,
-      event: "usage_limit_would_block",
-      properties: {
-        userId,
-        bucket,
-        count: check.count,
-        limit: check.limit,
-      },
-    });
+    // Best-effort: a throwing/unavailable PostHog client must NOT turn a
+    // shadow-mode (would-allow) request into a 500. Never rethrow.
+    try {
+      getPostHogClient()?.capture({
+        distinctId: userId,
+        event: "usage_limit_would_block",
+        properties: {
+          userId,
+          bucket,
+          count: check.count,
+          limit: check.limit,
+        },
+      });
+    } catch (error) {
+      log.warn(
+        { error, userId, bucket },
+        "Failed to emit usage_limit_would_block",
+      );
+    }
   }
 
   return { ok: true, action, check };

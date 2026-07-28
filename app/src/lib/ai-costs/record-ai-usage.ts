@@ -113,6 +113,14 @@ export function recordAiUsage(params: RecordAiUsageParams): void {
       );
     }
 
+    // Accrue the paid $ onto the durable daily rollup (secondary spend backstop)
+    // BEFORE the analytics capture, so a throwing PostHog client can't skip the
+    // durable write. Best-effort and fire-and-forget — accrueUsageCost never throws.
+    if (costUsd !== null && costUsd > 0) {
+      const bucket = source === "search" ? "search" : "ingestion";
+      void accrueUsageCost(userId, bucket, costUsd);
+    }
+
     getPostHogClient()?.capture({
       distinctId: userId,
       event: "ai_usage",
@@ -130,13 +138,6 @@ export function recordAiUsage(params: RecordAiUsageParams): void {
         source,
       },
     });
-
-    // Accrue the paid $ onto the durable daily rollup (secondary spend
-    // backstop). Best-effort and fire-and-forget — accrueUsageCost never throws.
-    if (costUsd !== null && costUsd > 0) {
-      const bucket = source === "search" ? "search" : "ingestion";
-      void accrueUsageCost(userId, bucket, costUsd);
-    }
   } catch (error) {
     // Recording is best-effort — report and continue, never fail the caller.
     log.warn({ error }, "Failed to record AI usage");

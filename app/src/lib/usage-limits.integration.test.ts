@@ -6,11 +6,22 @@ import {
   assertUserDailyBudget,
   assertWithinDailyLimit,
   DAILY_LIMITS,
+  guardDailyLimit,
 } from "@/lib/usage-limits";
+
+// getPostHogClient is mocked so the shadow-mode isolation test can make capture
+// throw. Defaults to null (no-op), matching an unconfigured PostHog.
+const { getPostHogClient } = vi.hoisted(() => ({ getPostHogClient: vi.fn() }));
+vi.mock("@/lib/posthog-server", () => ({
+  getPostHogClient: () => getPostHogClient(),
+  captureServerException: vi.fn(),
+}));
 
 describe("usage-limits integration", () => {
   beforeEach(async () => {
     await resetTestDatabase();
+    getPostHogClient.mockReset();
+    getPostHogClient.mockReturnValue(null);
   });
 
   const createUser = async (email = "usage@example.com") => {
@@ -171,5 +182,39 @@ describe("usage-limits integration", () => {
     const budget = await assertUserDailyBudget(user.id);
     expect(budget.spentUsd).toBe(0);
     expect(budget.underBudget).toBe(true);
+  });
+
+  test("accrueUsageCost retains sub-cent costs (no rounding to zero)", async () => {
+    const user = await createUser();
+    // A ~1k-token embedding costs ~$0.00002 — below DECIMAL(10,4)'s resolution.
+    await accrueUsageCost(user.id, "ingestion", 0.00002);
+    const row = await rowFor(user.id, "ingestion");
+    expect(Number(row?.cost_usd)).toBeCloseTo(0.00002, 8);
+  });
+
+  test("shadow mode never blocks even if analytics capture throws", async () => {
+    const user = await createUser();
+    const { write } = await import("@/lib/db");
+    // Seed the bucket already at its limit so the next guard call is over it.
+    await write.$executeRaw`
+      INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+      VALUES (
+        ${user.id}::uuid,
+        (now() AT TIME ZONE 'utc')::date,
+        'reanalysis',
+        ${DAILY_LIMITS.reanalysis},
+        now()
+      )
+    `;
+    getPostHogClient.mockReturnValueOnce({
+      capture: () => {
+        throw new Error("posthog down");
+      },
+    });
+
+    const result = await guardDailyLimit(user.id, "reanalysis");
+
+    expect(result.action).toBe("shadow"); // over limit, not enforced
+    expect(result.ok).toBe(true); // shadow mode must not block the request
   });
 });
