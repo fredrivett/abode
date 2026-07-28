@@ -246,3 +246,43 @@ jobs:
         run: supabase db push --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  trigger-deploy:
+    name: Deploy Trigger.dev tasks
+    runs-on: ubuntu-latest
+    # Only on merge to main, and only after checks pass and migrations are
+    # applied — tasks share the app's Prisma DB, so the schema goes first. This
+    # keeps the task worker in lockstep with the app instead of drifting until
+    # someone remembers to deploy manually.
+    needs: [lint, typecheck, test, build, supabase-migrate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: ./app
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.5"
+
+      - name: Cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('app/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bun run prisma:generate
+
+      - name: Deploy tasks to Trigger.dev
+        # Keep the CLI version in sync with @trigger.dev/sdk in app/package.json.
+        # Project ref is read from app/trigger.config.ts; deploys to prod.
+        run: bunx trigger.dev@4.5.4 deploy
+        env:
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
