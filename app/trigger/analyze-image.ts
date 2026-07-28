@@ -283,15 +283,28 @@ export const analyzeImageTask = task({
 
       // Step 4: Persist the CLIP visual embedding if one was produced
       // (analyzeImageBytes returns null when Replicate is unconfigured/errored).
+      // The embedding is an optional enhancement, so persisting it must not fail
+      // item processing — a write error is logged/reported and swallowed.
       let visualVectorId: string | null = null;
       if (analysis.embedding) {
-        visualVectorId = await upsertVisualVector({
-          itemId,
-          userId,
-          model: analysis.embeddingModel ?? VISUAL_EMBEDDING_MODEL,
-          embedding: analysis.embedding,
-        });
-        logger.log("Visual embedding stored", { itemId, visualVectorId });
+        try {
+          visualVectorId = await upsertVisualVector({
+            itemId,
+            userId,
+            model: analysis.embeddingModel ?? VISUAL_EMBEDDING_MODEL,
+            embedding: analysis.embedding,
+          });
+          logger.log("Visual embedding stored", { itemId, visualVectorId });
+        } catch (error) {
+          logger.warn("Visual embedding persistence skipped (write error)", {
+            itemId,
+            error,
+          });
+          captureServerException(error, userId, {
+            source: "analyze-image:visual-embedding",
+            itemId,
+          });
+        }
       }
 
       logger.log("Image analysis complete", { itemId });
