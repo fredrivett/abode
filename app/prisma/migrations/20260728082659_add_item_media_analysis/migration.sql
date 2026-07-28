@@ -31,3 +31,8 @@ ALTER TABLE "item_media_analysis" ADD CONSTRAINT "item_media_analysis_item_id_fk
 
 -- AddForeignKey
 ALTER TABLE "item_media_analysis" ADD CONSTRAINT "item_media_analysis_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Enable Row Level Security (default-deny) on item_media_analysis, matching every
+-- other app table. Accessed only server-side via Prisma (owner role, which
+-- bypasses RLS); the anon/authenticated Supabase roles get no access.
+ALTER TABLE "item_media_analysis" ENABLE ROW LEVEL SECURITY;
