@@ -9,6 +9,9 @@ import {
   shouldCompleteSeeAiAnalysis,
 } from "@/lib/milestones/conditions";
 import { createClient } from "@/lib/supabase/server";
+import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
+import type { TwitterMedia } from "@/lib/types/item";
+import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
 import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to-rooms";
 
 const log = createLogger("api/v1/items/[id]");
@@ -440,12 +443,40 @@ export async function PATCH(
       });
     }
 
-    // Update twitter cover media index if provided
+    // Update twitter cover media index, re-point coverFileKey to the selected
+    // image, and (re)analyse it so search + similar-images follow the chosen
+    // cover (analyze-media-cover re-mirrors from cache if already analysed).
     if (twitterCoverMediaIndex !== undefined) {
       await db.itemTwitterDetails.updateMany({
         where: { itemId: id },
         data: { coverMediaIndex: twitterCoverMediaIndex },
       });
+
+      const details = await db.itemTwitterDetails.findFirst({
+        where: { itemId: id },
+        select: { media: true, text: true },
+      });
+      const media = details?.media as TwitterMedia[] | null;
+      const newCoverFileKey = resolveTweetCoverFileKey(
+        media,
+        twitterCoverMediaIndex,
+      );
+
+      if (newCoverFileKey) {
+        await db.item.update({
+          where: { id },
+          data: { coverFileKey: newCoverFileKey },
+        });
+        await tasks.trigger<typeof analyzeMediaCoverTask>(
+          "analyze-media-cover",
+          {
+            itemId: id,
+            userId: user.id,
+            fileKey: newCoverFileKey,
+            extraSourceText: details?.text ?? undefined,
+          },
+        );
+      }
     }
 
     // Update product cover image index and sync coverFileKey
