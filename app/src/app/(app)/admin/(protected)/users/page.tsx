@@ -24,8 +24,10 @@ const USER_SORT_COLUMNS = [
   "joined",
 ] as const;
 
+type UserSortColumn = (typeof USER_SORT_COLUMNS)[number];
+
 function buildUserOrderBy(
-  sort: SortState,
+  sort: SortState<UserSortColumn>,
 ): Prisma.UserOrderByWithRelationInput {
   const direction = sort.direction;
   switch (sort.column) {
@@ -41,8 +43,14 @@ function buildUserOrderBy(
       return { storageUsedBytes: direction };
     case "joined":
       return { createdAt: direction };
-    default:
+    case null:
       return { createdAt: "desc" };
+    default: {
+      // Exhaustiveness guard: a new USER_SORT_COLUMNS entry without a case here
+      // is a compile error, keeping the allowlist and this mapping in sync.
+      const _exhaustive: never = sort.column;
+      return _exhaustive;
+    }
   }
 }
 

@@ -1,8 +1,8 @@
 export type SortDirection = "asc" | "desc";
 
-export type SortState = {
+export type SortState<TColumn extends string = string> = {
   /** Active sort column key, or null when unsorted */
-  column: string | null;
+  column: TColumn | null;
   direction: SortDirection;
 };
 
@@ -10,13 +10,19 @@ export type SortState = {
  * Parse `sort` / `dir` query params into a validated {@link SortState}. Any
  * column not in `allowedColumns` is ignored (guards against arbitrary values
  * reaching a query's `orderBy`). Direction defaults to `asc`.
+ *
+ * The `column` is typed to the `allowedColumns` union, so a caller passing a
+ * `readonly [...] as const` list gets a narrowed `SortState` it can hand to an
+ * exhaustive `orderBy` mapping — keeping the allowlist and the mapping in sync.
  */
-export function parseSortParams(
+export function parseSortParams<TColumn extends string>(
   params: { sort?: string | null; dir?: string | null },
-  allowedColumns: readonly string[],
-): SortState {
+  allowedColumns: readonly TColumn[],
+): SortState<TColumn> {
   const column =
-    params.sort && allowedColumns.includes(params.sort) ? params.sort : null;
+    params.sort && (allowedColumns as readonly string[]).includes(params.sort)
+      ? (params.sort as TColumn)
+      : null;
   const direction: SortDirection = params.dir === "desc" ? "desc" : "asc";
   return { column, direction };
 }
