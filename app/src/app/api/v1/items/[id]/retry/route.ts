@@ -26,18 +26,6 @@ export async function POST(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Retry re-runs the full paid pipeline; cap it (keyed by the caller).
-    const guard = await guardDailyLimit(user.id, "reanalysis");
-    if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
-    }
-
     const isAdmin = await hasFullAdminAccess(supabase);
 
     // Admins can retry any item; other users can only retry their own.
@@ -58,15 +46,22 @@ export async function POST(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
-    // Non-admins can only retry failed items; admins can re-trigger any item.
-    if (!isAdmin && item.processingStatus !== "failed") {
-      return NextResponse.json(
-        { message: "Only failed items can be retried" },
-        { status: 400 },
-      );
+    if (!isAdmin) {
+      if (item.processingStatus === "completed") {
+        return NextResponse.json({
+          success: true,
+          message: "Item already processed",
+          processingStatus: item.processingStatus,
+        });
+      }
+      if (item.processingStatus !== "failed") {
+        return NextResponse.json(
+          { message: "Item is still processing" },
+          { status: 400 },
+        );
+      }
     }
 
-    // Check if this item type can be retried before updating status
     const canRetry =
       (item.sourceType === "url" && item.sourceUrl) ||
       (item.kind === "image" && item.fileKey);
@@ -82,14 +77,23 @@ export async function POST(
       );
     }
 
-    // Set status back to processing and clear any prior failure reason
+    const guard = await guardDailyLimit(user.id, "reanalysis");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
+    }
+
+    const previousStatus = item.processingStatus;
     await db.item.update({
       where: { id },
       data: { processingStatus: "processing", processingError: null },
     });
 
-    // Trigger the appropriate task using the item owner's userId
-    // (admins can retry on behalf of other users).
     try {
       if (item.sourceType === "url" && item.sourceUrl) {
         // URL items need to be re-classified (could be image or article)
@@ -97,29 +101,37 @@ export async function POST(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
         );
-        await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-          itemId: id,
-          userId: item.userId,
-          url: item.sourceUrl,
-        });
+        await tasks.trigger<typeof classifyUrlTask>(
+          "classify-url",
+          {
+            itemId: id,
+            userId: item.userId,
+            url: item.sourceUrl,
+          },
+          { concurrencyKey: item.userId },
+        );
       } else if (item.kind === "image" && item.fileKey) {
         // Direct image upload - run image analysis
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying image analysis",
         );
-        await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-          itemId: id,
-          userId: item.userId,
-          fileKey: item.fileKey,
-        });
+        await tasks.trigger<typeof analyzeImageTask>(
+          "analyze-image",
+          {
+            itemId: id,
+            userId: item.userId,
+            fileKey: item.fileKey,
+          },
+          { concurrencyKey: item.userId },
+        );
       }
     } catch (triggerError) {
       log.error({ triggerError, itemId: id }, "Failed to trigger retry task");
-      // Revert status so the user can try again
+      // Restore the prior status so the item isn't stuck "processing".
       await db.item.update({
         where: { id },
-        data: { processingStatus: "failed" },
+        data: { processingStatus: previousStatus },
       });
       return NextResponse.json(
         { message: "Failed to initiate retry" },
