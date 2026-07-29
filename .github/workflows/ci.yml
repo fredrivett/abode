@@ -281,8 +281,13 @@ jobs:
         run: bun run prisma:generate
 
       - name: Deploy tasks to Trigger.dev
-        # Keep the CLI version in sync with @trigger.dev/sdk in app/package.json.
+        # Pin the CLI to the installed @trigger.dev/sdk version — the CLI aborts
+        # in CI if the installed packages are newer than it. Reading the resolved
+        # version keeps them in lockstep across dependency bumps automatically.
         # Project ref is read from app/trigger.config.ts; deploys to prod.
-        run: bunx trigger.dev@4.5.4 deploy
+        run: |
+          VERSION=$(jq -r .version node_modules/@trigger.dev/sdk/package.json)
+          echo "Deploying with Trigger.dev CLI v${VERSION}"
+          bunx "trigger.dev@${VERSION}" deploy
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
