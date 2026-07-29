@@ -34,6 +34,7 @@ export const reprocessImagesTask = task({
 
     const batchItems: {
       payload: { itemId: string; userId: string; fileKey: string };
+      options: { concurrencyKey: string };
     }[] = [];
     let skipped = 0;
 
@@ -52,6 +53,7 @@ export const reprocessImagesTask = task({
           userId: item.userId,
           fileKey: item.fileKey,
         },
+        options: { concurrencyKey: item.userId },
       });
     }
 

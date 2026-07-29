@@ -79,11 +79,15 @@ export async function createItemFromUrl({
 
   // A queueing hiccup must not fail the save; the item is already persisted.
   try {
-    await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-      itemId: item.id,
-      userId,
-      url: parsedUrl.href,
-    });
+    await tasks.trigger<typeof classifyUrlTask>(
+      "classify-url",
+      {
+        itemId: item.id,
+        userId,
+        url: parsedUrl.href,
+      },
+      { concurrencyKey: userId },
+    );
   } catch (error) {
     // Mark failed so the UI surfaces a Retry instead of spinning forever.
     // Best-effort: the item is already persisted, so a failure here must not

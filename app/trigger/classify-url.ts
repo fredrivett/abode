@@ -262,6 +262,8 @@ function extractReadableContent(
 
 export const classifyUrlTask = task({
   id: "classify-url",
+  retry: { maxAttempts: 2 },
+  queue: { concurrencyLimit: 3 },
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
   run: async (payload: ClassifyUrlPayload) => {
     const { itemId, userId, url, forcedKind } = payload;
@@ -709,12 +711,15 @@ async function handleImageUrl(
   // Delete the previous blobs now the new image is committed
   await deleteReplacedFiles(supabase, replacedFileKeys, [imageResult.fileKey]);
 
-  // Trigger image analysis
-  await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-    itemId,
-    userId,
-    fileKey: imageResult.fileKey,
-  });
+  await tasks.trigger<typeof analyzeImageTask>(
+    "analyze-image",
+    {
+      itemId,
+      userId,
+      fileKey: imageResult.fileKey,
+    },
+    { concurrencyKey: userId },
+  );
 
   logger.log("Image URL processing complete, analysis triggered", { itemId });
 
@@ -845,11 +850,15 @@ async function handleBookUrl(
 
   // Trigger image analysis on cover for visual tagging and search
   if (coverResult) {
-    await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-      itemId,
-      userId,
-      fileKey: coverResult.fileKey,
-    });
+    await tasks.trigger<typeof analyzeImageTask>(
+      "analyze-image",
+      {
+        itemId,
+        userId,
+        fileKey: coverResult.fileKey,
+      },
+      { concurrencyKey: userId },
+    );
   }
 
   return {
@@ -1092,11 +1101,15 @@ async function handleProductUrl(
 
   // Trigger image analysis on cover image for visual tagging and search
   if (coverFileKey) {
-    await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-      itemId,
-      userId,
-      fileKey: coverFileKey,
-    });
+    await tasks.trigger<typeof analyzeImageTask>(
+      "analyze-image",
+      {
+        itemId,
+        userId,
+        fileKey: coverFileKey,
+      },
+      { concurrencyKey: userId },
+    );
   }
 
   return {

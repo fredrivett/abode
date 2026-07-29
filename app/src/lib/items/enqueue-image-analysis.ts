@@ -21,7 +21,9 @@ export async function enqueueImageAnalysis(params: {
   fileKey: string;
 }): Promise<void> {
   try {
-    await tasks.trigger<typeof analyzeImageTask>("analyze-image", params);
+    await tasks.trigger<typeof analyzeImageTask>("analyze-image", params, {
+      concurrencyKey: params.userId,
+    });
   } catch (error) {
     log.error(
       { error, itemId: params.itemId },
