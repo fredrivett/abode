@@ -2,11 +2,16 @@ import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
+import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
-import { guardDailyLimit } from "@/lib/usage-limits";
+import {
+  guardDailyLimit,
+  isSameUtcDay,
+  secondsUntilUtcMidnight,
+} from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/reassign");
 
@@ -33,18 +38,6 @@ export async function POST(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Reassignment re-runs the full paid classify → enrich pipeline; cap it.
-    const guard = await guardDailyLimit(user.id, "reanalysis");
-    if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
-    }
-
     const body = await request.json();
     const { kind } = body;
 
@@ -64,6 +57,7 @@ export async function POST(
         processingStatus: true,
         sourceType: true,
         sourceUrl: true,
+        lastReassignedAt: true,
       },
     });
 
@@ -87,21 +81,53 @@ export async function POST(
       );
     }
 
+    const isAdmin = await hasFullAdminAccess(supabase);
+
+    if (
+      !isAdmin &&
+      item.lastReassignedAt &&
+      isSameUtcDay(item.lastReassignedAt)
+    ) {
+      return NextResponse.json(
+        { message: "You can only change an item's type once per day" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(secondsUntilUtcMidnight()) },
+        },
+      );
+    }
+
+    const guard = await guardDailyLimit(user.id, "reanalysis");
+    if (!guard.ok) {
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
+    }
+
     const previousStatus = item.processingStatus;
+    const previousLastReassignedAt = item.lastReassignedAt;
 
     // Reflect the pending re-analysis immediately.
     await db.item.update({
       where: { id },
-      data: { processingStatus: "processing" },
+      data: { processingStatus: "processing", lastReassignedAt: new Date() },
     });
 
     try {
-      await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-        itemId: id,
-        userId: item.userId,
-        url: item.sourceUrl,
-        forcedKind: kind,
-      });
+      await tasks.trigger<typeof classifyUrlTask>(
+        "classify-url",
+        {
+          itemId: id,
+          userId: item.userId,
+          url: item.sourceUrl,
+          forcedKind: kind,
+        },
+        { concurrencyKey: item.userId },
+      );
     } catch (triggerError) {
       log.error(
         { triggerError, itemId: id },
@@ -110,7 +136,10 @@ export async function POST(
       // Restore the prior status so the item isn't stuck "processing".
       await db.item.update({
         where: { id },
-        data: { processingStatus: previousStatus },
+        data: {
+          processingStatus: previousStatus,
+          lastReassignedAt: previousLastReassignedAt,
+        },
       });
       return NextResponse.json(
         { message: "Failed to initiate reassignment" },

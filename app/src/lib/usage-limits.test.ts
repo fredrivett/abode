@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DAILY_LIMITS,
+  isSameUtcDay,
   isUsageLimitsEnforced,
   PER_USER_DAILY_USD,
   resolveGuardAction,
@@ -44,6 +45,35 @@ describe("secondsUntilUtcMidnight", () => {
     expect(secondsUntilUtcMidnight(new Date("2026-07-27T23:59:59.999Z"))).toBe(
       1,
     );
+  });
+});
+
+describe("isSameUtcDay", () => {
+  it("is true for two instants on the same UTC calendar day", () => {
+    expect(
+      isSameUtcDay(
+        new Date("2026-07-27T00:00:00.000Z"),
+        new Date("2026-07-27T23:59:59.999Z"),
+      ),
+    ).toBe(true);
+  });
+
+  it("is false once the UTC day rolls over, even minutes apart", () => {
+    expect(
+      isSameUtcDay(
+        new Date("2026-07-27T23:59:00.000Z"),
+        new Date("2026-07-28T00:01:00.000Z"),
+      ),
+    ).toBe(false);
+  });
+
+  it("compares in UTC, not local time", () => {
+    expect(
+      isSameUtcDay(
+        new Date("2026-07-27T23:30:00.000Z"),
+        new Date("2026-07-28T00:30:00.000Z"),
+      ),
+    ).toBe(false);
   });
 });
 

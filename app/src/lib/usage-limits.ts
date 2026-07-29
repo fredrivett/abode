@@ -82,6 +82,19 @@ export function secondsUntilUtcMidnight(now: Date = new Date()): number {
 }
 
 /**
+ * Whether `date` falls on the same UTC calendar day as `now`. Used to gate
+ * once-per-UTC-day per-item actions (e.g. reassign) so their window resets at
+ * the same midnight the daily counters do.
+ */
+export function isSameUtcDay(date: Date, now: Date = new Date()): boolean {
+  return (
+    date.getUTCFullYear() === now.getUTCFullYear() &&
+    date.getUTCMonth() === now.getUTCMonth() &&
+    date.getUTCDate() === now.getUTCDate()
+  );
+}
+
+/**
  * Atomically record one action in `(user, today, bucket)` and report whether
  * it's within the limit.
  *

@@ -7,6 +7,7 @@ const {
   mockTrigger,
   mockLogActivity,
   mockGuard,
+  mockHasFullAdminAccess,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
@@ -14,13 +15,21 @@ const {
   mockTrigger: vi.fn(),
   mockLogActivity: vi.fn(),
   mockGuard: vi.fn(),
+  mockHasFullAdminAccess: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
 }));
 
-vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
+vi.mock("@/lib/admin/auth", () => ({
+  hasFullAdminAccess: mockHasFullAdminAccess,
+}));
+
+vi.mock("@/lib/usage-limits", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/usage-limits")>();
+  return { ...actual, guardDailyLimit: mockGuard };
+});
 
 vi.mock("@/lib/db", () => ({
   default: {
@@ -61,6 +70,7 @@ const webpageItem = {
   processingStatus: "completed" as const,
   sourceType: "url" as const,
   sourceUrl: "https://example.com/x",
+  lastReassignedAt: null as Date | null,
 };
 
 beforeEach(() => {
@@ -72,6 +82,7 @@ beforeEach(() => {
   mockItemFindUnique.mockResolvedValue(webpageItem);
   mockItemUpdate.mockResolvedValue({});
   mockTrigger.mockResolvedValue({ id: "run_1" });
+  mockHasFullAdminAccess.mockResolvedValue(false);
   // Default: within the daily limit — proceed.
   mockGuard.mockResolvedValue({
     ok: true,
@@ -141,27 +152,32 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const json = await res.json();
     expect(json.processingStatus).toBe("processing");
 
-    // Marks processing, then enqueues classify-url with the forced kind
     expect(mockItemUpdate).toHaveBeenCalledWith({
       where: { id: ITEM_ID },
-      data: { processingStatus: "processing" },
+      data: {
+        processingStatus: "processing",
+        lastReassignedAt: expect.any(Date),
+      },
     });
-    expect(mockTrigger).toHaveBeenCalledWith("classify-url", {
-      itemId: ITEM_ID,
-      userId: "user_1",
-      url: "https://example.com/x",
-      forcedKind: "article",
-    });
+    expect(mockTrigger).toHaveBeenCalledWith(
+      "classify-url",
+      {
+        itemId: ITEM_ID,
+        userId: "user_1",
+        url: "https://example.com/x",
+        forcedKind: "article",
+      },
+      { concurrencyKey: "user_1" },
+    );
   });
 
-  it("restores the prior status and returns 500 when the enqueue throws", async () => {
+  it("restores the prior status and cap timestamp, returns 500 when enqueue throws", async () => {
     mockTrigger.mockRejectedValue(new Error("no trigger key"));
     const res = await call({ kind: "article" });
     expect(res.status).toBe(500);
-    // First update sets processing, second restores the original status
     expect(mockItemUpdate).toHaveBeenLastCalledWith({
       where: { id: ITEM_ID },
-      data: { processingStatus: "completed" },
+      data: { processingStatus: "completed", lastReassignedAt: null },
     });
   });
 
@@ -185,8 +201,7 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("3600");
-    // Blocked before touching the item or enqueuing the paid pipeline.
-    expect(mockItemFindUnique).not.toHaveBeenCalled();
+    expect(mockItemUpdate).not.toHaveBeenCalled();
     expect(mockTrigger).not.toHaveBeenCalled();
   });
 
@@ -206,5 +221,41 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(200);
     expect(mockTrigger).toHaveBeenCalledOnce();
+  });
+
+  describe("per-item once-per-UTC-day cap", () => {
+    it("rejects a non-admin's second reassign the same UTC day (429) before the guard", async () => {
+      mockItemFindUnique.mockResolvedValue({
+        ...webpageItem,
+        lastReassignedAt: new Date(),
+      });
+      const res = await call({ kind: "article" });
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBeTruthy();
+      expect(mockGuard).not.toHaveBeenCalled();
+      expect(mockItemUpdate).not.toHaveBeenCalled();
+      expect(mockTrigger).not.toHaveBeenCalled();
+    });
+
+    it("allows a non-admin again once the reassign was on a previous UTC day", async () => {
+      mockItemFindUnique.mockResolvedValue({
+        ...webpageItem,
+        lastReassignedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      });
+      const res = await call({ kind: "article" });
+      expect(res.status).toBe(200);
+      expect(mockTrigger).toHaveBeenCalledOnce();
+    });
+
+    it("exempts admins from the per-item cap (second same-day reassign allowed)", async () => {
+      mockHasFullAdminAccess.mockResolvedValue(true);
+      mockItemFindUnique.mockResolvedValue({
+        ...webpageItem,
+        lastReassignedAt: new Date(),
+      });
+      const res = await call({ kind: "article" });
+      expect(res.status).toBe(200);
+      expect(mockTrigger).toHaveBeenCalledOnce();
+    });
   });
 });
