@@ -255,10 +255,10 @@ function CoverImageMedia({
           )}
         >
           {isSettingCover ? (
-            <>
+            <span>
               Setting as cover
               <LoadingEllipsis />
-            </>
+            </span>
           ) : isCover ? (
             "Cover image"
           ) : (
