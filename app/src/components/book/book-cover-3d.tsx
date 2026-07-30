@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
+import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { cn } from "@/lib/utils";
 
 type BookCover3DProps = {
@@ -17,6 +19,8 @@ type BookCover3DProps = {
    * lazy image loads. Falls back to a neutral surface when absent.
    */
   coverColor?: string;
+  /** LQIP placeholder for the cover, shown blurred while the image loads. */
+  blurDataUrl?: string | null;
 };
 
 // Page fore-edge: striations under a light-to-shadow wash. Rendered on a
@@ -45,7 +49,9 @@ export function BookCover3D({
   layoutId,
   className,
   coverColor,
+  blurDataUrl,
 }: BookCover3DProps) {
+  const { loaded: coverLoaded, imgProps } = useImageLoaded();
   return (
     <motion.div
       layoutId={layoutId}
@@ -92,11 +98,18 @@ export function BookCover3D({
           >
             {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
             <img
+              {...imgProps}
               src={src}
               alt={alt}
               className="h-full w-full object-cover"
               loading="lazy"
             />
+            {blurDataUrl && (
+              <BlurPlaceholder
+                blurDataUrl={blurDataUrl}
+                visible={!coverLoaded}
+              />
+            )}
             {/* Spine hinge groove down the left edge */}
             <div
               className="absolute inset-y-0 left-0 w-full"

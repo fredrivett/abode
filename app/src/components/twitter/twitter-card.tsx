@@ -2,7 +2,9 @@
 
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
+import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -12,6 +14,8 @@ import type { TwitterDetails } from "./types";
 
 type TwitterCardProps = {
   twitterDetails: TwitterDetails;
+  /** LQIP placeholder for the cover media, shown blurred while it loads. */
+  blurDataUrl?: string | null;
   onClick: () => void;
   className?: string;
 };
@@ -24,11 +28,13 @@ type TwitterCardProps = {
  */
 export function TwitterCard({
   twitterDetails,
+  blurDataUrl,
   onClick,
   className,
 }: TwitterCardProps) {
   const { media, card } = twitterDetails;
   const autoplayAllowed = useAutoplayAllowed();
+  const { loaded: previewLoaded, imgProps } = useImageLoaded();
 
   // Get preview image: use cover media index, falling back to first item or
   // link card. Prefer our re-hosted copy, falling back to the original twimg URL.
@@ -88,10 +94,17 @@ export function TwitterCard({
           {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
           {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
+            {...imgProps}
             src={previewImage}
             className="h-full w-full object-cover"
             loading="lazy"
           />
+          {blurDataUrl && (
+            <BlurPlaceholder
+              blurDataUrl={blurDataUrl}
+              visible={!previewLoaded}
+            />
+          )}
           {/* Play indicator for videos/GIFs that aren't autoplaying */}
           {isPlayable && (
             <div className="absolute inset-0 flex items-center justify-center">
