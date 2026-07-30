@@ -90,12 +90,24 @@ function Swatches({ colors }: { colors: unknown }) {
   );
 }
 
+/** Item count for the raw-section hint: array length, or object key count. */
+function itemCount(value: unknown): number | null {
+  if (Array.isArray(value)) return value.length;
+  if (value !== null && typeof value === "object")
+    return Object.keys(value).length;
+  return null;
+}
+
 function JsonDetails({ label, value }: { label: string; value: unknown }) {
   if (value === null || value === undefined) return null;
+  const count = itemCount(value);
   return (
     <details className="text-sm">
       <summary className="cursor-pointer text-muted-foreground">
         {label}
+        {count !== null && (
+          <span className="ml-1 text-xs opacity-70">[{count}]</span>
+        )}
       </summary>
       <pre className="mt-2 max-h-80 overflow-auto rounded bg-muted p-3 text-xs">
         {JSON.stringify(value, null, 2)}
@@ -158,12 +170,29 @@ function MediaTable({ item }: { item: ItemInspection }) {
                   <tr key={r.index} className="border-border/50 border-b">
                     <td className="py-2 pr-2 align-middle">{r.index}</td>
                     <td className="py-2 pr-2 align-middle">
-                      {/* biome-ignore lint/performance/noImgElement: admin-only debug thumbnail, hotlinks public twimg */}
-                      <img
-                        src={r.url}
-                        alt=""
-                        className="size-10 rounded object-cover"
-                      />
+                      {isValidUrl(r.url) ? (
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Open image"
+                          className="inline-block transition-opacity hover:opacity-80"
+                        >
+                          {/* biome-ignore lint/performance/noImgElement: admin-only debug thumbnail, hotlinks public twimg */}
+                          <img
+                            src={r.url}
+                            alt=""
+                            className="size-10 rounded object-cover"
+                          />
+                        </a>
+                      ) : (
+                        // biome-ignore lint/performance/noImgElement: admin-only debug thumbnail, hotlinks public twimg
+                        <img
+                          src={r.url}
+                          alt=""
+                          className="size-10 rounded object-cover"
+                        />
+                      )}
                     </td>
                     <td className="py-2 pr-2 align-middle">{r.type}</td>
                     <td className="py-2 pr-2 align-middle">
@@ -305,7 +334,7 @@ export default async function AdminItemInspectorPage({
       <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <header className="flex items-center gap-4">
+        <header className="-mx-4 sticky top-16 z-40 flex items-center gap-4 border-border/60 border-b bg-background px-4 py-4">
           <Link
             href="/admin"
             className="rounded-md p-2 hover:bg-muted"
