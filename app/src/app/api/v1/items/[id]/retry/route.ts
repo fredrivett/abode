@@ -4,6 +4,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
+import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -26,18 +27,6 @@ export async function POST(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Retry re-runs the full paid pipeline; cap it (keyed by the caller).
-    const guard = await guardDailyLimit(user.id, "reanalysis");
-    if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
-    }
-
     const isAdmin = await hasFullAdminAccess(supabase);
 
     // Admins can retry any item; other users can only retry their own.
@@ -58,15 +47,22 @@ export async function POST(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
-    // Non-admins can only retry failed items; admins can re-trigger any item.
-    if (!isAdmin && item.processingStatus !== "failed") {
-      return NextResponse.json(
-        { message: "Only failed items can be retried" },
-        { status: 400 },
-      );
+    if (!isAdmin) {
+      if (item.processingStatus === "completed") {
+        return NextResponse.json({
+          success: true,
+          message: "Item already processed",
+          processingStatus: "completed",
+        });
+      }
+      if (item.processingStatus !== "failed") {
+        return NextResponse.json(
+          { message: "Item is still processing" },
+          { status: 400 },
+        );
+      }
     }
 
-    // Check if this item type can be retried before updating status
     const canRetry =
       (item.sourceType === "url" && item.sourceUrl) ||
       (item.kind === "image" && item.fileKey);
@@ -82,45 +78,74 @@ export async function POST(
       );
     }
 
-    // Set status back to processing and clear any prior failure reason
-    await db.item.update({
-      where: { id },
-      data: { processingStatus: "processing", processingError: null },
-    });
+    if (!isAdmin) {
+      const claimed = await claimFailedRetry(id, user.id);
+      if (!claimed) {
+        return NextResponse.json({
+          success: true,
+          message: "Retry already in progress",
+          processingStatus: "processing",
+        });
+      }
+    } else {
+      await db.item.update({
+        where: { id },
+        data: { processingStatus: "processing", processingError: null },
+      });
+    }
 
-    // Trigger the appropriate task using the item owner's userId
-    // (admins can retry on behalf of other users).
+    const previousStatus = item.processingStatus;
+    const revert = () =>
+      db.item.update({
+        where: { id },
+        data: { processingStatus: previousStatus },
+      });
+
+    const guard = await guardDailyLimit(user.id, "reanalysis");
+    if (!guard.ok) {
+      await revert();
+      return NextResponse.json(
+        { message: "Daily limit reached" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
+        },
+      );
+    }
+
     try {
       if (item.sourceType === "url" && item.sourceUrl) {
-        // URL items need to be re-classified (could be image or article)
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
         );
-        await tasks.trigger<typeof classifyUrlTask>("classify-url", {
-          itemId: id,
-          userId: item.userId,
-          url: item.sourceUrl,
-        });
+        await tasks.trigger<typeof classifyUrlTask>(
+          "classify-url",
+          {
+            itemId: id,
+            userId: item.userId,
+            url: item.sourceUrl,
+          },
+          { concurrencyKey: item.userId },
+        );
       } else if (item.kind === "image" && item.fileKey) {
-        // Direct image upload - run image analysis
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying image analysis",
         );
-        await tasks.trigger<typeof analyzeImageTask>("analyze-image", {
-          itemId: id,
-          userId: item.userId,
-          fileKey: item.fileKey,
-        });
+        await tasks.trigger<typeof analyzeImageTask>(
+          "analyze-image",
+          {
+            itemId: id,
+            userId: item.userId,
+            fileKey: item.fileKey,
+          },
+          { concurrencyKey: item.userId },
+        );
       }
     } catch (triggerError) {
       log.error({ triggerError, itemId: id }, "Failed to trigger retry task");
-      // Revert status so the user can try again
-      await db.item.update({
-        where: { id },
-        data: { processingStatus: "failed" },
-      });
+      await revert();
       return NextResponse.json(
         { message: "Failed to initiate retry" },
         { status: 500 },

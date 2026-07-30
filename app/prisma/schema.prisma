@@ -154,6 +154,9 @@ model Item {
   sourceType       SourceType?      @map("source_type")
   sourceUrl        String?          @map("source_url")
 
+  // Gates non-admin reassignment to once per UTC day.
+  lastReassignedAt DateTime?        @map("last_reassigned_at")
+
   // Files
   fileKey          String?          @map("file_key")
   coverFileKey     String?          @map("cover_file_key")

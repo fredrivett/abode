@@ -4,27 +4,42 @@ const {
   mockGetUser,
   mockItemFindUnique,
   mockItemUpdate,
+  mockItemUpdateMany,
   mockTrigger,
   mockLogActivity,
   mockGuard,
+  mockHasFullAdminAccess,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
   mockItemUpdate: vi.fn(),
+  mockItemUpdateMany: vi.fn(),
   mockTrigger: vi.fn(),
   mockLogActivity: vi.fn(),
   mockGuard: vi.fn(),
+  mockHasFullAdminAccess: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
 }));
 
-vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
+vi.mock("@/lib/admin/auth", () => ({
+  hasFullAdminAccess: mockHasFullAdminAccess,
+}));
+
+vi.mock("@/lib/usage-limits", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/usage-limits")>();
+  return { ...actual, guardDailyLimit: mockGuard };
+});
 
 vi.mock("@/lib/db", () => ({
   default: {
-    item: { findUnique: mockItemFindUnique, update: mockItemUpdate },
+    item: {
+      findUnique: mockItemFindUnique,
+      update: mockItemUpdate,
+      updateMany: mockItemUpdateMany,
+    },
   },
 }));
 
@@ -61,6 +76,7 @@ const webpageItem = {
   processingStatus: "completed" as const,
   sourceType: "url" as const,
   sourceUrl: "https://example.com/x",
+  lastReassignedAt: null as Date | null,
 };
 
 beforeEach(() => {
@@ -71,8 +87,10 @@ beforeEach(() => {
   });
   mockItemFindUnique.mockResolvedValue(webpageItem);
   mockItemUpdate.mockResolvedValue({});
+  // The atomic claim succeeds by default (one row updated).
+  mockItemUpdateMany.mockResolvedValue({ count: 1 });
   mockTrigger.mockResolvedValue({ id: "run_1" });
-  // Default: within the daily limit — proceed.
+  mockHasFullAdminAccess.mockResolvedValue(false);
   mockGuard.mockResolvedValue({
     ok: true,
     action: "allow",
@@ -135,42 +153,44 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     expect(res.status).toBe(400);
   });
 
-  it("triggers a forced re-classification on the happy path", async () => {
+  it("claims and triggers a forced re-classification on the happy path", async () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.processingStatus).toBe("processing");
 
-    // Marks processing, then enqueues classify-url with the forced kind
-    expect(mockItemUpdate).toHaveBeenCalledWith({
-      where: { id: ITEM_ID },
-      data: { processingStatus: "processing" },
-    });
-    expect(mockTrigger).toHaveBeenCalledWith("classify-url", {
-      itemId: ITEM_ID,
-      userId: "user_1",
-      url: "https://example.com/x",
-      forcedKind: "article",
-    });
+    expect(mockItemUpdateMany).toHaveBeenCalledTimes(1);
+    const claim = mockItemUpdateMany.mock.calls[0][0];
+    expect(claim.where.OR).toBeDefined(); // non-admin: gated per UTC day
+    expect(claim.data).toMatchObject({ processingStatus: "processing" });
+
+    expect(mockTrigger).toHaveBeenCalledWith(
+      "classify-url",
+      {
+        itemId: ITEM_ID,
+        userId: "user_1",
+        url: "https://example.com/x",
+        forcedKind: "article",
+      },
+      { concurrencyKey: "user_1" },
+    );
+    expect(mockItemUpdate).not.toHaveBeenCalled();
   });
 
-  it("restores the prior status and returns 500 when the enqueue throws", async () => {
+  it("restores the claim and returns 500 when enqueue throws", async () => {
     mockTrigger.mockRejectedValue(new Error("no trigger key"));
     const res = await call({ kind: "article" });
     expect(res.status).toBe(500);
-    // First update sets processing, second restores the original status
-    expect(mockItemUpdate).toHaveBeenLastCalledWith({
+    expect(mockItemUpdate).toHaveBeenCalledWith({
       where: { id: ITEM_ID },
-      data: { processingStatus: "completed" },
+      data: { processingStatus: "completed", lastReassignedAt: null },
     });
   });
 
-  it("counts every reassign attempt against the reanalysis bucket", async () => {
+  it("counts a claimed reassign against the reanalysis bucket", async () => {
     await call({ kind: "article" });
     expect(mockGuard).toHaveBeenCalledWith("user_1", "reanalysis");
   });
 
-  it("returns 429 with Retry-After and does no paid work when over limit + enforced", async () => {
+  it("reverts the claim and returns 429 when over the per-user limit (enforced)", async () => {
     mockGuard.mockResolvedValue({
       ok: false,
       action: "block",
@@ -185,13 +205,14 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("3600");
-    // Blocked before touching the item or enqueuing the paid pipeline.
-    expect(mockItemFindUnique).not.toHaveBeenCalled();
     expect(mockTrigger).not.toHaveBeenCalled();
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: ITEM_ID },
+      data: { processingStatus: "completed", lastReassignedAt: null },
+    });
   });
 
   it("never blocks in shadow mode even when the action is over limit", async () => {
-    // Shadow mode: over limit (allowed:false) but guard returns ok:true.
     mockGuard.mockResolvedValue({
       ok: true,
       action: "shadow",
@@ -206,5 +227,26 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(200);
     expect(mockTrigger).toHaveBeenCalledOnce();
+  });
+
+  describe("per-item once-per-UTC-day cap", () => {
+    it("returns 429 without counting or triggering when the claim is already taken", async () => {
+      mockItemUpdateMany.mockResolvedValue({ count: 0 });
+      const res = await call({ kind: "article" });
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBeTruthy();
+      expect(mockGuard).not.toHaveBeenCalled();
+      expect(mockTrigger).not.toHaveBeenCalled();
+      expect(mockItemUpdate).not.toHaveBeenCalled();
+    });
+
+    it("claims without the per-day gate for admins", async () => {
+      mockHasFullAdminAccess.mockResolvedValue(true);
+      const res = await call({ kind: "article" });
+      expect(res.status).toBe(200);
+      const claim = mockItemUpdateMany.mock.calls[0][0];
+      expect(claim.where.OR).toBeUndefined();
+      expect(claim.where).toMatchObject({ id: ITEM_ID, userId: "user_1" });
+    });
   });
 });

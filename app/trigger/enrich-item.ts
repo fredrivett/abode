@@ -22,6 +22,7 @@ type EnrichItemPayload = {
 
 export const enrichItemTask = task({
   id: "enrich-item",
+  retry: { maxAttempts: 2 },
   maxDuration: 120,
   run: async (payload: EnrichItemPayload) => {
     const { itemId, userId, precomputedTags, sourceText } = payload;

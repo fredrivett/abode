@@ -6,6 +6,7 @@ import {
   resolveGuardAction,
   SYSTEM_DAILY_USD,
   secondsUntilUtcMidnight,
+  startOfUtcDay,
 } from "./usage-limits";
 
 describe("DAILY_LIMITS", () => {
@@ -44,6 +45,20 @@ describe("secondsUntilUtcMidnight", () => {
     expect(secondsUntilUtcMidnight(new Date("2026-07-27T23:59:59.999Z"))).toBe(
       1,
     );
+  });
+});
+
+describe("startOfUtcDay", () => {
+  it("returns UTC midnight for the given instant", () => {
+    expect(
+      startOfUtcDay(new Date("2026-07-27T13:45:12.500Z")).toISOString(),
+    ).toBe("2026-07-27T00:00:00.000Z");
+  });
+
+  it("uses the UTC date, not local time", () => {
+    expect(
+      startOfUtcDay(new Date("2026-07-28T00:30:00.000Z")).toISOString(),
+    ).toBe("2026-07-28T00:00:00.000Z");
   });
 });
 

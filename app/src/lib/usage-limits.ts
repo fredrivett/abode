@@ -82,6 +82,17 @@ export function secondsUntilUtcMidnight(now: Date = new Date()): number {
 }
 
 /**
+ * Start of the current UTC day (00:00:00.000Z), the boundary for
+ * once-per-UTC-day gates so their window resets at the same midnight the daily
+ * counters do.
+ */
+export function startOfUtcDay(now: Date = new Date()): Date {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+}
+
+/**
  * Atomically record one action in `(user, today, bucket)` and report whether
  * it's within the limit.
  *

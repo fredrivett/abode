@@ -97,6 +97,8 @@ export function formatStorageError(error: unknown) {
  */
 export const analyzeImageTask = task({
   id: "analyze-image",
+  retry: { maxAttempts: 2 },
+  queue: { concurrencyLimit: 3 },
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey } = payload;
