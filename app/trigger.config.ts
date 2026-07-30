@@ -3,7 +3,11 @@ import { defineConfig } from "@trigger.dev/sdk";
 
 export default defineConfig({
   project: "proj_vtxdupmohtuvxabigigk",
-  runtime: "node",
+  // node-22 (not the default "node" = 21.7.3): 21 can't `require()` an ES module,
+  // which broke deploys via jsdom → html-encoding-sniffer@6 → @exodus/bytes (ESM
+  // only). require(ESM) is supported from Node 22.12+, and node-22 is 22.16.
+  // (node-24 isn't offered by the installed @trigger.dev/sdk version.)
+  runtime: "node-22",
   logLevel: "log",
   // The max compute seconds a task is allowed to run. If the task run exceeds this duration, it will be stopped.
   // You can override this on an individual task.
