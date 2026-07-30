@@ -1,6 +1,6 @@
-// Largest edge (px) of the blur placeholder we downscale to. Kept tiny — the
-// card blurs it with CSS, so extra detail is just wasted base64 bytes
-const BLUR_MAX_EDGE = 32;
+// Source edge (px) of the placeholder. The card blurs it in screen space (CSS)
+// at render, so the stored image stays crisp; kept small for the inline payload
+const BLUR_MAX_EDGE = 96;
 
 export type ImagePreview = {
   width: number;
@@ -40,8 +40,9 @@ export async function getImagePreview(file: File): Promise<ImagePreview> {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0, w, h);
-          // Safari lacks webp encode and silently falls back to png — still tiny
-          blurDataUrl = canvas.toDataURL("image/webp", 0.5);
+          // Low quality is invisible (the card CSS-blurs it) and keeps it tiny.
+          // Safari lacks webp encode and silently falls back to png — still small.
+          blurDataUrl = canvas.toDataURL("image/webp", 0.4);
         }
       } catch {
         // Placeholder is a nice-to-have; swallow and continue

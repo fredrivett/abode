@@ -1,13 +1,15 @@
 import sharp from "sharp";
 
-// Largest edge (px) of the blur placeholder. Kept tiny — the card blurs it with
-// CSS, so extra detail is just wasted base64 bytes in the items payload.
-const BLUR_MAX_EDGE = 32;
+// Source edge (px) of the placeholder. The card applies the blur in screen space
+// (CSS filter) at render, so the stored image stays crisp and only needs enough
+// resolution to carry the broad structure through that blur; kept small for the
+// inline payload.
+const BLUR_MAX_EDGE = 96;
 
 /**
- * Generate a tiny blurred-placeholder data URL (LQIP) from image bytes. Shipped
- * inline with the items payload and shown blurred while the full image loads, so
- * the grid paints something instantly with no extra request.
+ * Generate a tiny low-res placeholder data URL (LQIP) from image bytes. Shipped
+ * inline with the items payload; the card renders it with a CSS blur while the
+ * full image loads, so the grid paints something instantly with no extra request.
  *
  * Best-effort: returns null (never throws) when the bytes can't be decoded — e.g.
  * a HEIC original without libheif support — so it can't fail the surrounding
@@ -18,12 +20,14 @@ export async function generateBlurDataUrl(
 ): Promise<string | null> {
   try {
     const webp = await sharp(buffer)
-      .rotate() // honour EXIF orientation so the blur matches the shown image
+      .rotate() // honour EXIF orientation so the placeholder matches the shown image
       .resize(BLUR_MAX_EDGE, BLUR_MAX_EDGE, {
         fit: "inside",
         withoutEnlargement: true,
       })
-      .webp({ quality: 45 })
+      // Low quality is invisible — the card CSS-blurs this at render, so webp
+      // artifacts are hidden. Keeps the inline payload small.
+      .webp({ quality: 40 })
       .toBuffer();
     return `data:image/webp;base64,${webp.toString("base64")}`;
   } catch {

@@ -855,13 +855,15 @@ export function ItemCard({
             className="h-full w-full object-cover"
           />
           {/* Blur placeholder sits on top of the real image and dissolves to
-              reveal it once loaded. scale-110 + the parent's overflow-hidden
-              keep the soft blurred edge clipped inside the grid item. */}
+              reveal it once the full image has loaded. */}
           {blurDataUrl && (
             <div
               aria-hidden
+              // Crisp low-res source, blurred here in screen space. -inset-4 (16px)
+              // overscans ~2× the 8px blur radius so the filter's soft edge is
+              // clipped by the parent's overflow-hidden (no bleed) at minimal zoom.
               className={cn(
-                "absolute inset-0 scale-110 bg-center bg-cover blur-xl transition-opacity duration-700",
+                "-inset-4 absolute bg-center bg-cover blur-[8px] transition-opacity duration-700",
                 imgLoaded ? "opacity-0" : "opacity-100",
               )}
               style={{ backgroundImage: `url("${blurDataUrl}")` }}
