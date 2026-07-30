@@ -60,6 +60,10 @@ export const RATE_LIMITS = {
     maxRequests: 180,
     windowMs: 24 * 60 * 60 * 1000, // 24 hours - hard daily cap
   },
+  mapImage: {
+    maxRequests: 60,
+    windowMs: 60 * 1000, // 1 minute - proxied paid Mapbox static images
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;

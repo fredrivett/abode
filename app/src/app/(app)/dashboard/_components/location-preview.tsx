@@ -15,6 +15,11 @@ type LocationData = {
 type LocationPreviewProps = {
   location: LocationData;
   showMap?: boolean;
+  /**
+   * Item ID — the map proxy derives coordinates from the item server-side.
+   * Omit it (e.g. previewing an unsaved/original location) to render no map.
+   */
+  itemId?: string;
 };
 
 function getCountryFlag(countryCode: string): string {
@@ -29,6 +34,7 @@ function getCountryFlag(countryCode: string): string {
 export function LocationPreview({
   location,
   showMap = true,
+  itemId,
 }: LocationPreviewProps) {
   const hasLocationData =
     location.neighborhood ||
@@ -49,9 +55,11 @@ export function LocationPreview({
 
   const width = 300;
   const height = 160;
+  // The proxy derives coordinates from the item, so a map is only shown when an
+  // itemId is supplied (unsaved/original-location previews render text only).
   const mapUrl =
-    hasCoordinates && showMap
-      ? `/api/v1/map-image?lat=${location.latitude}&lng=${location.longitude}&width=${width}&height=${height}`
+    hasCoordinates && showMap && itemId
+      ? `/api/v1/map-image?itemId=${itemId}&width=${width}&height=${height}`
       : null;
 
   return (

@@ -91,7 +91,7 @@ export function LocationOverrideDialog({
               <h4 className="font-medium text-sm text-zinc-700 dark:text-zinc-300">
                 Current Location
               </h4>
-              <LocationPreview location={existingLocation} />
+              <LocationPreview location={existingLocation} itemId={itemId} />
             </div>
           )}
 
