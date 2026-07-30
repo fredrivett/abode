@@ -4,6 +4,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
+import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -51,7 +52,7 @@ export async function POST(
         return NextResponse.json({
           success: true,
           message: "Item already processed",
-          processingStatus: item.processingStatus,
+          processingStatus: "completed",
         });
       }
       if (item.processingStatus !== "failed") {
@@ -77,8 +78,32 @@ export async function POST(
       );
     }
 
+    if (!isAdmin) {
+      const claimed = await claimFailedRetry(id, user.id);
+      if (!claimed) {
+        return NextResponse.json({
+          success: true,
+          message: "Retry already in progress",
+          processingStatus: "processing",
+        });
+      }
+    } else {
+      await db.item.update({
+        where: { id },
+        data: { processingStatus: "processing", processingError: null },
+      });
+    }
+
+    const previousStatus = item.processingStatus;
+    const revert = () =>
+      db.item.update({
+        where: { id },
+        data: { processingStatus: previousStatus },
+      });
+
     const guard = await guardDailyLimit(user.id, "reanalysis");
     if (!guard.ok) {
+      await revert();
       return NextResponse.json(
         { message: "Daily limit reached" },
         {
@@ -88,15 +113,8 @@ export async function POST(
       );
     }
 
-    const previousStatus = item.processingStatus;
-    await db.item.update({
-      where: { id },
-      data: { processingStatus: "processing", processingError: null },
-    });
-
     try {
       if (item.sourceType === "url" && item.sourceUrl) {
-        // URL items need to be re-classified (could be image or article)
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
@@ -111,7 +129,6 @@ export async function POST(
           { concurrencyKey: item.userId },
         );
       } else if (item.kind === "image" && item.fileKey) {
-        // Direct image upload - run image analysis
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying image analysis",
@@ -128,11 +145,7 @@ export async function POST(
       }
     } catch (triggerError) {
       log.error({ triggerError, itemId: id }, "Failed to trigger retry task");
-      // Restore the prior status so the item isn't stuck "processing".
-      await db.item.update({
-        where: { id },
-        data: { processingStatus: previousStatus },
-      });
+      await revert();
       return NextResponse.json(
         { message: "Failed to initiate retry" },
         { status: 500 },
