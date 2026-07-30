@@ -10,6 +10,7 @@ import {
   reconcileTweetMedia,
 } from "@/lib/admin/item-inspector";
 import type { ImageColor, TwitterMedia } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
@@ -356,7 +357,9 @@ export default async function AdminItemInspectorPage({
               </Row>
               <Row label="sourceType">{item.sourceType ?? <Empty />}</Row>
               <Row label="sourceUrl">
-                {item.sourceUrl ? (
+                {!item.sourceUrl ? (
+                  <Empty />
+                ) : isValidUrl(item.sourceUrl) ? (
                   <a
                     href={item.sourceUrl}
                     className="hover:underline"
@@ -366,7 +369,10 @@ export default async function AdminItemInspectorPage({
                     {item.sourceUrl}
                   </a>
                 ) : (
-                  <Empty />
+                  // Never render an item-controlled non-http(s) URL as a live
+                  // link — a javascript:/data: href would run in the admin's
+                  // session on click. Show it as text.
+                  <span className="break-all">{item.sourceUrl}</span>
                 )}
               </Row>
               <Row label="created">{fmt(item.createdAt)}</Row>
