@@ -6,8 +6,8 @@ type LocationMapProps = {
   latitude: number;
   longitude: number;
   locationName: string;
-  /** Item ID for public access verification (required for unauthenticated users) */
-  itemId?: string;
+  /** Item ID — the map proxy derives coordinates from the item server-side */
+  itemId: string;
 };
 
 /**
@@ -25,9 +25,10 @@ export function LocationMap({
   const width = 368;
   const height = 200;
 
-  // Use server-side proxy to keep Mapbox token secret
-  // Include itemId for public access verification when user is not authenticated
-  const mapUrl = `/api/v1/map-image?lat=${latitude}&lng=${longitude}&width=${width}&height=${height}${itemId ? `&itemId=${itemId}` : ""}`;
+  // Server-side proxy keeps the Mapbox token secret and derives the coordinates
+  // from the item (client-supplied coords are ignored), so only itemId + size
+  // are sent.
+  const mapUrl = `/api/v1/map-image?itemId=${itemId}&width=${width}&height=${height}`;
 
   return (
     <div className="space-y-2">

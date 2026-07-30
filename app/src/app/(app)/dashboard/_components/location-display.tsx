@@ -5,8 +5,8 @@ import { LocationMap } from "./location-map";
 
 type LocationDisplayProps = {
   location: ItemLocation;
-  /** Item ID for public access verification (required for unauthenticated users viewing public rooms) */
-  itemId?: string;
+  /** Item ID — required so the map proxy can derive coordinates server-side */
+  itemId: string;
 };
 
 /**

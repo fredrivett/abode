@@ -2,103 +2,142 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import {
+  checkRateLimit,
+  getClientIp,
+  getRateLimitHeaders,
+} from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/map-image");
+
+// Server-fixed zoom so it can't be used to cache-bust the paid Mapbox proxy.
+const MAP_ZOOM = 10;
+
+// The only map sizes the client callers actually request. Anything else is
+// snapped to the primary size so the billable URL set stays bounded/cacheable:
+// - 368x200: LocationMap (item detail view)
+// - 300x160: LocationPreview (location comparison card)
+const ALLOWED_MAP_SIZES = [
+  { width: 368, height: 200 },
+  { width: 300, height: 160 },
+] as const;
+const DEFAULT_MAP_SIZE = ALLOWED_MAP_SIZES[0];
+
+type ItemLocationRow = {
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+/**
+ * Snap a requested size to the allowlist. Unknown sizes fall back to the
+ * primary size rather than passing attacker-controlled dimensions to Mapbox.
+ */
+function resolveMapSize(
+  widthParam: string | null,
+  heightParam: string | null,
+): { width: number; height: number } {
+  const width = Number.parseInt(widthParam ?? "", 10);
+  const height = Number.parseInt(heightParam ?? "", 10);
+  const match = ALLOWED_MAP_SIZES.find(
+    (size) => size.width === width && size.height === height,
+  );
+  return match ?? DEFAULT_MAP_SIZE;
+}
+
+/**
+ * Pick the canonical location for the map: prefer a user-set (`manual`) source,
+ * otherwise any source that has coordinates. Returns null if none have coords.
+ */
+function pickCanonicalLocation(
+  locations: ItemLocationRow[],
+): { latitude: number; longitude: number } | null {
+  const withCoords = locations.filter(
+    (loc): loc is { source: string; latitude: number; longitude: number } =>
+      loc.latitude != null && loc.longitude != null,
+  );
+  const canonical =
+    withCoords.find((loc) => loc.source === "manual") ?? withCoords[0];
+  if (!canonical) return null;
+  return { latitude: canonical.latitude, longitude: canonical.longitude };
+}
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const itemId = searchParams.get("itemId");
 
-    // Check authentication
+    // itemId is now the source of truth (coords are derived from it), not just
+    // an access token, so it's required.
+    if (!itemId) {
+      return NextResponse.json(
+        { message: "itemId is required" },
+        { status: 400 },
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // If not authenticated, we need an itemId to verify public access
-    if (!user) {
-      if (!itemId) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-
-      // Verify the item is in a public room
-      const publicItem = await prisma.item.findFirst({
-        where: {
-          id: itemId,
-          roomItems: {
-            some: {
-              room: {
-                visibility: "public",
-              },
-            },
-          },
-        },
-        select: { id: true },
-      });
-
-      if (!publicItem) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-    } else if (itemId) {
-      // Authenticated user - verify they own the item or it's in a public room
-      const accessibleItem = await prisma.item.findFirst({
-        where: {
-          id: itemId,
-          OR: [
-            { userId: user.id },
-            {
-              roomItems: {
-                some: {
-                  room: {
-                    visibility: "public",
-                  },
-                },
-              },
-            },
-          ],
-        },
-        select: { id: true },
-      });
-
-      if (!accessibleItem) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-    }
-
-    const lat = searchParams.get("lat");
-    const lng = searchParams.get("lng");
-    const zoom = searchParams.get("zoom") ?? "10";
-    const width = searchParams.get("width") ?? "368";
-    const height = searchParams.get("height") ?? "200";
-
-    if (!lat || !lng) {
+    // Secondary, best-effort rate limit. This is defence-in-depth only: it's
+    // in-memory/per-instance, so the real fix is that coordinates are derived
+    // server-side (below), which keeps the billable URL set bounded/cacheable.
+    const rateLimitKey = user?.id ?? getClientIp(request.headers);
+    const rateLimitResult = checkRateLimit(rateLimitKey, "mapImage");
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { message: "lat and lng are required" },
-        { status: 400 },
+        { message: "Too many requests" },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimitResult, "mapImage"),
+        },
       );
     }
 
-    const latitude = Number.parseFloat(lat);
-    const longitude = Number.parseFloat(lng);
-    const zoomLevel = Number.parseInt(zoom, 10);
-    const imgWidth = Math.min(Number.parseInt(width, 10), 1280);
-    const imgHeight = Math.min(Number.parseInt(height, 10), 1280);
+    // Access control: owner OR item in a public room. Unauthenticated access is
+    // allowed only for public-room items. The same query loads the stored
+    // locations so client-supplied coordinates are never used.
+    const item = await prisma.item.findFirst({
+      where: {
+        id: itemId,
+        ...(user
+          ? {
+              OR: [
+                { userId: user.id },
+                { roomItems: { some: { room: { visibility: "public" } } } },
+              ],
+            }
+          : { roomItems: { some: { room: { visibility: "public" } } } }),
+      },
+      select: {
+        id: true,
+        locations: {
+          where: { latitude: { not: null }, longitude: { not: null } },
+          select: { source: true, latitude: true, longitude: true },
+        },
+      },
+    });
 
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
+    if (!item) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const coordinates = pickCanonicalLocation(item.locations);
+    if (!coordinates) {
       return NextResponse.json(
-        { message: "Invalid coordinates" },
-        { status: 400 },
+        { message: "No location for this item" },
+        { status: 404 },
       );
     }
+
+    const { latitude, longitude } = coordinates;
+    const { width: imgWidth, height: imgHeight } = resolveMapSize(
+      searchParams.get("width"),
+      searchParams.get("height"),
+    );
 
     const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN;
     if (!mapboxToken) {
@@ -109,15 +148,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mapbox Static Images API
+    // Mapbox Static Images API (fixed host — not SSRF). Every input is now
+    // server-derived: coords from the item, zoom + size from server constants.
     const marker = `pin-s+ef4444(${longitude},${latitude})`;
-    const mapUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${longitude},${latitude},${zoomLevel},0/${imgWidth}x${imgHeight}@2x?access_token=${mapboxToken}`;
+    const mapUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${longitude},${latitude},${MAP_ZOOM},0/${imgWidth}x${imgHeight}@2x?access_token=${mapboxToken}`;
 
     log.debug(
       {
+        itemId,
         latitude,
         longitude,
-        zoomLevel,
+        zoomLevel: MAP_ZOOM,
         width: imgWidth,
         height: imgHeight,
         mapUrl: mapUrl.replace(mapboxToken, "***"),
