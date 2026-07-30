@@ -2,14 +2,16 @@ import db from "@/lib/db";
 import { startOfUtcDay } from "@/lib/usage-limits";
 
 /**
- * Atomically claim a reassignment of `itemId` (owned by `userId`), stamping it
- * `processing` and recording today as its last reassign. Non-admins get one
- * claim per item per UTC day; admins are exempt.
+ * Atomically claim a reassignment of `itemId` (owned by `userId`): flip it to
+ * `processing` and stamp today. The claim only matches an item that isn't
+ * already `processing`, so at most one reassign is ever in flight per item —
+ * two concurrent requests can't both win (the loser matches no rows), so a
+ * losing request's revert can't clobber the winner's claim. Non-admins also get
+ * one claim per item per UTC day; admins skip that daily gate but not the
+ * single-in-flight one.
  *
- * The gate is a single conditional UPDATE, which Postgres re-evaluates under the
- * row lock, so two concurrent requests can't both claim — the loser matches no
- * rows. Returns whether this request won the claim; callers must not trigger the
- * paid pipeline (or count usage) when it returns false.
+ * Returns whether this request claimed it; callers must not trigger the paid
+ * pipeline (or count usage) when it returns false.
  */
 export async function claimDailyReassign(
   itemId: string,
@@ -18,10 +20,11 @@ export async function claimDailyReassign(
 ): Promise<boolean> {
   const { count } = await db.item.updateMany({
     where: isAdmin
-      ? { id: itemId, userId }
+      ? { id: itemId, userId, processingStatus: { not: "processing" } }
       : {
           id: itemId,
           userId,
+          processingStatus: { not: "processing" },
           OR: [
             { lastReassignedAt: null },
             { lastReassignedAt: { lt: startOfUtcDay() } },
