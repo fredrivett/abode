@@ -82,15 +82,13 @@ export function secondsUntilUtcMidnight(now: Date = new Date()): number {
 }
 
 /**
- * Whether `date` falls on the same UTC calendar day as `now`. Used to gate
- * once-per-UTC-day per-item actions (e.g. reassign) so their window resets at
- * the same midnight the daily counters do.
+ * Start of the current UTC day (00:00:00.000Z), the boundary for
+ * once-per-UTC-day gates so their window resets at the same midnight the daily
+ * counters do.
  */
-export function isSameUtcDay(date: Date, now: Date = new Date()): boolean {
-  return (
-    date.getUTCFullYear() === now.getUTCFullYear() &&
-    date.getUTCMonth() === now.getUTCMonth() &&
-    date.getUTCDate() === now.getUTCDate()
+export function startOfUtcDay(now: Date = new Date()): Date {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 }
 

@@ -5,13 +5,10 @@ import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
+import { claimDailyReassign } from "@/lib/items/reassign-claim";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  guardDailyLimit,
-  isSameUtcDay,
-  secondsUntilUtcMidnight,
-} from "@/lib/usage-limits";
+import { guardDailyLimit, secondsUntilUtcMidnight } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/reassign");
 
@@ -83,11 +80,11 @@ export async function POST(
 
     const isAdmin = await hasFullAdminAccess(supabase);
 
-    if (
-      !isAdmin &&
-      item.lastReassignedAt &&
-      isSameUtcDay(item.lastReassignedAt)
-    ) {
+    const previousStatus = item.processingStatus;
+    const previousLastReassignedAt = item.lastReassignedAt;
+
+    const claimed = await claimDailyReassign(id, user.id, isAdmin);
+    if (!claimed) {
       return NextResponse.json(
         { message: "You can only change an item's type once per day" },
         {
@@ -97,8 +94,18 @@ export async function POST(
       );
     }
 
+    const restoreClaim = () =>
+      db.item.update({
+        where: { id },
+        data: {
+          processingStatus: previousStatus,
+          lastReassignedAt: previousLastReassignedAt,
+        },
+      });
+
     const guard = await guardDailyLimit(user.id, "reanalysis");
     if (!guard.ok) {
+      await restoreClaim();
       return NextResponse.json(
         { message: "Daily limit reached" },
         {
@@ -107,15 +114,6 @@ export async function POST(
         },
       );
     }
-
-    const previousStatus = item.processingStatus;
-    const previousLastReassignedAt = item.lastReassignedAt;
-
-    // Reflect the pending re-analysis immediately.
-    await db.item.update({
-      where: { id },
-      data: { processingStatus: "processing", lastReassignedAt: new Date() },
-    });
 
     try {
       await tasks.trigger<typeof classifyUrlTask>(
@@ -133,14 +131,7 @@ export async function POST(
         { triggerError, itemId: id },
         "Failed to trigger reassignment task",
       );
-      // Restore the prior status so the item isn't stuck "processing".
-      await db.item.update({
-        where: { id },
-        data: {
-          processingStatus: previousStatus,
-          lastReassignedAt: previousLastReassignedAt,
-        },
-      });
+      await restoreClaim();
       return NextResponse.json(
         { message: "Failed to initiate reassignment" },
         { status: 500 },

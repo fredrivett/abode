@@ -4,6 +4,7 @@ const {
   mockGetUser,
   mockItemFindUnique,
   mockItemUpdate,
+  mockItemUpdateMany,
   mockTrigger,
   mockLogActivity,
   mockGuard,
@@ -12,6 +13,7 @@ const {
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
   mockItemUpdate: vi.fn(),
+  mockItemUpdateMany: vi.fn(),
   mockTrigger: vi.fn(),
   mockLogActivity: vi.fn(),
   mockGuard: vi.fn(),
@@ -33,7 +35,11 @@ vi.mock("@/lib/usage-limits", async (importOriginal) => {
 
 vi.mock("@/lib/db", () => ({
   default: {
-    item: { findUnique: mockItemFindUnique, update: mockItemUpdate },
+    item: {
+      findUnique: mockItemFindUnique,
+      update: mockItemUpdate,
+      updateMany: mockItemUpdateMany,
+    },
   },
 }));
 
@@ -81,9 +87,10 @@ beforeEach(() => {
   });
   mockItemFindUnique.mockResolvedValue(webpageItem);
   mockItemUpdate.mockResolvedValue({});
+  // The atomic claim succeeds by default (one row updated).
+  mockItemUpdateMany.mockResolvedValue({ count: 1 });
   mockTrigger.mockResolvedValue({ id: "run_1" });
   mockHasFullAdminAccess.mockResolvedValue(false);
-  // Default: within the daily limit — proceed.
   mockGuard.mockResolvedValue({
     ok: true,
     action: "allow",
@@ -146,19 +153,15 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     expect(res.status).toBe(400);
   });
 
-  it("triggers a forced re-classification on the happy path", async () => {
+  it("claims and triggers a forced re-classification on the happy path", async () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.processingStatus).toBe("processing");
 
-    expect(mockItemUpdate).toHaveBeenCalledWith({
-      where: { id: ITEM_ID },
-      data: {
-        processingStatus: "processing",
-        lastReassignedAt: expect.any(Date),
-      },
-    });
+    expect(mockItemUpdateMany).toHaveBeenCalledTimes(1);
+    const claim = mockItemUpdateMany.mock.calls[0][0];
+    expect(claim.where.OR).toBeDefined(); // non-admin: gated per UTC day
+    expect(claim.data).toMatchObject({ processingStatus: "processing" });
+
     expect(mockTrigger).toHaveBeenCalledWith(
       "classify-url",
       {
@@ -169,24 +172,25 @@ describe("POST /api/v1/items/[id]/reassign", () => {
       },
       { concurrencyKey: "user_1" },
     );
+    expect(mockItemUpdate).not.toHaveBeenCalled();
   });
 
-  it("restores the prior status and cap timestamp, returns 500 when enqueue throws", async () => {
+  it("restores the claim and returns 500 when enqueue throws", async () => {
     mockTrigger.mockRejectedValue(new Error("no trigger key"));
     const res = await call({ kind: "article" });
     expect(res.status).toBe(500);
-    expect(mockItemUpdate).toHaveBeenLastCalledWith({
+    expect(mockItemUpdate).toHaveBeenCalledWith({
       where: { id: ITEM_ID },
       data: { processingStatus: "completed", lastReassignedAt: null },
     });
   });
 
-  it("counts every reassign attempt against the reanalysis bucket", async () => {
+  it("counts a claimed reassign against the reanalysis bucket", async () => {
     await call({ kind: "article" });
     expect(mockGuard).toHaveBeenCalledWith("user_1", "reanalysis");
   });
 
-  it("returns 429 with Retry-After and does no paid work when over limit + enforced", async () => {
+  it("reverts the claim and returns 429 when over the per-user limit (enforced)", async () => {
     mockGuard.mockResolvedValue({
       ok: false,
       action: "block",
@@ -201,12 +205,14 @@ describe("POST /api/v1/items/[id]/reassign", () => {
     const res = await call({ kind: "article" });
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("3600");
-    expect(mockItemUpdate).not.toHaveBeenCalled();
     expect(mockTrigger).not.toHaveBeenCalled();
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: ITEM_ID },
+      data: { processingStatus: "completed", lastReassignedAt: null },
+    });
   });
 
   it("never blocks in shadow mode even when the action is over limit", async () => {
-    // Shadow mode: over limit (allowed:false) but guard returns ok:true.
     mockGuard.mockResolvedValue({
       ok: true,
       action: "shadow",
@@ -224,38 +230,23 @@ describe("POST /api/v1/items/[id]/reassign", () => {
   });
 
   describe("per-item once-per-UTC-day cap", () => {
-    it("rejects a non-admin's second reassign the same UTC day (429) before the guard", async () => {
-      mockItemFindUnique.mockResolvedValue({
-        ...webpageItem,
-        lastReassignedAt: new Date(),
-      });
+    it("returns 429 without counting or triggering when the claim is already taken", async () => {
+      mockItemUpdateMany.mockResolvedValue({ count: 0 });
       const res = await call({ kind: "article" });
       expect(res.status).toBe(429);
       expect(res.headers.get("Retry-After")).toBeTruthy();
       expect(mockGuard).not.toHaveBeenCalled();
-      expect(mockItemUpdate).not.toHaveBeenCalled();
       expect(mockTrigger).not.toHaveBeenCalled();
+      expect(mockItemUpdate).not.toHaveBeenCalled();
     });
 
-    it("allows a non-admin again once the reassign was on a previous UTC day", async () => {
-      mockItemFindUnique.mockResolvedValue({
-        ...webpageItem,
-        lastReassignedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      });
-      const res = await call({ kind: "article" });
-      expect(res.status).toBe(200);
-      expect(mockTrigger).toHaveBeenCalledOnce();
-    });
-
-    it("exempts admins from the per-item cap (second same-day reassign allowed)", async () => {
+    it("claims without the per-day gate for admins", async () => {
       mockHasFullAdminAccess.mockResolvedValue(true);
-      mockItemFindUnique.mockResolvedValue({
-        ...webpageItem,
-        lastReassignedAt: new Date(),
-      });
       const res = await call({ kind: "article" });
       expect(res.status).toBe(200);
-      expect(mockTrigger).toHaveBeenCalledOnce();
+      const claim = mockItemUpdateMany.mock.calls[0][0];
+      expect(claim.where.OR).toBeUndefined();
+      expect(claim.where).toMatchObject({ id: ITEM_ID, userId: "user_1" });
     });
   });
 });
