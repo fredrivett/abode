@@ -25,7 +25,7 @@ export default defineConfig({
   },
   dirs: ["trigger"],
   build: {
-    external: ["@prisma/client", "jsdom"],
+    external: ["@prisma/client", "jsdom", "sharp"],
     extensions: [
       prismaExtension({
         mode: "legacy",

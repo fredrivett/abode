@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -18,27 +19,6 @@ import {
 import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("dashboard/upload-widget");
-
-async function getImageDimensions(
-  file: File,
-): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: img.width, height: img.height });
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
-    };
-
-    img.src = url;
-  });
-}
 
 /**
  * File upload widget for selecting and uploading an image from the file picker.
@@ -94,12 +74,15 @@ export function UploadWidget() {
         return;
       }
 
-      // Get image dimensions before upload
+      // Get image dimensions + blur placeholder before upload
       let dimensions: { width: number; height: number } | undefined;
+      let blurDataUrl: string | null = null;
       try {
-        dimensions = await getImageDimensions(file);
+        const preview = await getImagePreview(file);
+        dimensions = { width: preview.width, height: preview.height };
+        blurDataUrl = preview.blurDataUrl;
       } catch (error) {
-        log.warn({ error }, "Failed to get image dimensions");
+        log.warn({ error }, "Failed to read image preview");
       }
 
       const ext = file.name.includes(".")
@@ -130,6 +113,7 @@ export function UploadWidget() {
             type: file.type,
             width: dimensions?.width,
             height: dimensions?.height,
+            ...(blurDataUrl ? { blurDataUrl } : {}),
           },
           sourceType: "upload",
         });

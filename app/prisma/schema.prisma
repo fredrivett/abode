@@ -305,6 +305,7 @@ model ItemMediaAnalysis {
   ocrText    String?  @map("ocr_text")
   tags       String[] @default([]) // Vision tags → enrich-item precomputedTags
   visionData Json?    @map("vision_data") // Raw Vision API response
+  blurDataUrl String? @map("blur_data_url") // Tiny blurred LQIP data URL
 
   // CLIP visual embedding — optional (Replicate is an optional service)
   embedding      Unsupported("vector")? // vector(768)
@@ -347,6 +348,7 @@ model ItemImageDetails {
   colors      Json?                    // Color palette
   ocrText     String?   @map("ocr_text")
   visionData  Json?     @map("vision_data")  // Raw Vision API response
+  blurDataUrl String?   @map("blur_data_url") // Tiny blurred LQIP data URL
   captureDate DateTime? @map("capture_date") // EXIF capture timestamp
 
   createdAt   DateTime  @default(now()) @map("created_at")

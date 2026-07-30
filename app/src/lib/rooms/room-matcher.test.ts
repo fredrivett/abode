@@ -19,6 +19,7 @@ function createImageDetails(
     colors: null,
     ocrText: null,
     visionData: null,
+    blurDataUrl: null,
     captureDate: null,
     createdAt: new Date("2024-06-15"),
     updatedAt: new Date("2024-06-15"),

@@ -28,6 +28,7 @@ function analysis(
     // item_visual_vectors is vector(768); the mirror copies into it
     embedding: Array.from({ length: 768 }, () => 0.01),
     embeddingModel: "clip-vit-base-patch32",
+    blurDataUrl: "data:image/webp;base64,AA==",
     ...overrides,
   };
 }

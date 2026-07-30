@@ -183,6 +183,14 @@ export function ItemCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
+  // imageDetails; fall back to the meta copy captured client-side at upload time
+  // (instant, before analysis has run).
+  const blurDataUrl =
+    item.blurDataUrl ??
+    (typeof item.meta?.blurDataUrl === "string" ? item.meta.blurDataUrl : null);
 
   const isArticle = item.kind === "article";
   const isWebpage = item.kind === "webpage";
@@ -235,6 +243,7 @@ export function ItemCard({
     // Use optimized proxy URL for all users (CDN cached, WebP, sized for grid)
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
+    setImgLoaded(false);
     setPreviewUrl(proxyUrl);
   }, [
     imageFileKey,
@@ -816,7 +825,7 @@ export function ItemCard({
         <motion.div
           layoutId={`item-image-${item.id}`}
           className={cn(
-            "!opacity-100 h-full w-full cursor-pointer overflow-hidden",
+            "!opacity-100 relative h-full w-full cursor-pointer overflow-hidden",
             !topColor && "bg-muted",
           )}
           style={{
@@ -836,10 +845,30 @@ export function ItemCard({
         >
           {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
           <img
+            ref={(node) => {
+              // onLoad won't fire for an already-cached image; catch that here
+              if (node?.complete && node.naturalWidth > 0) setImgLoaded(true);
+            }}
             src={previewUrl}
             alt={itemName}
+            onLoad={() => setImgLoaded(true)}
             className="h-full w-full object-cover"
           />
+          {/* Blur placeholder sits on top of the real image and dissolves to
+              reveal it once the full image has loaded. */}
+          {blurDataUrl && (
+            <div
+              aria-hidden
+              // Crisp low-res source, blurred here in screen space. -inset-4 (16px)
+              // overscans ~2× the 8px blur radius so the filter's soft edge is
+              // clipped by the parent's overflow-hidden (no bleed) at minimal zoom.
+              className={cn(
+                "-inset-4 absolute bg-center bg-cover blur-[8px] transition-opacity duration-700",
+                imgLoaded ? "opacity-0" : "opacity-100",
+              )}
+              style={{ backgroundImage: `url("${blurDataUrl}")` }}
+            />
+          )}
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
               {item.productDetails.currency

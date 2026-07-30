@@ -37,6 +37,7 @@ export async function upsertMediaAnalysis({
     colors: analysis.colors as unknown as Prisma.InputJsonValue,
     tags: analysis.tags,
     visionData: analysis.visionData as unknown as Prisma.InputJsonValue,
+    blurDataUrl: analysis.blurDataUrl,
     embeddingModel: analysis.embeddingModel,
   };
 
@@ -71,7 +72,13 @@ export async function mirrorCoverAnalysisToItem({
 }) {
   const cached = await db.itemMediaAnalysis.findUnique({
     where: { itemId_fileKey: { itemId, fileKey } },
-    select: { objects: true, ocrText: true, colors: true, visionData: true },
+    select: {
+      objects: true,
+      ocrText: true,
+      colors: true,
+      visionData: true,
+      blurDataUrl: true,
+    },
   });
   if (!cached) return;
 
@@ -80,6 +87,7 @@ export async function mirrorCoverAnalysisToItem({
     ocrText: cached.ocrText,
     colors: toJsonInput(cached.colors),
     visionData: toJsonInput(cached.visionData),
+    blurDataUrl: cached.blurDataUrl,
     captureDate: null, // tweet media has no EXIF capture date
   };
 

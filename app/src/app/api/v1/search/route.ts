@@ -89,6 +89,7 @@ type RawItemRow = {
   colors: unknown;
   ocr_text: string | null;
   capture_date: Date | null;
+  blur_data_url: string | null;
   article_author: string | null;
   article_domain: string | null;
   article_published_at: Date | null;
@@ -171,6 +172,7 @@ function transformRawItemToItem(
     colors: parseColors(row.colors) ?? [],
     ocrText: row.ocr_text,
     captureDate: row.capture_date?.toISOString() ?? null,
+    blurDataUrl: row.blur_data_url,
     locations: locations.map((loc) => ({
       id: loc.id,
       source: loc.source,
@@ -616,6 +618,7 @@ async function executeFiltersOnlySearch(
       iid.colors,
       iid.ocr_text,
       iid.capture_date,
+      iid.blur_data_url,
       ad.author as article_author,
       ad.domain as article_domain,
       ad.published_at as article_published_at,
@@ -881,6 +884,7 @@ async function executeRankedSearch(
       iid.colors,
       iid.ocr_text,
       iid.capture_date,
+      iid.blur_data_url,
       ad.author as article_author,
       ad.domain as article_domain,
       ad.published_at as article_published_at,
