@@ -52,6 +52,13 @@ export const RATE_LIMITS = {
     maxRequests: 60,
     windowMs: 60 * 1000, // 1 minute - visual similarity lookups on detail view
   },
+  twitterVideo: {
+    maxRequests: 200,
+    windowMs: 60 * 1000, // 1 minute - public media proxy; a single <video> can
+    // issue many Range/seek requests, so this is deliberately generous.
+    // Best-effort/in-memory; the same-origin gate + size cap are the primary
+    // egress controls.
+  },
   emojiSuggest: {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1 minute - AI emoji suggestions
