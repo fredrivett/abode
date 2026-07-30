@@ -15,6 +15,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  ScanSearch,
   ShoppingBag,
   Sparkles,
   Trash2,
@@ -1899,19 +1900,30 @@ function ItemDetailDialog({
                         Details
                       </h3>
                       {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={handleCopyId}
-                          title={`Copy item ID: ${item.id}`}
-                          className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
-                        >
-                          {hasCopiedId ? (
-                            <Check className="size-3" />
-                          ) : (
-                            <Copy className="size-3" />
-                          )}
-                          {item.id.split("-")[0]}
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/admin/items/${item.id}`}
+                            target="_blank"
+                            title="Open in admin item inspector"
+                            className="inline-flex items-center gap-1 rounded text-muted-foreground text-xs hover:text-foreground"
+                          >
+                            <ScanSearch className="size-3" />
+                            Inspect
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={handleCopyId}
+                            title={`Copy item ID: ${item.id}`}
+                            className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
+                          >
+                            {hasCopiedId ? (
+                              <Check className="size-3" />
+                            ) : (
+                              <Copy className="size-3" />
+                            )}
+                            {item.id.split("-")[0]}
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1 text-sm">
