@@ -268,21 +268,29 @@ export async function getSimilarImagesForInspector({
     ];
   });
 
-  // Batch-sign the thumbnails with the service-role client (the image proxy
-  // won't authorize an admin viewing another user's images).
+  // Sign small, transformed thumbnails with the service-role client (the image
+  // proxy won't authorize an admin viewing another user's images). Transforming
+  // avoids downloading full-res originals into a 10-cell grid. Transforms are
+  // hosted-Supabase (Pro) only, so fall back to the original in dev.
+  const transform =
+    process.env.NODE_ENV === "production"
+      ? { width: 320, height: 320, resize: "contain" as const, quality: 70 }
+      : undefined;
   const keys = ordered
     .map((o) => o.imageKey)
     .filter((k): k is string => Boolean(k));
-  const urlByKey = new Map<string, string>();
-  if (keys.length > 0) {
-    const { data } = await getSupabaseAdminClient()
-      .storage.from("items")
-      .createSignedUrls(keys, 3600);
-    for (const entry of data ?? []) {
-      if (entry.signedUrl && entry.path)
-        urlByKey.set(entry.path, entry.signedUrl);
-    }
-  }
+  const client = getSupabaseAdminClient();
+  const signed = await Promise.all(
+    keys.map(async (key) => {
+      const { data } = await client.storage
+        .from("items")
+        .createSignedUrl(key, 3600, transform ? { transform } : undefined);
+      return [key, data?.signedUrl ?? null] as const;
+    }),
+  );
+  const urlByKey = new Map(
+    signed.filter((s): s is [string, string] => s[1] !== null),
+  );
 
   return annotateSimilar(
     ordered,

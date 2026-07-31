@@ -331,6 +331,7 @@ function SimilarImageCell({ row }: { row: InspectorSimilarImage }) {
           <img
             src={row.imageUrl}
             alt=""
+            loading="lazy"
             className="size-full object-cover transition-transform group-hover:scale-105"
           />
         ) : (
