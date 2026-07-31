@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TwitterMedia } from "@/lib/types/item";
-import { reconcileTweetMedia } from "./item-inspector";
+import { annotateSimilar, reconcileTweetMedia } from "./item-inspector";
 
 const photo = (url: string, fileKey?: string): TwitterMedia => ({
   type: "photo",
@@ -77,5 +77,39 @@ describe("reconcileTweetMedia", () => {
     );
     expect(rows[0]).toMatchObject({ isCover: false, isMirrored: true });
     expect(rows[1]).toMatchObject({ isCover: true, isMirrored: false });
+  });
+});
+
+describe("annotateSimilar", () => {
+  const rows = (scores: number[]) =>
+    scores.map((similarity) => ({ similarity }));
+
+  it("flags threshold and shown-to-user (within the display cap)", () => {
+    const out = annotateSimilar(rows([0.9, 0.8, 0.75, 0.6, 0.5]), 0.7, 6);
+    expect(out.map((r) => r.meetsThreshold)).toEqual([
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(out.map((r) => r.shownToUser)).toEqual([
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it("caps shown-to-user at the display limit even when more pass", () => {
+    const out = annotateSimilar(rows([0.9, 0.85, 0.8]), 0.7, 2);
+    expect(out.map((r) => r.meetsThreshold)).toEqual([true, true, true]);
+    expect(out.map((r) => r.shownToUser)).toEqual([true, true, false]);
+  });
+
+  it("marks nothing shown when all fall below the threshold", () => {
+    const out = annotateSimilar(rows([0.6, 0.4]), 0.7, 6);
+    expect(out.every((r) => !r.meetsThreshold && !r.shownToUser)).toBe(true);
   });
 });
