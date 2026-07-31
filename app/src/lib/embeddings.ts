@@ -80,6 +80,60 @@ export function extractClipEmbedding(output: unknown): number[] {
 }
 
 /**
+ * Whether a Replicate error is worth retrying: rate limits (429), server errors
+ * (5xx), and errors with no HTTP status (network/timeouts). Client errors like
+ * 401 (bad token) or 422 (bad input) are permanent — retrying just wastes time.
+ */
+export function isTransientReplicateError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return true;
+  const status = (error as { status?: unknown }).status;
+  if (typeof status !== "number") return true;
+  return status === 429 || status >= 500;
+}
+
+const REPLICATE_MAX_ATTEMPTS = 4;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run a Replicate call with exponential backoff on transient failures. Replicate
+ * throttles under load, so a bare call drops embeddings that a short retry would
+ * recover. Non-transient errors throw immediately.
+ *
+ * @param fn - The Replicate call to run.
+ * @param options.sleepFn - Injectable delay (tests pass a no-op).
+ */
+export async function retryTransientReplicate<T>(
+  fn: () => Promise<T>,
+  options: { sleepFn?: (ms: number) => Promise<void> } = {},
+): Promise<T> {
+  const sleepFn = options.sleepFn ?? sleep;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= REPLICATE_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (
+        attempt === REPLICATE_MAX_ATTEMPTS ||
+        !isTransientReplicateError(error)
+      )
+        throw error;
+      const backoffMs = Math.min(8000, 500 * 2 ** (attempt - 1));
+      const jitterMs = Math.random() * 250;
+      log.warn(
+        { attempt, maxAttempts: REPLICATE_MAX_ATTEMPTS, backoffMs },
+        "Replicate call failed with a transient error, retrying",
+      );
+      await sleepFn(backoffMs + jitterMs);
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Normalize a vector using L2 normalization for inner product optimization
  */
 export function normalizeVector(vector: number[]): number[] {
@@ -127,7 +181,9 @@ export async function generateImageEmbedding(
       "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a";
     const input = { inputs: imageInput };
 
-    const output = await getReplicateClient().run(modelVersion, { input });
+    const output = await retryTransientReplicate(() =>
+      getReplicateClient().run(modelVersion, { input }),
+    );
     const embedding = extractClipEmbedding(output);
 
     // CLIP ViT-B/32 produces 768-dimensional embeddings
