@@ -29,22 +29,17 @@ import {
   useMotionValue,
   useTransform,
 } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
-import { ArticleDetailView } from "@/components/article/article-detail-view";
-import { HighlightsPanel } from "@/components/article/highlights-panel";
 import { BookCover3D } from "@/components/book/book-cover-3d";
-import { BookDetailView } from "@/components/book/book-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
-import { NoteDetailView } from "@/components/note/note-detail-view";
-import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterCard } from "@/components/twitter/twitter-card";
-import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,7 +63,6 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { VideoCard } from "@/components/video/video-card";
-import { VideoDetailView } from "@/components/video/video-detail-view";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -112,6 +106,67 @@ import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
 
 const log = createLogger("dashboard/item-card");
+
+// Detail views render only inside the click-to-expand modal, never in the
+// collapsed grid card. Load them lazily so they stay out of the dashboard
+// grid's initial JS. ssr:false is safe because the modal is client-only.
+const detailViewLoading = () => (
+  <div className="flex h-full w-full items-center justify-center">
+    <IsLoading label="Loading" />
+  </div>
+);
+
+const ArticleDetailView = dynamic(
+  () =>
+    import("@/components/article/article-detail-view").then(
+      (m) => m.ArticleDetailView,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const HighlightsPanel = dynamic(
+  () =>
+    import("@/components/article/highlights-panel").then(
+      (m) => m.HighlightsPanel,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const BookDetailView = dynamic(
+  () =>
+    import("@/components/book/book-detail-view").then((m) => m.BookDetailView),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const NoteDetailView = dynamic(
+  () =>
+    import("@/components/note/note-detail-view").then((m) => m.NoteDetailView),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const ProductDetailView = dynamic(
+  () =>
+    import("@/components/product/product-detail-view").then(
+      (m) => m.ProductDetailView,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const TwitterDetailView = dynamic(
+  () =>
+    import("@/components/twitter/twitter-detail-view").then(
+      (m) => m.TwitterDetailView,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
+
+const VideoDetailView = dynamic(
+  () =>
+    import("@/components/video/video-detail-view").then(
+      (m) => m.VideoDetailView,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
 
 type ItemCardProps = {
   item: Item;
