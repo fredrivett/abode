@@ -1,0 +1,11 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+archive = "supabase stop --workdir ./supabase-e2e --no-backup 2>/dev/null || true"
+setup = "./scripts/conductor/setup.sh"
+
+[scripts.run.run]
+available_in = "local"
+command = "./scripts/conductor/run.sh"
+default = true
+icon = "play"
