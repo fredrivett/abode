@@ -278,12 +278,25 @@ function encodeCursor(data: CursorData): string {
   return Buffer.from(JSON.stringify(data)).toString("base64url");
 }
 
+function isValidCursorData(value: unknown): value is CursorData {
+  if (typeof value !== "object" || value === null) return false;
+  const { captureDate, createdAt, id } = value as Record<string, unknown>;
+  if (typeof createdAt !== "string" || typeof id !== "string") return false;
+  if (captureDate !== null && typeof captureDate !== "string") return false;
+  return !Number.isNaN(new Date(createdAt).getTime());
+}
+
+// Not deduped with @/lib/pagination's decodeCursor: this CursorData carries an
+// extra `captureDate` field, so shape validation differs. Hardening mirrors the
+// shared helper — reject malformed/wrong-shape cursors instead of 500ing.
 function decodeCursor(cursor: string): CursorData | null {
+  let parsed: unknown;
   try {
-    return JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
   } catch {
     return null;
   }
+  return isValidCursorData(parsed) ? parsed : null;
 }
 
 /**
