@@ -1,5 +1,14 @@
+import { lookup as dnsLookup } from "node:dns";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import ipaddr from "ipaddr.js";
+import {
+  Agent,
+  buildConnector,
+  type RequestInit as UndiciRequestInit,
+  fetch as undiciFetch,
+} from "undici";
 
 /**
  * SSRF-safe fetch.
@@ -8,37 +17,34 @@ import { isIP } from "node:net";
  * through here instead of the global `fetch`. It enforces four boundaries:
  *
  *  1. Protocol allowlist — only `http:`/`https:` (no `file:`, `gopher:`, …).
- *  2. Destination allowlist — the host must resolve exclusively to public,
- *     routable addresses. IP literals are classified directly; hostnames are
- *     resolved (DNS) and *every* returned address is classified. Loopback,
+ *  2. Destination allowlist — an address is reachable only if `ipaddr.js`
+ *     classifies it as `unicast`. Everything else is refused: loopback,
  *     link-local (incl. the `169.254.169.254` cloud-metadata IP), private,
- *     unique-local, CGNAT, and the other non-public ranges are rejected.
+ *     CGNAT, unique-local, multicast, broadcast, and the IANA special-purpose
+ *     ranges (TEST-NET, benchmarking, protocol assignments, discard, …).
  *  3. Safe redirects — redirects are followed manually and each hop's URL is
- *     re-validated (protocol + resolved addresses) before it is fetched; the
- *     hop count is capped.
+ *     re-validated before it is fetched; the hop count is capped.
  *  4. Resource bounds — an overall timeout and a max-bytes cap on the response
  *     body (rejecting an over-cap `Content-Length` up front and aborting the
  *     stream if it runs over) so a huge or slow-loris page can't exhaust the
  *     worker.
  *
+ * Nothing can change between check and connect, which is what closes DNS
+ * rebinding. An IP literal is fixed, so {@link assertSafeUrl} settles it before
+ * the request. A hostname is settled by {@link validatingLookup} *inside* the
+ * undici connector: `net.connect` dials the addresses that lookup returns, so
+ * there is no second resolution for a hostile 0-TTL resolver to answer
+ * differently. {@link assertSafeUrl} also pre-resolves hostnames, but only to
+ * fail fast with a typed error — the connector is what makes it safe.
+ *
+ * The dispatcher is passed per request. It must never be installed via
+ * `setGlobalDispatcher`: that would route every other fetch in the app through
+ * this pool and this policy.
+ *
  * A blocked or over-limit request throws {@link SsrfBlockedError} /
  * {@link SafeFetchError}. Call sites already treat a fetch failure as a normal
  * failure (the item ends up `failed`), so a block surfaces the same way — never
  * a crash.
- *
- * ── Residual: DNS rebinding (TOCTOU) ────────────────────────────────────────
- * This is a resolve-and-block baseline. We resolve the host and classify the
- * addresses, then hand the (unchanged) URL to `fetch`, which resolves the host
- * *again* to open the socket. A hostile authoritative DNS server with a 0-TTL
- * record could answer our check with a public IP and answer `fetch`'s
- * resolution with a private one, slipping past the gate. Closing this fully
- * requires pinning the socket to the address we validated (e.g. an undici
- * `Agent` with a custom `connect`/`lookup`). We deliberately do NOT do that
- * here: undici is only a transitive dependency, and pinning cleanly would mean
- * promoting it to a direct dependency (a maintainer decision) — see the PR
- * notes. The baseline already closes the audited exploit paths (IP-literal
- * targets and hostnames that resolve to internal addresses); rebinding is the
- * remaining, documented gap.
  */
 
 /** ~10s: generous for a page/image fetch, short enough to bound a hung worker. */
@@ -94,7 +100,14 @@ export class SsrfBlockedError extends SafeFetchError {
   }
 }
 
-export type SafeFetchOptions = Omit<RequestInit, "redirect"> & {
+/**
+ * `redirect` and `dispatcher` are withheld: redirects are followed manually and
+ * the dispatcher is the SSRF gate, so neither is the caller's to set.
+ */
+export type SafeFetchOptions = Omit<
+  UndiciRequestInit,
+  "redirect" | "dispatcher"
+> & {
   /** Overall deadline for the whole request incl. redirects (default ~10s). */
   timeoutMs?: number;
   /** Reject a response body larger than this many bytes (default ~15 MB). */
@@ -105,136 +118,75 @@ export type SafeFetchOptions = Omit<RequestInit, "redirect"> & {
 
 // ── IP classification ───────────────────────────────────────────────────────
 
-/** Parse a dotted-quad IPv4 string into its 4 octets, or null if malformed. */
-function ipv4ToOctets(ip: string): [number, number, number, number] | null {
-  const parts = ip.split(".");
-  if (parts.length !== 4) return null;
-  const octets: number[] = [];
-  for (const part of parts) {
-    if (!/^\d{1,3}$/.test(part)) return null;
-    const n = Number(part);
-    if (n > 255) return null;
-    octets.push(n);
-  }
-  return [octets[0], octets[1], octets[2], octets[3]];
-}
-
 /**
- * True if an IPv4 address is anything other than a public, routable unicast
- * address. Blocks (see report):
- *   0.0.0.0/8, 10/8, 100.64/10 (CGNAT), 127/8 (loopback),
- *   169.254/16 (link-local, incl. 169.254.169.254 metadata), 172.16/12,
- *   192.168/16, 224/4 (multicast) and 240/4 (reserved, incl. 255.255.255.255).
- */
-function isBlockedIpv4Octets(o: [number, number, number, number]): boolean {
-  const [a, b, c] = o;
-  if (a === 0) return true; // 0.0.0.0/8 ("this host")
-  if (a === 10) return true; // 10.0.0.0/8 private
-  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
-  if (a === 127) return true; // 127.0.0.0/8 loopback
-  if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local (metadata)
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
-  if (a === 192 && b === 168) return true; // 192.168.0.0/16 private
-  if (a >= 224) return true; // 224/4 multicast + 240/4 reserved (incl. broadcast)
-  void c;
-  return false;
-}
-
-/**
- * Expand any valid IPv6 textual form (incl. `::` compression and an embedded
- * trailing IPv4 like `::ffff:127.0.0.1`) into its 16 bytes, or null if it can't
- * be parsed. Assumes the input already passed `isIP(...) === 6`.
- */
-function ipv6ToBytes(input: string): number[] | null {
-  // Drop a zone id (e.g. "fe80::1%eth0") — irrelevant to classification.
-  let s = input;
-  const zone = s.indexOf("%");
-  if (zone !== -1) s = s.slice(0, zone);
-
-  // Rewrite a trailing embedded IPv4 ("…:a.b.c.d") into two hex groups so the
-  // rest can be parsed uniformly.
-  if (s.includes(".")) {
-    const lastColon = s.lastIndexOf(":");
-    if (lastColon === -1) return null;
-    const v4 = ipv4ToOctets(s.slice(lastColon + 1));
-    if (!v4) return null;
-    const g1 = ((v4[0] << 8) | v4[1]).toString(16);
-    const g2 = ((v4[2] << 8) | v4[3]).toString(16);
-    s = `${s.slice(0, lastColon + 1)}${g1}:${g2}`;
-  }
-
-  const doubleColon = s.indexOf("::");
-  let head: string[];
-  let tail: string[];
-  if (doubleColon !== -1) {
-    // Exactly one "::" is allowed.
-    if (s.indexOf("::", doubleColon + 1) !== -1) return null;
-    const [headStr, tailStr] = s.split("::");
-    head = headStr ? headStr.split(":") : [];
-    tail = tailStr ? tailStr.split(":") : [];
-  } else {
-    head = s.split(":");
-    tail = [];
-  }
-
-  const known = head.length + tail.length;
-  let groups: string[];
-  if (doubleColon !== -1) {
-    if (known > 8) return null;
-    groups = [...head, ...Array(8 - known).fill("0"), ...tail];
-  } else {
-    if (known !== 8) return null;
-    groups = head;
-  }
-
-  const bytes: number[] = [];
-  for (const g of groups) {
-    if (!/^[0-9a-f]{1,4}$/i.test(g)) return null;
-    const n = Number.parseInt(g, 16);
-    bytes.push((n >> 8) & 0xff, n & 0xff);
-  }
-  return bytes.length === 16 ? bytes : null;
-}
-
-/**
- * True if an IPv6 address is anything other than a public, routable unicast
- * address. Handles IPv4-mapped/compatible forms by re-checking the embedded
- * IPv4. Blocks `::` (unspecified), `::1` (loopback) and the whole IPv4-compat
- * `::/96`, IPv4-mapped `::ffff:0:0/96` (via the embedded v4), link-local
- * `fe80::/10`, unique-local `fc00::/7`, and multicast `ff00::/8`.
- */
-function isBlockedIpv6Bytes(b: number[]): boolean {
-  const first10Zero = b.slice(0, 10).every((x) => x === 0);
-
-  // IPv4-mapped ::ffff:0:0/96 → classify the embedded IPv4.
-  if (first10Zero && b[10] === 0xff && b[11] === 0xff) {
-    return isBlockedIpv4Octets([b[12], b[13], b[14], b[15]]);
-  }
-  // ::/96 covers :: (unspecified), ::1 (loopback) and IPv4-compatible (deprecated,
-  // non-routable) — none are valid public destinations.
-  if (b.slice(0, 12).every((x) => x === 0)) return true;
-  if (b[0] === 0xfe && (b[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
-  if ((b[0] & 0xfe) === 0xfc) return true; // fc00::/7 unique-local
-  if (b[0] === 0xff) return true; // ff00::/8 multicast
-  return false;
-}
-
-/**
- * True if `ip` (a literal, already IP-shaped) is NOT a public routable address
- * and must be refused. Fails closed: anything unparseable is treated as blocked.
- * Exported for exhaustive unit testing.
+ * True if `ip` is NOT a public routable address and must be refused.
+ *
+ * `ipaddr.js` owns the range table, so the IANA special-purpose registries stay
+ * its problem, not ours: `unicast` is the single category we accept and every
+ * other classification is a block. Fails closed — an address that won't parse
+ * is blocked. Exported for exhaustive unit testing.
  */
 export function isBlockedIp(ip: string): boolean {
-  const family = isIP(ip);
-  if (family === 4) {
-    const octets = ipv4ToOctets(ip);
-    return octets ? isBlockedIpv4Octets(octets) : true;
+  let parsed: ipaddr.IPv4 | ipaddr.IPv6;
+  try {
+    parsed = ipaddr.parse(ip);
+  } catch {
+    return true;
   }
-  if (family === 6) {
-    const bytes = ipv6ToBytes(ip);
-    return bytes ? isBlockedIpv6Bytes(bytes) : true;
+  // `::ffff:a.b.c.d` reaches the same host as `a.b.c.d`, so classify the address
+  // it wraps — `ipv4Mapped` is never `unicast` and would block public hosts too.
+  if (parsed instanceof ipaddr.IPv6 && parsed.isIPv4MappedAddress()) {
+    return parsed.toIPv4Address().range() !== "unicast";
   }
-  return true; // not an IP literal — fail closed
+  return parsed.range() !== "unicast";
+}
+
+// ── Connect-time gate ───────────────────────────────────────────────────────
+
+/**
+ * DNS answers reach the socket through here, so this is where a hostname's
+ * destination is decided: whatever survives is exactly what `net.connect`
+ * dials, with no second resolution in between. `net` asks with `all: true`, but
+ * the single-address form is honoured too because that is its choice, not ours.
+ */
+const validatingLookup: LookupFunction = (hostname, options, callback) => {
+  dnsLookup(hostname, options, (error, address, family) => {
+    if (error) {
+      callback(error, "");
+      return;
+    }
+    const answers = Array.isArray(address) ? address : [{ address, family }];
+    for (const answer of answers) {
+      if (isBlockedIp(answer.address)) {
+        callback(
+          new SsrfBlockedError(
+            "blocked_address",
+            `host ${hostname} resolves to blocked address ${answer.address}`,
+          ),
+          "",
+        );
+        return;
+      }
+    }
+    callback(null, address, family);
+  });
+};
+
+const ssrfAgent = new Agent({
+  connect: buildConnector({ lookup: validatingLookup }),
+});
+
+/**
+ * undici reports a connector refusal as `TypeError: fetch failed` with the real
+ * error on `cause`; dig ours back out so the taxonomy survives the round trip.
+ */
+function findSafeFetchCause(error: unknown): SafeFetchError | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current instanceof Error; depth++) {
+    if (current instanceof SafeFetchError) return current;
+    current = current.cause;
+  }
+  return null;
 }
 
 // ── URL validation ──────────────────────────────────────────────────────────
@@ -247,14 +199,35 @@ function unbracketHost(hostname: string): string {
 }
 
 /**
- * Validate a single URL: enforce the protocol allowlist and ensure the host is
- * a public destination. For an IP literal we classify it directly (no DNS); for
- * a hostname we resolve every A/AAAA record and reject if *any* is internal —
- * that also catches numeric/octal/hex host tricks (e.g. `http://2130706433/`),
- * since the resolver maps them to the same address `fetch` would connect to.
- * Returns the parsed URL on success; throws {@link SsrfBlockedError} otherwise.
+ * Reject once `signal` fires. `dns.promises.lookup` takes no signal, so a
+ * blackholed nameserver would otherwise hang a worker past `timeoutMs`, once
+ * per redirect hop. The abandoned lookup keeps running — it can't be cancelled
+ * — but nothing waits on it.
  */
-async function assertSafeUrl(rawUrl: string): Promise<URL> {
+function withDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    void work
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
+}
+
+/**
+ * Validate a single URL: enforce the protocol allowlist and ensure the host is
+ * a public destination. For an IP literal we classify it directly (no DNS) and
+ * that verdict is final, since a literal can't change under us. For a hostname
+ * we resolve every A/AAAA record and reject if *any* is internal — that also
+ * catches numeric/octal/hex host tricks (e.g. `http://2130706433/`), since the
+ * resolver maps them to the same address the socket would reach. Returns the
+ * parsed URL on success; throws {@link SsrfBlockedError} otherwise.
+ */
+async function assertSafeUrl(
+  rawUrl: string,
+  signal: AbortSignal,
+): Promise<URL> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -282,7 +255,10 @@ async function assertSafeUrl(rawUrl: string): Promise<URL> {
   }
 
   // Hostname — resolve every address and classify them all.
-  const resolved = await lookup(host, { all: true, verbatim: true });
+  const resolved = await withDeadline(
+    lookup(host, { all: true, verbatim: true }),
+    signal,
+  );
   if (resolved.length === 0) {
     throw new SsrfBlockedError("unresolvable_host", `no addresses for ${host}`);
   }
@@ -305,7 +281,7 @@ async function assertSafeUrl(rawUrl: string): Promise<URL> {
  * Content-Length (chunked, slow-loris). Null in → null out (e.g. HEAD).
  */
 function capBodyStream(
-  source: ReadableStream<Uint8Array> | null,
+  source: NodeReadableStream<Uint8Array> | null,
   maxBytes: number,
 ): ReadableStream<Uint8Array> | null {
   if (!source) return null;
@@ -366,14 +342,22 @@ export async function safeFetch(
   const isHead =
     typeof init.method === "string" && init.method.toUpperCase() === "HEAD";
 
-  let current = await assertSafeUrl(rawUrl);
+  let current = await assertSafeUrl(rawUrl, signal);
 
   for (let hop = 0; ; hop++) {
-    const response = await fetch(current.toString(), {
-      ...init,
-      redirect: "manual",
-      signal,
-    });
+    let response: Awaited<ReturnType<typeof undiciFetch>>;
+    try {
+      response = await undiciFetch(current.toString(), {
+        ...init,
+        redirect: "manual",
+        signal,
+        dispatcher: ssrfAgent,
+      });
+    } catch (error) {
+      const blocked = findSafeFetchCause(error);
+      if (blocked) throw blocked;
+      throw error;
+    }
 
     const isRedirect =
       response.status >= 300 &&
@@ -399,7 +383,7 @@ export async function safeFetch(
           `invalid redirect location: ${location}`,
         );
       }
-      current = await assertSafeUrl(next.toString());
+      current = await assertSafeUrl(next.toString(), signal);
       continue;
     }
 
@@ -420,7 +404,7 @@ export async function safeFetch(
     const safe = new Response(body, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers: [...response.headers],
     });
     // Preserve the final URL (after any redirects) so callers that read
     // `response.url` for redirect detection keep working. `current` is the hop

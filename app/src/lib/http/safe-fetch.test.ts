@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockLookup } = vi.hoisted(() => ({ mockLookup: vi.fn() }));
+const { mockLookup, mockFetch } = vi.hoisted(() => ({
+  mockLookup: vi.fn(),
+  mockFetch: vi.fn(),
+}));
 
 // node:dns/promises exposes both named and default (namespace) exports.
 vi.mock("node:dns/promises", () => ({
@@ -8,14 +11,20 @@ vi.mock("node:dns/promises", () => ({
   default: { lookup: mockLookup },
 }));
 
+// Only `fetch` is faked: `Agent`/`buildConnector` stay real so the module still
+// builds the dispatcher it ships to production.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return { ...actual, fetch: mockFetch };
+});
+
+import { Agent, getGlobalDispatcher } from "undici";
 import {
   isBlockedIp,
   SafeFetchError,
   SsrfBlockedError,
   safeFetch,
 } from "./safe-fetch";
-
-const mockFetch = vi.fn();
 
 /** Resolve every hostname to one public address unless a test overrides it. */
 function resolveTo(address: string, family = address.includes(":") ? 6 : 4) {
@@ -45,7 +54,6 @@ beforeEach(() => {
       headers: { "content-type": "text/html" },
     }),
   );
-  vi.stubGlobal("fetch", mockFetch);
 });
 
 afterEach(() => {
@@ -78,6 +86,23 @@ describe("isBlockedIp — IPv4 blocked ranges", () => {
   });
 });
 
+describe("isBlockedIp — IANA special-purpose ranges", () => {
+  it.each([
+    ["198.18/15 benchmarking (low)", "198.18.0.1"],
+    ["198.18/15 benchmarking (high)", "198.19.255.255"],
+    ["192.0.0/24 protocol assignments", "192.0.0.1"],
+    ["192.0.2/24 TEST-NET-1", "192.0.2.1"],
+    ["198.51.100/24 TEST-NET-2", "198.51.100.1"],
+    ["203.0.113/24 TEST-NET-3", "203.0.113.1"],
+    ["2001:db8::/32 documentation", "2001:db8::1"],
+    ["100::/64 discard-only", "100::1"],
+    ["64:ff9b::/96 NAT64", "64:ff9b::1"],
+    ["2002::/16 6to4", "2002::1"],
+  ])("blocks %s", (_label, ip) => {
+    expect(isBlockedIp(ip)).toBe(true);
+  });
+});
+
 describe("isBlockedIp — public IPv4 is allowed", () => {
   it.each([
     ["Google DNS", "8.8.8.8"],
@@ -92,6 +117,10 @@ describe("isBlockedIp — public IPv4 is allowed", () => {
     ["just below multicast", "223.255.255.255"],
     ["11/8 public", "11.22.33.44"],
     ["128/8 public", "128.0.0.1"],
+    ["just above 198.18/15 benchmarking", "198.20.0.1"],
+    ["next to 192.0.0/24 and 192.0.2/24", "192.0.1.1"],
+    ["next to 203.0.113/24 TEST-NET-3", "203.0.114.1"],
+    ["next to 198.51.100/24 TEST-NET-2", "198.51.101.1"],
   ])("allows %s", (_label, ip) => {
     expect(isBlockedIp(ip)).toBe(false);
   });
@@ -103,6 +132,7 @@ describe("isBlockedIp — IPv6 blocked ranges", () => {
     ["unspecified ::", "::"],
     ["link-local fe80::/10", "fe80::1"],
     ["link-local febf::", "febf::1"],
+    ["link-local with zone id", "fe80::1%eth0"],
     ["unique-local fc00::/7", "fc00::1"],
     ["unique-local fd00::/8", "fd12:3456:789a::1"],
     ["multicast ff00::/8", "ff02::1"],
@@ -169,6 +199,13 @@ describe("safeFetch — blocked destinations", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it("rejects an IANA special-purpose literal (TEST-NET-3)", async () => {
+    await expect(safeFetch("http://203.0.113.1/")).rejects.toBeInstanceOf(
+      SsrfBlockedError,
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("rejects a hostname that resolves to a private address, without fetching", async () => {
     resolveTo("10.0.0.5");
     await expect(safeFetch("http://internal.corp/")).rejects.toBeInstanceOf(
@@ -194,6 +231,46 @@ describe("safeFetch — blocked destinations", () => {
     await expect(safeFetch("http://ghost.example/")).rejects.toBeInstanceOf(
       SsrfBlockedError,
     );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("safeFetch — connect-time gate", () => {
+  it("dispatches through a per-request agent, never the global dispatcher", async () => {
+    await safeFetch("https://example.com/");
+    const init = mockFetch.mock.calls[0][1];
+    expect(init.dispatcher).toBeInstanceOf(Agent);
+    expect(init.dispatcher).not.toBe(getGlobalDispatcher());
+  });
+
+  it("surfaces a connector refusal (wrapped by undici) as the original error", async () => {
+    const blocked = new SsrfBlockedError(
+      "blocked_address",
+      "host rebind.example resolves to blocked address 127.0.0.1",
+    );
+    mockFetch.mockRejectedValue(
+      new TypeError("fetch failed", { cause: blocked }),
+    );
+    await expect(safeFetch("https://rebind.example/")).rejects.toBe(blocked);
+  });
+
+  it("leaves an ordinary network failure untouched", async () => {
+    const network = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connect ECONNREFUSED"), {
+        code: "ECONNREFUSED",
+      }),
+    });
+    mockFetch.mockRejectedValue(network);
+    await expect(safeFetch("https://example.com/")).rejects.toBe(network);
+  });
+});
+
+describe("safeFetch — deadline", () => {
+  it("rejects promptly when DNS never answers", async () => {
+    mockLookup.mockReturnValue(new Promise(() => {}));
+    await expect(
+      safeFetch("https://blackhole.example/", { timeoutMs: 20 }),
+    ).rejects.toMatchObject({ name: "TimeoutError" });
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });
