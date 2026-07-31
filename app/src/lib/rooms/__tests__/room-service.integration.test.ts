@@ -330,6 +330,133 @@ describe("Room Service Integration", () => {
 
       expect(result).toEqual({ added: 0, removed: 0 });
     });
+
+    it("adds item to multiple matching rooms in one sync", async () => {
+      const user = await createTestUser();
+      const { read } = await import("@/lib/db");
+      const { syncItemToRooms } = await import("@/lib/rooms/room-service");
+
+      // Three rooms whose filters all match the item, plus one that doesn't
+      const roomA = await createTestRoom(user.id, {
+        name: "Travel",
+        filters: [{ type: "tag", value: "travel", negated: false }],
+      });
+      const roomB = await createTestRoom(user.id, {
+        name: "Europe",
+        filters: [{ type: "tag", value: "europe", negated: false }],
+      });
+      const roomC = await createTestRoom(user.id, {
+        name: "Images",
+        filters: [{ type: "type", value: "image", negated: false }],
+      });
+      const roomD = await createTestRoom(user.id, {
+        name: "Food",
+        filters: [{ type: "tag", value: "food", negated: false }],
+      });
+
+      const item = await createTestItem(user.id, {
+        kind: "image",
+        tags: ["travel", "europe"],
+      });
+
+      const result = await syncItemToRooms(item.id, user.id);
+
+      expect(result.added).toBe(3);
+      expect(result.removed).toBe(0);
+
+      const roomIds = await read.roomItem.findMany({
+        where: { itemId: item.id },
+        select: { roomId: true },
+      });
+      expect(new Set(roomIds.map((ri) => ri.roomId))).toEqual(
+        new Set([roomA.id, roomB.id, roomC.id]),
+      );
+      // Non-matching room excluded
+      expect(roomIds.map((ri) => ri.roomId)).not.toContain(roomD.id);
+    });
+
+    it("adds to newly matching rooms and drops out of no-longer-matching rooms in one sync", async () => {
+      const user = await createTestUser();
+      const { write, read } = await import("@/lib/db");
+      const { syncItemToRooms } = await import("@/lib/rooms/room-service");
+
+      const travelRoom = await createTestRoom(user.id, {
+        name: "Travel",
+        filters: [{ type: "tag", value: "travel", negated: false }],
+      });
+      const foodRoom = await createTestRoom(user.id, {
+        name: "Food",
+        filters: [{ type: "tag", value: "food", negated: false }],
+      });
+      const imageRoom = await createTestRoom(user.id, {
+        name: "Images",
+        filters: [{ type: "type", value: "image", negated: false }],
+      });
+
+      // Item currently tagged food + image; pre-seed stale membership in foodRoom
+      const item = await createTestItem(user.id, {
+        kind: "image",
+        tags: ["travel"],
+      });
+      await write.roomItem.create({
+        data: { roomId: foodRoom.id, itemId: item.id },
+      });
+
+      // Now item matches travelRoom (new) and imageRoom (new) but not foodRoom (stale)
+      const result = await syncItemToRooms(item.id, user.id);
+
+      expect(result.added).toBe(2);
+      expect(result.removed).toBe(1);
+
+      const roomIds = await read.roomItem.findMany({
+        where: { itemId: item.id },
+        select: { roomId: true },
+      });
+      expect(new Set(roomIds.map((ri) => ri.roomId))).toEqual(
+        new Set([travelRoom.id, imageRoom.id]),
+      );
+      expect(roomIds.map((ri) => ri.roomId)).not.toContain(foodRoom.id);
+    });
+
+    it("is a no-op when item is already correctly placed", async () => {
+      const user = await createTestUser();
+      const { read } = await import("@/lib/db");
+      const { syncItemToRooms } = await import("@/lib/rooms/room-service");
+
+      const matchingRoom = await createTestRoom(user.id, {
+        name: "Travel",
+        filters: [{ type: "tag", value: "travel", negated: false }],
+      });
+      // A non-matching room the item is correctly absent from
+      await createTestRoom(user.id, {
+        name: "Food",
+        filters: [{ type: "tag", value: "food", negated: false }],
+      });
+
+      const item = await createTestItem(user.id, { tags: ["travel"] });
+
+      // First sync places the item correctly
+      const first = await syncItemToRooms(item.id, user.id);
+      expect(first).toEqual({ added: 1, removed: 0 });
+
+      const membershipRow = await read.roomItem.findFirstOrThrow({
+        where: { itemId: item.id, roomId: matchingRoom.id },
+      });
+
+      // Second sync should change nothing
+      const second = await syncItemToRooms(item.id, user.id);
+      expect(second).toEqual({ added: 0, removed: 0 });
+
+      const roomItems = await read.roomItem.findMany({
+        where: { itemId: item.id },
+      });
+      expect(roomItems).toHaveLength(1);
+      expect(roomItems[0].roomId).toBe(matchingRoom.id);
+      // Existing membership row untouched (not deleted + recreated)
+      expect(roomItems[0].addedAt.getTime()).toBe(
+        membershipRow.addedAt.getTime(),
+      );
+    });
   });
 
   describe("syncRoomItems", () => {

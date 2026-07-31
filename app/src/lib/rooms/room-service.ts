@@ -197,46 +197,50 @@ export async function syncItemToRooms(
   }
 
   const rooms = await getUserSmartRooms(userId);
-  let added = 0;
-  let removed = 0;
+
+  // Fetch existing memberships once instead of per-room (avoids N+1 on this hot write path)
+  const existingRoomItems = await db.roomItem.findMany({
+    where: { itemId: item.id },
+    select: { roomId: true },
+  });
+  const existingRoomIds = new Set(existingRoomItems.map((ri) => ri.roomId));
+
+  const roomIdsToAdd: string[] = [];
+  const roomIdsToRemove: string[] = [];
 
   for (const room of rooms) {
     const matches = itemMatchesRoom(item, room);
+    const isInRoom = existingRoomIds.has(room.id);
 
-    if (matches) {
-      // Add to room if not already present
-      // Use findFirst + create instead of upsert to reliably track new inserts
-      const existing = await db.roomItem.findUnique({
-        where: {
-          roomId_itemId: {
-            roomId: room.id,
-            itemId: item.id,
-          },
-        },
-      });
-
-      if (!existing) {
-        await db.roomItem.create({
-          data: {
-            roomId: room.id,
-            itemId: item.id,
-          },
-        });
-        added++;
-      }
-    } else {
-      // Remove from room if present
-      const result = await db.roomItem.deleteMany({
-        where: {
-          roomId: room.id,
-          itemId: item.id,
-        },
-      });
-      removed += result.count;
+    if (matches && !isInRoom) {
+      roomIdsToAdd.push(room.id);
+    } else if (!matches && isInRoom) {
+      roomIdsToRemove.push(room.id);
     }
   }
 
-  return { added, removed };
+  // Batch add new memberships
+  if (roomIdsToAdd.length > 0) {
+    await db.roomItem.createMany({
+      data: roomIdsToAdd.map((roomId) => ({
+        roomId,
+        itemId: item.id,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  // Batch remove memberships that no longer match
+  if (roomIdsToRemove.length > 0) {
+    await db.roomItem.deleteMany({
+      where: {
+        itemId: item.id,
+        roomId: { in: roomIdsToRemove },
+      },
+    });
+  }
+
+  return { added: roomIdsToAdd.length, removed: roomIdsToRemove.length };
 }
 
 /**
