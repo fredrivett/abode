@@ -2,7 +2,9 @@
 
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
+import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -12,6 +14,8 @@ import type { TwitterDetails } from "./types";
 
 type TwitterCardProps = {
   twitterDetails: TwitterDetails;
+  /** LQIP placeholder for the cover media, shown blurred while it loads. */
+  blurDataUrl?: string | null;
   onClick: () => void;
   className?: string;
 };
@@ -24,6 +28,7 @@ type TwitterCardProps = {
  */
 export function TwitterCard({
   twitterDetails,
+  blurDataUrl,
   onClick,
   className,
 }: TwitterCardProps) {
@@ -39,6 +44,8 @@ export function TwitterCard({
       ? twitterImageSrc(coverMedia.fileKey, coverMedia.url, "grid")
       : (twitterImageSrc(coverMedia?.fileKey, coverMedia?.posterUrl, "grid") ??
         twitterImageSrc(card?.imageFileKey, card?.imageUrl, "grid"));
+
+  const { loaded: previewLoaded, imgProps } = useImageLoaded(previewImage);
 
   const isPlayable =
     coverMedia?.type === "video" || coverMedia?.type === "animated_gif";
@@ -88,10 +95,17 @@ export function TwitterCard({
           {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
           {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
+            {...imgProps}
             src={previewImage}
             className="h-full w-full object-cover"
             loading="lazy"
           />
+          {blurDataUrl && (
+            <BlurPlaceholder
+              blurDataUrl={blurDataUrl}
+              visible={!previewLoaded}
+            />
+          )}
           {/* Play indicator for videos/GIFs that aren't autoplaying */}
           {isPlayable && (
             <div className="absolute inset-0 flex items-center justify-center">

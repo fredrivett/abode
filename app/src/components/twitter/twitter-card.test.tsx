@@ -56,4 +56,39 @@ describe("TwitterCard", () => {
     );
     expect(screen.queryByText("Cora Meridian")).not.toBeInTheDocument();
   });
+
+  it("renders the blur placeholder over the cover when provided", () => {
+    const { container } = render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          media: [{ type: "photo", url: "https://example.com/p.jpg" }],
+        }}
+        blurDataUrl="data:image/webp;base64,BLUR"
+        onClick={() => {}}
+      />,
+    );
+    expect(
+      container.querySelector(
+        '[aria-hidden="true"][style*="background-image"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("has no blur placeholder when blurDataUrl is absent", () => {
+    const { container } = render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          media: [{ type: "photo", url: "https://example.com/p.jpg" }],
+        }}
+        onClick={() => {}}
+      />,
+    );
+    expect(
+      container.querySelector(
+        '[aria-hidden="true"][style*="background-image"]',
+      ),
+    ).toBeNull();
+  });
 });

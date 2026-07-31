@@ -55,6 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import {
@@ -68,6 +69,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -184,7 +186,7 @@ export function ItemCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const { loaded: imgLoaded, imgProps } = useImageLoaded(previewUrl);
 
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -244,7 +246,6 @@ export function ItemCard({
     // Use optimized proxy URL for all users (CDN cached, WebP, sized for grid)
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
-    setImgLoaded(false);
     setPreviewUrl(proxyUrl);
   }, [
     imageFileKey,
@@ -650,6 +651,7 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <TwitterCard
             twitterDetails={item.twitterDetails}
+            blurDataUrl={blurDataUrl}
             onClick={handleOpenDetail}
           />
         </div>
@@ -726,6 +728,7 @@ export function ItemCard({
             alt={itemName}
             layoutId={`item-image-${item.id}`}
             coverColor={getDominantCoverColor(item.colors)}
+            blurDataUrl={blurDataUrl}
           />
         </button>
 
@@ -846,29 +849,13 @@ export function ItemCard({
         >
           {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
           <img
-            ref={(node) => {
-              // onLoad won't fire for an already-cached image; catch that here
-              if (node?.complete && node.naturalWidth > 0) setImgLoaded(true);
-            }}
+            {...imgProps}
             src={previewUrl}
             alt={itemName}
-            onLoad={() => setImgLoaded(true)}
             className="h-full w-full object-cover"
           />
-          {/* Blur placeholder sits on top of the real image and dissolves to
-              reveal it once the full image has loaded. */}
           {blurDataUrl && (
-            <div
-              aria-hidden
-              // Crisp low-res source, blurred here in screen space. -inset-4 (16px)
-              // overscans ~2× the 8px blur radius so the filter's soft edge is
-              // clipped by the parent's overflow-hidden (no bleed) at minimal zoom.
-              className={cn(
-                "-inset-4 absolute bg-center bg-cover blur-[8px] transition-opacity duration-700",
-                imgLoaded ? "opacity-0" : "opacity-100",
-              )}
-              style={{ backgroundImage: `url("${blurDataUrl}")` }}
-            />
+            <BlurPlaceholder blurDataUrl={blurDataUrl} visible={!imgLoaded} />
           )}
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
