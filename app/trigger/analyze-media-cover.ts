@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
+import { isReplicateConfigured } from "../src/lib/embeddings";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import {
   mirrorCoverAnalysisToItem,
@@ -15,6 +16,7 @@ import {
   getSupabaseConfig,
 } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
+import { imageAnalysisQueue } from "./queues";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
 
@@ -42,6 +44,11 @@ type AnalyzeMediaCoverPayload = {
  */
 export const analyzeMediaCoverTask = task({
   id: "analyze-media-cover",
+  retry: { maxAttempts: 2 },
+  // Share one concurrency budget with analyze-image so a batch backfill can't
+  // fan out enough concurrent Replicate calls to get throttled (dropping the
+  // visual embedding).
+  queue: imageAnalysisQueue,
   maxDuration: 600,
   run: async (payload: AnalyzeMediaCoverPayload) => {
     const { itemId, userId, fileKey } = payload;
@@ -74,11 +81,25 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
 
   let cached = await db.itemMediaAnalysis.findUnique({
     where: { itemId_fileKey: { itemId, fileKey } },
-    select: { objects: true, ocrText: true, tags: true },
+    select: { objects: true, ocrText: true, tags: true, embeddingModel: true },
   });
 
-  if (!cached) {
-    logger.log("Analysing cover image (cache miss)", { itemId, fileKey });
+  // Re-analyse a cached row whose visual embedding never landed (e.g. a
+  // throttled Replicate call dropped it) so a re-run can heal it — but only when
+  // Replicate can actually produce one, else a null embedding is the final state
+  // and re-analysing would loop forever.
+  const missingEmbedding =
+    cached !== null &&
+    cached.embeddingModel === null &&
+    isReplicateConfigured();
+
+  if (!cached || missingEmbedding) {
+    logger.log(
+      cached
+        ? "Re-analysing cover image (missing embedding)"
+        : "Analysing cover image (cache miss)",
+      { itemId, fileKey },
+    );
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -115,6 +136,7 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
       objects: analysis.objects,
       ocrText: analysis.ocrText,
       tags: analysis.tags,
+      embeddingModel: analysis.embeddingModel,
     };
   } else {
     logger.log("Cover image already analysed (cache hit)", {
