@@ -406,14 +406,8 @@ function SimilarImagesCard({
               ))}
             </div>
             <p className="mt-3 text-muted-foreground text-xs">
-              Score is inner-product similarity (≈ cosine, −1…1).{" "}
-              <span className="text-emerald-600">shown</span> = appears in the
-              user's Similar images (clears the threshold and within the top{" "}
-              {SIMILAR_INSPECTOR_META.shownLimit}); <span>capped</span> = clears
-              the threshold but ranks beyond the top{" "}
-              {SIMILAR_INSPECTOR_META.shownLimit}, so it's hidden;{" "}
-              <span className="text-amber-600">below</span> = under the
-              threshold, hidden.
+              Score is inner-product similarity (≈ cosine, −1…1); badges show
+              whether it reaches the user — hover for details.
             </p>
           </>
         )}
