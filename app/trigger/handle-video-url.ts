@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { safeFetch } from "../src/lib/http/safe-fetch";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import {
   fetchVideoMetadata,
@@ -42,7 +43,9 @@ async function downloadAndStoreThumbnail(
   supabase: SupabaseClient,
 ): Promise<{ fileKey: string; size: number } | null> {
   try {
-    const response = await fetch(imageUrl, {
+    // Defense-in-depth: the thumbnail URL comes from the video platform's
+    // metadata, so route it through safeFetch like every other remote image.
+    const response = await safeFetch(imageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",

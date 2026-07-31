@@ -15,6 +15,7 @@ import {
   type ProductImageCandidate,
   type ProductMetadata,
 } from "../src/lib/html-metadata";
+import { safeFetch } from "../src/lib/http/safe-fetch";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import type { ForcibleKind } from "../src/lib/item-kind-reassignment";
@@ -116,7 +117,10 @@ type ImageFetchResult =
 
 async function fetchImageBuffer(imageUrl: string): Promise<ImageFetchResult> {
   try {
-    const response = await fetch(imageUrl, {
+    // Attacker-controlled URL (og:image / direct image / product image) — route
+    // through safeFetch so it can't reach internal hosts, redirect off to one,
+    // or stream an unbounded body.
+    const response = await safeFetch(imageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
@@ -293,9 +297,10 @@ export const classifyUrlTask = task({
           // Use a simple User-Agent for t.co resolution.
           // With browser-like User-Agents, t.co returns a JavaScript redirect instead of HTTP redirect,
           // which Node.js fetch can't follow. Simple User-Agents get proper HTTP 301/302 redirects.
-          const resolveResponse = await fetch(url, {
+          // safeFetch follows the redirect chain manually, re-validating each
+          // hop, so a t.co link can't bounce us onto an internal host.
+          const resolveResponse = await safeFetch(url, {
             method: "HEAD",
-            redirect: "follow",
             headers: {
               "User-Agent": "AbodeBot/1.0",
             },
@@ -384,7 +389,7 @@ export const classifyUrlTask = task({
 
       let contentType: string | null = null;
       try {
-        const headResponse = await fetch(fetchUrl, {
+        const headResponse = await safeFetch(fetchUrl, {
           method: "HEAD",
           headers: {
             "User-Agent":
@@ -413,7 +418,7 @@ export const classifyUrlTask = task({
       // Step 4: Fetch the full page content
       logger.log("Fetching page content", { itemId, url: fetchUrl });
 
-      const response = await fetch(fetchUrl, {
+      const response = await safeFetch(fetchUrl, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",

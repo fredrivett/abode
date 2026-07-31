@@ -5,6 +5,7 @@ import { logger, tasks } from "@trigger.dev/sdk";
 import { fetchTweet, type Tweet } from "react-tweet/api";
 import { translateToEnglish } from "../src/lib/ai/translate-to-english";
 import db from "../src/lib/db";
+import { safeFetch } from "../src/lib/http/safe-fetch";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
 import type {
@@ -162,7 +163,9 @@ export async function downloadAndStoreImage(
   supabase: SupabaseClient,
 ): Promise<{ fileKey: string; size: number } | null> {
   try {
-    const response = await fetch(imageUrl, {
+    // The tweet's link-card image URL comes from an arbitrary third-party page,
+    // so route it through safeFetch to keep it off internal hosts.
+    const response = await safeFetch(imageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
