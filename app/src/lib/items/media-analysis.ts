@@ -1,10 +1,14 @@
 import { Prisma } from "@prisma/client";
+import { recordAiUsage } from "../ai-costs/record-ai-usage";
 import db from "../db";
 import {
+  generateImageEmbedding,
+  isReplicateConfigured,
   mirrorMediaEmbeddingToVisualVector,
   setMediaAnalysisEmbedding,
 } from "../embeddings";
 import type { ImageVisionAnalysis } from "../image-analysis/analyze-image-bytes";
+import { captureServerException } from "../posthog-server";
 
 /** Coerce a Prisma JSON read back into a writable input value (JSON null → DB null). */
 function toJsonInput(
@@ -98,4 +102,53 @@ export async function mirrorCoverAnalysisToItem({
   });
 
   await mirrorMediaEmbeddingToVisualVector({ itemId, fileKey });
+}
+
+/**
+ * Regenerate ONLY the missing CLIP embedding for a cover that already has its
+ * vision analysis cached (objects/OCR/colours), e.g. one whose embedding was
+ * dropped by a throttled Replicate call. Deliberately skips OpenAI Vision — the
+ * vision data hasn't changed, so re-running it would burn tokens for nothing and
+ * re-hit the vision rate limit. Just the (cheap) Replicate call runs.
+ *
+ * Graceful: no-op when Replicate is unconfigured, and a Replicate failure leaves
+ * the embedding null (to be retried on a later run) rather than throwing.
+ *
+ * @returns true if an embedding was generated and stored.
+ */
+export async function healMediaAnalysisEmbedding({
+  itemId,
+  userId,
+  fileKey,
+  getSignedUrl,
+}: {
+  itemId: string;
+  userId: string;
+  fileKey: string;
+  getSignedUrl: () => Promise<string>;
+}): Promise<boolean> {
+  if (!isReplicateConfigured()) return false;
+  try {
+    const signedUrl = await getSignedUrl();
+    const embedding = await generateImageEmbedding(signedUrl);
+    await setMediaAnalysisEmbedding({ itemId, fileKey, embedding });
+    recordAiUsage({
+      userId,
+      itemId,
+      provider: "replicate",
+      operation: "image_embedding",
+      model: "clip-vit-base-patch32",
+      images: 1,
+      source: "ingestion",
+    });
+    return true;
+  } catch (error) {
+    // Optional enhancement failing must not fail the caller — report, leave null
+    captureServerException(error, userId, {
+      source: "heal-media-embedding",
+      itemId,
+      fileKey,
+    });
+    return false;
+  }
 }

@@ -5,6 +5,7 @@ import db from "../src/lib/db";
 import { isReplicateConfigured } from "../src/lib/embeddings";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import {
+  healMediaAnalysisEmbedding,
   mirrorCoverAnalysisToItem,
   upsertMediaAnalysis,
 } from "../src/lib/items/media-analysis";
@@ -84,24 +85,17 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
     select: { objects: true, ocrText: true, tags: true, embeddingModel: true },
   });
 
-  // Re-analyse a cached row whose visual embedding never landed (e.g. a
-  // throttled Replicate call dropped it) so a re-run can heal it — but only when
-  // Replicate can actually produce one, else a null embedding is the final state
-  // and re-analysing would loop forever.
-  const missingEmbedding =
+  // A cached row whose visual embedding never landed (e.g. a throttled Replicate
+  // call dropped it). Heal just the embedding — but only when Replicate can
+  // produce one, else a null embedding is the final state and this would loop.
+  const needsHeal =
     cached !== null &&
     cached.embeddingModel === null &&
     isReplicateConfigured();
 
-  if (!cached || missingEmbedding) {
-    logger.log(
-      cached
-        ? "Re-analysing cover image (missing embedding)"
-        : "Analysing cover image (cache miss)",
-      { itemId, fileKey },
-    );
-    const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  if (!cached) {
+    logger.log("Analysing cover image (cache miss)", { itemId, fileKey });
+    const { supabase, getSignedUrl } = coverStorage(fileKey);
 
     const { data, error } = await supabase.storage
       .from("items")
@@ -118,17 +112,7 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
       mimeType: getMimeTypeFromFileKey(fileKey),
       itemId,
       userId,
-      getSignedUrl: async () => {
-        const { data: urlData, error: urlError } = await supabase.storage
-          .from("items")
-          .createSignedUrl(fileKey, 3600);
-        if (urlError || !urlData) {
-          throw new Error(
-            `Failed to create signed URL: ${formatStorageError(urlError)}`,
-          );
-        }
-        return urlData.signedUrl;
-      },
+      getSignedUrl,
     });
 
     await upsertMediaAnalysis({ itemId, userId, fileKey, analysis });
@@ -138,6 +122,25 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
       tags: analysis.tags,
       embeddingModel: analysis.embeddingModel,
     };
+  } else if (needsHeal) {
+    // Vision is already cached — regenerate only the missing embedding (no
+    // OpenAI Vision, so no wasted tokens and no re-hitting its rate limit).
+    logger.log("Healing cover embedding (skipping vision)", {
+      itemId,
+      fileKey,
+    });
+    const healed = await healMediaAnalysisEmbedding({
+      itemId,
+      userId,
+      fileKey,
+      getSignedUrl: coverStorage(fileKey).getSignedUrl,
+    });
+    if (!healed) {
+      logger.warn("Cover embedding heal did not land, will retry on a re-run", {
+        itemId,
+        fileKey,
+      });
+    }
   } else {
     logger.log("Cover image already analysed (cache hit)", {
       itemId,
@@ -162,22 +165,47 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
     return { success: true, itemId, fileKey, skipped: "stale-cover" };
   }
 
-  // Mirror the cover's analysis into the item-level search/similar surfaces
+  // Mirror the cover's analysis into the item-level search/similar surfaces —
+  // this is what propagates a freshly-healed embedding into item_visual_vectors.
   await mirrorCoverAnalysisToItem({ itemId, fileKey });
 
-  // Re-enrich so tags + text embedding follow the selected cover, blended with
-  // the item's own text (e.g. the tweet text)
-  const sourceText = [extraSourceText, ...cached.objects, cached.ocrText]
-    .filter(Boolean)
-    .join(" ");
+  // A heal only fixes the CLIP embedding; the vision-derived tags + text are
+  // unchanged, so skip enrichment (re-running it would re-bill the text
+  // embedding for no change). Fresh analysis and cover swaps still re-enrich.
+  if (!needsHeal) {
+    const sourceText = [extraSourceText, ...cached.objects, cached.ocrText]
+      .filter(Boolean)
+      .join(" ");
 
-  logger.log("Triggering item enrichment from cover analysis", { itemId });
-  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
-    itemId,
-    userId,
-    precomputedTags: cached.tags,
-    sourceText: truncateToTokenLimit(sourceText, EMBEDDING_TOKEN_LIMIT),
-  });
+    logger.log("Triggering item enrichment from cover analysis", { itemId });
+    await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+      itemId,
+      userId,
+      precomputedTags: cached.tags,
+      sourceText: truncateToTokenLimit(sourceText, EMBEDDING_TOKEN_LIMIT),
+    });
+  }
 
-  return { success: true, itemId, fileKey, analysed: true };
+  return { success: true, itemId, fileKey, analysed: !needsHeal };
+}
+
+/**
+ * Supabase storage client + a signed-URL helper for one cover image. The signed
+ * URL feeds Replicate (embeddings); the client also downloads bytes for vision.
+ */
+function coverStorage(fileKey: string) {
+  const { url, key } = getSupabaseConfig();
+  const supabase = createClient(url, key);
+  const getSignedUrl = async () => {
+    const { data, error } = await supabase.storage
+      .from("items")
+      .createSignedUrl(fileKey, 3600);
+    if (error || !data) {
+      throw new Error(
+        `Failed to create signed URL: ${formatStorageError(error)}`,
+      );
+    }
+    return data.signedUrl;
+  };
+  return { supabase, getSignedUrl };
 }
