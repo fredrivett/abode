@@ -1,4 +1,10 @@
 import db from "@/lib/db";
+import {
+  findSimilarImages,
+  SIMILAR_IMAGE_MIN_SIMILARITY,
+  SIMILAR_IMAGES_LIMIT,
+} from "@/lib/search/similar-images";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { TwitterMedia } from "@/lib/types/item";
 
 /**
@@ -166,4 +172,124 @@ export function reconcileTweetMedia(
       isMirrored: Boolean(m.fileKey) && m.fileKey === coverFileKey,
     };
   });
+}
+
+/** How many top matches the inspector surfaces (more than the live cap, so we
+ * can also show near-misses that fall just below the threshold). */
+export const SIMILAR_INSPECTOR_LIMIT = 10;
+
+export type SimilarInspectorRow<T> = T & {
+  /** Clears the similarity threshold shown to users. */
+  meetsThreshold: boolean;
+  /** Would actually appear in the user's Similar images (passes AND within the
+   * display cap). Passing rows are contiguous at the top (ordered by score). */
+  shownToUser: boolean;
+};
+
+/**
+ * Flag each ranked match with whether it clears the threshold and whether it
+ * would actually be shown to the user (threshold + the display cap). Pure and
+ * unit-tested. `results` must be ordered most→least similar.
+ */
+export function annotateSimilar<T extends { similarity: number }>(
+  results: T[],
+  threshold: number,
+  shownLimit: number,
+): SimilarInspectorRow<T>[] {
+  let shown = 0;
+  return results.map((r) => {
+    const meetsThreshold = r.similarity >= threshold;
+    const shownToUser = meetsThreshold && shown < shownLimit;
+    if (shownToUser) shown += 1;
+    return { ...r, meetsThreshold, shownToUser };
+  });
+}
+
+export type InspectorSimilarImage = SimilarInspectorRow<{
+  id: string;
+  kind: ItemInspection["kind"];
+  title: string | null;
+  similarity: number;
+  /** Signed thumbnail URL (admin client — works cross-user), or null. */
+  imageUrl: string | null;
+}>;
+
+/** The similarity threshold + display cap the live feature uses, for the UI. */
+export const SIMILAR_INSPECTOR_META = {
+  threshold: SIMILAR_IMAGE_MIN_SIMILARITY,
+  shownLimit: SIMILAR_IMAGES_LIMIT,
+};
+
+/**
+ * The owner's top visually-similar images to `itemId` for the admin inspector:
+ * the top {@link SIMILAR_INSPECTOR_LIMIT} regardless of threshold (so near-misses
+ * are visible), each flagged for threshold/shown-to-user, with a signed
+ * thumbnail. Empty when the item has no visual embedding.
+ */
+export async function getSimilarImagesForInspector({
+  itemId,
+  userId,
+}: {
+  itemId: string;
+  userId: string;
+}): Promise<InspectorSimilarImage[]> {
+  const matches = await findSimilarImages({
+    itemId,
+    userId,
+    limit: SIMILAR_INSPECTOR_LIMIT,
+    threshold: -2, // below the [-1, 1] range so nothing is filtered out
+  });
+  if (matches.length === 0) return [];
+
+  const rows = await db.item.findMany({
+    where: { id: { in: matches.map((m) => m.id) }, userId },
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      fileKey: true,
+      coverFileKey: true,
+    },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  // Preserve similarity order; resolve each item's displayable image key.
+  const ordered = matches.flatMap((m) => {
+    const row = byId.get(m.id);
+    if (!row) return [];
+    return [
+      {
+        id: m.id,
+        kind: row.kind,
+        title: row.title,
+        similarity: m.similarity,
+        imageKey: row.coverFileKey ?? row.fileKey ?? null,
+      },
+    ];
+  });
+
+  // Batch-sign the thumbnails with the service-role client (the image proxy
+  // won't authorize an admin viewing another user's images).
+  const keys = ordered
+    .map((o) => o.imageKey)
+    .filter((k): k is string => Boolean(k));
+  const urlByKey = new Map<string, string>();
+  if (keys.length > 0) {
+    const { data } = await getSupabaseAdminClient()
+      .storage.from("items")
+      .createSignedUrls(keys, 3600);
+    for (const entry of data ?? []) {
+      if (entry.signedUrl && entry.path)
+        urlByKey.set(entry.path, entry.signedUrl);
+    }
+  }
+
+  return annotateSimilar(
+    ordered,
+    SIMILAR_IMAGE_MIN_SIMILARITY,
+    SIMILAR_IMAGES_LIMIT,
+  ).map(({ imageKey, ...rest }) => ({
+    ...rest,
+    imageUrl: imageKey ? (urlByKey.get(imageKey) ?? null) : null,
+  }));
 }

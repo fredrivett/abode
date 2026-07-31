@@ -6,8 +6,11 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getItemInspection,
+  getSimilarImagesForInspector,
+  type InspectorSimilarImage,
   type ItemInspection,
   reconcileTweetMedia,
+  SIMILAR_INSPECTOR_META,
 } from "@/lib/admin/item-inspector";
 import type { ImageColor, TwitterMedia } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
@@ -315,6 +318,98 @@ function MediaAnalysesCard({ item }: { item: ItemInspection }) {
   );
 }
 
+function SimilarImageCell({ row }: { row: InspectorSimilarImage }) {
+  return (
+    <Link
+      href={`/admin/items/${row.id}`}
+      className="group block space-y-1"
+      title={row.title ?? row.id}
+    >
+      <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted">
+        {row.imageUrl ? (
+          // biome-ignore lint/performance/noImgElement: admin-only signed thumbnail
+          <img
+            src={row.imageUrl}
+            alt=""
+            className="size-full object-cover transition-transform group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center text-muted-foreground text-xs">
+            no image
+          </div>
+        )}
+        <span className="absolute top-1 left-1 rounded bg-black/70 px-1 py-0.5 font-mono text-[10px] text-white tabular-nums">
+          {row.similarity.toFixed(3)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        {row.shownToUser ? (
+          <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">
+            shown
+          </span>
+        ) : row.meetsThreshold ? (
+          <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+            passes, capped
+          </span>
+        ) : (
+          <span className="rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600">
+            below
+          </span>
+        )}
+        <span className="truncate text-[10px] text-muted-foreground">
+          {row.kind ?? "—"}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function SimilarImagesCard({
+  rows,
+  hasVisualVector,
+}: {
+  rows: InspectorSimilarImage[];
+  hasVisualVector: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          Similar images (top {rows.length}) · threshold ≥{" "}
+          {SIMILAR_INSPECTOR_META.threshold.toFixed(2)} · live shows up to{" "}
+          {SIMILAR_INSPECTOR_META.shownLimit}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!hasVisualVector ? (
+          <p className="text-muted-foreground text-sm">
+            No visual embedding on this item — similar-images doesn't run.
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No other images with embeddings in this owner's library.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+              {rows.map((row) => (
+                <SimilarImageCell key={row.id} row={row} />
+              ))}
+            </div>
+            <p className="mt-3 text-muted-foreground text-xs">
+              Score is inner-product similarity (≈ cosine, −1…1).{" "}
+              <span className="text-emerald-600">shown</span> = would appear in
+              the user's Similar images (clears the threshold, within the
+              display cap); <span className="text-amber-600">below</span> =
+              under threshold, hidden.
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── page ──────────────────────────────────────────────────────────────────
 
 export default async function AdminItemInspectorPage({
@@ -328,6 +423,12 @@ export default async function AdminItemInspectorPage({
 
   const visualVector = item.visualVectors[0] ?? null;
   const textVector = item.textVectors[0] ?? null;
+  const similarImages = visualVector
+    ? await getSimilarImagesForInspector({
+        itemId: item.id,
+        userId: item.userId,
+      })
+    : [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
@@ -511,6 +612,10 @@ export default async function AdminItemInspectorPage({
           <MediaTable item={item} />
           <CoverAnalysisCard item={item} />
           <MediaAnalysesCard item={item} />
+          <SimilarImagesCard
+            rows={similarImages}
+            hasVisualVector={visualVector !== null}
+          />
 
           <Card>
             <CardHeader>
