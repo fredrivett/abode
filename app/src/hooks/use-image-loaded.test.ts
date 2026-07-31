@@ -37,6 +37,20 @@ describe("useImageLoaded", () => {
     expect(result.current.loaded).toBe(false);
   });
 
+  it("resets even when returning to a previously-loaded src", () => {
+    const { result, rerender } = renderHook(({ src }) => useImageLoaded(src), {
+      initialProps: { src: "a.jpg" },
+    });
+    act(() => result.current.imgProps.onLoad());
+    expect(result.current.loaded).toBe(true);
+
+    rerender({ src: "b.jpg" });
+    rerender({ src: "a.jpg" }); // back to a URL that loaded before
+    // Must show the placeholder again until the current image repaints, not
+    // treat the historical load as still valid.
+    expect(result.current.loaded).toBe(false);
+  });
+
   it("stays unloaded when there is no src", () => {
     const { result } = renderHook(() => useImageLoaded(null));
     act(() => result.current.imgProps.onLoad());
