@@ -13,7 +13,11 @@ describe("tweet cover-analysis backfill selection", () => {
 
   const createTweet = async (
     userId: string,
-    opts: { coverFileKey?: string | null; analysisFileKey?: string },
+    opts: {
+      coverFileKey?: string | null;
+      analysisFileKey?: string;
+      analysisEmbeddingModel?: string | null;
+    },
   ) => {
     const { write } = await import("@/lib/db");
     const item = await write.item.create({
@@ -34,21 +38,26 @@ describe("tweet cover-analysis backfill selection", () => {
     });
     if (opts.analysisFileKey) {
       await write.itemMediaAnalysis.create({
-        data: { itemId: item.id, userId, fileKey: opts.analysisFileKey },
+        data: {
+          itemId: item.id,
+          userId,
+          fileKey: opts.analysisFileKey,
+          embeddingModel: opts.analysisEmbeddingModel ?? null,
+        },
       });
     }
     return item;
   };
 
   // Mirrors the backfill task's selection: prefilter query + per-cover predicate.
-  const selectCandidates = async () => {
+  const selectCandidates = async (replicateConfigured: boolean) => {
     const { read } = await import("@/lib/db");
     const items = await read.item.findMany({
       where: tweetCoverAnalysisBackfillWhere(),
       select: {
         id: true,
         coverFileKey: true,
-        mediaAnalyses: { select: { fileKey: true } },
+        mediaAnalyses: { select: { fileKey: true, embeddingModel: true } },
       },
     });
     return items
@@ -56,7 +65,8 @@ describe("tweet cover-analysis backfill selection", () => {
       .filter((it) =>
         coverNeedsAnalysis(
           it.coverFileKey as string,
-          it.mediaAnalyses.map((m) => m.fileKey),
+          it.mediaAnalyses,
+          replicateConfigured,
         ),
       )
       .map((it) => it.id);
@@ -80,11 +90,18 @@ describe("tweet cover-analysis backfill selection", () => {
       coverFileKey: `${user.id}/new.jpg`,
       analysisFileKey: `${user.id}/old.jpg`,
     });
+    // Candidate: current cover is analysed but the embedding never landed
+    const missingEmbedding = await createTweet(user.id, {
+      coverFileKey: `${user.id}/noemb.jpg`,
+      analysisFileKey: `${user.id}/noemb.jpg`,
+      analysisEmbeddingModel: null,
+    });
 
-    // Excluded: the current cover is analysed
+    // Excluded: the current cover is analysed *with* an embedding
     await createTweet(user.id, {
       coverFileKey: `${user.id}/done.jpg`,
       analysisFileKey: `${user.id}/done.jpg`,
+      analysisEmbeddingModel: "clip-vit-base-patch32",
     });
     // Excluded: not re-hosted
     await createTweet(user.id, { coverFileKey: null });
@@ -99,7 +116,33 @@ describe("tweet cover-analysis backfill selection", () => {
       },
     });
 
-    const found = await selectCandidates();
-    expect(found.sort()).toEqual([fresh.id, swappedUnanalysed.id].sort());
+    const found = await selectCandidates(true);
+    expect(found.sort()).toEqual(
+      [fresh.id, swappedUnanalysed.id, missingEmbedding.id].sort(),
+    );
+  });
+
+  test("does not re-select missing embeddings when Replicate is unconfigured", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await write.user.create({
+      data: {
+        id: crypto.randomUUID(),
+        email: `bca-${crypto.randomUUID()}@example.com`,
+      },
+    });
+
+    // No embedding, but without Replicate a null embedding is the final state
+    await createTweet(user.id, {
+      coverFileKey: `${user.id}/noemb.jpg`,
+      analysisFileKey: `${user.id}/noemb.jpg`,
+      analysisEmbeddingModel: null,
+    });
+    // Still a candidate: no cache row at all
+    const fresh = await createTweet(user.id, {
+      coverFileKey: `${user.id}/cover.jpg`,
+    });
+
+    const found = await selectCandidates(false);
+    expect(found).toEqual([fresh.id]);
   });
 });

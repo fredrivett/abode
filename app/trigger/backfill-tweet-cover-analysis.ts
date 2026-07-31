@@ -11,6 +11,7 @@
 
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { isReplicateConfigured } from "../src/lib/embeddings";
 import {
   coverNeedsAnalysis,
   tweetCoverAnalysisBackfillWhere,
@@ -31,21 +32,25 @@ export const backfillTweetCoverAnalysisTask = task({
         userId: true,
         coverFileKey: true,
         twitterDetails: { select: { text: true } },
-        mediaAnalyses: { select: { fileKey: true } },
+        mediaAnalyses: { select: { fileKey: true, embeddingModel: true } },
       },
     });
+
+    const replicateConfigured = isReplicateConfigured();
 
     const batchItems = items
       // coverFileKey is non-null per the where clause; this also narrows the type
       .filter((it): it is typeof it & { coverFileKey: string } =>
         Boolean(it.coverFileKey),
       )
-      // Only tweets whose *current* cover hasn't been analysed (a cache row for
-      // an old cover must not exclude them)
+      // Only tweets whose *current* cover still needs analysis — no cache row, or
+      // a row whose visual embedding never landed (a stale row for an old cover
+      // must not exclude them)
       .filter((it) =>
         coverNeedsAnalysis(
           it.coverFileKey,
-          it.mediaAnalyses.map((m) => m.fileKey),
+          it.mediaAnalyses,
+          replicateConfigured,
         ),
       )
       .map((it) => ({

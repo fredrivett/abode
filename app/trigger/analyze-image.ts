@@ -16,6 +16,7 @@ import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import type { enrichItemTask } from "./enrich-item";
+import { imageAnalysisQueue } from "./queues";
 
 type AnalyzeImagePayload = {
   itemId: string;
@@ -98,7 +99,7 @@ export function formatStorageError(error: unknown) {
 export const analyzeImageTask = task({
   id: "analyze-image",
   retry: { maxAttempts: 2 },
-  queue: { concurrencyLimit: 3 },
+  queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey } = payload;
