@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
 
   let upstream: Response;
   try {
+    // Raw fetch is deliberate: the host is allowlisted to video.twimg.com above,
+    // and the body is streamed straight through (safeFetch caps body size, which
+    // would truncate a video). Exempted from the no-raw-fetch plugin by path in
+    // biome.json.
     upstream = await fetch(parsed.toString(), {
       headers: upstreamHeaders,
       redirect: "follow",

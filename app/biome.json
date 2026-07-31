@@ -74,6 +74,16 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "trigger/**",
+        "src/app/api/**",
+        "!trigger/check-gravatar.ts",
+        "!src/app/api/v1/map-image/route.ts",
+        "!src/app/api/v1/twitter-video/route.ts"
+      ],
+      "plugins": ["./biome/no-raw-fetch.grit"]
     }
   ],
   "assist": {

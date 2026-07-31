@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SafeFetchError, SsrfBlockedError } from "@/lib/http/safe-fetch";
 import {
   classifyFailureReason,
   FetchError,
@@ -50,6 +51,27 @@ describe("classifyFailureReason", () => {
       cause: { code: "UND_ERR_CONNECT_TIMEOUT" },
     });
     expect(classifyFailureReason(undici)).toBe("source_unreachable");
+  });
+
+  it("maps an SSRF-blocked destination to source_blocked", () => {
+    expect(
+      classifyFailureReason(
+        new SsrfBlockedError("blocked_address", "blocked address literal"),
+      ),
+    ).toBe("source_blocked");
+  });
+
+  it("maps other safe-fetch safety aborts to source_unreachable", () => {
+    expect(
+      classifyFailureReason(
+        new SafeFetchError("body_too_large", "response body exceeded cap"),
+      ),
+    ).toBe("source_unreachable");
+    expect(
+      classifyFailureReason(
+        new SafeFetchError("too_many_redirects", "too many redirects"),
+      ),
+    ).toBe("source_unreachable");
   });
 
   it("parses legacy 'Failed to fetch URL: <status>' errors", () => {

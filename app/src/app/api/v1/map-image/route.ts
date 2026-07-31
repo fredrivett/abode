@@ -166,6 +166,8 @@ export async function GET(request: NextRequest) {
       "Fetching map image from Mapbox",
     );
 
+    // Raw fetch is fine here — fixed host, every input server-derived (see above).
+    // Exempted from the no-raw-fetch plugin by path in biome.json.
     const response = await fetch(mapUrl);
 
     if (!response.ok) {

@@ -50,7 +50,10 @@ export const checkGravatarTask = task({
 
     logger.log("Checking Gravatar URL", { userId, hash });
 
-    // Check if Gravatar exists (d=404 returns 404 if no image)
+    // Check if Gravatar exists (d=404 returns 404 if no image).
+    // Raw fetch is fine here — the host is fixed and the path is a hash we built,
+    // so nothing user-supplied reaches the URL. Exempted from the no-raw-fetch
+    // plugin by path in biome.json.
     const response = await fetch(gravatarUrl, { method: "HEAD" });
 
     if (response.status === 404) {

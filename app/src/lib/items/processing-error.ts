@@ -1,4 +1,5 @@
 import type { ProcessingErrorReason } from "@prisma/client";
+import { SafeFetchError, SsrfBlockedError } from "@/lib/http/safe-fetch";
 
 /**
  * Error thrown when fetching a source URL returns a non-OK HTTP status.
@@ -79,6 +80,12 @@ function isNetworkError(error: unknown): boolean {
 export function classifyFailureReason(error: unknown): ProcessingErrorReason {
   if (error instanceof ProcessingFailure) return error.reason;
   if (error instanceof FetchError) return reasonFromStatus(error.status);
+  // The SSRF gate refused this destination — surface it as "blocked" (checked
+  // before the SafeFetchError base, which it extends).
+  if (error instanceof SsrfBlockedError) return "source_blocked";
+  // Other safe-fetch safety aborts (redirect cap, oversized body) — treat like
+  // an unreachable source.
+  if (error instanceof SafeFetchError) return "source_unreachable";
   if (isNetworkError(error)) return "source_unreachable";
 
   // Fallback: legacy errors thrown as `Failed to fetch URL: <status>`

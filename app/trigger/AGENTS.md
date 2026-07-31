@@ -8,6 +8,7 @@ Scoped rules for files in this directory. See the `add-trigger-task` skill (`.ag
 - Always set a `retry` config and a sensible `maxDuration`.
 - **Error handling convention**: in `run`, `try/catch` → `logger.error(...)` + `captureServerException(error, userId, { task })` → if the work backs a user-visible item, set `processingStatus: "failed"` → **re-throw** so Trigger.dev retries.
 - Return an object including at least `{ success: true }`.
+- **Fetch a user-supplied URL with `safeFetch`** (`../src/lib/http/safe-fetch`), never the global `fetch` — it's the SSRF gate (blocks private/loopback/metadata IPs, caps time and body size, re-validates redirects). The `no-raw-fetch.grit` plugin enforces this across `trigger/**`; a genuinely fixed-host call is exempted by path in `biome.json` (Biome can't suppress plugin diagnostics inline).
 - Don't remove `@trigger.dev/sdk`/`@trigger.dev/core` from `serverExternalPackages` in `next.config.ts` (zod v4-vs-v3 resolution).
 
 ---
