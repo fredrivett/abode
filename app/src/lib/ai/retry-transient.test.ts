@@ -15,9 +15,25 @@ describe("isTransientAiError", () => {
     expect(isTransientAiError({ status: 422 })).toBe(false);
   });
 
-  test("errors with no status (network/timeout) are transient", () => {
-    expect(isTransientAiError(new Error("socket hang up"))).toBe(true);
-    expect(isTransientAiError(undefined)).toBe(true);
+  test("recognised network/timeout errors are transient", () => {
+    expect(isTransientAiError({ code: "ECONNRESET" })).toBe(true);
+    expect(isTransientAiError({ name: "APIConnectionTimeoutError" })).toBe(
+      true,
+    );
+    // fetch surfaces the real code on a nested cause
+    expect(
+      isTransientAiError({ name: "TypeError", cause: { code: "ETIMEDOUT" } }),
+    ).toBe(true);
+  });
+
+  test("deterministic no-status errors are NOT transient (avoid re-burning tokens)", () => {
+    // e.g. an OpenAI schema/length/content-filter parse failure
+    expect(isTransientAiError({ name: "LengthFinishReasonError" })).toBe(false);
+    expect(isTransientAiError(new Error("could not parse response"))).toBe(
+      false,
+    );
+    expect(isTransientAiError({ code: "ENOSPC" })).toBe(false);
+    expect(isTransientAiError(undefined)).toBe(false);
   });
 });
 

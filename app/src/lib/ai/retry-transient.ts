@@ -2,18 +2,61 @@ import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/ai/retry-transient");
 
+// Network/timeout failures carry no HTTP status but are still worth retrying.
+// Recognise them by Node/undici error code or SDK connection-error class name,
+// walking the `cause` chain (fetch surfaces the real code on a nested cause).
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+]);
+const RETRYABLE_ERROR_NAMES = new Set([
+  "APIConnectionError",
+  "APIConnectionTimeoutError",
+  "AbortError",
+  "TimeoutError",
+]);
+
+function isNetworkError(error: object): boolean {
+  let current: unknown = error;
+  for (
+    let depth = 0;
+    depth < 4 && current && typeof current === "object";
+    depth++
+  ) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === "string" && RETRYABLE_NETWORK_CODES.has(code))
+      return true;
+    const name = (current as { name?: unknown }).name;
+    if (typeof name === "string" && RETRYABLE_ERROR_NAMES.has(name))
+      return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 /**
  * Whether an AI-provider error is worth retrying: rate limits (429), server
- * errors (5xx), and errors with no HTTP status (network/timeouts). Client errors
- * like 401 (bad key) or 422 (bad input) are permanent — retrying just wastes
- * time. Both the OpenAI and Replicate SDKs surface `.status`, so one predicate
- * covers both.
+ * errors (5xx), and recognised network/timeout errors. Everything else is
+ * treated as permanent — a client error (401 bad key, 422 bad input) or a
+ * deterministic failure with no HTTP status (a schema/length/content-filter
+ * parse error) would just fail again and re-burn tokens. Both the OpenAI and
+ * Replicate SDKs surface `.status`, so one predicate covers both.
  */
 export function isTransientAiError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return true;
+  if (!error || typeof error !== "object") return false;
   const status = (error as { status?: unknown }).status;
-  if (typeof status !== "number") return true;
-  return status === 429 || status >= 500;
+  if (typeof status === "number") return status === 429 || status >= 500;
+  // No HTTP status: retry only genuine network/timeout errors, not deterministic
+  // failures (which would repeat forever and waste tokens).
+  return isNetworkError(error);
 }
 
 const DEFAULT_MAX_ATTEMPTS = 4;
