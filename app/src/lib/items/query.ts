@@ -21,6 +21,7 @@ import type {
  */
 export const itemSelect = {
   id: true,
+  userId: true,
   kind: true,
   processingStatus: true,
   processingError: true,
@@ -30,6 +31,7 @@ export const itemSelect = {
   sourceUrl: true,
   coverFileKey: true,
   createdAt: true,
+  updatedAt: true,
   title: true,
   description: true,
   tags: true,
@@ -155,6 +157,7 @@ export function transformItem(item: RawItem) {
   return {
     ...item,
     createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
     meta: (item.meta as Record<string, unknown> | null) ?? null,
     objects: item.imageDetails?.objects ?? [],
     colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
