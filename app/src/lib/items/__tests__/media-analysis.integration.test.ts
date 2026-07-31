@@ -3,9 +3,18 @@
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import type { ImageVisionAnalysis } from "@/lib/image-analysis/analyze-image-bytes";
 import {
+  healMediaAnalysisEmbedding,
   mirrorCoverAnalysisToItem,
   upsertMediaAnalysis,
 } from "@/lib/items/media-analysis";
+
+const hoisted = vi.hoisted(() => ({ generateImageEmbedding: vi.fn() }));
+
+// Mock only Replicate's embedding generator; everything else (DB writes) is real
+vi.mock("@/lib/embeddings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/embeddings")>()),
+  generateImageEmbedding: hoisted.generateImageEmbedding,
+}));
 
 function analysis(
   overrides: Partial<ImageVisionAnalysis> = {},
@@ -54,8 +63,18 @@ async function seedTweet() {
 }
 
 describe("media-analysis persistence", () => {
+  const originalReplicateToken = process.env.REPLICATE_API_TOKEN;
+
   beforeEach(async () => {
     await resetTestDatabase();
+    hoisted.generateImageEmbedding.mockReset();
+    process.env.REPLICATE_API_TOKEN = "r8_test";
+  });
+
+  afterEach(() => {
+    if (originalReplicateToken === undefined)
+      delete process.env.REPLICATE_API_TOKEN;
+    else process.env.REPLICATE_API_TOKEN = originalReplicateToken;
   });
 
   test("upsertMediaAnalysis caches per-image keyed by fileKey (idempotent + embedding)", async () => {
@@ -172,5 +191,91 @@ describe("media-analysis persistence", () => {
     // leave similar-images matching the old cover
     await mirrorCoverAnalysisToItem({ itemId, fileKey: noEmbedding });
     expect(await read.itemVisualVector.count({ where: { itemId } })).toBe(0);
+  });
+
+  test("healMediaAnalysisEmbedding backfills a missing embedding without re-running vision", async () => {
+    const { read } = await import("@/lib/db");
+    const { userId, itemId } = await seedTweet();
+    const fileKey = `${userId}/a.jpg`;
+
+    // Vision succeeded but the embedding was dropped
+    await upsertMediaAnalysis({
+      itemId,
+      userId,
+      fileKey,
+      analysis: analysis({ embedding: null, embeddingModel: null }),
+    });
+    hoisted.generateImageEmbedding.mockResolvedValue(
+      Array.from({ length: 768 }, () => 0.02),
+    );
+
+    const healed = await healMediaAnalysisEmbedding({
+      itemId,
+      userId,
+      fileKey,
+      getSignedUrl: async () => "https://signed.example/a.jpg",
+    });
+
+    expect(healed).toBe(true);
+    expect(hoisted.generateImageEmbedding).toHaveBeenCalledOnce();
+    const [row] = await read.$queryRaw<
+      { has_embedding: boolean; embedding_model: string | null }[]
+    >`SELECT embedding IS NOT NULL AS has_embedding, embedding_model FROM item_media_analysis WHERE item_id = ${itemId}::uuid AND file_key = ${fileKey}`;
+    expect(row.has_embedding).toBe(true);
+    expect(row.embedding_model).toBe("clip-vit-base-patch32");
+
+    // Now the mirror can project a real visual vector
+    await mirrorCoverAnalysisToItem({ itemId, fileKey });
+    expect(await read.itemVisualVector.count({ where: { itemId } })).toBe(1);
+  });
+
+  test("healMediaAnalysisEmbedding leaves the row null and returns false on failure", async () => {
+    const { read } = await import("@/lib/db");
+    const { userId, itemId } = await seedTweet();
+    const fileKey = `${userId}/a.jpg`;
+
+    await upsertMediaAnalysis({
+      itemId,
+      userId,
+      fileKey,
+      analysis: analysis({ embedding: null, embeddingModel: null }),
+    });
+    hoisted.generateImageEmbedding.mockRejectedValue({ status: 429 });
+
+    const healed = await healMediaAnalysisEmbedding({
+      itemId,
+      userId,
+      fileKey,
+      getSignedUrl: async () => "https://signed.example/a.jpg",
+    });
+
+    expect(healed).toBe(false);
+    const [{ has_embedding }] = await read.$queryRaw<
+      { has_embedding: boolean }[]
+    >`SELECT embedding IS NOT NULL AS has_embedding FROM item_media_analysis WHERE item_id = ${itemId}::uuid AND file_key = ${fileKey}`;
+    expect(has_embedding).toBe(false);
+  });
+
+  test("healMediaAnalysisEmbedding no-ops when Replicate is unconfigured", async () => {
+    const { userId, itemId } = await seedTweet();
+    const fileKey = `${userId}/a.jpg`;
+    delete process.env.REPLICATE_API_TOKEN;
+
+    await upsertMediaAnalysis({
+      itemId,
+      userId,
+      fileKey,
+      analysis: analysis({ embedding: null, embeddingModel: null }),
+    });
+
+    const healed = await healMediaAnalysisEmbedding({
+      itemId,
+      userId,
+      fileKey,
+      getSignedUrl: async () => "https://signed.example/a.jpg",
+    });
+
+    expect(healed).toBe(false);
+    expect(hoisted.generateImageEmbedding).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import { retryTransient } from "../ai/retry-transient";
 import { createLogger } from "../logger.server";
 
 const log = createLogger("lib/openai-vision");
@@ -79,27 +80,36 @@ Be specific and accurate. For colors, use common color names and provide approxi
 All output (title, description, tags, objects, ocrText interpretation, color names) MUST be in English. If the image contains text in another language, transcribe it verbatim in ocrText, but write the title, description, tags, and objects in English.`;
 
   try {
-    const completion = await client.chat.completions.parse({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
+    // Retry transient 429s (the org token-per-minute limit trips under a burst
+    // of image analyses) with backoff, rather than failing the whole task.
+    const completion = await retryTransient(
+      () =>
+        client.chat.completions.parse({
+          model: "gpt-4o-mini",
+          messages: [
             {
-              type: "image_url",
-              image_url: {
-                url: dataUrl,
-                detail: "high",
-              },
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: dataUrl,
+                    detail: "high",
+                  },
+                },
+              ],
             },
           ],
-        },
-      ],
-      max_tokens: 1000,
-      temperature: 0.3,
-      response_format: zodResponseFormat(ImageAnalysisSchema, "image_analysis"),
-    });
+          max_tokens: 1000,
+          temperature: 0.3,
+          response_format: zodResponseFormat(
+            ImageAnalysisSchema,
+            "image_analysis",
+          ),
+        }),
+      { label: "OpenAI vision" },
+    );
 
     const analysis = completion.choices[0]?.message?.parsed;
     if (!analysis) {

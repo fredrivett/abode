@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import OpenAI from "openai";
 import Replicate from "replicate";
+import { retryTransient } from "@/lib/ai/retry-transient";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 
@@ -80,60 +81,6 @@ export function extractClipEmbedding(output: unknown): number[] {
 }
 
 /**
- * Whether a Replicate error is worth retrying: rate limits (429), server errors
- * (5xx), and errors with no HTTP status (network/timeouts). Client errors like
- * 401 (bad token) or 422 (bad input) are permanent — retrying just wastes time.
- */
-export function isTransientReplicateError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return true;
-  const status = (error as { status?: unknown }).status;
-  if (typeof status !== "number") return true;
-  return status === 429 || status >= 500;
-}
-
-const REPLICATE_MAX_ATTEMPTS = 4;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Run a Replicate call with exponential backoff on transient failures. Replicate
- * throttles under load, so a bare call drops embeddings that a short retry would
- * recover. Non-transient errors throw immediately.
- *
- * @param fn - The Replicate call to run.
- * @param options.sleepFn - Injectable delay (tests pass a no-op).
- */
-export async function retryTransientReplicate<T>(
-  fn: () => Promise<T>,
-  options: { sleepFn?: (ms: number) => Promise<void> } = {},
-): Promise<T> {
-  const sleepFn = options.sleepFn ?? sleep;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= REPLICATE_MAX_ATTEMPTS; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (
-        attempt === REPLICATE_MAX_ATTEMPTS ||
-        !isTransientReplicateError(error)
-      )
-        throw error;
-      const backoffMs = Math.min(8000, 500 * 2 ** (attempt - 1));
-      const jitterMs = Math.random() * 250;
-      log.warn(
-        { attempt, maxAttempts: REPLICATE_MAX_ATTEMPTS, backoffMs },
-        "Replicate call failed with a transient error, retrying",
-      );
-      await sleepFn(backoffMs + jitterMs);
-    }
-  }
-  throw lastError;
-}
-
-/**
  * Normalize a vector using L2 normalization for inner product optimization
  */
 export function normalizeVector(vector: number[]): number[] {
@@ -181,8 +128,9 @@ export async function generateImageEmbedding(
       "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a";
     const input = { inputs: imageInput };
 
-    const output = await retryTransientReplicate(() =>
-      getReplicateClient().run(modelVersion, { input }),
+    const output = await retryTransient(
+      () => getReplicateClient().run(modelVersion, { input }),
+      { label: "Replicate CLIP" },
     );
     const embedding = extractClipEmbedding(output);
 
@@ -346,22 +294,25 @@ export async function upsertTextVector({
 /**
  * Set the CLIP embedding on an existing item_media_analysis row (raw SQL — the
  * column is pgvector, which Prisma can't write directly, same as
- * upsertVisualVector above). The row's non-vector columns are written
- * separately via Prisma.
+ * upsertVisualVector above). Sets the model alongside the vector so the row's
+ * `embedding_model` always matches its `embedding` — including when healing a
+ * row whose embedding landed after its non-vector columns were first written.
  */
 export async function setMediaAnalysisEmbedding({
   itemId,
   fileKey,
   embedding,
+  model = VISUAL_EMBEDDING_MODEL,
 }: {
   itemId: string;
   fileKey: string;
   embedding: number[];
+  model?: string;
 }) {
   const vectorLiteral = toVectorLiteral(embedding);
   await db.$executeRaw`
     UPDATE "item_media_analysis"
-    SET "embedding" = ${vectorLiteral}::vector
+    SET "embedding" = ${vectorLiteral}::vector, "embedding_model" = ${model}
     WHERE "item_id" = ${itemId}::uuid AND "file_key" = ${fileKey}
   `;
 }
