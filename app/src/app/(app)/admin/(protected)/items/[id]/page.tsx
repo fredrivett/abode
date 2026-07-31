@@ -344,15 +344,24 @@ function SimilarImageCell({ row }: { row: InspectorSimilarImage }) {
       </div>
       <div className="flex items-center justify-between gap-1">
         {row.shownToUser ? (
-          <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">
+          <span
+            title="Shown to the user: clears the threshold and is within the display cap."
+            className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600"
+          >
             shown
           </span>
         ) : row.meetsThreshold ? (
-          <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
-            passes, capped
+          <span
+            title={`Similar enough (clears the threshold) but ranks beyond the top ${SIMILAR_INSPECTOR_META.shownLimit} shown, so the user never sees it.`}
+            className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground"
+          >
+            capped
           </span>
         ) : (
-          <span className="rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600">
+          <span
+            title="Below the similarity threshold — hidden from the user."
+            className="rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600"
+          >
             below
           </span>
         )}
@@ -398,10 +407,13 @@ function SimilarImagesCard({
             </div>
             <p className="mt-3 text-muted-foreground text-xs">
               Score is inner-product similarity (≈ cosine, −1…1).{" "}
-              <span className="text-emerald-600">shown</span> = would appear in
-              the user's Similar images (clears the threshold, within the
-              display cap); <span className="text-amber-600">below</span> =
-              under threshold, hidden.
+              <span className="text-emerald-600">shown</span> = appears in the
+              user's Similar images (clears the threshold and within the top{" "}
+              {SIMILAR_INSPECTOR_META.shownLimit}); <span>capped</span> = clears
+              the threshold but ranks beyond the top{" "}
+              {SIMILAR_INSPECTOR_META.shownLimit}, so it's hidden;{" "}
+              <span className="text-amber-600">below</span> = under the
+              threshold, hidden.
             </p>
           </>
         )}
