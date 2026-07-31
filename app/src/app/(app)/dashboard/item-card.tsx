@@ -69,6 +69,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -185,7 +186,7 @@ export function ItemCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const { loaded: imgLoaded, imgProps } = useImageLoaded(previewUrl);
 
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -245,7 +246,6 @@ export function ItemCard({
     // Use optimized proxy URL for all users (CDN cached, WebP, sized for grid)
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
-    setImgLoaded(false);
     setPreviewUrl(proxyUrl);
   }, [
     imageFileKey,
@@ -849,13 +849,9 @@ export function ItemCard({
         >
           {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
           <img
-            ref={(node) => {
-              // onLoad won't fire for an already-cached image; catch that here
-              if (node?.complete && node.naturalWidth > 0) setImgLoaded(true);
-            }}
+            {...imgProps}
             src={previewUrl}
             alt={itemName}
-            onLoad={() => setImgLoaded(true)}
             className="h-full w-full object-cover"
           />
           {blurDataUrl && (

@@ -34,7 +34,6 @@ export function TwitterCard({
 }: TwitterCardProps) {
   const { media, card } = twitterDetails;
   const autoplayAllowed = useAutoplayAllowed();
-  const { loaded: previewLoaded, imgProps } = useImageLoaded();
 
   // Get preview image: use cover media index, falling back to first item or
   // link card. Prefer our re-hosted copy, falling back to the original twimg URL.
@@ -45,6 +44,8 @@ export function TwitterCard({
       ? twitterImageSrc(coverMedia.fileKey, coverMedia.url, "grid")
       : (twitterImageSrc(coverMedia?.fileKey, coverMedia?.posterUrl, "grid") ??
         twitterImageSrc(card?.imageFileKey, card?.imageUrl, "grid"));
+
+  const { loaded: previewLoaded, imgProps } = useImageLoaded(previewImage);
 
   const isPlayable =
     coverMedia?.type === "video" || coverMedia?.type === "animated_gif";

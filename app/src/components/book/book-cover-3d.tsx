@@ -51,7 +51,7 @@ export function BookCover3D({
   coverColor,
   blurDataUrl,
 }: BookCover3DProps) {
-  const { loaded: coverLoaded, imgProps } = useImageLoaded();
+  const { loaded: coverLoaded, imgProps } = useImageLoaded(src);
   return (
     <motion.div
       layoutId={layoutId}
