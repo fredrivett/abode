@@ -288,6 +288,8 @@ The `supabase-e2e/` directory contains config for an isolated Supabase instance 
 When a recurring defect is fixed, append a one-line entry here — but first try to convert the lesson into a deterministic check (type, lint, or test) via the `learn` skill in `.agents/skills/learn/`. Use this list only for context a check can't capture.
 
 - New Postgres tables must enable RLS (default-deny) or they're reachable by the anon/authenticated Supabase roles — enforced by `src/lib/__tests__/rls-coverage.integration.test.ts`.
+- Server-side fetches of a user-supplied URL must use `safeFetch` (`@/lib/http/safe-fetch`), never the global `fetch`, or the SSRF gate is bypassed — enforced in `trigger/**` and `src/app/api/**` by `app/biome/no-raw-fetch.grit`.
+- `biome.json` takes no comments: with one present Biome 2.2 silently falls back to its default config (whole repo reformats to tabs) rather than erroring — document Biome config decisions in the plugin file, not inline.
 
 ## Trigger.dev
 

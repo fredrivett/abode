@@ -1,0 +1,27 @@
+language js
+
+// SSRF guardrail: a user-supplied URL must be fetched with `safeFetch`, never the
+// global `fetch`, which will happily reach localhost, 169.254.169.254 and private IPs.
+//
+// Scoped by the last `overrides` entry in biome.json to the server-side surface a
+// user URL can reach — `trigger/**` and `src/app/api/**`. Deliberately NOT global:
+// browser -> our own /api/v1/* fetches are not an SSRF risk and flagging them would
+// bury the signal.
+//
+// Biome 2.2 cannot suppress plugin diagnostics with `biome-ignore` (any category
+// form), and biome.json takes no comments (they make Biome silently fall back to its
+// default config), so fixed-host exceptions are exempted by path in that override:
+//   trigger/check-gravatar.ts             HEAD to www.gravatar.com, hash-built URL
+//   src/app/api/v1/map-image/route.ts     server-built api.mapbox.com URL
+//   src/app/api/v1/twitter-video/route.ts host-allowlisted to video.twimg.com
+// Each carries a comment at its call site. Add one only for a genuinely fixed host.
+//
+// Matches a bare `fetch(...)` only: a member call like `client.fetch(...)` has a
+// member expression as its callee, so it doesn't match.
+`fetch($args)` as $call where {
+  register_diagnostic(
+    span=$call,
+    message="Don't fetch with the global fetch on the server. A URL reaching this code may be user-supplied, and a raw fetch will happily reach localhost, 169.254.169.254 and private IPs (SSRF). Use `safeFetch` from `@/lib/http/safe-fetch`. If the host is genuinely fixed or allowlisted, exempt the file in the last `overrides` entry in biome.json and say why at the call site.",
+    severity="error"
+  )
+}
