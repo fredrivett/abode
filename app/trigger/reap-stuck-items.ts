@@ -3,6 +3,7 @@ import {
   reapStuckItems,
   STUCK_ITEM_THRESHOLD_MS,
 } from "../src/lib/items/reap-stuck-items";
+import { captureServerException } from "../src/lib/posthog-server";
 
 /**
  * Hourly backstop: mark items stranded in `processing`/`pending` past the
@@ -16,11 +17,17 @@ export const reapStuckItemsTask = schedules.task({
   maxDuration: 60,
   run: async () => {
     const olderThan = new Date(Date.now() - STUCK_ITEM_THRESHOLD_MS);
-    const { reaped } = await reapStuckItems({ olderThan });
-    logger.log("Swept stuck items", {
-      reaped,
-      olderThan: olderThan.toISOString(),
-    });
-    return { success: true, reaped };
+    try {
+      const { reaped } = await reapStuckItems({ olderThan });
+      logger.log("Swept stuck items", {
+        reaped,
+        olderThan: olderThan.toISOString(),
+      });
+      return { success: true, reaped };
+    } catch (error) {
+      logger.error("Stuck-items sweep failed", { error });
+      captureServerException(error, undefined, { task: "reap-stuck-items" });
+      throw error; // rethrow so Trigger.dev retries the sweep
+    }
   },
 });
