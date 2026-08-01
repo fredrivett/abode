@@ -4,6 +4,7 @@ import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import { isReplicateConfigured } from "../src/lib/embeddings";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
+import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import {
   healMediaAnalysisEmbedding,
   mirrorCoverAnalysisToItem,
@@ -53,6 +54,9 @@ export const analyzeMediaCoverTask = task({
   maxDuration: 600,
   run: async (payload: AnalyzeMediaCoverPayload) => {
     const { itemId, userId, fileKey } = payload;
+
+    // Advance the reaper clock — this is a chained pipeline stage
+    await markProcessingActive(itemId);
 
     try {
       return await analyseCover(payload);

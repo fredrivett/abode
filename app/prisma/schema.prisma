@@ -91,6 +91,7 @@ enum ProcessingErrorReason {
   source_not_found // 404/410 — page gone
   source_unreachable // network error, timeout, DNS, 5xx
   unsupported_content // fetched but couldn't parse/classify
+  stalled // never reached a terminal status (worker died/timed out/dropped) — swept by the stuck-items reaper
   unknown // catch-all
 }
 
@@ -146,6 +147,16 @@ model Item {
   userId           String           @map("user_id") @db.Uuid
   kind             ItemKind?
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
+
+  // When the most recent processing stage began — effectively a per-stage
+  // heartbeat. Set at capture (column default), on retry/reassign re-entry, and
+  // advanced at the start of each chained pipeline stage (see
+  // markProcessingActive). The stuck-items reaper measures staleness from THIS,
+  // not `updatedAt`: (1) an unrelated user edit bumps `updatedAt` and would
+  // wrongly reset the clock, and (2) anchoring only at capture would let a
+  // legitimately-slow multi-stage pipeline be reaped mid-chain. Advancing per
+  // stage means the reaper threshold only has to cover one stage's lifespan.
+  processingStartedAt DateTime @default(now()) @map("processing_started_at")
 
   // Why processing failed (only set when processingStatus = failed). Null otherwise.
   processingError  ProcessingErrorReason? @map("processing_error")
@@ -213,6 +224,10 @@ model Item {
   @@index([userId, createdAt(sort: Desc)])
   @@index([tags])
   @@index([userTags])
+  // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
+  // (pending/processing are always a tiny set) instead of scanning completed
+  // history. status first (equality/IN), processingStartedAt second (range).
+  @@index([processingStatus, processingStartedAt])
   @@map("items")
 }
 

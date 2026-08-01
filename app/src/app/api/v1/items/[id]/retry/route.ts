@@ -38,6 +38,7 @@ export async function POST(
         userId: true,
         kind: true,
         processingStatus: true,
+        processingStartedAt: true,
         fileKey: true,
         sourceType: true,
         sourceUrl: true,
@@ -91,15 +92,27 @@ export async function POST(
     } else {
       await db.item.update({
         where: { id },
-        data: { processingStatus: "processing", processingError: null },
+        data: {
+          processingStatus: "processing",
+          processingError: null,
+          // Restart the reaper clock for this fresh attempt
+          processingStartedAt: new Date(),
+        },
       });
     }
 
     const previousStatus = item.processingStatus;
+    const previousProcessingStartedAt = item.processingStartedAt;
+    // Restore both status AND the reaper clock — the admin claim bumped
+    // processingStartedAt, and a failed retry must leave an already-stuck item
+    // eligible for the sweep at its original time, not a fresh 4h window.
     const revert = () =>
       db.item.update({
         where: { id },
-        data: { processingStatus: previousStatus },
+        data: {
+          processingStatus: previousStatus,
+          processingStartedAt: previousProcessingStartedAt,
+        },
       });
 
     const guard = await guardDailyLimit(user.id, "reanalysis");

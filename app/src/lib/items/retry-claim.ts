@@ -12,7 +12,12 @@ export async function claimFailedRetry(
 ): Promise<boolean> {
   const { count } = await db.item.updateMany({
     where: { id: itemId, userId, processingStatus: "failed" },
-    data: { processingStatus: "processing", processingError: null },
+    data: {
+      processingStatus: "processing",
+      processingError: null,
+      // Restart the reaper clock for this fresh attempt
+      processingStartedAt: new Date(),
+    },
   });
 
   return count > 0;

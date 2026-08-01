@@ -25,6 +25,10 @@ const COPY: Record<ProcessingErrorReason, ProcessingErrorCopy> = {
     message: "We couldn't read this type of content.",
     retryable: false,
   },
+  stalled: {
+    message: "Processing didn't finish and was stopped — please try again.",
+    retryable: true,
+  },
   unknown: {
     message: "Analysis failed. You can retry or delete the item.",
     retryable: true,

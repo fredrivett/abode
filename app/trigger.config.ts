@@ -13,6 +13,19 @@ export default defineConfig({
   // You can override this on an individual task.
   // See https://trigger.dev/docs/runs/max-duration
   maxDuration: 3600,
+  // Project-wide TTL: a run that hasn't STARTED within this window is dropped
+  // from the queue and never executes. This bounds a run's total lifespan
+  // (queue wait + maxDuration) so a late/queued run can't resume after the
+  // stuck-items reaper has failed its item and the user has retried — which
+  // would let the stale run clobber the retry. COUPLED KNOBS — keep consistent:
+  //   ttl + longest task maxDuration  <  reaper threshold
+  //   (STUCK_ITEM_THRESHOLD_MS in src/lib/items/reap-stuck-items.ts).
+  //   Here: 2h + 10m < 4h. ✓
+  // Also coupled to image throughput: at `image-analysis` concurrencyLimit 2
+  // (trigger/queues.ts) uploads drain ~600/h, so this 2h TTL tolerates a burst
+  // of ~1200 queued images before the tail starts dropping. Raising throughput
+  // (Replicate limit → concurrency) lets this TTL shrink.
+  ttl: "2h",
   retries: {
     enabledInDev: true,
     default: {

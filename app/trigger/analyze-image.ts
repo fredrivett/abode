@@ -11,6 +11,7 @@ import {
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
+import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
@@ -103,6 +104,9 @@ export const analyzeImageTask = task({
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey } = payload;
+
+    // Advance the reaper clock — first pipeline stage
+    await markProcessingActive(itemId);
 
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
 
