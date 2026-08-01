@@ -3,6 +3,7 @@ import { withPostHogConfig } from "@posthog/nextjs-config";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
+import { securityHeadersConfig } from "./src/lib/security-headers";
 
 let revision: string;
 try {
@@ -47,6 +48,13 @@ const nextConfig: NextConfig = {
   // these packages lets Node resolve to that copy at runtime instead of
   // letting webpack dedupe to the app's zod v4.
   serverExternalPackages: ["@trigger.dev/sdk", "@trigger.dev/core"],
+  // Static security response headers applied to every route. CSP is
+  // intentionally deferred (needs source enumeration + tuning). The room
+  // "embed" is a shadow-DOM JS widget + CORS JSON API, not an iframed HTML
+  // page, so the blanket `X-Frame-Options: DENY` breaks nothing. Route
+  // handlers set their own CORS headers on the response, which coexist with
+  // these.
+  headers: securityHeadersConfig,
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
