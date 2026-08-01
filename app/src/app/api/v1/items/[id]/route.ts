@@ -303,6 +303,10 @@ export async function PATCH(
         where: { itemId: id },
         data: { coverMediaIndex: twitterCoverMediaIndex },
       });
+      // updatedItem was read before this update, so reflect the new index
+      if (updatedItem.twitterDetails) {
+        updatedItem.twitterDetails.coverMediaIndex = twitterCoverMediaIndex;
+      }
 
       const details = await db.itemTwitterDetails.findFirst({
         where: { itemId: id },
@@ -345,6 +349,10 @@ export async function PATCH(
         where: { itemId: id },
         data: { coverImageIndex: productCoverImageIndex },
       });
+      // updatedItem was read before this update, so reflect the new index
+      if (updatedItem.productDetails) {
+        updatedItem.productDetails.coverImageIndex = productCoverImageIndex;
+      }
 
       if (productDetails?.images && productCoverImageIndex !== null) {
         const images = productDetails.images as Array<{ fileKey?: string }>;
