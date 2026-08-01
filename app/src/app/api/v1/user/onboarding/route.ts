@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
@@ -64,6 +64,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(updatedUser);
   } catch (error) {
     log.error({ error }, "Onboarding update error");
+    captureServerException(error, undefined, {
+      route: "PATCH /api/v1/user/onboarding",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

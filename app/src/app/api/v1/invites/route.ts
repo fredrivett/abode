@@ -11,7 +11,7 @@ import {
 } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
@@ -68,6 +68,7 @@ export async function GET() {
     });
   } catch (error) {
     log.error({ error }, "Failed to get invites");
+    captureServerException(error, undefined, { route: "GET /api/v1/invites" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -227,6 +228,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Failed to send invite");
+    captureServerException(error, undefined, { route: "POST /api/v1/invites" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

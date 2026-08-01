@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import {
   checkRateLimit,
   getClientIp,
@@ -198,6 +199,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Map image fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/map-image",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

@@ -4,6 +4,7 @@ import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/admin/stats");
@@ -60,6 +61,9 @@ export async function GET() {
     });
   } catch (error) {
     log.error({ error }, "Admin stats error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/admin/stats",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

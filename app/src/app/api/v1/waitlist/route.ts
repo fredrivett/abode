@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { captureServerException } from "@/lib/posthog-server";
 import {
   checkRateLimit,
   getClientIp,
@@ -51,7 +52,10 @@ export async function POST(request: NextRequest) {
         headers: getRateLimitHeaders(rateLimitResult, "waitlist"),
       },
     );
-  } catch {
+  } catch (error) {
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/waitlist",
+    });
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 },

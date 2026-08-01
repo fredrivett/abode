@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/items");
@@ -134,6 +135,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Room items fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/rooms/[id]/items",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -259,6 +263,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error) {
     log.error({ error }, "Add item to room error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/rooms/[id]/items",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -330,6 +337,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     log.error({ error }, "Remove item from room error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/rooms/[id]/items",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

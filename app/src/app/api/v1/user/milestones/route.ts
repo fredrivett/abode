@@ -8,6 +8,7 @@ import {
   MILESTONE_TYPES,
   markMilestoneComplete,
 } from "@/lib/milestones";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/milestones");
@@ -41,6 +42,9 @@ export async function GET() {
     });
   } catch (error) {
     log.error({ error }, "Failed to get milestone status");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/user/milestones",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -83,6 +87,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     log.error({ error }, "Failed to mark milestone complete");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/user/milestones",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

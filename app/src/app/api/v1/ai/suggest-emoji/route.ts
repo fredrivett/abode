@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { isValidEmoji } from "@/lib/emoji";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ emoji: rawResponse });
   } catch (error) {
     log.error({ error }, "Emoji suggestion error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/ai/suggest-emoji",
+    });
     return NextResponse.json(
       { message: "Failed to suggest emoji" },
       { status: 500 },

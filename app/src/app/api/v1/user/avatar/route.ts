@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
@@ -87,6 +88,9 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       log.error({ error: uploadError }, "Avatar upload failed");
+      captureServerException(uploadError, undefined, {
+        route: "POST /api/v1/user/avatar",
+      });
       return NextResponse.json(
         { message: "Failed to upload avatar" },
         { status: 500 },
@@ -134,6 +138,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ avatarUrl: avatarUrlWithCacheBust });
   } catch (error) {
     log.error({ error }, "Avatar upload error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/user/avatar",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -179,6 +186,9 @@ export async function DELETE(_request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     log.error({ error }, "Avatar delete error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/user/avatar",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

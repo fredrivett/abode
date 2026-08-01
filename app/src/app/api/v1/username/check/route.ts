@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { read } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import {
   checkRateLimit,
   getClientIp,
@@ -82,6 +83,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Username check error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/username/check",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

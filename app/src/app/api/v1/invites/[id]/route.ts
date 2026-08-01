@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getAvailableInvites, revokeInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/invites/[id]");
@@ -51,6 +52,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Failed to revoke invite");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/invites/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

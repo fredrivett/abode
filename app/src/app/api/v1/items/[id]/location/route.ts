@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
@@ -148,6 +149,9 @@ export async function POST(
     return NextResponse.json(location);
   } catch (error) {
     log.error({ error }, "Location update error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/items/[id]/location",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -216,6 +220,9 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     log.error({ error }, "Location delete error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/items/[id]/location",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

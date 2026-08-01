@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeWebsiteUrl } from "@/lib/url-utils";
 
@@ -53,6 +54,9 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json(profile);
   } catch (error) {
     log.error({ error }, "Profile fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/user/profile",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -129,6 +133,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(updatedUser);
   } catch (error) {
     log.error({ error }, "Profile update error");
+    captureServerException(error, undefined, {
+      route: "PATCH /api/v1/user/profile",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
