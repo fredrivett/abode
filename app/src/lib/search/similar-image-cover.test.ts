@@ -71,14 +71,18 @@ describe("resolveSimilarImageCover", () => {
     ).toEqual({ fileKey: "user/tweet-img-3.jpg", blurDataUrl: BLUR_B });
   });
 
-  it("falls back to imageDetails when the matched media row has no blur", () => {
+  it("does not fall back to imageDetails for a multi-image item with a pending cover", () => {
+    // Freshly-selected cover img-3 has no media row yet; imageDetails still
+    // holds the prior cover's blur. Show no LQIP rather than the stale one.
     expect(
       resolveSimilarImageCover({
-        fileKey: "user/photo.jpg",
-        coverFileKey: null,
+        fileKey: "user/tweet-img-1.jpg",
+        coverFileKey: "user/tweet-img-3.jpg",
         imageDetailsBlurDataUrl: BLUR_A,
-        mediaAnalyses: [{ fileKey: "user/photo.jpg", blurDataUrl: null }],
+        mediaAnalyses: [
+          { fileKey: "user/tweet-img-1.jpg", blurDataUrl: BLUR_B },
+        ],
       }),
-    ).toEqual({ fileKey: "user/photo.jpg", blurDataUrl: BLUR_A });
+    ).toEqual({ fileKey: "user/tweet-img-3.jpg", blurDataUrl: null });
   });
 });
