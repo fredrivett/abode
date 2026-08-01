@@ -3,6 +3,7 @@
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useRef } from "react";
+import { BlurImage } from "@/components/ui/blur-image";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { useSimilarImages } from "@/lib/search/use-similar-images";
 import { useUserStore } from "@/stores/user-store";
@@ -56,6 +57,9 @@ export function SimilarImages({
           const href = username
             ? `/@${username}/items/${item.id}`
             : `/items/${item.id}`;
+          const src = item.fileKey
+            ? getProxyImageUrl(item.fileKey, "grid")
+            : null;
           return (
             <Link
               key={item.id}
@@ -69,15 +73,13 @@ export function SimilarImages({
               }}
               className="group relative aspect-square overflow-hidden rounded-md border border-border bg-muted"
             >
-              {item.fileKey && (
-                // biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content
-                <img
-                  src={getProxyImageUrl(item.fileKey, "grid")}
-                  alt={item.title ?? "Similar image"}
-                  className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  loading="lazy"
-                />
-              )}
+              {/* Blur-up load treatment so a slow/failed load shows content, not an empty tile */}
+              <BlurImage
+                src={src}
+                alt={item.title ?? "Similar image"}
+                blurDataUrl={item.blurDataUrl}
+                className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
+              />
             </Link>
           );
         })}

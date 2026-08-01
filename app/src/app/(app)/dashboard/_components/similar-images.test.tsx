@@ -41,10 +41,13 @@ function setResults(items: SimilarImagesResponse["items"]) {
   mockUseSimilarImages.mockReturnValue({ data: { items } });
 }
 
+const BLUR = "data:image/webp;base64,AAAA";
+
 const sampleItem = {
   id: "target-1",
   fileKey: "user/photo-1.jpg",
   title: "A beach",
+  blurDataUrl: BLUR,
   similarity: 0.92,
 };
 
@@ -72,6 +75,30 @@ describe("SimilarImages", () => {
       "href",
       "/@fr/items/target-1",
     );
+  });
+
+  it("renders a blur-up placeholder while the image loads", () => {
+    setResults([sampleItem]);
+    const { container } = render(
+      <SimilarImages itemId="source-1" enabled={true} />,
+    );
+
+    const placeholder = container.querySelector("[aria-hidden]");
+    expect(placeholder).toBeInTheDocument();
+    expect(placeholder).toHaveStyle({
+      backgroundImage: `url("${BLUR}")`,
+    });
+  });
+
+  it("omits the blur placeholder when the item has no LQIP", () => {
+    setResults([{ ...sampleItem, blurDataUrl: null }]);
+    const { container } = render(
+      <SimilarImages itemId="source-1" enabled={true} />,
+    );
+
+    expect(container.querySelector("[aria-hidden]")).not.toBeInTheDocument();
+    // The thumbnail still renders — the blur is an enhancement, not a gate.
+    expect(screen.getByRole("img", { name: "A beach" })).toBeInTheDocument();
   });
 
   it("captures a viewed event once when results appear", () => {

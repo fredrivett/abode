@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { resolveSimilarImageCover } from "@/lib/search/similar-image-cover";
 import { findSimilarImages } from "@/lib/search/similar-images";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,6 +13,8 @@ export type SimilarImageItem = {
   id: string;
   fileKey: string | null;
   title: string | null;
+  /** Tiny LQIP data URL for the cover, for the blur-up load treatment. */
+  blurDataUrl: string | null;
   similarity: number;
 };
 
@@ -66,17 +69,39 @@ export async function GET(
     const matches = await findSimilarImages({ itemId: id, userId: user.id });
 
     // Hydrate the matched IDs with the fields the UI renders, preserving the
-    // similarity ordering (findMany doesn't guarantee order).
+    // similarity ordering (findMany doesn't guarantee order). The thumbnail and
+    // its LQIP follow the cover — see resolveSimilarImageCover.
     const rows = await db.item.findMany({
       where: { id: { in: matches.map((m) => m.id) }, userId: user.id },
-      select: { id: true, fileKey: true, title: true },
+      select: {
+        id: true,
+        fileKey: true,
+        coverFileKey: true,
+        title: true,
+        imageDetails: { select: { blurDataUrl: true } },
+        mediaAnalyses: { select: { fileKey: true, blurDataUrl: true } },
+      },
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
 
     const items: SimilarImageItem[] = matches.flatMap((match) => {
       const row = byId.get(match.id);
       if (!row) return [];
-      return [{ ...row, similarity: match.similarity }];
+      const { fileKey, blurDataUrl } = resolveSimilarImageCover({
+        fileKey: row.fileKey,
+        coverFileKey: row.coverFileKey,
+        imageDetailsBlurDataUrl: row.imageDetails?.blurDataUrl,
+        mediaAnalyses: row.mediaAnalyses,
+      });
+      return [
+        {
+          id: row.id,
+          fileKey,
+          title: row.title,
+          blurDataUrl,
+          similarity: match.similarity,
+        },
+      ];
     });
 
     return NextResponse.json({ items } satisfies SimilarImagesResponse, {
