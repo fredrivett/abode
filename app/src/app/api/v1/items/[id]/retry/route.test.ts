@@ -60,11 +60,15 @@ function call() {
   return POST(request, { params: Promise.resolve({ id: ITEM_ID }) });
 }
 
+// Fixed prior clock so revert can be asserted to restore it verbatim
+const STARTED_AT = new Date("2026-01-01T00:00:00.000Z");
+
 const failedUrlItem = {
   id: ITEM_ID,
   userId: "user_1",
   kind: "webpage" as const,
   processingStatus: "failed" as const,
+  processingStartedAt: STARTED_AT,
   fileKey: null as string | null,
   sourceType: "url" as const,
   sourceUrl: "https://example.com/x",
@@ -75,6 +79,7 @@ const failedImageItem = {
   userId: "user_1",
   kind: "image" as const,
   processingStatus: "failed" as const,
+  processingStartedAt: STARTED_AT,
   fileKey: "user_1/photo.jpg",
   sourceType: "upload" as const,
   sourceUrl: null as string | null,
@@ -220,9 +225,10 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(429);
       expect(res.headers.get("Retry-After")).toBe("3600");
       expect(mockTrigger).not.toHaveBeenCalled();
+      // Reverts status AND the reaper clock to their pre-claim values
       expect(mockItemUpdate).toHaveBeenCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "failed" },
+        data: { processingStatus: "failed", processingStartedAt: STARTED_AT },
       });
     });
 
@@ -232,7 +238,7 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(500);
       expect(mockItemUpdate).toHaveBeenLastCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "failed" },
+        data: { processingStatus: "failed", processingStartedAt: STARTED_AT },
       });
     });
   });
@@ -275,7 +281,7 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(500);
       expect(mockItemUpdate).toHaveBeenLastCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "completed" },
+        data: { processingStatus: "completed", processingStartedAt: STARTED_AT },
       });
     });
   });
