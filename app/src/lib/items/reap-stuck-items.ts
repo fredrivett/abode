@@ -1,7 +1,16 @@
 import db from "@/lib/db";
 
-/** Default age past which a non-terminal item is considered stuck (2 hours). */
-export const STUCK_ITEM_THRESHOLD_MS = 2 * 60 * 60 * 1000;
+/**
+ * Age past which a non-terminal item is considered stuck (4 hours).
+ *
+ * MUST stay greater than the project `ttl` + the longest task `maxDuration`
+ * (both in trigger.config.ts). That guarantees any run associated with an item
+ * we reap is already dead — it either finished, was force-stopped at
+ * maxDuration, or was dropped from the queue at its TTL — so it can't resume and
+ * clobber a retry the user starts after we mark this item failed. Currently
+ * 2h ttl + 10m maxDuration = 2h10m < 4h. ✓
+ */
+export const STUCK_ITEM_THRESHOLD_MS = 4 * 60 * 60 * 1000;
 
 /**
  * Sweep items stranded in a non-terminal status (`processing`/`pending`) past
