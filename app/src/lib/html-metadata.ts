@@ -1005,9 +1005,16 @@ function parseJsonLdImages(value: unknown): string[] {
 }
 
 function parsePageCount(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  const n =
-    typeof value === "number" ? value : Number.parseInt(String(value), 10);
+  // Only coerce primitives — String() on an array/object (e.g. ["300"]) would
+  // otherwise smuggle a bogus page count out of untrusted JSON-LD.
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string") {
+    n = Number.parseInt(value, 10);
+  } else {
+    return null;
+  }
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 

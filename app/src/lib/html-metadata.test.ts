@@ -2280,6 +2280,13 @@ describe("JSON-LD guards (malformed / hostile input)", () => {
       expect(result?.pageCount).toBeNull();
     });
 
+    it("returns null pageCount when numberOfPages is an array (no String() coercion)", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":"Book","numberOfPages":["300"]}`),
+      );
+      expect(result?.pageCount).toBeNull();
+    });
+
     it("keeps only valid string urls from a mixed image array", () => {
       const result = extractJsonLdBook(
         jsonLd(`{"@type":"Book","image":[{"url":5},"https://b.com/c.jpg",9]}`),
