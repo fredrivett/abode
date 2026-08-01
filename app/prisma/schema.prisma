@@ -148,11 +148,14 @@ model Item {
   kind             ItemKind?
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
 
-  // When the current processing attempt began. Set on every transition into
-  // processing/pending (capture via the column default; retry/reassign set it
-  // explicitly). The stuck-items reaper measures staleness from THIS, not
-  // `updatedAt` — an unrelated user edit bumps `updatedAt` and would reset the
-  // reaper clock, letting a dead run stay non-terminal forever.
+  // When the most recent processing stage began — effectively a per-stage
+  // heartbeat. Set at capture (column default), on retry/reassign re-entry, and
+  // advanced at the start of each chained pipeline stage (see
+  // markProcessingActive). The stuck-items reaper measures staleness from THIS,
+  // not `updatedAt`: (1) an unrelated user edit bumps `updatedAt` and would
+  // wrongly reset the clock, and (2) anchoring only at capture would let a
+  // legitimately-slow multi-stage pipeline be reaped mid-chain. Advancing per
+  // stage means the reaper threshold only has to cover one stage's lifespan.
   processingStartedAt DateTime @default(now()) @map("processing_started_at")
 
   // Why processing failed (only set when processingStatus = failed). Null otherwise.

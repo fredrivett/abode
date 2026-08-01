@@ -19,6 +19,7 @@ import { safeFetch } from "../src/lib/http/safe-fetch";
 import { selectProductImagesWithLLM } from "../src/lib/image-analysis/openai-product-image-filter";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import type { ForcibleKind } from "../src/lib/item-kind-reassignment";
+import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import {
   classifyFailureReason,
   FetchError,
@@ -271,6 +272,9 @@ export const classifyUrlTask = task({
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
   run: async (payload: ClassifyUrlPayload) => {
     const { itemId, userId, url, forcedKind } = payload;
+
+    // Advance the reaper clock — first pipeline stage
+    await markProcessingActive(itemId);
 
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
     const supabase = createClient(supabaseUrl, supabaseKey);

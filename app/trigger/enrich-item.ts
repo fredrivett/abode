@@ -7,6 +7,7 @@ import {
 import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import db from "../src/lib/db";
 import { generateTextEmbedding, upsertTextVector } from "../src/lib/embeddings";
+import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { captureServerException } from "../src/lib/posthog-server";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
@@ -26,6 +27,9 @@ export const enrichItemTask = task({
   maxDuration: 120,
   run: async (payload: EnrichItemPayload) => {
     const { itemId, userId, precomputedTags, sourceText } = payload;
+
+    // Advance the reaper clock — this is a chained pipeline stage
+    await markProcessingActive(itemId);
 
     logger.log("Starting item enrichment", { itemId, userId });
 

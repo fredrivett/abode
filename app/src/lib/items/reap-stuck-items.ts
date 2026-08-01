@@ -9,6 +9,11 @@ import db from "@/lib/db";
  * maxDuration, or was dropped from the queue at its TTL — so it can't resume and
  * clobber a retry the user starts after we mark this item failed. Currently
  * 2h ttl + 10m maxDuration = 2h10m < 4h. ✓
+ *
+ * The bound is per *stage*, not per whole pipeline, because
+ * `processingStartedAt` advances at the start of each chained stage
+ * (markProcessingActive) — so a legitimately-slow multi-stage capture keeps
+ * resetting the clock and isn't reaped mid-chain.
  */
 export const STUCK_ITEM_THRESHOLD_MS = 4 * 60 * 60 * 1000;
 
