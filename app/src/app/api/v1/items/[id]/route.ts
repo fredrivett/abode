@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import {
@@ -38,76 +39,7 @@ export async function GET(
         id,
         userId: user.id, // Ensure user can only access their own items
       },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        processingError: true,
-        fileKey: true,
-        meta: true,
-        sourceType: true,
-        sourceUrl: true,
-        coverFileKey: true,
-        createdAt: true,
-        updatedAt: true,
-        title: true,
-        description: true,
-        tags: true,
-        userTags: true,
-        notes: true,
-        excludeFromPublicRooms: true,
-        sharedAt: true,
-        sharedHighlights: true,
-        locations: {
-          select: {
-            id: true,
-            source: true,
-            latitude: true,
-            longitude: true,
-            neighborhood: true,
-            city: true,
-            region: true,
-            country: true,
-            countryCode: true,
-            formatted: true,
-          },
-        },
-        imageDetails: {
-          select: {
-            objects: true,
-            colors: true,
-            ocrText: true,
-          },
-        },
-        articleDetails: {
-          select: {
-            author: true,
-            domain: true,
-            publishedAt: true,
-            readingTime: true,
-            content: true,
-          },
-        },
-        noteDetails: {
-          select: {
-            content: true,
-          },
-        },
-        roomItems: {
-          select: {
-            room: {
-              select: {
-                id: true,
-                name: true,
-                emoji: true,
-                slug: true,
-                type: true,
-              },
-            },
-          },
-        },
-      },
+      select: itemSelect,
     });
 
     if (!item) {
@@ -134,18 +66,7 @@ export async function GET(
       void markMilestoneComplete(user.id, "see_ai_analysis");
     }
 
-    // Flatten imageDetails and roomItems for backward compatibility with frontend
-    const flattenedItem = {
-      ...item,
-      objects: item.imageDetails?.objects ?? [],
-      colors: item.imageDetails?.colors ?? [],
-      ocrText: item.imageDetails?.ocrText ?? null,
-      rooms: item.roomItems.map((ri) => ri.room),
-      imageDetails: undefined,
-      roomItems: undefined,
-    };
-
-    return NextResponse.json(flattenedItem);
+    return NextResponse.json(transformItem(item));
   } catch (error) {
     log.error({ error }, "Item fetch error");
     captureServerException(error, undefined, {
@@ -366,76 +287,7 @@ export async function PATCH(
         }),
         ...(sharedHighlights !== undefined && { sharedHighlights }),
       },
-      select: {
-        id: true,
-        userId: true,
-        kind: true,
-        processingStatus: true,
-        processingError: true,
-        fileKey: true,
-        meta: true,
-        sourceType: true,
-        sourceUrl: true,
-        coverFileKey: true,
-        createdAt: true,
-        updatedAt: true,
-        title: true,
-        description: true,
-        tags: true,
-        userTags: true,
-        notes: true,
-        excludeFromPublicRooms: true,
-        sharedAt: true,
-        sharedHighlights: true,
-        locations: {
-          select: {
-            id: true,
-            source: true,
-            latitude: true,
-            longitude: true,
-            neighborhood: true,
-            city: true,
-            region: true,
-            country: true,
-            countryCode: true,
-            formatted: true,
-          },
-        },
-        imageDetails: {
-          select: {
-            objects: true,
-            colors: true,
-            ocrText: true,
-          },
-        },
-        articleDetails: {
-          select: {
-            author: true,
-            domain: true,
-            publishedAt: true,
-            readingTime: true,
-            content: true,
-          },
-        },
-        noteDetails: {
-          select: {
-            content: true,
-          },
-        },
-        roomItems: {
-          select: {
-            room: {
-              select: {
-                id: true,
-                name: true,
-                emoji: true,
-                slug: true,
-                type: true,
-              },
-            },
-          },
-        },
-      },
+      select: itemSelect,
     });
 
     // Update note body content if provided (upsert so older notes still gain a row)
@@ -455,6 +307,10 @@ export async function PATCH(
         where: { itemId: id },
         data: { coverMediaIndex: twitterCoverMediaIndex },
       });
+      // updatedItem was read before this update, so reflect the new index
+      if (updatedItem.twitterDetails) {
+        updatedItem.twitterDetails.coverMediaIndex = twitterCoverMediaIndex;
+      }
 
       const details = await db.itemTwitterDetails.findFirst({
         where: { itemId: id },
@@ -497,6 +353,10 @@ export async function PATCH(
         where: { itemId: id },
         data: { coverImageIndex: productCoverImageIndex },
       });
+      // updatedItem was read before this update, so reflect the new index
+      if (updatedItem.productDetails) {
+        updatedItem.productDetails.coverImageIndex = productCoverImageIndex;
+      }
 
       if (productDetails?.images && productCoverImageIndex !== null) {
         const images = productDetails.images as Array<{ fileKey?: string }>;
@@ -528,18 +388,7 @@ export async function PATCH(
       void markMilestoneComplete(user.id, "add_first_tag");
     }
 
-    // Flatten imageDetails and roomItems for backward compatibility with frontend
-    const flattenedItem = {
-      ...updatedItem,
-      objects: updatedItem.imageDetails?.objects ?? [],
-      colors: updatedItem.imageDetails?.colors ?? [],
-      ocrText: updatedItem.imageDetails?.ocrText ?? null,
-      rooms: updatedItem.roomItems.map((ri) => ri.room),
-      imageDetails: undefined,
-      roomItems: undefined,
-    };
-
-    return NextResponse.json(flattenedItem);
+    return NextResponse.json(transformItem(updatedItem));
   } catch (error) {
     log.error({ error }, "Item update error");
     captureServerException(error, undefined, {
