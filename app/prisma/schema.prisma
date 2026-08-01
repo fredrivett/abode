@@ -214,6 +214,10 @@ model Item {
   @@index([userId, createdAt(sort: Desc)])
   @@index([tags])
   @@index([userTags])
+  // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
+  // (pending/processing are always a tiny set) instead of scanning completed
+  // history. status first (equality/IN), updatedAt second (range).
+  @@index([processingStatus, updatedAt])
   @@map("items")
 }
 
