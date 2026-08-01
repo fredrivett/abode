@@ -91,6 +91,7 @@ enum ProcessingErrorReason {
   source_not_found // 404/410 — page gone
   source_unreachable // network error, timeout, DNS, 5xx
   unsupported_content // fetched but couldn't parse/classify
+  stalled // never reached a terminal status (worker died/timed out/dropped) — swept by the stuck-items reaper
   unknown // catch-all
 }
 
