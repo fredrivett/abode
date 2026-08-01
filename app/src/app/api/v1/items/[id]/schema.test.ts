@@ -120,6 +120,18 @@ describe("itemPatchSchema", () => {
       );
     });
 
+    it("rejects control whitespace and whitespace-only tags", () => {
+      expect(
+        itemPatchSchema.safeParse({ userTags: ["line1\nline2"] }).success,
+      ).toBe(false);
+      expect(itemPatchSchema.safeParse({ userTags: ["a\tb"] }).success).toBe(
+        false,
+      );
+      expect(itemPatchSchema.safeParse({ userTags: ["   "] }).success).toBe(
+        false,
+      );
+    });
+
     it("accepts a 50-character tag (boundary)", () => {
       expect(
         itemPatchSchema.safeParse({ userTags: ["a".repeat(50)] }).success,
