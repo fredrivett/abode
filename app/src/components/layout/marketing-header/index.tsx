@@ -5,7 +5,7 @@ import { XLink } from "@/components/x-link";
 
 export function MarketingHeader() {
   return (
-    <header className="w-full px-4 py-4">
+    <header className="relative z-10 w-full px-4 py-4">
       <nav className="flex items-center justify-between">
         <Link href="/" className="text-foreground">
           <AbodeLogo className="h-6 w-auto" aria-label="abode" />

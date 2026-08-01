@@ -12,7 +12,7 @@ export default function Home() {
       <Suspense>
         <AccountDeletedToast />
       </Suspense>
-      <main className="flex w-full max-w-2xl flex-col items-center px-4 pt-20 pb-8 text-center">
+      <main className="relative z-10 flex min-h-[calc(100svh-3.5rem)] w-full max-w-2xl flex-col items-center justify-center px-4 py-12 text-center">
         <div className="relative w-full">
           <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
             your home should be{" "}
