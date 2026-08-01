@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
@@ -63,6 +63,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Room fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/rooms/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -203,6 +206,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Room update error");
+    captureServerException(error, undefined, {
+      route: "PATCH /api/v1/rooms/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -261,6 +267,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     log.error({ error }, "Room deletion error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/rooms/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

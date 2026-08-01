@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import {
   checkRateLimit,
   getClientIp,
@@ -197,6 +198,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Embed API error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/embed/rooms/[roomId]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       {

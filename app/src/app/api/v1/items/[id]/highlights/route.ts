@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/highlights");
@@ -56,6 +56,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(highlights);
   } catch (error) {
     log.error({ error }, "Highlights fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/items/[id]/highlights",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -161,6 +164,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(highlight, { status: 201 });
   } catch (error) {
     log.error({ error }, "Highlight creation error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/items/[id]/highlights",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

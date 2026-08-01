@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/admin/users");
@@ -92,6 +93,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     log.error({ error }, "Admin users list error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/admin/users",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

@@ -8,6 +8,7 @@ import {
   shouldCompleteAddFirstTag,
   shouldCompleteSeeAiAnalysis,
 } from "@/lib/milestones/conditions";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
@@ -147,6 +148,9 @@ export async function GET(
     return NextResponse.json(flattenedItem);
   } catch (error) {
     log.error({ error }, "Item fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/items/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -538,6 +542,9 @@ export async function PATCH(
     return NextResponse.json(flattenedItem);
   } catch (error) {
     log.error({ error }, "Item update error");
+    captureServerException(error, undefined, {
+      route: "PATCH /api/v1/items/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -580,6 +587,9 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     log.error({ error }, "Item deletion error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/items/[id]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

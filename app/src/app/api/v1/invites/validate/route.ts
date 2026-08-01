@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 
 const log = createLogger("api/v1/invites/validate");
 
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     log.error({ error }, "Failed to validate invite");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/invites/validate",
+    });
     return NextResponse.json(
       { valid: false, error: "Internal server error" },
       { status: 500 },

@@ -6,6 +6,7 @@ import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
 
@@ -146,6 +147,9 @@ export async function POST(
     } catch (triggerError) {
       log.error({ triggerError, itemId: id }, "Failed to trigger retry task");
       await revert();
+      captureServerException(triggerError, undefined, {
+        route: "POST /api/v1/items/[id]/retry",
+      });
       return NextResponse.json(
         { message: "Failed to initiate retry" },
         { status: 500 },
@@ -159,6 +163,9 @@ export async function POST(
     });
   } catch (error) {
     log.error({ error }, "Item retry error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/items/[id]/retry",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

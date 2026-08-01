@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/status");
@@ -59,6 +60,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items });
   } catch (error) {
     log.error({ error }, "Items status fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/items/status",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

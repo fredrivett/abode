@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/images");
@@ -124,6 +125,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (error || !data) {
       log.error({ error, fileKey }, "Failed to download image from storage");
+      captureServerException(error, undefined, {
+        route: "GET /api/v1/images/[fileKey]",
+      });
       return NextResponse.json(
         { message: "Failed to load image" },
         { status: 500 },
@@ -144,6 +148,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Image proxy error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/images/[fileKey]",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

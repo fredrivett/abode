@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { detectPlatform, normalizeUrl } from "@/lib/platforms";
+import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import type { ExternalLink } from "@/lib/types/item";
@@ -110,6 +111,9 @@ export async function POST(
     });
   } catch (error) {
     log.error({ error }, "Add link error");
+    captureServerException(error, undefined, {
+      route: "POST /api/v1/items/[id]/links",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -198,6 +202,9 @@ export async function DELETE(
     });
   } catch (error) {
     log.error({ error }, "Remove link error");
+    captureServerException(error, undefined, {
+      route: "DELETE /api/v1/items/[id]/links",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

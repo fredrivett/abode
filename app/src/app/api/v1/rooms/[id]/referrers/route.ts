@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/referrers");
@@ -61,6 +62,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error({ error }, "Referrers fetch error");
+    captureServerException(error, undefined, {
+      route: "GET /api/v1/rooms/[id]/referrers",
+    });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },

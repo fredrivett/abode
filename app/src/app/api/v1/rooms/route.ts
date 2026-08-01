@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
+import { captureServerException } from "@/lib/posthog-server";
 import { generateRoomSlug, hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(roomsWithCount);
   } catch (error) {
     log.error({ error }, "Rooms fetch error");
+    captureServerException(error, undefined, { route: "GET /api/v1/rooms" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
@@ -199,6 +201,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     log.error({ error }, "Room creation error");
+    captureServerException(error, undefined, { route: "POST /api/v1/rooms" });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
