@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { resolveSimilarImageCover } from "@/lib/search/similar-image-cover";
 import { findSimilarImages } from "@/lib/search/similar-images";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,14 +69,14 @@ export async function GET(
     const matches = await findSimilarImages({ itemId: id, userId: user.id });
 
     // Hydrate the matched IDs with the fields the UI renders, preserving the
-    // similarity ordering (findMany doesn't guarantee order). The cover's LQIP
-    // lives in imageDetails for single-image kinds and in the mediaAnalyses row
-    // matching the cover fileKey for multi-image kinds (e.g. tweets).
+    // similarity ordering (findMany doesn't guarantee order). The thumbnail and
+    // its LQIP follow the cover — see resolveSimilarImageCover.
     const rows = await db.item.findMany({
       where: { id: { in: matches.map((m) => m.id) }, userId: user.id },
       select: {
         id: true,
         fileKey: true,
+        coverFileKey: true,
         title: true,
         imageDetails: { select: { blurDataUrl: true } },
         mediaAnalyses: { select: { fileKey: true, blurDataUrl: true } },
@@ -86,14 +87,16 @@ export async function GET(
     const items: SimilarImageItem[] = matches.flatMap((match) => {
       const row = byId.get(match.id);
       if (!row) return [];
-      const blurDataUrl =
-        row.imageDetails?.blurDataUrl ??
-        row.mediaAnalyses.find((m) => m.fileKey === row.fileKey)?.blurDataUrl ??
-        null;
+      const { fileKey, blurDataUrl } = resolveSimilarImageCover({
+        fileKey: row.fileKey,
+        coverFileKey: row.coverFileKey,
+        imageDetailsBlurDataUrl: row.imageDetails?.blurDataUrl,
+        mediaAnalyses: row.mediaAnalyses,
+      });
       return [
         {
           id: row.id,
-          fileKey: row.fileKey,
+          fileKey,
           title: row.title,
           blurDataUrl,
           similarity: match.similarity,
