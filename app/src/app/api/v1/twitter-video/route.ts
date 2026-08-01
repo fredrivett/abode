@@ -11,10 +11,13 @@ const log = createLogger("api/v1/twitter-video");
 
 const ALLOWED_HOSTS = new Set(["video.twimg.com"]);
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400, immutable";
-// Fallback-path responses (gated on Origin/Referer, which shared caches don't
-// key on here) must stay out of shared caches — but the already-vetted client
-// may still cache privately.
-const CACHE_CONTROL_PRIVATE = "private, max-age=86400, immutable";
+// Fallback-path responses are gated on Origin/Referer, which the response's Vary
+// (Sec-Fetch-Site only) doesn't key on. `private` would keep them out of CDNs but
+// still let the browser cache them — and since both a legit old-browser load and
+// a cross-site old-browser embed share the "no Sec-Fetch-Site" variant, that
+// browser could replay a cached first-party 200 to the embed without the gate
+// running. So make the fallback path uncacheable everywhere.
+const CACHE_CONTROL_FALLBACK = "no-store";
 
 // Cap the bytes we'll proxy in a single upstream response. Comfortably covers a
 // standard (<=2:20) 1080p tweet video fetched in one open-ended range while
@@ -248,17 +251,15 @@ export async function GET(request: NextRequest) {
     const value = upstream.headers.get(key);
     if (value) responseHeaders.set(key, value);
   }
-  // A shared cache keys this response on Vary, i.e. Sec-Fetch-Site alone. That's
-  // only safe when the gate decided on Sec-Fetch-Site: when it's absent the gate
-  // falls back to Origin/Referer — which aren't in the cache key — so a
-  // cross-site old-browser embed (no Sec-Fetch-Site, foreign Referer) shares the
-  // "absent" variant and could be served a cached first-party 200, bypassing the
-  // gate. Keep the modern hot path (Sec-Fetch-Site present) fully shared-cacheable
-  // and demote the rare fallback path to private so shared caches skip it.
+  // Only the Sec-Fetch-Site gate input is in Vary, so a cached response is only
+  // safe to reuse when the gate decided on it. When it's present, keep the hot
+  // path fully shared-cacheable; when it's absent (gate fell back to
+  // Origin/Referer, which Vary doesn't key on) make the response uncacheable so
+  // no cache can replay a first-party 200 to a cross-site embed.
   const gatedOnSecFetchSite = request.headers.get("sec-fetch-site") !== null;
   responseHeaders.set(
     "Cache-Control",
-    gatedOnSecFetchSite ? CACHE_CONTROL : CACHE_CONTROL_PRIVATE,
+    gatedOnSecFetchSite ? CACHE_CONTROL : CACHE_CONTROL_FALLBACK,
   );
   responseHeaders.set("Vary", "Sec-Fetch-Site");
 
