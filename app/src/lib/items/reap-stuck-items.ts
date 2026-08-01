@@ -19,15 +19,19 @@ export const STUCK_ITEM_THRESHOLD_MS = 4 * 60 * 60 * 1000;
  * This is the backstop for the one failure mode a task's own try/catch can't
  * reach: the run dying *after* enqueue (OOM, `maxDuration` timeout, a dropped
  * run) leaves the item non-terminal with no error written. The reaper detects
- * that by symptom — no terminal write within the window — so the reason is
- * `stalled` (we know it stopped progressing, not *why*), and it's retryable.
+ * that by symptom — still non-terminal long after processing began — so the
+ * reason is `stalled` (we know it stopped progressing, not *why*), and it's
+ * retryable.
  *
- * A live run keeps bumping `updatedAt` as it writes progress, so it resets its
- * own staleness clock; only a genuinely dead run goes the full window silent.
- * The conditional `updateMany` is atomic, so a run that completes concurrently
- * (flipping to `completed`) simply won't match.
+ * Staleness is measured from `processingStartedAt` (set on each transition into
+ * processing/pending), NOT `updatedAt` — an unrelated user edit bumps
+ * `updatedAt` and would reset the clock, letting a dead run stay non-terminal.
+ * No running heartbeat is needed: a run's lifespan is bounded to the project TTL
+ * + maxDuration (see {@link STUCK_ITEM_THRESHOLD_MS}), so anything still
+ * non-terminal past the threshold has a definitively-dead run. The conditional
+ * `updateMany` is atomic, so a run that completes concurrently won't match.
  *
- * @param olderThan - Items whose `updatedAt` is before this are swept.
+ * @param olderThan - Items whose `processingStartedAt` is before this are swept.
  * @returns How many items were marked failed.
  */
 export async function reapStuckItems({
@@ -38,7 +42,7 @@ export async function reapStuckItems({
   const { count } = await db.item.updateMany({
     where: {
       processingStatus: { in: ["processing", "pending"] },
-      updatedAt: { lt: olderThan },
+      processingStartedAt: { lt: olderThan },
     },
     data: { processingStatus: "failed", processingError: "stalled" },
   });

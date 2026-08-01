@@ -168,7 +168,11 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(200);
       expect(mockItemUpdateMany).toHaveBeenCalledWith({
         where: { id: ITEM_ID, userId: "user_1", processingStatus: "failed" },
-        data: { processingStatus: "processing", processingError: null },
+        data: {
+          processingStatus: "processing",
+          processingError: null,
+          processingStartedAt: expect.any(Date),
+        },
       });
       expect(mockGuard).toHaveBeenCalledWith("user_1", "reanalysis");
       expect(mockTrigger).toHaveBeenCalledWith(
@@ -245,7 +249,11 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(200);
       expect(mockItemUpdate).toHaveBeenCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "processing", processingError: null },
+        data: {
+          processingStatus: "processing",
+          processingError: null,
+          processingStartedAt: expect.any(Date),
+        },
       });
       expect(mockItemUpdateMany).not.toHaveBeenCalled();
       expect(mockGuard).toHaveBeenCalledWith("user_1", "reanalysis");

@@ -148,6 +148,13 @@ model Item {
   kind             ItemKind?
   processingStatus ProcessingStatus @default(pending) @map("processing_status")
 
+  // When the current processing attempt began. Set on every transition into
+  // processing/pending (capture via the column default; retry/reassign set it
+  // explicitly). The stuck-items reaper measures staleness from THIS, not
+  // `updatedAt` — an unrelated user edit bumps `updatedAt` and would reset the
+  // reaper clock, letting a dead run stay non-terminal forever.
+  processingStartedAt DateTime @default(now()) @map("processing_started_at")
+
   // Why processing failed (only set when processingStatus = failed). Null otherwise.
   processingError  ProcessingErrorReason? @map("processing_error")
 
@@ -216,8 +223,8 @@ model Item {
   @@index([userTags])
   // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
   // (pending/processing are always a tiny set) instead of scanning completed
-  // history. status first (equality/IN), updatedAt second (range).
-  @@index([processingStatus, updatedAt])
+  // history. status first (equality/IN), processingStartedAt second (range).
+  @@index([processingStatus, processingStartedAt])
   @@map("items")
 }
 

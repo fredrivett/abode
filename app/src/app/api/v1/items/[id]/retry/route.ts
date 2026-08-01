@@ -91,7 +91,12 @@ export async function POST(
     } else {
       await db.item.update({
         where: { id },
-        data: { processingStatus: "processing", processingError: null },
+        data: {
+          processingStatus: "processing",
+          processingError: null,
+          // Restart the reaper clock for this fresh attempt
+          processingStartedAt: new Date(),
+        },
       });
     }
 

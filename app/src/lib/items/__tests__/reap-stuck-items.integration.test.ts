@@ -13,7 +13,7 @@ describe("reapStuckItems", () => {
 
   const seedItem = async (
     status: ProcessingStatus,
-    updatedAgoMs: number,
+    startedAgoMs: number,
   ): Promise<string> => {
     const { write } = await import("@/lib/db");
     const user = await write.user.create({
@@ -28,13 +28,10 @@ describe("reapStuckItems", () => {
         userId: user.id,
         kind: "webpage",
         processingStatus: status,
+        processingStartedAt: new Date(Date.now() - startedAgoMs),
       },
       select: { id: true },
     });
-    // updatedAt is @updatedAt (managed), so set it explicitly via raw SQL
-    await write.$executeRaw`UPDATE items SET updated_at = ${new Date(
-      Date.now() - updatedAgoMs,
-    )} WHERE id = ${item.id}::uuid`;
     return item.id;
   };
 
@@ -82,5 +79,20 @@ describe("reapStuckItems", () => {
       olderThan: new Date(Date.now() - 2 * HOUR),
     });
     expect(reaped).toBe(0);
+  });
+
+  test("still reaps when a recent edit bumped updatedAt (clock is processingStartedAt)", async () => {
+    const { write } = await import("@/lib/db");
+    const id = await seedItem("processing", 5 * HOUR);
+    // Simulate an unrelated user edit just now — bumps @updatedAt but NOT
+    // processingStartedAt, so the reaper must still catch it.
+    await write.item.update({ where: { id }, data: { userTags: ["edited"] } });
+
+    const { reaped } = await reapStuckItems({
+      olderThan: new Date(Date.now() - 2 * HOUR),
+    });
+
+    expect(reaped).toBe(1);
+    expect((await statusOf(id)).processingStatus).toBe("failed");
   });
 });

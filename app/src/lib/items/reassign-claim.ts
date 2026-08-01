@@ -30,7 +30,12 @@ export async function claimDailyReassign(
             { lastReassignedAt: { lt: startOfUtcDay() } },
           ],
         },
-    data: { processingStatus: "processing", lastReassignedAt: new Date() },
+    data: {
+      processingStatus: "processing",
+      lastReassignedAt: new Date(),
+      // Restart the reaper clock for this fresh attempt
+      processingStartedAt: new Date(),
+    },
   });
 
   return count > 0;
