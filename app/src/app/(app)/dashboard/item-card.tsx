@@ -55,7 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
+import { BlurImage } from "@/components/ui/blur-image";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import {
@@ -69,7 +69,6 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
-import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -186,8 +185,6 @@ export function ItemCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const { loaded: imgLoaded, imgProps } = useImageLoaded(previewUrl);
-
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
   // (instant, before analysis has run).
@@ -847,16 +844,12 @@ export function ItemCard({
             }
           }}
         >
-          {/* biome-ignore lint/performance/noImgElement: using blob URL for user-uploaded content */}
-          <img
-            {...imgProps}
+          <BlurImage
             src={previewUrl}
             alt={itemName}
+            blurDataUrl={blurDataUrl}
             className="h-full w-full object-cover"
           />
-          {blurDataUrl && (
-            <BlurPlaceholder blurDataUrl={blurDataUrl} visible={!imgLoaded} />
-          )}
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
               {item.productDetails.currency
