@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
+import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
@@ -278,12 +279,32 @@ function encodeCursor(data: CursorData): string {
   return Buffer.from(JSON.stringify(data)).toString("base64url");
 }
 
+function isValidCursorData(value: unknown): value is CursorData {
+  if (typeof value !== "object" || value === null) return false;
+  const { captureDate, createdAt, id } = value as Record<string, unknown>;
+  if (typeof createdAt !== "string" || typeof id !== "string") return false;
+  // id is compared against a uuid column ($n::uuid), createdAt/captureDate
+  // against timestamp columns — reject anything Postgres would 500 on.
+  if (!isCanonicalUuid(id)) return false;
+  if (Number.isNaN(new Date(createdAt).getTime())) return false;
+  if (captureDate !== null) {
+    if (typeof captureDate !== "string") return false;
+    if (Number.isNaN(new Date(captureDate).getTime())) return false;
+  }
+  return true;
+}
+
+// Not deduped with @/lib/pagination's decodeCursor: this CursorData carries an
+// extra `captureDate` field, so shape validation differs. Hardening mirrors the
+// shared helper — reject malformed/wrong-shape cursors instead of 500ing.
 function decodeCursor(cursor: string): CursorData | null {
+  let parsed: unknown;
   try {
-    return JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
   } catch {
     return null;
   }
+  return isValidCursorData(parsed) ? parsed : null;
 }
 
 /**

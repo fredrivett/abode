@@ -6,12 +6,7 @@ import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import {
-  DEFAULT_PAGE_SIZE,
-  decodeCursor,
-  encodeCursor,
-  MAX_PAGE_SIZE,
-} from "@/lib/pagination";
+import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -41,11 +36,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get("cursor");
-    const limitParam = searchParams.get("limit");
-    const limit = Math.min(
-      Math.max(1, Number.parseInt(limitParam || String(DEFAULT_PAGE_SIZE), 10)),
-      MAX_PAGE_SIZE,
-    );
+    const limit = parsePageSize(searchParams.get("limit"));
 
     // Decode cursor if provided
     const cursorData = cursor ? decodeCursor(cursor) : null;
