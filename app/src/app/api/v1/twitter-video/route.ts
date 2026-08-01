@@ -11,6 +11,10 @@ const log = createLogger("api/v1/twitter-video");
 
 const ALLOWED_HOSTS = new Set(["video.twimg.com"]);
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400, immutable";
+// Fallback-path responses (gated on Origin/Referer, which shared caches don't
+// key on here) must stay out of shared caches — but the already-vetted client
+// may still cache privately.
+const CACHE_CONTROL_PRIVATE = "private, max-age=86400, immutable";
 
 // Cap the bytes we'll proxy in a single upstream response. Comfortably covers a
 // standard (<=2:20) 1080p tweet video fetched in one open-ended range while
@@ -244,11 +248,18 @@ export async function GET(request: NextRequest) {
     const value = upstream.headers.get(key);
     if (value) responseHeaders.set(key, value);
   }
-  responseHeaders.set("Cache-Control", CACHE_CONTROL);
-  // The gate decision depends on Sec-Fetch-Site, so a shared cache must key on
-  // it — otherwise a cached same-origin 200 could be served to a cross-site
-  // request for the same ?url= and bypass the gate. Legit playback is always
-  // same-origin, so this keeps the hot path fully cacheable.
+  // A shared cache keys this response on Vary, i.e. Sec-Fetch-Site alone. That's
+  // only safe when the gate decided on Sec-Fetch-Site: when it's absent the gate
+  // falls back to Origin/Referer — which aren't in the cache key — so a
+  // cross-site old-browser embed (no Sec-Fetch-Site, foreign Referer) shares the
+  // "absent" variant and could be served a cached first-party 200, bypassing the
+  // gate. Keep the modern hot path (Sec-Fetch-Site present) fully shared-cacheable
+  // and demote the rare fallback path to private so shared caches skip it.
+  const gatedOnSecFetchSite = request.headers.get("sec-fetch-site") !== null;
+  responseHeaders.set(
+    "Cache-Control",
+    gatedOnSecFetchSite ? CACHE_CONTROL : CACHE_CONTROL_PRIVATE,
+  );
   responseHeaders.set("Vary", "Sec-Fetch-Site");
 
   return new NextResponse(upstream.body, {

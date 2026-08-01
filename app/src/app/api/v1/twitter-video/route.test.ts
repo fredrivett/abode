@@ -93,10 +93,27 @@ describe("GET /api/v1/twitter-video — same-origin gate", () => {
       expect.objectContaining({ redirect: "manual" }),
     );
     expect(res.headers.get("content-type")).toBe("video/mp4");
-    expect(res.headers.get("Cache-Control")).toContain("max-age=86400");
+    // Sec-Fetch-Site gate input is in Vary, so this stays shared-cacheable.
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=86400, s-maxage=86400, immutable",
+    );
     // Shared caches must key on the gate input so a cached same-origin 200 is
     // never served to a cross-site request for the same url.
     expect(res.headers.get("Vary")).toBe("Sec-Fetch-Site");
+  });
+
+  it("marks fallback-gated responses (no Sec-Fetch-Site) private, not shared-cacheable", async () => {
+    // Gate passed on Referer, which shared caches don't key on here — so the
+    // response must not enter a shared cache, or a cross-site old-browser embed
+    // sharing the "no Sec-Fetch-Site" Vary variant could be served this 200.
+    const res = await GET(
+      makeRequest({ headers: { referer: "https://www.abode.fyi/rooms/abc" } }),
+    );
+    expect(res.status).toBe(200);
+    const cacheControl = res.headers.get("Cache-Control") ?? "";
+    expect(cacheControl).toContain("private");
+    expect(cacheControl).not.toContain("public");
+    expect(cacheControl).not.toContain("s-maxage");
   });
 
   it("proxies a Sec-Fetch-Site: same-site request", async () => {
