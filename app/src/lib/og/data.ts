@@ -10,10 +10,18 @@
 import { cache } from "react";
 import db from "@/lib/db";
 import { canViewItem } from "@/lib/items/access";
+import { isCanonicalUuid } from "@/lib/pagination";
 
 /** Strip the required `@` prefix from a route username, or return null. */
 export function parseOgUsername(rawUsername: string): string | null {
-  const decoded = decodeURIComponent(rawUsername);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawUsername);
+  } catch {
+    // Malformed percent-escape (e.g. a bare "%") — treat as an invalid handle
+    // so callers render the neutral fallback instead of 500ing.
+    return null;
+  }
   if (!decoded.startsWith("@")) return null;
   return decoded.slice(1);
 }
@@ -120,6 +128,10 @@ export type OgItem = {
 /** Only publicly viewable (shared or in a public room) items get a real card. */
 export const getOgItem = cache(
   async (username: string, id: string): Promise<OgItem | null> => {
+    // id hits a uuid column; a non-UUID route param would 500 the query
+    // instead of rendering the neutral fallback.
+    if (!isCanonicalUuid(id)) return null;
+
     const user = await db.user.findFirst({
       where: { username: { equals: username, mode: "insensitive" } },
       select: { id: true, username: true },

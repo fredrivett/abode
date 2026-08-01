@@ -55,7 +55,9 @@ export default async function Image({
         >
           {displayName || `@${profile.username}`}
         </div>
-        {displayName && (
+        {/* Only when a real name is the title — else displayName is already the
+            @handle (getDisplayName falls back to it) and this would duplicate it */}
+        {profile.firstName && (
           <div style={{ marginTop: 8, fontSize: 34, color: OG_COLORS.muted }}>
             {`@${profile.username}`}
           </div>

@@ -32,11 +32,13 @@ export const OG_COLORS = {
   border: "rgba(255,255,255,0.10)",
 } as const;
 
-// OG images render off-thread by crawlers; they don't need to be fresh on every
-// hit. Because these routes read from the DB (uncached), Next treats them as
-// dynamic, so we set an explicit long-lived, revalidate-in-background policy.
+// These cards reflect mutable visibility (an item can be unshared, a room made
+// private) but are gated only at render time, so a shared cache must not keep
+// serving a card after visibility is revoked. Keep a short edge window to
+// absorb the burst of scrapers that hit right after a share, with no
+// stale-while-revalidate tail — bounding post-unshare exposure to ~1 minute.
 const OG_CACHE_CONTROL =
-  "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=0";
 
 type OgFont = {
   name: string;
