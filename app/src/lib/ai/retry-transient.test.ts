@@ -10,6 +10,19 @@ describe("isTransientAiError", () => {
     expect(isTransientAiError({ status: 503 })).toBe(true);
   });
 
+  test("Replicate's ApiError exposes status on .response.status", () => {
+    // name is "ApiError" and top-level .status is undefined — must still retry
+    expect(
+      isTransientAiError({ name: "ApiError", response: { status: 429 } }),
+    ).toBe(true);
+    expect(
+      isTransientAiError({ name: "ApiError", response: { status: 503 } }),
+    ).toBe(true);
+    expect(
+      isTransientAiError({ name: "ApiError", response: { status: 422 } }),
+    ).toBe(false);
+  });
+
   test("client errors (401/422) are not transient", () => {
     expect(isTransientAiError({ status: 401 })).toBe(false);
     expect(isTransientAiError({ status: 422 })).toBe(false);

@@ -42,17 +42,30 @@ function isNetworkError(error: object): boolean {
   return false;
 }
 
+// The HTTP status lives in different places per SDK: OpenAI puts it on `.status`,
+// Replicate's ApiError on `.response.status`. Check both so a Replicate 429/5xx
+// isn't mistaken for a status-less error and dropped from retry.
+function httpStatus(error: object): number | undefined {
+  const direct = (error as { status?: unknown }).status;
+  if (typeof direct === "number") return direct;
+  const response = (error as { response?: unknown }).response;
+  if (response && typeof response === "object") {
+    const responseStatus = (response as { status?: unknown }).status;
+    if (typeof responseStatus === "number") return responseStatus;
+  }
+  return undefined;
+}
+
 /**
  * Whether an AI-provider error is worth retrying: rate limits (429), server
  * errors (5xx), and recognised network/timeout errors. Everything else is
  * treated as permanent — a client error (401 bad key, 422 bad input) or a
  * deterministic failure with no HTTP status (a schema/length/content-filter
- * parse error) would just fail again and re-burn tokens. Both the OpenAI and
- * Replicate SDKs surface `.status`, so one predicate covers both.
+ * parse error) would just fail again and re-burn tokens.
  */
 export function isTransientAiError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const status = (error as { status?: unknown }).status;
+  const status = httpStatus(error);
   if (typeof status === "number") return status === 429 || status >= 500;
   // No HTTP status: retry only genuine network/timeout errors, not deterministic
   // failures (which would repeat forever and waste tokens).
