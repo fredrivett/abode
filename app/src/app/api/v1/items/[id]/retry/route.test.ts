@@ -281,7 +281,10 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(res.status).toBe(500);
       expect(mockItemUpdate).toHaveBeenLastCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "completed", processingStartedAt: STARTED_AT },
+        data: {
+          processingStatus: "completed",
+          processingStartedAt: STARTED_AT,
+        },
       });
     });
   });
