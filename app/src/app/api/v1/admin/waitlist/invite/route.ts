@@ -7,6 +7,7 @@ import { createWaitlistInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
+import { inviteSchema } from "./schema";
 
 const log = createLogger("api/v1/admin/waitlist/invite");
 
@@ -39,14 +40,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { waitlistEntryId } = body as { waitlistEntryId?: string };
+    const parsed = inviteSchema.safeParse(body);
 
-    if (!waitlistEntryId || typeof waitlistEntryId !== "string") {
+    if (!parsed.success) {
       return NextResponse.json(
         { error: "Waitlist entry ID is required" },
         { status: 400 },
       );
     }
+
+    const { waitlistEntryId } = parsed.data;
 
     const result = await createWaitlistInvite(waitlistEntryId);
 
