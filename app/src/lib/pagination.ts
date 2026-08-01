@@ -18,10 +18,24 @@ export function encodeCursor(data: CursorData): string {
   return Buffer.from(JSON.stringify(data)).toString("base64url");
 }
 
+/** Canonical UUID format, matching Postgres `@db.Uuid` columns. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * True when `value` is a canonical UUID string. Cursor ids are compared
+ * against uuid columns, so a non-UUID would reach Postgres as
+ * `invalid input syntax for type uuid` and 500.
+ */
+export function isCanonicalUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
+
 function isValidCursorData(value: unknown): value is CursorData {
   if (typeof value !== "object" || value === null) return false;
   const { createdAt, id } = value as Record<string, unknown>;
   if (typeof createdAt !== "string" || typeof id !== "string") return false;
+  if (!isCanonicalUuid(id)) return false;
   return !Number.isNaN(new Date(createdAt).getTime());
 }
 

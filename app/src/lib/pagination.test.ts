@@ -3,9 +3,12 @@ import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
   encodeCursor,
+  isCanonicalUuid,
   MAX_PAGE_SIZE,
   parsePageSize,
 } from "./pagination";
+
+const VALID_UUID = "123e4567-e89b-12d3-a456-426614174000";
 
 describe("parsePageSize", () => {
   it("returns the parsed value for a valid limit", () => {
@@ -32,7 +35,7 @@ describe("parsePageSize", () => {
 
 describe("decodeCursor", () => {
   it("round-trips a valid cursor via encodeCursor", () => {
-    const data = { createdAt: new Date().toISOString(), id: "abc-123" };
+    const data = { createdAt: new Date().toISOString(), id: VALID_UUID };
     expect(decodeCursor(encodeCursor(data))).toEqual(data);
   });
 
@@ -63,8 +66,29 @@ describe("decodeCursor", () => {
 
   it("returns null when createdAt is not a valid date", () => {
     expect(
-      decodeCursor(encode({ createdAt: "not-a-date", id: "abc-123" })),
+      decodeCursor(encode({ createdAt: "not-a-date", id: VALID_UUID })),
     ).toBeNull();
+  });
+
+  it("returns null when id is not a canonical UUID", () => {
+    // ids are compared against a uuid column; a non-UUID would 500 the query
+    expect(
+      decodeCursor(
+        encode({ createdAt: new Date().toISOString(), id: "abc-123" }),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("isCanonicalUuid", () => {
+  it("accepts a canonical UUID", () => {
+    expect(isCanonicalUuid(VALID_UUID)).toBe(true);
+  });
+
+  it("rejects non-UUID strings", () => {
+    expect(isCanonicalUuid("abc-123")).toBe(false);
+    expect(isCanonicalUuid("")).toBe(false);
+    expect(isCanonicalUuid("123e4567e89b12d3a456426614174000")).toBe(false);
   });
 });
 
