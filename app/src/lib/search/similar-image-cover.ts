@@ -20,9 +20,12 @@ type SimilarImageCover = {
  * The visual vector that produced the match is computed on the item's cover, so
  * the thumbnail and its blur must follow `coverFileKey` — for a multi-image item
  * (e.g. a tweet) that's a user-selected image that can differ from `fileKey`.
- * Single-image items have no cover override and fall back to `fileKey`, storing
- * their LQIP in imageDetails; multi-image items store it on the mediaAnalyses
- * row for the cover file.
+ * Single-image items have no cover override and fall back to `fileKey`.
+ *
+ * mediaAnalyses is the authoritative per-file LQIP (keyed by file, re-written on
+ * a cover swap), so match it on the cover first; imageDetails is a single
+ * unkeyed field that can go stale after a swap, so it's only the fallback for
+ * kinds without a media row.
  */
 export function resolveSimilarImageCover({
   fileKey,
@@ -32,8 +35,8 @@ export function resolveSimilarImageCover({
 }: ResolveSimilarImageCoverArgs): SimilarImageCover {
   const cover = coverFileKey ?? fileKey;
   const blurDataUrl =
-    imageDetailsBlurDataUrl ??
     mediaAnalyses.find((m) => m.fileKey === cover)?.blurDataUrl ??
+    imageDetailsBlurDataUrl ??
     null;
   return { fileKey: cover, blurDataUrl };
 }
