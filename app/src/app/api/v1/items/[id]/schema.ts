@@ -1,9 +1,9 @@
 import { z } from "zod";
-
-// User tags may contain letters, numbers, spaces, hyphens, and underscores.
-// Uses a literal space (not \s) so newlines/tabs/other control whitespace are
-// rejected; the refine below also rejects whitespace-only tags.
-const userTagRegex = /^[a-zA-Z0-9 _-]+$/;
+import {
+  MAX_USER_TAG_LENGTH,
+  MAX_USER_TAGS,
+  USER_TAG_REGEX,
+} from "@/lib/items/user-tag-validation";
 
 // Validates only the fields that previously had explicit hand-rolled checks in
 // the PATCH handler. The remaining updatable fields (processingStatus, fileKey,
@@ -22,10 +22,10 @@ export const itemPatchSchema = z.object({
       z
         .string()
         .min(1)
-        .max(50)
-        .regex(userTagRegex)
+        .max(MAX_USER_TAG_LENGTH)
+        .regex(USER_TAG_REGEX)
         .refine((t) => t.trim().length > 0, "Tag cannot be only whitespace"),
     )
-    .max(100)
+    .max(MAX_USER_TAGS)
     .optional(),
 });

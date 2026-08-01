@@ -78,6 +78,11 @@ import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
+import {
+  MAX_USER_TAG_LENGTH,
+  MAX_USER_TAGS,
+  USER_TAG_REGEX,
+} from "@/lib/items/user-tag-validation";
 import { createLogger } from "@/lib/logger.client";
 import {
   shouldCompleteAddFirstTag,
@@ -1501,20 +1506,21 @@ function ItemDetailDialog({
     const tag = newTagInput.trim();
     if (!tag) return;
 
-    // Validation: max 100 tags
-    if (userTags.length >= 100) {
-      toast.error("Maximum of 100 tags allowed");
+    // Validation: max tags
+    if (userTags.length >= MAX_USER_TAGS) {
+      toast.error(`Maximum of ${MAX_USER_TAGS} tags allowed`);
       return;
     }
 
-    // Validation: max 50 characters
-    if (tag.length > 50) {
-      toast.error("Tag must be 50 characters or less");
+    // Validation: max characters
+    if (tag.length > MAX_USER_TAG_LENGTH) {
+      toast.error(`Tag must be ${MAX_USER_TAG_LENGTH} characters or less`);
       return;
     }
 
-    // Validation: allowed characters (letters, numbers, spaces, hyphens, underscores)
-    if (!/^[\w\s-]+$/u.test(tag)) {
+    // Validation: allowed characters — mirrors the server schema (USER_TAG_REGEX)
+    // so a pasted tag with tabs/newlines is rejected here instead of 400ing on save
+    if (!USER_TAG_REGEX.test(tag)) {
       toast.error(
         "Tag can only contain letters, numbers, spaces, hyphens, and underscores",
       );
