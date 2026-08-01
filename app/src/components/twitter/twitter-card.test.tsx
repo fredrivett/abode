@@ -45,6 +45,27 @@ describe("TwitterCard", () => {
     expect(
       screen.queryByText(/Every map is out of date/),
     ).not.toBeInTheDocument();
+    // The content image gets descriptive alt derived from the tweet text
+    expect(
+      screen.getByRole("img", {
+        name: "Tweet image: Every map is out of date the second it's printed.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("marks the author avatar as decorative (name renders as text)", () => {
+    const { container } = render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          authorAvatarUrl: "https://example.com/avatar.jpg",
+        }}
+        onClick={() => {}}
+      />,
+    );
+    const avatar = container.querySelector('img[src*="avatar.jpg"]');
+    expect(avatar).not.toBeNull();
+    expect(avatar).toHaveAttribute("alt", "");
   });
 
   it("falls back to the placeholder when there is neither media nor text", () => {

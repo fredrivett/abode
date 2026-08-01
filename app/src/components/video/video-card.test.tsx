@@ -27,6 +27,19 @@ describe("VideoCard", () => {
     expect(img).toHaveAttribute("src", baseVideo.thumbnailUrl);
   });
 
+  it("gives the thumbnail descriptive alt text derived from the channel", () => {
+    render(
+      <VideoCard
+        videoDetails={baseVideo}
+        coverFileKey={null}
+        onClick={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole("img", { name: "Cut Media video thumbnail" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the platform placeholder when there is no thumbnail at all", () => {
     const { container } = render(
       <VideoCard

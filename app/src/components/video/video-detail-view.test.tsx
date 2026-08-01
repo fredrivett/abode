@@ -25,6 +25,7 @@ describe("VideoDetailView", () => {
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
     expect(img?.getAttribute("src")).toContain("covers%2Fridge.jpg");
+    expect(img).toHaveAttribute("alt", "Danny Macaskill: The Ridge");
   });
 
   it("falls back to the external thumbnail when there is no downloaded cover", () => {

@@ -49,10 +49,14 @@ export function VideoCard({
       <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
         {thumbnailUrl ? (
           <>
-            {/* biome-ignore lint/a11y/useAltText: decorative video thumbnail */}
             {/* biome-ignore lint/performance/noImgElement: external video thumbnail URL */}
             <img
               src={thumbnailUrl}
+              alt={
+                videoDetails.channelName
+                  ? `${videoDetails.channelName} video thumbnail`
+                  : "Video thumbnail"
+              }
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"
             />
