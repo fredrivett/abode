@@ -130,7 +130,9 @@ export async function validateInviteToken(
       : null,
   };
 
-  if (invite.status === "accepted") {
+  // Treat joined_elsewhere the same as accepted: the recipient already joined
+  // via a sibling invite, so this one is consumed and no longer usable
+  if (invite.status === "accepted" || invite.status === "joined_elsewhere") {
     return {
       valid: false,
       error: "This invite has already been used",
@@ -225,8 +227,12 @@ export async function createUserInvite(
     });
 
     if (existingInvite) {
-      // If accepted, return error
-      if (existingInvite.status === "accepted") {
+      // If accepted (or joined elsewhere via a sibling invite), the person has
+      // already joined — don't allow re-sending a consumed invite
+      if (
+        existingInvite.status === "accepted" ||
+        existingInvite.status === "joined_elsewhere"
+      ) {
         return {
           success: false,
           error: "This person has already joined",
@@ -313,10 +319,12 @@ export async function acceptInvite(
     };
   }
 
-  if (invite.status === "accepted") {
+  // joined_elsewhere means the recipient already joined via a sibling invite;
+  // treat it like accepted so this consumed invite can't be (re)accepted
+  if (invite.status === "accepted" || invite.status === "joined_elsewhere") {
     log.warn(
-      { inviteId: invite.id, email: invite.email },
-      "Invite already accepted",
+      { inviteId: invite.id, email: invite.email, status: invite.status },
+      "Invite already consumed",
     );
     return {
       success: false,

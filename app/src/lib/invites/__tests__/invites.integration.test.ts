@@ -249,6 +249,47 @@ describe("Invites Integration", () => {
         expect(result.code).toBe("ALREADY_JOINED");
       }
     });
+
+    it("returns error for joined_elsewhere invite (no re-send)", async () => {
+      const { write, read } = await import("@/lib/db");
+      const { createUserInvite } = await import("@/lib/invites");
+
+      const user = await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440015",
+          email: "inviter@example.com",
+          inviteAllocation: 3,
+        },
+      });
+
+      // Recipient already joined via a sibling invite
+      await write.invite.create({
+        data: {
+          email: "friend@example.com",
+          token: "joined-elsewhere-token",
+          origin: "user",
+          status: "joined_elsewhere",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          inviterId: user.id,
+          acceptedAt: new Date(),
+          acceptedByUserId: "550e8400-e29b-41d4-a716-446655440099",
+        },
+      });
+
+      const result = await createUserInvite(user.id, "friend@example.com");
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("ALREADY_JOINED");
+      }
+
+      // Invite must not have been re-sent (token/sendCount unchanged)
+      const invite = await read.invite.findUnique({
+        where: { token: "joined-elsewhere-token" },
+      });
+      expect(invite?.token).toBe("joined-elsewhere-token");
+      expect(invite?.sendCount).toBe(1);
+    });
   });
 
   describe("acceptInvite", () => {
@@ -324,6 +365,48 @@ describe("Invites Integration", () => {
       if (!result.success) {
         expect(result.code).toBe("ALREADY_ACCEPTED");
       }
+    });
+
+    it("returns error for joined_elsewhere invite", async () => {
+      const { write, read } = await import("@/lib/db");
+      const { acceptInvite } = await import("@/lib/invites");
+
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440023",
+          email: "inviter@example.com",
+        },
+      });
+
+      // Recipient already joined via a sibling invite
+      await write.invite.create({
+        data: {
+          email: "invited@example.com",
+          token: "joined-elsewhere-accept-token",
+          origin: "user",
+          status: "joined_elsewhere",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          inviterId: "550e8400-e29b-41d4-a716-446655440023",
+          acceptedAt: new Date(),
+          acceptedByUserId: "550e8400-e29b-41d4-a716-446655440098",
+        },
+      });
+
+      const result = await acceptInvite(
+        "joined-elsewhere-accept-token",
+        "550e8400-e29b-41d4-a716-446655440099",
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("ALREADY_ACCEPTED");
+      }
+
+      // Status must not have flipped to accepted
+      const invite = await read.invite.findUnique({
+        where: { token: "joined-elsewhere-accept-token" },
+      });
+      expect(invite?.status).toBe("joined_elsewhere");
     });
 
     it("returns error for expired invite", async () => {
@@ -550,6 +633,42 @@ describe("Invites Integration", () => {
         expect(result.invite.inviter).not.toBeNull();
         expect(result.invite.inviter?.username).toBe("johndoe");
         expect(result.invite.inviter?.avatarUrl).toBeNull();
+      }
+    });
+
+    it("returns invalid for joined_elsewhere invite", async () => {
+      const { write } = await import("@/lib/db");
+      const { validateInviteToken } = await import("@/lib/invites");
+
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440042",
+          email: "inviter@example.com",
+          username: "sibling",
+        },
+      });
+
+      // Not expired, but recipient already joined via a sibling invite
+      await write.invite.create({
+        data: {
+          email: "invited@example.com",
+          token: "joined-elsewhere-validate-token",
+          origin: "user",
+          status: "joined_elsewhere",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          inviterId: "550e8400-e29b-41d4-a716-446655440042",
+          acceptedAt: new Date(),
+          acceptedByUserId: "550e8400-e29b-41d4-a716-446655440097",
+        },
+      });
+
+      const result = await validateInviteToken(
+        "joined-elsewhere-validate-token",
+      );
+
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.code).toBe("ALREADY_ACCEPTED");
       }
     });
 
