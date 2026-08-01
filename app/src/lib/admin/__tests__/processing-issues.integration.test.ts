@@ -16,6 +16,7 @@ describe("getProcessingIssues", () => {
     status: ProcessingStatus;
     startedAgoMs?: number;
     coverFileKey?: string;
+    tags?: string[];
     withArticleDetails?: boolean;
     withNoteDetails?: boolean;
     withTextVector?: boolean;
@@ -35,6 +36,7 @@ describe("getProcessingIssues", () => {
       processingStatus: opts.status,
       processingStartedAt: new Date(Date.now() - (opts.startedAgoMs ?? 0)),
       coverFileKey: opts.coverFileKey ?? null,
+      tags: opts.tags ?? [],
     };
     if (opts.withArticleDetails) data.articleDetails = { create: {} };
     if (opts.withNoteDetails) data.noteDetails = { create: {} };
@@ -97,19 +99,33 @@ describe("getProcessingIssues", () => {
     for (const ids of m.values()) expect(ids).not.toContain(okArticle);
   });
 
-  test("missing-text-vector excludes notes; note lands in missing-detail", async () => {
+  test("missing-text-vector flags tagged items without a vector, excludes text-less ones", async () => {
+    // Has tags (⇒ had embeddable content) but no vector → flagged
+    const tagged = await seed({
+      status: "completed",
+      kind: "webpage",
+      tags: ["design", "typography"],
+    });
+    // Tagged AND has a vector → not flagged (guards inverted filter)
+    const okTagged = await seed({
+      status: "completed",
+      kind: "webpage",
+      tags: ["design"],
+      withTextVector: true,
+    });
+    // No tags ⇒ no embeddable text ⇒ legitimately no vector → not flagged, any kind
+    const textless = await seed({ status: "completed", kind: "webpage" });
     const note = await seed({
       status: "completed",
       kind: "note",
       withNoteDetails: true,
     });
-    const webpage = await seed({ status: "completed", kind: "webpage" });
 
     const m = await membership();
-    // note legitimately has no text vector — not flagged
+    expect(m.get("missing-text-vector")).toContain(tagged);
+    expect(m.get("missing-text-vector")).not.toContain(okTagged);
+    expect(m.get("missing-text-vector")).not.toContain(textless);
     expect(m.get("missing-text-vector")).not.toContain(note);
-    // webpage should have one
-    expect(m.get("missing-text-vector")).toContain(webpage);
   });
 
   test("missing-visual-vector: images always, cover kinds only with a cover", async () => {

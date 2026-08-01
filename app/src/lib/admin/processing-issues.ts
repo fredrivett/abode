@@ -101,11 +101,13 @@ function issueSpecs(): IssueSpec[] {
       key: "missing-text-vector",
       label: "Missing text vector",
       description:
-        "Completed without a text embedding — weaker search. Kinds that legitimately have no text (notes, tweets, videos) are excluded.",
+        "Completed with content (has tags) but no text embedding — weaker search. Mirrors enrich-item: a text vector is created whenever there was text to embed, and non-empty tags prove there was. Text-less items are correctly excluded.",
       severity: "incomplete",
       where: {
         processingStatus: "completed",
-        kind: { in: ["image", "article", "webpage", "product", "book"] },
+        // Non-empty tags ⇒ buildEmbeddingText was non-empty ⇒ a vector is owed.
+        // (sourceText, the other input, isn't persisted, so tags is the proxy.)
+        tags: { isEmpty: false },
         textVectors: { none: {} },
       },
     },
