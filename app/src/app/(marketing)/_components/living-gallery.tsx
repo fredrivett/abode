@@ -1,12 +1,53 @@
 "use client";
 
 import { FileText, Link2, Package, Play } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { BookCover3D } from "@/components/book/book-cover-3d";
+import { BOOK_TILE_PADDING_X } from "@/lib/book-cover";
 import { cn } from "@/lib/utils";
 import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 
 const BOX_CLASS =
   "relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm";
+
+const HOVER_BASE = "transition-[transform,box-shadow] duration-500 ease-out";
+
+// Books get the app's real 3D book treatment (BookCover3D) on a neutral tile,
+// mirroring the dashboard grid — so the card carries its own surface/padding/
+// aspect instead of the flat bordered box every other kind uses.
+function faceClass(card: GalleryCard) {
+  if (card.kind === "book") {
+    return "relative flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-neutral-50 to-neutral-100 shadow-sm dark:from-neutral-900 dark:to-neutral-950";
+  }
+  return BOX_CLASS;
+}
+
+// The tile aspect derives from the app's book frame (2:3 cover inset by
+// BOOK_TILE_PADDING → 1 / 1.46). The book itself is sized by an inner wrapper
+// (see CardBody) rather than padding, so grid and fly render identically —
+// % padding on the absolutely-positioned fly node would resolve against the
+// fixed overlay, not the tile.
+const BOOK_TILE_ASPECT = "1 / 1.46";
+const BOOK_INNER_WIDTH = `${(1 - 2 * BOOK_TILE_PADDING_X) * 100}%`; // 68%
+
+function faceStyle(card: GalleryCard): CSSProperties | undefined {
+  if (card.kind === "book") {
+    return { aspectRatio: BOOK_TILE_ASPECT };
+  }
+  return undefined;
+}
+
+function hoverClass(card: GalleryCard) {
+  // BookCover3D owns its own hover (the cover opens further), so the tile just
+  // lifts — no competing rotateX/preserve-3d.
+  if (card.kind === "book") {
+    return cn(HOVER_BASE, "group-hover:-translate-y-1 group-hover:shadow-xl");
+  }
+  return cn(
+    HOVER_BASE,
+    "[transform-style:preserve-3d] group-hover:-translate-y-1 group-hover:shadow-2xl group-hover:[transform:rotateX(5deg)]",
+  );
+}
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -254,12 +295,17 @@ export function LivingGallery() {
                 flyRefs.current[i] = el;
               }}
               className={cn(
-                BOX_CLASS,
+                faceClass(card),
                 "absolute top-0 left-0 will-change-transform",
               )}
-              style={{ transformOrigin: "top left", opacity: 0 }}
+              style={{
+                transformOrigin: "top left",
+                opacity: 0,
+                aspectRatio:
+                  card.kind === "book" ? BOOK_TILE_ASPECT : undefined,
+              }}
             >
-              <CardMedia card={card} />
+              <CardBody card={card} />
             </div>
           ))}
         </div>
@@ -281,13 +327,10 @@ export function LivingGallery() {
             className="group relative break-inside-avoid"
           >
             <div
-              className={cn(
-                BOX_CLASS,
-                "transition-[transform,box-shadow] duration-500 ease-out [transform-style:preserve-3d]",
-                "group-hover:-translate-y-1 group-hover:shadow-2xl group-hover:[transform:rotateX(5deg)]",
-              )}
+              className={cn(faceClass(card), hoverClass(card))}
+              style={faceStyle(card)}
             >
-              <CardMedia card={card} />
+              <CardBody card={card} />
               <Intelligence card={card} />
             </div>
           </li>
@@ -329,7 +372,7 @@ function Intelligence({ card }: { card: GalleryCard }) {
       </div>
       {objects && (
         <p className="mb-2 text-muted-foreground text-xs">
-          sees {objects.slice(0, 3).join(" · ")}
+          {objects.slice(0, 3).join(" · ")}
         </p>
       )}
       <div className="flex flex-wrap gap-1">
@@ -347,6 +390,20 @@ function Intelligence({ card }: { card: GalleryCard }) {
 }
 
 // --- per-kind media / body ---
+
+function CardBody({ card }: { card: GalleryCard }) {
+  if (card.kind === "book") {
+    // Inner wrapper sizes the book (68% of tile width, 2:3 cover) and the
+    // tile's flex-centre supplies the surrounding margin — so no padding, and
+    // grid vs fly render identically.
+    return (
+      <div className="aspect-[2/3]" style={{ width: BOOK_INNER_WIDTH }}>
+        <BookCover3D src={card.cover} alt={card.title} />
+      </div>
+    );
+  }
+  return <CardMedia card={card} />;
+}
 
 function CardMedia({ card }: { card: GalleryCard }) {
   switch (card.kind) {
@@ -387,15 +444,8 @@ function CardMedia({ card }: { card: GalleryCard }) {
         </div>
       );
     case "book":
-      return (
-        // biome-ignore lint/performance/noImgElement: static marketing asset
-        <img
-          src={card.cover}
-          alt={card.title}
-          className="w-full object-cover"
-          loading="lazy"
-        />
-      );
+      // books render via BookCover3D in CardBody, never here
+      return null;
     case "tweet":
       return (
         <div className="p-4">
