@@ -27,7 +27,7 @@ export type IssueGroup = {
   items: IssueItem[];
 };
 
-type IssueSpec = Omit<IssueGroup, "count" | "items"> & {
+export type IssueSpec = Omit<IssueGroup, "count" | "items"> & {
   where: Prisma.ItemWhereInput;
 };
 
@@ -37,7 +37,7 @@ type IssueSpec = Omit<IssueGroup, "count" | "items"> & {
  * webpages, cover-less tweets, text-less kinds) aren't false-flagged. Order here
  * is the display order: errors first, then incomplete-data.
  */
-function issueSpecs(): IssueSpec[] {
+export function issueSpecs(): IssueSpec[] {
   const stuckBefore = new Date(Date.now() - STUCK_ITEM_THRESHOLD_MS);
   return [
     {
