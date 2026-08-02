@@ -1,7 +1,6 @@
 import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -127,6 +126,13 @@ type RawItemRow = {
   book_isbn: string | null;
   book_page_count: number | null;
   book_domain: string | null;
+  book_status: string | null;
+  book_started_at: Date | null;
+  book_finished_at: Date | null;
+  book_progress_value: number | null;
+  book_progress_unit: string | null;
+  book_progress_updated_at: Date | null;
+  book_rating: number | null;
   note_content: string | null;
 };
 
@@ -242,7 +248,8 @@ function transformRawItemToItem(
     bookDetails:
       row.book_authors !== null ||
       row.book_isbn !== null ||
-      row.book_domain !== null
+      row.book_domain !== null ||
+      row.book_status !== null
         ? ({
             authors: row.book_authors ?? [],
             publisher: row.book_publisher,
@@ -250,7 +257,15 @@ function transformRawItemToItem(
             isbn: row.book_isbn,
             pageCount: row.book_page_count,
             domain: row.book_domain,
-            ...UNTRACKED_BOOK_READING,
+            status: row.book_status as BookDetails["status"],
+            startedAt: row.book_started_at?.toISOString() ?? null,
+            finishedAt: row.book_finished_at?.toISOString() ?? null,
+            progressValue: row.book_progress_value,
+            progressUnit: (row.book_progress_unit ??
+              "page") as BookDetails["progressUnit"],
+            progressUpdatedAt:
+              row.book_progress_updated_at?.toISOString() ?? null,
+            rating: row.book_rating,
           } satisfies BookDetails)
         : null,
     noteDetails:
@@ -677,6 +692,13 @@ async function executeFiltersOnlySearch(
       bd.isbn as book_isbn,
       bd.page_count as book_page_count,
       bd.domain as book_domain,
+      bd.status as book_status,
+      bd.started_at as book_started_at,
+      bd.finished_at as book_finished_at,
+      bd.progress_value as book_progress_value,
+      bd.progress_unit as book_progress_unit,
+      bd.progress_updated_at as book_progress_updated_at,
+      bd.rating as book_rating,
       nd.content as note_content
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
@@ -943,6 +965,13 @@ async function executeRankedSearch(
       bd.isbn as book_isbn,
       bd.page_count as book_page_count,
       bd.domain as book_domain,
+      bd.status as book_status,
+      bd.started_at as book_started_at,
+      bd.finished_at as book_finished_at,
+      bd.progress_value as book_progress_value,
+      bd.progress_unit as book_progress_unit,
+      bd.progress_updated_at as book_progress_updated_at,
+      bd.rating as book_rating,
       nd.content as note_content
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
