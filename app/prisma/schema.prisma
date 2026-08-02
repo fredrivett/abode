@@ -430,6 +430,24 @@ model ItemProductDetails {
   @@map("item_product_details")
 }
 
+// Per-user reading lifecycle for a saved book. Vocabulary is book-specific;
+// other item kinds (e.g. movies) get their own status enum on their own
+// details table rather than a shared cross-kind status.
+enum BookReadingStatus {
+  want_to_read
+  reading
+  read
+  dnf // did not finish
+}
+
+// How reading progress is expressed. Page is preferred and lossless when we
+// know the book's pageCount; percent is the graceful fallback when pageCount
+// is missing or the user wants a rough estimate.
+enum BookProgressUnit {
+  page
+  percent
+}
+
 model ItemBookDetails {
   itemId      String    @id @map("item_id") @db.Uuid
   item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -440,6 +458,27 @@ model ItemBookDetails {
   isbn        String?
   pageCount   Int?      @map("page_count")
   domain      String?
+
+  // Reading status (per-user; the item is already owned by one user). Null =
+  // saved but not tracked — capturing a book isn't an intent to read it.
+  status      BookReadingStatus?
+
+  // When the user started/finished. Both nullable and never auto-stamped, so
+  // back-dating books read before tracking existed stays clean. finishedAt is
+  // set for both `read` and `dnf` (when the user stopped); status distinguishes.
+  startedAt   DateTime? @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+
+  // Reading progress. Value is stored in whatever unit `progressUnit` names and
+  // is never convert-and-restored on a unit toggle — the other unit is derived
+  // for display only, so page-mode progress stays lossless.
+  progressValue     Int?             @map("progress_value")
+  progressUnit      BookProgressUnit @default(page) @map("progress_unit")
+  progressUpdatedAt DateTime?        @map("progress_updated_at")
+
+  // Rating stored on a /10 scale so half-stars work; displayed as /5. Review
+  // text reuses Item.notes rather than a dedicated column.
+  rating      Int?
 
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
