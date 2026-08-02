@@ -8,8 +8,16 @@ import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/images");
 
-// Cache images for 1 hour in browser, 1 day on CDN
-const CACHE_CONTROL = "public, max-age=3600, s-maxage=86400";
+// Cache images for 1 hour in browser and on the CDN.
+// The CDN window (s-maxage) is deliberately bounded to 1h rather than a longer
+// TTL: these images are visibility-gated (canViewItem runs per request), but a
+// successful public response is cached and keeps serving to anonymous requests
+// even after the item is unshared / a room is made private — so the s-maxage is
+// the maximum window an unshared cover can leak from the shared cache. A future
+// enhancement can restore a longer TTL on Vercel by tagging responses
+// (Vercel-Cache-Tag) and purging them on visibility change; until then keep the
+// window short. (The self-hostable core has no CDN purge, so this bound stays.)
+const CACHE_CONTROL = "public, max-age=3600, s-maxage=3600";
 
 // Cache 404s briefly to avoid hammering DB for missing images
 const CACHE_CONTROL_NOT_FOUND = "public, max-age=60, s-maxage=300";
