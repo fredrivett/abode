@@ -138,6 +138,15 @@ export async function PATCH(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
+    // Reading fields only apply to books — reject rather than silently create a
+    // stray ItemBookDetails row for another kind (per-kind detail invariant).
+    if (bookReading !== undefined && existingItem.kind !== "book") {
+      return NextResponse.json(
+        { message: "Reading status can only be set on books" },
+        { status: 400 },
+      );
+    }
+
     // Track if filter-relevant fields changed for room sync
     // Compare tags arrays by value since array equality check would always fail
     const tagsChanged =
@@ -272,6 +281,33 @@ export async function PATCH(
     // read" signal stays accurate; started/finished dates are never
     // auto-stamped here — the client sends explicit dates.
     if (bookReading !== undefined) {
+      // A single-field date edit can still invert the pair when combined with
+      // the already-stored counterpart — something the request-body Zod refine
+      // can't see. Merge with stored dates and reject an inverted result.
+      if (
+        bookReading.startedAt !== undefined ||
+        bookReading.finishedAt !== undefined
+      ) {
+        const stored = await db.itemBookDetails.findUnique({
+          where: { itemId: id },
+          select: { startedAt: true, finishedAt: true },
+        });
+        const startedAt =
+          bookReading.startedAt !== undefined
+            ? bookReading.startedAt
+            : (stored?.startedAt ?? null);
+        const finishedAt =
+          bookReading.finishedAt !== undefined
+            ? bookReading.finishedAt
+            : (stored?.finishedAt ?? null);
+        if (startedAt && finishedAt && startedAt > finishedAt) {
+          return NextResponse.json(
+            { message: "Finished date cannot be before started date" },
+            { status: 400 },
+          );
+        }
+      }
+
       const bookData = {
         ...(bookReading.status !== undefined && { status: bookReading.status }),
         ...(bookReading.startedAt !== undefined && {
