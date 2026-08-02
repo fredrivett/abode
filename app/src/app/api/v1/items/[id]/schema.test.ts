@@ -142,4 +142,32 @@ describe("itemPatchSchema", () => {
       expect(itemPatchSchema.safeParse({ userTags: [1] }).success).toBe(false);
     });
   });
+
+  describe("bookReading", () => {
+    it("accepts a valid reading patch (nested group)", () => {
+      expect(
+        itemPatchSchema.safeParse({
+          bookReading: { status: "reading", progressValue: 40 },
+        }).success,
+      ).toBe(true);
+    });
+
+    it("rejects an invalid reading patch (bad status)", () => {
+      expect(
+        itemPatchSchema.safeParse({ bookReading: { status: "abandoned" } })
+          .success,
+      ).toBe(false);
+    });
+
+    it("rejects a finished date before the started date within one body", () => {
+      expect(
+        itemPatchSchema.safeParse({
+          bookReading: {
+            startedAt: "2026-08-01T00:00:00.000Z",
+            finishedAt: "2026-07-01T00:00:00.000Z",
+          },
+        }).success,
+      ).toBe(false);
+    });
+  });
 });

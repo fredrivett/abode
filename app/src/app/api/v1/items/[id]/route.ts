@@ -110,6 +110,7 @@ export async function PATCH(
       twitterCoverMediaIndex,
       productCoverImageIndex,
       userTags,
+      bookReading,
     } = parsed.data;
     // Fields without dedicated validation pass through unchanged from the raw
     // body, preserving prior behavior (they were never validated here).
@@ -135,6 +136,15 @@ export async function PATCH(
 
     if (!existingItem) {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
+    }
+
+    // Reading fields only apply to books — reject rather than silently create a
+    // stray ItemBookDetails row for another kind (per-kind detail invariant).
+    if (bookReading !== undefined && existingItem.kind !== "book") {
+      return NextResponse.json(
+        { message: "Reading status can only be set on books" },
+        { status: 400 },
+      );
     }
 
     // Track if filter-relevant fields changed for room sync
@@ -264,6 +274,68 @@ export async function PATCH(
           updatedItem.coverFileKey = selectedImage.fileKey;
         }
       }
+    }
+
+    // Update per-user book reading state. progressUpdatedAt is stamped whenever
+    // progressValue changes (and cleared when progress is cleared) so a "last
+    // read" signal stays accurate; started/finished dates are never
+    // auto-stamped here — the client sends explicit dates.
+    if (bookReading !== undefined) {
+      // A single-field date edit can still invert the pair when combined with
+      // the already-stored counterpart — something the request-body Zod refine
+      // can't see. Merge with stored dates and reject an inverted result.
+      if (
+        bookReading.startedAt !== undefined ||
+        bookReading.finishedAt !== undefined
+      ) {
+        const stored = await db.itemBookDetails.findUnique({
+          where: { itemId: id },
+          select: { startedAt: true, finishedAt: true },
+        });
+        const startedAt =
+          bookReading.startedAt !== undefined
+            ? bookReading.startedAt
+            : (stored?.startedAt ?? null);
+        const finishedAt =
+          bookReading.finishedAt !== undefined
+            ? bookReading.finishedAt
+            : (stored?.finishedAt ?? null);
+        if (startedAt && finishedAt && startedAt > finishedAt) {
+          return NextResponse.json(
+            { message: "Finished date cannot be before started date" },
+            { status: 400 },
+          );
+        }
+      }
+
+      const bookData = {
+        ...(bookReading.status !== undefined && { status: bookReading.status }),
+        ...(bookReading.startedAt !== undefined && {
+          startedAt: bookReading.startedAt,
+        }),
+        ...(bookReading.finishedAt !== undefined && {
+          finishedAt: bookReading.finishedAt,
+        }),
+        ...(bookReading.progressValue !== undefined && {
+          progressValue: bookReading.progressValue,
+          progressUpdatedAt:
+            bookReading.progressValue === null ? null : new Date(),
+        }),
+        ...(bookReading.progressUnit !== undefined && {
+          progressUnit: bookReading.progressUnit,
+        }),
+        ...(bookReading.rating !== undefined && { rating: bookReading.rating }),
+      };
+
+      const upsertedBook = await db.itemBookDetails.upsert({
+        where: { itemId: id },
+        create: { itemId: id, ...bookData },
+        update: bookData,
+      });
+
+      // updatedItem holds the pre-write raw row; swap in the fresh one so the
+      // transformed response reflects the new reading state without a refetch.
+      updatedItem.bookDetails = upsertedBook;
     }
 
     // Trigger room sync if filter-relevant fields changed
