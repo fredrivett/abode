@@ -107,6 +107,27 @@ const batchHandle = await tasks.batchTrigger<typeof processData>(
 );
 ```
 
+### User processing vs. background work (priority)
+
+The item-processing tasks (`classify-url`, `analyze-image`) run on shared,
+low-concurrency queues, so **user-initiated** runs and **background** runs (admin
+reprocess, backfills) contend for the same slots. Keep them separated by priority:
+
+- **User-initiated processing** (a user adds/retries/reassigns an item) **must**
+  enqueue through `enqueueUserProcessing` (`@/lib/items/enqueue-user-processing`),
+  never raw `tasks.trigger`. It bakes in the per-user `concurrencyKey` and
+  `USER_ACTION_PRIORITY` so a live run dequeues ahead of queued background runs.
+  Enforced by the `no-raw-user-processing` Biome rule over `src/lib/items/**` and
+  `src/app/api/**`.
+- **Background/admin work** triggers directly at the default priority `0` (via
+  `batchTrigger` for reprocess/backfills) — it deliberately yields to user work.
+
+Trigger `priority` is a `createdAt` offset in **seconds** (dequeue position =
+`createdAt − priority`), so *higher = sooner*. **Never** deprioritise background
+work with a *negative* priority: that schedules the run into the future and
+strands it in `queued`. Prioritise the foreground instead — that's what
+`USER_ACTION_PRIORITY` does.
+
 ### From Inside Tasks (with Result handling)
 
 ```ts

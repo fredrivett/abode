@@ -1,0 +1,25 @@
+language js
+
+// User-initiated item processing must enqueue through `enqueueUserProcessing`
+// (@/lib/items/enqueue-user-processing), which bakes in the per-user
+// `concurrencyKey` and `USER_ACTION_PRIORITY` so live runs dequeue ahead of
+// admin/backfill background runs. A raw `tasks.trigger("classify-url" |
+// "analyze-image", ...)` from the user surface silently drops that priority —
+// the class of bug that stranded reprocess runs in `queued`.
+//
+// Scoped by the last `overrides` entry in biome.json to the user enqueue surface
+// (`src/lib/items/**`, `src/app/api/**`). Out of scope by construction:
+//   - the wrapper passes a *variable* task id, so it never matches this literal;
+//   - admin/backfill paths enqueue via `batchTrigger` (a different callee);
+//   - `classify-url`'s internal task-to-task chaining lives in `trigger/**`.
+//
+// Biome 2.2 can't suppress plugin diagnostics with `biome-ignore`, so a genuine
+// exception must be exempted by path in that biome.json override.
+`tasks.trigger($id, $...)` as $call where {
+  $id <: or { `"classify-url"`, `"analyze-image"` },
+  register_diagnostic(
+    span=$call,
+    message="Enqueue user-initiated processing through `enqueueUserProcessing` (@/lib/items/enqueue-user-processing), not raw `tasks.trigger` — it applies the per-user concurrencyKey and USER_ACTION_PRIORITY so live runs dequeue ahead of background work. Admin/backfill paths trigger directly (priority 0) and are scoped out in biome.json.",
+    severity="error"
+  )
+}

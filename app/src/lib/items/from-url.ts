@@ -1,6 +1,6 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
-import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
+import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -79,14 +79,14 @@ export async function createItemFromUrl({
 
   // A queueing hiccup must not fail the save; the item is already persisted.
   try {
-    await tasks.trigger<typeof classifyUrlTask>(
+    await enqueueUserProcessing<typeof classifyUrlTask>(
       "classify-url",
       {
         itemId: item.id,
         userId,
         url: parsedUrl.href,
       },
-      { concurrencyKey: userId },
+      userId,
     );
   } catch (error) {
     // Mark failed so the UI surfaces a Retry instead of spinning forever.
