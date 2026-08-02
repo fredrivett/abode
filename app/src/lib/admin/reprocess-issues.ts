@@ -12,14 +12,6 @@ const log = createLogger("admin/reprocess-issues");
 export const REPROCESS_LIMIT = 50;
 
 /**
- * Run reprocessing below live captures. Trigger priority is relative (higher =
- * sooner, default 0), so a large negative value means a fresh user upload
- * (priority 0) always preempts queued reprocess runs on the shared
- * `image-analysis` queue.
- */
-const REPROCESS_PRIORITY = -3600;
-
-/**
  * De-dupe window for a per-item reprocess. Roughly the drain time of a full
  * batch at concurrency 2, so a concurrent or rapid re-click of the same card
  * won't enqueue a second paid run for an item whose first run is still in
@@ -27,15 +19,16 @@ const REPROCESS_PRIORITY = -3600;
  */
 const REPROCESS_IDEMPOTENCY_TTL = "15m";
 
-/** Project ref for building Trigger dashboard links (matches trigger.config.ts). */
-const TRIGGER_PROJECT_REF = "proj_vtxdupmohtuvxabigigk";
-
 /** All reprocess runs carry this tag so they're filterable in the dashboard. */
 const REPROCESS_TAG = "admin-reprocess";
 
-function batchUrl(batchId: string): string {
-  return `https://cloud.trigger.dev/projects/v3/${TRIGGER_PROJECT_REF}/batches/${batchId}`;
-}
+/**
+ * Trigger dashboard runs list, filtered to this tag, for monitoring a reprocess.
+ * Hardcoded to the prod org/project/env slugs (this is prod admin tooling); the
+ * `projects/v3/<ref>` shape does NOT work for the runs list, only the
+ * org-slug/env one does.
+ */
+const TRIGGER_MONITOR_URL = `https://cloud.trigger.dev/orgs/abode-86bf/projects/abode-WvOk/env/prod/runs?tags=${REPROCESS_TAG}&period=1d&rootOnly=false`;
 
 /**
  * Only items that actually have a capture pipeline can be reprocessed.
@@ -60,8 +53,8 @@ const REPROCESSABLE: Prisma.ItemWhereInput = {
 
 export type ReprocessResult = {
   triggered: number;
-  /** Trigger dashboard batch links (one per enqueued task kind) for monitoring. */
-  batchUrls: string[];
+  /** Trigger dashboard link (filtered to reprocess runs) for monitoring. */
+  monitorUrl: string | null;
 };
 
 /**
@@ -74,9 +67,9 @@ export type ReprocessResult = {
  * Routes each item to its capture task like the retry route (`classify-url` for
  * URLs, `analyze-image` for image uploads, URL taking precedence). Reuses those
  * tasks so every guardrail — the shared concurrency-2 queue, per-user
- * `concurrencyKey`, `markProcessingActive` — applies automatically. Runs at low
- * priority (yields to live uploads) and carries a per-item idempotency key so a
- * double-click can't double-charge.
+ * `concurrencyKey`, `markProcessingActive` — applies automatically, and carries
+ * a per-item idempotency key so a double-click can't double-charge. Runs are
+ * tagged `admin-reprocess` for dashboard monitoring.
  *
  * Error groups (failed/stuck) are a fresh attempt → flip to `processing` and
  * reset the reaper clock. Completed items are re-analysed silently in place, so
@@ -102,7 +95,7 @@ export async function reprocessIssueGroup(
       fileKey: true,
     },
   });
-  if (items.length === 0) return { triggered: 0, batchUrls: [] };
+  if (items.length === 0) return { triggered: 0, monitorUrl: null };
 
   // Mutually exclusive by construction of REPROCESSABLE: URL items (incl.
   // URL-sourced images) → classify-url; everything else is a non-URL image.
@@ -124,25 +117,22 @@ export async function reprocessIssueGroup(
 
   const triggerOptions = (userId: string, itemId: string) => ({
     concurrencyKey: userId,
-    priority: REPROCESS_PRIORITY,
     idempotencyKey: `reprocess:${itemId}`,
     idempotencyKeyTTL: REPROCESS_IDEMPOTENCY_TTL,
     tags: [REPROCESS_TAG],
   });
 
   const failedIds: string[] = [];
-  const batchUrls: string[] = [];
 
   if (urlItems.length > 0) {
     try {
-      const batch = await tasks.batchTrigger<typeof classifyUrlTask>(
+      await tasks.batchTrigger<typeof classifyUrlTask>(
         "classify-url",
         urlItems.map((i) => ({
           payload: { itemId: i.id, userId: i.userId, url: i.sourceUrl ?? "" },
           options: triggerOptions(i.userId, i.id),
         })),
       );
-      batchUrls.push(batchUrl(batch.batchId));
     } catch (error) {
       log.error({ error, count: urlItems.length }, "classify-url batch failed");
       failedIds.push(...urlItems.map((i) => i.id));
@@ -151,14 +141,13 @@ export async function reprocessIssueGroup(
 
   if (imageItems.length > 0) {
     try {
-      const batch = await tasks.batchTrigger<typeof analyzeImageTask>(
+      await tasks.batchTrigger<typeof analyzeImageTask>(
         "analyze-image",
         imageItems.map((i) => ({
           payload: { itemId: i.id, userId: i.userId, fileKey: i.fileKey ?? "" },
           options: triggerOptions(i.userId, i.id),
         })),
       );
-      batchUrls.push(batchUrl(batch.batchId));
     } catch (error) {
       log.error(
         { error, count: imageItems.length },
@@ -184,5 +173,5 @@ export async function reprocessIssueGroup(
     );
   }
 
-  return { triggered: targetIds.length, batchUrls };
+  return { triggered: targetIds.length, monitorUrl: TRIGGER_MONITOR_URL };
 }
