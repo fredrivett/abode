@@ -56,6 +56,7 @@ export type GalleryCard = Base &
       }
     | {
         kind: "product";
+        image: string;
         title: string;
         brand: string;
         price: string;
@@ -96,12 +97,11 @@ export const GALLERY_CARDS: GalleryCard[] = [
   },
   {
     kind: "note",
-    id: "reading-list",
-    title: "Reading list",
-    body: "Books to get through this quarter — start with the Alexander, everyone keeps referencing it.",
+    id: "note-to-self",
+    body: "the best tools feel like they remember you — you shouldn't have to reintroduce yourself every time you come home.",
     insight: {
       kindLabel: "note",
-      tags: ["reading", "books", "to-do"],
+      tags: ["idea", "product", "thought"],
     },
   },
   {
@@ -136,13 +136,13 @@ export const GALLERY_CARDS: GalleryCard[] = [
   },
   {
     kind: "book",
-    id: "moby-dick",
-    cover: "/gallery/book-moby-dick.jpg",
-    title: "Moby-Dick; or, The Whale",
-    author: "Herman Melville",
+    id: "wind-in-the-willows",
+    cover: "/gallery/book-wind-in-the-willows.jpg",
+    title: "The Wind in the Willows",
+    author: "Kenneth Grahame",
     insight: {
       kindLabel: "book",
-      tags: ["fiction", "classic", "adventure"],
+      tags: ["fiction", "classic", "children"],
     },
   },
   {
@@ -179,6 +179,7 @@ export const GALLERY_CARDS: GalleryCard[] = [
   {
     kind: "product",
     id: "turntable",
+    image: "/gallery/turntable.png",
     title: "AT-LP120XUSB Direct-Drive Turntable",
     brand: "Audio-Technica",
     price: "£299",

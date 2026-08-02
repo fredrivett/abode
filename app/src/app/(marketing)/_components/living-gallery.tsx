@@ -1,8 +1,10 @@
 "use client";
 
-import { FileText, Link2, Package, Play } from "lucide-react";
+import { Link2, Package, Play } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { BookCover3D } from "@/components/book/book-cover-3d";
+import { TwitterIcon } from "@/components/icons/platform-icons";
+import { NoteCard } from "@/components/note/note-card";
 import { BOOK_TILE_PADDING_X } from "@/lib/book-cover";
 import { cn } from "@/lib/utils";
 import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
@@ -10,7 +12,8 @@ import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 const BOX_CLASS =
   "relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm";
 
-const HOVER_BASE = "transition-[transform,box-shadow] duration-500 ease-out";
+const HOVER_BASE =
+  "transition-[transform,translate,box-shadow] duration-300 ease-out";
 
 // Books get the app's real 3D book treatment (BookCover3D) on a neutral tile,
 // mirroring the dashboard grid — so the card carries its own surface/padding/
@@ -19,6 +22,13 @@ function faceClass(card: GalleryCard) {
   if (card.kind === "book") {
     return "relative flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-neutral-50 to-neutral-100 shadow-sm dark:from-neutral-900 dark:to-neutral-950";
   }
+  // NoteCard brings its own border/bg/radius (via --grid-border-radius); the
+  // tile positions it and carries the hover shadow. No fixed height, so the
+  // note grows with its content. NoteCard's bottom clip-fade (aria-hidden) is
+  // for fixed-height frames — pointless here (content never overflows) and it
+  // would fade the last line, so hide it.
+  if (card.kind === "note")
+    return "relative rounded-2xl [&_[aria-hidden]]:hidden";
   return BOX_CLASS;
 }
 
@@ -33,6 +43,11 @@ const BOOK_INNER_WIDTH = `${(1 - 2 * BOOK_TILE_PADDING_X) * 100}%`; // 68%
 function faceStyle(card: GalleryCard): CSSProperties | undefined {
   if (card.kind === "book") {
     return { aspectRatio: BOOK_TILE_ASPECT };
+  }
+  // No fixed aspect — the note grows with its content. Just round NoteCard to
+  // match the gallery (it reads --grid-border-radius, default 8px).
+  if (card.kind === "note") {
+    return { "--grid-border-radius": "16px" } as CSSProperties;
   }
   return undefined;
 }
@@ -98,10 +113,10 @@ const SCATTER: Scatter[] = [
     period: 6200,
     phase: 1.4,
   },
-  // reading note (far, top-left)
+  // reading note (far, left — below the sunset image, clear of it)
   {
-    x: 0.09,
-    y: 0.03,
+    x: 0.04,
+    y: 0.34,
     scale: 0.5,
     blur: 5,
     opacity: 0.55,
@@ -124,11 +139,11 @@ const SCATTER: Scatter[] = [
     period: 6600,
     phase: 0.8,
   },
-  // city sunset (mid, left-upper)
+  // city sunset (mid, left-upper) — smaller so the note clears it below
   {
     x: 0.05,
     y: 0.04,
-    scale: 0.62,
+    scale: 0.52,
     blur: 3,
     opacity: 0.7,
     rot: -6,
@@ -301,8 +316,7 @@ export function LivingGallery() {
               style={{
                 transformOrigin: "top left",
                 opacity: 0,
-                aspectRatio:
-                  card.kind === "book" ? BOOK_TILE_ASPECT : undefined,
+                ...faceStyle(card),
               }}
             >
               <CardBody card={card} />
@@ -314,7 +328,7 @@ export function LivingGallery() {
       <ul
         ref={gridRef}
         className={cn(
-          "relative z-10 mt-14 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>li]:mb-4",
+          "relative z-10 mt-14 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
           flying && "invisible",
         )}
       >
@@ -402,6 +416,9 @@ function CardBody({ card }: { card: GalleryCard }) {
       </div>
     );
   }
+  if (card.kind === "note") {
+    return <NoteCard title={card.title ?? null} content={card.body} />;
+  }
   return <CardMedia card={card} />;
 }
 
@@ -449,7 +466,8 @@ function CardMedia({ card }: { card: GalleryCard }) {
     case "tweet":
       return (
         <div className="p-4">
-          <div className="mb-2 flex items-center gap-2">
+          <TwitterIcon className="absolute top-3.5 right-3.5 size-4 text-foreground/70" />
+          <div className="mb-2 flex items-center gap-2 pr-6">
             {/* biome-ignore lint/performance/noImgElement: remote avatar svg */}
             <img
               src={card.avatar}
@@ -467,45 +485,56 @@ function CardMedia({ card }: { card: GalleryCard }) {
         </div>
       );
     case "note":
-      return (
-        <div className="bg-amber-50/60 p-4 dark:bg-amber-950/20">
-          <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
-            <FileText className="size-3.5" />
-            {card.title && (
-              <span className="font-medium text-foreground text-sm">
-                {card.title}
-              </span>
-            )}
-          </div>
-          <p className="text-[15px] text-foreground/90 leading-snug">
-            {card.body}
-          </p>
-        </div>
-      );
+      // notes render via NoteCard in CardBody, never here
+      return null;
     case "article":
       return (
-        <div className="p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-muted-foreground text-xs">
-            <Link2 className="size-3.5" />
-            {card.domain}
+        <div>
+          {/* og:image-style banner — a generated card preview of the essay */}
+          <div className="flex aspect-[1.91/1] flex-col justify-between bg-gradient-to-br from-[#f6f1e7] to-[#e4dac4] p-4 text-neutral-900">
+            <span className="font-medium text-[11px] text-neutral-500 uppercase tracking-widest">
+              essay
+            </span>
+            <p className="font-semibold font-serif text-xl leading-tight">
+              {card.title}
+            </p>
+            <span className="text-neutral-600 text-xs">{card.author}</span>
           </div>
-          <p className="font-medium text-base leading-snug">{card.title}</p>
-          <p className="mt-2 text-muted-foreground text-xs">
-            {card.author} · {card.readingTime} min read
-          </p>
+          <div className="flex items-center gap-1.5 p-3 text-muted-foreground text-xs">
+            <Link2 className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {card.domain} · {card.readingTime} min read
+            </span>
+          </div>
         </div>
       );
     case "product":
       return (
-        <div className="p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-muted-foreground text-xs">
-            <Package className="size-3.5" />
-            {card.domain}
+        <div>
+          {/* product shot on a light surface, like a store listing */}
+          <div className="flex aspect-square items-center justify-center bg-gradient-to-b from-neutral-100 to-neutral-200 p-4">
+            {/* biome-ignore lint/performance/noImgElement: static marketing asset */}
+            <img
+              src={card.image}
+              alt={card.title}
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
           </div>
-          <p className="font-medium text-base leading-snug">{card.title}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-muted-foreground text-xs">{card.brand}</span>
-            <span className="font-semibold text-sm">{card.price}</span>
+          <div className="p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-muted-foreground text-xs">
+              <Package className="size-3.5 shrink-0" />
+              {card.brand}
+            </div>
+            <p className="line-clamp-2 font-medium text-sm leading-snug">
+              {card.title}
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="rounded bg-green-500/15 px-1.5 py-0.5 font-medium text-[11px] text-green-600 dark:text-green-400">
+                in stock
+              </span>
+              <span className="font-semibold text-base">{card.price}</span>
+            </div>
           </div>
         </div>
       );
