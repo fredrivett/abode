@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BookDetails } from "@/lib/types/item";
 import { BookReadingControls } from "./book-reading-controls";
@@ -125,16 +125,22 @@ describe("BookReadingControls rating", () => {
 });
 
 describe("BookReadingControls progress persistence", () => {
-  it("stores an exact page (not percent) when a page count is known", () => {
+  it("debounces to store an exact page (not percent) when a page count is known", async () => {
     renderControls({
       status: "reading",
       progressValue: 100,
       progressUnit: "page",
     });
     const slider = screen.getByLabelText("Reading progress");
+    // A rapid drag fires several onChange events...
+    fireEvent.change(slider, { target: { value: "120" } });
     fireEvent.change(slider, { target: { value: "150" } });
-    expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
-      bookReading: { progressValue: 150, progressUnit: "page" },
-    });
+    // ...but only the final value is persisted, in one debounced request.
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+        bookReading: { progressValue: 150, progressUnit: "page" },
+      }),
+    );
+    expect(patch).toHaveBeenCalledTimes(1);
   });
 });

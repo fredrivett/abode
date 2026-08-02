@@ -6,6 +6,7 @@ import { CalendarIcon, ChevronDown, Star, X } from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -122,20 +123,41 @@ export function BookReadingControls({
       });
   };
 
-  // Persist progress from a percent-or-page slider position. When we have a
-  // page count we always store the exact page (lossless); percent is only
-  // stored when there's no page count to convert against.
+  // Progress persistence is debounced and coalesced: a rapid slider drag fires
+  // many onChange events, but only the final value is written (one request, in
+  // order), avoiding out-of-order PATCHes stamping a stale position. Optimistic
+  // local state still updates on every event so the slider stays responsive.
+  const commitProgress = useDebouncedCallback(
+    (partial: Partial<ReadingState>, percent: number | null) => {
+      void (async () => {
+        try {
+          await api.patch(`/api/v1/items/${itemId}`, { bookReading: partial });
+          invalidateItems();
+          posthog.capture("item_reading_progress_updated", {
+            item_id: itemId,
+            percent,
+          });
+        } catch {
+          setState(toReadingState(bookDetails));
+          toast.error("Failed to update reading status");
+        }
+      })();
+    },
+    400,
+  );
+
+  // When we have a page count we always store the exact page (lossless); percent
+  // is only stored when there's no page count to convert against.
   const saveProgressFromPercent = (percent: number) => {
-    if (hasPages !== null) {
-      const page = Math.round((percent / 100) * hasPages);
-      save({ progressValue: page, progressUnit: "page" });
-    } else {
-      save({ progressValue: percent, progressUnit: "percent" });
-    }
-    posthog.capture("item_reading_progress_updated", {
-      item_id: itemId,
-      percent,
-    });
+    const partial: Partial<ReadingState> =
+      hasPages !== null
+        ? {
+            progressValue: Math.round((percent / 100) * hasPages),
+            progressUnit: "page",
+          }
+        : { progressValue: percent, progressUnit: "percent" };
+    setState((s) => ({ ...s, ...partial }));
+    commitProgress(partial, percent);
   };
 
   const saveProgressFromPage = (page: number) => {
@@ -143,12 +165,15 @@ export function BookReadingControls({
       hasPages !== null
         ? Math.min(Math.max(page, 0), hasPages)
         : Math.max(page, 0);
-    save({ progressValue: clamped, progressUnit: "page" });
-    posthog.capture("item_reading_progress_updated", {
-      item_id: itemId,
-      percent:
-        hasPages !== null ? Math.round((clamped / hasPages) * 100) : null,
-    });
+    const partial: Partial<ReadingState> = {
+      progressValue: clamped,
+      progressUnit: "page",
+    };
+    setState((s) => ({ ...s, ...partial }));
+    commitProgress(
+      partial,
+      hasPages !== null ? Math.round((clamped / hasPages) * 100) : null,
+    );
   };
 
   const setRating = (rating: number | null) => {
@@ -265,6 +290,8 @@ export function BookReadingControls({
                   ? saveProgressFromPercent(Number(e.target.value))
                   : saveProgressFromPage(Number(e.target.value))
               }
+              onPointerUp={() => commitProgress.flush()}
+              onKeyUp={() => commitProgress.flush()}
               className="h-1.5 w-full cursor-pointer accent-primary"
               aria-label="Reading progress"
             />
@@ -278,6 +305,7 @@ export function BookReadingControls({
                   ? saveProgressFromPercent(Number(e.target.value))
                   : saveProgressFromPage(Number(e.target.value))
               }
+              onBlur={() => commitProgress.flush()}
               className="w-16 rounded-md border bg-transparent px-2 py-1 text-right text-sm tabular-nums"
               aria-label="Reading progress value"
             />
