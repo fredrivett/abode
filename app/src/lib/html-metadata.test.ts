@@ -10,6 +10,7 @@ import {
   extractDescription,
   extractDomain,
   extractJsonLdArticleType,
+  extractJsonLdBook,
   extractJsonLdProduct,
   extractMetaContent,
   extractOgImage,
@@ -2144,5 +2145,160 @@ describe("hasArticleStructuredData", () => {
         `<meta property="og:type" content="website" /><script type="application/ld+json">{"@type":"WebSite"}</script>`,
       ),
     ).toBe(false);
+  });
+});
+
+// JSON-LD is scraped verbatim from untrusted third-party pages. These cases
+// feed the parsers malformed / hostile structures (wrong top-level types,
+// fields of unexpected types, nested junk) and assert the type guards return
+// the safe fallback instead of throwing or leaking non-string values.
+const jsonLd = (obj: string) =>
+  `<script type="application/ld+json">${obj}</script>`;
+
+describe("JSON-LD guards (malformed / hostile input)", () => {
+  describe("extractJsonLdArticleType", () => {
+    it("returns null for non-object top-level values without throwing", () => {
+      expect(extractJsonLdArticleType(jsonLd(`"just a string"`))).toBeNull();
+      expect(extractJsonLdArticleType(jsonLd(`null`))).toBeNull();
+      expect(extractJsonLdArticleType(jsonLd(`42`))).toBeNull();
+      expect(extractJsonLdArticleType(jsonLd(`[]`))).toBeNull();
+    });
+
+    it("ignores non-string entries in an @type array", () => {
+      expect(
+        extractJsonLdArticleType(jsonLd(`{"@type":[123,null,"BlogPosting"]}`)),
+      ).toBe("BlogPosting");
+    });
+
+    it("does not throw when mainEntity / @graph are non-objects", () => {
+      expect(
+        extractJsonLdArticleType(
+          jsonLd(`{"@type":"WebPage","mainEntity":"not-an-object"}`),
+        ),
+      ).toBeNull();
+      expect(extractJsonLdArticleType(jsonLd(`{"@graph":"nope"}`))).toBeNull();
+    });
+  });
+
+  describe("extractJsonLdProduct", () => {
+    it("returns null for non-object top-level values without throwing", () => {
+      expect(extractJsonLdProduct(jsonLd(`"a string"`))).toBeNull();
+      expect(extractJsonLdProduct(jsonLd(`null`))).toBeNull();
+      expect(extractJsonLdProduct(jsonLd(`[]`))).toBeNull();
+    });
+
+    it("yields no images when image is a non-string/non-array primitive", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(`{"@type":"Product","image":123,"offers":{}}`),
+      );
+      expect(result?.images).toEqual([]);
+    });
+
+    it("keeps only valid string urls from a mixed image array", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(
+          `{"@type":"Product","image":[null,5,{"nourl":"x"},{"url":9},"https://ok.com/a.jpg"],"offers":{}}`,
+        ),
+      );
+      expect(result?.images).toEqual(["https://ok.com/a.jpg"]);
+    });
+
+    it("falls back to null brand when brand is not a string or {name}", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(`{"@type":"Product","brand":42,"offers":{}}`),
+      );
+      expect(result?.brand).toBeNull();
+    });
+
+    it("treats a non-object offers value as absent", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(`{"@type":"Product","offers":"cheap"}`),
+      );
+      expect(result).not.toBeNull();
+      expect(result?.price).toBeNull();
+      expect(result?.currency).toBeNull();
+    });
+
+    it("does not throw when availability is not a string", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(`{"@type":"Product","offers":{"price":"5","availability":200}}`),
+      );
+      expect(result?.price).toBe("5");
+      expect(result?.availability).toBeNull();
+    });
+
+    it("ignores a non-primitive price and falls back to lowPrice", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(
+          `{"@type":"Product","offers":{"price":{"amount":5},"lowPrice":"9.99"}}`,
+        ),
+      );
+      expect(result?.price).toBe("9.99");
+    });
+
+    it("ignores a non-string priceCurrency", () => {
+      const result = extractJsonLdProduct(
+        jsonLd(`{"@type":"Product","offers":{"price":"5","priceCurrency":7}}`),
+      );
+      expect(result?.currency).toBeNull();
+    });
+  });
+
+  describe("extractJsonLdBook", () => {
+    it("returns null for non-object top-level values without throwing", () => {
+      expect(extractJsonLdBook(jsonLd(`"a string"`))).toBeNull();
+      expect(extractJsonLdBook(jsonLd(`null`))).toBeNull();
+      expect(extractJsonLdBook(jsonLd(`[]`))).toBeNull();
+    });
+
+    it("detects Book inside a mixed @type array and stringifies numeric isbn", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":["Thing","Book"],"isbn":123}`),
+      );
+      expect(result).not.toBeNull();
+      expect(result?.isbn).toBe("123");
+    });
+
+    it("drops non-string / nameless author entries", () => {
+      const result = extractJsonLdBook(
+        jsonLd(
+          `{"@type":"Book","author":[null,7,{"noname":"x"},{"name":"Jane Doe"},"John Roe"]}`,
+        ),
+      );
+      expect(result?.authors).toEqual(["Jane Doe", "John Roe"]);
+    });
+
+    it("yields empty authors when author is a bare primitive", () => {
+      const result = extractJsonLdBook(jsonLd(`{"@type":"Book","author":42}`));
+      expect(result?.authors).toEqual([]);
+    });
+
+    it("returns null pageCount when numberOfPages is not numeric", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":"Book","numberOfPages":{"n":5}}`),
+      );
+      expect(result?.pageCount).toBeNull();
+    });
+
+    it("returns null pageCount when numberOfPages is an array (no String() coercion)", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":"Book","numberOfPages":["300"]}`),
+      );
+      expect(result?.pageCount).toBeNull();
+    });
+
+    it("keeps only valid string urls from a mixed image array", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":"Book","image":[{"url":5},"https://b.com/c.jpg",9]}`),
+      );
+      expect(result?.images).toEqual(["https://b.com/c.jpg"]);
+    });
+
+    it("returns null description when description is not a string", () => {
+      const result = extractJsonLdBook(
+        jsonLd(`{"@type":"Book","description":{"text":"hi"}}`),
+      );
+      expect(result?.description).toBeNull();
+    });
   });
 });

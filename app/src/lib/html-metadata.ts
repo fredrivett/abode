@@ -197,21 +197,30 @@ const ARTICLE_JSONLD_TYPES = new Set([
  * that merely *embeds* articles (an ItemList of BlogPosting, a related-posts
  * widget) must stay a webpage, not be promoted to article by a nested reference.
  */
-// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
-function findArticleTypeInJsonLd(data: any): string | null {
-  if (!data || typeof data !== "object") return null;
+/**
+ * Narrows an untyped JSON-LD value to a plain object (excludes null and arrays)
+ * so its fields can be read safely. JSON-LD is scraped from untrusted pages, so
+ * every field access must be guarded rather than assumed.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-  const type = data["@type"];
-  const types = Array.isArray(type) ? type : [type];
-  for (const t of types) {
-    if (typeof t === "string" && ARTICLE_JSONLD_TYPES.has(t)) return t;
-  }
-
+function findArticleTypeInJsonLd(data: unknown): string | null {
   if (Array.isArray(data)) {
     for (const item of data) {
       const found = findArticleTypeInJsonLd(item);
       if (found) return found;
     }
+    return null;
+  }
+
+  if (!isRecord(data)) return null;
+
+  const type = data["@type"];
+  const types = Array.isArray(type) ? type : [type];
+  for (const t of types) {
+    if (typeof t === "string" && ARTICLE_JSONLD_TYPES.has(t)) return t;
   }
 
   for (const key of ["@graph", "mainEntity", "mainEntityOfPage"]) {
@@ -232,7 +241,8 @@ export function extractJsonLdArticleType(html: string): string | null {
   let match = scriptRegex.exec(html);
   while (match !== null) {
     try {
-      const found = findArticleTypeInJsonLd(JSON.parse(match[1]));
+      const data: unknown = JSON.parse(match[1]);
+      const found = findArticleTypeInJsonLd(data);
       if (found) return found;
     } catch {
       // Invalid JSON, skip
@@ -275,36 +285,25 @@ export function extractJsonLdProduct(html: string): {
   let match = scriptRegex.exec(html);
   while (match !== null) {
     try {
-      const data = JSON.parse(match[1]);
+      const data: unknown = JSON.parse(match[1]);
       const product = findProductInJsonLd(data);
       if (product) {
         const offers = product.offers;
         const offer = Array.isArray(offers) ? offers[0] : offers;
-
-        const images: string[] = [];
-        if (product.image) {
-          if (Array.isArray(product.image)) {
-            for (const img of product.image) {
-              const url = typeof img === "string" ? img : img?.url;
-              if (url) images.push(url);
-            }
-          } else if (typeof product.image === "string") {
-            images.push(product.image);
-          } else if (product.image?.url) {
-            images.push(product.image.url);
-          }
-        }
+        const offerRec = isRecord(offer) ? offer : null;
 
         return {
           price:
-            offer?.price?.toString() ?? offer?.lowPrice?.toString() ?? null,
-          currency: offer?.priceCurrency ?? null,
-          brand:
-            typeof product.brand === "string"
-              ? product.brand
-              : (product.brand?.name ?? null),
-          availability: parseAvailability(offer?.availability),
-          images,
+            jsonLdPriceToString(offerRec?.price) ??
+            jsonLdPriceToString(offerRec?.lowPrice) ??
+            null,
+          currency:
+            typeof offerRec?.priceCurrency === "string"
+              ? offerRec.priceCurrency
+              : null,
+          brand: parseJsonLdBrand(product.brand),
+          availability: parseAvailability(offerRec?.availability),
+          images: parseJsonLdImages(product.image),
         };
       }
     } catch {
@@ -320,18 +319,18 @@ export function extractJsonLdProduct(html: string): {
  * Recursively searches JSON-LD data for a Product type.
  * Handles @graph arrays and nested structures.
  */
-// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
-function findProductInJsonLd(data: any): any | null {
-  if (!data || typeof data !== "object") return null;
-
-  if (data["@type"] === "Product") return data;
-
+function findProductInJsonLd(data: unknown): Record<string, unknown> | null {
   if (Array.isArray(data)) {
     for (const item of data) {
       const found = findProductInJsonLd(item);
       if (found) return found;
     }
+    return null;
   }
+
+  if (!isRecord(data)) return null;
+
+  if (data["@type"] === "Product") return data;
 
   if (data["@graph"]) {
     return findProductInJsonLd(data["@graph"]);
@@ -341,10 +340,31 @@ function findProductInJsonLd(data: any): any | null {
 }
 
 /**
- * Normalizes schema.org availability URLs to short labels.
+ * Coerces a JSON-LD price value (string or number) to its string form, or null
+ * for any other type. Guards against non-primitive price fields in untrusted data.
  */
-function parseAvailability(value: string | null | undefined): string | null {
-  if (!value) return null;
+function jsonLdPriceToString(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return value.toString();
+  return null;
+}
+
+/**
+ * Reads a JSON-LD brand, which may be a plain string or an object with a
+ * `name`. Returns null for any other shape.
+ */
+function parseJsonLdBrand(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (isRecord(value) && typeof value.name === "string") return value.name;
+  return null;
+}
+
+/**
+ * Normalizes schema.org availability URLs to short labels. Accepts untrusted
+ * JSON-LD values and returns null for anything that isn't a non-empty string.
+ */
+function parseAvailability(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
   const short = value.replace(/^https?:\/\/schema\.org\//, "");
   return short || null;
 }
@@ -933,20 +953,20 @@ function extractAmazonBookMetadata(
   };
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
-function findBookInJsonLd(data: any): any | null {
-  if (!data || typeof data !== "object") return null;
-
-  const type = data["@type"];
-  if (type === "Book" || (Array.isArray(type) && type.includes("Book"))) {
-    return data;
-  }
-
+function findBookInJsonLd(data: unknown): Record<string, unknown> | null {
   if (Array.isArray(data)) {
     for (const item of data) {
       const found = findBookInJsonLd(item);
       if (found) return found;
     }
+    return null;
+  }
+
+  if (!isRecord(data)) return null;
+
+  const type = data["@type"];
+  if (type === "Book" || (Array.isArray(type) && type.includes("Book"))) {
+    return data;
   }
 
   if (data["@graph"]) return findBookInJsonLd(data["@graph"]);
@@ -954,41 +974,47 @@ function findBookInJsonLd(data: any): any | null {
   return null;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
-function parseJsonLdNames(value: any): string[] {
+function parseJsonLdNames(value: unknown): string[] {
   if (!value) return [];
   const list = Array.isArray(value) ? value : [value];
   const names: string[] = [];
   for (const entry of list) {
     if (typeof entry === "string") names.push(entry);
-    else if (typeof entry?.name === "string") names.push(entry.name);
+    else if (isRecord(entry) && typeof entry.name === "string")
+      names.push(entry.name);
   }
   return names.map((n) => n.trim()).filter(Boolean);
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: JSON-LD structures are untyped
-function parseJsonLdImages(value: any): string[] {
+function parseJsonLdImages(value: unknown): string[] {
   const images: string[] = [];
-  if (!value) return images;
   if (Array.isArray(value)) {
     for (const img of value) {
-      const u = typeof img === "string" ? img : img?.url;
-      if (u) images.push(u);
+      if (typeof img === "string") {
+        if (img) images.push(img);
+      } else if (isRecord(img) && typeof img.url === "string" && img.url) {
+        images.push(img.url);
+      }
     }
   } else if (typeof value === "string") {
-    images.push(value);
-  } else if (value?.url) {
+    if (value) images.push(value);
+  } else if (isRecord(value) && typeof value.url === "string" && value.url) {
     images.push(value.url);
   }
   return images;
 }
 
-function parsePageCount(
-  value: string | number | null | undefined,
-): number | null {
-  if (value === null || value === undefined) return null;
-  const n =
-    typeof value === "number" ? value : Number.parseInt(String(value), 10);
+function parsePageCount(value: unknown): number | null {
+  // Only coerce primitives — String() on an array/object (e.g. ["300"]) would
+  // otherwise smuggle a bogus page count out of untrusted JSON-LD.
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string") {
+    n = Number.parseInt(value, 10);
+  } else {
+    return null;
+  }
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -1018,7 +1044,7 @@ export function extractJsonLdBook(html: string): {
   let match = scriptRegex.exec(html);
   while (match !== null) {
     try {
-      const data = JSON.parse(match[1]);
+      const data: unknown = JSON.parse(match[1]);
       const book = findBookInJsonLd(data);
       if (book) {
         return {
