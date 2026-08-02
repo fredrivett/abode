@@ -6,6 +6,8 @@
  */
 
 import type {
+  BookProgressUnit,
+  BookReadingStatus,
   ItemKind,
   ItemLocation as PrismaItemLocation,
   ProcessingErrorReason,
@@ -95,6 +97,15 @@ export type BookDetails = {
   isbn: string | null;
   pageCount: number | null;
   domain: string | null;
+  // Per-user reading lifecycle. status null = saved but not tracked.
+  status: BookReadingStatus | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  progressValue: number | null;
+  progressUnit: BookProgressUnit;
+  progressUpdatedAt: string | null;
+  // Stored /10 (half-stars), displayed /5; null = unrated
+  rating: number | null;
 };
 
 /**

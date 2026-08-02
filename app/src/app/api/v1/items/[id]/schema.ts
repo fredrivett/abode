@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bookReadingSchema } from "@/lib/items/book-reading-status";
 import {
   MAX_USER_TAG_LENGTH,
   MAX_USER_TAGS,
@@ -28,4 +29,6 @@ export const itemPatchSchema = z.object({
     )
     .max(MAX_USER_TAGS)
     .optional(),
+  // Per-kind (book) reading lifecycle. Routed to itemBookDetails by the handler.
+  bookReading: bookReadingSchema.optional(),
 });

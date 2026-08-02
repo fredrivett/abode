@@ -1,6 +1,7 @@
 import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -249,6 +250,7 @@ function transformRawItemToItem(
             isbn: row.book_isbn,
             pageCount: row.book_page_count,
             domain: row.book_domain,
+            ...UNTRACKED_BOOK_READING,
           } satisfies BookDetails)
         : null,
     noteDetails:

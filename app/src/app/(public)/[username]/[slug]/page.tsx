@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
+import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
 import type { Filter } from "@/lib/search/types";
 import type {
   BookDetails,
@@ -344,6 +345,7 @@ export default async function RoomPage({ params }: Props) {
           isbn: roomItem.item.bookDetails.isbn,
           pageCount: roomItem.item.bookDetails.pageCount,
           domain: roomItem.item.bookDetails.domain,
+          ...UNTRACKED_BOOK_READING,
         } satisfies BookDetails)
       : null,
     noteDetails: roomItem.item.noteDetails

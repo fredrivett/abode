@@ -110,6 +110,7 @@ export async function PATCH(
       twitterCoverMediaIndex,
       productCoverImageIndex,
       userTags,
+      bookReading,
     } = parsed.data;
     // Fields without dedicated validation pass through unchanged from the raw
     // body, preserving prior behavior (they were never validated here).
@@ -264,6 +265,41 @@ export async function PATCH(
           updatedItem.coverFileKey = selectedImage.fileKey;
         }
       }
+    }
+
+    // Update per-user book reading state. progressUpdatedAt is stamped whenever
+    // progressValue changes (and cleared when progress is cleared) so a "last
+    // read" signal stays accurate; started/finished dates are never
+    // auto-stamped here — the client sends explicit dates.
+    if (bookReading !== undefined) {
+      const bookData = {
+        ...(bookReading.status !== undefined && { status: bookReading.status }),
+        ...(bookReading.startedAt !== undefined && {
+          startedAt: bookReading.startedAt,
+        }),
+        ...(bookReading.finishedAt !== undefined && {
+          finishedAt: bookReading.finishedAt,
+        }),
+        ...(bookReading.progressValue !== undefined && {
+          progressValue: bookReading.progressValue,
+          progressUpdatedAt:
+            bookReading.progressValue === null ? null : new Date(),
+        }),
+        ...(bookReading.progressUnit !== undefined && {
+          progressUnit: bookReading.progressUnit,
+        }),
+        ...(bookReading.rating !== undefined && { rating: bookReading.rating }),
+      };
+
+      const upsertedBook = await db.itemBookDetails.upsert({
+        where: { itemId: id },
+        create: { itemId: id, ...bookData },
+        update: bookData,
+      });
+
+      // updatedItem holds the pre-write raw row; swap in the fresh one so the
+      // transformed response reflects the new reading state without a refetch.
+      updatedItem.bookDetails = upsertedBook;
     }
 
     // Trigger room sync if filter-relevant fields changed

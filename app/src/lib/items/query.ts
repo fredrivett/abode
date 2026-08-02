@@ -116,6 +116,13 @@ export const itemSelect = {
       isbn: true,
       pageCount: true,
       domain: true,
+      status: true,
+      startedAt: true,
+      finishedAt: true,
+      progressValue: true,
+      progressUnit: true,
+      progressUpdatedAt: true,
+      rating: true,
     },
   },
   noteDetails: {
@@ -220,18 +227,34 @@ export function transformItem(item: RawItem) {
           coverImageIndex: item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
       : null,
-    bookDetails: item.bookDetails
-      ? ({
-          authors: item.bookDetails.authors,
-          publisher: item.bookDetails.publisher,
-          publishedAt: item.bookDetails.publishedAt?.toISOString() ?? null,
-          isbn: item.bookDetails.isbn,
-          pageCount: item.bookDetails.pageCount,
-          domain: item.bookDetails.domain,
-        } satisfies BookDetails)
-      : null,
+    bookDetails: item.bookDetails ? mapBookDetails(item.bookDetails) : null,
     noteDetails: item.noteDetails
       ? ({ content: item.noteDetails.content } satisfies NoteDetails)
       : null,
+  };
+}
+
+/**
+ * Map a raw book-details row to the client BookDetails DTO (dates → ISO
+ * strings). Shared by transformItem and the item PATCH handler so the reading
+ * fields stay in sync in one place.
+ */
+export function mapBookDetails(
+  book: NonNullable<RawItem["bookDetails"]>,
+): BookDetails {
+  return {
+    authors: book.authors,
+    publisher: book.publisher,
+    publishedAt: book.publishedAt?.toISOString() ?? null,
+    isbn: book.isbn,
+    pageCount: book.pageCount,
+    domain: book.domain,
+    status: book.status,
+    startedAt: book.startedAt?.toISOString() ?? null,
+    finishedAt: book.finishedAt?.toISOString() ?? null,
+    progressValue: book.progressValue,
+    progressUnit: book.progressUnit,
+    progressUpdatedAt: book.progressUpdatedAt?.toISOString() ?? null,
+    rating: book.rating,
   };
 }
