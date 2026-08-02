@@ -69,143 +69,6 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeInOut = (t: number) =>
   t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
 
-// Where each card floats before it settles — anchored to the viewport edges
-// (fractions of the viewport) so the hero centre stays clear. Depth varies:
-// distant cards are smaller, blurred, fainter and sit further back (lower z).
-// Order matches GALLERY_CARDS.
-type Scatter = {
-  x: number;
-  y: number;
-  scale: number;
-  blur: number;
-  opacity: number;
-  rot: number;
-  z: number;
-  amp: number;
-  period: number;
-  phase: number;
-};
-
-const SCATTER: Scatter[] = [
-  // red arch (near, left-lower)
-  {
-    x: 0.01,
-    y: 0.44,
-    scale: 0.8,
-    blur: 0,
-    opacity: 0.95,
-    rot: -4,
-    z: 30,
-    amp: 10,
-    period: 7000,
-    phase: 0,
-  },
-  // maps tweet (mid, right-upper)
-  {
-    x: 0.79,
-    y: 0.08,
-    scale: 0.66,
-    blur: 2,
-    opacity: 0.8,
-    rot: 5,
-    z: 20,
-    amp: 8,
-    period: 6200,
-    phase: 1.4,
-  },
-  // reading note (far, left — below the sunset image, clear of it)
-  {
-    x: 0.04,
-    y: 0.34,
-    scale: 0.5,
-    blur: 5,
-    opacity: 0.55,
-    rot: -8,
-    z: 6,
-    amp: 6,
-    period: 8200,
-    phase: 2.6,
-  },
-  // tiny desk video (near, right-lower)
-  {
-    x: 0.72,
-    y: 0.6,
-    scale: 0.82,
-    blur: 0,
-    opacity: 0.95,
-    rot: 4,
-    z: 30,
-    amp: 10,
-    period: 6600,
-    phase: 0.8,
-  },
-  // city sunset (mid, left-upper) — smaller so the note clears it below
-  {
-    x: 0.05,
-    y: 0.04,
-    scale: 0.52,
-    blur: 3,
-    opacity: 0.7,
-    rot: -6,
-    z: 15,
-    amp: 7,
-    period: 7400,
-    phase: 3.3,
-  },
-  // moby book (near, right-mid)
-  {
-    x: 0.84,
-    y: 0.36,
-    scale: 0.78,
-    blur: 0.5,
-    opacity: 0.9,
-    rot: 6,
-    z: 28,
-    amp: 9,
-    period: 6900,
-    phase: 4.1,
-  },
-  // startup article (far, bottom-left)
-  {
-    x: 0.15,
-    y: 0.82,
-    scale: 0.52,
-    blur: 5,
-    opacity: 0.55,
-    rot: 7,
-    z: 7,
-    amp: 6,
-    period: 8600,
-    phase: 1.9,
-  },
-  // muybridge gif (mid, bottom-right)
-  {
-    x: 0.69,
-    y: 0.85,
-    scale: 0.6,
-    blur: 3,
-    opacity: 0.7,
-    rot: -5,
-    z: 14,
-    amp: 7,
-    period: 7700,
-    phase: 5.0,
-  },
-  // turntable product (far, top-right)
-  {
-    x: 0.88,
-    y: 0.68,
-    scale: 0.48,
-    blur: 6,
-    opacity: 0.5,
-    rot: 8,
-    z: 5,
-    amp: 5,
-    period: 9000,
-    phase: 2.2,
-  },
-];
-
 export function LivingGallery() {
   // Effect is opt-in per device: desktop pointers, no reduced-motion. Off by
   // default so SSR + first client render match (the plain grid).
@@ -285,8 +148,8 @@ export function LivingGallery() {
         for (let i = 0; i < GALLERY_CARDS.length; i++) {
           const node = flyRefs.current[i];
           const li = liRefs.current[i];
-          const s = SCATTER[i];
-          if (!node || !li || !s) continue;
+          const s = GALLERY_CARDS[i].scatter;
+          if (!node || !li) continue;
           const t = li.getBoundingClientRect();
           const drift = (1 - p) * s.amp * Math.sin(now / s.period + s.phase);
           const x = lerp(s.x * vw, t.left, p);
