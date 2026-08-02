@@ -40,7 +40,22 @@ export function ReprocessButton({
         toast.error(result.error);
         return;
       }
-      toast.success(`Reprocessing ${result.triggered ?? 0} items`);
+      const batchUrls = result.batchUrls ?? [];
+      toast.success(`Reprocessing ${result.triggered ?? 0} items`, {
+        description: "Runs in the background at low priority.",
+        duration: 10000,
+        action:
+          batchUrls.length > 0
+            ? {
+                label: "Monitor ↗",
+                onClick: () => {
+                  for (const url of batchUrls) {
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }
+                },
+              }
+            : undefined,
+      });
       router.refresh();
     });
   };

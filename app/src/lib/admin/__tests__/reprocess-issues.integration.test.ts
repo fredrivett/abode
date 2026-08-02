@@ -78,18 +78,22 @@ describe("reprocessIssueGroup", () => {
 
     const result = await reprocessIssueGroup("failed");
 
-    expect(result).toEqual({ triggered: 2 });
+    expect(result.triggered).toBe(2);
+    // One monitor link per enqueued task kind (classify-url + analyze-image)
+    expect(result.batchUrls).toHaveLength(2);
+    expect(result.batchUrls[0]).toContain("/batches/");
 
     const urlCall = callFor("classify-url");
     const imageCall = callFor("analyze-image");
     expect(urlCall?.map((i) => i.payload.itemId)).toEqual([urlItem]);
     expect(imageCall?.map((i) => i.payload.itemId)).toEqual([imageItem]);
     // Guardrails: per-user concurrencyKey, low priority (yields to live uploads),
-    // and a per-item idempotency key (double-click can't double-charge)
+    // a per-item idempotency key (no double-charge), and a filterable tag
     expect(urlCall?.[0].options).toMatchObject({
       concurrencyKey: expect.any(String),
       idempotencyKey: `reprocess:${urlItem}`,
       idempotencyKeyTTL: expect.any(String),
+      tags: ["admin-reprocess"],
     });
     expect((urlCall?.[0].options.priority as number) < 0).toBe(true);
 
