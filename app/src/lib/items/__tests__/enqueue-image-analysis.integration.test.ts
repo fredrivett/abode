@@ -2,8 +2,8 @@
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import { tasks } from "@trigger.dev/sdk";
-import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
+import { USER_ACTION_PRIORITY } from "@/lib/items/enqueue-user-processing";
 
 // Trigger.dev is an external service — mock it so we can force enqueue
 // success/failure. The item persistence goes through the real test database.
@@ -88,11 +88,15 @@ describe("enqueueImageAnalysis integration", () => {
       fileKey: item.fileKey ?? "",
     });
 
-    // A positive priority is a createdAt offset that dequeues user captures
-    // ahead of priority-0 background runs. A negative one would strand the run
-    // in `queued` (it schedules into the future) — guard against that regression.
+    // The wrapper owns both options: a per-user concurrencyKey and a positive
+    // priority (a createdAt offset that dequeues user runs ahead of priority-0
+    // background work). A negative priority would strand the run in `queued` (it
+    // schedules into the future) — guard against that regression.
     const options = vi.mocked(tasks.trigger).mock.calls[0]?.[2];
-    expect(options).toMatchObject({ priority: USER_ACTION_PRIORITY });
+    expect(options).toMatchObject({
+      concurrencyKey: item.userId,
+      priority: USER_ACTION_PRIORITY,
+    });
     expect(USER_ACTION_PRIORITY).toBeGreaterThan(0);
   });
 });

@@ -1,10 +1,9 @@
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
-import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
-import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
+import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -134,28 +133,28 @@ export async function POST(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
         );
-        await tasks.trigger<typeof classifyUrlTask>(
+        await enqueueUserProcessing<typeof classifyUrlTask>(
           "classify-url",
           {
             itemId: id,
             userId: item.userId,
             url: item.sourceUrl,
           },
-          { concurrencyKey: item.userId, priority: USER_ACTION_PRIORITY },
+          item.userId,
         );
       } else if (item.kind === "image" && item.fileKey) {
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying image analysis",
         );
-        await tasks.trigger<typeof analyzeImageTask>(
+        await enqueueUserProcessing<typeof analyzeImageTask>(
           "analyze-image",
           {
             itemId: id,
             userId: item.userId,
             fileKey: item.fileKey,
           },
-          { concurrencyKey: item.userId, priority: USER_ACTION_PRIORITY },
+          item.userId,
         );
       }
     } catch (triggerError) {

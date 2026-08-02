@@ -1,6 +1,5 @@
-import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
-import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
+import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import type { analyzeImageTask } from "../../../trigger/analyze-image";
@@ -22,10 +21,11 @@ export async function enqueueImageAnalysis(params: {
   fileKey: string;
 }): Promise<void> {
   try {
-    await tasks.trigger<typeof analyzeImageTask>("analyze-image", params, {
-      concurrencyKey: params.userId,
-      priority: USER_ACTION_PRIORITY,
-    });
+    await enqueueUserProcessing<typeof analyzeImageTask>(
+      "analyze-image",
+      params,
+      params.userId,
+    );
   } catch (error) {
     log.error(
       { error, itemId: params.itemId },

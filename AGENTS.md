@@ -290,6 +290,7 @@ When a recurring defect is fixed, append a one-line entry here — but first try
 - New Postgres tables must enable RLS (default-deny) or they're reachable by the anon/authenticated Supabase roles — enforced by `src/lib/__tests__/rls-coverage.integration.test.ts`.
 - Server-side fetches of a user-supplied URL must use `safeFetch` (`@/lib/http/safe-fetch`), never the global `fetch`, or the SSRF gate is bypassed — enforced in `trigger/**` and `src/app/api/**` by `app/biome/no-raw-fetch.grit`.
 - `biome.json` takes no comments: with one present Biome 2.2 silently falls back to its default config (whole repo reformats to tabs) rather than erroring — document Biome config decisions in the plugin file, not inline.
+- User-initiated item processing must enqueue via `enqueueUserProcessing` (applies the per-user concurrencyKey + `USER_ACTION_PRIORITY`), never raw `tasks.trigger`, or live runs lose priority to background work — enforced over `src/lib/items/**` and `src/app/api/**` by `app/biome/no-raw-user-processing.grit`. Trigger `priority` is a positive `createdAt` offset; a *negative* one delays a run into the future (strands it in `queued`).
 
 ## Trigger.dev
 
