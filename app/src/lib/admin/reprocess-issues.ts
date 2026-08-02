@@ -36,10 +36,15 @@ const REPROCESS_IDEMPOTENCY_TTL = "15m";
 const REPROCESSABLE: Prisma.ItemWhereInput = {
   OR: [
     { sourceType: "url", sourceUrl: { gt: "" } },
-    // Non-URL image uploads. URL-sourced images go to classify-url (above),
-    // which re-hosts + enqueues analyze-image itself — so they must not also be
-    // routed here, or one item gets two paid pipelines.
-    { NOT: { sourceType: "url" }, kind: "image", fileKey: { gt: "" } },
+    // Non-URL image uploads (incl. null source — the retry route analyses any
+    // `kind=image` with a fileKey regardless of source). URL-sourced images go
+    // to classify-url above, which re-hosts + enqueues analyze-image itself, so
+    // they must not also be routed here or one item gets two paid pipelines.
+    {
+      OR: [{ sourceType: { not: "url" } }, { sourceType: null }],
+      kind: "image",
+      fileKey: { gt: "" },
+    },
   ],
 };
 

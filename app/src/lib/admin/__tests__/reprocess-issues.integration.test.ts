@@ -154,6 +154,21 @@ describe("reprocessIssueGroup", () => {
     expect((await statusOf(item)).processingStatus).toBe("failed");
   });
 
+  test("reprocesses a null-source image upload (matches the retry route)", async () => {
+    // kind=image + fileKey, no sourceType → retryable; must not be excluded
+    const nullSourceImage = await seed({
+      kind: "image",
+      status: "failed",
+      fileKey: "u/photo.jpg",
+    });
+
+    await reprocessIssueGroup("failed");
+
+    expect(callFor("analyze-image")?.map((i) => i.payload.itemId)).toEqual([
+      nullSourceImage,
+    ]);
+  });
+
   test("skips items with empty source/file keys", async () => {
     await seed({
       kind: "webpage",
