@@ -40,21 +40,17 @@ export function ReprocessButton({
         toast.error(result.error);
         return;
       }
-      const batchUrls = result.batchUrls ?? [];
+      const monitorUrl = result.monitorUrl;
       toast.success(`Reprocessing ${result.triggered ?? 0} items`, {
-        description: "Runs in the background at low priority.",
+        description: "Runs in the background — this may take a few minutes.",
         duration: 10000,
-        action:
-          batchUrls.length > 0
-            ? {
-                label: "Monitor ↗",
-                onClick: () => {
-                  for (const url of batchUrls) {
-                    window.open(url, "_blank", "noopener,noreferrer");
-                  }
-                },
-              }
-            : undefined,
+        action: monitorUrl
+          ? {
+              label: "Monitor ↗",
+              onClick: () =>
+                window.open(monitorUrl, "_blank", "noopener,noreferrer"),
+            }
+          : undefined,
       });
       router.refresh();
     });
@@ -74,7 +70,7 @@ export function ReprocessButton({
             Re-runs the capture pipeline for the {batch} newest
             {count > limit ? ` of ${count}` : ""} item
             {batch === 1 ? "" : "s"}. This calls the AI pipeline (OpenAI +
-            Replicate) and costs money — it runs at low priority behind live
+            Replicate) and costs money — it shares the capture queue with live
             uploads. Items with no pipeline (e.g. notes) are skipped.
           </AlertDialogDescription>
         </AlertDialogHeader>

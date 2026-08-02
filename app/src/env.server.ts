@@ -45,6 +45,17 @@ const envSchema = z.object({
   // just validates/documents the flag at build time.
   USAGE_LIMITS_ENFORCED: z.string().optional(),
 
+  // Base URL of this env's Trigger.dev runs dashboard (Project > Runs), used to
+  // build "Monitor" links from the admin reprocess UI. Optional — absent = no
+  // link. Kept out of the codebase (contains the private org/project/env slugs);
+  // set it per-environment. A blank value (e.g. the copied `.env.example` line)
+  // normalises to `undefined` so it degrades to "no link" instead of failing
+  // URL validation and throwing at boot.
+  TRIGGER_RUNS_DASHBOARD_URL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
+
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
 });
