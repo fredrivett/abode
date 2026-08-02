@@ -2,6 +2,7 @@
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import { tasks } from "@trigger.dev/sdk";
+import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 
 // Trigger.dev is an external service — mock it so we can force enqueue
@@ -75,5 +76,23 @@ describe("enqueueImageAnalysis integration", () => {
     });
 
     expect(await readStatus(item.id)).toBe("processing");
+  });
+
+  test("enqueues at the positive user-action priority (jumps background work)", async () => {
+    const item = await createImageItem();
+    vi.mocked(tasks.trigger).mockResolvedValueOnce(undefined as never);
+
+    await enqueueImageAnalysis({
+      itemId: item.id,
+      userId: item.userId,
+      fileKey: item.fileKey ?? "",
+    });
+
+    // A positive priority is a createdAt offset that dequeues user captures
+    // ahead of priority-0 background runs. A negative one would strand the run
+    // in `queued` (it schedules into the future) — guard against that regression.
+    const options = vi.mocked(tasks.trigger).mock.calls[0]?.[2];
+    expect(options).toMatchObject({ priority: USER_ACTION_PRIORITY });
+    expect(USER_ACTION_PRIORITY).toBeGreaterThan(0);
   });
 });

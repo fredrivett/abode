@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
+import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
 import { claimDailyReassign } from "@/lib/items/reassign-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -125,7 +126,7 @@ export async function POST(
           url: item.sourceUrl,
           forcedKind: kind,
         },
-        { concurrencyKey: item.userId },
+        { concurrencyKey: item.userId, priority: USER_ACTION_PRIORITY },
       );
     } catch (triggerError) {
       log.error(

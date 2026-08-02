@@ -1,6 +1,7 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
+import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -86,7 +87,7 @@ export async function createItemFromUrl({
         userId,
         url: parsedUrl.href,
       },
-      { concurrencyKey: userId },
+      { concurrencyKey: userId, priority: USER_ACTION_PRIORITY },
     );
   } catch (error) {
     // Mark failed so the UI surfaces a Retry instead of spinning forever.

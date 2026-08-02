@@ -4,6 +4,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
+import { USER_ACTION_PRIORITY } from "@/lib/items/capture-priority";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -140,7 +141,7 @@ export async function POST(
             userId: item.userId,
             url: item.sourceUrl,
           },
-          { concurrencyKey: item.userId },
+          { concurrencyKey: item.userId, priority: USER_ACTION_PRIORITY },
         );
       } else if (item.kind === "image" && item.fileKey) {
         log.info(
@@ -154,7 +155,7 @@ export async function POST(
             userId: item.userId,
             fileKey: item.fileKey,
           },
-          { concurrencyKey: item.userId },
+          { concurrencyKey: item.userId, priority: USER_ACTION_PRIORITY },
         );
       }
     } catch (triggerError) {
