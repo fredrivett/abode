@@ -27,14 +27,19 @@ const REPROCESS_PRIORITY = -3600;
  */
 const REPROCESS_IDEMPOTENCY_TTL = "15m";
 
-/** Only items that actually have a capture pipeline can be reprocessed. */
+/**
+ * Only items that actually have a capture pipeline can be reprocessed.
+ * `{ gt: "" }` requires a present, non-empty value (excludes both null and ""),
+ * so we never enqueue a run with empty input — matching the retry route's
+ * truthiness guard.
+ */
 const REPROCESSABLE: Prisma.ItemWhereInput = {
   OR: [
-    { sourceType: "url", sourceUrl: { not: null } },
+    { sourceType: "url", sourceUrl: { gt: "" } },
     // Non-URL image uploads. URL-sourced images go to classify-url (above),
     // which re-hosts + enqueues analyze-image itself — so they must not also be
     // routed here, or one item gets two paid pipelines.
-    { NOT: { sourceType: "url" }, kind: "image", fileKey: { not: null } },
+    { NOT: { sourceType: "url" }, kind: "image", fileKey: { gt: "" } },
   ],
 };
 

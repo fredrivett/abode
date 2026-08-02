@@ -154,6 +154,26 @@ describe("reprocessIssueGroup", () => {
     expect((await statusOf(item)).processingStatus).toBe("failed");
   });
 
+  test("skips items with empty source/file keys", async () => {
+    await seed({
+      kind: "webpage",
+      status: "failed",
+      sourceType: "url",
+      sourceUrl: "",
+    });
+    await seed({
+      kind: "image",
+      status: "failed",
+      sourceType: "upload",
+      fileKey: "",
+    });
+
+    const result = await reprocessIssueGroup("failed");
+
+    expect(result.triggered).toBe(0);
+    expect(batchTrigger).not.toHaveBeenCalled();
+  });
+
   test("throws on an unknown group key", async () => {
     await expect(reprocessIssueGroup("nope")).rejects.toThrow(
       /Unknown issue group/,
