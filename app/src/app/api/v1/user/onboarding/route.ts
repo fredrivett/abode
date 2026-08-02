@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
+import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -28,10 +29,7 @@ export async function PATCH(request: NextRequest) {
     const parsed = onboardingSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { message: "Invalid request body" },
-        { status: 400 },
-      );
+      return zodErrorResponse(parsed.error);
     }
 
     const { firstName, lastName } = parsed.data;

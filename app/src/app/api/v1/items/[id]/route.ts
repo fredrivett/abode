@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { zodErrorResponse } from "@/lib/http/zod-error";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -99,10 +100,7 @@ export async function PATCH(
     const body = await request.json();
     const parsed = itemPatchSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { message: "Invalid request body" },
-        { status: 400 },
-      );
+      return zodErrorResponse(parsed.error);
     }
     const {
       notes,
