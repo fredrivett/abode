@@ -166,7 +166,6 @@ export async function deleteUserAsAdmin(
 export type ReprocessGroupResult = {
   error?: string;
   triggered?: number;
-  skipped?: number;
 };
 
 /**

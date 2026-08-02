@@ -40,10 +40,7 @@ export function ReprocessButton({
         toast.error(result.error);
         return;
       }
-      const skipped = result.skipped
-        ? ` · ${result.skipped} skipped (no pipeline)`
-        : "";
-      toast.success(`Reprocessing ${result.triggered ?? 0} items${skipped}`);
+      toast.success(`Reprocessing ${result.triggered ?? 0} items`);
       router.refresh();
     });
   };

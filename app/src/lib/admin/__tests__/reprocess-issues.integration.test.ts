@@ -78,15 +78,18 @@ describe("reprocessIssueGroup", () => {
 
     const result = await reprocessIssueGroup("failed");
 
-    expect(result).toEqual({ triggered: 2, skipped: 1 });
+    expect(result).toEqual({ triggered: 2 });
 
     const urlCall = callFor("classify-url");
     const imageCall = callFor("analyze-image");
     expect(urlCall?.map((i) => i.payload.itemId)).toEqual([urlItem]);
     expect(imageCall?.map((i) => i.payload.itemId)).toEqual([imageItem]);
-    // Guardrails: per-user concurrencyKey + low priority (yields to live uploads)
+    // Guardrails: per-user concurrencyKey, low priority (yields to live uploads),
+    // and a per-item idempotency key (double-click can't double-charge)
     expect(urlCall?.[0].options).toMatchObject({
       concurrencyKey: expect.any(String),
+      idempotencyKey: `reprocess:${urlItem}`,
+      idempotencyKeyTTL: expect.any(String),
     });
     expect((urlCall?.[0].options.priority as number) < 0).toBe(true);
 
@@ -116,6 +119,39 @@ describe("reprocessIssueGroup", () => {
     ]);
     // Completed item stays completed — a failed re-run must not downgrade it
     expect((await statusOf(image)).processingStatus).toBe("completed");
+  });
+
+  test("a URL-sourced image goes only to classify-url (not both tasks)", async () => {
+    const urlImage = await seed({
+      kind: "image",
+      status: "failed",
+      sourceType: "url",
+      sourceUrl: "https://example.com/pic.jpg",
+      fileKey: "u/rehosted.jpg",
+    });
+
+    await reprocessIssueGroup("failed");
+
+    expect(callFor("classify-url")?.map((i) => i.payload.itemId)).toEqual([
+      urlImage,
+    ]);
+    expect(callFor("analyze-image")).toBeUndefined();
+  });
+
+  test("restores error items and throws when an enqueue fails", async () => {
+    const item = await seed({
+      kind: "webpage",
+      status: "failed",
+      sourceType: "url",
+      sourceUrl: "https://example.com/x",
+    });
+    batchTrigger.mockRejectedValue(new Error("trigger unavailable"));
+
+    await expect(reprocessIssueGroup("failed")).rejects.toThrow(
+      /Failed to enqueue/,
+    );
+    // Not stranded in `processing` — restored to failed so it stays visible
+    expect((await statusOf(item)).processingStatus).toBe("failed");
   });
 
   test("throws on an unknown group key", async () => {
