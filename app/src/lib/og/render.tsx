@@ -13,6 +13,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { ReactElement } from "react";
+import { ABODE_LOGO_PATHS, ABODE_LOGO_VIEWBOX } from "@/components/abode-logo";
 import { getProxyImageUrl, type ImageSize } from "@/lib/image-url";
 import { getAppBaseUrl } from "@/lib/url";
 
@@ -104,7 +105,37 @@ export async function ogImageResponse(
   });
 }
 
-const BRAND = "abode";
+const LOGO_ASPECT = 158 / 50; // AbodeLogo viewBox
+
+// Render the real abode wordmark (the AbodeLogo SVG), never typeset text, so
+// shared cards always show the brand logo. Satori draws it reliably as an <img>
+// with an SVG data URI; currentColor is baked to an explicit colour since an
+// <img> won't inherit it.
+function abodeWordmarkSrc(color: string): string {
+  const paths = ABODE_LOGO_PATHS.map(
+    (d) => `<path d="${d}" fill="${color}"/>`,
+  ).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${ABODE_LOGO_VIEWBOX}">${paths}</svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+function AbodeWordmark({
+  height,
+  color = OG_COLORS.fg,
+}: {
+  height: number;
+  color?: string;
+}) {
+  return (
+    // biome-ignore lint/performance/noImgElement: next/og (satori) renders raw <img>; next/image is unavailable here
+    <img
+      src={abodeWordmarkSrc(color)}
+      width={Math.round(height * LOGO_ASPECT)}
+      height={height}
+      alt="abode"
+    />
+  );
+}
 
 /**
  * Outer frame shared by every OG card: full-bleed dark background, generous
@@ -130,16 +161,8 @@ export function OgFrame({
       }}
     >
       {children}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          fontFamily: "Hedvig",
-          fontSize: 34,
-          color: OG_COLORS.fg,
-        }}
-      >
-        {BRAND}
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <AbodeWordmark height={28} />
       </div>
     </div>
   );
@@ -212,18 +235,12 @@ export async function fallbackOgImage(
           justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            fontFamily: "Hedvig",
-            fontSize: 92,
-            lineHeight: 1.05,
-          }}
-        >
-          {BRAND}
+        <div style={{ display: "flex" }}>
+          <AbodeWordmark height={84} />
         </div>
         <div
           style={{
-            marginTop: 12,
+            marginTop: 24,
             fontSize: 34,
             color: OG_COLORS.muted,
           }}
