@@ -6,6 +6,7 @@ import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
@@ -112,9 +113,10 @@ export function TwitterDetailView({
           >
             {media.map((item, index) => {
               const isCover = index === (twitterDetails.coverMediaIndex ?? 0);
-              const imageAlt = text
-                ? `Tweet image: ${text}`
-                : `Tweet image ${index + 1}`;
+              const imageAlt = tweetImageAlt(
+                { name: authorName, username: authorUsername },
+                { index, total: media.length },
+              );
               return (
                 <CoverImageMedia
                   key={`${item.url}-${index}`}

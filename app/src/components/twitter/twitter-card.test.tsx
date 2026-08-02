@@ -45,10 +45,10 @@ describe("TwitterCard", () => {
     expect(
       screen.queryByText(/Every map is out of date/),
     ).not.toBeInTheDocument();
-    // The content image gets descriptive alt derived from the tweet text
+    // The content image gets a concise, author-based alt (not the full tweet body)
     expect(
       screen.getByRole("img", {
-        name: "Tweet image: Every map is out of date the second it's printed.",
+        name: "Image from tweet by Cora Meridian",
       }),
     ).toBeInTheDocument();
   });

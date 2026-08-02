@@ -10,6 +10,7 @@ import { cn, formatDuration } from "@/lib/utils";
 type VideoCardProps = {
   videoDetails: VideoDetails;
   coverFileKey: string | null;
+  title?: string | null;
   onClick: () => void;
   className?: string;
 };
@@ -21,6 +22,7 @@ type VideoCardProps = {
 export function VideoCard({
   videoDetails,
   coverFileKey,
+  title,
   onClick,
   className,
 }: VideoCardProps) {
@@ -52,11 +54,7 @@ export function VideoCard({
             {/* biome-ignore lint/performance/noImgElement: external video thumbnail URL */}
             <img
               src={thumbnailUrl}
-              alt={
-                videoDetails.channelName
-                  ? `${videoDetails.channelName} video thumbnail`
-                  : "Video thumbnail"
-              }
+              alt={title ?? "Video thumbnail"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"
             />

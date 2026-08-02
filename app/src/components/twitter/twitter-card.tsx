@@ -6,6 +6,7 @@ import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
@@ -96,11 +97,10 @@ export function TwitterCard({
           <img
             {...imgProps}
             src={previewImage}
-            alt={
-              twitterDetails.text
-                ? `Tweet image: ${twitterDetails.text}`
-                : "Tweet image"
-            }
+            alt={tweetImageAlt({
+              name: twitterDetails.authorName,
+              username: twitterDetails.authorUsername,
+            })}
             className="h-full w-full object-cover"
             loading="lazy"
           />

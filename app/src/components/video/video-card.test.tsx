@@ -27,7 +27,21 @@ describe("VideoCard", () => {
     expect(img).toHaveAttribute("src", baseVideo.thumbnailUrl);
   });
 
-  it("gives the thumbnail descriptive alt text derived from the channel", () => {
+  it("gives the thumbnail the video title as alt text", () => {
+    render(
+      <VideoCard
+        videoDetails={baseVideo}
+        coverFileKey={null}
+        title="How every map lies"
+        onClick={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole("img", { name: "How every map lies" }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to a generic thumbnail alt when there is no title", () => {
     render(
       <VideoCard
         videoDetails={baseVideo}
@@ -36,7 +50,7 @@ describe("VideoCard", () => {
       />,
     );
     expect(
-      screen.getByRole("img", { name: "Cut Media video thumbnail" }),
+      screen.getByRole("img", { name: "Video thumbnail" }),
     ).toBeInTheDocument();
   });
 
