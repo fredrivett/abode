@@ -37,7 +37,8 @@ function renderControls(overrides: Partial<BookDetails> = {}) {
 }
 
 afterEach(() => {
-  patch.mockClear();
+  patch.mockReset();
+  patch.mockResolvedValue({});
 });
 
 describe("BookReadingControls reveal logic", () => {
@@ -142,5 +143,45 @@ describe("BookReadingControls progress persistence", () => {
       }),
     );
     expect(patch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an unrelated rating when a progress request fails", async () => {
+    // Progress writes fail; everything else (the rating) succeeds.
+    patch.mockImplementation(
+      (_url: string, body: { bookReading?: unknown }) => {
+        const reading = body.bookReading as { progressValue?: number };
+        return reading?.progressValue !== undefined
+          ? Promise.reject(new Error("boom"))
+          : Promise.resolve({});
+      },
+    );
+    renderControls({
+      status: "reading",
+      progressValue: 100,
+      progressUnit: "page",
+    });
+
+    // Rate 4 stars (persists immediately, optimistic state updates)
+    fireEvent.click(screen.getByRole("button", { name: "Rate 4 stars" }));
+    expect(
+      screen.getByRole("button", { name: "Clear rating" }),
+    ).toBeInTheDocument();
+
+    // Drag progress — the debounced write fails
+    fireEvent.change(screen.getByLabelText("Reading progress"), {
+      target: { value: "150" },
+    });
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+        bookReading: { progressValue: 150, progressUnit: "page" },
+      }),
+    );
+
+    // The failed progress rollback must not wipe the successful rating
+    expect(
+      screen.getByRole("button", { name: "Clear rating" }),
+    ).toBeInTheDocument();
+    // ...and progress rolled back to the last server value (page 100)
+    expect(screen.getByText("p.100 of 300")).toBeInTheDocument();
   });
 });

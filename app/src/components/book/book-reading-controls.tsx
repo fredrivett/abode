@@ -4,7 +4,7 @@ import type { BookReadingStatus } from "@prisma/client";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, Star, X } from "lucide-react";
 import posthog from "posthog-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
@@ -127,8 +127,15 @@ export function BookReadingControls({
   // many onChange events, but only the final value is written (one request, in
   // order), avoiding out-of-order PATCHes stamping a stale position. Optimistic
   // local state still updates on every event so the slider stays responsive.
+  // Bumped on every progress change so a failed request only rolls back if it's
+  // still the latest — a stale failure must not clobber a newer pending update.
+  const progressVersion = useRef(0);
   const commitProgress = useDebouncedCallback(
-    (partial: Partial<ReadingState>, percent: number | null) => {
+    (
+      partial: Partial<ReadingState>,
+      percent: number | null,
+      version: number,
+    ) => {
       void (async () => {
         try {
           await api.patch(`/api/v1/items/${itemId}`, { bookReading: partial });
@@ -138,8 +145,17 @@ export function BookReadingControls({
             percent,
           });
         } catch {
-          setState(toReadingState(bookDetails));
-          toast.error("Failed to update reading status");
+          // Roll back only the progress fields — preserve any status/rating/date
+          // the user changed (and successfully saved) while this was in flight —
+          // and skip entirely if a newer progress update has superseded this one.
+          if (progressVersion.current === version) {
+            setState((s) => ({
+              ...s,
+              progressValue: bookDetails.progressValue,
+              progressUnit: bookDetails.progressUnit,
+            }));
+          }
+          toast.error("Failed to update reading progress");
         }
       })();
     },
@@ -157,7 +173,8 @@ export function BookReadingControls({
           }
         : { progressValue: percent, progressUnit: "percent" };
     setState((s) => ({ ...s, ...partial }));
-    commitProgress(partial, percent);
+    progressVersion.current += 1;
+    commitProgress(partial, percent, progressVersion.current);
   };
 
   const saveProgressFromPage = (page: number) => {
@@ -170,9 +187,11 @@ export function BookReadingControls({
       progressUnit: "page",
     };
     setState((s) => ({ ...s, ...partial }));
+    progressVersion.current += 1;
     commitProgress(
       partial,
       hasPages !== null ? Math.round((clamped / hasPages) * 100) : null,
+      progressVersion.current,
     );
   };
 
