@@ -22,6 +22,8 @@ import {
   getProcessingIssues,
   type IssueGroup,
 } from "@/lib/admin/processing-issues";
+import { REPROCESS_LIMIT } from "@/lib/admin/reprocess-issues";
+import { ReprocessButton } from "../../_components/reprocess-button";
 
 export const metadata = {
   title: "Processing | Admin | abode",
@@ -35,15 +37,31 @@ function IssueSection({ group }: { group: IssueGroup }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <CardTitle className="text-lg">{group.label}</CardTitle>
-          <Badge
-            variant={group.severity === "error" ? "destructive" : "secondary"}
-          >
-            {group.count}
-          </Badge>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">{group.label}</CardTitle>
+              <Badge
+                variant={
+                  group.severity === "error" ? "destructive" : "secondary"
+                }
+              >
+                {group.count}
+              </Badge>
+            </div>
+            <CardDescription className="mt-1">
+              {group.description}
+            </CardDescription>
+          </div>
+          {group.count > 0 && (
+            <ReprocessButton
+              groupKey={group.key}
+              label={group.label}
+              count={group.count}
+              limit={REPROCESS_LIMIT}
+            />
+          )}
         </div>
-        <CardDescription>{group.description}</CardDescription>
       </CardHeader>
       <CardContent>
         {group.items.length === 0 ? (

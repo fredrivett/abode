@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { createClient } from "@/lib/supabase/server";
@@ -160,4 +161,32 @@ export async function deleteUserAsAdmin(
   }
 
   redirect("/admin/users");
+}
+
+export type ReprocessGroupResult = {
+  error?: string;
+  triggered?: number;
+};
+
+/**
+ * Re-run the capture pipeline for the current members of a processing-issue
+ * group (failed / stuck / missing-*). Admin + MFA gated. Bounded, low-priority,
+ * and routed through the existing tasks — see {@link reprocessIssueGroup}.
+ */
+export async function reprocessIssueGroupAsAdmin(
+  groupKey: string,
+): Promise<ReprocessGroupResult> {
+  const supabase = await createClient();
+  const isAdmin = await hasFullAdminAccess(supabase);
+  if (!isAdmin) return { error: "Unauthorized: Admin access required" };
+
+  try {
+    const result = await reprocessIssueGroup(groupKey);
+    log.info({ groupKey, ...result }, "Admin reprocessed issue group");
+    revalidatePath("/admin/processing");
+    return result;
+  } catch (error) {
+    log.error({ error, groupKey }, "Failed to reprocess issue group");
+    return { error: "Failed to reprocess. Please try again." };
+  }
 }
