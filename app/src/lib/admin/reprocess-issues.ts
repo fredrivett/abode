@@ -27,6 +27,16 @@ const REPROCESS_PRIORITY = -3600;
  */
 const REPROCESS_IDEMPOTENCY_TTL = "15m";
 
+/** Project ref for building Trigger dashboard links (matches trigger.config.ts). */
+const TRIGGER_PROJECT_REF = "proj_vtxdupmohtuvxabigigk";
+
+/** All reprocess runs carry this tag so they're filterable in the dashboard. */
+const REPROCESS_TAG = "admin-reprocess";
+
+function batchUrl(batchId: string): string {
+  return `https://cloud.trigger.dev/projects/v3/${TRIGGER_PROJECT_REF}/batches/${batchId}`;
+}
+
 /**
  * Only items that actually have a capture pipeline can be reprocessed.
  * `{ gt: "" }` requires a present, non-empty value (excludes both null and ""),
@@ -48,7 +58,11 @@ const REPROCESSABLE: Prisma.ItemWhereInput = {
   ],
 };
 
-export type ReprocessResult = { triggered: number };
+export type ReprocessResult = {
+  triggered: number;
+  /** Trigger dashboard batch links (one per enqueued task kind) for monitoring. */
+  batchUrls: string[];
+};
 
 /**
  * Re-run the capture pipeline for the current members of an issue group (capped,
@@ -88,7 +102,7 @@ export async function reprocessIssueGroup(
       fileKey: true,
     },
   });
-  if (items.length === 0) return { triggered: 0 };
+  if (items.length === 0) return { triggered: 0, batchUrls: [] };
 
   // Mutually exclusive by construction of REPROCESSABLE: URL items (incl.
   // URL-sourced images) → classify-url; everything else is a non-URL image.
@@ -113,19 +127,22 @@ export async function reprocessIssueGroup(
     priority: REPROCESS_PRIORITY,
     idempotencyKey: `reprocess:${itemId}`,
     idempotencyKeyTTL: REPROCESS_IDEMPOTENCY_TTL,
+    tags: [REPROCESS_TAG],
   });
 
   const failedIds: string[] = [];
+  const batchUrls: string[] = [];
 
   if (urlItems.length > 0) {
     try {
-      await tasks.batchTrigger<typeof classifyUrlTask>(
+      const batch = await tasks.batchTrigger<typeof classifyUrlTask>(
         "classify-url",
         urlItems.map((i) => ({
           payload: { itemId: i.id, userId: i.userId, url: i.sourceUrl ?? "" },
           options: triggerOptions(i.userId, i.id),
         })),
       );
+      batchUrls.push(batchUrl(batch.batchId));
     } catch (error) {
       log.error({ error, count: urlItems.length }, "classify-url batch failed");
       failedIds.push(...urlItems.map((i) => i.id));
@@ -134,13 +151,14 @@ export async function reprocessIssueGroup(
 
   if (imageItems.length > 0) {
     try {
-      await tasks.batchTrigger<typeof analyzeImageTask>(
+      const batch = await tasks.batchTrigger<typeof analyzeImageTask>(
         "analyze-image",
         imageItems.map((i) => ({
           payload: { itemId: i.id, userId: i.userId, fileKey: i.fileKey ?? "" },
           options: triggerOptions(i.userId, i.id),
         })),
       );
+      batchUrls.push(batchUrl(batch.batchId));
     } catch (error) {
       log.error(
         { error, count: imageItems.length },
@@ -166,5 +184,5 @@ export async function reprocessIssueGroup(
     );
   }
 
-  return { triggered: targetIds.length };
+  return { triggered: targetIds.length, batchUrls };
 }
