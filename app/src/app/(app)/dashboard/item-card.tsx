@@ -143,6 +143,14 @@ const BookDetailView = dynamic(
   { ssr: false, loading: detailViewLoading },
 );
 
+const BookReadingControls = dynamic(
+  () =>
+    import("@/components/book/book-reading-controls").then(
+      (m) => m.BookReadingControls,
+    ),
+  { ssr: false },
+);
+
 const NoteDetailView = dynamic(
   () =>
     import("@/components/note/note-detail-view").then((m) => m.NoteDetailView),
@@ -2196,6 +2204,14 @@ function ItemDetailDialog({
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Reading status (editable) */}
+                  {isBook && item.bookDetails && canEdit && (
+                    <BookReadingControls
+                      itemId={item.id}
+                      bookDetails={item.bookDetails}
+                    />
                   )}
 
                   {/* Book Details */}
