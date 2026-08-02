@@ -79,7 +79,6 @@ describe("reprocessIssueGroup", () => {
     const result = await reprocessIssueGroup("failed");
 
     expect(result.triggered).toBe(2);
-    expect(result.monitorUrl).toContain("tags=admin-reprocess");
 
     const urlCall = callFor("classify-url");
     const imageCall = callFor("analyze-image");

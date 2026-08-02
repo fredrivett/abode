@@ -70,7 +70,7 @@ export function ReprocessButton({
             Re-runs the capture pipeline for the {batch} newest
             {count > limit ? ` of ${count}` : ""} item
             {batch === 1 ? "" : "s"}. This calls the AI pipeline (OpenAI +
-            Replicate) and costs money — it runs at low priority behind live
+            Replicate) and costs money — it shares the capture queue with live
             uploads. Items with no pipeline (e.g. notes) are skipped.
           </AlertDialogDescription>
         </AlertDialogHeader>

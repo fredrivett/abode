@@ -2,6 +2,7 @@ import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import type { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk";
+import { env } from "@/env.server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { issueSpecs } from "./processing-issues";
@@ -23,12 +24,16 @@ const REPROCESS_IDEMPOTENCY_TTL = "15m";
 const REPROCESS_TAG = "admin-reprocess";
 
 /**
- * Trigger dashboard runs list, filtered to this tag, for monitoring a reprocess.
- * Hardcoded to the prod org/project/env slugs (this is prod admin tooling); the
- * `projects/v3/<ref>` shape does NOT work for the runs list, only the
- * org-slug/env one does.
+ * A Trigger dashboard link filtered to this run's reprocess tag, or null when
+ * `TRIGGER_RUNS_DASHBOARD_URL` isn't set. The base URL (which carries the private
+ * org/project/env slugs) is config, not code — see env.server.ts.
  */
-const TRIGGER_MONITOR_URL = `https://cloud.trigger.dev/orgs/abode-86bf/projects/abode-WvOk/env/prod/runs?tags=${REPROCESS_TAG}&period=1d&rootOnly=false`;
+function monitorUrl(): string | null {
+  const base = env.TRIGGER_RUNS_DASHBOARD_URL;
+  if (!base) return null;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}tags=${REPROCESS_TAG}&period=1d&rootOnly=false`;
+}
 
 /**
  * Only items that actually have a capture pipeline can be reprocessed.
@@ -173,5 +178,5 @@ export async function reprocessIssueGroup(
     );
   }
 
-  return { triggered: targetIds.length, monitorUrl: TRIGGER_MONITOR_URL };
+  return { triggered: targetIds.length, monitorUrl: monitorUrl() };
 }
