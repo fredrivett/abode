@@ -231,12 +231,40 @@ export function LivingGallery() {
     };
   }, []);
 
+  // Once the cards settle the rAF loop stops, so the static gallery is idle
+  // (no perpetual 60fps layout measurement). A scroll/resize back out of the
+  // settled position unsettles, which restarts the loop below. While unsettled
+  // the loop itself tracks scroll, so this listener only matters when settled.
   useEffect(() => {
     if (!effectOn) {
       setSettled(false);
       settledRef.current = false;
       return;
     }
+    const maybeUnsettle = () => {
+      if (!settledRef.current) return;
+      const grid = gridRef.current;
+      if (!grid) return;
+      const vh = window.innerHeight;
+      const p = (vh - grid.getBoundingClientRect().top) / (vh * 0.85);
+      if (p < 0.98) {
+        settledRef.current = false;
+        setSettled(false);
+      }
+    };
+    window.addEventListener("scroll", maybeUnsettle, { passive: true });
+    window.addEventListener("resize", maybeUnsettle);
+    return () => {
+      window.removeEventListener("scroll", maybeUnsettle);
+      window.removeEventListener("resize", maybeUnsettle);
+    };
+  }, [effectOn]);
+
+  // Drift + fly-in animation. Runs only while unsettled; once the cards reach
+  // the grid it stops (settles) and the effect stays dormant until a scroll
+  // unsettles it again.
+  useEffect(() => {
+    if (!effectOn || settled) return;
     let raf = 0;
     const tick = (now: number) => {
       const grid = gridRef.current;
@@ -248,38 +276,36 @@ export function LivingGallery() {
         const gridTop = grid.getBoundingClientRect().top;
         const p = easeInOut(clamp01((vh - gridTop) / (vh * 0.85)));
 
-        const nowSettled = p >= 0.999;
-        if (nowSettled !== settledRef.current) {
-          settledRef.current = nowSettled;
-          setSettled(nowSettled);
+        if (p >= 0.999) {
+          settledRef.current = true;
+          setSettled(true);
+          return; // stop the loop; it won't restart while settled
         }
 
-        if (!nowSettled) {
-          for (let i = 0; i < GALLERY_CARDS.length; i++) {
-            const node = flyRefs.current[i];
-            const li = liRefs.current[i];
-            const s = SCATTER[i];
-            if (!node || !li || !s) continue;
-            const t = li.getBoundingClientRect();
-            const drift = (1 - p) * s.amp * Math.sin(now / s.period + s.phase);
-            const x = lerp(s.x * vw, t.left, p);
-            const y = lerp(s.y * vh, t.top, p) + drift;
-            const scale = lerp(s.scale, 1, p);
-            const rot = lerp(s.rot, 0, p);
-            const blur = lerp(s.blur, 0, p);
-            node.style.width = `${t.width}px`;
-            node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rot}deg)`;
-            node.style.opacity = `${lerp(s.opacity, 1, p)}`;
-            node.style.filter = blur > 0.05 ? `blur(${blur}px)` : "none";
-            node.style.zIndex = `${s.z}`;
-          }
+        for (let i = 0; i < GALLERY_CARDS.length; i++) {
+          const node = flyRefs.current[i];
+          const li = liRefs.current[i];
+          const s = SCATTER[i];
+          if (!node || !li || !s) continue;
+          const t = li.getBoundingClientRect();
+          const drift = (1 - p) * s.amp * Math.sin(now / s.period + s.phase);
+          const x = lerp(s.x * vw, t.left, p);
+          const y = lerp(s.y * vh, t.top, p) + drift;
+          const scale = lerp(s.scale, 1, p);
+          const rot = lerp(s.rot, 0, p);
+          const blur = lerp(s.blur, 0, p);
+          node.style.width = `${t.width}px`;
+          node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rot}deg)`;
+          node.style.opacity = `${lerp(s.opacity, 1, p)}`;
+          node.style.filter = blur > 0.05 ? `blur(${blur}px)` : "none";
+          node.style.zIndex = `${s.z}`;
         }
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [effectOn]);
+  }, [effectOn, settled]);
 
   const flying = effectOn && !settled;
 
