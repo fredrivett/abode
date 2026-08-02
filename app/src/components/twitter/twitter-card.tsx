@@ -6,6 +6,7 @@ import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { gridCardStyle } from "@/lib/grid-styles";
+import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
@@ -92,11 +93,14 @@ export function TwitterCard({
         </div>
       ) : previewImage ? (
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
-          {/* biome-ignore lint/a11y/useAltText: decorative preview image */}
           {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
             {...imgProps}
             src={previewImage}
+            alt={tweetImageAlt({
+              name: twitterDetails.authorName,
+              username: twitterDetails.authorUsername,
+            })}
             className="h-full w-full object-cover"
             loading="lazy"
           />
@@ -127,10 +131,11 @@ export function TwitterCard({
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden p-4 text-left">
           <div className="flex shrink-0 items-center gap-2">
             {twitterDetails.authorAvatarUrl ? (
-              // biome-ignore lint/a11y/useAltText: author avatar
+              // Decorative: the author name renders as visible text alongside
               // biome-ignore lint/performance/noImgElement: external avatar URL
               <img
                 src={twitterDetails.authorAvatarUrl}
+                alt=""
                 className="size-6 shrink-0 rounded-full"
                 loading="lazy"
               />

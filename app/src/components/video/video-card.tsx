@@ -10,6 +10,7 @@ import { cn, formatDuration } from "@/lib/utils";
 type VideoCardProps = {
   videoDetails: VideoDetails;
   coverFileKey: string | null;
+  title?: string | null;
   onClick: () => void;
   className?: string;
 };
@@ -21,6 +22,7 @@ type VideoCardProps = {
 export function VideoCard({
   videoDetails,
   coverFileKey,
+  title,
   onClick,
   className,
 }: VideoCardProps) {
@@ -49,10 +51,10 @@ export function VideoCard({
       <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
         {thumbnailUrl ? (
           <>
-            {/* biome-ignore lint/a11y/useAltText: decorative video thumbnail */}
             {/* biome-ignore lint/performance/noImgElement: external video thumbnail URL */}
             <img
               src={thumbnailUrl}
+              alt={title ?? "Video thumbnail"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"
             />

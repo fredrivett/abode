@@ -70,6 +70,7 @@ export function ProductDetailView({
                   index={index}
                   isCover={isCover}
                   imageCount={productImages.length}
+                  productTitle={title}
                   onCoverImageChange={onCoverImageChange}
                 />
               );
@@ -77,10 +78,10 @@ export function ProductDetailView({
           </div>
         ) : coverFileKey ? (
           <div className="overflow-hidden rounded-xl">
-            {/* biome-ignore lint/a11y/useAltText: product cover image */}
             {/* biome-ignore lint/performance/noImgElement: using proxy URL */}
             <img
               src={getProxyImageUrl(coverFileKey, "full")}
+              alt={title ? `${title} product image` : "Product image"}
               className="w-full object-contain"
               loading="lazy"
             />
@@ -151,12 +152,14 @@ function ProductImageItem({
   index,
   isCover,
   imageCount,
+  productTitle,
   onCoverImageChange,
 }: {
   image: ProductImage;
   index: number;
   isCover: boolean;
   imageCount: number;
+  productTitle?: string | null;
   onCoverImageChange?: (index: number) => Promise<void>;
 }) {
   const [isSettingCover, setIsSettingCover] = useState(false);
@@ -178,10 +181,14 @@ function ProductImageItem({
         imageCount >= 3 && index === 0 && "row-span-2",
       )}
     >
-      {/* biome-ignore lint/a11y/useAltText: product image */}
       {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored image */}
       <img
         src={getProxyImageUrl(image.fileKey, "full")}
+        alt={
+          productTitle
+            ? `${productTitle} product image ${index + 1}`
+            : `Product image ${index + 1}`
+        }
         className="h-full w-full object-cover"
         loading="lazy"
       />

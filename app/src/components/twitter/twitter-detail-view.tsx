@@ -6,6 +6,7 @@ import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
@@ -62,10 +63,11 @@ export function TwitterDetailView({
             className="flex items-center gap-3 transition-opacity hover:opacity-80"
           >
             {authorAvatarUrl ? (
-              // biome-ignore lint/a11y/useAltText: author avatar
+              // Decorative: the author name renders as visible text alongside
               // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
               <img
                 src={authorAvatarUrl}
+                alt=""
                 className="size-12 rounded-full"
                 loading="lazy"
               />
@@ -111,6 +113,10 @@ export function TwitterDetailView({
           >
             {media.map((item, index) => {
               const isCover = index === (twitterDetails.coverMediaIndex ?? 0);
+              const imageAlt = tweetImageAlt(
+                { name: authorName, username: authorUsername },
+                { index, total: media.length },
+              );
               return (
                 <CoverImageMedia
                   key={`${item.url}-${index}`}
@@ -118,6 +124,7 @@ export function TwitterDetailView({
                   index={index}
                   isCover={isCover}
                   mediaLength={media.length}
+                  imageAlt={imageAlt}
                   onCoverImageChange={onCoverImageChange}
                 />
               );
@@ -134,7 +141,6 @@ export function TwitterDetailView({
             className="block overflow-hidden rounded-xl border border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
           >
             {card.imageUrl && (
-              // biome-ignore lint/a11y/useAltText: link card preview
               // biome-ignore lint/performance/noImgElement: proxied or external link card URL
               <img
                 src={twitterImageSrc(
@@ -142,6 +148,9 @@ export function TwitterDetailView({
                   card.imageUrl,
                   "detail",
                 )}
+                alt={
+                  card.title ? `Link preview: ${card.title}` : "Link preview"
+                }
                 className="aspect-video w-full object-cover"
                 loading="lazy"
               />
@@ -189,12 +198,14 @@ function CoverImageMedia({
   index,
   isCover,
   mediaLength,
+  imageAlt,
   onCoverImageChange,
 }: {
   item: TwitterMedia;
   index: number;
   isCover: boolean;
   mediaLength: number;
+  imageAlt: string;
   onCoverImageChange?: (index: number) => Promise<void>;
 }) {
   const [isSettingCover, setIsSettingCover] = useState(false);
@@ -230,10 +241,10 @@ function CoverImageMedia({
           <track kind="captions" />
         </video>
       ) : (
-        // biome-ignore lint/a11y/useAltText: tweet media
         // biome-ignore lint/performance/noImgElement: proxied or external Twitter media URL
         <img
           src={twitterImageSrc(item.fileKey, item.url, "detail")}
+          alt={imageAlt}
           className="h-full w-full object-cover"
           loading="lazy"
         />

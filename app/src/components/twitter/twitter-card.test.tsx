@@ -45,6 +45,27 @@ describe("TwitterCard", () => {
     expect(
       screen.queryByText(/Every map is out of date/),
     ).not.toBeInTheDocument();
+    // The content image gets a concise, author-based alt (not the full tweet body)
+    expect(
+      screen.getByRole("img", {
+        name: "Image from tweet by Cora Meridian",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("marks the author avatar as decorative (name renders as text)", () => {
+    const { container } = render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          authorAvatarUrl: "https://example.com/avatar.jpg",
+        }}
+        onClick={() => {}}
+      />,
+    );
+    const avatar = container.querySelector('img[src*="avatar.jpg"]');
+    expect(avatar).not.toBeNull();
+    expect(avatar).toHaveAttribute("alt", "");
   });
 
   it("falls back to the placeholder when there is neither media nor text", () => {

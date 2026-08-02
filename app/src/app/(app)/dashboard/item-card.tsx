@@ -741,6 +741,7 @@ export function ItemCard({
           <VideoCard
             videoDetails={item.videoDetails}
             coverFileKey={item.coverFileKey}
+            title={item.title}
             onClick={handleOpenDetail}
           />
         </div>
