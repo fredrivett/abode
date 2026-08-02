@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { zodErrorResponse } from "@/lib/http/zod-error";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -15,6 +16,7 @@ import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
 import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
 import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to-rooms";
+import { itemPatchSchema } from "./schema";
 
 const log = createLogger("api/v1/items/[id]");
 
@@ -96,6 +98,21 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const parsed = itemPatchSchema.safeParse(body);
+    if (!parsed.success) {
+      return zodErrorResponse(parsed.error);
+    }
+    const {
+      notes,
+      shared,
+      sharedHighlights,
+      content,
+      twitterCoverMediaIndex,
+      productCoverImageIndex,
+      userTags,
+    } = parsed.data;
+    // Fields without dedicated validation pass through unchanged from the raw
+    // body, preserving prior behavior (they were never validated here).
     const {
       processingStatus,
       fileKey,
@@ -105,131 +122,8 @@ export async function PATCH(
       coverFileKey,
       excludeFromPublicRooms,
       tags,
-      userTags,
       title,
-      notes,
-      shared,
-      sharedHighlights,
-      content,
-      twitterCoverMediaIndex,
-      productCoverImageIndex,
     } = body;
-
-    // Validate notes field type (user-editable field)
-    if (notes !== undefined && notes !== null && typeof notes !== "string") {
-      return NextResponse.json(
-        { message: "Invalid notes field: must be a string or null" },
-        { status: 400 },
-      );
-    }
-
-    // Validate sharing fields
-    if (shared !== undefined && typeof shared !== "boolean") {
-      return NextResponse.json(
-        { message: "Invalid shared field: must be a boolean" },
-        { status: 400 },
-      );
-    }
-    if (
-      sharedHighlights !== undefined &&
-      typeof sharedHighlights !== "boolean"
-    ) {
-      return NextResponse.json(
-        { message: "Invalid sharedHighlights field: must be a boolean" },
-        { status: 400 },
-      );
-    }
-
-    // Validate note body content (user-editable markdown for note items)
-    if (content !== undefined && typeof content !== "string") {
-      return NextResponse.json(
-        { message: "Invalid content field: must be a string" },
-        { status: 400 },
-      );
-    }
-
-    // Validate twitterCoverMediaIndex field
-    if (
-      twitterCoverMediaIndex !== undefined &&
-      twitterCoverMediaIndex !== null &&
-      (typeof twitterCoverMediaIndex !== "number" ||
-        !Number.isInteger(twitterCoverMediaIndex) ||
-        twitterCoverMediaIndex < 0)
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Invalid twitterCoverMediaIndex: must be a non-negative integer or null",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate productCoverImageIndex field
-    if (
-      productCoverImageIndex !== undefined &&
-      productCoverImageIndex !== null &&
-      (typeof productCoverImageIndex !== "number" ||
-        !Number.isInteger(productCoverImageIndex) ||
-        productCoverImageIndex < 0)
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Invalid productCoverImageIndex: must be a non-negative integer or null",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate userTags field
-    if (userTags !== undefined) {
-      if (!Array.isArray(userTags)) {
-        return NextResponse.json(
-          { message: "Invalid userTags field: must be an array" },
-          { status: 400 },
-        );
-      }
-      if (userTags.length > 100) {
-        return NextResponse.json(
-          { message: "Invalid userTags field: maximum 100 tags allowed" },
-          { status: 400 },
-        );
-      }
-      const tagRegex = /^[\w\s-]+$/u;
-      for (const tag of userTags) {
-        if (typeof tag !== "string") {
-          return NextResponse.json(
-            { message: "Invalid userTags field: all tags must be strings" },
-            { status: 400 },
-          );
-        }
-        if (tag.length === 0) {
-          return NextResponse.json(
-            { message: "Invalid userTags field: tags cannot be empty" },
-            { status: 400 },
-          );
-        }
-        if (tag.length > 50) {
-          return NextResponse.json(
-            {
-              message:
-                "Invalid userTags field: tags must be 50 characters or less",
-            },
-            { status: 400 },
-          );
-        }
-        if (!tagRegex.test(tag)) {
-          return NextResponse.json(
-            {
-              message:
-                "Invalid userTags field: tags can only contain letters, numbers, spaces, hyphens, and underscores",
-            },
-            { status: 400 },
-          );
-        }
-      }
-    }
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({

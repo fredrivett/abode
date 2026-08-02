@@ -6,6 +6,7 @@ import {
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
 import { joinWaitlist } from "@/lib/waitlist";
+import { waitlistSchema } from "./schema";
 
 /**
  * POST /api/v1/waitlist
@@ -28,14 +29,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, referralSource } = body as {
-      email?: string;
-      referralSource?: string;
-    };
+    const parsed = waitlistSchema.safeParse(body);
 
-    if (!email || typeof email !== "string") {
+    if (!parsed.success) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
+
+    const { email, referralSource } = parsed.data;
 
     const result = await joinWaitlist(email, referralSource);
 

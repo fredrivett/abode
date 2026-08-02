@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
@@ -80,10 +81,7 @@ export async function PATCH(request: NextRequest) {
     const parsed = profileUpdateSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { message: "Invalid request body" },
-        { status: 400 },
-      );
+      return zodErrorResponse(parsed.error);
     }
 
     const { firstName, lastName, website } = parsed.data;

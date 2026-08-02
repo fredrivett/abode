@@ -1,6 +1,7 @@
 import type { MilestoneType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import {
   getMilestoneStatus,
@@ -76,10 +77,7 @@ export async function POST(request: NextRequest) {
     const parsed = markCompleteSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { message: "Invalid request body", errors: parsed.error.flatten() },
-        { status: 400 },
-      );
+      return zodErrorResponse(parsed.error);
     }
 
     await markMilestoneComplete(user.id, parsed.data.type);
