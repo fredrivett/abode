@@ -161,6 +161,39 @@ describe("findSimilarImages integration", () => {
       expect(await refreshVisualEmbeddingMean()).toBe(0);
     });
 
+    test("clears a previously stored mean when the corpus empties, restoring the raw fallback", async () => {
+      const user = await createUser("owner@example.com");
+      const seed = await createImageVec(user.id, vec(10, 1));
+      const trueMatch = await createImageVec(user.id, vec(8, 1));
+      const hub = await createImageVec(user.id, vec(10, -3));
+
+      expect(await refreshVisualEmbeddingMean()).toBe(3);
+      const centered = await findSimilarImages({
+        itemId: seed,
+        userId: user.id,
+        threshold: -2,
+      });
+      expect(centered.map((r) => r.id)).toEqual([trueMatch, hub]);
+
+      // Remove every vector and refresh: the stale mean must be cleared, not
+      // left active against an outdated centroid.
+      const { write } = await import("@/lib/db");
+      await write.$executeRawUnsafe('DELETE FROM "item_visual_vectors"');
+      expect(await refreshVisualEmbeddingMean()).toBe(0);
+
+      // Vectors added before the next non-empty refresh score against raw
+      // similarity (the high-magnitude hub first), not the stale centroid.
+      const seed2 = await createImageVec(user.id, vec(10, 1));
+      const hub2 = await createImageVec(user.id, vec(10, -3));
+      const trueMatch2 = await createImageVec(user.id, vec(8, 1));
+      const raw = await findSimilarImages({
+        itemId: seed2,
+        userId: user.id,
+        threshold: -2,
+      });
+      expect(raw.map((r) => r.id)).toEqual([hub2, trueMatch2]);
+    });
+
     test("centering corrects cone-induced ranking: the high-magnitude hub is demoted below the true content match", async () => {
       const user = await createUser("owner@example.com");
       // dim0 = shared "cone" axis, dim1 = content. The hub has a large dim0 so

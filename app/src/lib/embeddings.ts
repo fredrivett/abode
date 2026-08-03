@@ -361,19 +361,30 @@ export async function mirrorMediaEmbeddingToVisualVector({
  * ranking reflects real content rather than the shared component.
  *
  * DB-side `avg` + upsert so the pgvector value never round-trips through JS.
- * The `HAVING` guard means an empty corpus (e.g. Replicate never configured)
- * stores nothing rather than a null/degenerate mean. Returns the number of
- * vectors the mean was computed over (0 ⇒ nothing stored).
+ * When the corpus is empty (e.g. Replicate never configured, or all vectors
+ * removed) the model's stats row is deleted in the same statement rather than
+ * left stale — so scoring cleanly falls back to raw similarity instead of
+ * centering against an outdated centroid. Returns the number of vectors the
+ * mean was computed over (0 ⇒ row cleared / nothing stored).
  */
 export async function refreshVisualEmbeddingMean(
   model: string = VISUAL_EMBEDDING_MODEL,
 ): Promise<number> {
+  // Single atomic statement: `cleared` (a data-modifying CTE, always executed)
+  // drops the stale row when the corpus is empty; the INSERT upserts only when
+  // there are vectors. Exactly one of the two ever affects a row.
   const rows = await db.$queryRaw<Array<{ n: number }>>`
+    WITH agg AS (
+      SELECT AVG("embedding") AS mean, COUNT(*)::int AS n
+      FROM "item_visual_vectors"
+      WHERE "model" = ${model} AND "embedding" IS NOT NULL
+    ),
+    cleared AS (
+      DELETE FROM "visual_embedding_stats"
+      WHERE "model" = ${model} AND (SELECT n FROM agg) = 0
+    )
     INSERT INTO "visual_embedding_stats" ("model", "mean_embedding", "n", "updated_at")
-    SELECT ${model}, AVG("embedding"), COUNT(*)::int, now()
-    FROM "item_visual_vectors"
-    WHERE "model" = ${model} AND "embedding" IS NOT NULL
-    HAVING COUNT(*) > 0
+    SELECT ${model}, agg.mean, agg.n, now() FROM agg WHERE agg.n > 0
     ON CONFLICT ("model") DO UPDATE
       SET "mean_embedding" = EXCLUDED."mean_embedding",
           "n" = EXCLUDED."n",
