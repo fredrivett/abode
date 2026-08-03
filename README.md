@@ -39,7 +39,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | 🔒 **Required**         | the app itself                                   | won't run                                               |
 | [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline                     | capture + full-text search work, but no auto-enrichment |
 | [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search | items stay bare; full-text search only                  |
-| [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (for future "similar image")    | skipped                                                 |
+| [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)         | skipped                                                 |
 | [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant-colour extraction                       | skipped                                                 |
 | [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                 | skipped                                                 |
 | [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                 | email features off                                      |
@@ -76,6 +76,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - OCR + auto-tagging (OpenAI)
 - Dominant-colour extraction, palette bar + colour search
 - pgvector text embeddings blended into search
+- Similar images (CLIP visual embeddings, mean-centered)
 - Location (auto + manual) + map thumbnails (Mapbox)
 - Rooms (manual + smart collections)
 - Public rooms, profiles + room embedding
@@ -86,7 +87,6 @@ More contributor detail — environment plumbing, port allocation, running Supab
 **🔜 Next:**
 
 - Browser extension
-- Similar images (via existing CLIP image embeddings)
 - Export / eject
 - Self-hosting guide + Docker Compose
 
