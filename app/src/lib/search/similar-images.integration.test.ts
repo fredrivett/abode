@@ -1,7 +1,10 @@
 /// <reference types="vitest/globals" />
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
-import { VISUAL_EMBEDDING_MODEL } from "@/lib/embeddings";
+import {
+  refreshVisualEmbeddingMean,
+  VISUAL_EMBEDDING_MODEL,
+} from "@/lib/embeddings";
 import { findSimilarImages } from "@/lib/search/similar-images";
 
 /**
@@ -12,6 +15,16 @@ import { findSimilarImages } from "@/lib/search/similar-images";
 function makeVector(primary: number): number[] {
   const v = new Array<number>(768).fill(0);
   v[0] = primary;
+  return v;
+}
+
+/** Build a 768-dim vector from the given leading components (rest zero), for
+ * multi-dimensional fixtures where centering actually changes the ranking. */
+function vec(...values: number[]): number[] {
+  const v = new Array<number>(768).fill(0);
+  values.forEach((x, i) => {
+    v[i] = x;
+  });
   return v;
 }
 
@@ -44,6 +57,24 @@ describe("findSimilarImages integration", () => {
         embedding: makeVector(similarity),
       });
     }
+    return item.id;
+  };
+
+  const createImageVec = async (
+    userId: string,
+    embedding: number[],
+  ): Promise<string> => {
+    const { write } = await import("@/lib/db");
+    const { upsertVisualVector } = await import("@/lib/embeddings");
+    const item = await write.item.create({
+      data: { id: crypto.randomUUID(), userId, kind: "image" },
+    });
+    await upsertVisualVector({
+      itemId: item.id,
+      userId,
+      model: VISUAL_EMBEDDING_MODEL,
+      embedding,
+    });
     return item.id;
   };
 
@@ -113,5 +144,69 @@ describe("findSimilarImages integration", () => {
     expect(results).toHaveLength(2);
     expect(results[0].similarity).toBeCloseTo(0.99, 5);
     expect(results[1].similarity).toBeCloseTo(0.95, 5);
+  });
+
+  describe("mean-centering", () => {
+    test("refreshVisualEmbeddingMean stores the centroid and returns the count, upserting on re-run", async () => {
+      const user = await createUser("owner@example.com");
+      await createImageVec(user.id, vec(1));
+      await createImageVec(user.id, vec(0.5));
+
+      expect(await refreshVisualEmbeddingMean()).toBe(2);
+      // A second run updates the single row rather than duplicating it.
+      expect(await refreshVisualEmbeddingMean()).toBe(2);
+    });
+
+    test("refreshVisualEmbeddingMean stores nothing for an empty corpus", async () => {
+      expect(await refreshVisualEmbeddingMean()).toBe(0);
+    });
+
+    test("centering corrects cone-induced ranking: the high-magnitude hub is demoted below the true content match", async () => {
+      const user = await createUser("owner@example.com");
+      // dim0 = shared "cone" axis, dim1 = content. The hub has a large dim0 so
+      // raw inner product ranks it first despite opposite content.
+      const seed = await createImageVec(user.id, vec(10, 1));
+      const trueMatch = await createImageVec(user.id, vec(8, 1));
+      const hub = await createImageVec(user.id, vec(10, -3));
+
+      // Before a mean exists → raw fallback ranks the hub first.
+      const raw = await findSimilarImages({
+        itemId: seed,
+        userId: user.id,
+        threshold: -2,
+      });
+      expect(raw.map((r) => r.id)).toEqual([hub, trueMatch]);
+
+      // After computing the mean → centering removes the shared axis and the
+      // true content match ranks above the hub.
+      expect(await refreshVisualEmbeddingMean()).toBe(3);
+      const centered = await findSimilarImages({
+        itemId: seed,
+        userId: user.id,
+        threshold: -2,
+      });
+      expect(centered.map((r) => r.id)).toEqual([trueMatch, hub]);
+    });
+
+    test("applies the 0.4 centered threshold once a mean exists", async () => {
+      const user = await createUser("owner@example.com");
+      // Fixtures + their exact negations ⇒ corpus mean is zero ⇒ centered score
+      // equals plain cosine, so we can set similarities precisely.
+      const seed = await createImageVec(user.id, vec(1, 0));
+      const passes = await createImageVec(user.id, vec(0.5, 0.866)); // cos 0.5 ≥ 0.4
+      await createImageVec(user.id, vec(0.3, 0.954)); // cos 0.3 < 0.4 → dropped
+      await createImageVec(user.id, vec(-1, 0));
+      await createImageVec(user.id, vec(-0.5, -0.866));
+      await createImageVec(user.id, vec(-0.3, -0.954));
+
+      expect(await refreshVisualEmbeddingMean()).toBe(6);
+      const results = await findSimilarImages({
+        itemId: seed,
+        userId: user.id,
+      });
+
+      expect(results.map((r) => r.id)).toEqual([passes]);
+      expect(results[0].similarity).toBeCloseTo(0.5, 2);
+    });
   });
 });
