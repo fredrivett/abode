@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import { captureServerException } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { resolveSimilarImageCover } from "@/lib/search/similar-image-cover";
 import { findSimilarImages } from "@/lib/search/similar-images";
@@ -102,6 +102,14 @@ export async function GET(
           similarity: match.similarity,
         },
       ];
+    });
+
+    // Track how many similar images actually reach the user, so the shown-rate
+    // shift from the mean-centering rollout is measurable.
+    getPostHogClient()?.capture({
+      distinctId: user.id,
+      event: "similar_images_served",
+      properties: { itemId: id, count: items.length },
     });
 
     return NextResponse.json({ items } satisfies SimilarImagesResponse, {
