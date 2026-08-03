@@ -302,6 +302,25 @@ model ItemTextVector {
   @@map("item_text_vectors")
 }
 
+// Corpus-level stats for a visual-embedding model, one row per model. Drives
+// query-time mean-centering ("de-coning") in similar-images: CLIP image vectors
+// occupy a narrow cone (mean pairwise cosine ~0.53), so raw similarity is
+// dominated by a shared component. Subtracting `meanEmbedding` and renormalizing
+// at read time restores discriminative ranking. Global (all users) — the cone
+// axis is a property of the model, not any one library. Recomputed periodically
+// by a background job from item_visual_vectors; raw vectors stay the source of
+// truth so there's no staleness (the same mean is applied to seed + candidates
+// within a query). RLS is default-deny (server-only reads); see the migration.
+model VisualEmbeddingStats {
+  model         String                 @id // matches ItemVisualVector.model, e.g. "clip-vit-base-patch32"
+  meanEmbedding Unsupported("vector")? @map("mean_embedding") // vector(768)
+  n             Int // number of vectors the mean was computed over
+  computedAt    DateTime               @default(now()) @map("computed_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+
+  @@map("visual_embedding_stats")
+}
+
 // Per-image vision analysis, keyed by the stored image (file_key), for
 // multi-image kinds (e.g. tweets) whose displayed cover can change. Acts as a
 // cache so swapping the cover re-points to an already-analysed image instead of

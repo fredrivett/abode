@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import {
   findSimilarImages,
-  SIMILAR_IMAGE_MIN_SIMILARITY,
+  SIMILAR_IMAGE_MIN_SIMILARITY_CENTERED,
   SIMILAR_IMAGES_LIMIT,
 } from "@/lib/search/similar-images";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -216,7 +216,7 @@ export type InspectorSimilarImage = SimilarInspectorRow<{
 
 /** The similarity threshold + display cap the live feature uses, for the UI. */
 export const SIMILAR_INSPECTOR_META = {
-  threshold: SIMILAR_IMAGE_MIN_SIMILARITY,
+  threshold: SIMILAR_IMAGE_MIN_SIMILARITY_CENTERED,
   shownLimit: SIMILAR_IMAGES_LIMIT,
 };
 
@@ -294,7 +294,7 @@ export async function getSimilarImagesForInspector({
 
   return annotateSimilar(
     ordered,
-    SIMILAR_IMAGE_MIN_SIMILARITY,
+    SIMILAR_IMAGE_MIN_SIMILARITY_CENTERED,
     SIMILAR_IMAGES_LIMIT,
   ).map(({ imageKey, ...rest }) => ({
     ...rest,
