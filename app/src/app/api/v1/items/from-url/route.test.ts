@@ -168,7 +168,7 @@ describe("POST /api/v1/items/from-url", () => {
     // Item is marked failed so the UI surfaces a Retry action
     expect(mockItemUpdate).toHaveBeenCalledWith({
       where: { id: ITEM_ID },
-      data: { processingStatus: "failed" },
+      data: { processingStatus: "failed", processingError: "enqueue_failed" },
     });
   });
 
