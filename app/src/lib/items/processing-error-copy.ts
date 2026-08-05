@@ -29,6 +29,10 @@ const COPY: Record<ProcessingErrorReason, ProcessingErrorCopy> = {
     message: "Processing didn't finish and was stopped — please try again.",
     retryable: true,
   },
+  enqueue_failed: {
+    message: "We couldn't start processing this — please try again.",
+    retryable: true,
+  },
   unknown: {
     message: "Analysis failed. You can retry or delete the item.",
     retryable: true,

@@ -42,9 +42,9 @@ describe("enqueueImageAnalysis integration", () => {
     const { read } = await import("@/lib/db");
     const item = await read.item.findUniqueOrThrow({
       where: { id: itemId },
-      select: { processingStatus: true },
+      select: { processingStatus: true, processingError: true },
     });
-    return item.processingStatus;
+    return item;
   };
 
   test("marks the item failed (without throwing) when enqueue fails", async () => {
@@ -62,7 +62,12 @@ describe("enqueueImageAnalysis integration", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(await readStatus(item.id)).toBe("failed");
+    // Failed with a concrete reason so the failure is attributable, not a null
+    // the admin UI has to paper over.
+    expect(await readStatus(item.id)).toMatchObject({
+      processingStatus: "failed",
+      processingError: "enqueue_failed",
+    });
   });
 
   test("leaves the item untouched when enqueue succeeds", async () => {
@@ -75,7 +80,9 @@ describe("enqueueImageAnalysis integration", () => {
       fileKey: item.fileKey ?? "",
     });
 
-    expect(await readStatus(item.id)).toBe("processing");
+    expect(await readStatus(item.id)).toMatchObject({
+      processingStatus: "processing",
+    });
   });
 
   test("enqueues at the positive user-action priority (jumps background work)", async () => {

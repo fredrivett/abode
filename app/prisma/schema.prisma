@@ -92,6 +92,7 @@ enum ProcessingErrorReason {
   source_unreachable // network error, timeout, DNS, 5xx
   unsupported_content // fetched but couldn't parse/classify
   stalled // never reached a terminal status (worker died/timed out/dropped) — swept by the stuck-items reaper
+  enqueue_failed // the background run was never enqueued (tasks.trigger threw at save time)
   unknown // catch-all
 }
 

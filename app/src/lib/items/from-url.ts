@@ -4,7 +4,7 @@ import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 
 const log = createLogger("lib/items/from-url");
 
@@ -93,10 +93,19 @@ export async function createItemFromUrl({
     // Best-effort: the item is already persisted, so a failure here must not
     // fail the save (which would error after a successful insert).
     log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
+    // Report it — the enqueue call throwing is the one failure mode with no
+    // Trigger run to inspect afterwards, so without this we're blind to why.
+    captureServerException(error, userId, {
+      route: "createItemFromUrl",
+      stage: "trigger:classify-url",
+      itemId: item.id,
+    });
     try {
       await db.item.update({
         where: { id: item.id },
-        data: { processingStatus: "failed" },
+        // Record a concrete reason so the failure reports as `enqueue_failed`
+        // rather than a null the admin UI has to paper over.
+        data: { processingStatus: "failed", processingError: "enqueue_failed" },
       });
     } catch (updateError) {
       log.error(
