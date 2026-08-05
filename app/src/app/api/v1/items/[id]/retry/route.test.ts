@@ -233,13 +233,18 @@ describe("POST /api/v1/items/[id]/retry", () => {
       });
     });
 
-    it("reverts to failed and returns 500 when the enqueue throws", async () => {
+    it("reverts to failed with enqueue_failed and returns 500 when the enqueue throws", async () => {
       mockTrigger.mockRejectedValue(new Error("no trigger key"));
       const res = await call();
       expect(res.status).toBe(500);
+      // Reverting to failed stamps the reason so it doesn't render as "unknown"
       expect(mockItemUpdate).toHaveBeenLastCalledWith({
         where: { id: ITEM_ID },
-        data: { processingStatus: "failed", processingStartedAt: STARTED_AT },
+        data: {
+          processingStatus: "failed",
+          processingStartedAt: STARTED_AT,
+          processingError: "enqueue_failed",
+        },
       });
     });
   });

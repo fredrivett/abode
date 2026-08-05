@@ -5,6 +5,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { env } from "@/env.server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 import { issueSpecs } from "./processing-issues";
 
 const log = createLogger("admin/reprocess-issues");
@@ -140,6 +141,11 @@ export async function reprocessIssueGroup(
       );
     } catch (error) {
       log.error({ error, count: urlItems.length }, "classify-url batch failed");
+      captureServerException(error, undefined, {
+        route: "reprocessIssueGroup",
+        stage: "trigger:classify-url",
+        count: urlItems.length,
+      });
       failedIds.push(...urlItems.map((i) => i.id));
     }
   }
@@ -158,6 +164,11 @@ export async function reprocessIssueGroup(
         { error, count: imageItems.length },
         "analyze-image batch failed",
       );
+      captureServerException(error, undefined, {
+        route: "reprocessIssueGroup",
+        stage: "trigger:analyze-image",
+        count: imageItems.length,
+      });
       failedIds.push(...imageItems.map((i) => i.id));
     }
   }
@@ -168,7 +179,9 @@ export async function reprocessIssueGroup(
   if (isError && failedIds.length > 0) {
     await db.item.updateMany({
       where: { id: { in: failedIds } },
-      data: { processingStatus: "failed" },
+      // Stamp the reason so a failed enqueue reads as `enqueue_failed`, not a
+      // bare "unknown" (mirrors createItemFromUrl and the retry route).
+      data: { processingStatus: "failed", processingError: "enqueue_failed" },
     });
   }
 
