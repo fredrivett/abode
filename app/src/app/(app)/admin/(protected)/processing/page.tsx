@@ -94,7 +94,7 @@ function IssueSection({ group }: { group: IssueGroup }) {
                   </TableCell>
                   {group.key === "failed" && (
                     <TableCell className="text-muted-foreground text-xs">
-                      {item.processingError ?? "enqueue"}
+                      {item.processingError ?? "unknown"}
                     </TableCell>
                   )}
                   <TableCell className="text-muted-foreground text-xs">
