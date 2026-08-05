@@ -152,8 +152,12 @@ describe("reprocessIssueGroup", () => {
     await expect(reprocessIssueGroup("failed")).rejects.toThrow(
       /Failed to enqueue/,
     );
-    // Not stranded in `processing` — restored to failed so it stays visible
-    expect((await statusOf(item)).processingStatus).toBe("failed");
+    // Not stranded in `processing` — restored to failed with a concrete reason
+    // so it stays visible and doesn't render as a bare "unknown".
+    expect(await statusOf(item)).toMatchObject({
+      processingStatus: "failed",
+      processingError: "enqueue_failed",
+    });
   });
 
   test("reprocesses a null-source image upload (matches the retry route)", async () => {

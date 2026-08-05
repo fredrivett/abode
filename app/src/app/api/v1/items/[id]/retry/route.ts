@@ -1,5 +1,6 @@
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
+import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
@@ -106,12 +107,15 @@ export async function POST(
     // Restore both status AND the reaper clock — the admin claim bumped
     // processingStartedAt, and a failed retry must leave an already-stuck item
     // eligible for the sweep at its original time, not a fresh 4h window.
-    const revert = () =>
+    // `processingError` stamps a reason when reverting to `failed` (enqueue
+    // failure) so it doesn't render as a bare "unknown".
+    const revert = (processingError?: ProcessingErrorReason) =>
       db.item.update({
         where: { id },
         data: {
           processingStatus: previousStatus,
           processingStartedAt: previousProcessingStartedAt,
+          ...(processingError ? { processingError } : {}),
         },
       });
 
@@ -159,9 +163,12 @@ export async function POST(
       }
     } catch (triggerError) {
       log.error({ triggerError, itemId: id }, "Failed to trigger retry task");
-      await revert();
+      // Only a revert back to `failed` gets the reason stamped; a non-failed
+      // previous status (admin retrying a processing/completed item) reverts clean.
+      await revert(previousStatus === "failed" ? "enqueue_failed" : undefined);
       captureServerException(triggerError, undefined, {
         route: "POST /api/v1/items/[id]/retry",
+        stage: "trigger:retry",
       });
       return NextResponse.json(
         { message: "Failed to initiate retry" },
