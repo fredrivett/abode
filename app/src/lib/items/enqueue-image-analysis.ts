@@ -39,7 +39,9 @@ export async function enqueueImageAnalysis(params: {
     await db.item
       .update({
         where: { id: params.itemId },
-        data: { processingStatus: "failed" },
+        // Record a concrete reason so the failure reports as `enqueue_failed`
+        // rather than a null the admin UI has to paper over.
+        data: { processingStatus: "failed", processingError: "enqueue_failed" },
       })
       .catch((updateError) => {
         log.error(
