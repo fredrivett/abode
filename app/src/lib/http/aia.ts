@@ -72,6 +72,22 @@ function bareHost(hostname: string): string {
     : hostname;
 }
 
+/**
+ * True only for a genuinely self-signed certificate (a trust-anchor root). A
+ * matching subject/issuer DN isn't enough: during a CA key rollover a cert can
+ * be self-*issued* (same DN) yet signed by a *different* key — a bridge that
+ * must still be chased, not treated as a root — so verify the self-signature
+ * cryptographically. Falls back to `false` (chase it) if verification can't run.
+ */
+function isSelfSigned(cert: X509Certificate): boolean {
+  if (cert.subject !== cert.issuer) return false;
+  try {
+    return cert.verify(cert.publicKey);
+  } catch {
+    return false;
+  }
+}
+
 /** Injectable IO for {@link chaseAiaChain} so the walk is unit-testable offline. */
 export interface AiaResolver {
   /** Read the leaf cert a server presents (DER), or null if unobtainable. */
@@ -108,7 +124,7 @@ export async function chaseAiaChain(
     const trusted = deps.trustedRootSubjects();
     let cert = new X509Certificate(leafRaw);
     for (let hop = 0; hop < MAX_AIA_HOPS; hop++) {
-      if (cert.subject === cert.issuer) break; // self-signed — nothing above
+      if (isSelfSigned(cert)) break; // self-signed root — nothing above
       if (trusted.has(cert.issuer)) break; // issuer is a trusted anchor; done
       const uri = caIssuersUri(cert.infoAccess);
       if (!uri) break;
@@ -117,7 +133,7 @@ export async function chaseAiaChain(
       const issuer = new X509Certificate(der);
       // Never add a self-signed root — trust anchors must come from the system
       // store; the verifying retry still has to reach one on its own.
-      if (issuer.subject === issuer.issuer) break;
+      if (isSelfSigned(issuer)) break;
       collected.push(issuer.toString());
       cert = issuer;
     }

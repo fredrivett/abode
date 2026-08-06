@@ -485,15 +485,18 @@ export async function safeFetch(
     typeof init.method === "string" && init.method.toUpperCase() === "HEAD";
 
   let current = await assertSafeUrl(rawUrl, signal);
-  let dispatcher: Agent = ssrfAgent;
   const aiaAttempted = new Set<string>();
 
+  // Pick the dispatcher by the hop's host: its AIA-completed agent if we've
+  // built one, else the default SSRF agent (which keeps NODE_EXTRA_CA_CERTS).
+  // Keying by host means a redirect to a different host doesn't inherit the
+  // first host's narrowed trust set.
   const fetchOnce = (target: URL) =>
     undiciFetch(target.toString(), {
       ...init,
       redirect: "manual",
       signal,
-      dispatcher,
+      dispatcher: aiaAgents.get(target.host) ?? ssrfAgent,
     });
 
   for (let hop = 0; ; hop++) {
@@ -511,8 +514,16 @@ export async function safeFetch(
       aiaAttempted.add(current.host);
       const completed = await completeChainDispatcher(current, signal);
       if (!completed) throw error;
-      dispatcher = completed;
-      response = await fetchOnce(current);
+      try {
+        // fetchOnce now picks up the freshly-cached agent for this host.
+        response = await fetchOnce(current);
+      } catch (retryError) {
+        // The completed chain still failed — most likely the host rotated to a
+        // different cert since we cached its intermediates. Drop the stale entry
+        // so the next attempt re-chases instead of failing on it indefinitely.
+        aiaAgents.delete(current.host);
+        throw retryError;
+      }
     }
 
     const isRedirect =
