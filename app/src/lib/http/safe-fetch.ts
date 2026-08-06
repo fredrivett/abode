@@ -1,7 +1,9 @@
+import { X509Certificate } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns";
 import { lookup } from "node:dns/promises";
 import { isIP, type LookupFunction } from "node:net";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import { rootCertificates, connect as tlsConnect } from "node:tls";
 import ipaddr from "ipaddr.js";
 import {
   Agent,
@@ -9,6 +11,7 @@ import {
   type RequestInit as UndiciRequestInit,
   fetch as undiciFetch,
 } from "undici";
+import { type AiaResolver, chaseAiaChain, isCertChainError } from "./aia";
 
 /**
  * SSRF-safe fetch.
@@ -172,9 +175,45 @@ const validatingLookup: LookupFunction = (hostname, options, callback) => {
   });
 };
 
-const ssrfAgent = new Agent({
-  connect: buildConnector({ lookup: validatingLookup }),
-});
+/**
+ * Build an SSRF-gated dispatcher. `extraCa` supplies additional intermediate
+ * certificates (from {@link chaseAiaChain}) to complete a server's broken chain
+ * — appended to the system roots, never replacing them, so trust still has to
+ * terminate at a bundled root. Passing `ca` drops any `NODE_EXTRA_CA_CERTS`
+ * certs for that host; acceptable on the rare broken-chain retry path.
+ */
+function makeSsrfAgent(extraCa: readonly string[] = []): Agent {
+  return new Agent({
+    connect: buildConnector(
+      extraCa.length > 0
+        ? { lookup: validatingLookup, ca: [...rootCertificates, ...extraCa] }
+        : { lookup: validatingLookup },
+    ),
+  });
+}
+
+const ssrfAgent = makeSsrfAgent();
+
+/** Bound the AIA-completed agent cache so a flood of hosts can't grow it forever. */
+const MAX_AIA_AGENTS = 256;
+/** host → dispatcher whose trust store has that host's fetched intermediates. */
+const aiaAgents = new Map<string, Agent>();
+
+/** Return (creating + caching) the AIA-completed dispatcher for `host`. */
+function aiaAgentForHost(host: string, extraCa: readonly string[]): Agent {
+  const existing = aiaAgents.get(host);
+  if (existing) return existing;
+  const agent = makeSsrfAgent(extraCa);
+  aiaAgents.set(host, agent);
+  if (aiaAgents.size > MAX_AIA_AGENTS) {
+    const oldest = aiaAgents.keys().next().value;
+    if (oldest !== undefined) {
+      void aiaAgents.get(oldest)?.destroy();
+      aiaAgents.delete(oldest);
+    }
+  }
+  return agent;
+}
 
 /**
  * undici reports a connector refusal as `TypeError: fetch failed` with the real
@@ -187,6 +226,109 @@ function findSafeFetchCause(error: unknown): SafeFetchError | null {
     current = current.cause;
   }
   return null;
+}
+
+// ── AIA chain completion wiring (missing-intermediate fallback) ─────────────
+//
+// The pure walk + error classification live in `./aia`; here we supply its
+// SSRF-gated production IO and the per-host dispatcher cache. See that module
+// for how AIA completion works and why adding intermediates stays safe.
+
+/** Per-issuer-fetch deadline; the overall request signal still bounds the total. */
+const AIA_FETCH_TIMEOUT_MS = 5_000;
+
+/** Open a TLS socket only to read the presented leaf certificate, then hang up. */
+function getLeafCertificate(
+  host: string,
+  port: number,
+  signal: AbortSignal,
+): Promise<Buffer | null> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve(null);
+      return;
+    }
+    const socket = tlsConnect({
+      host,
+      port,
+      servername: host,
+      lookup: validatingLookup,
+      // We only read the presented certificate here and exchange no data. Full
+      // verification happens on the real fetch retry, which must still chain to
+      // a trusted root — so this cannot weaken trust.
+      rejectUnauthorized: false,
+      ALPNProtocols: ["http/1.1"],
+    });
+    // `resolve` is idempotent and destroy/removeEventListener are safe twice, so
+    // whichever of secureConnect/error/abort fires first wins and the rest no-op.
+    const finish = (result: Buffer | null) => {
+      signal.removeEventListener("abort", onAbort);
+      socket.destroy();
+      resolve(result);
+    };
+    function onAbort() {
+      finish(null);
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    socket.once("secureConnect", () => {
+      const raw = socket.getPeerCertificate(true).raw;
+      finish(Buffer.isBuffer(raw) && raw.length > 0 ? raw : null);
+    });
+    socket.once("error", () => finish(null));
+  });
+}
+
+/** Fetch an AIA issuer certificate through the SSRF-safe path. */
+async function fetchCertificate(
+  uri: string,
+  signal: AbortSignal,
+): Promise<Buffer | null> {
+  try {
+    const response = await safeFetch(uri, {
+      signal,
+      timeoutMs: AIA_FETCH_TIMEOUT_MS,
+    });
+    if (!response.ok) return null;
+    return Buffer.from(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+let cachedTrustedSubjects: ReadonlySet<string> | null = null;
+function defaultTrustedRootSubjects(): ReadonlySet<string> {
+  if (cachedTrustedSubjects) return cachedTrustedSubjects;
+  const subjects = new Set<string>();
+  for (const pem of rootCertificates) {
+    try {
+      subjects.add(new X509Certificate(pem).subject);
+    } catch {
+      // skip a root we can't parse — it just won't short-circuit the walk
+    }
+  }
+  cachedTrustedSubjects = subjects;
+  return subjects;
+}
+
+const productionAiaResolver: AiaResolver = {
+  getLeafCertificate,
+  fetchCertificate,
+  trustedRootSubjects: defaultTrustedRootSubjects,
+};
+
+/**
+ * Resolve (and cache per host) a dispatcher whose trust store completes `url`'s
+ * broken chain via AIA, or null when completion isn't possible.
+ */
+async function completeChainDispatcher(
+  url: URL,
+  signal: AbortSignal,
+): Promise<Agent | null> {
+  const cached = aiaAgents.get(url.host);
+  if (cached) return cached;
+  const extraCa = await chaseAiaChain(url, signal, productionAiaResolver);
+  if (extraCa.length === 0) return null;
+  return aiaAgentForHost(url.host, extraCa);
 }
 
 // ── URL validation ──────────────────────────────────────────────────────────
@@ -343,20 +485,34 @@ export async function safeFetch(
     typeof init.method === "string" && init.method.toUpperCase() === "HEAD";
 
   let current = await assertSafeUrl(rawUrl, signal);
+  let dispatcher: Agent = ssrfAgent;
+  const aiaAttempted = new Set<string>();
+
+  const fetchOnce = (target: URL) =>
+    undiciFetch(target.toString(), {
+      ...init,
+      redirect: "manual",
+      signal,
+      dispatcher,
+    });
 
   for (let hop = 0; ; hop++) {
     let response: Awaited<ReturnType<typeof undiciFetch>>;
     try {
-      response = await undiciFetch(current.toString(), {
-        ...init,
-        redirect: "manual",
-        signal,
-        dispatcher: ssrfAgent,
-      });
+      response = await fetchOnce(current);
     } catch (error) {
       const blocked = findSafeFetchCause(error);
       if (blocked) throw blocked;
-      throw error;
+      // Server omitted an intermediate cert: complete the chain via AIA and
+      // retry once per host. Browsers do this transparently; Node's fetch does
+      // not, so without it a reachable site fails as `source_unreachable`.
+      if (!isCertChainError(error) || aiaAttempted.has(current.host))
+        throw error;
+      aiaAttempted.add(current.host);
+      const completed = await completeChainDispatcher(current, signal);
+      if (!completed) throw error;
+      dispatcher = completed;
+      response = await fetchOnce(current);
     }
 
     const isRedirect =
