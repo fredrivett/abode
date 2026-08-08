@@ -36,6 +36,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
+import { ArticleCard } from "@/components/article/article-card";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { NoteCard } from "@/components/note/note-card";
@@ -507,7 +508,8 @@ export function ItemCard({
     );
   }
 
-  // Articles/webpages without cover images get a placeholder card
+  // Articles/webpages without cover images render their reader content as a
+  // note-style text card (rather than a hollow icon placeholder)
   if (isArticleOrWebpage && !previewUrl && !imageFileKey) {
     let placeholderDomain = item.articleDetails?.domain;
     if (!placeholderDomain && item.sourceUrl) {
@@ -517,34 +519,16 @@ export function ItemCard({
     }
     return (
       <>
-        <button
-          type="button"
-          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
-          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
-          onClick={handleOpenDetail}
-        >
+        <div className="relative h-full w-full">
           <ProcessingOverlay status={item.processingStatus} />
-          <FileText
-            className="text-gray-400 dark:text-gray-500"
-            style={{ width: "3em", height: "3em" }}
+          <ArticleCard
+            title={itemName}
+            content={item.articleDetails?.content ?? null}
+            domain={placeholderDomain ?? null}
+            readingTime={item.articleDetails?.readingTime ?? null}
+            onClick={handleOpenDetail}
           />
-          <div className="text-center">
-            <p
-              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
-              style={{ fontSize: "0.875em" }}
-            >
-              {itemName}
-            </p>
-            {placeholderDomain && (
-              <p
-                className="text-gray-500 dark:text-gray-400"
-                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
-              >
-                {placeholderDomain}
-              </p>
-            )}
-          </div>
-        </button>
+        </div>
 
         <ItemDetailDialogWrapper
           show={showDetailDialog}
