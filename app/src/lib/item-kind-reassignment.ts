@@ -11,9 +11,10 @@ import type { ItemKind } from "@prisma/client";
  * (whether to show the picker, and with what options) and the API (validating a
  * requested override).
  *
- * Source-locked kinds — twitter, video, image, note — are deliberately absent:
- * the source *is* the kind (a tweet URL, a YouTube URL, an uploaded image, a
- * composed note) and its detail data can't be re-derived as any other kind.
+ * Source-locked kinds — twitter, instagram, video, image, note — are
+ * deliberately absent: the source *is* the kind (a tweet URL, an Instagram post
+ * URL, a YouTube URL, an uploaded image, a composed note) and its detail data
+ * can't be re-derived as any other kind.
  */
 
 /**
@@ -48,6 +49,7 @@ export const REASSIGNABLE_TARGETS: Record<ItemKind, readonly ForcibleKind[]> = {
   book: ["webpage", "article", "product"],
   image: [],
   twitter: [],
+  instagram: [],
   video: [],
   note: [],
 };
@@ -72,6 +74,7 @@ export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
   book: "Book",
   image: "Image",
   twitter: "Post",
+  instagram: "Instagram post",
   video: "Video",
   note: "Note",
 };
