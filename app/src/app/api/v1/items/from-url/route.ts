@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import { extractInstagramPost } from "@/lib/html-metadata";
 import { preflight, withCors } from "@/lib/http/cors";
 import {
   type InstagramScrapeInput,
@@ -60,6 +61,20 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       if (!parsed.success) {
         return NextResponse.json(
           { message: "Invalid instagram payload", issues: parsed.error.issues },
+          { status: 400 },
+        );
+      }
+      // The scrape must actually describe this URL's post — a valid-shaped
+      // scrape on a non-Instagram or mismatched URL must not persist a full
+      // instagram item.
+      const post = extractInstagramPost(url);
+      if (
+        !post ||
+        post.postId !== parsed.data.postId ||
+        post.mediaType !== parsed.data.mediaType
+      ) {
+        return NextResponse.json(
+          { message: "Instagram scrape does not match the URL" },
           { status: 400 },
         );
       }

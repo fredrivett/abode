@@ -171,6 +171,22 @@ describe("POST /api/v1/items/from-url", () => {
     expect(payload.details.media).toHaveLength(2);
   });
 
+  it("rejects a scrape whose URL isn't the matching Instagram post", async () => {
+    const res = await POST(
+      request({
+        url: "https://example.com/x",
+        instagram: {
+          postId: "DbMJ",
+          mediaType: "post",
+          authorUsername: "oliverhamrin",
+          media: [{ type: "photo", url: "https://cdn/a.jpg" }],
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for an invalid instagram scrape payload", async () => {
     const res = await POST(
       request({

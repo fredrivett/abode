@@ -141,6 +141,9 @@ export async function scrapeInstagramTab(
 ): Promise<InstagramScrapePayload | null> {
   const post = parseInstagramPost(url);
   if (!post) return null;
+  // Reels/IGTV are video; this scraper only captures poster stills, so marking
+  // them `full` would drop the actual video. Let them fall back to a URL save.
+  if (post.mediaType !== "post") return null;
   try {
     const [injection] = await browser.scripting.executeScript({
       target: { tabId },

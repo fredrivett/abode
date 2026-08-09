@@ -89,6 +89,10 @@ export async function createItemFromUrl({
     },
   });
 
+  const enqueuedTask = instagramScrape
+    ? "enrich-instagram-item"
+    : "classify-url";
+
   // A queueing hiccup must not fail the save; the item is already persisted.
   try {
     if (instagramScrape) {
@@ -120,12 +124,12 @@ export async function createItemFromUrl({
     // Mark failed so the UI surfaces a Retry instead of spinning forever.
     // Best-effort: the item is already persisted, so a failure here must not
     // fail the save (which would error after a successful insert).
-    log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
+    log.warn({ error, itemId: item.id }, `Failed to trigger ${enqueuedTask}`);
     // Report it — the enqueue call throwing is the one failure mode with no
     // Trigger run to inspect afterwards, so without this we're blind to why.
     captureServerException(error, userId, {
       route: "createItemFromUrl",
-      stage: "trigger:classify-url",
+      stage: `trigger:${enqueuedTask}`,
       itemId: item.id,
     });
     try {
