@@ -82,6 +82,24 @@ async function handlePost(
       );
     }
 
+    // Atomically claim the enrichment (completed → processing) so a double-click
+    // or retry can't enqueue a second paid run while one is already in flight.
+    const claim = await db.item.updateMany({
+      where: {
+        id,
+        userId: user.id,
+        kind: "instagram",
+        processingStatus: "completed",
+      },
+      data: { processingStatus: "processing" },
+    });
+    if (claim.count === 0) {
+      return NextResponse.json(
+        { message: "Enrichment already in progress" },
+        { status: 409 },
+      );
+    }
+
     const details: InstagramDetails = {
       postId: item.instagramDetails.postId,
       mediaType: item.instagramDetails
@@ -103,6 +121,13 @@ async function handlePost(
         user.id,
       );
     } catch (triggerError) {
+      // Release the claim so the item isn't stranded in "processing".
+      await db.item
+        .updateMany({
+          where: { id, userId: user.id, processingStatus: "processing" },
+          data: { processingStatus: "completed" },
+        })
+        .catch(() => {});
       log.error({ triggerError, itemId: id }, "Failed to enqueue enrich task");
       captureServerException(triggerError, undefined, {
         route: "POST /api/v1/items/[id]/instagram-enrich",

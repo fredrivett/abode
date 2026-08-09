@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { task } from "@trigger.dev/sdk";
+import db from "../src/lib/db";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { captureServerException } from "../src/lib/posthog-server";
 import type { InstagramDetails } from "../src/lib/types/item";
@@ -50,6 +51,14 @@ export const enrichInstagramItemTask = task({
         task: "enrich-instagram-item",
         itemId,
       });
+      // The basic capture is still intact — release the route's claim so the
+      // item returns to `completed` rather than being stranded in `processing`.
+      await db.item
+        .updateMany({
+          where: { id: itemId, userId, processingStatus: "processing" },
+          data: { processingStatus: "completed" },
+        })
+        .catch(() => {});
       throw error;
     }
   },

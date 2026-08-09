@@ -63,7 +63,11 @@ export async function persistInstagramItem(
   let descriptionEn: string | null = null;
   if (details.caption) {
     try {
-      descriptionEn = await translateToEnglish(details.caption);
+      descriptionEn = await translateToEnglish(details.caption, {
+        userId,
+        itemId,
+        itemKind: "instagram",
+      });
     } catch (error) {
       logger.log("Failed to translate Instagram caption, using original", {
         itemId,

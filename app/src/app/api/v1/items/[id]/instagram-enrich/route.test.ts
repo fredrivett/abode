@@ -1,18 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAuth, mockItemFind, mockTrigger, mockGuard } = vi.hoisted(() => ({
-  mockAuth: vi.fn(),
-  mockItemFind: vi.fn(),
-  mockTrigger: vi.fn(),
-  mockGuard: vi.fn(),
-}));
+const { mockAuth, mockItemFind, mockItemUpdateMany, mockTrigger, mockGuard } =
+  vi.hoisted(() => ({
+    mockAuth: vi.fn(),
+    mockItemFind: vi.fn(),
+    mockItemUpdateMany: vi.fn(),
+    mockTrigger: vi.fn(),
+    mockGuard: vi.fn(),
+  }));
 
 vi.mock("@/lib/auth/authenticate-request", () => ({
   authenticateRequest: mockAuth,
 }));
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
 vi.mock("@/lib/db", () => ({
-  default: { item: { findUnique: mockItemFind } },
+  default: {
+    item: { findUnique: mockItemFind, updateMany: mockItemUpdateMany },
+  },
 }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
@@ -71,6 +75,8 @@ beforeEach(() => {
     sourceUrl: "https://www.instagram.com/p/DbMJ/",
     instagramDetails: { postId: "DbMJ", mediaType: "post" },
   });
+  // Claim succeeds by default (item was completed → now processing).
+  mockItemUpdateMany.mockResolvedValue({ count: 1 });
   mockTrigger.mockResolvedValue({ id: "run_1" });
 });
 
@@ -114,6 +120,13 @@ describe("POST /api/v1/items/[id]/instagram-enrich", () => {
     const res = await POST(request(validBody), ctx);
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("3600");
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when an enrichment is already in flight (claim fails)", async () => {
+    mockItemUpdateMany.mockResolvedValue({ count: 0 });
+    const res = await POST(request(validBody), ctx);
+    expect(res.status).toBe(409);
     expect(mockTrigger).not.toHaveBeenCalled();
   });
 

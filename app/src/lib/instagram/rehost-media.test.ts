@@ -61,7 +61,11 @@ describe("rehostInstagramMedia", () => {
   });
 
   it("returns a null cover when nothing hosts", async () => {
-    const r = await rehostInstagramMedia([photo("https://cdn/a")], 0, async () => null);
+    const r = await rehostInstagramMedia(
+      [photo("https://cdn/a")],
+      0,
+      async () => null,
+    );
     expect(r.coverFileKey).toBeNull();
     expect(r.coverSize).toBe(0);
     expect(r.storedFileKeys).toEqual([]);

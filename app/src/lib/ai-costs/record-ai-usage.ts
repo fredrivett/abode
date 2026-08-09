@@ -31,7 +31,8 @@ export type AiOperation =
   | "text_embedding"
   | "image_embedding"
   | "vision_analysis"
-  | "image_filtering";
+  | "image_filtering"
+  | "translation";
 export type AiUsageSource = "ingestion" | "search";
 
 export interface RecordAiUsageParams {
