@@ -78,6 +78,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
 import {
@@ -305,15 +306,12 @@ export function ItemCard({
     if (!imageFileKey) {
       setPreviewUrl(null);
       if (
-        !isArticleOrWebpage &&
-        !isProcessingUrl &&
-        !isTwitter &&
-        !isInstagram &&
-        !isVideo &&
-        !isFailedUrl &&
-        !isNote &&
-        !isBook &&
-        !isProduct
+        shouldShowMissingFile({
+          kind: item.kind,
+          hasImageFileKey: false,
+          isProcessingUrl,
+          isFailedUrl,
+        })
       ) {
         setError("Missing file");
       }
@@ -324,18 +322,7 @@ export function ItemCard({
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
     setPreviewUrl(proxyUrl);
-  }, [
-    imageFileKey,
-    isArticleOrWebpage,
-    isProcessingUrl,
-    isTwitter,
-    isInstagram,
-    isVideo,
-    isFailedUrl,
-    isNote,
-    isBook,
-    isProduct,
-  ]);
+  }, [imageFileKey, item.kind, isProcessingUrl, isFailedUrl]);
 
   useEffect(() => {
     setItemName(name);
