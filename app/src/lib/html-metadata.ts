@@ -1373,8 +1373,20 @@ export function extractTwitterArticleId(url: string): string | null {
 export function extractInstagramPost(
   url: string,
 ): { postId: string; mediaType: "post" | "reel" | "tv" } | null {
-  const match = url.match(
-    /instagram\.com\/(?:[^/]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]+)/i,
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  // Validate the real hostname so lookalikes (notinstagram.com) and path-embedded
+  // (example.com/instagram.com/p/…) URLs don't parse as posts.
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname !== "instagram.com" && !hostname.endsWith(".instagram.com")) {
+    return null;
+  }
+  const match = parsed.pathname.match(
+    /^\/(?:[^/]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]+)/i,
   );
   if (!match) return null;
   const segment = match[1].toLowerCase();

@@ -5,6 +5,7 @@ import { InstagramIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { instagramImageSrc } from "@/lib/instagram/image-src";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { InstagramDetails } from "./types";
 
@@ -34,7 +35,12 @@ export function InstagramDetailView({
     commentCount,
   } = instagramDetails;
 
-  const postUrl = sourceUrl ?? `https://www.instagram.com/p/${postId}/`;
+  // Only trust a stored sourceUrl if it's a real http(s) URL; otherwise fall
+  // back to the derived post URL so the link can't navigate somewhere unsafe.
+  const postUrl =
+    sourceUrl && isValidUrl(sourceUrl)
+      ? sourceUrl
+      : `https://www.instagram.com/p/${postId}/`;
   const profileUrl = `https://www.instagram.com/${authorUsername}/`;
 
   return (

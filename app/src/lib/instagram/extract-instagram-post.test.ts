@@ -53,4 +53,14 @@ describe("extractInstagramPost", () => {
       extractInstagramPost("https://example.com/p/DbMJgxFiNTq/"),
     ).toBeNull();
   });
+
+  it("rejects lookalike and path-embedded hostnames", () => {
+    expect(
+      extractInstagramPost("https://notinstagram.com/p/AbC123/"),
+    ).toBeNull();
+    expect(
+      extractInstagramPost("https://example.com/instagram.com/p/AbC123/"),
+    ).toBeNull();
+    expect(extractInstagramPost("not a url")).toBeNull();
+  });
 });
