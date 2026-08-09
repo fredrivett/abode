@@ -15,11 +15,9 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import { tweetBackfillCandidateWhere } from "../src/lib/items/tweet-backfill";
+import { downloadAndStoreImage } from "../src/lib/media/rehost-image";
 import type { TwitterDetails, TwitterMedia } from "../src/lib/types/item";
-import {
-  downloadAndStoreImage,
-  rehostTwitterImages,
-} from "./handle-twitter-url";
+import { rehostTwitterImages } from "./handle-twitter-url";
 import {
   deleteReplacedFiles,
   reclaimReplacedStorage,
