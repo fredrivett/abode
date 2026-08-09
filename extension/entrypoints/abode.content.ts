@@ -15,12 +15,13 @@ const PONG = "ABODE_EXT_PONG";
  */
 // Local builds (WXT_ABODE_LOCAL=1) also target the dev server on localhost;
 // production only ever runs on abode.fyi, so it must not inject elsewhere.
-const isLocalBuild = import.meta.env.WXT_ABODE_LOCAL === "1";
+const matches = ["https://www.abode.fyi/*"];
+if (import.meta.env.WXT_ABODE_LOCAL === "1") {
+  matches.push("http://localhost/*");
+}
 
 export default defineContentScript({
-  matches: isLocalBuild
-    ? ["https://www.abode.fyi/*", "http://localhost/*"]
-    : ["https://www.abode.fyi/*"],
+  matches,
   main() {
     const { version } = browser.runtime.getManifest();
     const announce = () =>
