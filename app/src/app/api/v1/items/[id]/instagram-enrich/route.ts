@@ -91,7 +91,9 @@ async function handlePost(
         kind: "instagram",
         processingStatus: "completed",
       },
-      data: { processingStatus: "processing" },
+      // Restart the reaper clock — the item's old processingStartedAt would
+      // otherwise make the stuck-items sweep mark this fresh run failed.
+      data: { processingStatus: "processing", processingStartedAt: new Date() },
     });
     if (claim.count === 0) {
       return NextResponse.json(

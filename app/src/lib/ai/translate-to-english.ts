@@ -53,11 +53,8 @@ ${text}`,
     response_format: zodResponseFormat(TranslationSchema, "translation"),
   });
 
-  const parsed = completion.choices[0]?.message?.parsed;
-  if (!parsed) {
-    throw new Error("No parsed content in OpenAI response");
-  }
-
+  // Record usage before the parsed-content guard: the call is billed whether or
+  // not the response parsed, so spend must be attributed even when we throw.
   recordAiUsage({
     userId: usageContext.userId,
     itemId: usageContext.itemId,
@@ -68,6 +65,11 @@ ${text}`,
     inputTokens: completion.usage?.prompt_tokens,
     outputTokens: completion.usage?.completion_tokens,
   });
+
+  const parsed = completion.choices[0]?.message?.parsed;
+  if (!parsed) {
+    throw new Error("No parsed content in OpenAI response");
+  }
 
   log.info(
     { inputLength: text.length, outputLength: parsed.english.length },

@@ -37,29 +37,33 @@ export const enrichInstagramItemTask = task({
     const { url: supabaseUrl, key } = getSupabaseConfig();
     const supabase = createClient(supabaseUrl, key);
 
-    try {
-      await persistInstagramItem(supabase, {
-        itemId,
-        userId,
-        url,
-        captureLevel: "full",
-        details,
-      });
-      return { success: true, itemId };
-    } catch (error) {
-      captureServerException(error, userId, {
-        task: "enrich-instagram-item",
-        itemId,
-      });
-      // The basic capture is still intact — release the route's claim so the
-      // item returns to `completed` rather than being stranded in `processing`.
-      await db.item
-        .updateMany({
-          where: { id: itemId, userId, processingStatus: "processing" },
-          data: { processingStatus: "completed" },
-        })
-        .catch(() => {});
-      throw error;
-    }
+    await persistInstagramItem(supabase, {
+      itemId,
+      userId,
+      url,
+      captureLevel: "full",
+      details,
+    });
+    return { success: true, itemId };
+  },
+  // Runs only once all retries are exhausted. The basic capture is intact, so
+  // release the route's claim (processing → completed) rather than stranding
+  // the item. Holding the claim across intermediate retries is deliberate — it
+  // stops a concurrent request enqueueing a second paid enrichment mid-retry.
+  onFailure: async ({ payload, error }) => {
+    captureServerException(error, payload.userId, {
+      task: "enrich-instagram-item",
+      itemId: payload.itemId,
+    });
+    await db.item
+      .updateMany({
+        where: {
+          id: payload.itemId,
+          userId: payload.userId,
+          processingStatus: "processing",
+        },
+        data: { processingStatus: "completed" },
+      })
+      .catch(() => {});
   },
 });
