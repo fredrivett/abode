@@ -16,6 +16,12 @@ import type {
   SourceType,
 } from "@prisma/client";
 
+// Re-export Instagram types for convenience
+export type {
+  InstagramDetails,
+  InstagramMedia,
+  InstagramMediaType,
+} from "@/components/instagram/types";
 // Re-export Twitter types for convenience
 export type {
   TwitterDetails,
@@ -207,6 +213,9 @@ export type Item = {
   locations: ItemLocation[];
   articleDetails: ArticleDetails | null;
   twitterDetails: import("@/components/twitter/types").TwitterDetails | null;
+  instagramDetails:
+    | import("@/components/instagram/types").InstagramDetails
+    | null;
   videoDetails: VideoDetails | null;
   productDetails: ProductDetails | null;
   bookDetails: BookDetails | null;

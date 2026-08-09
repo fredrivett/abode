@@ -35,6 +35,7 @@ import {
 import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
+import { handleInstagramUrl } from "./handle-instagram-url";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
@@ -383,6 +384,23 @@ export const classifyUrlTask = task({
             url: urlClassification.url,
             platform: urlClassification.platform,
             videoId: urlClassification.videoId,
+          },
+          supabase,
+        );
+      }
+      if (urlClassification?.kind === "instagram") {
+        logger.log("URL classified as Instagram post", {
+          itemId,
+          url: urlClassification.url,
+          postId: urlClassification.postId,
+        });
+        return await handleInstagramUrl(
+          {
+            itemId,
+            userId,
+            url: urlClassification.url,
+            postId: urlClassification.postId,
+            mediaType: urlClassification.mediaType,
           },
           supabase,
         );

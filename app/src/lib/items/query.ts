@@ -7,6 +7,8 @@ import type {
   BookDetails,
   ExternalLink,
   ImageColor,
+  InstagramDetails,
+  InstagramMedia,
   NoteDetails,
   ProductDetails,
   ProductImage,
@@ -83,6 +85,20 @@ export const itemSelect = {
       media: true,
       quotedTweetId: true,
       card: true,
+      coverMediaIndex: true,
+    },
+  },
+  instagramDetails: {
+    select: {
+      postId: true,
+      mediaType: true,
+      authorName: true,
+      authorUsername: true,
+      caption: true,
+      postedAt: true,
+      media: true,
+      likeCount: true,
+      commentCount: true,
       coverMediaIndex: true,
     },
   },
@@ -204,6 +220,21 @@ export function transformItem(item: RawItem) {
           card: item.twitterDetails.card as TwitterDetails["card"],
           coverMediaIndex: item.twitterDetails.coverMediaIndex,
         } satisfies TwitterDetails)
+      : null,
+    instagramDetails: item.instagramDetails
+      ? ({
+          postId: item.instagramDetails.postId,
+          mediaType: item.instagramDetails
+            .mediaType as InstagramDetails["mediaType"],
+          authorName: item.instagramDetails.authorName,
+          authorUsername: item.instagramDetails.authorUsername,
+          caption: item.instagramDetails.caption,
+          postedAt: item.instagramDetails.postedAt?.toISOString() ?? null,
+          media: item.instagramDetails.media as InstagramMedia[] | null,
+          likeCount: item.instagramDetails.likeCount,
+          commentCount: item.instagramDetails.commentCount,
+          coverMediaIndex: item.instagramDetails.coverMediaIndex,
+        } satisfies InstagramDetails)
       : null,
     videoDetails: item.videoDetails
       ? ({

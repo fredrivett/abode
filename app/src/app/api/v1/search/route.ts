@@ -31,6 +31,8 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   BookDetails,
   ImageColor,
+  InstagramDetails,
+  InstagramMedia,
   MatchReason,
   ProductDetails,
   ProductImage,
@@ -106,6 +108,16 @@ type RawItemRow = {
   twitter_quoted_tweet_id: string | null;
   twitter_card: unknown;
   twitter_cover_media_index: number | null;
+  instagram_post_id: string | null;
+  instagram_media_type: string | null;
+  instagram_author_name: string | null;
+  instagram_author_username: string | null;
+  instagram_caption: string | null;
+  instagram_posted_at: Date | null;
+  instagram_media: unknown;
+  instagram_like_count: number | null;
+  instagram_comment_count: number | null;
+  instagram_cover_media_index: number | null;
   video_platform: string | null;
   video_video_id: string | null;
   video_channel_name: string | null;
@@ -220,6 +232,22 @@ function transformRawItemToItem(
             card: row.twitter_card as TwitterDetails["card"],
             coverMediaIndex: row.twitter_cover_media_index,
           } satisfies TwitterDetails)
+        : null,
+    instagramDetails:
+      row.instagram_post_id && row.instagram_author_username
+        ? ({
+            postId: row.instagram_post_id,
+            mediaType:
+              row.instagram_media_type as InstagramDetails["mediaType"],
+            authorName: row.instagram_author_name,
+            authorUsername: row.instagram_author_username,
+            caption: row.instagram_caption,
+            postedAt: row.instagram_posted_at?.toISOString() ?? null,
+            media: row.instagram_media as InstagramMedia[] | null,
+            likeCount: row.instagram_like_count,
+            commentCount: row.instagram_comment_count,
+            coverMediaIndex: row.instagram_cover_media_index,
+          } satisfies InstagramDetails)
         : null,
     videoDetails:
       row.video_platform && row.video_video_id
@@ -672,6 +700,16 @@ async function executeFiltersOnlySearch(
       td.quoted_tweet_id as twitter_quoted_tweet_id,
       td.card as twitter_card,
       td.cover_media_index as twitter_cover_media_index,
+      ig.post_id as instagram_post_id,
+      ig.media_type as instagram_media_type,
+      ig.author_name as instagram_author_name,
+      ig.author_username as instagram_author_username,
+      ig.caption as instagram_caption,
+      ig.posted_at as instagram_posted_at,
+      ig.media as instagram_media,
+      ig.like_count as instagram_like_count,
+      ig.comment_count as instagram_comment_count,
+      ig.cover_media_index as instagram_cover_media_index,
       vd.platform as video_platform,
       vd.video_id as video_video_id,
       vd.channel_name as video_channel_name,
@@ -704,6 +742,7 @@ async function executeFiltersOnlySearch(
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
     LEFT JOIN item_article_details ad ON ad.item_id = items.id
     LEFT JOIN item_twitter_details td ON td.item_id = items.id
+    LEFT JOIN item_instagram_details ig ON ig.item_id = items.id
     LEFT JOIN item_video_details vd ON vd.item_id = items.id
     LEFT JOIN item_product_details pd ON pd.item_id = items.id
     LEFT JOIN item_book_details bd ON bd.item_id = items.id
@@ -945,6 +984,16 @@ async function executeRankedSearch(
       td.quoted_tweet_id as twitter_quoted_tweet_id,
       td.card as twitter_card,
       td.cover_media_index as twitter_cover_media_index,
+      ig.post_id as instagram_post_id,
+      ig.media_type as instagram_media_type,
+      ig.author_name as instagram_author_name,
+      ig.author_username as instagram_author_username,
+      ig.caption as instagram_caption,
+      ig.posted_at as instagram_posted_at,
+      ig.media as instagram_media,
+      ig.like_count as instagram_like_count,
+      ig.comment_count as instagram_comment_count,
+      ig.cover_media_index as instagram_cover_media_index,
       vd.platform as video_platform,
       vd.video_id as video_video_id,
       vd.channel_name as video_channel_name,
@@ -977,6 +1026,7 @@ async function executeRankedSearch(
     LEFT JOIN item_image_details iid ON iid.item_id = i.id
     LEFT JOIN item_article_details ad ON ad.item_id = i.id
     LEFT JOIN item_twitter_details td ON td.item_id = i.id
+    LEFT JOIN item_instagram_details ig ON ig.item_id = i.id
     LEFT JOIN item_video_details vd ON vd.item_id = i.id
     LEFT JOIN item_product_details pd ON pd.item_id = i.id
     LEFT JOIN item_book_details bd ON bd.item_id = i.id

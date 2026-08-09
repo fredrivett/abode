@@ -24,6 +24,7 @@ import {
   type BookMetadata,
   extractArticleMetadata,
   extractBookMetadata,
+  extractInstagramPost,
   extractProductMetadata,
   extractTweetId,
   extractTwitterArticleId,
@@ -83,6 +84,12 @@ function isArticleContent(
 export type ItemClassification =
   | { kind: "twitter"; tweetId: string; url: string }
   | { kind: "twitterArticle"; articleId: string; url: string }
+  | {
+      kind: "instagram";
+      postId: string;
+      mediaType: "post" | "reel" | "tv";
+      url: string;
+    }
   | {
       kind: "video";
       platform: "youtube" | "vimeo";
@@ -219,6 +226,13 @@ export function classifyItemKind(
     if (articleId) {
       return { kind: "twitterArticle", articleId, url: resolvedUrl };
     }
+  }
+
+  // Instagram posts are decided from the resolved URL. A non-post Instagram URL
+  // (profile, /stories, /explore) falls through to the generic detectors.
+  if (detectPlatform(url) === "instagram") {
+    const post = extractInstagramPost(resolvedUrl);
+    if (post) return { kind: "instagram", ...post, url: resolvedUrl };
   }
 
   const youtubeVideoId = extractYouTubeVideoId(resolvedUrl);

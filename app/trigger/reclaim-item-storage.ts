@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import {
+  extractInstagramImageKeys,
   extractProductImageKeys,
   extractTwitterImageKeys,
   filesToRemove,
@@ -36,6 +37,7 @@ export async function reclaimReplacedStorage(
       coverFileKey: true,
       productDetails: { select: { images: true } },
       twitterDetails: { select: { media: true, card: true } },
+      instagramDetails: { select: { media: true } },
     },
   });
   if (!existing) return [];
@@ -57,6 +59,7 @@ export async function reclaimReplacedStorage(
       existing.twitterDetails?.media,
       existing.twitterDetails?.card,
     ),
+    ...extractInstagramImageKeys(existing.instagramDetails?.media),
   ].filter((key): key is string => typeof key === "string" && key.length > 0);
 }
 

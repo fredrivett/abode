@@ -1365,6 +1365,25 @@ export function extractTwitterArticleId(url: string): string | null {
 }
 
 /**
+ * Extracts the shortcode + media type from an Instagram post/reel/IGTV URL.
+ * Handles bare (`/p/<code>/`) and username-scoped (`/<user>/p/<code>/`) forms;
+ * `/reel/`, `/reels/` and `/tv/` too. Returns null for profiles, /stories,
+ * /explore and anything else that isn't a single saveable post.
+ */
+export function extractInstagramPost(
+  url: string,
+): { postId: string; mediaType: "post" | "reel" | "tv" } | null {
+  const match = url.match(
+    /instagram\.com\/(?:[^/]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]+)/i,
+  );
+  if (!match) return null;
+  const segment = match[1].toLowerCase();
+  const mediaType =
+    segment === "tv" ? "tv" : segment.startsWith("reel") ? "reel" : "post";
+  return { postId: match[2], mediaType };
+}
+
+/**
  * Extracts the video ID from a YouTube URL
  * Supports various URL formats:
  * - https://www.youtube.com/watch?v=VIDEO_ID

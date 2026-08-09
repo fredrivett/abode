@@ -7,8 +7,9 @@ import { itemAccessSelect } from "./access";
  * proxy to authorize a request. Re-hostable keys live in several places: the
  * item's own `fileKey`/`coverFileKey`, and inside JSON blobs — the product
  * gallery (`ItemProductDetails.images`), a tweet's media stills
- * (`ItemTwitterDetails.media[].fileKey`), and a tweet's link-card image
- * (`ItemTwitterDetails.card.imageFileKey`). JSONB containment matches these
+ * (`ItemTwitterDetails.media[].fileKey`), a tweet's link-card image
+ * (`ItemTwitterDetails.card.imageFileKey`), and an Instagram post's media
+ * (`ItemInstagramDetails.media[].fileKey`). JSONB containment matches these
  * without scanning every row.
  *
  * Any new kind that stores keys in JSON must be added here, or the proxy will
@@ -24,6 +25,7 @@ export function itemOwningImageKeyWhere(
       { productDetails: { images: { array_contains: [{ fileKey }] } } },
       { twitterDetails: { media: { array_contains: [{ fileKey }] } } },
       { twitterDetails: { card: { path: ["imageFileKey"], equals: fileKey } } },
+      { instagramDetails: { media: { array_contains: [{ fileKey }] } } },
     ],
   };
 }
