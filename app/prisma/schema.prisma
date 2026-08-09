@@ -62,6 +62,7 @@ enum ItemKind {
   image
   article
   twitter
+  instagram
   video
   product
   note
@@ -73,6 +74,14 @@ enum SourceType {
   upload
   url
   compose
+}
+
+// How completely an item's content was captured. Most items are captured at
+// full fidelity server-side; some are only partially captured server-side and
+// can be enriched to `full` later by a client-side (extension) pass.
+enum CaptureLevel {
+  basic
+  full
 }
 
 enum ProcessingStatus {
@@ -166,6 +175,11 @@ model Item {
   sourceType       SourceType?      @map("source_type")
   sourceUrl        String?          @map("source_url")
 
+  // How completely this item's content was captured (see CaptureLevel).
+  // Defaults to `full`; a partial server-side capture is marked `basic` so the
+  // UI can offer to enrich it later.
+  captureLevel     CaptureLevel     @default(full) @map("capture_level")
+
   // Gates non-admin reassignment to once per UTC day.
   lastReassignedAt DateTime?        @map("last_reassigned_at")
 
@@ -215,6 +229,7 @@ model Item {
   articleDetails    ItemArticleDetails?
   imageDetails      ItemImageDetails?
   twitterDetails    ItemTwitterDetails?
+  instagramDetails  ItemInstagramDetails?
   videoDetails      ItemVideoDetails?
   productDetails    ItemProductDetails?
   bookDetails       ItemBookDetails?
@@ -412,6 +427,27 @@ model ItemTwitterDetails {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("item_twitter_details")
+}
+
+model ItemInstagramDetails {
+  itemId          String    @id @map("item_id") @db.Uuid
+  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  postId          String    @map("post_id")            // Instagram shortcode (from /p/<code>/)
+  mediaType       String    @map("media_type")         // "post" | "reel" | "tv"
+  authorName      String?   @map("author_name")        // Display name
+  authorUsername  String    @map("author_username")    // @handle
+  caption         String?                               // Post caption
+  postedAt        DateTime? @map("posted_at")          // When the post was published
+  media           Json?                                 // Array of media objects with type, url, dimensions
+  likeCount       Int?      @map("like_count")
+  commentCount    Int?      @map("comment_count")
+  coverMediaIndex Int?      @map("cover_media_index")  // Index into media[] for cover image
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("item_instagram_details")
 }
 
 model ItemVideoDetails {
