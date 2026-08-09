@@ -211,6 +211,7 @@ export function ItemsGrid({
               const isArticleOrWebpage =
                 item.kind === "article" || item.kind === "webpage";
               const isTwitter = item.kind === "twitter";
+              const isInstagram = item.kind === "instagram";
               const isVideo = item.kind === "video";
               const isProduct = item.kind === "product";
               const isBook = item.kind === "book";
@@ -270,6 +271,19 @@ export function ItemsGrid({
                   // Text-only tweet placeholder
                   width = 16;
                   height = 12;
+                }
+              } else if (isInstagram) {
+                const coverIndex = item.instagramDetails?.coverMediaIndex ?? 0;
+                const coverMedia =
+                  item.instagramDetails?.media?.[coverIndex] ??
+                  item.instagramDetails?.media?.[0];
+                if (coverMedia?.width && coverMedia?.height) {
+                  width = coverMedia.width;
+                  height = coverMedia.height;
+                } else {
+                  // OG covers carry no dimensions; Instagram posts are ~square
+                  width = 1;
+                  height = 1;
                 }
               } else if (isVideo) {
                 // New videos persist thumbnail dims into meta; older ones fall back to 16:9

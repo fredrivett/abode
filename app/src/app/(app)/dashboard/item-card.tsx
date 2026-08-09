@@ -39,6 +39,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { PlatformIcon } from "@/components/icons/platform-icons";
+import { InstagramCard } from "@/components/instagram/instagram-card";
 import { NoteCard } from "@/components/note/note-card";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import {
@@ -166,6 +167,14 @@ const ProductDetailView = dynamic(
   { ssr: false, loading: detailViewLoading },
 );
 
+const InstagramDetailView = dynamic(
+  () =>
+    import("@/components/instagram/instagram-detail-view").then(
+      (m) => m.InstagramDetailView,
+    ),
+  { ssr: false, loading: detailViewLoading },
+);
+
 const TwitterDetailView = dynamic(
   () =>
     import("@/components/twitter/twitter-detail-view").then(
@@ -264,6 +273,7 @@ export function ItemCard({
   const isArticle = item.kind === "article";
   const isWebpage = item.kind === "webpage";
   const isTwitter = item.kind === "twitter";
+  const isInstagram = item.kind === "instagram";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
   const isBook = item.kind === "book";
@@ -298,6 +308,7 @@ export function ItemCard({
         !isArticleOrWebpage &&
         !isProcessingUrl &&
         !isTwitter &&
+        !isInstagram &&
         !isVideo &&
         !isFailedUrl &&
         !isNote &&
@@ -318,6 +329,7 @@ export function ItemCard({
     isArticleOrWebpage,
     isProcessingUrl,
     isTwitter,
+    isInstagram,
     isVideo,
     isFailedUrl,
     isNote,
@@ -700,6 +712,38 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <TwitterCard
             twitterDetails={item.twitterDetails}
+            blurDataUrl={blurDataUrl}
+            onClick={handleOpenDetail}
+          />
+        </div>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={null}
+          imageFileKey={null}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Instagram items get the custom InstagramCard
+  if (isInstagram && item.instagramDetails) {
+    return (
+      <>
+        <div className="relative h-full w-full">
+          <ProcessingOverlay status={item.processingStatus} />
+          <InstagramCard
+            instagramDetails={item.instagramDetails}
             blurDataUrl={blurDataUrl}
             onClick={handleOpenDetail}
           />
@@ -1288,6 +1332,7 @@ function ItemDetailDialog({
   const isArticle = item.kind === "article";
   const isWebpage = item.kind === "webpage";
   const isTwitter = item.kind === "twitter";
+  const isInstagram = item.kind === "instagram";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
   const isBook = item.kind === "book";
@@ -1735,6 +1780,19 @@ function ItemDetailDialog({
                     content={item.articleDetails.content}
                     originalName={meta.originalName as string | undefined}
                     scrollToHighlightId={scrollToHighlightId}
+                  />
+                </motion.div>
+              ) : isInstagram && item.instagramDetails ? (
+                <motion.div
+                  className="flex h-full w-full overflow-y-auto bg-background"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <InstagramDetailView
+                    instagramDetails={item.instagramDetails}
+                    sourceUrl={item.sourceUrl}
+                    className="py-8"
                   />
                 </motion.div>
               ) : isTwitter && item.twitterDetails ? (

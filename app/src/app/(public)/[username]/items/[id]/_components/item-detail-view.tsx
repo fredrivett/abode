@@ -2,6 +2,7 @@
 
 import { ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
+import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import { DateTime } from "@/components/ui/date-time";
@@ -48,6 +49,7 @@ type ClientItem = Pick<
   | "locations"
   | "articleDetails"
   | "twitterDetails"
+  | "instagramDetails"
   | "videoDetails"
   | "productDetails"
 > & { createdAt: string };
@@ -83,6 +85,7 @@ export function ItemDetailView({
 }: Props) {
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
+  const isInstagram = item.kind === "instagram";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
 
@@ -91,7 +94,12 @@ export function ItemDetailView({
 
   const imageFileKey = item.fileKey;
   const showImage =
-    !isArticle && !isTwitter && !isVideo && !isProduct && !!imageFileKey;
+    !isArticle &&
+    !isTwitter &&
+    !isInstagram &&
+    !isVideo &&
+    !isProduct &&
+    !!imageFileKey;
   const imageUrl = showImage ? getProxyImageUrl(imageFileKey, "detail") : null;
 
   const ownerHref = owner.username ? `/@${owner.username}` : null;
@@ -182,6 +190,18 @@ export function ItemDetailView({
             </div>
           ) : (
             <EmptyState label="No tweet content" />
+          )
+        ) : isInstagram ? (
+          item.instagramDetails ? (
+            <div className="rounded-lg border border-border bg-background">
+              <InstagramDetailView
+                instagramDetails={item.instagramDetails}
+                sourceUrl={item.sourceUrl}
+                className="py-8"
+              />
+            </div>
+          ) : (
+            <EmptyState label="No post content" />
           )
         ) : isVideo ? (
           item.videoDetails ? (

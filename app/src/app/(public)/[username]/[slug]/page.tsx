@@ -7,6 +7,8 @@ import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
 import type { Filter } from "@/lib/search/types";
 import type {
   BookDetails,
+  InstagramDetails,
+  InstagramMedia,
   NoteDetails,
   ProductDetails,
   ProductImage,
@@ -205,6 +207,20 @@ export default async function RoomPage({ params }: Props) {
               coverMediaIndex: true,
             },
           },
+          instagramDetails: {
+            select: {
+              postId: true,
+              mediaType: true,
+              authorName: true,
+              authorUsername: true,
+              caption: true,
+              postedAt: true,
+              media: true,
+              likeCount: true,
+              commentCount: true,
+              coverMediaIndex: true,
+            },
+          },
           videoDetails: {
             select: {
               platform: true,
@@ -312,6 +328,24 @@ export default async function RoomPage({ params }: Props) {
           card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
           coverMediaIndex: roomItem.item.twitterDetails.coverMediaIndex,
         } satisfies TwitterDetails)
+      : null,
+    instagramDetails: roomItem.item.instagramDetails
+      ? ({
+          postId: roomItem.item.instagramDetails.postId,
+          mediaType: roomItem.item.instagramDetails
+            .mediaType as InstagramDetails["mediaType"],
+          authorName: roomItem.item.instagramDetails.authorName,
+          authorUsername: roomItem.item.instagramDetails.authorUsername,
+          caption: roomItem.item.instagramDetails.caption,
+          postedAt:
+            roomItem.item.instagramDetails.postedAt?.toISOString() ?? null,
+          media: roomItem.item.instagramDetails.media as
+            | InstagramMedia[]
+            | null,
+          likeCount: roomItem.item.instagramDetails.likeCount,
+          commentCount: roomItem.item.instagramDetails.commentCount,
+          coverMediaIndex: roomItem.item.instagramDetails.coverMediaIndex,
+        } satisfies InstagramDetails)
       : null,
     videoDetails: roomItem.item.videoDetails
       ? ({

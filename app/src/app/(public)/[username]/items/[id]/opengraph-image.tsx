@@ -17,6 +17,7 @@ const KIND_LABELS: Record<string, string> = {
   image: "Image",
   article: "Article",
   twitter: "Post",
+  instagram: "Instagram post",
   video: "Video",
   product: "Product",
   note: "Note",

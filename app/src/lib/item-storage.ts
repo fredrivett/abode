@@ -21,6 +21,19 @@ export function getItemStorageBytes(meta: unknown): bigint {
   );
 }
 
+/** Non-empty `fileKey` strings from a JSON array of media/image objects. */
+function collectFileKeys(value: Prisma.JsonValue | null | undefined): string[] {
+  if (!Array.isArray(value)) return [];
+  const keys: string[] = [];
+  for (const entry of value) {
+    if (entry && typeof entry === "object" && "fileKey" in entry) {
+      const key = (entry as Record<string, unknown>).fileKey;
+      if (typeof key === "string" && key.length > 0) keys.push(key);
+    }
+  }
+  return keys;
+}
+
 /**
  * File keys of the images stored in an ItemProductDetails.images JSON blob.
  * A product stores several images, only the first of which is the cover.
@@ -28,15 +41,7 @@ export function getItemStorageBytes(meta: unknown): bigint {
 export function extractProductImageKeys(
   images: Prisma.JsonValue | null | undefined,
 ): string[] {
-  if (!Array.isArray(images)) return [];
-  const keys: string[] = [];
-  for (const image of images) {
-    if (image && typeof image === "object" && "fileKey" in image) {
-      const key = (image as Record<string, unknown>).fileKey;
-      if (typeof key === "string" && key.length > 0) keys.push(key);
-    }
-  }
-  return keys;
+  return collectFileKeys(images);
 }
 
 /**
@@ -49,20 +54,23 @@ export function extractTwitterImageKeys(
   media: Prisma.JsonValue | null | undefined,
   card: Prisma.JsonValue | null | undefined,
 ): string[] {
-  const keys: string[] = [];
-  if (Array.isArray(media)) {
-    for (const item of media) {
-      if (item && typeof item === "object" && "fileKey" in item) {
-        const key = (item as Record<string, unknown>).fileKey;
-        if (typeof key === "string" && key.length > 0) keys.push(key);
-      }
-    }
-  }
+  const keys = collectFileKeys(media);
   if (card && typeof card === "object" && "imageFileKey" in card) {
     const key = (card as Record<string, unknown>).imageFileKey;
     if (typeof key === "string" && key.length > 0) keys.push(key);
   }
   return keys;
+}
+
+/**
+ * File keys of the images re-hosted for an Instagram post: each media still.
+ * Only the cover is accounted for in `meta.coverSize`, but all of them must be
+ * deleted on reanalysis so they don't leak.
+ */
+export function extractInstagramImageKeys(
+  media: Prisma.JsonValue | null | undefined,
+): string[] {
+  return collectFileKeys(media);
 }
 
 /**
