@@ -1,35 +1,14 @@
-import { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { logger, tasks } from "@trigger.dev/sdk";
-import { translateToEnglish } from "../src/lib/ai/translate-to-english";
-import db from "../src/lib/db";
+import { logger } from "@trigger.dev/sdk";
 import { extractMetaContent } from "../src/lib/html-metadata";
 import { safeFetch } from "../src/lib/http/safe-fetch";
-import { pruneStaleItemDetails } from "../src/lib/item-details";
-import { downloadAndStoreImage } from "../src/lib/media/rehost-image";
-import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
-import type {
-  ExternalLink,
-  InstagramDetails,
-  InstagramMedia,
-} from "../src/lib/types/item";
-import type { analyzeMediaCoverTask } from "./analyze-media-cover";
-import type { enrichItemTask } from "./enrich-item";
-import {
-  deleteReplacedFiles,
-  reclaimReplacedStorage,
-} from "./reclaim-item-storage";
+import type { InstagramDetails } from "../src/lib/types/item";
+import { persistInstagramItem } from "./persist-instagram-item";
 
 // Instagram serves full OpenGraph tags only to whitelisted link-preview
 // user-agents; a normal browser UA gets an empty shell.
 const FB_UA =
   "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
-
-const TITLE_VERB: Record<InstagramDetails["mediaType"], string> = {
-  post: "Post",
-  reel: "Reel",
-  tv: "Video",
-};
 
 type HandleInstagramUrlPayload = {
   itemId: string;
@@ -118,8 +97,8 @@ export function parseInstagramOg(
 }
 
 /**
- * Handle an Instagram post URL: fetch its OpenGraph metadata, re-host the cover
- * image, and store it as a `basic`-capture instagram item. The browser
+ * Handle an Instagram post URL: fetch its OpenGraph metadata and store it as a
+ * `basic`-capture instagram item (a single re-hosted cover). The browser
  * extension can later enrich it to the full carousel (`full` capture).
  */
 export async function handleInstagramUrl(
@@ -146,29 +125,6 @@ export async function handleInstagramUrl(
     );
   }
 
-  // Re-host the OG cover so it survives cdninstagram URL expiry / post deletion.
-  let coverFileKey: string | null = null;
-  let coverSize = 0;
-  const storedFileKeys: string[] = [];
-  let media: InstagramMedia[] | null = og.coverImageUrl
-    ? [{ type: "photo", url: og.coverImageUrl }]
-    : null;
-  if (og.coverImageUrl) {
-    const stored = await downloadAndStoreImage(
-      og.coverImageUrl,
-      userId,
-      supabase,
-    );
-    if (stored) {
-      coverFileKey = stored.fileKey;
-      coverSize = stored.size;
-      storedFileKeys.push(stored.fileKey);
-      media = [
-        { type: "photo", url: og.coverImageUrl, fileKey: stored.fileKey },
-      ];
-    }
-  }
-
   const details: InstagramDetails = {
     postId,
     mediaType,
@@ -176,127 +132,19 @@ export async function handleInstagramUrl(
     authorUsername: og.authorUsername ?? "unknown",
     caption: og.caption,
     postedAt: og.postedAt,
-    media,
+    media: og.coverImageUrl ? [{ type: "photo", url: og.coverImageUrl }] : null,
     likeCount: og.likeCount,
     commentCount: og.commentCount,
-    coverMediaIndex: media ? 0 : null,
+    coverMediaIndex: og.coverImageUrl ? 0 : null,
   };
 
-  // Translate the caption to English for the description (no-op if already English).
-  let descriptionEn: string | null = null;
-  if (og.caption) {
-    try {
-      descriptionEn = await translateToEnglish(og.caption);
-    } catch (error) {
-      logger.log("Failed to translate Instagram caption, using original", {
-        itemId,
-        error,
-      });
-      descriptionEn = og.caption;
-    }
-  }
-
-  const normalizedUrl = normalizeUrl(url);
-  const title = og.authorUsername
-    ? `${TITLE_VERB[mediaType]} by @${og.authorUsername}`
-    : "Instagram post";
-
-  let replacedFileKeys: string[];
-  try {
-    replacedFileKeys = await db.$transaction(async (tx) => {
-      const oldFileKeys = await reclaimReplacedStorage(tx, {
-        itemId,
-        userId,
-        addedBytes: coverSize,
-      });
-
-      const item = await tx.item.findUniqueOrThrow({
-        where: { id: itemId, userId },
-        select: { externalLinks: true },
-      });
-      const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
-      const hasLink = existingLinks.some(
-        (link) => normalizeUrl(link.url) === normalizedUrl,
-      );
-
-      await tx.item.update({
-        where: { id: itemId, userId },
-        data: {
-          kind: "instagram",
-          captureLevel: "basic",
-          title,
-          description: descriptionEn?.slice(0, 200) ?? null,
-          // Clear file columns the new kind doesn't use so they never point at a
-          // blob deleteReplacedFiles is about to remove
-          fileKey: null,
-          coverFileKey,
-          meta: coverSize > 0 ? { coverSize } : Prisma.JsonNull,
-          externalLinks: hasLink
-            ? undefined
-            : [
-                ...existingLinks,
-                { url: normalizedUrl, platform: detectPlatform(normalizedUrl) },
-              ],
-        },
-      });
-
-      // Drop detail rows from a prior kind (e.g. this was an article before)
-      await pruneStaleItemDetails(tx, itemId, "instagram");
-
-      const detailsData = {
-        postId: details.postId,
-        mediaType: details.mediaType,
-        authorName: details.authorName,
-        authorUsername: details.authorUsername,
-        caption: details.caption,
-        postedAt: details.postedAt ? new Date(details.postedAt) : null,
-        media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        likeCount: details.likeCount,
-        commentCount: details.commentCount,
-        coverMediaIndex: details.coverMediaIndex,
-      };
-      await tx.itemInstagramDetails.upsert({
-        where: { itemId },
-        create: { itemId, ...detailsData },
-        update: detailsData,
-      });
-
-      return oldFileKeys;
-    });
-  } catch (error) {
-    // The cover was uploaded before this transaction; a failed commit orphans
-    // it (no row references it). Delete it so retries don't accumulate orphans.
-    await deleteReplacedFiles(supabase, storedFileKeys, []);
-    throw error;
-  }
-
-  // Delete the previous blobs now the new cover is committed
-  await deleteReplacedFiles(supabase, replacedFileKeys, storedFileKeys);
-
-  logger.log("Instagram item saved", { itemId, postId });
-
-  // Enrichment: a re-hosted cover is analysed by analyze-media-cover (blends the
-  // cover's objects/OCR with the caption); a cover-less capture enriches from
-  // the caption text directly.
-  if (coverFileKey) {
-    await tasks.trigger<typeof analyzeMediaCoverTask>("analyze-media-cover", {
-      itemId,
-      userId,
-      fileKey: coverFileKey,
-      extraSourceText: og.caption ?? undefined,
-    });
-  } else {
-    await tasks.trigger<typeof enrichItemTask>("enrich-item", {
-      itemId,
-      userId,
-      sourceText: og.caption ?? undefined,
-    });
-  }
-
-  return {
-    success: true,
+  const instagramDetails = await persistInstagramItem(supabase, {
     itemId,
-    kind: "instagram",
-    instagramDetails: details,
-  };
+    userId,
+    url,
+    captureLevel: "basic",
+    details,
+  });
+
+  return { success: true, itemId, kind: "instagram", instagramDetails };
 }
