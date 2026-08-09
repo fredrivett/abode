@@ -265,7 +265,11 @@ export async function handleTwitterUrl(
   let descriptionEn: string | null = null;
   if (twitterDetails.text) {
     try {
-      descriptionEn = await translateToEnglish(twitterDetails.text);
+      descriptionEn = await translateToEnglish(twitterDetails.text, {
+        userId,
+        itemId,
+        itemKind: "twitter",
+      });
     } catch (error) {
       logger.log("Failed to translate tweet text, falling back to original", {
         itemId,
