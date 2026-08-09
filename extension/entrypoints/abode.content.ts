@@ -13,8 +13,6 @@ const PONG = "ABODE_EXT_PONG";
  * load so the page detects us even if it mounted before we injected. localhost
  * matches any dev port; abode.fyi is production.
  */
-// Local builds (WXT_ABODE_LOCAL=1) also target the dev server on localhost;
-// production only ever runs on abode.fyi, so it must not inject elsewhere.
 const matches = ["https://www.abode.fyi/*"];
 if (import.meta.env.WXT_ABODE_LOCAL === "1") {
   matches.push("http://localhost/*");
