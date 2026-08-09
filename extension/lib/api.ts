@@ -42,6 +42,21 @@ export function saveUrl(url: string): Promise<SavedItem> {
   return post<SavedItem>("/api/v1/items/from-url", { url, source: "extension" });
 }
 
+/**
+ * Save an Instagram post with media scraped off the logged-in page, so abode
+ * captures the full carousel (`full`) instead of the single-image OG cover.
+ */
+export function saveInstagramScrape(
+  url: string,
+  instagram: unknown,
+): Promise<SavedItem> {
+  return post<SavedItem>("/api/v1/items/from-url", {
+    url,
+    source: "extension",
+    instagram,
+  });
+}
+
 /** Save selected text as a note. */
 export function saveNote(content: string, title?: string): Promise<SavedItem> {
   return post<SavedItem>("/api/v1/items/notes", { content, title });

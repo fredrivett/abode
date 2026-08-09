@@ -1,4 +1,10 @@
-import { NotSignedInError, saveNote, saveUrl } from "@/lib/api";
+import {
+  NotSignedInError,
+  saveInstagramScrape,
+  saveNote,
+  saveUrl,
+} from "@/lib/api";
+import { scrapeInstagramTab } from "@/lib/instagram-scrape";
 import { defineBackground } from "#imports";
 import { browser } from "wxt/browser";
 
@@ -39,7 +45,7 @@ export default defineBackground(() => {
     try {
       switch (info.menuItemId) {
         case MENU.page:
-          await saveUrl(info.pageUrl ?? tab?.url ?? "");
+          await saveActivePage({ id: tab?.id, url: info.pageUrl ?? tab?.url });
           break;
         case MENU.link:
           await saveUrl(info.linkUrl ?? "");
@@ -68,13 +74,32 @@ export default defineBackground(() => {
         currentWindow: true,
       });
       if (!tab?.url) return;
-      await saveUrl(tab.url);
+      await saveActivePage(tab);
       await onSaved();
     } catch (error) {
       await onError(error);
     }
   });
 });
+
+/**
+ * Save the current page. An Instagram post is scraped in-page (activeTab) and
+ * saved with its full media; anything else — or a failed/empty scrape — falls
+ * back to a plain URL save.
+ */
+async function saveActivePage(tab: {
+  id?: number;
+  url?: string;
+}): Promise<void> {
+  const url = tab.url;
+  if (!url) return;
+  const scrape = tab.id != null ? await scrapeInstagramTab(tab.id, url) : null;
+  if (scrape) {
+    await saveInstagramScrape(url, scrape);
+  } else {
+    await saveUrl(url);
+  }
+}
 
 async function onSaved(): Promise<void> {
   await flashBadge("✓", "#16a34a");

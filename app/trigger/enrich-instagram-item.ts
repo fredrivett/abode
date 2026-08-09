@@ -14,6 +14,12 @@ type EnrichInstagramItemPayload = {
   url: string;
   /** Full details scraped by the extension; media has no fileKeys yet. */
   details: InstagramDetails;
+  /**
+   * Terminal status if every retry fails. An enrich of an existing item leaves
+   * the basic capture intact (`completed`, default); a fresh direct-save has no
+   * prior capture, so it should surface a retry (`failed`).
+   */
+  restoreStatusOnFailure?: "completed" | "failed";
 };
 
 /**
@@ -62,7 +68,12 @@ export const enrichInstagramItemTask = task({
           userId: payload.userId,
           processingStatus: "processing",
         },
-        data: { processingStatus: "completed" },
+        data: {
+          processingStatus: payload.restoreStatusOnFailure ?? "completed",
+          ...(payload.restoreStatusOnFailure === "failed"
+            ? { processingError: "unknown" }
+            : {}),
+        },
       })
       .catch(() => {});
   },

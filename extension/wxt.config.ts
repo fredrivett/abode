@@ -31,7 +31,15 @@ export default defineConfig({
     // activeTab: read the current tab's URL/title only on a user gesture (icon
     // click or the save shortcut). contextMenus/storage/notifications for the
     // right-click saves, session storage, and the background "Saved" toast.
-    permissions: ["activeTab", "contextMenus", "storage", "notifications"],
+    // scripting: inject the Instagram media scraper into the active tab on a
+    // user gesture (paired with activeTab, so no instagram.com host prompt).
+    permissions: [
+      "activeTab",
+      "scripting",
+      "contextMenus",
+      "storage",
+      "notifications",
+    ],
     host_permissions: isLocal
       ? [
           "http://localhost/*",

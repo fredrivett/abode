@@ -2,6 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
 import {
+  type InstagramScrapeInput,
+  instagramScrapeSchema,
+} from "@/lib/instagram/scrape-schema";
+import {
   createItemFromUrl,
   InvalidUrlError,
   isItemSource,
@@ -43,10 +47,23 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { url, source } = body;
+    const { url, source, instagram } = body;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
+    }
+
+    // Optional extension direct-save: full media scraped off the logged-in post.
+    let instagramScrape: InstagramScrapeInput | undefined;
+    if (instagram !== undefined) {
+      const parsed = instagramScrapeSchema.safeParse(instagram);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { message: "Invalid instagram payload", issues: parsed.error.issues },
+          { status: 400 },
+        );
+      }
+      instagramScrape = parsed.data;
     }
 
     try {
@@ -54,6 +71,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
         userId: user.id,
         url,
         source: isItemSource(source) ? source : "web",
+        instagramScrape,
       });
       return NextResponse.json(item, { status: 201 });
     } catch (error) {

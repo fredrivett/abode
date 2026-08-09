@@ -140,8 +140,46 @@ describe("POST /api/v1/items/from-url", () => {
     const res = await POST(request({ url: "https://example.com/x" }));
     expect(res.status).toBe(201);
     expect(mockTrigger).toHaveBeenCalledOnce();
+    expect(mockTrigger.mock.calls[0][0]).toBe("classify-url");
     // No failure → item is never downgraded to "failed"
     expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("enqueues the enrich task for an extension direct-save with scraped media", async () => {
+    const res = await POST(
+      request({
+        url: "https://www.instagram.com/p/DbMJ/",
+        source: "extension",
+        instagram: {
+          postId: "DbMJ",
+          mediaType: "post",
+          authorUsername: "oliverhamrin",
+          media: [
+            { type: "photo", url: "https://cdn/a.jpg" },
+            { type: "photo", url: "https://cdn/b.jpg" },
+          ],
+        },
+      }),
+    );
+    expect(res.status).toBe(201);
+    const [taskId, payload] = mockTrigger.mock.calls[0];
+    expect(taskId).toBe("enrich-instagram-item");
+    expect(payload).toMatchObject({
+      restoreStatusOnFailure: "failed",
+      details: { postId: "DbMJ", mediaType: "post" },
+    });
+    expect(payload.details.media).toHaveLength(2);
+  });
+
+  it("returns 400 for an invalid instagram scrape payload", async () => {
+    const res = await POST(
+      request({
+        url: "https://www.instagram.com/p/DbMJ/",
+        instagram: { postId: "DbMJ", mediaType: "post", media: [] },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(mockTrigger).not.toHaveBeenCalled();
   });
 
   it("saves via a bearer-authenticated request (the extension path)", async () => {

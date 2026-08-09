@@ -1,5 +1,10 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
+import type { enrichInstagramItemTask } from "@app/trigger/enrich-instagram-item";
 import db from "@/lib/db";
+import {
+  type InstagramScrapeInput,
+  scrapeToDetails,
+} from "@/lib/instagram/scrape-schema";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
@@ -36,10 +41,17 @@ export async function createItemFromUrl({
   userId,
   url,
   source,
+  instagramScrape,
 }: {
   userId: string;
   url: string;
   source: ItemSource;
+  /**
+   * Full media the browser extension scraped off a logged-in Instagram post.
+   * When present, the item skips URL classification and is enriched straight to
+   * `full` capture from the scrape.
+   */
+  instagramScrape?: InstagramScrapeInput;
 }) {
   let parsedUrl: URL;
   try {
@@ -79,15 +91,31 @@ export async function createItemFromUrl({
 
   // A queueing hiccup must not fail the save; the item is already persisted.
   try {
-    await enqueueUserProcessing<typeof classifyUrlTask>(
-      "classify-url",
-      {
-        itemId: item.id,
+    if (instagramScrape) {
+      // Extension direct-save: persist the scraped media straight to `full`.
+      await enqueueUserProcessing<typeof enrichInstagramItemTask>(
+        "enrich-instagram-item",
+        {
+          itemId: item.id,
+          userId,
+          url: parsedUrl.href,
+          details: scrapeToDetails(instagramScrape),
+          // No prior basic capture — a terminal failure should surface a retry.
+          restoreStatusOnFailure: "failed",
+        },
         userId,
-        url: parsedUrl.href,
-      },
-      userId,
-    );
+      );
+    } else {
+      await enqueueUserProcessing<typeof classifyUrlTask>(
+        "classify-url",
+        {
+          itemId: item.id,
+          userId,
+          url: parsedUrl.href,
+        },
+        userId,
+      );
+    }
   } catch (error) {
     // Mark failed so the UI surfaces a Retry instead of spinning forever.
     // Best-effort: the item is already persisted, so a failure here must not
