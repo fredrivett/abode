@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractInstagramImageKeys,
   extractProductImageKeys,
   extractTwitterImageKeys,
   filesToRemove,
@@ -82,6 +83,27 @@ describe("extractTwitterImageKeys", () => {
     expect(extractTwitterImageKeys(null, null)).toEqual([]);
     expect(extractTwitterImageKeys(undefined, undefined)).toEqual([]);
     expect(extractTwitterImageKeys("nope", "nope")).toEqual([]);
+  });
+});
+
+describe("extractInstagramImageKeys", () => {
+  it("pulls fileKeys from re-hosted media", () => {
+    const media = [
+      { type: "photo", url: "https://x/a", fileKey: "u/a.jpg" },
+      { type: "photo", url: "https://x/b", fileKey: "u/b.jpg" },
+    ];
+    expect(extractInstagramImageKeys(media)).toEqual(["u/a.jpg", "u/b.jpg"]);
+  });
+
+  it("skips media entries without a re-hosted key", () => {
+    const media = [{ type: "photo", url: "https://x/a" }, { fileKey: "" }];
+    expect(extractInstagramImageKeys(media)).toEqual([]);
+  });
+
+  it("returns empty for null/non-array input", () => {
+    expect(extractInstagramImageKeys(null)).toEqual([]);
+    expect(extractInstagramImageKeys(undefined)).toEqual([]);
+    expect(extractInstagramImageKeys("nope")).toEqual([]);
   });
 });
 

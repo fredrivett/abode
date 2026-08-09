@@ -70,6 +70,30 @@ describe("classifyItemKind — URL-only signals (no HTML)", () => {
     });
   });
 
+  it("classifies an Instagram post URL as instagram", () => {
+    expect(
+      classify({ url: "https://www.instagram.com/p/DbMJgxFiNTq/" }),
+    ).toEqual({
+      kind: "instagram",
+      postId: "DbMJgxFiNTq",
+      mediaType: "post",
+      url: "https://www.instagram.com/p/DbMJgxFiNTq/",
+    });
+  });
+
+  it("classifies an Instagram reel URL as instagram", () => {
+    expect(
+      classify({ url: "https://www.instagram.com/reel/AbC123/" }),
+    ).toMatchObject({ kind: "instagram", mediaType: "reel", postId: "AbC123" });
+  });
+
+  it("does not classify an Instagram profile URL as instagram (falls through)", () => {
+    // No post shortcode → returns null (caller fetches the body and retries as
+    // article/webpage), so it must not be classified as instagram.
+    const result = classify({ url: "https://www.instagram.com/oliverhamrin/" });
+    expect(result?.kind).not.toBe("instagram");
+  });
+
   it("classifies an x.com tweet URL as twitter", () => {
     const result = classify({ url: "https://x.com/user/status/1234567890" });
     expect(result?.kind).toBe("twitter");
