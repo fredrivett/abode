@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ExtensionDetector } from "@/components/extension/extension-detector";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
@@ -28,5 +29,10 @@ export default async function AppLayout({
     redirect(ROUTES.COMPLETE_SIGNUP);
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <ExtensionDetector />
+    </>
+  );
 }
