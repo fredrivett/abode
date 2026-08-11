@@ -6,8 +6,9 @@
  *
  * Scope: single-image kinds and cover-bearing kinds whose source resolves from
  * the item row — image (file_key) and article/webpage/product/book
- * (cover_file_key). Tweets render via TwitterCard and aren't covered here; their
- * per-media blur backfill + rendering is a separate follow-up.
+ * (cover_file_key), enforced via BLUR_HEALABLE_KINDS. Media/mirror kinds
+ * (twitter, instagram) are excluded: their blur mirrors item_media_analysis, so
+ * a direct write here wouldn't stick — their backfill is a separate follow-up.
  *
  * With no payload it sweeps the whole backlog (trigger manually from the
  * Trigger.dev dashboard). Passing `itemIds` scopes it to a specific set — how
@@ -19,6 +20,7 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { generateBlurDataUrl } from "@/lib/image-analysis/blur-placeholder";
+import { BLUR_HEALABLE_KINDS } from "@/lib/items/blur-healable-kinds";
 
 export type BackfillBlurPayload = {
   /** Restrict the sweep to these items; omit to backfill every missing blur. */
@@ -47,12 +49,15 @@ export const backfillBlurPlaceholdersTask = task({
     const supabase = createClient(url, key);
 
     // Rows lacking a blur whose source image is resolvable from the item:
-    // image → file_key; article/webpage/product/book → cover_file_key. An
-    // optional itemIds narrows the sweep to a specific batch.
+    // image → file_key; article/webpage/product/book → cover_file_key. Media
+    // kinds (twitter, instagram) are excluded — their blur mirrors
+    // item_media_analysis, so a direct write here wouldn't stick. An optional
+    // itemIds narrows the sweep to a specific batch.
     const rows = await db.itemImageDetails.findMany({
       where: {
         blurDataUrl: null,
         item: {
+          kind: { in: [...BLUR_HEALABLE_KINDS] },
           OR: [{ fileKey: { not: null } }, { coverFileKey: { not: null } }],
         },
         ...(itemIds?.length ? { itemId: { in: itemIds } } : {}),

@@ -163,6 +163,16 @@ describe("reprocessIssueGroup", () => {
       coverFileKey: "u/cover.jpg",
       imageDetails: { blurDataUrl: null },
     });
+    // A tweet mirrors its blur from item_media_analysis — the local backfill
+    // can't heal it, so it must be excluded from this group's reprocess.
+    const tweet = await seed({
+      kind: "twitter",
+      status: "completed",
+      sourceType: "url",
+      sourceUrl: "https://x.com/a/status/1",
+      coverFileKey: "u/tweet-cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
 
     const result = await reprocessIssueGroup("missing-blur");
 
@@ -171,6 +181,8 @@ describe("reprocessIssueGroup", () => {
     expect(batchTrigger).not.toHaveBeenCalled();
     const payload = triggerPayload("backfill-blur-placeholders");
     expect(payload?.itemIds.sort()).toEqual([image, article].sort());
+    // The tweet is never handed to the local heal.
+    expect(payload?.itemIds).not.toContain(tweet);
     // Batch idempotency: a rapid re-click of the same unhealed set can't
     // enqueue a second run (deduped by a deterministic key + TTL).
     expect(triggerOptions("backfill-blur-placeholders")).toMatchObject({

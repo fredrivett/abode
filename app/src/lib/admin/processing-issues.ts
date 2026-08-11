@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { BLUR_HEALABLE_KINDS } from "@/lib/items/blur-healable-kinds";
 import { STUCK_ITEM_THRESHOLD_MS } from "@/lib/items/reap-stuck-items";
 
 /** How many sample rows to pull per group (counts are exact, lists are capped). */
@@ -148,6 +149,10 @@ export function issueSpecs(): IssueSpec[] {
       where: {
         processingStatus: "completed",
         imageDetails: { is: { blurDataUrl: null } },
+        // Only kinds whose blur the local heal owns. Media/mirror kinds
+        // (twitter, instagram) mirror their blur from item_media_analysis, so a
+        // direct backfill wouldn't stick — kept out of this group (and its heal).
+        kind: { in: [...BLUR_HEALABLE_KINDS] },
       },
     },
   ];
