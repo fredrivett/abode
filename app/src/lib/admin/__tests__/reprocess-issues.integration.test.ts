@@ -74,6 +74,12 @@ describe("reprocessIssueGroup", () => {
       | { itemIds: string[] }
       | undefined;
 
+  /** The options (3rd) arg of the `trigger` call for a task id. */
+  const triggerOptions = (taskId: string) =>
+    trigger.mock.calls.find((c) => c[0] === taskId)?.[2] as
+      | Record<string, unknown>
+      | undefined;
+
   test("routes error-group items per kind, flips them, skips no-pipeline items", async () => {
     const urlItem = await seed({
       kind: "webpage",
@@ -165,9 +171,48 @@ describe("reprocessIssueGroup", () => {
     expect(batchTrigger).not.toHaveBeenCalled();
     const payload = triggerPayload("backfill-blur-placeholders");
     expect(payload?.itemIds.sort()).toEqual([image, article].sort());
+    // Batch idempotency: a rapid re-click of the same unhealed set can't
+    // enqueue a second run (deduped by a deterministic key + TTL).
+    expect(triggerOptions("backfill-blur-placeholders")).toMatchObject({
+      tags: ["admin-reprocess"],
+      idempotencyKey: expect.stringMatching(/^reprocess:blur:[0-9a-f]{64}$/),
+      idempotencyKeyTTL: expect.any(String),
+    });
     // Completed items stay completed — a heal must never flip status.
     expect((await statusOf(image)).processingStatus).toBe("completed");
     expect((await statusOf(article)).processingStatus).toBe("completed");
+  });
+
+  test("blur idempotency key is stable for the same batch, differs across batches", async () => {
+    const seedBlur = () =>
+      seed({
+        kind: "image",
+        status: "completed",
+        sourceType: "upload",
+        fileKey: "u/photo.jpg",
+        imageDetails: { blurDataUrl: null },
+      });
+    await seedBlur();
+
+    await reprocessIssueGroup("missing-blur");
+    const firstKey = triggerOptions(
+      "backfill-blur-placeholders",
+    )?.idempotencyKey;
+
+    // Same rows, second click → same key (would dedupe within the TTL).
+    await reprocessIssueGroup("missing-blur");
+    const secondKey = trigger.mock.calls
+      .filter((c) => c[0] === "backfill-blur-placeholders")
+      .at(-1)?.[2]?.idempotencyKey;
+    expect(secondKey).toBe(firstKey);
+
+    // A new item in the batch → different content → different key (runs).
+    await seedBlur();
+    await reprocessIssueGroup("missing-blur");
+    const thirdKey = trigger.mock.calls
+      .filter((c) => c[0] === "backfill-blur-placeholders")
+      .at(-1)?.[2]?.idempotencyKey;
+    expect(thirdKey).not.toBe(firstKey);
   });
 
   test("missing-blur skips items with no resolvable source image", async () => {
