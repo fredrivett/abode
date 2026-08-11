@@ -524,6 +524,8 @@ export function ItemCard({
             title={itemName}
             content={item.articleDetails?.content ?? null}
             domain={placeholderDomain ?? null}
+            author={item.articleDetails?.author ?? null}
+            publishedAt={item.articleDetails?.publishedAt ?? null}
             readingTime={item.articleDetails?.readingTime ?? null}
             onClick={handleOpenDetail}
           />
@@ -534,6 +536,51 @@ export function ItemCard({
           item={item}
           size={size}
           previewUrl={null}
+          imageFileKey={imageFileKey}
+          onOpenChange={setShowDetailDialog}
+          name={itemName}
+          onNameChange={setItemName}
+          deleteOpen={showDeleteDialog}
+          onDeleteOpenChange={setShowDeleteDialog}
+          onDeleteConfirm={handleDelete}
+          isDeleting={isDeleting}
+          canEdit={canEdit}
+        />
+      </>
+    );
+  }
+
+  // Articles/webpages with a cover image render the cover full-bleed behind a
+  // gradient, with the title + source meta aligned to the bottom (no body)
+  if (isArticleOrWebpage && imageFileKey) {
+    let coverDomain = item.articleDetails?.domain;
+    if (!coverDomain && item.sourceUrl) {
+      try {
+        coverDomain = new URL(item.sourceUrl).hostname;
+      } catch {}
+    }
+    return (
+      <>
+        <div className="relative h-full w-full">
+          <ProcessingOverlay status={item.processingStatus} />
+          <ArticleCard
+            title={itemName}
+            content={item.articleDetails?.content ?? null}
+            domain={coverDomain ?? null}
+            author={item.articleDetails?.author ?? null}
+            publishedAt={item.articleDetails?.publishedAt ?? null}
+            readingTime={item.articleDetails?.readingTime ?? null}
+            coverUrl={previewUrl}
+            coverBlurDataUrl={blurDataUrl}
+            onClick={handleOpenDetail}
+          />
+        </div>
+
+        <ItemDetailDialogWrapper
+          show={showDetailDialog}
+          item={item}
+          size={size}
+          previewUrl={previewUrl}
           imageFileKey={imageFileKey}
           onOpenChange={setShowDetailDialog}
           name={itemName}
