@@ -1,4 +1,5 @@
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
+import type { backfillBlurPlaceholdersTask } from "@app/trigger/backfill-blur-placeholders";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import type { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk";
@@ -6,7 +7,7 @@ import { env } from "@/env.server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { issueSpecs } from "./processing-issues";
+import { type IssueSpec, issueSpecs } from "./processing-issues";
 
 const log = createLogger("admin/reprocess-issues");
 
@@ -57,11 +58,63 @@ const REPROCESSABLE: Prisma.ItemWhereInput = {
   ],
 };
 
+/**
+ * A blur heal needs a resolvable source image on the item row — its own upload
+ * (`fileKey`) or a cached cover (`coverFileKey`). `{ gt: "" }` excludes null and
+ * "" so we never hand the heal task an item it can only skip (keeps the reported
+ * count honest). Mirrors the COALESCE(file_key, cover_file_key) the heal reads.
+ */
+const HAS_IMAGE_SOURCE: Prisma.ItemWhereInput = {
+  OR: [{ fileKey: { gt: "" } }, { coverFileKey: { gt: "" } }],
+};
+
 export type ReprocessResult = {
   triggered: number;
   /** Trigger dashboard link (filtered to reprocess runs) for monitoring. */
   monitorUrl: string | null;
 };
+
+/**
+ * Regenerate only the LQIP blur placeholder for a group's current members
+ * (capped, newest-first). The blur is a pure decode-time artifact, so this
+ * scopes the existing `backfill-blur-placeholders` task (sharp, no AI) to this
+ * batch instead of re-running the paid capture pipeline. These are completed
+ * items with a `null` blur — never flipped to `processing`, so a heal can't
+ * downgrade a healthy item. One background run sweeps the batch (a free/fast op
+ * that shouldn't compete for the paid image queue), tagged for monitoring.
+ */
+async function reprocessBlurGroup(spec: IssueSpec): Promise<ReprocessResult> {
+  const items = await db.item.findMany({
+    where: { AND: [spec.where, HAS_IMAGE_SOURCE] },
+    orderBy: { updatedAt: "desc" },
+    take: REPROCESS_LIMIT,
+    select: { id: true },
+  });
+  if (items.length === 0) return { triggered: 0, monitorUrl: null };
+
+  const itemIds = items.map((i) => i.id);
+
+  try {
+    await tasks.trigger<typeof backfillBlurPlaceholdersTask>(
+      "backfill-blur-placeholders",
+      { itemIds },
+      { tags: [REPROCESS_TAG] },
+    );
+  } catch (error) {
+    log.error(
+      { error, count: itemIds.length },
+      "backfill-blur-placeholders trigger failed",
+    );
+    captureServerException(error, undefined, {
+      route: "reprocessIssueGroup",
+      stage: "trigger:backfill-blur-placeholders",
+      count: itemIds.length,
+    });
+    throw new Error(`Failed to enqueue blur heal for ${itemIds.length} items`);
+  }
+
+  return { triggered: itemIds.length, monitorUrl: monitorUrl() };
+}
 
 /**
  * Re-run the capture pipeline for the current members of an issue group (capped,
@@ -70,9 +123,11 @@ export type ReprocessResult = {
  * cap advances past non-actionable rows (e.g. notes) rather than stalling on
  * them.
  *
- * Routes each item to its capture task like the retry route (`classify-url` for
- * URLs, `analyze-image` for image uploads, URL taking precedence). Reuses those
- * tasks so every guardrail — the shared concurrency-2 queue, per-user
+ * Groups whose gap is a cheap derived artifact (e.g. the blur placeholder) route
+ * to a targeted local heal instead — see {@link reprocessBlurGroup}. Everything
+ * else routes each item to its capture task like the retry route (`classify-url`
+ * for URLs, `analyze-image` for image uploads, URL taking precedence). Reuses
+ * those tasks so every guardrail — the shared concurrency-2 queue, per-user
  * `concurrencyKey`, `markProcessingActive` — applies automatically, and carries
  * a per-item idempotency key so a double-click can't double-charge. Runs are
  * tagged `admin-reprocess` for dashboard monitoring.
@@ -88,6 +143,9 @@ export async function reprocessIssueGroup(
 ): Promise<ReprocessResult> {
   const spec = issueSpecs().find((s) => s.key === groupKey);
   if (!spec) throw new Error(`Unknown issue group: ${groupKey}`);
+
+  // Cheap targeted heals bypass the paid pipeline entirely.
+  if (spec.repair === "blur") return reprocessBlurGroup(spec);
 
   const items = await db.item.findMany({
     where: { AND: [spec.where, REPROCESSABLE] },

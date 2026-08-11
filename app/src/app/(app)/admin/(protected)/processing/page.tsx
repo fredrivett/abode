@@ -59,6 +59,7 @@ function IssueSection({ group }: { group: IssueGroup }) {
               label={group.label}
               count={group.count}
               limit={REPROCESS_LIMIT}
+              repair={group.repair}
             />
           )}
         </div>

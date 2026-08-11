@@ -4,7 +4,8 @@ import { resetTestDatabase } from "@app/vitest.setup.db";
 import type { ItemKind, Prisma, ProcessingStatus } from "@prisma/client";
 
 const batchTrigger = vi.hoisted(() => vi.fn());
-vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger } }));
+const trigger = vi.hoisted(() => vi.fn());
+vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger, trigger } }));
 
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 
@@ -12,6 +13,7 @@ describe("reprocessIssueGroup", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     batchTrigger.mockReset().mockResolvedValue({ batchId: "b" });
+    trigger.mockReset().mockResolvedValue({ id: "r" });
   });
 
   const seed = async (opts: {
@@ -20,7 +22,10 @@ describe("reprocessIssueGroup", () => {
     sourceType?: "url" | "upload" | "compose";
     sourceUrl?: string;
     fileKey?: string;
+    coverFileKey?: string;
     tags?: string[];
+    /** When set, creates the image-details row (with the given blur, may be null). */
+    imageDetails?: { blurDataUrl: string | null };
   }): Promise<string> => {
     const { write } = await import("@/lib/db");
     const user = await write.user.create({
@@ -37,8 +42,14 @@ describe("reprocessIssueGroup", () => {
       sourceType: opts.sourceType,
       sourceUrl: opts.sourceUrl ?? null,
       fileKey: opts.fileKey ?? null,
+      coverFileKey: opts.coverFileKey ?? null,
       tags: opts.tags ?? [],
     };
+    if (opts.imageDetails) {
+      data.imageDetails = {
+        create: { blurDataUrl: opts.imageDetails.blurDataUrl },
+      };
+    }
     const item = await write.item.create({ data, select: { id: true } });
     return item.id;
   };
@@ -55,6 +66,12 @@ describe("reprocessIssueGroup", () => {
   const callFor = (taskId: string) =>
     batchTrigger.mock.calls.find((c) => c[0] === taskId)?.[1] as
       | { payload: { itemId: string }; options: Record<string, unknown> }[]
+      | undefined;
+
+  /** Find the single-run `trigger` call for a task id and return its payload. */
+  const triggerPayload = (taskId: string) =>
+    trigger.mock.calls.find((c) => c[0] === taskId)?.[1] as
+      | { itemIds: string[] }
       | undefined;
 
   test("routes error-group items per kind, flips them, skips no-pipeline items", async () => {
@@ -121,6 +138,51 @@ describe("reprocessIssueGroup", () => {
     ]);
     // Completed item stays completed — a failed re-run must not downgrade it
     expect((await statusOf(image)).processingStatus).toBe("completed");
+  });
+
+  test("missing-blur heals locally — no paid pipeline, no status flip", async () => {
+    const image = await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      fileKey: "u/photo.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    // A cover-kind item (article) with a cover image but no blur is eligible too.
+    const article = await seed({
+      kind: "article",
+      status: "completed",
+      sourceType: "url",
+      sourceUrl: "https://example.com/a",
+      coverFileKey: "u/cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+
+    const result = await reprocessIssueGroup("missing-blur");
+
+    expect(result.triggered).toBe(2);
+    // Routed to the cheap local blur backfill, NOT the paid capture tasks.
+    expect(batchTrigger).not.toHaveBeenCalled();
+    const payload = triggerPayload("backfill-blur-placeholders");
+    expect(payload?.itemIds.sort()).toEqual([image, article].sort());
+    // Completed items stay completed — a heal must never flip status.
+    expect((await statusOf(image)).processingStatus).toBe("completed");
+    expect((await statusOf(article)).processingStatus).toBe("completed");
+  });
+
+  test("missing-blur skips items with no resolvable source image", async () => {
+    // Missing blur but no fileKey/coverFileKey — nothing to download, so excluded.
+    await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      imageDetails: { blurDataUrl: null },
+    });
+
+    const result = await reprocessIssueGroup("missing-blur");
+
+    expect(result.triggered).toBe(0);
+    expect(trigger).not.toHaveBeenCalled();
   });
 
   test("a URL-sourced image goes only to classify-url (not both tasks)", async () => {
