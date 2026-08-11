@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
+import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
@@ -35,6 +37,8 @@ export function TwitterCard({
 }: TwitterCardProps) {
   const { media, card } = twitterDetails;
   const autoplayAllowed = useAutoplayAllowed();
+  const textRef = useRef<HTMLDivElement>(null);
+  const isTextOverflowing = useIsOverflowing(textRef);
 
   // Get preview image: use cover media index, falling back to first item or
   // link card. Prefer our re-hosted copy, falling back to the original twimg URL.
@@ -144,12 +148,17 @@ export function TwitterCard({
               {twitterDetails.authorName ?? `@${twitterDetails.authorUsername}`}
             </span>
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            ref={textRef}
+            className="relative min-h-0 flex-1 overflow-hidden"
+          >
             <p className="whitespace-pre-wrap text-gray-900 text-sm leading-snug dark:text-gray-100">
               {parseTweetText(twitterDetails.text)}
             </p>
-            {/* Fade out clipped text; invisible over empty card background */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-white dark:from-gray-900" />
+            {/* Fade out clipped text — only when there's more below the fold */}
+            {isTextOverflowing && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-white dark:from-gray-900" />
+            )}
           </div>
         </div>
       ) : (
