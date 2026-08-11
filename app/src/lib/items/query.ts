@@ -40,6 +40,7 @@ export const itemSelect = {
   userTags: true,
   notes: true,
   excludeFromPublicRooms: true,
+  coverHidden: true,
   sharedAt: true,
   sharedHighlights: true,
   locations: {
@@ -188,6 +189,7 @@ export function transformItem(item: RawItem) {
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
     blurDataUrl: item.imageDetails?.blurDataUrl ?? null,
     excludeFromPublicRooms: item.excludeFromPublicRooms,
+    coverHidden: item.coverHidden,
     sharedAt: item.sharedAt?.toISOString() ?? null,
     sharedHighlights: item.sharedHighlights,
     rooms: item.roomItems.map((ri) => ({

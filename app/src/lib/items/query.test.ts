@@ -48,6 +48,7 @@ describe("transformItem", () => {
     userTags: [],
     notes: null,
     excludeFromPublicRooms: false,
+    coverHidden: false,
     sharedAt: null,
     sharedHighlights: false,
     locations: [],
