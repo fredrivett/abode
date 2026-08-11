@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import type { RepairStrategy } from "@/lib/admin/processing-issues";
 import { reprocessIssueGroupAsAdmin } from "../(protected)/actions";
 
 export function ReprocessButton({
@@ -23,15 +24,20 @@ export function ReprocessButton({
   label,
   count,
   limit,
+  repair,
 }: {
   groupKey: string;
   label: string;
   count: number;
   limit: number;
+  repair: RepairStrategy;
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const batch = Math.min(count, limit);
+  const scope = `${batch} newest${count > limit ? ` of ${count}` : ""} item${
+    batch === 1 ? "" : "s"
+  }`;
 
   const run = () => {
     startTransition(async () => {
@@ -67,11 +73,20 @@ export function ReprocessButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Reprocess {label}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Re-runs the capture pipeline for the {batch} newest
-            {count > limit ? ` of ${count}` : ""} item
-            {batch === 1 ? "" : "s"}. This calls the AI pipeline (OpenAI +
-            Replicate) and costs money — it shares the capture queue with live
-            uploads. Items with no pipeline (e.g. notes) are skipped.
+            {repair === "blur" ? (
+              <>
+                Regenerates just the blur placeholder for the {scope} locally
+                (sharp) — no AI calls, no cost. Runs in the background; only the
+                placeholder changes.
+              </>
+            ) : (
+              <>
+                Re-runs the capture pipeline for the {scope}. This calls the AI
+                pipeline (OpenAI + Replicate) and costs money — it shares the
+                capture queue with live uploads. Items with no pipeline (e.g.
+                notes) are skipped.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

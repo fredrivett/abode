@@ -21,6 +21,7 @@ describe("getProcessingIssues", () => {
     withNoteDetails?: boolean;
     withTextVector?: boolean;
     withVisualVector?: boolean;
+    imageDetails?: { blurDataUrl: string | null };
   }): Promise<string> => {
     const { write } = await import("@/lib/db");
     const user = await write.user.create({
@@ -38,6 +39,10 @@ describe("getProcessingIssues", () => {
       coverFileKey: opts.coverFileKey ?? null,
       tags: opts.tags ?? [],
     };
+    if (opts.imageDetails)
+      data.imageDetails = {
+        create: { blurDataUrl: opts.imageDetails.blurDataUrl },
+      };
     if (opts.withArticleDetails) data.articleDetails = { create: {} };
     if (opts.withNoteDetails) data.noteDetails = { create: {} };
     if (opts.withTextVector)
@@ -149,6 +154,41 @@ describe("getProcessingIssues", () => {
     // a tweet with no cover legitimately has no visual vector
     expect(m.get("missing-visual-vector")).not.toContain(coverlessTweet);
     expect(m.get("missing-visual-vector")).toContain(coveredTweet);
+  });
+
+  test("missing-blur flags locally-healable kinds, excludes media/mirror kinds", async () => {
+    // image with a null blur → healable in place by the local backfill
+    const image = await seed({
+      status: "completed",
+      kind: "image",
+      imageDetails: { blurDataUrl: null },
+    });
+    // a filled blur → not flagged (guards against an inverted filter)
+    const okImage = await seed({
+      status: "completed",
+      kind: "image",
+      imageDetails: { blurDataUrl: "data:image/webp;base64,x" },
+    });
+    // twitter/instagram mirror their blur from item_media_analysis — a direct
+    // backfill wouldn't stick, so they must NOT appear in this group.
+    const tweet = await seed({
+      status: "completed",
+      kind: "twitter",
+      coverFileKey: "u/cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    const insta = await seed({
+      status: "completed",
+      kind: "instagram",
+      coverFileKey: "u/cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+
+    const m = await membership();
+    expect(m.get("missing-blur")).toContain(image);
+    expect(m.get("missing-blur")).not.toContain(okImage);
+    expect(m.get("missing-blur")).not.toContain(tweet);
+    expect(m.get("missing-blur")).not.toContain(insta);
   });
 
   test("count matches the sample size for small groups", async () => {

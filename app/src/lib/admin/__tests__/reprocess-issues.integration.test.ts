@@ -4,7 +4,8 @@ import { resetTestDatabase } from "@app/vitest.setup.db";
 import type { ItemKind, Prisma, ProcessingStatus } from "@prisma/client";
 
 const batchTrigger = vi.hoisted(() => vi.fn());
-vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger } }));
+const trigger = vi.hoisted(() => vi.fn());
+vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger, trigger } }));
 
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 
@@ -12,6 +13,7 @@ describe("reprocessIssueGroup", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     batchTrigger.mockReset().mockResolvedValue({ batchId: "b" });
+    trigger.mockReset().mockResolvedValue({ id: "r" });
   });
 
   const seed = async (opts: {
@@ -20,7 +22,10 @@ describe("reprocessIssueGroup", () => {
     sourceType?: "url" | "upload" | "compose";
     sourceUrl?: string;
     fileKey?: string;
+    coverFileKey?: string;
     tags?: string[];
+    /** When set, creates the image-details row (with the given blur, may be null). */
+    imageDetails?: { blurDataUrl: string | null };
   }): Promise<string> => {
     const { write } = await import("@/lib/db");
     const user = await write.user.create({
@@ -37,8 +42,14 @@ describe("reprocessIssueGroup", () => {
       sourceType: opts.sourceType,
       sourceUrl: opts.sourceUrl ?? null,
       fileKey: opts.fileKey ?? null,
+      coverFileKey: opts.coverFileKey ?? null,
       tags: opts.tags ?? [],
     };
+    if (opts.imageDetails) {
+      data.imageDetails = {
+        create: { blurDataUrl: opts.imageDetails.blurDataUrl },
+      };
+    }
     const item = await write.item.create({ data, select: { id: true } });
     return item.id;
   };
@@ -55,6 +66,18 @@ describe("reprocessIssueGroup", () => {
   const callFor = (taskId: string) =>
     batchTrigger.mock.calls.find((c) => c[0] === taskId)?.[1] as
       | { payload: { itemId: string }; options: Record<string, unknown> }[]
+      | undefined;
+
+  /** Find the single-run `trigger` call for a task id and return its payload. */
+  const triggerPayload = (taskId: string) =>
+    trigger.mock.calls.find((c) => c[0] === taskId)?.[1] as
+      | { itemIds: string[] }
+      | undefined;
+
+  /** The options (3rd) arg of the `trigger` call for a task id. */
+  const triggerOptions = (taskId: string) =>
+    trigger.mock.calls.find((c) => c[0] === taskId)?.[2] as
+      | Record<string, unknown>
       | undefined;
 
   test("routes error-group items per kind, flips them, skips no-pipeline items", async () => {
@@ -121,6 +144,119 @@ describe("reprocessIssueGroup", () => {
     ]);
     // Completed item stays completed — a failed re-run must not downgrade it
     expect((await statusOf(image)).processingStatus).toBe("completed");
+  });
+
+  test("missing-blur heals locally — no paid pipeline, no status flip", async () => {
+    const image = await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      fileKey: "u/photo.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    // A cover-kind item (article) with a cover image but no blur is eligible too.
+    const article = await seed({
+      kind: "article",
+      status: "completed",
+      sourceType: "url",
+      sourceUrl: "https://example.com/a",
+      coverFileKey: "u/cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    // A tweet mirrors its blur from item_media_analysis — the local backfill
+    // can't heal it, so it must be excluded from this group's reprocess.
+    const tweet = await seed({
+      kind: "twitter",
+      status: "completed",
+      sourceType: "url",
+      sourceUrl: "https://x.com/a/status/1",
+      coverFileKey: "u/tweet-cover.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+
+    const result = await reprocessIssueGroup("missing-blur");
+
+    expect(result.triggered).toBe(2);
+    // Routed to the cheap local blur backfill, NOT the paid capture tasks.
+    expect(batchTrigger).not.toHaveBeenCalled();
+    const payload = triggerPayload("backfill-blur-placeholders");
+    expect(payload?.itemIds.sort()).toEqual([image, article].sort());
+    // The tweet is never handed to the local heal.
+    expect(payload?.itemIds).not.toContain(tweet);
+    // Batch idempotency: a rapid re-click of the same unhealed set can't
+    // enqueue a second run (deduped by a deterministic key + TTL).
+    expect(triggerOptions("backfill-blur-placeholders")).toMatchObject({
+      tags: ["admin-reprocess"],
+      idempotencyKey: expect.stringMatching(/^reprocess:blur:[0-9a-f]{64}$/),
+      idempotencyKeyTTL: expect.any(String),
+    });
+    // Completed items stay completed — a heal must never flip status.
+    expect((await statusOf(image)).processingStatus).toBe("completed");
+    expect((await statusOf(article)).processingStatus).toBe("completed");
+  });
+
+  test("blur idempotency key is stable for the same batch, differs across batches", async () => {
+    const seedBlur = () =>
+      seed({
+        kind: "image",
+        status: "completed",
+        sourceType: "upload",
+        fileKey: "u/photo.jpg",
+        imageDetails: { blurDataUrl: null },
+      });
+    await seedBlur();
+
+    await reprocessIssueGroup("missing-blur");
+    const firstKey = triggerOptions(
+      "backfill-blur-placeholders",
+    )?.idempotencyKey;
+
+    // Same rows, second click → same key (would dedupe within the TTL).
+    await reprocessIssueGroup("missing-blur");
+    const secondKey = trigger.mock.calls
+      .filter((c) => c[0] === "backfill-blur-placeholders")
+      .at(-1)?.[2]?.idempotencyKey;
+    expect(secondKey).toBe(firstKey);
+
+    // A new item in the batch → different content → different key (runs).
+    await seedBlur();
+    await reprocessIssueGroup("missing-blur");
+    const thirdKey = trigger.mock.calls
+      .filter((c) => c[0] === "backfill-blur-placeholders")
+      .at(-1)?.[2]?.idempotencyKey;
+    expect(thirdKey).not.toBe(firstKey);
+  });
+
+  test("missing-blur skips items with no resolvable source image", async () => {
+    // Missing blur but no fileKey/coverFileKey — nothing to download, so excluded.
+    await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      imageDetails: { blurDataUrl: null },
+    });
+
+    const result = await reprocessIssueGroup("missing-blur");
+
+    expect(result.triggered).toBe(0);
+    expect(trigger).not.toHaveBeenCalled();
+  });
+
+  test("blur heal propagates a trigger enqueue failure", async () => {
+    await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      fileKey: "u/photo.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    trigger.mockRejectedValue(new Error("trigger unavailable"));
+
+    // Incomplete group → nothing to restore (never flipped); the failure just
+    // propagates so the click surfaces an error instead of silently no-op'ing.
+    await expect(reprocessIssueGroup("missing-blur")).rejects.toThrow(
+      /Failed to enqueue blur heal/,
+    );
   });
 
   test("a URL-sourced image goes only to classify-url (not both tasks)", async () => {

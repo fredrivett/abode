@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { BLUR_HEALABLE_KINDS } from "@/lib/items/blur-healable-kinds";
 import { STUCK_ITEM_THRESHOLD_MS } from "@/lib/items/reap-stuck-items";
 
 /** How many sample rows to pull per group (counts are exact, lists are capped). */
@@ -7,6 +8,20 @@ const SAMPLE_LIMIT = 100;
 
 /** Errors are actionable failures; "incomplete" items completed but lack data. */
 export type IssueSeverity = "error" | "incomplete";
+
+/**
+ * How an admin "Reprocess" repairs a group's items — the cheapest path that
+ * actually refills the gap:
+ * - `"full-pipeline"`: re-run classify-url / analyze-image (paid — OpenAI +
+ *   Google Vision + Replicate). Required when the missing data is *derived* from
+ *   the source fetch or the AI analysis (the detail record, tags, colours) or
+ *   the item genuinely failed and needs a fresh attempt.
+ * - `"blur"`: regenerate only the LQIP placeholder from the stored image with
+ *   sharp — no AI, no cost. The blur is a pure decode-time artifact, so re-running
+ *   vision to refill it is pure waste (routed to the backfill-blur-placeholders
+ *   task, scoped to the batch).
+ */
+export type RepairStrategy = "full-pipeline" | "blur";
 
 export type IssueItem = {
   id: string;
@@ -23,6 +38,7 @@ export type IssueGroup = {
   label: string;
   description: string;
   severity: IssueSeverity;
+  repair: RepairStrategy;
   count: number;
   items: IssueItem[];
 };
@@ -45,6 +61,7 @@ export function issueSpecs(): IssueSpec[] {
       label: "Failed",
       description: "Processing ended in failure — each row shows the reason.",
       severity: "error",
+      repair: "full-pipeline",
       where: { processingStatus: "failed" },
     },
     {
@@ -53,6 +70,7 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "Non-terminal past the reaper threshold — a run likely died. The hourly reaper marks these failed (stalled).",
       severity: "error",
+      repair: "full-pipeline",
       where: {
         processingStatus: { in: ["processing", "pending"] },
         processingStartedAt: { lt: stuckBefore },
@@ -64,6 +82,9 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "Completed but its kind-specific detail row (its core data) never landed.",
       severity: "incomplete",
+      // The detail record is derived from the source fetch + AI analysis, so a
+      // full re-run is genuinely required here.
+      repair: "full-pipeline",
       where: {
         processingStatus: "completed",
         // webpage has no detail table, so it's intentionally excluded
@@ -84,6 +105,9 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "An image-bearing item completed without a CLIP visual vector — no similar-images match.",
       severity: "incomplete",
+      // TODO: a CLIP embedding alone (1 Replicate call) would refill this without
+      // re-running OpenAI/Google Vision — see the audit. Full pipeline for now.
+      repair: "full-pipeline",
       where: {
         processingStatus: "completed",
         visualVectors: { none: {} },
@@ -103,6 +127,9 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "Completed with content (has tags) but no text embedding — weaker search. Mirrors enrich-item: a text vector is created whenever there was text to embed, and non-empty tags prove there was. Text-less items are correctly excluded.",
       severity: "incomplete",
+      // TODO: one text embedding from the persisted tags would refill this
+      // without re-running vision/tag-gen — see the audit. Full pipeline for now.
+      repair: "full-pipeline",
       where: {
         processingStatus: "completed",
         // Non-empty tags ⇒ buildEmbeddingText was non-empty ⇒ a vector is owed.
@@ -117,9 +144,15 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "Has image details but no blur (LQIP) placeholder — a decode-time gap.",
       severity: "incomplete",
+      // Pure decode-time artifact — regenerate locally with sharp, no AI cost.
+      repair: "blur",
       where: {
         processingStatus: "completed",
         imageDetails: { is: { blurDataUrl: null } },
+        // Only kinds whose blur the local heal owns. Media/mirror kinds
+        // (twitter, instagram) mirror their blur from item_media_analysis, so a
+        // direct backfill wouldn't stick — kept out of this group (and its heal).
+        kind: { in: [...BLUR_HEALABLE_KINDS] },
       },
     },
   ];
