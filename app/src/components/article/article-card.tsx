@@ -42,7 +42,12 @@ function formatPublishedDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return format(date, "MMM d, yyyy");
+  // Format the UTC calendar date so a date-only/near-midnight value never shows
+  // a day early in negative-offset timezones
+  return format(
+    new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    "MMM d, yyyy",
+  );
 }
 
 /**

@@ -551,8 +551,10 @@ export function ItemCard({
   }
 
   // Articles/webpages with a cover image render the cover full-bleed behind a
-  // gradient, with the title + source meta aligned to the bottom (no body)
-  if (isArticleOrWebpage && imageFileKey) {
+  // gradient, with the title + source meta aligned to the bottom (no body).
+  // Gate on previewUrl too: until it resolves (set in an effect), fall through
+  // to the generic image loading state rather than flashing the coverless body.
+  if (isArticleOrWebpage && imageFileKey && previewUrl) {
     let coverDomain = item.articleDetails?.domain;
     if (!coverDomain && item.sourceUrl) {
       try {
