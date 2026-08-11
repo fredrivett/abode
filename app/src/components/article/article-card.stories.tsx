@@ -8,6 +8,7 @@ const meta = {
   parameters: {
     layout: "centered",
   },
+  tags: ["autodocs"],
   // Coverless articles are text cards; render at a representative grid size
   decorators: [
     (Story) => (
@@ -36,6 +37,7 @@ export const FullArticle: Story = {
     title: "Don't be a meat proxy",
     content: SAMPLE,
     domain: "gruhn.me",
+    publishedAt: "2026-01-15T00:00:00.000Z",
     readingTime: 4,
   },
 };
@@ -49,11 +51,13 @@ export const NoReadingTime: Story = {
   },
 };
 
+// No body: the title should drop to the bottom, by the footer (not strand at top)
 export const NoContent: Story = {
   args: {
     title: "Don't be a meat proxy",
     content: null,
     domain: "gruhn.me",
+    publishedAt: "2026-01-15T00:00:00.000Z",
     readingTime: null,
   },
 };
@@ -65,5 +69,34 @@ export const LongTitle: Story = {
     content: SAMPLE,
     domain: "example.com",
     readingTime: 12,
+  },
+};
+
+// A tiny inline gradient stands in for a real cover image (deterministic, no network)
+const COVER_SVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23475569'/%3E%3Cstop offset='1' stop-color='%230f172a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='500' fill='url(%23g)'/%3E%3C/svg%3E";
+
+export const WithCover: Story = {
+  args: {
+    title: "Don't be a meat proxy",
+    content: SAMPLE,
+    domain: "gruhn.me",
+    // Author leads the byline; domain is the fallback when it's absent
+    author: "Rasmus Gruhn",
+    publishedAt: "2026-01-15T00:00:00.000Z",
+    readingTime: 4,
+    coverUrl: COVER_SVG,
+  },
+};
+
+export const WithCoverLongTitle: Story = {
+  args: {
+    title:
+      "A very long article title that runs past a few lines and should clamp so the cover card stays tidy",
+    content: SAMPLE,
+    domain: "example.com",
+    publishedAt: "2026-01-15T00:00:00.000Z",
+    readingTime: 12,
+    coverUrl: COVER_SVG,
   },
 };
