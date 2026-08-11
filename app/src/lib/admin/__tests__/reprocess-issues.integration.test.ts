@@ -242,6 +242,23 @@ describe("reprocessIssueGroup", () => {
     expect(trigger).not.toHaveBeenCalled();
   });
 
+  test("blur heal propagates a trigger enqueue failure", async () => {
+    await seed({
+      kind: "image",
+      status: "completed",
+      sourceType: "upload",
+      fileKey: "u/photo.jpg",
+      imageDetails: { blurDataUrl: null },
+    });
+    trigger.mockRejectedValue(new Error("trigger unavailable"));
+
+    // Incomplete group → nothing to restore (never flipped); the failure just
+    // propagates so the click surfaces an error instead of silently no-op'ing.
+    await expect(reprocessIssueGroup("missing-blur")).rejects.toThrow(
+      /Failed to enqueue blur heal/,
+    );
+  });
+
   test("a URL-sourced image goes only to classify-url (not both tasks)", async () => {
     const urlImage = await seed({
       kind: "image",
