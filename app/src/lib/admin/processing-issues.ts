@@ -17,11 +17,16 @@ export type IssueSeverity = "error" | "incomplete";
  *   the source fetch or the AI analysis (the detail record, tags, colours) or
  *   the item genuinely failed and needs a fresh attempt.
  * - `"blur"`: regenerate only the LQIP placeholder from the stored image with
- *   sharp — no AI, no cost. The blur is a pure decode-time artifact, so re-running
- *   vision to refill it is pure waste (routed to the backfill-blur-placeholders
- *   task, scoped to the batch).
+ *   sharp — no AI, no cost. A pure decode-time artifact, so re-running vision to
+ *   refill it is pure waste (scoped to the backfill-blur-placeholders task).
+ * - `"text-vector"`: rebuild only the text embedding from the item's persisted
+ *   tags — one cheap embedding call, no vision or tag re-generation (scoped to
+ *   the backfill-text-vectors task).
+ *
+ * The non-`full-pipeline` values are targeted heals; reprocess-issues.ts maps
+ * each to the scoped backfill task that repairs exactly that field.
  */
-export type RepairStrategy = "full-pipeline" | "blur";
+export type RepairStrategy = "full-pipeline" | "blur" | "text-vector";
 
 export type IssueItem = {
   id: string;
@@ -127,9 +132,8 @@ export function issueSpecs(): IssueSpec[] {
       description:
         "Completed with content (has tags) but no text embedding — weaker search. Mirrors enrich-item: a text vector is created whenever there was text to embed, and non-empty tags prove there was. Text-less items are correctly excluded.",
       severity: "incomplete",
-      // TODO: one text embedding from the persisted tags would refill this
-      // without re-running vision/tag-gen — see the audit. Full pipeline for now.
-      repair: "full-pipeline",
+      // One embedding from the persisted tags refills this — no vision/tag-gen.
+      repair: "text-vector",
       where: {
         processingStatus: "completed",
         // Non-empty tags ⇒ buildEmbeddingText was non-empty ⇒ a vector is owed.

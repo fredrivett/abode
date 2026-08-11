@@ -79,6 +79,13 @@ export function ReprocessButton({
                 (sharp) — no AI calls, no cost. Runs in the background; only the
                 placeholder changes.
               </>
+            ) : repair === "text-vector" ? (
+              <>
+                Rebuilds just the text embedding for the {scope} from each
+                item's existing tags — one cheap embedding call, no vision or
+                tag re-generation. Runs in the background; only the vector
+                changes.
+              </>
             ) : (
               <>
                 Re-runs the capture pipeline for the {scope}. This calls the AI
