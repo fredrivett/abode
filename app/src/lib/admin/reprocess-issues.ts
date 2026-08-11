@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { backfillBlurPlaceholdersTask } from "@app/trigger/backfill-blur-placeholders";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
@@ -8,6 +7,7 @@ import { env } from "@/env.server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
+import { batchIdempotencyKey } from "./batch-idempotency-key";
 import { type IssueSpec, issueSpecs } from "./processing-issues";
 
 const log = createLogger("admin/reprocess-issues");
@@ -95,21 +95,14 @@ async function reprocessBlurGroup(spec: IssueSpec): Promise<ReprocessResult> {
 
   const itemIds = items.map((i) => i.id);
 
-  // Content-addressed idempotency: a rapid re-click of the same still-unhealed
-  // batch dedupes within the TTL (no duplicate downloads), while a later click
-  // after these rows are repaired selects different ids → different key → runs.
-  // Hashed (not the raw id list) to keep the key bounded regardless of batch size.
-  const batchKey = createHash("sha256")
-    .update([...itemIds].sort().join(","))
-    .digest("hex");
-
   try {
     await tasks.trigger<typeof backfillBlurPlaceholdersTask>(
       "backfill-blur-placeholders",
       { itemIds },
       {
         tags: [REPROCESS_TAG],
-        idempotencyKey: `reprocess:blur:${batchKey}`,
+        // Dedupes a rapid re-click of the same unhealed batch within the TTL.
+        idempotencyKey: batchIdempotencyKey("reprocess:blur", itemIds),
         idempotencyKeyTTL: REPROCESS_IDEMPOTENCY_TTL,
       },
     );
