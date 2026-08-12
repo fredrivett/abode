@@ -56,6 +56,24 @@ describe("rankedSearch", () => {
     expect(results.at(-1)?.id).toBe("c");
   });
 
+  it("keeps the full-text OCR headline, with the dedicated OCR snippet winning on overlap", async () => {
+    mockFullText.mockResolvedValue([
+      { id: "a", rank: 1, ocrSnippet: "<b>from-fulltext</b>" },
+      { id: "b", rank: 2, ocrSnippet: "<b>b-fulltext</b>" },
+    ]);
+    mockOcr.mockResolvedValue([
+      { id: "b", rank: 1, snippet: "<b>b-dedicated</b>" },
+    ]);
+
+    const results = await rankedSearch("user-1", NO_FILTERS, "hi");
+    const byId = new Map(results.map((r) => [r.id, r]));
+
+    // Only in full-text, but outside the OCR results — its headline is retained
+    expect(byId.get("a")?.ocrSnippet).toBe("<b>from-fulltext</b>");
+    // In both — the dedicated OCR snippet takes precedence
+    expect(byId.get("b")?.ocrSnippet).toBe("<b>b-dedicated</b>");
+  });
+
   it("returns an empty list when every retriever is empty", async () => {
     expect(await rankedSearch("user-1", NO_FILTERS, "nothing")).toEqual([]);
   });

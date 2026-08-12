@@ -64,7 +64,17 @@ export async function rankedSearch(
   });
   if (merged.length === 0) return [];
 
-  const ocrSnippets = new Map(ocrResults.map((r) => [r.id, r.snippet]));
+  // Full-text search computes its own OCR headline; seed from it so items that
+  // matched on OCR text via full-text (and fall outside the separately-limited
+  // OCR results) keep a snippet, then let the dedicated OCR snippet win on overlap.
+  const ocrSnippets = new Map<string, string>();
+  for (const r of textResults) {
+    if (r.ocrSnippet) ocrSnippets.set(r.id, r.ocrSnippet);
+  }
+  for (const r of ocrResults) {
+    ocrSnippets.set(r.id, r.snippet);
+  }
+
   const vectorSimilarities = new Map(
     vectorResults.map((r) => [r.id, r.similarity]),
   );
