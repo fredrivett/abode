@@ -255,8 +255,34 @@ describe("reprocessIssueGroup", () => {
     // Incomplete group → nothing to restore (never flipped); the failure just
     // propagates so the click surfaces an error instead of silently no-op'ing.
     await expect(reprocessIssueGroup("missing-blur")).rejects.toThrow(
-      /Failed to enqueue blur heal/,
+      /Failed to enqueue backfill-blur-placeholders heal/,
     );
+  });
+
+  test("missing-text-vector heals via the embedding backfill — no paid pipeline, no flip", async () => {
+    // Completed + has tags + no text vector → owed a vector, healable from tags.
+    const item = await seed({
+      kind: "webpage",
+      status: "completed",
+      sourceType: "url",
+      sourceUrl: "https://example.com/x",
+      tags: ["design", "typography"],
+    });
+
+    const result = await reprocessIssueGroup("missing-text-vector");
+
+    expect(result.triggered).toBe(1);
+    // Routed to the cheap embedding backfill, NOT the paid capture tasks.
+    expect(batchTrigger).not.toHaveBeenCalled();
+    expect(triggerPayload("backfill-text-vectors")?.itemIds).toEqual([item]);
+    // Its own idempotency prefix, so a blur + text batch can't collide.
+    expect(triggerOptions("backfill-text-vectors")).toMatchObject({
+      tags: ["admin-reprocess"],
+      idempotencyKey: expect.stringMatching(/^reprocess:text:[0-9a-f]{64}$/),
+      idempotencyKeyTTL: expect.any(String),
+    });
+    // Completed item stays completed — a heal must never flip status.
+    expect((await statusOf(item)).processingStatus).toBe("completed");
   });
 
   test("a URL-sourced image goes only to classify-url (not both tasks)", async () => {
