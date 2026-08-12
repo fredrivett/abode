@@ -129,6 +129,14 @@ describe("estimateNoteAspect", () => {
     expect(lazy).toBe(prefixed);
   });
 
+  it("lets a thematic break interrupt a blockquote (no lazy continuation)", () => {
+    // A `---` after a `>` line ends the quote, same as if a blank line split
+    // them — it is not swallowed as continuation text.
+    const noBlank = noteAspect(null, "> a quote\n---").width;
+    const withBlank = noteAspect(null, "> a quote\n\n---").width;
+    expect(noBlank).toBe(withBlank);
+  });
+
   it("a multi-item list is taller than a single line of the same length", () => {
     const list = noteAspect(null, "- one\n- two\n- three\n- four").width;
     const line = noteAspect(null, "one two three four").width;

@@ -218,6 +218,12 @@ const FENCE = /^\s{0,3}(```|~~~)/;
 // Markdown hard break: a source line ending in two+ spaces or a backslash
 // renders as a forced line break (<br>) rather than a collapsed soft wrap.
 const HARD_BREAK = / {2,}$|\\$/;
+// Block starters that interrupt a blockquote paragraph (so they end a lazy
+// continuation rather than joining it) but aren't caught by the checks above:
+// thematic breaks (`---`/`***`/`___`) and HTML blocks. ATX headings, lists,
+// fences and blank lines are already handled before the continuation branch.
+const THEMATIC_BREAK = /^ {0,3}([-_*])(?:[ \t]*\1){2,}[ \t]*$/;
+const HTML_BLOCK_START = /^ {0,3}<(?:!--|\/?[a-zA-Z])/;
 
 type NoteBlock =
   | { type: "heading"; level: number; text: string }
@@ -333,14 +339,20 @@ function toBlocks(markdown: string): NoteBlock[] {
     }
 
     // Lazy blockquote continuation: an unprefixed paragraph line right after a
-    // `>` line stays in the quote (CommonMark paragraph continuation), so it
-    // doesn't become a separate block with its own gap and overhead.
-    if (quote.length > 0) {
+    // `>` line stays in the quote (CommonMark paragraph continuation) — unless
+    // it's a block starter that interrupts the quote (thematic break, HTML
+    // block), which ends it and becomes its own block instead.
+    if (
+      quote.length > 0 &&
+      !THEMATIC_BREAK.test(line) &&
+      !HTML_BLOCK_START.test(line)
+    ) {
       quote.push(line);
       continue;
     }
 
     flushList();
+    flushQuote();
     // Keep the raw line — hard-break detection needs its trailing whitespace.
     paragraph.push(line);
   }
