@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useColumnWidth } from "@/hooks/use-column-width";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useRootFontSize } from "@/hooks/use-root-font-size";
 import { getBookTileFrame } from "@/lib/book-cover";
 import {
   estimateNoteAspect,
@@ -85,8 +86,10 @@ export function ItemsGrid({
     enabled: hasHydrated,
   });
   // Card root font size in px: gridCardStyle sets font-size to
-  // calc(var(--grid-font-scale) * 1rem), so 1em on a card is fontScale × 16px.
-  const cardRootPx = fontScale * 16;
+  // calc(var(--grid-font-scale) * 1rem), so 1em on a card is fontScale × the
+  // live root rem (not a hard-coded 16px — respects the user's font-size pref).
+  const rootRemPx = useRootFontSize();
+  const cardRootPx = fontScale * rootRemPx;
   const { ref: loadMoreRef } = useInfiniteScroll({
     hasMore: hasMore ?? false,
     isLoading: isLoadingMore ?? false,
@@ -291,7 +294,11 @@ export function ItemsGrid({
                       text: item.twitterDetails.text,
                       hasAvatar: !!item.twitterDetails.authorAvatarUrl,
                     },
-                    { columnWidthPx: columnWidth, measure: measureCardText },
+                    {
+                      columnWidthPx: columnWidth,
+                      rootRemPx,
+                      measure: measureCardText,
+                    },
                   ));
                 } else {
                   // Text-only tweet placeholder (pre-measurement / no text)
@@ -349,6 +356,7 @@ export function ItemsGrid({
                     {
                       columnWidthPx: columnWidth,
                       cardRootPx,
+                      rootRemPx,
                       measure: measureCardText,
                     },
                   ));

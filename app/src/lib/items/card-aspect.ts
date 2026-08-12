@@ -56,14 +56,14 @@ const ASPECT_STEP = 0.05;
 const WRAP_SAFETY = 0.9;
 
 // --- Note typography (see note-card.tsx + note-prose.ts) ---------------------
-// Everything is em-relative to the card root (grid font-scale), with rem floors
-// matching the components' `max(...)` clamps.
+// em values are relative to the card root (grid font-scale); rem floors are
+// relative to the document root font size — both are passed in, never assumed.
 const NOTE_PADDING_EM = 1.25; // p-[1.25em]
-const NOTE_TITLE_MIN_PX = 14; // max(0.875rem, 1em)
+const NOTE_TITLE_MIN_REM = 0.875; // max(0.875rem, 1em)
 const NOTE_TITLE_LINE_HEIGHT = 1.5; // serif title, no explicit leading — runs tall
 const NOTE_TITLE_MB_EM = 0.5; // mb-[0.5em]
 const NOTE_TITLE_MAX_LINES = 2; // line-clamp-2
-const NOTE_BODY_MIN_PX = 12; // max(0.75rem, 0.875em)
+const NOTE_BODY_MIN_REM = 0.75; // max(0.75rem, 0.875em)
 const NOTE_BODY_EM = 0.875;
 // prose-sm paragraph line-height is 1.714; round up a hair so a fit estimate is
 // never shorter than the real text (which would clip and show a false fade).
@@ -71,6 +71,10 @@ const NOTE_BODY_LINE_HEIGHT = 1.72;
 const NOTE_HEADING_LINE_HEIGHT = 1.3; // prose-headings:leading-[1.25], rounded up
 const NOTE_BLOCK_GAP_EM = 0.4; // prose-p:my-[0.4em], collapsed between siblings
 const NOTE_LIST_ITEM_GAP_EM = 0.15; // prose-li:my-[0.15em]
+// A fenced code block renders as a padded <pre> box. Its vertical padding is a
+// fixed cost on top of the code lines — matters most for short blocks — so
+// include it. Kept in body-em terms (generous vs the slightly smaller mono).
+const NOTE_CODE_PADDING_EM = 0.7; // prose-sm pre padding-y, per side
 // Heading sizes relative to body em (prose-h1..h6 in note-prose.ts).
 const NOTE_HEADING_SCALE: Record<number, number> = {
   1: 1.25,
@@ -88,14 +92,14 @@ export const NOTE_ASPECT_BOUNDS: AspectBounds = {
 };
 
 // --- Text-only tweet typography (see twitter-card.tsx) -----------------------
-// These are fixed px: the tweet body uses `text-sm` (rem-based, so it does NOT
-// scale with grid density) and `p-4` / `gap-2` fixed spacing.
-const TWEET_PAD_PX = 16; // p-4
-const TWEET_HEADER_GAP_PX = 8; // gap-2 between header and body
-const TWEET_AVATAR_PX = 24; // size-6 avatar
-const TWEET_BODY_PX = 14; // text-sm
+// All rem-based: the tweet body uses `text-sm`, spacing is `p-4`/`gap-2`, the
+// avatar `size-6` — so they track the document root font size (not grid
+// density). Expressed in rem and multiplied by the live root size.
+const TWEET_PAD_REM = 1; // p-4
+const TWEET_HEADER_GAP_REM = 0.5; // gap-2 between header and body
+const TWEET_AVATAR_REM = 1.5; // size-6 avatar
+const TWEET_BODY_REM = 0.875; // text-sm
 const TWEET_BODY_LINE_HEIGHT = 1.375; // leading-snug
-const TWEET_BODY_LINE_PX = TWEET_BODY_PX * TWEET_BODY_LINE_HEIGHT;
 
 export const TWEET_ASPECT_BOUNDS: AspectBounds = {
   // No min-height: one line renders one line tall.
@@ -150,17 +154,38 @@ function stripInlineMarkdown(text: string): string {
 const ATX_HEADING = /^\s{0,3}(#{1,6})\s+/;
 const LIST_ITEM = /^\s{0,3}([-*+]|\d+\.)\s+/;
 const FENCE = /^\s{0,3}(```|~~~)/;
+// Markdown hard break: a source line ending in two+ spaces or a backslash
+// renders as a forced line break (<br>) rather than a collapsed soft wrap.
+const HARD_BREAK = / {2,}$|\\$/;
 
 type NoteBlock =
   | { type: "heading"; level: number; text: string }
   | { type: "list"; items: string[] }
   | { type: "code"; lines: number }
-  | { type: "paragraph"; text: string };
+  | { type: "paragraph"; segments: string[] };
+
+/**
+ * Within a paragraph, soft line breaks collapse into one wrapped run, but hard
+ * breaks force a new line — so split into segments at hard breaks and measure
+ * each on its own (each is at least one line).
+ */
+function toParagraphSegments(rawLines: string[]): string[] {
+  const segments: string[] = [];
+  let current: string[] = [];
+  for (const raw of rawLines) {
+    current.push(stripInlineMarkdown(raw));
+    if (HARD_BREAK.test(raw)) {
+      segments.push(current.join(" "));
+      current = [];
+    }
+  }
+  if (current.length) segments.push(current.join(" "));
+  return segments;
+}
 
 /**
  * Split note markdown into blocks the way the renderer roughly groups them:
- * fenced code, headings, list runs, and blank-line-separated paragraphs (with
- * soft line breaks joined into one wrapped run).
+ * fenced code, headings, list runs, and blank-line-separated paragraphs.
  */
 function toBlocks(markdown: string): NoteBlock[] {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
@@ -170,7 +195,10 @@ function toBlocks(markdown: string): NoteBlock[] {
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      blocks.push({ type: "paragraph", text: paragraph.join(" ") });
+      blocks.push({
+        type: "paragraph",
+        segments: toParagraphSegments(paragraph),
+      });
       paragraph = [];
     }
   };
@@ -222,7 +250,8 @@ function toBlocks(markdown: string): NoteBlock[] {
     }
 
     flushList();
-    paragraph.push(stripInlineMarkdown(line));
+    // Keep the raw line — hard-break detection needs its trailing whitespace.
+    paragraph.push(line);
   }
 
   flushParagraph();
@@ -254,8 +283,10 @@ function estimateNoteBodyHeight(
         break;
       }
       case "code":
-        // Code doesn't wrap in prose; count raw lines.
-        height += block.lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
+        // Code doesn't wrap in prose; count raw lines, plus the <pre> padding.
+        height +=
+          2 * NOTE_CODE_PADDING_EM * bodyPx +
+          block.lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
         break;
       case "list":
         block.items.forEach((item, itemIndex) => {
@@ -265,9 +296,12 @@ function estimateNoteBodyHeight(
         });
         break;
       default: {
-        const lines = wrapLines(block.text, availWidth, measure, {
-          px: bodyPx,
-        });
+        // Each hard-break segment wraps on its own and is at least one line.
+        const lines = block.segments.reduce(
+          (total, segment) =>
+            total + wrapLines(segment, availWidth, measure, { px: bodyPx }),
+          0,
+        );
         height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
       }
     }
@@ -279,26 +313,31 @@ function estimateNoteBodyHeight(
 export type NoteAspectInput = { title: string | null; body: string };
 export type NoteAspectContext = {
   columnWidthPx: number;
-  /** Card root font size in px (grid font-scale × 16). */
+  /** Card root font size in px (grid font-scale × root rem). */
   cardRootPx: number;
+  /** Document root font size in px — what `1rem` resolves to. Defaults to 16. */
+  rootRemPx?: number;
   measure: TextMeasurer;
 };
 
 /** Estimate a note card's frame aspect from its title + markdown body. */
 export function estimateNoteAspect(
   { title, body }: NoteAspectInput,
-  { columnWidthPx, cardRootPx, measure }: NoteAspectContext,
+  { columnWidthPx, cardRootPx, rootRemPx = 16, measure }: NoteAspectContext,
   bounds: AspectBounds = NOTE_ASPECT_BOUNDS,
 ): FrameAspect {
   const padding = NOTE_PADDING_EM * cardRootPx;
   const availWidth = Math.max(1, (columnWidthPx - 2 * padding) * WRAP_SAFETY);
-  const bodyPx = Math.max(NOTE_BODY_MIN_PX, NOTE_BODY_EM * cardRootPx);
+  const bodyPx = Math.max(
+    NOTE_BODY_MIN_REM * rootRemPx,
+    NOTE_BODY_EM * cardRootPx,
+  );
 
   let height = 2 * padding;
 
   const trimmedTitle = title?.trim();
   if (trimmedTitle) {
-    const titlePx = Math.max(NOTE_TITLE_MIN_PX, cardRootPx);
+    const titlePx = Math.max(NOTE_TITLE_MIN_REM * rootRemPx, cardRootPx);
     const titleLines = Math.min(
       NOTE_TITLE_MAX_LINES,
       wrapLines(trimmedTitle, availWidth, measure, {
@@ -324,36 +363,38 @@ export function estimateNoteAspect(
 export type TweetAspectInput = { text: string; hasAvatar: boolean };
 export type TweetAspectContext = {
   columnWidthPx: number;
+  /** Document root font size in px — what `1rem` resolves to. Defaults to 16. */
+  rootRemPx?: number;
   measure: TextMeasurer;
 };
 
 /** Estimate a text-only tweet card's frame aspect from its text. */
 export function estimateTweetAspect(
   { text, hasAvatar }: TweetAspectInput,
-  { columnWidthPx, measure }: TweetAspectContext,
+  { columnWidthPx, rootRemPx = 16, measure }: TweetAspectContext,
   bounds: AspectBounds = TWEET_ASPECT_BOUNDS,
 ): FrameAspect {
-  const availWidth = Math.max(
-    1,
-    (columnWidthPx - 2 * TWEET_PAD_PX) * WRAP_SAFETY,
-  );
-  // Header is the author row; avatar (24px) dominates its own text line.
-  const headerPx = hasAvatar ? TWEET_AVATAR_PX : TWEET_BODY_LINE_PX;
+  const padding = TWEET_PAD_REM * rootRemPx;
+  const bodyPx = TWEET_BODY_REM * rootRemPx;
+  const bodyLinePx = bodyPx * TWEET_BODY_LINE_HEIGHT;
+  const availWidth = Math.max(1, (columnWidthPx - 2 * padding) * WRAP_SAFETY);
+  // Header is the author row; the avatar (1.5rem) dominates its own text line.
+  const headerPx = hasAvatar ? TWEET_AVATAR_REM * rootRemPx : bodyLinePx;
 
   // `whitespace-pre-wrap` keeps hard newlines; each source line wraps on its own.
   const bodyLines = text
     .split("\n")
     .reduce(
       (total, line) =>
-        total + wrapLines(line, availWidth, measure, { px: TWEET_BODY_PX }),
+        total + wrapLines(line, availWidth, measure, { px: bodyPx }),
       0,
     );
 
   const height =
-    2 * TWEET_PAD_PX +
+    2 * padding +
     headerPx +
-    TWEET_HEADER_GAP_PX +
-    bodyLines * TWEET_BODY_LINE_PX;
+    TWEET_HEADER_GAP_REM * rootRemPx +
+    bodyLines * bodyLinePx;
 
   return toFrameAspect(columnWidthPx, height, bounds);
 }

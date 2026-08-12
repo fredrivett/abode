@@ -50,6 +50,21 @@ describe("estimateNoteAspect", () => {
     );
   });
 
+  it("scales with the document root font size (accessibility)", () => {
+    const body = "a".repeat(100);
+    // fontScale 1 → cardRootPx tracks the root rem
+    const base = estimateNoteAspect(
+      { title: null, body },
+      { columnWidthPx: COL, cardRootPx: 16, rootRemPx: 16, measure },
+    ).width;
+    const large = estimateNoteAspect(
+      { title: null, body },
+      { columnWidthPx: COL, cardRootPx: 20, rootRemPx: 20, measure },
+    ).width;
+    // bigger root text → taller card → smaller aspect (narrower width value)
+    expect(large).toBeLessThan(base);
+  });
+
   it("grows taller (smaller aspect) as the body grows", () => {
     const short = noteAspect(null, "a".repeat(40)).width;
     const medium = noteAspect(null, "a".repeat(200)).width;
@@ -71,6 +86,25 @@ describe("estimateNoteAspect", () => {
     const heading = noteAspect(null, `# ${"a".repeat(120)}`).width;
     const paragraph = noteAspect(null, "a".repeat(120)).width;
     expect(heading).toBeLessThanOrEqual(paragraph);
+  });
+
+  it("counts a fenced code block's <pre> padding (short blocks don't clip)", () => {
+    // A one-line code block is taller than a one-line paragraph: the <pre> box
+    // adds fixed vertical padding on top of the single line.
+    const code = noteAspect(null, "```\nx = 1\n```").width;
+    const paragraph = noteAspect(null, "x = 1").width;
+    expect(code).toBeLessThan(paragraph);
+  });
+
+  it("preserves hard-break boundaries instead of collapsing them", () => {
+    // Two lines joined by a markdown hard break (trailing spaces) render on
+    // separate lines, so the card is taller than the same words soft-wrapped.
+    const hardBreaks = noteAspect(
+      null,
+      "one two  \nthree four  \nfive six",
+    ).width;
+    const softWrapped = noteAspect(null, "one two three four five six").width;
+    expect(hardBreaks).toBeLessThan(softWrapped);
   });
 
   it("a multi-item list is taller than a single line of the same length", () => {
@@ -102,6 +136,19 @@ describe("estimateTweetAspect", () => {
     const short = tweetAspect("word ".repeat(5)).width;
     const long = tweetAspect("word ".repeat(60)).width;
     expect(short).toBeGreaterThan(long);
+  });
+
+  it("scales with the document root font size (accessibility)", () => {
+    const text = "word ".repeat(20);
+    const base = estimateTweetAspect(
+      { text, hasAvatar: true },
+      { columnWidthPx: COL, rootRemPx: 16, measure },
+    ).width;
+    const large = estimateTweetAspect(
+      { text, hasAvatar: true },
+      { columnWidthPx: COL, rootRemPx: 20, measure },
+    ).width;
+    expect(large).toBeLessThan(base);
   });
 
   it("counts hard newlines as separate lines", () => {
