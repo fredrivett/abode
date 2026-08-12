@@ -6,7 +6,6 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
 import {
   buildColorCondition,
   buildColorRelevanceCte,
@@ -25,8 +24,7 @@ import {
   validateSourceFilters,
   validateTypeFilters,
 } from "@/lib/search/query-builder";
-import { mergeSearchResults } from "@/lib/search/rrf";
-import { vectorSearch } from "@/lib/search/vector-search";
+import { rankedSearch } from "@/lib/search/ranked-search";
 import { createClient } from "@/lib/supabase/server";
 import type {
   BookDetails,
@@ -45,7 +43,6 @@ import type {
 const log = createLogger("api/v1/search");
 
 const PAGE_SIZE = 20;
-const MAX_RANKED_RESULTS = 100;
 
 type SearchWarning =
   | "vector_search_unavailable"
@@ -890,62 +887,29 @@ async function executeRankedSearch(
   query: string,
   warnings: SearchWarning[],
 ): Promise<{ items: SearchItem[]; total: number }> {
-  // Run full-text, vector, and OCR search in parallel
-  const [textResults, vectorResults, ocrResults] = await Promise.all([
-    fullTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
-    vectorSearch(userId, filters, query, MAX_RANKED_RESULTS).catch((error) => {
-      // Handle vector search failure gracefully
-      log.error({ error }, "Vector search failed, falling back to text-only");
-      warnings.push("vector_search_unavailable");
-      return [];
-    }),
-    ocrTextSearch(userId, filters, query, MAX_RANKED_RESULTS),
-  ]);
+  // Full-text + vector + OCR fused with RRF (shared with the MCP server)
+  const ranked = await rankedSearch(userId, filters, query, {
+    onVectorUnavailable: () => warnings.push("vector_search_unavailable"),
+  });
 
-  // Check if we have any results
-  if (
-    textResults.length === 0 &&
-    vectorResults.length === 0 &&
-    ocrResults.length === 0
-  ) {
+  if (ranked.length === 0) {
     return { items: [], total: 0 };
   }
 
-  // Merge results using RRF (3-way merge)
-  const mergedResults = mergeSearchResults(
-    textResults,
-    vectorResults,
-    ocrResults,
-    {
-      k: 60,
-      limit: MAX_RANKED_RESULTS,
-    },
-  );
-
-  if (mergedResults.length === 0) {
-    return { items: [], total: 0 };
-  }
-
-  // Build a map of OCR snippets from OCR search results
+  // Index the match metadata by item id for reason-building below
   const ocrSnippets = new Map<string, string>();
-  for (const result of ocrResults) {
-    ocrSnippets.set(result.id, result.snippet);
-  }
-
-  // Build a map of vector similarities for match reasons
   const vectorSimilarities = new Map<string, number>();
-  for (const result of vectorResults) {
-    vectorSimilarities.set(result.id, result.similarity);
-  }
-
-  // Track which items came from which source
   const sourceMap = new Map<string, string[]>();
-  for (const result of mergedResults) {
+  for (const result of ranked) {
+    if (result.ocrSnippet) ocrSnippets.set(result.id, result.ocrSnippet);
+    if (result.vectorSimilarity !== null) {
+      vectorSimilarities.set(result.id, result.vectorSimilarity);
+    }
     sourceMap.set(result.id, result.sources);
   }
 
-  // Fetch full item data for the merged results
-  const itemIds = mergedResults.map((r) => r.id);
+  // Fetch full item data for the ranked results
+  const itemIds = ranked.map((r) => r.id);
 
   const rawItems = await db.$queryRawUnsafe<RawItemRow[]>(
     `
@@ -1061,7 +1025,7 @@ async function executeRankedSearch(
   // Build result items in RRF rank order
   // Color filter is already applied in the individual search functions
   const resultItems: SearchItem[] = [];
-  for (const result of mergedResults) {
+  for (const result of ranked) {
     const item = itemMap.get(result.id);
     if (!item) continue;
 
