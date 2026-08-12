@@ -38,6 +38,12 @@ function InlineText({ children }: { children?: ReactNode }) {
   return <span className="underline decoration-current/40">{children}</span>;
 }
 
+// The grid preview is a text teaser — drop images (markdown or raw HTML) from
+// the body so a stray inline photo doesn't crowd the card
+function StripImage() {
+  return null;
+}
+
 function formatPublishedDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
@@ -158,7 +164,7 @@ export function ArticleCard({
             style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
             options={{
               forceBlock: true,
-              overrides: { a: InlineText },
+              overrides: { a: InlineText, img: StripImage },
             }}
           >
             {content ?? ""}

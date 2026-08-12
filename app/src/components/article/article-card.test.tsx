@@ -18,6 +18,24 @@ describe("ArticleCard", () => {
     expect(screen.getByText(/ferrying intent/)).toBeInTheDocument();
   });
 
+  it("strips images from the body preview but keeps the surrounding text", () => {
+    render(
+      <ArticleCard
+        title="Title"
+        content={
+          'Intro paragraph.\n\n![a big photo](https://example.com/photo.png)\n\n<img src="https://example.com/raw.png" alt="raw" />\n\nClosing paragraph.'
+        }
+        domain="gruhn.me"
+        readingTime={4}
+      />,
+    );
+
+    expect(screen.getByText(/Intro paragraph/)).toBeInTheDocument();
+    expect(screen.getByText(/Closing paragraph/)).toBeInTheDocument();
+    // Neither the markdown nor the raw-HTML image should render
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("shows domain and reading time in the footer when both are present", () => {
     render(
       <ArticleCard

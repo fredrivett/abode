@@ -51,6 +51,20 @@ export const NoReadingTime: Story = {
   },
 };
 
+// Images in the body are stripped from the grid teaser (should read as text only)
+export const BodyWithImages: Story = {
+  args: {
+    title: "Don't be a meat proxy",
+    content: `The web is increasingly a place where you are a meat proxy.
+
+![a large inline photo](https://example.com/photo.png)
+
+Some thoughts on why that's a problem, ferrying intent from one system to another and rarely serving your own goals.`,
+    domain: "gruhn.me",
+    readingTime: 4,
+  },
+};
+
 // No body: the title should drop to the bottom, by the footer (not strand at top)
 export const NoContent: Story = {
   args: {
