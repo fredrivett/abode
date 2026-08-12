@@ -137,6 +137,23 @@ describe("estimateNoteAspect", () => {
     expect(noBlank).toBe(withBlank);
   });
 
+  it("lets a real HTML block interrupt a blockquote", () => {
+    const noBlank = noteAspect(null, "> a quote\n<div>hi</div>").width;
+    const withBlank = noteAspect(null, "> a quote\n\n<div>hi</div>").width;
+    expect(noBlank).toBe(withBlank);
+  });
+
+  it("keeps an autolink as blockquote continuation, not an HTML block", () => {
+    // `<https://…>` is inline markdown, so it stays in the quote (same as if it
+    // were explicitly prefixed) rather than ending it.
+    const lazy = noteAspect(null, "> a quote\n<https://example.com>").width;
+    const prefixed = noteAspect(
+      null,
+      "> a quote\n> <https://example.com>",
+    ).width;
+    expect(lazy).toBe(prefixed);
+  });
+
   it("a multi-item list is taller than a single line of the same length", () => {
     const list = noteAspect(null, "- one\n- two\n- three\n- four").width;
     const line = noteAspect(null, "one two three four").width;

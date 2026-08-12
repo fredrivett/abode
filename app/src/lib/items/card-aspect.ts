@@ -223,7 +223,10 @@ const HARD_BREAK = / {2,}$|\\$/;
 // thematic breaks (`---`/`***`/`___`) and HTML blocks. ATX headings, lists,
 // fences and blank lines are already handled before the continuation branch.
 const THEMATIC_BREAK = /^ {0,3}([-_*])(?:[ \t]*\1){2,}[ \t]*$/;
-const HTML_BLOCK_START = /^ {0,3}<(?:!--|\/?[a-zA-Z])/;
+// CommonMark HTML block starters (types 1–6) — restricted to real block tags so
+// an inline autolink like `<https://example.com>` isn't mistaken for a block.
+const HTML_BLOCK_START =
+  /^ {0,3}(?:<!--|<\?|<![A-Z]|<!\[CDATA\[|<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|ol|p|pre|script|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>))/i;
 
 type NoteBlock =
   | { type: "heading"; level: number; text: string }
