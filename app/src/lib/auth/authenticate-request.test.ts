@@ -7,14 +7,14 @@ const {
   mockBearerGetUser,
   mockCreateSupabaseClient,
   mockFindUnique,
-  mockUpdate,
+  mockUpdateMany,
   mockAdminGetUserById,
 } = vi.hoisted(() => ({
   mockCookieGetUser: vi.fn(),
   mockBearerGetUser: vi.fn(),
   mockCreateSupabaseClient: vi.fn(),
   mockFindUnique: vi.fn(),
-  mockUpdate: vi.fn(),
+  mockUpdateMany: vi.fn(),
   mockAdminGetUserById: vi.fn(),
 }));
 
@@ -31,7 +31,10 @@ vi.mock("@supabase/supabase-js", () => ({
 
 vi.mock("@/lib/db", () => ({
   default: {
-    personalAccessToken: { findUnique: mockFindUnique, update: mockUpdate },
+    personalAccessToken: {
+      findUnique: mockFindUnique,
+      updateMany: mockUpdateMany,
+    },
   },
 }));
 
@@ -55,7 +58,7 @@ function request(authorization?: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockUpdate.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 1 });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
 });
@@ -160,7 +163,6 @@ describe("authenticateRequest — personal access tokens", () => {
       userId: "u_pat",
       expiresAt: null,
       revokedAt: null,
-      lastUsedAt: null,
       ...overrides,
     };
   }
@@ -182,13 +184,7 @@ describe("authenticateRequest — personal access tokens", () => {
     // Looked up by hash, never the raw token
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { tokenHash: PAT_HASH },
-      select: {
-        id: true,
-        userId: true,
-        expiresAt: true,
-        revokedAt: true,
-        lastUsedAt: true,
-      },
+      select: { id: true, userId: true, expiresAt: true, revokedAt: true },
     });
     expect(mockAdminGetUserById).toHaveBeenCalledWith("u_pat");
     // The Supabase-token and cookie paths are never touched
@@ -196,36 +192,21 @@ describe("authenticateRequest — personal access tokens", () => {
     expect(mockCookieGetUser).not.toHaveBeenCalled();
   });
 
-  it("updates last_used_at when it has never been used", async () => {
-    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: null }));
+  it("bumps last_used_at via an atomic conditional updateMany (throttle in the WHERE clause)", async () => {
+    mockFindUnique.mockResolvedValue(patRecord());
     withUser();
 
     await authenticateRequest(request(`Bearer ${PAT}`));
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "tok_1" },
+    // The throttle is enforced by the query, not a prior read, so concurrent
+    // requests can't each slip a write past a stale check
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "tok_1",
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: expect.any(Date) } }],
+      },
       data: { lastUsedAt: expect.any(Date) },
     });
-  });
-
-  it("updates last_used_at when the previous use is older than the throttle", async () => {
-    mockFindUnique.mockResolvedValue(
-      patRecord({ lastUsedAt: new Date(Date.now() - 5 * 60 * 1000) }),
-    );
-    withUser();
-
-    await authenticateRequest(request(`Bearer ${PAT}`));
-
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not update last_used_at within the throttle window", async () => {
-    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: new Date() }));
-    withUser();
-
-    await authenticateRequest(request(`Bearer ${PAT}`));
-
-    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns null for an unknown token without falling back to cookies", async () => {
@@ -245,7 +226,7 @@ describe("authenticateRequest — personal access tokens", () => {
 
     expect(result).toBeNull();
     expect(mockAdminGetUserById).not.toHaveBeenCalled();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it("returns null for an expired token", async () => {
@@ -280,6 +261,6 @@ describe("authenticateRequest — personal access tokens", () => {
     const result = await authenticateRequest(request(`Bearer ${PAT}`));
 
     expect(result).toBeNull();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 });

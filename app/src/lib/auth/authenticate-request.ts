@@ -74,13 +74,7 @@ async function resolvePersonalAccessTokenUser(
 
   const record = await db.personalAccessToken.findUnique({
     where: { tokenHash },
-    select: {
-      id: true,
-      userId: true,
-      expiresAt: true,
-      revokedAt: true,
-      lastUsedAt: true,
-    },
+    select: { id: true, userId: true, expiresAt: true, revokedAt: true },
   });
 
   if (!record) return null;
@@ -90,7 +84,7 @@ async function resolvePersonalAccessTokenUser(
   const user = await resolveUserById(record.userId);
   if (!user) return null;
 
-  touchLastUsed(record.id, record.lastUsedAt);
+  touchLastUsed(record.id);
   return user;
 }
 
@@ -118,15 +112,23 @@ async function resolveUserById(userId: string): Promise<User | null> {
 }
 
 /**
- * Best-effort, fire-and-forget update of a token's last_used_at, throttled so a
- * high-traffic token isn't written on every request. Never blocks or fails auth.
+ * Best-effort, fire-and-forget bump of a token's last_used_at, throttled to at
+ * most one write per LAST_USED_THROTTLE_MS. The throttle lives in the WHERE
+ * clause rather than a prior read, so concurrent requests for the same token
+ * can't each slip a write past a stale in-memory check — Postgres serializes the
+ * matching row and only the first update inside the window lands. Never blocks or
+ * fails auth.
  */
-function touchLastUsed(id: string, lastUsedAt: Date | null): void {
-  if (lastUsedAt && Date.now() - lastUsedAt.getTime() < LAST_USED_THROTTLE_MS) {
-    return;
-  }
+function touchLastUsed(id: string): void {
+  const throttleCutoff = new Date(Date.now() - LAST_USED_THROTTLE_MS);
   void db.personalAccessToken
-    .update({ where: { id }, data: { lastUsedAt: new Date() } })
+    .updateMany({
+      where: {
+        id,
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: throttleCutoff } }],
+      },
+      data: { lastUsedAt: new Date() },
+    })
     .catch((error) =>
       log.warn({ id, error }, "Failed to update PAT last_used_at"),
     );
