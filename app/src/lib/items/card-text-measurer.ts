@@ -1,0 +1,98 @@
+/**
+ * Real font measurement for the card aspect estimators, backed by a single
+ * cached canvas 2D context. `measureText` uses the browser's actual font
+ * engine, so emoji, CJK, ligatures, and wide caps are measured — not guessed.
+ *
+ * When there's no canvas (SSR, jsdom), it falls back to an average-advance
+ * approximation so the estimator still returns a sane ratio; the client
+ * refines it once mounted.
+ */
+
+import type {
+  CardFontFamily,
+  CardTextStyle,
+  TextMeasurer,
+} from "./card-aspect";
+
+// Generic fallbacks; the real families (Geist / Hedvig) are resolved from the
+// DOM at runtime so measured widths match the rendered card.
+const FALLBACK_STACK: Record<CardFontFamily, string> = {
+  sans: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+  serif: "ui-serif, Georgia, Cambria, serif",
+};
+
+// Rough mean glyph advance as a fraction of font size, for the no-canvas path.
+const FALLBACK_ADVANCE: Record<CardFontFamily, number> = {
+  sans: 0.52,
+  serif: 0.5,
+};
+
+let cachedContext: CanvasRenderingContext2D | null | undefined;
+
+function getContext(): CanvasRenderingContext2D | null {
+  if (cachedContext !== undefined) return cachedContext;
+  try {
+    cachedContext = document.createElement("canvas").getContext("2d") ?? null;
+  } catch {
+    cachedContext = null;
+  }
+  return cachedContext;
+}
+
+// Read the concrete font family for a CSS `var(--font-*)` off the live DOM.
+// Canvas `ctx.font` can't resolve CSS vars, so we probe a hidden element.
+function readFamily(cssVar: string, fallback: string): string {
+  try {
+    const probe = document.createElement("span");
+    probe.style.fontFamily = `var(${cssVar})`;
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    document.body.appendChild(probe);
+    const resolved = getComputedStyle(probe).fontFamily;
+    probe.remove();
+    return resolved || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+let cachedStack: Record<CardFontFamily, string> | undefined;
+
+function fontStack(): Record<CardFontFamily, string> {
+  if (cachedStack) return cachedStack;
+  if (typeof document === "undefined") return FALLBACK_STACK;
+  cachedStack = {
+    sans: readFamily("--font-sans", FALLBACK_STACK.sans),
+    serif: readFamily("--font-serif", FALLBACK_STACK.serif),
+  };
+  return cachedStack;
+}
+
+function fontFor({ px, weight = 400, family = "sans" }: CardTextStyle): string {
+  return `${weight} ${px}px ${fontStack()[family]}`;
+}
+
+/**
+ * Shared measurer used by the grid. Memoized per (text, font) since the grid
+ * measures the same strings across re-renders and density changes.
+ */
+export const measureCardText: TextMeasurer = (text, style) => {
+  const context = getContext();
+  const family = style.family ?? "sans";
+  if (!context) {
+    return text.length * style.px * FALLBACK_ADVANCE[family];
+  }
+  const font = fontFor(style);
+  const cacheKey = `${font} ${text}`;
+  const cached = measureCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  context.font = font;
+  const width = context.measureText(text).width;
+  if (measureCache.size >= MAX_CACHE_ENTRIES) measureCache.clear();
+  measureCache.set(cacheKey, width);
+  return width;
+};
+
+const MAX_CACHE_ENTRIES = 4000;
+const measureCache = new Map<string, number>();

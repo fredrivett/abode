@@ -1,7 +1,8 @@
 "use client";
 
 import Markdown from "markdown-to-jsx";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
+import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
 
@@ -27,6 +28,8 @@ function InlineText({ children }: { children?: ReactNode }) {
  */
 export function NoteCard({ title, content, onClick }: NoteCardProps) {
   const hasBody = content.trim().length > 0;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const isOverflowing = useIsOverflowing(bodyRef);
 
   return (
     <button
@@ -44,7 +47,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
         </p>
       )}
       {hasBody ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-hidden">
           <Markdown
             className={NOTE_PROSE_CLASS}
             style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
@@ -55,11 +58,13 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
           >
             {content}
           </Markdown>
-          {/* Fade out clipped content; invisible over empty card background */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-card"
-          />
+          {/* Fade out clipped content — only when there's more below the fold */}
+          {isOverflowing && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-card"
+            />
+          )}
         </div>
       ) : (
         !title && (

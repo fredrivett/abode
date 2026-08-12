@@ -5,9 +5,16 @@ import { Home, SearchX } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
+import { useColumnWidth } from "@/hooks/use-column-width";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useRootFontSize } from "@/hooks/use-root-font-size";
 import { getBookTileFrame } from "@/lib/book-cover";
+import {
+  estimateNoteAspect,
+  estimateTweetAspect,
+} from "@/lib/items/card-aspect";
+import { measureCardText } from "@/lib/items/card-text-measurer";
 import { noteDisplayName } from "@/lib/items/note-title";
 import { readAspectHint } from "@/lib/items/provisional-aspect";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
@@ -70,6 +77,19 @@ export function ItemsGrid({
     containerRef,
     hasHydrated,
   } = useGridDensity();
+  // Actual rendered column width — coverless text cards (notes, text tweets)
+  // size their height from their content against this width.
+  const columnWidth = useColumnWidth({
+    ref: containerRef,
+    frameWidth,
+    gap,
+    enabled: hasHydrated,
+  });
+  // Card root font size in px: gridCardStyle sets font-size to
+  // calc(var(--grid-font-scale) * 1rem), so 1em on a card is fontScale × the
+  // live root rem (not a hard-coded 16px — respects the user's font-size pref).
+  const rootRemPx = useRootFontSize();
+  const cardRootPx = fontScale * rootRemPx;
   const { ref: loadMoreRef } = useInfiniteScroll({
     hasMore: hasMore ?? false,
     isLoading: isLoadingMore ?? false,
@@ -267,8 +287,21 @@ export function ItemsGrid({
                   // Twitter link-card images render at ~1.91:1
                   width = 16;
                   height = 9;
+                } else if (columnWidth !== null && item.twitterDetails?.text) {
+                  // Text-only tweet: height follows the tweet text
+                  ({ width, height } = estimateTweetAspect(
+                    {
+                      text: item.twitterDetails.text,
+                      hasAvatar: !!item.twitterDetails.authorAvatarUrl,
+                    },
+                    {
+                      columnWidthPx: columnWidth,
+                      rootRemPx,
+                      measure: measureCardText,
+                    },
+                  ));
                 } else {
-                  // Text-only tweet placeholder
+                  // Text-only tweet placeholder (pre-measurement / no text)
                   width = 16;
                   height = 12;
                 }
@@ -313,9 +346,25 @@ export function ItemsGrid({
                 width = 4;
                 height = 3;
               } else if (isNote) {
-                // Notes are coverless text cards; a square sticky note
-                width = 1;
-                height = 1;
+                if (columnWidth !== null) {
+                  // Coverless text card: height follows the note's content
+                  ({ width, height } = estimateNoteAspect(
+                    {
+                      title: item.title,
+                      body: item.noteDetails?.content ?? "",
+                    },
+                    {
+                      columnWidthPx: columnWidth,
+                      cardRootPx,
+                      rootRemPx,
+                      measure: measureCardText,
+                    },
+                  ));
+                } else {
+                  // Square sticky note until we've measured the column
+                  width = 1;
+                  height = 1;
+                }
               } else {
                 width = (meta.width as number | undefined) ?? 3;
                 height = (meta.height as number | undefined) ?? 4;
