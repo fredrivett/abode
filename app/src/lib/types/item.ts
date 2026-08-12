@@ -222,6 +222,8 @@ export type Item = {
   noteDetails: NoteDetails | null;
   // Optional fields (not always present)
   excludeFromPublicRooms?: boolean;
+  // Presentation: when true, the grid card hides the cover and renders as text
+  coverHidden?: boolean;
   // Direct sharing: non-null sharedAt ⟺ viewable via direct link.
   sharedAt?: string | null;
   sharedHighlights?: boolean;

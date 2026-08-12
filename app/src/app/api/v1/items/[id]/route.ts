@@ -106,6 +106,7 @@ export async function PATCH(
       notes,
       shared,
       sharedHighlights,
+      coverHidden,
       content,
       twitterCoverMediaIndex,
       productCoverImageIndex,
@@ -190,6 +191,8 @@ export async function PATCH(
           sharedAt: shared ? (existingItem.sharedAt ?? new Date()) : null,
         }),
         ...(sharedHighlights !== undefined && { sharedHighlights }),
+        // Presentational only — no room re-sync needed
+        ...(coverHidden !== undefined && { coverHidden }),
       },
       select: itemSelect,
     });

@@ -78,6 +78,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { articleCardMode } from "@/lib/items/article-card-mode";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
@@ -507,13 +508,20 @@ export function ItemCard({
     );
   }
 
-  // Articles/webpages without cover images render their reader content as a
-  // note-style text card (rather than a hollow icon placeholder)
-  if (isArticleOrWebpage && !previewUrl && !imageFileKey) {
-    let placeholderDomain = item.articleDetails?.domain;
-    if (!placeholderDomain && item.sourceUrl) {
+  // Articles/webpages render either the cover hero or a note-style text card.
+  // `coverHidden` (or no cover) forces the text card; a visible-but-unloaded
+  // cover falls through (null) to the generic image loading state.
+  const articleMode = articleCardMode({
+    isArticleOrWebpage,
+    hasCover: !!imageFileKey,
+    previewReady: !!previewUrl,
+    coverHidden: item.coverHidden ?? false,
+  });
+  if (articleMode) {
+    let articleDomain = item.articleDetails?.domain;
+    if (!articleDomain && item.sourceUrl) {
       try {
-        placeholderDomain = new URL(item.sourceUrl).hostname;
+        articleDomain = new URL(item.sourceUrl).hostname;
       } catch {}
     }
     return (
@@ -523,61 +531,18 @@ export function ItemCard({
           <ArticleCard
             title={itemName}
             content={item.articleDetails?.content ?? null}
-            domain={placeholderDomain ?? null}
+            domain={articleDomain ?? null}
             author={item.articleDetails?.author ?? null}
             publishedAt={item.articleDetails?.publishedAt ?? null}
             readingTime={item.articleDetails?.readingTime ?? null}
+            coverUrl={articleMode === "cover" ? previewUrl : null}
+            coverBlurDataUrl={articleMode === "cover" ? blurDataUrl : null}
             onClick={handleOpenDetail}
           />
         </div>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
-          item={item}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
-          name={itemName}
-          onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
-          canEdit={canEdit}
-        />
-      </>
-    );
-  }
-
-  // Articles/webpages with a cover image render the cover full-bleed behind a
-  // gradient, with the title + source meta aligned to the bottom (no body).
-  // Gate on previewUrl too: until it resolves (set in an effect), fall through
-  // to the generic image loading state rather than flashing the coverless body.
-  if (isArticleOrWebpage && imageFileKey && previewUrl) {
-    let coverDomain = item.articleDetails?.domain;
-    if (!coverDomain && item.sourceUrl) {
-      try {
-        coverDomain = new URL(item.sourceUrl).hostname;
-      } catch {}
-    }
-    return (
-      <>
-        <div className="relative h-full w-full">
-          <ProcessingOverlay status={item.processingStatus} />
-          <ArticleCard
-            title={itemName}
-            content={item.articleDetails?.content ?? null}
-            domain={coverDomain ?? null}
-            author={item.articleDetails?.author ?? null}
-            publishedAt={item.articleDetails?.publishedAt ?? null}
-            readingTime={item.articleDetails?.readingTime ?? null}
-            coverUrl={previewUrl}
-            coverBlurDataUrl={blurDataUrl}
-            onClick={handleOpenDetail}
-          />
-        </div>
-
+        {/* Pass the real previewUrl even in text mode so a hidden cover still
+            shows the Cover Image section (and its toggle) in the detail dialog */}
         <ItemDetailDialogWrapper
           show={showDetailDialog}
           item={item}
@@ -1210,6 +1175,8 @@ function ItemDetailDialog({
     item.excludeFromPublicRooms ?? false,
   );
   const [isSavingExclude, setIsSavingExclude] = useState(false);
+  const [coverHidden, setCoverHidden] = useState(item.coverHidden ?? false);
+  const [isSavingCover, setIsSavingCover] = useState(false);
   const [isShared, setIsShared] = useState(item.sharedAt != null);
   const [sharedHighlights, setSharedHighlights] = useState(
     item.sharedHighlights ?? false,
@@ -1430,6 +1397,29 @@ function ItemDetailDialog({
       toast.error("Failed to update setting");
     } finally {
       setIsSavingExclude(false);
+    }
+  };
+
+  const handleCoverToggle = async () => {
+    const newHidden = !coverHidden;
+    setIsSavingCover(true);
+    try {
+      await api.patch(`/api/v1/items/${item.id}`, { coverHidden: newHidden });
+      setCoverHidden(newHidden);
+
+      posthog.capture("item_cover_visibility_updated", {
+        item_id: item.id,
+        cover_hidden: newHidden,
+      });
+
+      // Refetch so the grid card swaps between cover and text immediately
+      invalidateItems();
+      toast.success(newHidden ? "Cover hidden" : "Cover shown");
+    } catch (error) {
+      log.error({ error }, "Cover toggle error");
+      toast.error("Failed to update setting");
+    } finally {
+      setIsSavingCover(false);
     }
   };
 
@@ -2403,9 +2393,36 @@ function ItemDetailDialog({
                   {/* Cover Image (shown in details panel for articles/webpages) */}
                   {isArticleOrWebpage && previewUrl && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Cover Image
-                      </h3>
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                          Cover Image
+                        </h3>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={!coverHidden}
+                            aria-label="Show cover image on card"
+                            onClick={handleCoverToggle}
+                            disabled={isSavingCover}
+                            className={cn(
+                              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              "disabled:cursor-not-allowed disabled:opacity-50",
+                              coverHidden
+                                ? "bg-gray-200 dark:bg-gray-700"
+                                : "bg-green-700",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
+                                coverHidden ? "translate-x-0" : "translate-x-5",
+                              )}
+                            />
+                          </button>
+                        )}
+                      </div>
                       <motion.div
                         layoutId={`item-image-${item.id}`}
                         className="overflow-hidden rounded-md"

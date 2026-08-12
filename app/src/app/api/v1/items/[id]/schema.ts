@@ -15,6 +15,7 @@ export const itemPatchSchema = z.object({
   notes: z.string().nullable().optional(),
   shared: z.boolean().optional(),
   sharedHighlights: z.boolean().optional(),
+  coverHidden: z.boolean().optional(),
   content: z.string().optional(),
   twitterCoverMediaIndex: z.number().int().nonnegative().nullable().optional(),
   productCoverImageIndex: z.number().int().nonnegative().nullable().optional(),
