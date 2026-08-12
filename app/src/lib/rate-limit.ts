@@ -59,6 +59,10 @@ export const RATE_LIMITS = {
     // Best-effort/in-memory; the same-origin gate + size cap are the primary
     // egress controls.
   },
+  tokenCreate: {
+    maxRequests: 10,
+    windowMs: 60 * 1000, // 1 minute - minting personal access tokens
+  },
   emojiSuggest: {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1 minute - AI emoji suggestions

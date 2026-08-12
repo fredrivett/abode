@@ -1,6 +1,6 @@
 "use client";
 
-import { Handshake, User } from "lucide-react";
+import { Handshake, KeyRound, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,11 @@ const navItems = [
     href: "/settings/account",
     label: "Account",
     icon: User,
+  },
+  {
+    href: "/settings/tokens",
+    label: "Access tokens",
+    icon: KeyRound,
   },
   {
     href: "/settings/invites",
