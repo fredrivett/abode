@@ -139,9 +139,11 @@ function wrapLines(
   if (content.trim() === "") return 1;
 
   // Tokenize into words, each with the px width of the whitespace gap before it.
+  // Preserve mode breaks only at ASCII space/tab (matching pre-wrap), so a
+  // non-breaking space stays inside the measured word rather than a break point.
   const spaceWidth = measure(" ", style);
   const tokens: { gap: number; word: string }[] = [];
-  const wordPattern = /(\s*)(\S+)/g;
+  const wordPattern = collapse ? /(\s*)(\S+)/g : /([ \t]*)([^ \t]+)/g;
   let match = wordPattern.exec(content);
   while (match !== null) {
     const whitespace = match[1];
@@ -330,8 +332,15 @@ function toBlocks(markdown: string): NoteBlock[] {
       continue;
     }
 
+    // Lazy blockquote continuation: an unprefixed paragraph line right after a
+    // `>` line stays in the quote (CommonMark paragraph continuation), so it
+    // doesn't become a separate block with its own gap and overhead.
+    if (quote.length > 0) {
+      quote.push(line);
+      continue;
+    }
+
     flushList();
-    flushQuote();
     // Keep the raw line — hard-break detection needs its trailing whitespace.
     paragraph.push(line);
   }

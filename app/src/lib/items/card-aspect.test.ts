@@ -121,6 +121,14 @@ describe("estimateNoteAspect", () => {
     expect(withQuote).toBeLessThan(plain);
   });
 
+  it("keeps a lazy blockquote continuation in the same quote", () => {
+    // `> line one` + an unprefixed continuation is one blockquote paragraph, so
+    // it must be no taller than the same lines both explicitly prefixed.
+    const lazy = noteAspect(null, "> line one\nline two").width;
+    const prefixed = noteAspect(null, "> line one\n> line two").width;
+    expect(lazy).toBe(prefixed);
+  });
+
   it("a multi-item list is taller than a single line of the same length", () => {
     const list = noteAspect(null, "- one\n- two\n- three\n- four").width;
     const line = noteAspect(null, "one two three four").width;
