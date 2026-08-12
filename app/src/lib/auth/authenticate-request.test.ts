@@ -163,6 +163,7 @@ describe("authenticateRequest — personal access tokens", () => {
       userId: "u_pat",
       expiresAt: null,
       revokedAt: null,
+      lastUsedAt: null,
       ...overrides,
     };
   }
@@ -184,7 +185,13 @@ describe("authenticateRequest — personal access tokens", () => {
     // Looked up by hash, never the raw token
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { tokenHash: PAT_HASH },
-      select: { id: true, userId: true, expiresAt: true, revokedAt: true },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        revokedAt: true,
+        lastUsedAt: true,
+      },
     });
     expect(mockAdminGetUserById).toHaveBeenCalledWith("u_pat");
     // The Supabase-token and cookie paths are never touched
@@ -192,14 +199,16 @@ describe("authenticateRequest — personal access tokens", () => {
     expect(mockCookieGetUser).not.toHaveBeenCalled();
   });
 
-  it("bumps last_used_at via an atomic conditional updateMany (throttle in the WHERE clause)", async () => {
-    mockFindUnique.mockResolvedValue(patRecord());
+  it("bumps last_used_at when stale, via an atomic conditional updateMany", async () => {
+    mockFindUnique.mockResolvedValue(
+      patRecord({ lastUsedAt: new Date(Date.now() - 5 * 60 * 1000) }),
+    );
     withUser();
 
     await authenticateRequest(request(`Bearer ${PAT}`));
 
-    // The throttle is enforced by the query, not a prior read, so concurrent
-    // requests can't each slip a write past a stale check
+    // The write re-checks the window in the WHERE clause, so concurrent requests
+    // racing at the boundary still yield a single write
     expect(mockUpdateMany).toHaveBeenCalledWith({
       where: {
         id: "tok_1",
@@ -207,6 +216,27 @@ describe("authenticateRequest — personal access tokens", () => {
       },
       data: { lastUsedAt: expect.any(Date) },
     });
+  });
+
+  it("bumps last_used_at when it has never been used", async () => {
+    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: null }));
+    withUser();
+
+    await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("issues no write when last_used_at is within the throttle window", async () => {
+    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: new Date() }));
+    withUser();
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    // Fast path: the already-fetched lastUsedAt gates the write, so a busy token
+    // issues no extra query at all
+    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it("returns null for an unknown token without falling back to cookies", async () => {

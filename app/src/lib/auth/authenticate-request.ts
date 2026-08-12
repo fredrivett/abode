@@ -74,7 +74,13 @@ async function resolvePersonalAccessTokenUser(
 
   const record = await db.personalAccessToken.findUnique({
     where: { tokenHash },
-    select: { id: true, userId: true, expiresAt: true, revokedAt: true },
+    select: {
+      id: true,
+      userId: true,
+      expiresAt: true,
+      revokedAt: true,
+      lastUsedAt: true,
+    },
   });
 
   if (!record) return null;
@@ -84,7 +90,7 @@ async function resolvePersonalAccessTokenUser(
   const user = await resolveUserById(record.userId);
   if (!user) return null;
 
-  touchLastUsed(record.id);
+  touchLastUsed(record.id, record.lastUsedAt);
   return user;
 }
 
@@ -113,19 +119,23 @@ async function resolveUserById(userId: string): Promise<User | null> {
 
 /**
  * Best-effort, fire-and-forget bump of a token's last_used_at, throttled to at
- * most one write per LAST_USED_THROTTLE_MS. The throttle lives in the WHERE
- * clause rather than a prior read, so concurrent requests for the same token
- * can't each slip a write past a stale in-memory check — Postgres serializes the
- * matching row and only the first update inside the window lands. Never blocks or
- * fails auth.
+ * most one write per LAST_USED_THROTTLE_MS. Never blocks or fails auth.
+ *
+ * Two layers: the `lastUsedAt` we already fetched gates the common case, so a
+ * busy token issues no query at all once it's been bumped; the rare stale write
+ * then re-checks the window in the WHERE clause, so concurrent requests racing
+ * at the boundary still yield a single write (Postgres serializes the matching
+ * row). No extra query per request, and no read-then-write race.
  */
-function touchLastUsed(id: string): void {
-  const throttleCutoff = new Date(Date.now() - LAST_USED_THROTTLE_MS);
+function touchLastUsed(id: string, lastUsedAt: Date | null): void {
+  const cutoffMs = Date.now() - LAST_USED_THROTTLE_MS;
+  if (lastUsedAt && lastUsedAt.getTime() >= cutoffMs) return;
+
   void db.personalAccessToken
     .updateMany({
       where: {
         id,
-        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: throttleCutoff } }],
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: new Date(cutoffMs) } }],
       },
       data: { lastUsedAt: new Date() },
     })
