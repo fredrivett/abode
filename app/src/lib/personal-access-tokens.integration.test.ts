@@ -153,6 +153,14 @@ describe("Personal access tokens integration", () => {
       );
       expect(unknown.success).toBe(false);
 
+      // A malformed (non-uuid) id is not-found, never a DB error
+      const malformed = await revokePersonalAccessToken("not-a-uuid", USER_A);
+      expect(malformed).toEqual({
+        success: false,
+        error: "Token not found",
+        code: "NOT_FOUND",
+      });
+
       const { summary } = await createPersonalAccessToken(USER_A, {
         name: "once",
         expiresInDays: null,

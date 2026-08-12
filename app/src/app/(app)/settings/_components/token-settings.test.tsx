@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PersonalAccessTokenSummary } from "@/lib/personal-access-tokens";
 import { TokenSettings } from "./token-settings";
 
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));

@@ -2,7 +2,6 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { Check, ChevronDown, Copy, KeyRound, Trash2 } from "lucide-react";
-import posthog from "posthog-js";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,6 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
         return;
       }
 
-      posthog.capture("token_created", { has_expiry: days !== null });
       setTokens((prev) => [data.tokenSummary, ...prev]);
       setNewToken(data.token);
       setName("");
@@ -80,17 +78,22 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
   };
 
   const handleRevoke = async (id: string) => {
-    const response = await fetch(`/api/v1/tokens/${id}`, { method: "DELETE" });
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch(`/api/v1/tokens/${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      toast.error(data.error || "Failed to revoke token");
-      return;
+      if (!response.ok) {
+        toast.error(data.error || "Failed to revoke token");
+        return;
+      }
+
+      setTokens((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Token revoked");
+    } catch {
+      toast.error("Failed to revoke token");
     }
-
-    posthog.capture("token_revoked");
-    setTokens((prev) => prev.filter((t) => t.id !== id));
-    toast.success("Token revoked");
   };
 
   const selectedExpiryLabel =

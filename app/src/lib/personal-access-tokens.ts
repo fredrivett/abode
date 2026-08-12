@@ -4,6 +4,9 @@ import db from "@/lib/db";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Public shape of a token for listing — never includes the raw secret or its
  * hash. Dates are ISO strings so it's safe to hand straight to a client.
@@ -82,6 +85,12 @@ export async function revokePersonalAccessToken(
   id: string,
   userId: string,
 ): Promise<RevokePersonalAccessTokenResult> {
+  // Guard the uuid-typed column: a malformed id would otherwise throw at the DB
+  // and surface as a 500 rather than the intended not-found
+  if (!UUID_RE.test(id)) {
+    return { success: false, error: "Token not found", code: "NOT_FOUND" };
+  }
+
   const result = await db.personalAccessToken.updateMany({
     where: { id, userId, revokedAt: null },
     data: { revokedAt: new Date() },
