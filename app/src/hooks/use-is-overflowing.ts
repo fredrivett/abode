@@ -35,18 +35,26 @@ export function useIsOverflowing(
       setOverflowing(element.scrollHeight - element.clientHeight > tolerancePx);
     measure();
 
-    const resizeObserver = new ResizeObserver(measure);
-    resizeObserver.observe(element);
-    const mutationObserver = new MutationObserver(measure);
-    mutationObserver.observe(element, {
+    // Observers are optional: the synchronous measure above is enough for the
+    // initial decision, and jsdom (unit tests) has no ResizeObserver.
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    resizeObserver?.observe(element);
+    const mutationObserver =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(measure);
+    mutationObserver?.observe(element, {
       childList: true,
       subtree: true,
       characterData: true,
     });
 
     return () => {
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
     };
   }, [ref, tolerancePx]);
 
