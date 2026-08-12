@@ -1,11 +1,9 @@
 import type { PersonalAccessToken } from "@prisma/client";
 import { generatePersonalAccessToken } from "@/lib/auth/personal-access-token";
 import db from "@/lib/db";
+import { isCanonicalUuid } from "@/lib/pagination";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Public shape of a token for listing — never includes the raw secret or its
@@ -87,7 +85,7 @@ export async function revokePersonalAccessToken(
 ): Promise<RevokePersonalAccessTokenResult> {
   // Guard the uuid-typed column: a malformed id would otherwise throw at the DB
   // and surface as a 500 rather than the intended not-found
-  if (!UUID_RE.test(id)) {
+  if (!isCanonicalUuid(id)) {
     return { success: false, error: "Token not found", code: "NOT_FOUND" };
   }
 
