@@ -71,10 +71,13 @@ const NOTE_BODY_LINE_HEIGHT = 1.72;
 const NOTE_HEADING_LINE_HEIGHT = 1.3; // prose-headings:leading-[1.25], rounded up
 const NOTE_BLOCK_GAP_EM = 0.4; // prose-p:my-[0.4em], collapsed between siblings
 const NOTE_LIST_ITEM_GAP_EM = 0.15; // prose-li:my-[0.15em]
-// A fenced code block renders as a padded <pre> box. Its vertical padding is a
-// fixed cost on top of the code lines — matters most for short blocks — so
-// include it. Kept in body-em terms (generous vs the slightly smaller mono).
-const NOTE_CODE_PADDING_EM = 0.7; // prose-sm pre padding-y, per side
+// Fenced code renders as a padded <pre>: same font size as body, but a tighter
+// line-height (prose-sm pre is ~19px on 14px text) plus fixed vertical padding.
+const NOTE_CODE_LINE_HEIGHT = 1.36; // prose-sm pre line-height
+const NOTE_CODE_PADDING_EM = 0.7; // prose-sm pre padding-y, per side (~10px on 14px)
+// A blockquote carries its own margin + leading beyond the plain text lines
+// (measured ~0.6em on top); without it the last line clips behind the fade.
+const NOTE_BLOCKQUOTE_EXTRA_EM = 0.6;
 // Heading sizes relative to body em (prose-h1..h6 in note-prose.ts).
 const NOTE_HEADING_SCALE: Record<number, number> = {
   1: 1.25,
@@ -196,7 +199,9 @@ type NoteBlock =
   | { type: "heading"; level: number; text: string }
   | { type: "list"; items: string[] }
   | { type: "code"; lines: number }
-  | { type: "paragraph"; segments: string[] };
+  | { type: "paragraph"; segments: string[]; isBlockquote: boolean };
+
+const BLOCKQUOTE = /^\s{0,3}>/;
 
 /**
  * Within a paragraph, soft line breaks collapse into one wrapped run, but hard
@@ -232,6 +237,7 @@ function toBlocks(markdown: string): NoteBlock[] {
       blocks.push({
         type: "paragraph",
         segments: toParagraphSegments(paragraph),
+        isBlockquote: BLOCKQUOTE.test(paragraph[0]),
       });
       paragraph = [];
     }
@@ -317,10 +323,11 @@ function estimateNoteBodyHeight(
         break;
       }
       case "code":
-        // Code doesn't wrap in prose; count raw lines, plus the <pre> padding.
+        // Code doesn't wrap in prose; count raw lines at the tighter pre
+        // line-height, plus the <pre>'s fixed vertical padding.
         height +=
           2 * NOTE_CODE_PADDING_EM * bodyPx +
-          block.lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
+          block.lines * bodyPx * NOTE_CODE_LINE_HEIGHT;
         break;
       case "list":
         block.items.forEach((item, itemIndex) => {
@@ -337,6 +344,8 @@ function estimateNoteBodyHeight(
           0,
         );
         height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
+        // A blockquote carries extra margin/leading beyond its text lines.
+        if (block.isBlockquote) height += NOTE_BLOCKQUOTE_EXTRA_EM * bodyPx;
       }
     }
   });

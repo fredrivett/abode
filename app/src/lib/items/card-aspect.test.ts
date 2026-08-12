@@ -107,6 +107,13 @@ describe("estimateNoteAspect", () => {
     expect(hardBreaks).toBeLessThan(softWrapped);
   });
 
+  it("gives a blockquote extra height over the same text as a paragraph", () => {
+    // The rendered blockquote carries margin/leading beyond its text lines.
+    const quote = noteAspect(null, "> some wisdom here").width;
+    const plain = noteAspect(null, "some wisdom here").width;
+    expect(quote).toBeLessThan(plain);
+  });
+
   it("a multi-item list is taller than a single line of the same length", () => {
     const list = noteAspect(null, "- one\n- two\n- three\n- four").width;
     const line = noteAspect(null, "one two three four").width;
