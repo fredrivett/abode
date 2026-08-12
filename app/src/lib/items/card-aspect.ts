@@ -121,22 +121,45 @@ function clamp(value: number, min: number, max: number): number {
  * word won't fit, then break — so a line that genuinely fits isn't over-counted
  * (which a whole-string width ÷ availWidth would do at word boundaries). A token
  * wider than the line (e.g. a long URL) breaks across multiple lines.
+ *
+ * `collapse` matches the render's white-space handling: markdown (notes)
+ * collapses runs of whitespace to a single space, while `whitespace-pre-wrap`
+ * (tweets) preserves them — measuring the real gap widths so indentation and
+ * repeated spaces push wrapping the same way they do on screen.
  */
 function wrapLines(
   text: string,
   availWidth: number,
   measure: TextMeasurer,
   style: CardTextStyle,
+  collapse = true,
 ): number {
-  const trimmed = text.trim();
-  if (!trimmed) return 1;
+  // Trailing whitespace hangs at a wrap in both modes, so drop it.
+  const content = text.replace(/\s+$/, "");
+  if (content.trim() === "") return 1;
 
-  const words = trimmed.split(/\s+/);
+  // Tokenize into words, each with the px width of the whitespace gap before it.
   const spaceWidth = measure(" ", style);
+  const tokens: { gap: number; word: string }[] = [];
+  const wordPattern = /(\s*)(\S+)/g;
+  let match = wordPattern.exec(content);
+  while (match !== null) {
+    const whitespace = match[1];
+    const gap = collapse
+      ? tokens.length === 0
+        ? 0
+        : spaceWidth
+      : whitespace
+        ? measure(whitespace, style)
+        : 0;
+    tokens.push({ gap, word: match[2] });
+    match = wordPattern.exec(content);
+  }
+
   let lines = 1;
   let lineWidth = 0;
 
-  for (const word of words) {
+  for (const { gap, word } of tokens) {
     const wordWidth = measure(word, style);
 
     if (wordWidth > availWidth) {
@@ -148,13 +171,12 @@ function wrapLines(
       continue;
     }
 
-    const withWord =
-      lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth;
+    const withWord = lineWidth + gap + wordWidth;
     if (withWord <= availWidth) {
       lineWidth = withWord;
     } else {
       lines++;
-      lineWidth = wordWidth;
+      lineWidth = wordWidth; // the gap is consumed by the wrap
     }
   }
 
@@ -199,7 +221,8 @@ type NoteBlock =
   | { type: "heading"; level: number; text: string }
   | { type: "list"; items: string[] }
   | { type: "code"; lines: number }
-  | { type: "paragraph"; segments: string[]; isBlockquote: boolean };
+  | { type: "paragraph"; segments: string[] }
+  | { type: "blockquote"; segments: string[] };
 
 const BLOCKQUOTE = /^\s{0,3}>/;
 
@@ -224,20 +247,22 @@ function toParagraphSegments(rawLines: string[]): string[] {
 
 /**
  * Split note markdown into blocks the way the renderer roughly groups them:
- * fenced code, headings, list runs, and blank-line-separated paragraphs.
+ * fenced code, headings, list runs, blockquotes, and blank-line-separated
+ * paragraphs. A `>` line starts its own blockquote even mid-paragraph, matching
+ * how markdown-to-jsx renders it (a distinct block with its own margins).
  */
 function toBlocks(markdown: string): NoteBlock[] {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: NoteBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
+  let quote: string[] = [];
 
   const flushParagraph = () => {
     if (paragraph.length) {
       blocks.push({
         type: "paragraph",
         segments: toParagraphSegments(paragraph),
-        isBlockquote: BLOCKQUOTE.test(paragraph[0]),
       });
       paragraph = [];
     }
@@ -248,13 +273,23 @@ function toBlocks(markdown: string): NoteBlock[] {
       list = [];
     }
   };
+  const flushQuote = () => {
+    if (quote.length) {
+      blocks.push({ type: "blockquote", segments: toParagraphSegments(quote) });
+      quote = [];
+    }
+  };
+  const flushAll = () => {
+    flushParagraph();
+    flushList();
+    flushQuote();
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     if (FENCE.test(line)) {
-      flushParagraph();
-      flushList();
+      flushAll();
       let count = 0;
       i++;
       while (i < lines.length && !FENCE.test(lines[i])) {
@@ -266,15 +301,13 @@ function toBlocks(markdown: string): NoteBlock[] {
     }
 
     if (line.trim() === "") {
-      flushParagraph();
-      flushList();
+      flushAll();
       continue;
     }
 
     const heading = line.match(ATX_HEADING);
     if (heading) {
-      flushParagraph();
-      flushList();
+      flushAll();
       blocks.push({
         type: "heading",
         level: heading[1].length,
@@ -283,19 +316,27 @@ function toBlocks(markdown: string): NoteBlock[] {
       continue;
     }
 
+    if (BLOCKQUOTE.test(line)) {
+      flushParagraph();
+      flushList();
+      quote.push(line);
+      continue;
+    }
+
     if (LIST_ITEM.test(line)) {
       flushParagraph();
+      flushQuote();
       list.push(stripInlineMarkdown(line));
       continue;
     }
 
     flushList();
+    flushQuote();
     // Keep the raw line — hard-break detection needs its trailing whitespace.
     paragraph.push(line);
   }
 
-  flushParagraph();
-  flushList();
+  flushAll();
   return blocks;
 }
 
@@ -336,6 +377,18 @@ function estimateNoteBodyHeight(
           height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
         });
         break;
+      case "blockquote": {
+        const lines = block.segments.reduce(
+          (total, segment) =>
+            total + wrapLines(segment, availWidth, measure, { px: bodyPx }),
+          0,
+        );
+        // Extra margin/leading beyond the text lines, else the last line clips.
+        height +=
+          lines * bodyPx * NOTE_BODY_LINE_HEIGHT +
+          NOTE_BLOCKQUOTE_EXTRA_EM * bodyPx;
+        break;
+      }
       default: {
         // Each hard-break segment wraps on its own and is at least one line.
         const lines = block.segments.reduce(
@@ -344,8 +397,6 @@ function estimateNoteBodyHeight(
           0,
         );
         height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
-        // A blockquote carries extra margin/leading beyond its text lines.
-        if (block.isBlockquote) height += NOTE_BLOCKQUOTE_EXTRA_EM * bodyPx;
       }
     }
   });
@@ -424,12 +475,13 @@ export function estimateTweetAspect(
   // Header is the author row; the avatar (1.5rem) dominates its own text line.
   const headerPx = hasAvatar ? TWEET_AVATAR_REM * rootRemPx : bodyLinePx;
 
-  // `whitespace-pre-wrap` keeps hard newlines; each source line wraps on its own.
+  // `whitespace-pre-wrap` keeps hard newlines and preserves internal whitespace,
+  // so each source line wraps on its own with real gap widths (collapse: false).
   const bodyLines = text
     .split("\n")
     .reduce(
       (total, line) =>
-        total + wrapLines(line, availWidth, measure, { px: bodyPx }),
+        total + wrapLines(line, availWidth, measure, { px: bodyPx }, false),
       0,
     );
 

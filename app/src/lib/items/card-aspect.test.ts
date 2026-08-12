@@ -114,6 +114,13 @@ describe("estimateNoteAspect", () => {
     expect(quote).toBeLessThan(plain);
   });
 
+  it("treats a > line as a blockquote even without a preceding blank line", () => {
+    // markdown-to-jsx renders the `>` line as its own blockquote block.
+    const withQuote = noteAspect(null, "some thoughts\n> a quote").width;
+    const plain = noteAspect(null, "some thoughts a quote").width;
+    expect(withQuote).toBeLessThan(plain);
+  });
+
   it("a multi-item list is taller than a single line of the same length", () => {
     const list = noteAspect(null, "- one\n- two\n- three\n- four").width;
     const line = noteAspect(null, "one two three four").width;
@@ -156,6 +163,14 @@ describe("estimateTweetAspect", () => {
       { columnWidthPx: COL, rootRemPx: 20, measure },
     ).width;
     expect(large).toBeLessThan(base);
+  });
+
+  it("preserves whitespace runs when wrapping (pre-wrap)", () => {
+    // A wide run of spaces takes real width and can push a word to a new line,
+    // unlike collapsed markdown whitespace.
+    const spaced = tweetAspect(`word${" ".repeat(40)}word`).width;
+    const collapsed = tweetAspect("word word").width;
+    expect(spaced).toBeLessThan(collapsed);
   });
 
   it("counts hard newlines as separate lines", () => {
