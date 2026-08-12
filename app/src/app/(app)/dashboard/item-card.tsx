@@ -32,7 +32,7 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
@@ -64,6 +64,7 @@ import {
 import { EditableTitle } from "@/components/ui/editable-title";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
@@ -1167,6 +1168,8 @@ function ItemDetailDialog({
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
   const { setState: setSearchState } = useSearch();
+  // Base id for associating setting labels with their Switch (unique per card)
+  const toggleId = useId();
   const [isSavingName, setIsSavingName] = useState(false);
   const [fullQualityUrl, setFullQualityUrl] = useState<string | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -2398,29 +2401,12 @@ function ItemDetailDialog({
                           Cover Image
                         </h3>
                         {canEdit && (
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={!coverHidden}
-                            aria-label="Show cover image on card"
-                            onClick={handleCoverToggle}
+                          <Switch
+                            checked={!coverHidden}
+                            onCheckedChange={handleCoverToggle}
                             disabled={isSavingCover}
-                            className={cn(
-                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                              "disabled:cursor-not-allowed disabled:opacity-50",
-                              coverHidden
-                                ? "bg-gray-200 dark:bg-gray-700"
-                                : "bg-green-700",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform",
-                                coverHidden ? "translate-x-0" : "translate-x-4",
-                              )}
-                            />
-                          </button>
+                            aria-label="Show cover image on card"
+                          />
                         )}
                       </div>
                       <motion.div
@@ -2941,32 +2927,19 @@ function ItemDetailDialog({
                     <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                       Share
                     </h3>
-                    <label className="flex items-center justify-between gap-3 text-sm">
+                    <label
+                      htmlFor={`${toggleId}-share`}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
                       <span className="text-gray-600 dark:text-gray-400">
                         Share via link
                       </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isShared}
-                        onClick={handleShareToggle}
+                      <Switch
+                        id={`${toggleId}-share`}
+                        checked={isShared}
+                        onCheckedChange={handleShareToggle}
                         disabled={isSavingShare}
-                        className={cn(
-                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                          isShared
-                            ? "bg-green-700"
-                            : "bg-gray-200 dark:bg-gray-700",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                            isShared ? "translate-x-5" : "translate-x-0",
-                          )}
-                        />
-                      </button>
+                      />
                     </label>
                     <p className="text-muted-foreground text-xs">
                       When enabled, anyone with the link can view this item,
@@ -3000,34 +2973,19 @@ function ItemDetailDialog({
                         </div>
 
                         {isArticle && (
-                          <label className="flex items-center justify-between gap-3 text-sm">
+                          <label
+                            htmlFor={`${toggleId}-highlights`}
+                            className="flex items-center justify-between gap-3 text-sm"
+                          >
                             <span className="text-gray-600 dark:text-gray-400">
                               Include my highlights
                             </span>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={sharedHighlights}
-                              onClick={handleSharedHighlightsToggle}
+                            <Switch
+                              id={`${toggleId}-highlights`}
+                              checked={sharedHighlights}
+                              onCheckedChange={handleSharedHighlightsToggle}
                               disabled={isSavingSharedHighlights}
-                              className={cn(
-                                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                                "disabled:cursor-not-allowed disabled:opacity-50",
-                                sharedHighlights
-                                  ? "bg-green-700"
-                                  : "bg-gray-200 dark:bg-gray-700",
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                                  sharedHighlights
-                                    ? "translate-x-5"
-                                    : "translate-x-0",
-                                )}
-                              />
-                            </button>
+                            />
                           </label>
                         )}
                       </div>
@@ -3041,34 +2999,19 @@ function ItemDetailDialog({
                     <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                       Privacy
                     </h3>
-                    <label className="flex items-center justify-between gap-3 text-sm">
+                    <label
+                      htmlFor={`${toggleId}-exclude`}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
                       <span className="text-gray-600 dark:text-gray-400">
                         Exclude from public rooms
                       </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={excludeFromPublicRooms}
-                        onClick={handleExcludeToggle}
+                      <Switch
+                        id={`${toggleId}-exclude`}
+                        checked={excludeFromPublicRooms}
+                        onCheckedChange={handleExcludeToggle}
                         disabled={isSavingExclude}
-                        className={cn(
-                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                          excludeFromPublicRooms
-                            ? "bg-green-700"
-                            : "bg-gray-200 dark:bg-gray-700",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                            excludeFromPublicRooms
-                              ? "translate-x-5"
-                              : "translate-x-0",
-                          )}
-                        />
-                      </button>
+                      />
                     </label>
                     <p className="text-muted-foreground text-xs">
                       When enabled, this item won't appear in public dynamic
