@@ -49,11 +49,11 @@ export type AspectBounds = {
 // between clean stops.
 const ASPECT_STEP = 0.05;
 
-// Text almost never fills a line to 100% — word boundaries force a wrap before
-// the edge, and font metrics carry slack. Counting wraps against a slightly
-// narrower width biases the estimate a hair taller so fit-content lands with
-// room to spare rather than clipping into a false overflow-fade.
-const WRAP_SAFETY = 0.9;
+// Greedy wrapping (below) already models word boundaries exactly, so this only
+// covers residual font-metric slack (and fonts not yet loaded when we measure):
+// a small nudge that keeps fit-content from clipping without inflating heights
+// the way a large factor did. Applied to the width wraps are counted against.
+const WRAP_SAFETY = 0.95;
 
 // --- Note typography (see note-card.tsx + note-prose.ts) ---------------------
 // em values are relative to the card root (grid font-scale); rem floors are
@@ -111,7 +111,14 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-/** How many visual lines `text` wraps to at `availWidth`. Blank → 1. */
+/**
+ * How many visual lines `text` wraps to at `availWidth`. Blank → 1.
+ *
+ * Greedily packs words the way the browser does — fill a line until the next
+ * word won't fit, then break — so a line that genuinely fits isn't over-counted
+ * (which a whole-string width ÷ availWidth would do at word boundaries). A token
+ * wider than the line (e.g. a long URL) breaks across multiple lines.
+ */
 function wrapLines(
   text: string,
   availWidth: number,
@@ -120,8 +127,35 @@ function wrapLines(
 ): number {
   const trimmed = text.trim();
   if (!trimmed) return 1;
-  const width = measure(trimmed, style);
-  return Math.max(1, Math.ceil(width / availWidth));
+
+  const words = trimmed.split(/\s+/);
+  const spaceWidth = measure(" ", style);
+  let lines = 1;
+  let lineWidth = 0;
+
+  for (const word of words) {
+    const wordWidth = measure(word, style);
+
+    if (wordWidth > availWidth) {
+      // Long unbreakable token: break it across as many lines as it spans.
+      if (lineWidth > 0) lines++;
+      const spanned = Math.ceil(wordWidth / availWidth);
+      lines += spanned - 1;
+      lineWidth = wordWidth - (spanned - 1) * availWidth;
+      continue;
+    }
+
+    const withWord =
+      lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth;
+    if (withWord <= availWidth) {
+      lineWidth = withWord;
+    } else {
+      lines++;
+      lineWidth = wordWidth;
+    }
+  }
+
+  return Math.max(1, lines);
 }
 
 /** Clamp + quantize a content height into a masonry frame aspect ratio. */
