@@ -1,12 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Cookie path uses @/lib/supabase/server; bearer path uses @supabase/supabase-js.
-const { mockCookieGetUser, mockBearerGetUser, mockCreateSupabaseClient } =
-  vi.hoisted(() => ({
-    mockCookieGetUser: vi.fn(),
-    mockBearerGetUser: vi.fn(),
-    mockCreateSupabaseClient: vi.fn(),
-  }));
+// Cookie path uses @/lib/supabase/server; Supabase-token bearer path uses
+// @supabase/supabase-js; PAT path uses @/lib/db + the service-role admin client.
+const {
+  mockCookieGetUser,
+  mockBearerGetUser,
+  mockCreateSupabaseClient,
+  mockFindUnique,
+  mockUpdateMany,
+  mockAdminGetUserById,
+} = vi.hoisted(() => ({
+  mockCookieGetUser: vi.fn(),
+  mockBearerGetUser: vi.fn(),
+  mockCreateSupabaseClient: vi.fn(),
+  mockFindUnique: vi.fn(),
+  mockUpdateMany: vi.fn(),
+  mockAdminGetUserById: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockCookieGetUser } }),
@@ -19,7 +29,23 @@ vi.mock("@supabase/supabase-js", () => ({
   },
 }));
 
+vi.mock("@/lib/db", () => ({
+  default: {
+    personalAccessToken: {
+      findUnique: mockFindUnique,
+      updateMany: mockUpdateMany,
+    },
+  },
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  getSupabaseAdminClient: () => ({
+    auth: { admin: { getUserById: mockAdminGetUserById } },
+  }),
+}));
+
 import { authenticateRequest } from "./authenticate-request";
+import { hashPersonalAccessToken } from "./personal-access-token";
 
 function request(authorization?: string) {
   return {
@@ -32,6 +58,7 @@ function request(authorization?: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUpdateMany.mockResolvedValue({ count: 1 });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
 });
@@ -123,5 +150,147 @@ describe("authenticateRequest", () => {
 
     expect(result).toBeNull();
     expect(mockBearerGetUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("authenticateRequest — personal access tokens", () => {
+  const PAT = "abode_pat_exampletoken";
+  const PAT_HASH = hashPersonalAccessToken(PAT);
+
+  function patRecord(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "tok_1",
+      userId: "u_pat",
+      expiresAt: null,
+      revokedAt: null,
+      lastUsedAt: null,
+      ...overrides,
+    };
+  }
+
+  function withUser(id = "u_pat") {
+    mockAdminGetUserById.mockResolvedValue({
+      data: { user: { id } },
+      error: null,
+    });
+  }
+
+  it("resolves the user for a valid token and routes to the PAT path only", async () => {
+    mockFindUnique.mockResolvedValue(patRecord());
+    withUser();
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    // Looked up by hash, never the raw token
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { tokenHash: PAT_HASH },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        revokedAt: true,
+        lastUsedAt: true,
+      },
+    });
+    expect(mockAdminGetUserById).toHaveBeenCalledWith("u_pat");
+    // The Supabase-token and cookie paths are never touched
+    expect(mockBearerGetUser).not.toHaveBeenCalled();
+    expect(mockCookieGetUser).not.toHaveBeenCalled();
+  });
+
+  it("bumps last_used_at when stale, via an atomic conditional updateMany", async () => {
+    mockFindUnique.mockResolvedValue(
+      patRecord({ lastUsedAt: new Date(Date.now() - 5 * 60 * 1000) }),
+    );
+    withUser();
+
+    await authenticateRequest(request(`Bearer ${PAT}`));
+
+    // The write re-checks the window in the WHERE clause, so concurrent requests
+    // racing at the boundary still yield a single write
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "tok_1",
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: expect.any(Date) } }],
+      },
+      data: { lastUsedAt: expect.any(Date) },
+    });
+  });
+
+  it("bumps last_used_at when it has never been used", async () => {
+    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: null }));
+    withUser();
+
+    await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("issues no write when last_used_at is within the throttle window", async () => {
+    mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: new Date() }));
+    withUser();
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    // Fast path: the already-fetched lastUsedAt gates the write, so a busy token
+    // issues no extra query at all
+    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("returns null for an unknown token without falling back to cookies", async () => {
+    mockFindUnique.mockResolvedValue(null);
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toBeNull();
+    expect(mockAdminGetUserById).not.toHaveBeenCalled();
+    expect(mockCookieGetUser).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a revoked token", async () => {
+    mockFindUnique.mockResolvedValue(patRecord({ revokedAt: new Date() }));
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toBeNull();
+    expect(mockAdminGetUserById).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("returns null for an expired token", async () => {
+    mockFindUnique.mockResolvedValue(
+      patRecord({ expiresAt: new Date(Date.now() - 1000) }),
+    );
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toBeNull();
+    expect(mockAdminGetUserById).not.toHaveBeenCalled();
+  });
+
+  it("accepts a token whose expiry is in the future", async () => {
+    mockFindUnique.mockResolvedValue(
+      patRecord({ expiresAt: new Date(Date.now() + 60 * 60 * 1000) }),
+    );
+    withUser();
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+  });
+
+  it("returns null and skips the last-used write when the auth user cannot be loaded", async () => {
+    mockFindUnique.mockResolvedValue(patRecord());
+    mockAdminGetUserById.mockResolvedValue({
+      data: { user: null },
+      error: { message: "not found" },
+    });
+
+    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+
+    expect(result).toBeNull();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 });
