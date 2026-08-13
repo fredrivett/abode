@@ -5,12 +5,15 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ArticleCard } from "@/components/article/article-card";
+import { BookCover3D } from "@/components/book/book-cover-3d";
 import { InstagramCard } from "@/components/instagram/instagram-card";
 import type { InstagramDetails } from "@/components/instagram/types";
 import { NoteCard } from "@/components/note/note-card";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import type { TwitterDetails } from "@/components/twitter/types";
 import { VideoCard } from "@/components/video/video-card";
+import { BOOK_TILE_PADDING_X, BOOK_TILE_PADDING_Y } from "@/lib/book-cover";
+import { gridCardStyle } from "@/lib/grid-styles";
 import type { VideoDetails } from "@/lib/types/item";
 import { ProcessingOverlay } from "./processing-overlay";
 
@@ -79,9 +82,11 @@ type TypeSpec = {
   render: () => ReactNode;
 };
 
-// Each kind whose thumbnail lives in coverFileKey (so it renders its own card
-// rather than a plain image) plus notes — the kinds the progressive-render fix
-// affects. Image/article-with-cover/product/book show via previewUrl instead.
+// Every kind, so the loading treatment can be eyeballed across the board.
+// tweet/instagram/video/note are the ones the progressive-render fix affects
+// (their thumbnail lives in coverFileKey, so they render their own card rather
+// than a plain image); image/article/product/book already showed via previewUrl
+// and are here for completeness.
 const TYPES: TypeSpec[] = [
   {
     key: "twitter",
@@ -137,6 +142,61 @@ const TYPES: TypeSpec[] = [
         coverUrl={null}
         onClick={noop}
       />
+    ),
+  },
+  {
+    key: "image",
+    label: "Image",
+    height: 250,
+    render: () => (
+      <div
+        className="h-full w-full overflow-hidden bg-gray-900"
+        style={gridCardStyle}
+      >
+        {/* biome-ignore lint/performance/noImgElement: static story fixture */}
+        <img
+          src="https://picsum.photos/seed/abode-image/500/500"
+          alt="Sunset over mountains"
+          className="h-full w-full object-cover"
+        />
+      </div>
+    ),
+  },
+  {
+    key: "product",
+    label: "Product",
+    height: 300,
+    render: () => (
+      <div
+        className="h-full w-full overflow-hidden bg-gray-900"
+        style={gridCardStyle}
+      >
+        {/* biome-ignore lint/performance/noImgElement: static story fixture */}
+        <img
+          src="https://picsum.photos/seed/abode-product/500/600"
+          alt="Product"
+          className="h-full w-full object-cover"
+        />
+      </div>
+    ),
+  },
+  {
+    key: "book",
+    label: "Book",
+    height: 320,
+    render: () => (
+      <div
+        className="flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950"
+        style={{
+          ...gridCardStyle,
+          padding: `${BOOK_TILE_PADDING_Y * 100}% ${BOOK_TILE_PADDING_X * 100}%`,
+        }}
+      >
+        <BookCover3D
+          src="https://covers.openlibrary.org/b/isbn/9780141036144-L.jpg"
+          alt="Nineteen Eighty-Four"
+        />
+      </div>
     ),
   },
 ];
