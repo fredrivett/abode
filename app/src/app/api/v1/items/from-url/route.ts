@@ -55,18 +55,24 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
-    // Optional extension-captured rendered DOM. Ignore anything that isn't a
-    // non-empty string within the size cap — an oversized/malformed capture
-    // falls back to the server-side fetch rather than failing the save.
+    // Optional extension-captured rendered DOM. Only trust a non-empty string,
+    // within the size cap, that actually looks like a serialized document — a
+    // real capture is `document.documentElement.outerHTML`, which always starts
+    // with an <html> tag. Anything oversized or not a document falls back to the
+    // server-side fetch (never persist a blank page) rather than failing the save.
     let capturedHtml: string | undefined;
     if (typeof html === "string" && html.length > 0) {
-      if (html.length <= MAX_CAPTURED_HTML_CHARS) {
-        capturedHtml = html;
-      } else {
+      if (html.length > MAX_CAPTURED_HTML_CHARS) {
         log.warn(
           { htmlLength: html.length },
           "Captured HTML over size cap; falling back to server fetch",
         );
+      } else if (!/<html[\s/>]/i.test(html)) {
+        log.warn(
+          "Captured HTML is not a document; falling back to server fetch",
+        );
+      } else {
+        capturedHtml = html;
       }
     }
 

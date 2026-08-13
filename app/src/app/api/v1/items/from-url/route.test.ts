@@ -225,7 +225,9 @@ describe("POST /api/v1/items/from-url", () => {
   });
 
   it("accepts captured HTML exactly at the size cap", async () => {
-    const html = "x".repeat(5_000_000); // exactly MAX_CAPTURED_HTML_CHARS
+    // A valid document (starts with <html>) padded to exactly the cap.
+    const html = `<html>${"x".repeat(5_000_000 - 13)}</html>`;
+    expect(html).toHaveLength(5_000_000); // exactly MAX_CAPTURED_HTML_CHARS
     const res = await POST(
       request({ url: "https://example.com/x", source: "extension", html }),
     );
@@ -234,6 +236,24 @@ describe("POST /api/v1/items/from-url", () => {
       "classify-url",
       expect.objectContaining({ html }),
       expect.anything(),
+    );
+  });
+
+  it("drops html that isn't a document and falls back to a server fetch", async () => {
+    const res = await POST(
+      request({
+        url: "https://example.com/x",
+        source: "extension",
+        html: "just some text, not a serialized document",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const [, payload] = mockTrigger.mock.calls[0];
+    expect(payload).not.toHaveProperty("html");
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({ captured_html: false }),
+      }),
     );
   });
 
