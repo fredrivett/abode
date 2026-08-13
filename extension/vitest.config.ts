@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.{test,spec}.ts"],
-    exclude: ["node_modules/**", ".output/**", ".wxt/**"],
+    // e2e/ is Playwright (own runner); vitest must not pick up *.e2e.spec.ts.
+    exclude: ["node_modules/**", ".output/**", ".wxt/**", "e2e/**"],
   },
 });
