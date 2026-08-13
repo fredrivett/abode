@@ -69,14 +69,21 @@ const twitterText: TwitterDetails = {
 };
 
 const instagram: InstagramDetails = {
-  postId: "reel-example",
-  mediaType: "reel",
+  postId: "post-example",
+  mediaType: "post",
   authorName: "National Geographic",
   authorUsername: "natgeo",
   caption:
     "A rare snow leopard captured on camera in the Himalayas. An incredible encounter that took our team three weeks in the field to film.",
   postedAt: "2024-02-01T10:00:00.000Z",
-  media: null,
+  media: [
+    {
+      type: "photo",
+      url: "https://picsum.photos/seed/abode-instagram/600/600",
+      width: 600,
+      height: 600,
+    },
+  ],
   likeCount: 12000,
   commentCount: 340,
   coverMediaIndex: null,
@@ -95,7 +102,11 @@ const video: VideoDetails = {
 type TypeSpec = {
   key: string;
   label: string;
-  height: number;
+  // Media tiles need a defined box for the image to fill, so they get an
+  // aspect-ratio (mirroring how the grid sizes a tile from the item's stored
+  // dimensions). Text tiles omit it and shrink-wrap their content, like the
+  // grid's content-measured text items.
+  aspectRatio?: string;
   render: () => ReactNode;
 };
 
@@ -108,26 +119,25 @@ const TYPES: TypeSpec[] = [
   {
     key: "twitter-photo",
     label: "Tweet · photo",
-    height: 320,
+    aspectRatio: "3 / 2",
     render: () => <TwitterCard twitterDetails={twitterPhoto} onClick={noop} />,
   },
   {
     key: "twitter-text",
     label: "Tweet · text",
-    height: 240,
     render: () => <TwitterCard twitterDetails={twitterText} onClick={noop} />,
   },
   {
     key: "instagram",
     label: "Instagram",
-    height: 320,
+    aspectRatio: "1 / 1",
     render: () => <InstagramCard instagramDetails={instagram} onClick={noop} />,
   },
   {
     key: "video",
-    // Self-sizing 16:9 card, so the tile height matches (250 × 9/16).
+    // Intrinsically 16:9, so the tile aspect matches the card.
     label: "Video",
-    height: 141,
+    aspectRatio: "16 / 9",
     render: () => (
       <VideoCard
         videoDetails={video}
@@ -140,7 +150,6 @@ const TYPES: TypeSpec[] = [
   {
     key: "note",
     label: "Note",
-    height: 240,
     render: () => (
       <NoteCard
         title="Launch checklist"
@@ -154,7 +163,6 @@ const TYPES: TypeSpec[] = [
   {
     key: "article",
     label: "Article",
-    height: 320,
     render: () => (
       <ArticleCard
         title="The hidden cost of context switching"
@@ -171,7 +179,7 @@ const TYPES: TypeSpec[] = [
   {
     key: "image",
     label: "Image",
-    height: 250,
+    aspectRatio: "1 / 1",
     render: () => (
       <div
         className="h-full w-full overflow-hidden bg-gray-900"
@@ -189,7 +197,7 @@ const TYPES: TypeSpec[] = [
   {
     key: "product",
     label: "Product",
-    height: 300,
+    aspectRatio: "5 / 6",
     render: () => (
       <div
         className="h-full w-full overflow-hidden bg-gray-900"
@@ -207,7 +215,7 @@ const TYPES: TypeSpec[] = [
   {
     key: "book",
     label: "Book",
-    height: 320,
+    aspectRatio: "3 / 4",
     render: () => (
       <div
         className="flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950"
@@ -235,7 +243,10 @@ function CardTile({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-muted-foreground text-xs">{spec.label}</span>
-      <div className="relative w-[250px]" style={{ height: spec.height }}>
+      <div
+        className="relative w-[250px]"
+        style={spec.aspectRatio ? { aspectRatio: spec.aspectRatio } : undefined}
+      >
         <ProcessingOverlay status={status} />
         {spec.render()}
       </div>

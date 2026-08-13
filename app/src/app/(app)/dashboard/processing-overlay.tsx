@@ -35,15 +35,23 @@ export function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
           )}
           style={gridCardStyle}
         >
+          {/* No backdrop-blur: a backdrop-filter mis-composites (hazes the tile,
+              pill flattens) while an ancestor's opacity animates, then pops once
+              the fade settles. The pill sits over the scrim, so it stays legible
+              with a plain translucent fill. */}
           <div
             className={cn(
-              "pointer-events-auto flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 font-medium text-xs backdrop-blur-sm",
-              isProcessing && "bg-white/20 text-white",
-              isFailed && "bg-red-500/30 text-red-100",
+              "pointer-events-auto flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 font-medium text-xs",
+              isProcessing && "bg-black/40 text-white",
+              isFailed && "bg-red-900/60 text-red-50",
             )}
           >
             {isProcessing ? (
-              <IsLoading label="Analyzing" iconClassName="size-3" />
+              <IsLoading
+                label="Analyzing"
+                iconClassName="size-3"
+                className="gap-1"
+              />
             ) : (
               <>
                 <AlertCircle className="size-3" />
