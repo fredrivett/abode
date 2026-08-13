@@ -80,6 +80,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
+import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
@@ -287,6 +288,14 @@ export function ItemCard({
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
+  // Render the tweet/reel/video card as soon as its detail row lands, so the
+  // processing/failed placeholders below don't hide it until enrichment ends.
+  const hasKindSpecificContent = hasKindSpecificCardContent({
+    kind: item.kind,
+    hasTwitterDetails: !!item.twitterDetails,
+    hasInstagramDetails: !!item.instagramDetails,
+    hasVideoDetails: !!item.videoDetails,
+  });
   // For articles/webpages/products/books, use coverFileKey; for images, use fileKey
   const imageFileKey =
     isArticleOrWebpage || isProduct || isBook
@@ -564,7 +573,7 @@ export function ItemCard({
   }
 
   // URL items that are still processing show a special placeholder
-  if (isProcessingUrl && !previewUrl) {
+  if (isProcessingUrl && !previewUrl && !hasKindSpecificContent) {
     const domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
     return (
       <>
@@ -617,7 +626,7 @@ export function ItemCard({
   }
 
   // Failed URL items (processing failed before classification) show a failure placeholder
-  if (isFailedUrl && !previewUrl) {
+  if (isFailedUrl && !previewUrl && !hasKindSpecificContent) {
     let domain: string | null = null;
     try {
       domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
