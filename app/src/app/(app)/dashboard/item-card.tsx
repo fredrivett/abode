@@ -80,6 +80,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
+import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
@@ -114,6 +115,7 @@ import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
+import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
 
@@ -207,43 +209,6 @@ type ItemCardProps = {
   canEdit?: boolean;
 };
 
-function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
-  if (status === "completed") return null;
-
-  const isProcessing = status === "processing";
-  const isFailed = status === "failed";
-
-  return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-0 z-10 flex items-end justify-start p-2",
-        isProcessing &&
-          "bg-gradient-to-t from-black/60 via-transparent to-transparent",
-        isFailed &&
-          "bg-gradient-to-t from-red-900/70 via-transparent to-transparent",
-      )}
-      style={gridCardStyle}
-    >
-      <div
-        className={cn(
-          "pointer-events-auto flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 font-medium text-xs backdrop-blur-sm",
-          isProcessing && "bg-white/20 text-white",
-          isFailed && "bg-red-500/30 text-red-100",
-        )}
-      >
-        {isProcessing ? (
-          <IsLoading label="Analyzing" iconClassName="size-3" />
-        ) : isFailed ? (
-          <>
-            <AlertCircle className="size-3" />
-            <span>Failed</span>
-          </>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Grid card for a single item with click-to-expand detail dialog.
  *
@@ -287,6 +252,14 @@ export function ItemCard({
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
+  // Render the tweet/reel/video card as soon as its detail row lands, so the
+  // processing/failed placeholders below don't hide it until enrichment ends.
+  const hasKindSpecificContent = hasKindSpecificCardContent({
+    kind: item.kind,
+    hasTwitterDetails: !!item.twitterDetails,
+    hasInstagramDetails: !!item.instagramDetails,
+    hasVideoDetails: !!item.videoDetails,
+  });
   // For articles/webpages/products/books, use coverFileKey; for images, use fileKey
   const imageFileKey =
     isArticleOrWebpage || isProduct || isBook
@@ -564,7 +537,7 @@ export function ItemCard({
   }
 
   // URL items that are still processing show a special placeholder
-  if (isProcessingUrl && !previewUrl) {
+  if (isProcessingUrl && !previewUrl && !hasKindSpecificContent) {
     const domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
     return (
       <>
@@ -617,7 +590,7 @@ export function ItemCard({
   }
 
   // Failed URL items (processing failed before classification) show a failure placeholder
-  if (isFailedUrl && !previewUrl) {
+  if (isFailedUrl && !previewUrl && !hasKindSpecificContent) {
     let domain: string | null = null;
     try {
       domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
