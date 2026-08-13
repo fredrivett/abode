@@ -114,6 +114,12 @@ const NOTE_CASES: { label: string; title: string | null; content: string }[] = [
     content: "A one-line thought under a title.",
   },
   {
+    label: "title only (long)",
+    title:
+      '"The future of software is stateful, multiplayer, and collaborative." — @soleio',
+    content: "",
+  },
+  {
     label: "bullet list",
     title: "Grocery run",
     content: "- Milk\n- Eggs\n- Coffee\n- Bread",

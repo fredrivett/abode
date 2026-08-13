@@ -454,21 +454,26 @@ export function estimateNoteAspect(
   let height = 2 * padding;
 
   const trimmedTitle = title?.trim();
+  const hasBody = body.trim().length > 0;
   if (trimmedTitle) {
     const titlePx = Math.max(NOTE_TITLE_MIN_REM * rootRemPx, cardRootPx);
-    const titleLines = Math.min(
-      NOTE_TITLE_MAX_LINES,
-      wrapLines(trimmedTitle, availWidth, measure, {
-        px: titlePx,
-        weight: 600,
-        family: "serif",
-      }),
-    );
+    const rawTitleLines = wrapLines(trimmedTitle, availWidth, measure, {
+      px: titlePx,
+      weight: 600,
+      family: "serif",
+    });
+    // A title above a body is a clamped heading (line-clamp-2); a title-only
+    // note lets its title be the content and grow — the aspect clamp caps the
+    // height and the overflow-fade truncates, same as a body would.
+    const titleLines = hasBody
+      ? Math.min(NOTE_TITLE_MAX_LINES, rawTitleLines)
+      : rawTitleLines;
     height += titleLines * titlePx * NOTE_TITLE_LINE_HEIGHT;
-    height += NOTE_TITLE_MB_EM * cardRootPx;
+    // The title→body gap only exists when a body follows.
+    if (hasBody) height += NOTE_TITLE_MB_EM * cardRootPx;
   }
 
-  if (body.trim()) {
+  if (hasBody) {
     height += estimateNoteBodyHeight(body, availWidth, bodyPx, measure);
   } else if (!trimmedTitle) {
     // "Empty note" placeholder is a single line.

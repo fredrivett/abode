@@ -75,6 +75,20 @@ describe("estimateNoteAspect", () => {
     expect(short).toBeGreaterThan(long);
   });
 
+  it("lets a title-only note grow with its title (no 2-line clamp)", () => {
+    const oneLine = noteAspect("Short", "").width;
+    const manyLines = noteAspect("word ".repeat(60), "").width;
+    // long title → taller card → smaller aspect (the title is the content)
+    expect(manyLines).toBeLessThan(oneLine);
+  });
+
+  it("still clamps the title to two lines when a body follows", () => {
+    const hugeTitle = noteAspect("word ".repeat(60), "body").width;
+    const twoLineTitle = noteAspect("word ".repeat(10), "body").width;
+    // both clamp the heading at two lines, so the extra length adds nothing
+    expect(hugeTitle).toBe(twoLineTitle);
+  });
+
   it("a title adds height (never makes the card shorter)", () => {
     const body = "a".repeat(180);
     const withTitle = noteAspect("A meaningful title", body).width;
