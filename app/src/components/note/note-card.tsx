@@ -19,6 +19,19 @@ function InlineText({ children }: { children?: ReactNode }) {
   return <span className="underline decoration-current/40">{children}</span>;
 }
 
+// Fade out clipped content — only rendered when there's more below the fold.
+function FadeOverflow() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-card"
+    />
+  );
+}
+
+const TITLE_CLASS = "font-semibold font-serif text-foreground";
+const TITLE_FONT_SIZE = "max(0.875rem, 1em)";
+
 /**
  * Grid card for a note item.
  *
@@ -38,10 +51,11 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onClick={onClick}
     >
-      {title && (
+      {/* Title as a clamped heading only when a body follows it */}
+      {title && hasBody && (
         <p
-          className="mb-[0.5em] line-clamp-2 shrink-0 font-semibold font-serif text-foreground"
-          style={{ fontSize: "max(0.875rem, 1em)" }}
+          className={`mb-[0.5em] line-clamp-2 shrink-0 ${TITLE_CLASS}`}
+          style={{ fontSize: TITLE_FONT_SIZE }}
         >
           {title}
         </p>
@@ -58,23 +72,24 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
           >
             {content}
           </Markdown>
-          {/* Fade out clipped content — only when there's more below the fold */}
-          {isOverflowing && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5em] bg-gradient-to-t from-card"
-            />
-          )}
+          {isOverflowing && <FadeOverflow />}
+        </div>
+      ) : title ? (
+        // Title-only note: the title is the content — let it fill and fade
+        // rather than hard-clamp at two lines and lose the rest.
+        <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-hidden">
+          <p className={TITLE_CLASS} style={{ fontSize: TITLE_FONT_SIZE }}>
+            {title}
+          </p>
+          {isOverflowing && <FadeOverflow />}
         </div>
       ) : (
-        !title && (
-          <p
-            className="text-muted-foreground/60 italic"
-            style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
-          >
-            Empty note
-          </p>
-        )
+        <p
+          className="text-muted-foreground/60 italic"
+          style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
+        >
+          Empty note
+        </p>
       )}
     </button>
   );
