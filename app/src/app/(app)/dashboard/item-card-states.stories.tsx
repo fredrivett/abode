@@ -30,7 +30,9 @@ import { ProcessingOverlay } from "./processing-overlay";
 
 const noop = () => {};
 
-const twitter: TwitterDetails = {
+// A tweet with a cover image — the card shows the photo (text lives in the
+// detail view, not the grid card).
+const twitterPhoto: TwitterDetails = {
   tweetId: "896523232098078720",
   authorName: "Barack Obama",
   authorUsername: "BarackObama",
@@ -46,6 +48,21 @@ const twitter: TwitterDetails = {
       height: 800,
     },
   ],
+  quotedTweetId: null,
+  card: null,
+  coverMediaIndex: null,
+};
+
+// A text-only tweet — no media, so the card renders the author + tweet text.
+const twitterText: TwitterDetails = {
+  tweetId: "text-only-example",
+  authorName: "Paul Graham",
+  authorUsername: "paulg",
+  authorAvatarUrl:
+    "https://pbs.twimg.com/profile_images/1824002576/pg-railsconf_normal.jpg",
+  text: "The most successful founders are relentlessly resourceful. When they hit an obstacle they find a way around it, instead of giving up.",
+  postedAt: "2024-03-01T09:00:00.000Z",
+  media: null,
   quotedTweetId: null,
   card: null,
   coverMediaIndex: null,
@@ -89,10 +106,16 @@ type TypeSpec = {
 // and are here for completeness.
 const TYPES: TypeSpec[] = [
   {
-    key: "twitter",
-    label: "Tweet",
+    key: "twitter-photo",
+    label: "Tweet · photo",
     height: 320,
-    render: () => <TwitterCard twitterDetails={twitter} onClick={noop} />,
+    render: () => <TwitterCard twitterDetails={twitterPhoto} onClick={noop} />,
+  },
+  {
+    key: "twitter-text",
+    label: "Tweet · text",
+    height: 240,
+    render: () => <TwitterCard twitterDetails={twitterText} onClick={noop} />,
   },
   {
     key: "instagram",
@@ -102,8 +125,9 @@ const TYPES: TypeSpec[] = [
   },
   {
     key: "video",
+    // Self-sizing 16:9 card, so the tile height matches (250 × 9/16).
     label: "Video",
-    height: 200,
+    height: 141,
     render: () => (
       <VideoCard
         videoDetails={video}
@@ -229,33 +253,38 @@ function StateGrid({ status }: { status: ProcessingStatus }) {
   );
 }
 
-// Flips from `processing` to `completed` after a per-card delay so the Analyzing
-// pills settle in a staggered wave, imitating how items load in.
-function LoadInTile({ spec, delayMs }: { spec: TypeSpec; delayMs: number }) {
+// Each tile loops processing → completed on its own, phase-offset so the
+// Analyzing pills settle (and return) in a staggered wave. The overlay fades on
+// every transition, so the settle is visible rather than an instant pop.
+const PROCESSING_MS = 1600;
+const COMPLETED_MS = 2600;
+
+function LoadInTile({ spec, offsetMs }: { spec: TypeSpec; offsetMs: number }) {
   const [status, setStatus] = useState<ProcessingStatus>("processing");
   useEffect(() => {
-    const id = setTimeout(() => setStatus("completed"), delayMs);
-    return () => clearTimeout(id);
-  }, [delayMs]);
+    let timer: ReturnType<typeof setTimeout>;
+    const loop = (next: ProcessingStatus) => {
+      setStatus(next);
+      timer = setTimeout(
+        () => loop(next === "processing" ? "completed" : "processing"),
+        next === "processing" ? PROCESSING_MS : COMPLETED_MS,
+      );
+    };
+    // Hold the initial processing state through the stagger, then start looping.
+    const start = setTimeout(() => loop("completed"), offsetMs + PROCESSING_MS);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(timer);
+    };
+  }, [offsetMs]);
   return <CardTile spec={spec} status={status} />;
 }
 
 function LoadInDemo() {
-  // Bumping `cycle` remounts every tile, replaying the processing → completed
-  // transition on a loop.
-  const [cycle, setCycle] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setCycle((n) => n + 1), 4000);
-    return () => clearInterval(id);
-  }, []);
   return (
     <div className="flex flex-wrap items-start gap-6">
       {TYPES.map((spec, i) => (
-        <LoadInTile
-          key={`${spec.key}-${cycle}`}
-          spec={spec}
-          delayMs={500 + i * 500}
-        />
+        <LoadInTile key={spec.key} spec={spec} offsetMs={i * 350} />
       ))}
     </div>
   );
