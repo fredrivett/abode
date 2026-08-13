@@ -12,6 +12,12 @@ import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/from-url");
 
+// Upper bound on extension-captured rendered HTML. Real pages run large; this
+// caps the request body so a pathological page can't balloon the payload. Over
+// the cap we drop the HTML and fall back to a server-side fetch rather than
+// rejecting the save.
+const MAX_CAPTURED_HTML_CHARS = 5_000_000;
+
 // Cross-origin preflight for the browser extension (and future first-party
 // clients). Bearer-authed, so no credentials are involved — see lib/http/cors.
 export function OPTIONS(request: NextRequest) {
@@ -43,10 +49,25 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { url, source } = body;
+    const { url, source, html } = body;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
+    }
+
+    // Optional extension-captured rendered DOM. Ignore anything that isn't a
+    // non-empty string within the size cap — an oversized/malformed capture
+    // falls back to the server-side fetch rather than failing the save.
+    let capturedHtml: string | undefined;
+    if (typeof html === "string" && html.length > 0) {
+      if (html.length <= MAX_CAPTURED_HTML_CHARS) {
+        capturedHtml = html;
+      } else {
+        log.warn(
+          { htmlLength: html.length },
+          "Captured HTML over size cap; falling back to server fetch",
+        );
+      }
     }
 
     try {
@@ -54,6 +75,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
         userId: user.id,
         url,
         source: isItemSource(source) ? source : "web",
+        html: capturedHtml,
       });
       return NextResponse.json(item, { status: 201 });
     } catch (error) {

@@ -36,10 +36,17 @@ export async function createItemFromUrl({
   userId,
   url,
   source,
+  html,
 }: {
   userId: string;
   url: string;
   source: ItemSource;
+  /**
+   * The page's already-rendered DOM, captured client-side by the browser
+   * extension. When present, classification uses it instead of a server-side
+   * fetch (see classify-url). Optional — bare-URL saves omit it.
+   */
+  html?: string;
 }) {
   let parsedUrl: URL;
   try {
@@ -85,6 +92,7 @@ export async function createItemFromUrl({
         itemId: item.id,
         userId,
         url: parsedUrl.href,
+        ...(html !== undefined ? { html } : {}),
       },
       userId,
     );
@@ -122,6 +130,7 @@ export async function createItemFromUrl({
       item_id: item.id,
       url_domain: parsedUrl.hostname,
       source,
+      captured_html: html !== undefined,
     },
   });
 

@@ -181,6 +181,71 @@ describe("POST /api/v1/items/from-url", () => {
     expect(res.status).toBe(201);
   });
 
+  it("threads extension-captured rendered HTML into the classify-url enqueue", async () => {
+    const html =
+      "<html><body><p>rendered by the page's own JS</p></body></html>";
+    const res = await POST(
+      request({ url: "https://example.com/x", source: "extension", html }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockTrigger).toHaveBeenCalledWith(
+      "classify-url",
+      expect.objectContaining({ html }),
+      expect.anything(),
+    );
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({ captured_html: true }),
+      }),
+    );
+  });
+
+  it("drops oversized captured HTML and falls back to a server fetch", async () => {
+    const html = "x".repeat(5_000_001); // one over MAX_CAPTURED_HTML_CHARS
+    const res = await POST(
+      request({ url: "https://example.com/x", source: "extension", html }),
+    );
+    expect(res.status).toBe(201);
+    const [, payload] = mockTrigger.mock.calls[0];
+    expect(payload).not.toHaveProperty("html");
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({ captured_html: false }),
+      }),
+    );
+  });
+
+  it("ignores a non-string html field (bare URL save)", async () => {
+    const res = await POST(
+      request({ url: "https://example.com/x", source: "extension", html: 123 }),
+    );
+    expect(res.status).toBe(201);
+    const [, payload] = mockTrigger.mock.calls[0];
+    expect(payload).not.toHaveProperty("html");
+  });
+
+  it("accepts captured HTML exactly at the size cap", async () => {
+    const html = "x".repeat(5_000_000); // exactly MAX_CAPTURED_HTML_CHARS
+    const res = await POST(
+      request({ url: "https://example.com/x", source: "extension", html }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockTrigger).toHaveBeenCalledWith(
+      "classify-url",
+      expect.objectContaining({ html }),
+      expect.anything(),
+    );
+  });
+
+  it("ignores an empty-string html field (bare URL save)", async () => {
+    const res = await POST(
+      request({ url: "https://example.com/x", source: "extension", html: "" }),
+    );
+    expect(res.status).toBe(201);
+    const [, payload] = mockTrigger.mock.calls[0];
+    expect(payload).not.toHaveProperty("html");
+  });
+
   it("records the share_target source on the analytics event", async () => {
     await POST(
       request({ url: "https://example.com/x", source: "share_target" }),

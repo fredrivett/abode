@@ -54,6 +54,14 @@ type ClassifyUrlPayload = {
    * kinds are forcible (see item-kind-reassignment).
    */
   forcedKind?: ForcibleKind;
+  /**
+   * The page's already-rendered DOM, captured client-side by the browser
+   * extension from the active tab. When present we classify/enrich against this
+   * instead of a server-side fetch — the only way to see client-rendered bodies
+   * and content behind the user's own session. URL classification still runs
+   * first, so tweets/videos/Instagram short-circuit to their handlers regardless.
+   */
+  html?: string;
 };
 
 function getSupabaseConfig() {
@@ -272,7 +280,7 @@ export const classifyUrlTask = task({
   queue: { concurrencyLimit: 3 },
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
   run: async (payload: ClassifyUrlPayload) => {
-    const { itemId, userId, url, forcedKind } = payload;
+    const { itemId, userId, url, forcedKind, html: providedHtml } = payload;
 
     // Advance the reaper clock — first pipeline stage
     await markProcessingActive(itemId);
@@ -406,68 +414,90 @@ export const classifyUrlTask = task({
         );
       }
 
-      // Step 2: HEAD request to check the content type
-      logger.log("Checking URL content type", { itemId, url: fetchUrl });
+      // Steps 2–4: obtain the page HTML. Normally a server-side fetch, but when
+      // the extension captured the active tab's rendered DOM we trust that
+      // instead — it has already run the site's JS and carries the user's own
+      // session, which a server fetch never sees.
+      let html: string;
+      let finalContentType: string | null;
 
-      let contentType: string | null = null;
-      try {
-        const headResponse = await safeFetch(fetchUrl, {
-          method: "HEAD",
+      if (providedHtml !== undefined) {
+        // No HEAD/direct-image checks: a rendered-DOM capture is by definition an
+        // HTML page the user was viewing, not a raw image or unknown content-type.
+        logger.log("Using extension-captured rendered HTML", {
+          itemId,
+          url: fetchUrl,
+          htmlLength: providedHtml.length,
+        });
+        html = providedHtml;
+        finalContentType = "text/html";
+      } else {
+        // Step 2: HEAD request to check the content type
+        logger.log("Checking URL content type", { itemId, url: fetchUrl });
+
+        let contentType: string | null = null;
+        try {
+          const headResponse = await safeFetch(fetchUrl, {
+            method: "HEAD",
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
+            },
+          });
+          contentType = headResponse.headers.get("content-type");
+        } catch {
+          logger.log("HEAD request failed, will try GET", {
+            itemId,
+            url: fetchUrl,
+          });
+        }
+
+        // Step 3: Direct image URL (by extension or content-type). Skipped when a
+        // kind is forced — image isn't a reassignable target.
+        if (
+          !forcedKind &&
+          classifyItemKind({ url, resolvedUrl, contentType, html: null })
+            ?.kind === "image"
+        ) {
+          logger.log("URL classified as direct image", {
+            itemId,
+            url: fetchUrl,
+          });
+          return await handleImageUrl(itemId, userId, fetchUrl, supabase);
+        }
+
+        // Step 4: Fetch the full page content
+        logger.log("Fetching page content", { itemId, url: fetchUrl });
+
+        const response = await safeFetch(fetchUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           },
         });
-        contentType = headResponse.headers.get("content-type");
-      } catch {
-        logger.log("HEAD request failed, will try GET", {
-          itemId,
-          url: fetchUrl,
-        });
+
+        if (!response.ok) {
+          throw new FetchError(response.status, fetchUrl);
+        }
+
+        // The GET follows redirects (amzn.eu → amazon.co.uk, bit.ly, etc.) —
+        // classify and extract against the destination so URL-pattern signals
+        // (book/product detection) and relative URLs resolve correctly.
+        if (response.url && response.url !== fetchUrl) {
+          logger.log("URL redirected during fetch", {
+            itemId,
+            from: fetchUrl,
+            to: response.url,
+          });
+          resolvedUrl = response.url;
+          fetchUrl = response.url;
+        }
+
+        finalContentType = response.headers.get("content-type");
+        html = await response.text();
       }
-
-      // Step 3: Direct image URL (by extension or content-type). Skipped when a
-      // kind is forced — image isn't a reassignable target.
-      if (
-        !forcedKind &&
-        classifyItemKind({ url, resolvedUrl, contentType, html: null })
-          ?.kind === "image"
-      ) {
-        logger.log("URL classified as direct image", { itemId, url: fetchUrl });
-        return await handleImageUrl(itemId, userId, fetchUrl, supabase);
-      }
-
-      // Step 4: Fetch the full page content
-      logger.log("Fetching page content", { itemId, url: fetchUrl });
-
-      const response = await safeFetch(fetchUrl, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-      });
-
-      if (!response.ok) {
-        throw new FetchError(response.status, fetchUrl);
-      }
-
-      // The GET follows redirects (amzn.eu → amazon.co.uk, bit.ly, etc.) —
-      // classify and extract against the destination so URL-pattern signals
-      // (book/product detection) and relative URLs resolve correctly.
-      if (response.url && response.url !== fetchUrl) {
-        logger.log("URL redirected during fetch", {
-          itemId,
-          from: fetchUrl,
-          to: response.url,
-        });
-        resolvedUrl = response.url;
-        fetchUrl = response.url;
-      }
-
-      const finalContentType = response.headers.get("content-type");
-      const html = await response.text();
 
       // Step 5: Classify from the page body — image re-check (some servers don't
       // answer HEAD), then book, product, and finally article vs generic webpage.

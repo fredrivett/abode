@@ -65,8 +65,14 @@ export default defineConfig({
           },
           globals: true,
           setupFiles: ["./vitest.setup.ts"],
-          include: ["src/**/*.{test,spec}.{ts,tsx}"],
-          exclude: ["src/**/*.integration.{test,spec}.{ts,tsx}"],
+          include: [
+            "src/**/*.{test,spec}.{ts,tsx}",
+            "trigger/**/*.{test,spec}.{ts,tsx}",
+          ],
+          exclude: [
+            "src/**/*.integration.{test,spec}.{ts,tsx}",
+            "trigger/**/*.integration.{test,spec}.{ts,tsx}",
+          ],
         },
       },
       {
