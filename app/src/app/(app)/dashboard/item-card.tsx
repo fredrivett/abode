@@ -115,6 +115,7 @@ import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
+import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
 
@@ -207,43 +208,6 @@ type ItemCardProps = {
    */
   canEdit?: boolean;
 };
-
-function ProcessingOverlay({ status }: { status: ProcessingStatus }) {
-  if (status === "completed") return null;
-
-  const isProcessing = status === "processing";
-  const isFailed = status === "failed";
-
-  return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-0 z-10 flex items-end justify-start p-2",
-        isProcessing &&
-          "bg-gradient-to-t from-black/60 via-transparent to-transparent",
-        isFailed &&
-          "bg-gradient-to-t from-red-900/70 via-transparent to-transparent",
-      )}
-      style={gridCardStyle}
-    >
-      <div
-        className={cn(
-          "pointer-events-auto flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 font-medium text-xs backdrop-blur-sm",
-          isProcessing && "bg-white/20 text-white",
-          isFailed && "bg-red-500/30 text-red-100",
-        )}
-      >
-        {isProcessing ? (
-          <IsLoading label="Analyzing" iconClassName="size-3" />
-        ) : isFailed ? (
-          <>
-            <AlertCircle className="size-3" />
-            <span>Failed</span>
-          </>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Grid card for a single item with click-to-expand detail dialog.
