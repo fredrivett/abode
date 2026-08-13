@@ -29,9 +29,18 @@ export default defineConfig({
       128: "/icon/128.png",
     },
     // activeTab: read the current tab's URL/title only on a user gesture (icon
-    // click or the save shortcut). contextMenus/storage/notifications for the
-    // right-click saves, session storage, and the background "Saved" toast.
-    permissions: ["activeTab", "contextMenus", "storage", "notifications"],
+    // click or the save shortcut). scripting: run a one-shot script in that same
+    // active tab to capture its rendered DOM on a page save (paired with
+    // activeTab, so no broad host-permission prompt). contextMenus/storage/
+    // notifications for the right-click saves, session storage, and the
+    // background "Saved" toast.
+    permissions: [
+      "activeTab",
+      "scripting",
+      "contextMenus",
+      "storage",
+      "notifications",
+    ],
     host_permissions: isLocal
       ? [
           "http://localhost/*",

@@ -4,6 +4,7 @@ import logoDark from "@/assets/abode.svg";
 import logoLight from "@/assets/abode-light.svg";
 import { Button, Input, Spinner } from "@/components/ui";
 import { NotSignedInError, saveUrl } from "@/lib/api";
+import { captureRenderedHtml } from "@/lib/capture";
 import { getSession, signIn, signOut } from "@/lib/auth";
 import { CONFIG, isConfigured } from "@/lib/config";
 
@@ -122,7 +123,7 @@ function LoginView({ onSignedIn }: { onSignedIn: () => void }) {
   );
 }
 
-type Tab = { url?: string; title?: string; favIconUrl?: string };
+type Tab = { id?: number; url?: string; title?: string; favIconUrl?: string };
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
@@ -141,7 +142,10 @@ function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
     setState("saving");
     setError(null);
     try {
-      await saveUrl(tab.url);
+      // Capture the rendered DOM of the page being saved so the server
+      // classifies against what's on screen; fall back to a bare URL save.
+      const html = tab.id != null ? await captureRenderedHtml(tab.id) : null;
+      await saveUrl(tab.url, html ?? undefined);
       setState("saved");
     } catch (err) {
       if (err instanceof NotSignedInError) {
