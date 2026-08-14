@@ -2,12 +2,19 @@
 
 import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { useColumnWidth } from "@/hooks/use-column-width";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { useRootFontSize } from "@/hooks/use-root-font-size";
 import { getBookTileFrame } from "@/lib/book-cover";
 import {
@@ -15,6 +22,7 @@ import {
   estimateTweetAspect,
 } from "@/lib/items/card-aspect";
 import { measureCardText } from "@/lib/items/card-text-measurer";
+import { isFreshlyAdded } from "@/lib/items/grow-in";
 import { noteDisplayName } from "@/lib/items/note-title";
 import { readAspectHint } from "@/lib/items/provisional-aspect";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
@@ -23,6 +31,7 @@ import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 import { ItemCard } from "./item-card";
 import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
+import { ItemFrame } from "./item-frame";
 import { NoteComposer } from "./note-composer";
 
 function formatBytes(bytes?: number | null) {
@@ -118,6 +127,22 @@ export function ItemsGrid({
   const frameTransition = enableFrameTransition
     ? "transform 0.3s ease, aspect-ratio 0.3s ease"
     : undefined;
+
+  // Grow newly-added items into the grid instead of popping them in at full
+  // height. Seed the set with the items present on first render so the initial
+  // load doesn't animate; anything that appears later and isn't in the set (and
+  // was created recently) is a fresh insert. Pagination/search bring in older
+  // items, which fail the freshness check and appear instantly.
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const seenItemIdsRef = useRef<Set<string> | null>(null);
+  if (seenItemIdsRef.current === null) {
+    seenItemIdsRef.current = new Set(items.map((item) => item.id));
+  }
+  const seenItemIds = seenItemIdsRef.current;
+  useEffect(() => {
+    const seen = seenItemIdsRef.current;
+    if (seen) for (const item of items) seen.add(item.id);
+  }, [items]);
 
   if (!hasHydrated) {
     return null;
@@ -370,29 +395,27 @@ export function ItemsGrid({
                 height = (meta.height as number | undefined) ?? 4;
               }
 
+              const animateIn =
+                !prefersReducedMotion &&
+                !seenItemIds.has(item.id) &&
+                isFreshlyAdded(item.createdAt, Date.now());
+
               return (
-                <Frame
+                <ItemFrame
                   key={item.id}
                   width={width}
                   height={height}
-                  style={{
-                    // Override the library's var-based aspect-ratio with a
-                    // concrete ratio so it can be transitioned directly; the
-                    // library's own --width/--height (from the width/height
-                    // props, read by the layout engine) stay instant targets.
-                    aspectRatio: `${width} / ${height}`,
-                    transition: frameTransition,
-                  }}
+                  columnWidth={columnWidth}
+                  frameTransition={frameTransition}
+                  animateIn={animateIn}
                 >
-                  <div className="h-full">
-                    <ItemCard
-                      item={item}
-                      name={name}
-                      size={size}
-                      mimeType={mimeType}
-                    />
-                  </div>
-                </Frame>
+                  <ItemCard
+                    item={item}
+                    name={name}
+                    size={size}
+                    mimeType={mimeType}
+                  />
+                </ItemFrame>
               );
             })}
             {/* While the next page loads, tease it with skeleton cards so the
