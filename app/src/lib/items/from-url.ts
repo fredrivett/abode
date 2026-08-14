@@ -8,6 +8,35 @@ import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 
 const log = createLogger("lib/items/from-url");
 
+// Upper bound on extension-captured rendered HTML. Real pages run large; this
+// caps what we hand downstream so a pathological page can't balloon processing.
+const MAX_CAPTURED_HTML_CHARS = 5_000_000;
+
+/**
+ * Decides whether client-supplied HTML is a usable capture. A real capture is
+ * `document.documentElement.outerHTML`, which is always a serialized document
+ * starting with an <html> tag. Anything empty, oversized, or not a document is
+ * ignored so classification falls back to the server-side fetch instead of
+ * trusting a blank/garbage capture (see classify-url). Applied here — the shared
+ * choke point for every caller — so no caller can slip an unvalidated capture
+ * past `classifyUrlTask`.
+ */
+function usableCapturedHtml(html: string | undefined): string | undefined {
+  if (html === undefined || html.length === 0) return undefined;
+  if (html.length > MAX_CAPTURED_HTML_CHARS) {
+    log.warn(
+      { htmlLength: html.length },
+      "Captured HTML over size cap; falling back to server fetch",
+    );
+    return undefined;
+  }
+  if (!/<html[\s/>]/i.test(html)) {
+    log.warn("Captured HTML is not a document; falling back to server fetch");
+    return undefined;
+  }
+  return html;
+}
+
 // Where the save originated, for analytics (default "web")
 const VALID_ITEM_SOURCES = ["web", "share_target", "extension"] as const;
 export type ItemSource = (typeof VALID_ITEM_SOURCES)[number];
@@ -48,6 +77,8 @@ export async function createItemFromUrl({
    */
   html?: string;
 }) {
+  const captured = usableCapturedHtml(html);
+
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
@@ -92,7 +123,7 @@ export async function createItemFromUrl({
         itemId: item.id,
         userId,
         url: parsedUrl.href,
-        ...(html !== undefined ? { html } : {}),
+        ...(captured !== undefined ? { html: captured } : {}),
       },
       userId,
     );
@@ -130,7 +161,7 @@ export async function createItemFromUrl({
       item_id: item.id,
       url_domain: parsedUrl.hostname,
       source,
-      captured_html: html !== undefined,
+      captured_html: captured !== undefined,
     },
   });
 

@@ -422,6 +422,10 @@ export const classifyUrlTask = task({
       let finalContentType: string | null;
 
       if (providedHtml !== undefined) {
+        // Validated upstream (usableCapturedHtml in items/from-url): a non-empty,
+        // size-bounded, document-shaped capture — a malformed/blank payload is
+        // dropped there and never reaches this branch, so it can't persist an
+        // empty page in place of the URL's real content.
         // No HEAD/direct-image checks: a rendered-DOM capture is by definition an
         // HTML page the user was viewing, not a raw image or unknown content-type.
         logger.log("Using extension-captured rendered HTML", {
