@@ -257,6 +257,19 @@ describe("POST /api/v1/items/from-url", () => {
     );
   });
 
+  it("drops html whose <html> tag isn't at the start (anchored check)", async () => {
+    const res = await POST(
+      request({
+        url: "https://example.com/x",
+        source: "extension",
+        html: "garbage prefix <html><body>real-looking</body></html>",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const [, payload] = mockTrigger.mock.calls[0];
+    expect(payload).not.toHaveProperty("html");
+  });
+
   it("ignores an empty-string html field (bare URL save)", async () => {
     const res = await POST(
       request({ url: "https://example.com/x", source: "extension", html: "" }),

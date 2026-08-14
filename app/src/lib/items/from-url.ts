@@ -30,7 +30,10 @@ function usableCapturedHtml(html: string | undefined): string | undefined {
     );
     return undefined;
   }
-  if (!/<html[\s/>]/i.test(html)) {
+  // Anchored: a real capture (document.documentElement.outerHTML) *starts* with
+  // <html>. Requiring it at the start rejects payloads that merely contain an
+  // <html> tag somewhere in otherwise-malformed content.
+  if (!/^<html[\s/>]/i.test(html)) {
     log.warn("Captured HTML is not a document; falling back to server fetch");
     return undefined;
   }
