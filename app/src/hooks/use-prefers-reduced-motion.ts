@@ -13,12 +13,28 @@ export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(mediaQuery.matches);
+    // Guard matchMedia and fall back to the deprecated addListener/
+    // removeListener so this degrades gracefully on Safari < 14 (mirrors
+    // theme.ts) instead of throwing on mount and crashing the grid.
+    const mediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mediaQuery) return;
 
+    const update = () => setReduced(mediaQuery.matches);
     update();
-    mediaQuery.addEventListener("change", update);
-    return () => mediaQuery.removeEventListener("change", update);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", update);
+    } else if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(update);
+    }
+
+    return () => {
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", update);
+      } else if (typeof mediaQuery.removeListener === "function") {
+        mediaQuery.removeListener(update);
+      }
+    };
   }, []);
 
   return reduced;
