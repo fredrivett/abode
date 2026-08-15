@@ -1,4 +1,9 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes } from "react";
+import {
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  useEffect,
+  useState,
+} from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
 
@@ -32,6 +37,19 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
       {...props}
     />
   );
+}
+
+// Animated trailing dots for loading labels ("Saving…"). Uses non-breaking
+// spaces so the label width stays fixed as dots cycle.
+const ELLIPSIS_STATES = ["   ", ".  ", ".. ", "..."];
+
+export function LoadingEllipsis() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setStep((prev) => (prev + 1) % 4), 500);
+    return () => clearInterval(interval);
+  }, []);
+  return <span>{ELLIPSIS_STATES[step]}</span>;
 }
 
 export function Spinner({ className = "" }: { className?: string }) {

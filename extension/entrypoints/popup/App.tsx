@@ -2,7 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { browser } from "wxt/browser";
 import logoDark from "@/assets/abode.svg";
 import logoLight from "@/assets/abode-light.svg";
-import { Button, Input, Spinner } from "@/components/ui";
+import { Button, Input, LoadingEllipsis, Spinner } from "@/components/ui";
 import { NotSignedInError, saveUrl } from "@/lib/api";
 import { captureRenderedHtml } from "@/lib/capture";
 import { getSession, signIn, signOut } from "@/lib/auth";
@@ -26,19 +26,24 @@ export function App() {
   return (
     <div className="flex flex-col gap-4 bg-background p-4 text-foreground">
       <header className="flex items-center justify-between">
-        <img src={logoDark} className="h-5 dark:hidden" alt="abode" />
-        <img src={logoLight} className="hidden h-5 dark:block" alt="abode" />
+        {status === "ready" ? (
+          <a href={CONFIG.abodeBaseUrl} target="_blank" rel="noreferrer">
+            <Logo />
+          </a>
+        ) : (
+          <Logo />
+        )}
         {status === "ready" && (
-          <Button
-            variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground"
+          <button
+            type="button"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             onClick={async () => {
               await signOut();
               setStatus("signedOut");
             }}
           >
             Sign out
-          </Button>
+          </button>
         )}
       </header>
 
@@ -54,6 +59,15 @@ export function App() {
         <SaveView onSignedOut={() => setStatus("signedOut")} />
       )}
     </div>
+  );
+}
+
+function Logo() {
+  return (
+    <>
+      <img src={logoDark} className="h-5 dark:hidden" alt="abode" />
+      <img src={logoLight} className="hidden h-5 dark:block" alt="abode" />
+    </>
   );
 }
 
@@ -183,7 +197,17 @@ function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
         </Button>
       ) : (
         <Button onClick={handleSave} disabled={!saveable || state === "saving"}>
-          {state === "saving" ? <Spinner className="size-4" /> : "Save this page"}
+          {state === "saving" ? (
+            <>
+              <Spinner className="size-4" />
+              <span>
+                Saving
+                <LoadingEllipsis />
+              </span>
+            </>
+          ) : (
+            "Save this page"
+          )}
         </Button>
       )}
 
