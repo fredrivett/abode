@@ -186,6 +186,19 @@ describe("authenticateRequest", () => {
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
   });
 
+  it("fails closed: rejects the cookie session when the MFA lookup errors", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+    // A transient Supabase failure during the MFA check must not grant access
+    mockCookieAAL.mockRejectedValue(new Error("supabase unavailable"));
+
+    const result = await authenticateRequest(request());
+
+    expect(result).toBeNull();
+  });
+
   it("uses the cookie session for a non-Bearer Authorization scheme", async () => {
     mockCookieGetUser.mockResolvedValue({
       data: { user: { id: "u_cookie" } },

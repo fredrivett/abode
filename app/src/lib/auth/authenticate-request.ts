@@ -63,10 +63,19 @@ export async function authenticateRequest(
   // Enforce 2FA here too, not just via the page middleware: an AAL1 cookie
   // session is set at password sign-in, before the TOTP challenge, so a direct
   // API call with that cookie would otherwise bypass the 2FA the user opted into.
-  if (await needsMFAChallenge(supabase)) {
+  // Fail closed if the MFA lookup itself errors — a transient Supabase failure
+  // must not serve a user who may still owe a challenge (a 401, not a 500).
+  const mfaIncomplete = await needsMFAChallenge(supabase).catch((error) => {
+    log.warn(
+      { userId: user.id, error },
+      "MFA state check failed; failing closed",
+    );
+    return true;
+  });
+  if (mfaIncomplete) {
     log.warn(
       { userId: user.id },
-      "Rejected AAL1 cookie session for a user with a verified MFA factor",
+      "Rejected cookie session pending MFA challenge",
     );
     return null;
   }

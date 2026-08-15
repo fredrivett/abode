@@ -14,6 +14,7 @@ type FakeClientOptions = {
   user: { id: string } | null;
   currentLevel?: "aal1" | "aal2";
   verifiedFactor?: boolean;
+  mfaThrows?: boolean;
 };
 
 // Minimal stand-in for the cookie Supabase client: just the auth surface
@@ -22,16 +23,20 @@ function fakeClient({
   user,
   currentLevel = "aal1",
   verifiedFactor = false,
+  mfaThrows = false,
 }: FakeClientOptions): SupabaseClient {
   const totp = verifiedFactor ? [{ status: "verified" }] : [];
   return {
     auth: {
       getUser: async () => ({ data: { user }, error: null }),
       mfa: {
-        getAuthenticatorAssuranceLevel: async () => ({
-          data: { currentLevel, nextLevel: verifiedFactor ? "aal2" : "aal1" },
-          error: null,
-        }),
+        getAuthenticatorAssuranceLevel: async () => {
+          if (mfaThrows) throw new Error("supabase unavailable");
+          return {
+            data: { currentLevel, nextLevel: verifiedFactor ? "aal2" : "aal1" },
+            error: null,
+          };
+        },
         listFactors: async () => ({ data: { totp }, error: null }),
       },
     },
@@ -74,6 +79,15 @@ describe("getUserWithMfa", () => {
 
   it("returns null for an unauthenticated session without checking MFA", async () => {
     const result = await getUserWithMfa(fakeClient({ user: null }));
+
+    expect(result.data.user).toBeNull();
+  });
+
+  it("fails closed: nulls the user when the MFA lookup errors", async () => {
+    // A transient Supabase failure must not serve a possibly-2FA user
+    const result = await getUserWithMfa(
+      fakeClient({ user: { id: "u1" }, verifiedFactor: true, mfaThrows: true }),
+    );
 
     expect(result.data.user).toBeNull();
   });
