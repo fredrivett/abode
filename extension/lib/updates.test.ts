@@ -43,22 +43,24 @@ describe("fetchLatestBuild", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("returns the parsed latest build", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          workflow_runs: [
-            { run_number: 234, head_sha: "def5678aa", html_url: "https://x/1" },
-          ],
-        }),
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        workflow_runs: [
+          { run_number: 234, head_sha: "def5678aa", html_url: "https://x/1" },
+        ],
       }),
-    );
+    });
+    vi.stubGlobal("fetch", fetchMock);
     await expect(fetchLatestBuild()).resolves.toEqual({
       number: 234,
       sha: "def5678",
       url: "https://x/1",
     });
+    // Query all successful main runs (push + dispatch), not just pushes.
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("branch=main");
+    expect(url).not.toContain("event=");
   });
 
   it("throws on a non-ok response (e.g. rate limited)", async () => {

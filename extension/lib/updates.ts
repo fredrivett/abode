@@ -1,6 +1,6 @@
 // Checking whether a newer extension build exists.
 //
-// Distributed builds come from the Extension Build workflow's push-to-main runs
+// Distributed builds come from the Extension Build workflow's runs on main
 // (.github/workflows/extension-build.yml). Each build bakes in that run's
 // GITHUB_RUN_NUMBER (CONFIG.buildNumber) and short SHA; here we ask the public
 // GitHub API for the latest successful main run and compare run numbers. No auth
@@ -9,11 +9,13 @@
 const REPO = "fredrivett/abode";
 const WORKFLOW_FILE = "extension-build.yml";
 
-// Latest successful push-to-main run = the newest build that produced an
-// artifact. PR runs (typecheck only, no artifact) are excluded by event=push.
+// Latest successful run on main = the newest build that produced an artifact.
+// Both push and manual dispatch on main build the artifact, so we don't filter
+// by event. PR runs are already excluded: their head branch is the PR source,
+// not main, so branch=main leaves them out.
 const LATEST_RUN_URL =
   `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_FILE}` +
-  `/runs?branch=main&event=push&status=success&per_page=1`;
+  `/runs?branch=main&status=success&per_page=1`;
 
 export interface LatestBuild {
   number: number;

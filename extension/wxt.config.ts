@@ -15,11 +15,18 @@ const devBaseUrl = `http://localhost:${process.env.CONDUCTOR_PORT ?? "3300"}`;
 // come from GitHub's default env vars (set in every step, no workflow wiring):
 //   - number = GITHUB_RUN_NUMBER — the Extension Build workflow's monotonic run
 //     counter. The popup compares it against the latest main run to answer
-//     "am I behind?" (see lib/updates.ts). 0 outside CI (a local build).
+//     "am I behind?" (see lib/updates.ts). Only baked for builds ON main (push
+//     or manual dispatch); the counter is shared across all refs, so a number
+//     from an off-main dispatch would compare higher than the latest main build
+//     and mask it. Off-main / local builds get 0 → shown as a dev build, no
+//     check.
 //   - sha = the commit the build came from, for traceability back to a PR.
 // Baked into the JS (defines below) and the manifest (version_name, shown in
 // chrome://extensions).
-const buildNumber = Number.parseInt(process.env.GITHUB_RUN_NUMBER ?? "0", 10) || 0;
+const buildNumber =
+  process.env.GITHUB_REF === "refs/heads/main"
+    ? Number.parseInt(process.env.GITHUB_RUN_NUMBER ?? "0", 10) || 0
+    : 0;
 const buildSha = resolveBuildSha();
 
 function resolveBuildSha(): string {

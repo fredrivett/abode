@@ -78,8 +78,9 @@ updates** asks the public GitHub API for the latest successful `main` run and
 tells you if a higher build number exists, linking to it. It can't self-update a
 load-unpacked extension (Chrome doesn't allow that) — it flags staleness so you
 know when to re-download. Build numbers have gaps because PR runs share the
-counter; only the ordering matters. Locally-built extensions show `Dev build`
-(no run number) and skip the check.
+counter; only the ordering matters. Only builds from `main` (push or manual
+dispatch) get a comparable number — anything else (local, or a dispatch on a
+branch) shows `Dev build` and skips the check.
 
 ## Configuration
 
