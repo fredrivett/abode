@@ -13,13 +13,14 @@ import {
   Intelligence,
 } from "./gallery-card";
 import { GALLERY_CARDS } from "./gallery-data";
+import { Highlight } from "./highlight";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeInOut = (t: number) =>
   t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
 
-// The three ways things get into abode. `soon` marks the not-yet-built one.
+// The three ways things get into abode.
 const STEPS = [
   {
     id: "paste",
@@ -37,7 +38,7 @@ const STEPS = [
     id: "clip",
     icon: AppWindow,
     label: "save from anywhere",
-    body: "save what you're reading with the browser extension, without leaving the page.",
+    body: "save whatever you're browsing with our browser extension, without ever leaving the page.",
   },
 ];
 
@@ -251,11 +252,7 @@ export function LivingGallery() {
             }
           >
             <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
-              this is{" "}
-              <span className="rounded-lg bg-foreground/[0.07] px-2 py-0.5">
-                your
-              </span>{" "}
-              abode.
+              this is <Highlight>your</Highlight> abode.
             </h2>
           </div>
 

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { GITHUB_URL } from "@/lib/github";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { Highlight } from "./_components/highlight";
 import { LivingGallery } from "./_components/living-gallery";
 import { OwnershipCallout } from "./_components/ownership-callout";
 import { SearchDemo } from "./_components/search-demo";
@@ -15,10 +16,7 @@ export default function Home() {
       <main className="relative z-10 flex min-h-[calc(100svh-3.5rem)] w-full max-w-2xl flex-col items-center justify-center px-4 py-12 text-center [text-shadow:0_1px_3px_rgba(0,0,0,0.9),0_4px_28px_rgba(0,0,0,0.7)]">
         <div className="relative w-full">
           <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-            your home should be{" "}
-            <span className="rounded-lg bg-foreground/[0.07] px-2 py-0.5">
-              yours.
-            </span>
+            your home should be <Highlight>yours.</Highlight>
           </h1>
           <OwnershipCallout />
         </div>
