@@ -65,8 +65,14 @@ export default defineConfig({
           },
           globals: true,
           setupFiles: ["./vitest.setup.ts"],
-          include: ["src/**/*.{test,spec}.{ts,tsx}"],
-          exclude: ["src/**/*.integration.{test,spec}.{ts,tsx}"],
+          include: [
+            "src/**/*.{test,spec}.{ts,tsx}",
+            "trigger/**/*.{test,spec}.{ts,tsx}",
+          ],
+          exclude: [
+            "src/**/*.integration.{test,spec}.{ts,tsx}",
+            "trigger/**/*.integration.{test,spec}.{ts,tsx}",
+          ],
         },
       },
       {
@@ -85,7 +91,10 @@ export default defineConfig({
           environment: "node",
           globals: true,
           setupFiles: ["./vitest.setup.db.ts"],
-          include: ["src/**/*.integration.{test,spec}.{ts,tsx}"],
+          include: [
+            "src/**/*.integration.{test,spec}.{ts,tsx}",
+            "trigger/**/*.integration.{test,spec}.{ts,tsx}",
+          ],
           testTimeout: 30000,
           hookTimeout: 120000, // Container startup can take time
           fileParallelism: false, // DB tests run sequentially

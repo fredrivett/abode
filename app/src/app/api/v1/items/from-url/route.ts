@@ -43,7 +43,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { url, source } = body;
+    const { url, source, html } = body;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ message: "URL is required" }, { status: 400 });
@@ -54,6 +54,10 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
         userId: user.id,
         url,
         source: isItemSource(source) ? source : "web",
+        // Optional extension-captured rendered DOM. createItemFromUrl decides
+        // whether it's a usable capture (document-shaped, within the size cap)
+        // and otherwise falls back to a server-side fetch.
+        html: typeof html === "string" ? html : undefined,
       });
       return NextResponse.json(item, { status: 201 });
     } catch (error) {

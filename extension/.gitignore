@@ -8,6 +8,10 @@ stats.html
 .env
 .env.*
 !.env.example
+# Playwright
+test-results
+playwright-report
+
 # misc
 *.zip
 .DS_Store

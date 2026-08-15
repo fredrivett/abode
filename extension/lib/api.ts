@@ -37,9 +37,20 @@ interface SavedItem {
   id: string;
 }
 
-/** Save a link/image/page URL — routes through abode's from-url pipeline. */
-export function saveUrl(url: string): Promise<SavedItem> {
-  return post<SavedItem>("/api/v1/items/from-url", { url, source: "extension" });
+/**
+ * Save a link/image/page URL — routes through abode's from-url pipeline.
+ *
+ * `html` is the active tab's already-rendered DOM (page saves only). When
+ * present the server classifies against it instead of fetching the URL itself,
+ * which is how we capture client-rendered pages and content behind the user's
+ * session. Omitted for link/image saves (a different URL than the one on screen).
+ */
+export function saveUrl(url: string, html?: string): Promise<SavedItem> {
+  return post<SavedItem>("/api/v1/items/from-url", {
+    url,
+    source: "extension",
+    ...(html !== undefined ? { html } : {}),
+  });
 }
 
 /** Save selected text as a note. */

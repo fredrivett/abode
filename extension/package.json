@@ -12,6 +12,8 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -20,12 +22,14 @@
     "react-dom": "19.2.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@wxt-dev/module-react": "1.2.2",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
+    "vitest": "^4.1.10",
     "wxt": "0.20.27"
   }
 }

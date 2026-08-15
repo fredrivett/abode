@@ -1,4 +1,5 @@
 import { NotSignedInError, saveNote, saveUrl } from "@/lib/api";
+import { captureRenderedHtml } from "@/lib/capture";
 import { defineBackground } from "#imports";
 import { browser } from "wxt/browser";
 
@@ -38,9 +39,14 @@ export default defineBackground(() => {
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       switch (info.menuItemId) {
-        case MENU.page:
-          await saveUrl(info.pageUrl ?? tab?.url ?? "");
+        case MENU.page: {
+          // Saving the page you're viewing: capture its rendered DOM so the
+          // server classifies against what's on screen, not a bare fetch.
+          const pageHtml =
+            tab?.id != null ? await captureRenderedHtml(tab.id) : null;
+          await saveUrl(info.pageUrl ?? tab?.url ?? "", pageHtml ?? undefined);
           break;
+        }
         case MENU.link:
           await saveUrl(info.linkUrl ?? "");
           break;
@@ -68,7 +74,9 @@ export default defineBackground(() => {
         currentWindow: true,
       });
       if (!tab?.url) return;
-      await saveUrl(tab.url);
+      const pageHtml =
+        tab.id != null ? await captureRenderedHtml(tab.id) : null;
+      await saveUrl(tab.url, pageHtml ?? undefined);
       await onSaved();
     } catch (error) {
       await onError(error);
