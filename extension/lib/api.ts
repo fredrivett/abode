@@ -55,5 +55,9 @@ export function saveUrl(url: string, html?: string): Promise<SavedItem> {
 
 /** Save selected text as a note. */
 export function saveNote(content: string, title?: string): Promise<SavedItem> {
-  return post<SavedItem>("/api/v1/items/notes", { content, title });
+  return post<SavedItem>("/api/v1/items/notes", {
+    content,
+    title,
+    source: "extension",
+  });
 }
