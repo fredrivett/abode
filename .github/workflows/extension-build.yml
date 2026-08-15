@@ -86,7 +86,9 @@ jobs:
             echo "::error::Could not fetch the anon key from the Supabase Management API." >&2
             exit 1
           fi
-          echo "::add-mask::$ANON_KEY"
+          # The anon key is public and is never echoed (only written to the file
+          # below), so no ::add-mask:: — masking runtime data trips a Semgrep rule
+          # (it's bypassable via ::stop-commands::) and buys nothing here.
           {
             echo "WXT_SUPABASE_URL=https://$SUPABASE_PROJECT_REF.supabase.co"
             echo "WXT_SUPABASE_ANON_KEY=$ANON_KEY"
