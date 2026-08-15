@@ -52,6 +52,25 @@ bun run build:local       # dev-mode build → targets your local abode server (
 
 Use `build:local` to point at your running dev server; use `build` for a real (store) build.
 
+### Grab a build from CI (no local toolchain)
+
+The extension isn't published to a store, so between releases the way to run the
+latest `main` is the **Extension Build** workflow
+(`.github/workflows/extension-build.yml`): on push to `main` touching
+`extension/**` it typechecks, unit-tests, builds (production → `abode.fyi`), and
+uploads the unpacked output as an artifact. (PRs run the typecheck + tests only —
+the build needs the Supabase management token to resolve config, which is kept
+off untrusted PR runs, so artifacts come from `main` or a manual dispatch.)
+
+1. GitHub → **Actions** → **Extension Build** → the latest green run on `main`.
+2. Download the **`abode-extension-chrome`** artifact and unzip it.
+3. `chrome://extensions` → **Developer mode** → **Load unpacked** → the unzipped folder.
+
+Load-unpacked doesn't auto-update — re-download after a new build. No extra
+config: the build derives the Supabase URL and anon key (both public) from the
+existing `SUPABASE_PROJECT_REF` + `SUPABASE_ACCESS_TOKEN` secrets — the URL from
+the ref, the anon key via the Supabase Management API.
+
 ## Configuration
 
 Config comes from `WXT_`-prefixed env vars (see `.env.example`). All are **public** — never put the Supabase service-role key here.

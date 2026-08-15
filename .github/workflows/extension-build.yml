@@ -1,0 +1,136 @@
+name: Extension Build
+
+# Builds the browser extension and uploads the unpacked output as an artifact so
+# anyone can grab the latest `main` build without a local toolchain: Actions →
+# this workflow → latest run → download `abode-extension-chrome` → unzip → load
+# unpacked at chrome://extensions. The extension is NOT published to a store, so
+# this is how "run the latest" works between (eventual) store releases.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extension/**"
+      - ".github/workflows/extension-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "extension/**"
+      - ".github/workflows/extension-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: extension-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ./extension
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.5"
+
+      - name: Cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-extension-${{ hashFiles('extension/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-extension-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run compile
+
+      - name: Unit tests
+        run: bun run test
+
+      # Build + upload the artifact only on trusted runs — push to main or manual
+      # dispatch — NEVER on pull_request. The build needs SUPABASE_ACCESS_TOKEN (a
+      # high-privilege management-API token) to fetch the public anon key, and a
+      # pull_request runs PR-authored workflow code; keeping the token off that
+      # path stops an untrusted PR from exfiltrating it. PRs still get the
+      # typecheck + unit tests above.
+      #
+      # No extra config — both public values come from secrets that already exist:
+      #   URL      = https://<SUPABASE_PROJECT_REF>.supabase.co
+      #   anon key = fetched from the Supabase Management API (public; the same key
+      #              the web app ships, never the service-role key).
+      - name: Resolve production env
+        if: success() && github.event_name != 'pull_request'
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_PROJECT_REF" ] || [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_PROJECT_REF / SUPABASE_ACCESS_TOKEN secrets are unavailable." >&2
+            exit 1
+          fi
+          ANON_KEY=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/api-keys" \
+            | jq -r '.[] | select(.name == "anon") | .api_key')
+          if [ -z "$ANON_KEY" ] || [ "$ANON_KEY" = "null" ]; then
+            echo "::error::Could not fetch the anon key from the Supabase Management API." >&2
+            exit 1
+          fi
+          # No log-masking of the anon key: it's public and never printed (only
+          # written to the file below), and masking runtime-derived data trips a
+          # Semgrep GHA rule while buying nothing here.
+          {
+            echo "WXT_SUPABASE_URL=https://$SUPABASE_PROJECT_REF.supabase.co"
+            echo "WXT_SUPABASE_ANON_KEY=$ANON_KEY"
+          } > .env.production
+
+      - name: Build (production → abode.fyi)
+        if: success() && github.event_name != 'pull_request'
+        run: bun run build
+
+      - name: Upload unpacked extension
+        if: success() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abode-extension-chrome
+          path: extension/.output/chrome-mv3
+          if-no-files-found: error
+
+      # Explicit success() so a failed typecheck/build never runs this; the event
+      # check keeps it off PRs. Together: only advertise an artifact that exists.
+      - name: Summarise how to load it
+        if: success() && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          {
+            echo '### abode extension build'
+            echo ''
+            echo 'Download the **abode-extension-chrome** artifact from this run, unzip it, then:'
+            echo ''
+            echo '1. Open `chrome://extensions`'
+            echo '2. Toggle **Developer mode** (top-right)'
+            echo '3. **Load unpacked** → select the unzipped folder'
+            echo ''
+            echo 'Targets production (`https://www.abode.fyi`). Load-unpacked does not auto-update — re-download after a new build.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # PRs pass on typecheck + tests but build no artifact (secrets are gated off
+      # untrusted PR runs). Say so, so a green check isn't mistaken for a build.
+      - name: Note that PRs don't build an artifact
+        if: success() && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          echo "::notice::Extension typecheck + tests passed. No artifact is built on PRs — the Supabase management token is kept off untrusted PR runs. Get a build from a push to main or a manual 'Run workflow' (workflow_dispatch)."
+          {
+            echo '### abode extension — PR check'
+            echo ''
+            echo 'Typecheck + unit tests ran. **No artifact is built on PRs** — the build needs the Supabase management token to resolve config, which is kept off untrusted PR runs. Grab a build from a push to `main`, or a manual **Run workflow** (workflow_dispatch).'
+          } >> "$GITHUB_STEP_SUMMARY"
