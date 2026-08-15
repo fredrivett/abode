@@ -1,5 +1,6 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import db from "@/lib/db";
+import { type ItemSource, isItemSource } from "@/lib/items/capture-source";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
@@ -40,16 +41,9 @@ function usableCapturedHtml(html: string | undefined): string | undefined {
   return html;
 }
 
-// Where the save originated, for analytics (default "web")
-const VALID_ITEM_SOURCES = ["web", "share_target", "extension"] as const;
-export type ItemSource = (typeof VALID_ITEM_SOURCES)[number];
-
-export function isItemSource(value: unknown): value is ItemSource {
-  return (
-    typeof value === "string" &&
-    VALID_ITEM_SOURCES.includes(value as ItemSource)
-  );
-}
+// Re-exported for existing importers; canonical definition lives in
+// ./capture-source alongside the persisted CaptureSource enum.
+export { type ItemSource, isItemSource };
 
 /** Thrown when the provided URL is missing or not an http(s) URL. */
 export class InvalidUrlError extends Error {}
@@ -102,6 +96,7 @@ export async function createItemFromUrl({
       kind: null,
       sourceType: "url",
       sourceUrl: parsedUrl.href,
+      captureSource: source,
       userId,
       processingStatus: "processing",
       ...(aspectHint ? { meta: { aspectHint } } : {}),

@@ -88,24 +88,40 @@ describe("POST /api/v1/items/notes", () => {
   it("creates the note and clears the draft on the happy path", async () => {
     const res = await POST(request({ content: "a quote", title: "Source" }));
     expect(res.status).toBe(201);
+    // In-app composer omits source → defaults to "web"
     expect(mockCreateNote).toHaveBeenCalledWith("user_1", {
       content: "a quote",
       title: "Source",
+      source: "web",
     });
     expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
+  });
+
+  it("defaults an invalid source to web", async () => {
+    const res = await POST(request({ content: "a quote", source: "bogus" }));
+    expect(res.status).toBe(201);
+    expect(mockCreateNote).toHaveBeenCalledWith(
+      "user_1",
+      expect.objectContaining({ source: "web" }),
+    );
   });
 
   it("saves via a bearer-authenticated request (the extension selection path)", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "bearer" });
     const res = await POST(
       request(
-        { content: "highlighted text" },
+        { content: "highlighted text", source: "extension" },
         { authorization: "Bearer token-abc", origin: "chrome-extension://abc" },
       ),
     );
     expect(res.status).toBe(201);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
       "chrome-extension://abc",
+    );
+    // The extension's source is threaded through to createNote
+    expect(mockCreateNote).toHaveBeenCalledWith(
+      "user_1",
+      expect.objectContaining({ source: "extension" }),
     );
   });
 });

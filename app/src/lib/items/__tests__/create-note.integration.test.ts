@@ -22,6 +22,7 @@ describe("createNote integration", () => {
       select: {
         title: true,
         kind: true,
+        captureSource: true,
         noteDetails: { select: { content: true } },
       },
     });
@@ -32,6 +33,7 @@ describe("createNote integration", () => {
 
     const created = await createNote(user.id, {
       content: "# Reading list\n\nBooks to get through this quarter:",
+      source: "web",
     });
 
     expect(created.kind).toBe("note");
@@ -53,6 +55,7 @@ describe("createNote integration", () => {
 
     const created = await createNote(user.id, {
       content: "Just a quick thought\nand a second line",
+      source: "web",
     });
 
     expect(created.title).toBeNull();
@@ -64,7 +67,10 @@ describe("createNote integration", () => {
   test("does not treat a leading list item as a title", async () => {
     const user = await createTestUser();
 
-    const created = await createNote(user.id, { content: "* milk\n* eggs" });
+    const created = await createNote(user.id, {
+      content: "* milk\n* eggs",
+      source: "web",
+    });
 
     expect(created.title).toBeNull();
     expect(created.noteDetails?.content).toBe("* milk\n* eggs");
@@ -76,6 +82,7 @@ describe("createNote integration", () => {
     const created = await createNote(user.id, {
       title: "Manual title",
       content: "# A heading in the body\n\nbody",
+      source: "web",
     });
 
     expect(created.title).toBe("Manual title");
@@ -87,9 +94,23 @@ describe("createNote integration", () => {
   test("handles empty content", async () => {
     const user = await createTestUser();
 
-    const created = await createNote(user.id, { content: "" });
+    const created = await createNote(user.id, { content: "", source: "web" });
 
     expect(created.title).toBeNull();
     expect(created.noteDetails?.content).toBe("");
+  });
+
+  test("persists the capture source (e.g. extension) it was given", async () => {
+    const user = await createTestUser();
+
+    const created = await createNote(user.id, {
+      content: "Saved from a page selection",
+      source: "extension",
+    });
+
+    expect(created.captureSource).toBe("extension");
+
+    const stored = await readBack(created.id);
+    expect(stored.captureSource).toBe("extension");
   });
 });

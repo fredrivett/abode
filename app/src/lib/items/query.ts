@@ -31,6 +31,7 @@ export const itemSelect = {
   meta: true,
   sourceType: true,
   sourceUrl: true,
+  captureSource: true,
   coverFileKey: true,
   createdAt: true,
   updatedAt: true,
