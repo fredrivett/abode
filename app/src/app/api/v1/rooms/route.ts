@@ -6,7 +6,7 @@ import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
-import { generateRoomSlug, hasValidFilters } from "@/lib/rooms";
+import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
@@ -30,47 +30,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const typeFilter = searchParams.get("type");
+    const typeParam = new URL(request.url).searchParams.get("type");
 
     // Validate type filter if provided
-    if (typeFilter && !["smart", "manual"].includes(typeFilter)) {
+    if (typeParam && typeParam !== "smart" && typeParam !== "manual") {
       return NextResponse.json(
         { message: "Type must be 'smart' or 'manual'" },
         { status: 400 },
       );
     }
 
-    const rooms = await db.room.findMany({
-      where: {
-        userId: user.id,
-        ...(typeFilter && { type: typeFilter as "smart" | "manual" }),
-      },
-      select: {
-        id: true,
-        name: true,
-        emoji: true,
-        slug: true,
-        type: true,
-        filters: true,
-        visibility: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: { roomItems: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Transform to include itemCount at top level
-    const roomsWithCount = rooms.map((room) => ({
-      ...room,
-      itemCount: room._count.roomItems,
-      _count: undefined,
-    }));
-
-    return NextResponse.json(roomsWithCount);
+    const typeFilter =
+      typeParam === "smart" || typeParam === "manual" ? typeParam : undefined;
+    const rooms = await listUserRooms(user.id, typeFilter);
+    return NextResponse.json(rooms);
   } catch (error) {
     log.error({ error }, "Rooms fetch error");
     captureServerException(error, undefined, { route: "GET /api/v1/rooms" });
