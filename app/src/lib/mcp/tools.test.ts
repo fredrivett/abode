@@ -20,6 +20,7 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/search/ranked-search", () => ({
   rankedSearch: mockRankedSearch,
+  DEFAULT_RANKED_LIMIT: 100,
 }));
 vi.mock("@/lib/items/query", () => ({
   itemSelect: {},
@@ -119,7 +120,7 @@ describe("getItems — recent mode", () => {
 });
 
 describe("getItems — query mode", () => {
-  it("ranks via search, preserves RRF order, and attaches the match snippet", async () => {
+  it("ORs multi-value tags/kinds, preserves RRF order, and attaches the snippet", async () => {
     mockRankedSearch.mockResolvedValue([
       {
         id: "b",
@@ -139,24 +140,60 @@ describe("getItems — query mode", () => {
 
     const items = await getItems(USER, {
       query: "  branding  ",
-      tags: ["design"],
-      kinds: ["article"],
-      since: "2026-01-01",
+      tags: ["design", "brand"],
+      kinds: ["article", "image"],
     });
 
+    // Each array shares one orGroup so values OR together; no capture-date filter
     expect(mockRankedSearch).toHaveBeenCalledWith(
       USER,
       {
-        tag: [{ value: "design", negated: false }],
-        type: [{ value: "article", negated: false }],
-        dateAfter: new Date("2026-01-01").toISOString(),
+        tag: [
+          { value: "design", negated: false, orGroup: 0 },
+          { value: "brand", negated: false, orGroup: 0 },
+        ],
+        type: [
+          { value: "article", negated: false, orGroup: 0 },
+          { value: "image", negated: false, orGroup: 0 },
+        ],
       },
       "branding",
       { limit: 20 },
     );
+    expect(mockItemFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["b", "a"] }, userId: USER },
+      select: expect.anything(),
+    });
     expect(items.map((i) => i.id)).toEqual(["b", "a"]);
     expect(items[0]?.matchSnippet).toBe("<b>hit</b>");
     expect(items[1]).not.toHaveProperty("matchSnippet");
+  });
+
+  it("filters `since` by created-at at hydration and widens the candidate fetch", async () => {
+    mockRankedSearch.mockResolvedValue([
+      {
+        id: "a",
+        sources: ["fulltext"],
+        ocrSnippet: null,
+        vectorSimilarity: null,
+      },
+    ]);
+    mockItemFindMany.mockResolvedValue([row({ id: "a" })]);
+
+    await getItems(USER, { query: "branding", since: "2026-01-01" });
+
+    // since is NOT passed to ranked search (capture-date semantics); fetch is widened
+    expect(mockRankedSearch).toHaveBeenCalledWith(USER, {}, "branding", {
+      limit: 100,
+    });
+    expect(mockItemFindMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["a"] },
+        userId: USER,
+        createdAt: { gte: new Date("2026-01-01") },
+      },
+      select: expect.anything(),
+    });
   });
 
   it("returns nothing when the search has no hits", async () => {

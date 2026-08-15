@@ -6,7 +6,7 @@ import { isCanonicalUuid } from "@/lib/pagination";
 import { listUserRooms } from "@/lib/rooms";
 import type { ParsedFilters } from "@/lib/search/query-builder";
 import { VALID_ITEM_KINDS } from "@/lib/search/query-builder";
-import { rankedSearch } from "@/lib/search/ranked-search";
+import { DEFAULT_RANKED_LIMIT, rankedSearch } from "@/lib/search/ranked-search";
 import { getAppBaseUrl } from "@/lib/url";
 
 export const MCP_DEFAULT_LIMIT = 20;
@@ -103,15 +103,25 @@ function toMcpItem(
 
 function buildRankedFilters(params: GetItemsParams): ParsedFilters {
   const filters: ParsedFilters = {};
+  // One orGroup per array so multiple values OR together (any-of), matching
+  // recent mode's `in`/`hasSome`; without it the search builders AND them.
   if (params.tags?.length) {
-    filters.tag = params.tags.map((value) => ({ value, negated: false }));
+    filters.tag = params.tags.map((value) => ({
+      value,
+      negated: false,
+      orGroup: 0,
+    }));
   }
   const kinds = validKinds(params.kinds);
   if (kinds.length) {
-    filters.type = kinds.map((value) => ({ value, negated: false }));
+    filters.type = kinds.map((value) => ({
+      value,
+      negated: false,
+      orGroup: 0,
+    }));
   }
-  const since = validSince(params.since);
-  if (since) filters.dateAfter = since.toISOString();
+  // `since` is intentionally NOT applied here: the ranked date predicate filters
+  // on capture-date, not created-at. We apply created-at at hydration instead.
   return filters;
 }
 
@@ -145,29 +155,37 @@ export async function getItems(
   const limit = clampLimit(params.limit);
   const username = await getUsername(userId);
   const query = params.query?.trim();
+  const since = validSince(params.since);
 
   if (query) {
+    // When we'll post-filter by created-at, pull a wider candidate set so the
+    // date narrowing doesn't starve the results
+    const candidateLimit = since ? DEFAULT_RANKED_LIMIT : limit;
     const ranked = await rankedSearch(
       userId,
       buildRankedFilters(params),
       query,
-      {
-        limit,
-      },
+      { limit: candidateLimit },
     );
     if (ranked.length === 0) return [];
 
     const rows = await db.item.findMany({
-      where: { id: { in: ranked.map((r) => r.id) }, userId },
+      where: {
+        id: { in: ranked.map((r) => r.id) },
+        userId,
+        ...(since && { createdAt: { gte: since } }),
+      },
       select: compactItemSelect,
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
 
-    // Preserve RRF order and carry the match snippet through
-    return ranked.flatMap((result) => {
-      const row = byId.get(result.id);
-      return row ? [toMcpItem(row, username, result.ocrSnippet)] : [];
-    });
+    // Preserve RRF order, carry the match snippet, and cap at the requested limit
+    return ranked
+      .flatMap((result) => {
+        const row = byId.get(result.id);
+        return row ? [toMcpItem(row, username, result.ocrSnippet)] : [];
+      })
+      .slice(0, limit);
   }
 
   const rows = await db.item.findMany({
