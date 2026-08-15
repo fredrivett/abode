@@ -56,9 +56,11 @@ Use `build:local` to point at your running dev server; use `build` for a real (s
 
 The extension isn't published to a store, so between releases the way to run the
 latest `main` is the **Extension Build** workflow
-(`.github/workflows/extension-build.yml`): on every push to `main` that touches
+(`.github/workflows/extension-build.yml`): on push to `main` touching
 `extension/**` it typechecks, unit-tests, builds (production → `abode.fyi`), and
-uploads the unpacked output as an artifact.
+uploads the unpacked output as an artifact. (PRs run the typecheck + tests only —
+the build needs the Supabase management token to resolve config, which is kept
+off untrusted PR runs, so artifacts come from `main` or a manual dispatch.)
 
 1. GitHub → **Actions** → **Extension Build** → the latest green run on `main`.
 2. Download the **`abode-extension-chrome`** artifact and unzip it.
