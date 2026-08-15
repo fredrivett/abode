@@ -23,10 +23,10 @@ const easeInOut = (t: number) =>
 // The three ways things get into abode.
 const STEPS = [
   {
-    id: "paste",
-    icon: ClipboardPaste,
-    label: "paste a link",
-    body: "{paste} a tweet anywhere in abode — it grabs the link and builds the card.",
+    id: "clip",
+    icon: AppWindow,
+    label: "save from anywhere",
+    body: "save whatever you're browsing with our browser extension, without ever leaving the page.",
   },
   {
     id: "drop",
@@ -35,10 +35,10 @@ const STEPS = [
     body: "drop an image or file straight onto abode. it uploads and files itself.",
   },
   {
-    id: "clip",
-    icon: AppWindow,
-    label: "save from anywhere",
-    body: "save whatever you're browsing with our browser extension, without ever leaving the page.",
+    id: "paste",
+    icon: ClipboardPaste,
+    label: "paste a link",
+    body: "{paste} a tweet anywhere in abode — it grabs the link and builds the card.",
   },
 ];
 
