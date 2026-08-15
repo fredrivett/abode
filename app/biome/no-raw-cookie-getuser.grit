@@ -1,0 +1,28 @@
+language js
+
+// 2FA guardrail: a cookie-authed API route must resolve its user through
+// `getUserWithMfa` (@/lib/supabase/server), never `supabase.auth.getUser()`
+// directly. getUserWithMfa nulls the user when a verified MFA factor exists but
+// the session is still AAL1 (password sign-in, TOTP challenge not completed), so
+// the route's `if (!user)` guard returns 401. A raw getUser accepts that AAL1
+// session and silently bypasses the 2FA the user opted into — the page
+// middleware only guards page navigations, not direct API calls.
+//
+// Scoped by an `overrides` entry in biome.json to `src/app/api/**`. The
+// legitimate callers of the raw getUser live outside that surface and are
+// exempt by construction: getUserWithMfa/getAuthUser (src/lib/supabase/server.ts),
+// updateSession (src/lib/supabase/middleware.ts), and authenticateRequest
+// (src/lib/auth/authenticate-request.ts, which applies the same AAL check).
+//
+// Biome 2.2 can't suppress plugin diagnostics with `biome-ignore`, so a genuine
+// exception must be exempted by path in that biome.json override.
+//
+// Matches `.auth.getUser(...)` on any receiver; the `.auth.` segment keeps it
+// from flagging unrelated `getUser` methods.
+`$obj.auth.getUser($...)` as $call where {
+  register_diagnostic(
+    span=$call,
+    message="Don't call supabase.auth.getUser() directly in an API route — it accepts an AAL1 cookie session and bypasses 2FA. Use `getUserWithMfa(supabase)` from `@/lib/supabase/server` (drop-in for getUser that gates MFA), or `authenticateRequest` for bearer/PAT routes.",
+    severity="error"
+  )
+}

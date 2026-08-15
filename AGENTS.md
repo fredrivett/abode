@@ -292,6 +292,7 @@ When a recurring defect is fixed, append a one-line entry here — but first try
 - `biome.json` takes no comments: with one present Biome 2.2 silently falls back to its default config (whole repo reformats to tabs) rather than erroring — document Biome config decisions in the plugin file, not inline.
 - User-initiated item processing must enqueue via `enqueueUserProcessing` (applies the per-user concurrencyKey + `USER_ACTION_PRIORITY`), never raw `tasks.trigger`, or live runs lose priority to background work — enforced over `src/lib/items/**` and `src/app/api/**` by `app/biome/no-raw-user-processing.grit`. Trigger `priority` is a positive `createdAt` offset; a *negative* one delays a run into the future (strands it in `queued`).
 - Trigger `priority` must stay well below ~2.1M seconds: the API rejects an over-large value (`priority × 1000` ms overflows int32), throwing `TriggerApiError` from `tasks.trigger` and breaking *every* enqueue that carries it. A year-long `USER_ACTION_PRIORITY` silently killed all user-initiated processing — guarded by `enqueue-user-processing.test.ts` (`MAX_SAFE_PRIORITY`).
+- Cookie-authed API routes must resolve the user via `getUserWithMfa` (`@/lib/supabase/server`), never `supabase.auth.getUser()` directly, or a 2FA user's AAL1 session (password sign-in, TOTP not completed) bypasses the challenge — the page middleware only guards page navigations. Enforced over `src/app/api/**` by `app/biome/no-raw-cookie-getuser.grit`.
 
 ## Trigger.dev
 

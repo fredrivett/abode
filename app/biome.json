@@ -88,6 +88,10 @@
     {
       "includes": ["src/lib/items/**", "src/app/api/**"],
       "plugins": ["./biome/no-raw-user-processing.grit"]
+    },
+    {
+      "includes": ["src/app/api/**"],
+      "plugins": ["./biome/no-raw-cookie-getuser.grit"]
     }
   ],
   "assist": {
