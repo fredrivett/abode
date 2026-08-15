@@ -67,7 +67,7 @@ jobs:
       #   anon key = fetched from the Supabase Management API (public; the same key
       #              the web app ships, never the service-role key).
       - name: Resolve production env
-        if: github.event_name != 'pull_request'
+        if: success() && github.event_name != 'pull_request'
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -93,22 +93,21 @@ jobs:
           } > .env.production
 
       - name: Build (production → abode.fyi)
-        if: github.event_name != 'pull_request'
+        if: success() && github.event_name != 'pull_request'
         run: bun run build
 
       - name: Upload unpacked extension
-        if: github.event_name != 'pull_request'
+        if: success() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abode-extension-chrome
           path: extension/.output/chrome-mv3
           if-no-files-found: error
 
-      # Skipped on PRs (no artifact there) and — with no status function, so it
-      # implicitly ANDs with success() — on a failed build too, so we never point
-      # people at a nonexistent artifact.
+      # Explicit success() so a failed typecheck/build never runs this; the event
+      # check keeps it off PRs. Together: only advertise an artifact that exists.
       - name: Summarise how to load it
-        if: github.event_name != 'pull_request'
+        if: success() && github.event_name != 'pull_request'
         shell: bash
         run: |
           {
@@ -126,7 +125,7 @@ jobs:
       # PRs pass on typecheck + tests but build no artifact (secrets are gated off
       # untrusted PR runs). Say so, so a green check isn't mistaken for a build.
       - name: Note that PRs don't build an artifact
-        if: github.event_name == 'pull_request'
+        if: success() && github.event_name == 'pull_request'
         shell: bash
         run: |
           echo "::notice::Extension typecheck + tests passed. No artifact is built on PRs — the Supabase management token is kept off untrusted PR runs. Get a build from a push to main or a manual 'Run workflow' (workflow_dispatch)."
