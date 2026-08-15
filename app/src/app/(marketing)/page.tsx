@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { GITHUB_URL } from "@/lib/github";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { CaptureSection } from "./_components/capture-section";
 import { LivingGallery } from "./_components/living-gallery";
 import { OwnershipCallout } from "./_components/ownership-callout";
 import { SearchDemo } from "./_components/search-demo";
@@ -64,6 +65,7 @@ export default function Home() {
       </main>
 
       <LivingGallery />
+      <CaptureSection />
     </div>
   );
 }
