@@ -77,6 +77,15 @@ enum SourceType {
   compose
 }
 
+// Which entry point an item was saved from. Orthogonal to SourceType (the
+// content kind): a `url` item can arrive via web paste, share sheet, or the
+// extension. Null for items created before this was tracked.
+enum CaptureSource {
+  web
+  share_target
+  extension
+}
+
 // How completely an item's content was captured. Most items are captured at
 // full fidelity server-side; some are only partially captured server-side and
 // can be enriched to `full` later by a client-side (extension) pass.
@@ -175,6 +184,10 @@ model Item {
   // Source tracking
   sourceType       SourceType?      @map("source_type")
   sourceUrl        String?          @map("source_url")
+
+  // Which entry point saved this item (web paste, share sheet, extension).
+  // Stamped on every creation path; null only for items predating this column.
+  captureSource    CaptureSource?   @map("capture_source")
 
   // How completely this item's content was captured (see CaptureLevel).
   // Defaults to `full`; a partial server-side capture is marked `basic` so the
