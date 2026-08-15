@@ -64,14 +64,10 @@ uploads the unpacked output as an artifact.
 2. Download the **`abode-extension-chrome`** artifact and unzip it.
 3. `chrome://extensions` → **Developer mode** → **Load unpacked** → the unzipped folder.
 
-Load-unpacked doesn't auto-update — re-download after a new build. The workflow
-needs two **repository variables** (Settings → Secrets and variables → Actions →
-Variables) — the same public values the web app ships, never the service-role key:
-
-| Variable | Value |
-| --- | --- |
-| `WXT_SUPABASE_URL` | Production Supabase project URL |
-| `WXT_SUPABASE_ANON_KEY` | Production Supabase anon/publishable key |
+Load-unpacked doesn't auto-update — re-download after a new build. No extra
+config: the build derives the Supabase URL and anon key (both public) from the
+existing `SUPABASE_PROJECT_REF` + `SUPABASE_ACCESS_TOKEN` secrets — the URL from
+the ref, the anon key via the Supabase Management API.
 
 ## Configuration
 
