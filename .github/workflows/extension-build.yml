@@ -60,24 +60,38 @@ jobs:
       # app already ships (never the service-role key). Sourced from repo
       # variables so nothing sensitive lands in git — set them under
       # Settings → Secrets and variables → Actions → Variables.
-      - name: Write production env
+      #
+      # When they're missing we build+upload only on main/manual runs (and fail
+      # loud there); a PR without them just skips the build so it isn't blocked
+      # over config that only matters for the real artifact. Typecheck + tests
+      # above always run.
+      - name: Resolve production env
+        id: env
         env:
           WXT_SUPABASE_URL: ${{ vars.WXT_SUPABASE_URL }}
           WXT_SUPABASE_ANON_KEY: ${{ vars.WXT_SUPABASE_ANON_KEY }}
         run: |
-          if [ -z "$WXT_SUPABASE_ANON_KEY" ] || [ -z "$WXT_SUPABASE_URL" ]; then
-            echo "::error::Set the WXT_SUPABASE_URL and WXT_SUPABASE_ANON_KEY repository variables (Settings → Secrets and variables → Actions → Variables). They are the public anon values the web app already ships; without them the build produces an unconfigured extension." >&2
-            exit 1
+          if [ -n "$WXT_SUPABASE_URL" ] && [ -n "$WXT_SUPABASE_ANON_KEY" ]; then
+            {
+              echo "WXT_SUPABASE_URL=$WXT_SUPABASE_URL"
+              echo "WXT_SUPABASE_ANON_KEY=$WXT_SUPABASE_ANON_KEY"
+            } > .env.production
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              echo "::error::Set the WXT_SUPABASE_URL and WXT_SUPABASE_ANON_KEY repository variables (Settings → Secrets and variables → Actions → Variables). They are the public anon values the web app already ships; without them no artifact can be built." >&2
+              exit 1
+            fi
+            echo "::notice::Supabase repo variables not set — skipping the extension build+upload on this PR. Set WXT_SUPABASE_URL and WXT_SUPABASE_ANON_KEY to produce the artifact."
           fi
-          {
-            echo "WXT_SUPABASE_URL=$WXT_SUPABASE_URL"
-            echo "WXT_SUPABASE_ANON_KEY=$WXT_SUPABASE_ANON_KEY"
-          } > .env.production
 
       - name: Build (production → abode.fyi)
+        if: steps.env.outputs.configured == 'true'
         run: bun run build
 
       - name: Upload unpacked extension
+        if: steps.env.outputs.configured == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abode-extension-chrome
