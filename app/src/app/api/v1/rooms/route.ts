@@ -8,7 +8,7 @@ import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/rooms");
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

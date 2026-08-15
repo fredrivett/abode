@@ -6,7 +6,7 @@ import {
 } from "@/lib/items/note-draft";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/note-draft");
 
@@ -18,7 +18,7 @@ async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
   return user?.id ?? null;
 }
 

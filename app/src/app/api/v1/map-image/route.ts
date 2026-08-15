@@ -8,7 +8,7 @@ import {
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/map-image");
 
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     // Secondary, best-effort rate limit. This is defence-in-depth only: it's
     // in-memory/per-instance, so the real fix is that coordinates are derived

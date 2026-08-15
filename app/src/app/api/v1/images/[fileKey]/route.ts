@@ -4,7 +4,7 @@ import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/images");
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     // Find the item that owns this key (its own fileKey/coverFileKey or a key
     // embedded in product/tweet JSON), with the fields needed to authorize.

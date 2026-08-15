@@ -18,6 +18,8 @@ vi.mock("@/env", () => ({ isDevelopment: false }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
+  // Route auth goes through getUserWithMfa; pass through to the mocked getUser
+  getUserWithMfa: () => mockGetUser(),
 }));
 
 vi.mock("@/lib/db", () => ({
