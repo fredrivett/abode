@@ -1,4 +1,5 @@
 import { write } from "@/lib/db";
+import type { ItemSource } from "./capture-source";
 import { promoteNoteHeading } from "./note-title";
 import { itemSelect, type RawItem } from "./query";
 
@@ -7,6 +8,8 @@ export type CreateNoteInput = {
   content?: string | null;
   /** Optional explicit title; when provided it wins and the body is left intact */
   title?: string | null;
+  /** Entry point the note was saved from (in-app composer vs extension selection) */
+  source: ItemSource;
 };
 
 /**
@@ -34,6 +37,7 @@ export async function createNote(
     data: {
       kind: "note",
       sourceType: "compose",
+      captureSource: input.source,
       processingStatus: "completed",
       userId,
       title,

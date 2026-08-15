@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { isItemSource } from "@/lib/items/capture-source";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { kind, fileKey, meta, sourceType, sourceUrl } = body;
+    const { kind, fileKey, meta, sourceType, sourceUrl, source } = body;
 
     // kind is optional (null for URL-sourced items during classification)
     // but if provided, must be valid
@@ -166,6 +167,9 @@ export async function POST(request: NextRequest) {
           meta: meta || null,
           sourceType: sourceType || null,
           sourceUrl: sourceUrl || null,
+          // Uploads only ever originate from the web app today; accept a client
+          // source for forward-compat but default to "web".
+          captureSource: isItemSource(source) ? source : "web",
           userId: user.id,
           processingStatus: "processing",
         },

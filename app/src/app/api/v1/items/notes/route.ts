@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
+import { isItemSource } from "@/lib/items/capture-source";
 import { createNote } from "@/lib/items/create-note";
 import { clearNoteDraft } from "@/lib/items/note-draft";
 import { transformItem } from "@/lib/items/query";
@@ -34,7 +35,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     const user = auth.user;
 
     const body = await request.json().catch(() => ({}));
-    const { content, title } = body;
+    const { content, title, source } = body;
 
     if (content !== undefined && typeof content !== "string") {
       return NextResponse.json(
@@ -50,7 +51,13 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const item = await createNote(user.id, { content, title });
+    // Extension "save selection as note" passes source: "extension"; the in-app
+    // composer omits it and defaults to "web".
+    const item = await createNote(user.id, {
+      content,
+      title,
+      source: isItemSource(source) ? source : "web",
+    });
 
     // The composer's save path — creating the note clears its in-progress draft
     // in the same request, so the client needs no extra call.

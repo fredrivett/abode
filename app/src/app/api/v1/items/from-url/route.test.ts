@@ -142,6 +142,12 @@ describe("POST /api/v1/items/from-url", () => {
     expect(mockTrigger).toHaveBeenCalledOnce();
     // No failure → item is never downgraded to "failed"
     expect(mockItemUpdate).not.toHaveBeenCalled();
+    // A bare save with no source defaults the persisted captureSource to "web"
+    expect(mockItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ captureSource: "web" }),
+      }),
+    );
   });
 
   it("saves via a bearer-authenticated request (the extension path)", async () => {
@@ -156,6 +162,12 @@ describe("POST /api/v1/items/from-url", () => {
     expect(mockCapture).toHaveBeenCalledWith(
       expect.objectContaining({
         properties: expect.objectContaining({ source: "extension" }),
+      }),
+    );
+    // The extension's source is persisted, not just emitted to analytics
+    expect(mockItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ captureSource: "extension" }),
       }),
     );
   });
