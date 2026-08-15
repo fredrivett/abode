@@ -122,3 +122,16 @@ jobs:
             echo ''
             echo 'Targets production (`https://www.abode.fyi`). Load-unpacked does not auto-update — re-download after a new build.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # PRs pass on typecheck + tests but build no artifact (secrets are gated off
+      # untrusted PR runs). Say so, so a green check isn't mistaken for a build.
+      - name: Note that PRs don't build an artifact
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          echo "::notice::Extension typecheck + tests passed. No artifact is built on PRs — the Supabase management token is kept off untrusted PR runs. Get a build from a push to main or a manual 'Run workflow' (workflow_dispatch)."
+          {
+            echo '### abode extension — PR check'
+            echo ''
+            echo 'Typecheck + unit tests ran. **No artifact is built on PRs** — the build needs the Supabase management token to resolve config, which is kept off untrusted PR runs. Grab a build from a push to `main`, or a manual **Run workflow** (workflow_dispatch).'
+          } >> "$GITHUB_STEP_SUMMARY"
