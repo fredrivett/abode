@@ -8,6 +8,7 @@
 import type {
   BookProgressUnit,
   BookReadingStatus,
+  CaptureSource,
   ItemKind,
   ItemLocation as PrismaItemLocation,
   ProcessingErrorReason,
@@ -196,6 +197,7 @@ export type Item = {
   meta: Record<string, unknown> | null;
   sourceType: SourceType | null;
   sourceUrl: string | null;
+  captureSource: CaptureSource | null;
   title: string | null;
   description: string | null;
   tags: string[];

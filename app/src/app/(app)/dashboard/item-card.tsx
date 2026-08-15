@@ -80,6 +80,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
+import { captureSourceLabel } from "@/lib/items/capture-source";
 import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
@@ -2061,6 +2062,14 @@ function ItemDetailDialog({
                           className="font-medium"
                         />
                       </div>
+                      {item.captureSource && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Source</span>
+                          <span className="font-medium">
+                            {captureSourceLabel(item.captureSource)}
+                          </span>
+                        </div>
+                      )}
                       {item.captureDate && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Captured</span>

@@ -1,4 +1,9 @@
-import type { ItemKind, ProcessingStatus, SourceType } from "@prisma/client";
+import type {
+  CaptureSource,
+  ItemKind,
+  ProcessingStatus,
+  SourceType,
+} from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
@@ -79,6 +84,7 @@ type RawItemRow = {
   meta: unknown;
   source_type: string | null;
   source_url: string | null;
+  capture_source: string | null;
   title: string | null;
   description: string | null;
   tags: string[];
@@ -180,6 +186,7 @@ function transformRawItemToItem(
     meta: (row.meta as Record<string, unknown>) || null,
     sourceType: row.source_type as SourceType | null,
     sourceUrl: row.source_url,
+    captureSource: row.capture_source as CaptureSource | null,
     title: row.title,
     description: row.description,
     tags: row.tags || [],
@@ -672,6 +679,7 @@ async function executeFiltersOnlySearch(
       items.meta,
       items.source_type,
       items.source_url,
+      items.capture_source,
       items.title,
       items.description,
       items.tags,
@@ -922,6 +930,7 @@ async function executeRankedSearch(
       i.meta,
       i.source_type,
       i.source_url,
+      i.capture_source,
       i.title,
       i.description,
       i.tags,
