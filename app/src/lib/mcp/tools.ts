@@ -6,7 +6,7 @@ import { isCanonicalUuid } from "@/lib/pagination";
 import { listUserRooms } from "@/lib/rooms";
 import type { ParsedFilters } from "@/lib/search/query-builder";
 import { VALID_ITEM_KINDS } from "@/lib/search/query-builder";
-import { DEFAULT_RANKED_LIMIT, rankedSearch } from "@/lib/search/ranked-search";
+import { rankedSearch } from "@/lib/search/ranked-search";
 import { getAppBaseUrl } from "@/lib/url";
 
 export const MCP_DEFAULT_LIMIT = 20;
@@ -32,7 +32,10 @@ export type GetItemsParams = {
   query?: string;
   tags?: string[];
   kinds?: string[];
-  /** ISO date; only items created on or after are returned */
+  /**
+   * ISO date, browse mode only (no `query`) — returns items created on or after.
+   * Ignored when `query` is set; use each result's `createdAt` instead.
+   */
   since?: string;
   limit?: number;
 };
@@ -155,37 +158,31 @@ export async function getItems(
   const limit = clampLimit(params.limit);
   const username = await getUsername(userId);
   const query = params.query?.trim();
-  const since = validSince(params.since);
 
   if (query) {
-    // When we'll post-filter by created-at, pull a wider candidate set so the
-    // date narrowing doesn't starve the results
-    const candidateLimit = since ? DEFAULT_RANKED_LIMIT : limit;
+    // `since` is not applied here: ranked search caps candidates before any
+    // created-at filter could run, so date-narrowing a query would silently drop
+    // relevant matches beyond the cap. Date filtering is browse-mode only; each
+    // result still carries createdAt for the caller to reason over.
     const ranked = await rankedSearch(
       userId,
       buildRankedFilters(params),
       query,
-      { limit: candidateLimit },
+      { limit },
     );
     if (ranked.length === 0) return [];
 
     const rows = await db.item.findMany({
-      where: {
-        id: { in: ranked.map((r) => r.id) },
-        userId,
-        ...(since && { createdAt: { gte: since } }),
-      },
+      where: { id: { in: ranked.map((r) => r.id) }, userId },
       select: compactItemSelect,
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
 
-    // Preserve RRF order, carry the match snippet, and cap at the requested limit
-    return ranked
-      .flatMap((result) => {
-        const row = byId.get(result.id);
-        return row ? [toMcpItem(row, username, result.ocrSnippet)] : [];
-      })
-      .slice(0, limit);
+    // Preserve RRF order and carry the match snippet through
+    return ranked.flatMap((result) => {
+      const row = byId.get(result.id);
+      return row ? [toMcpItem(row, username, result.ocrSnippet)] : [];
+    });
   }
 
   const rows = await db.item.findMany({
