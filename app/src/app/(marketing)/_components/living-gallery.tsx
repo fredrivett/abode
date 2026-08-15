@@ -36,9 +36,8 @@ const STEPS = [
   {
     id: "clip",
     icon: AppWindow,
-    label: "clip from anywhere",
+    label: "save from anywhere",
     body: "save what you're reading with the browser extension, without leaving the page.",
-    soon: true,
   },
 ];
 
@@ -299,10 +298,10 @@ export function LivingGallery() {
               }}
             >
               <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
-                save anything.
+                save it all.
               </h3>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                however it reaches you, it lands in one place.
+                no folders, no filing — just paste, drop, or save.
               </p>
               <ol className="mt-8 flex flex-col gap-2">
                 {STEPS.map((step, i) => {
@@ -323,11 +322,6 @@ export function LivingGallery() {
                         <span className="flex items-center gap-2 font-medium text-foreground">
                           <StepIcon className="size-4 shrink-0 text-muted-foreground" />
                           {step.label}
-                          {step.soon && (
-                            <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-[10px] text-muted-foreground uppercase tracking-wide">
-                              soon
-                            </span>
-                          )}
                         </span>
                         <span
                           className={cn(
@@ -354,10 +348,6 @@ export function LivingGallery() {
                   );
                 })}
               </ol>
-              {/* Placeholder for the capture vignette (built next). */}
-              <div className="mt-6 flex h-20 items-center justify-center rounded-xl border border-border border-dashed text-muted-foreground text-xs">
-                step {activeStep + 1} demo · coming next
-              </div>
             </div>
           )}
         </div>
