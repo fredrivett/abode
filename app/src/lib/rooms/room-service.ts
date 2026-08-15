@@ -109,6 +109,36 @@ export async function getUserSmartRooms(
 }
 
 /**
+ * List a user's rooms (optionally filtered by type), newest first, each with its
+ * item count. Shared by the rooms API and the MCP server.
+ */
+export async function listUserRooms(userId: string, type?: "smart" | "manual") {
+  const rooms = await db.room.findMany({
+    where: { userId, ...(type !== undefined && { type }) },
+    select: {
+      id: true,
+      name: true,
+      emoji: true,
+      slug: true,
+      type: true,
+      filters: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { roomItems: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return rooms.map(({ _count, ...room }) => ({
+    ...room,
+    itemCount: _count.roomItems,
+  }));
+}
+
+export type RoomSummary = Awaited<ReturnType<typeof listUserRooms>>[number];
+
+/**
  * Get smart rooms for a user that have a location filter.
  * Used to determine which rooms need re-syncing when an item's location changes.
  */

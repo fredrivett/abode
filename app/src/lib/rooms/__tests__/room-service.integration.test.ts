@@ -605,4 +605,50 @@ describe("Room Service Integration", () => {
       expect(fetchedRoom).toBeNull();
     });
   });
+
+  describe("listUserRooms", () => {
+    it("returns the user's rooms with their item counts", async () => {
+      const { write } = await import("@/lib/db");
+      const { listUserRooms } = await import("@/lib/rooms/room-service");
+      const user = await createTestUser();
+
+      const smart = await createTestRoom(user.id, {
+        name: "Smart",
+        type: "smart",
+      });
+      const manual = await createTestRoom(user.id, {
+        name: "Manual",
+        type: "manual",
+      });
+      const item = await createTestItem(user.id);
+      await write.roomItem.create({
+        data: { roomId: manual.id, itemId: item.id },
+      });
+
+      const rooms = await listUserRooms(user.id);
+
+      expect(rooms).toHaveLength(2);
+      expect(rooms.find((r) => r.id === manual.id)?.itemCount).toBe(1);
+      expect(rooms.find((r) => r.id === smart.id)?.itemCount).toBe(0);
+    });
+
+    it("filters by room type", async () => {
+      const { listUserRooms } = await import("@/lib/rooms/room-service");
+      const user = await createTestUser();
+      await createTestRoom(user.id, { type: "smart" });
+      const manual = await createTestRoom(user.id, { type: "manual" });
+
+      const rooms = await listUserRooms(user.id, "manual");
+      expect(rooms.map((r) => r.id)).toEqual([manual.id]);
+    });
+
+    it("is scoped to the owner", async () => {
+      const { listUserRooms } = await import("@/lib/rooms/room-service");
+      const user1 = await createTestUser("u1@example.com");
+      const user2 = await createTestUser("u2@example.com");
+      await createTestRoom(user2.id);
+
+      expect(await listUserRooms(user1.id)).toEqual([]);
+    });
+  });
 });
