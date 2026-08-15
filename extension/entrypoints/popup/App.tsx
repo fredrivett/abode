@@ -7,6 +7,7 @@ import { NotSignedInError, saveUrl } from "@/lib/api";
 import { captureRenderedHtml } from "@/lib/capture";
 import { getSession, signIn, signOut } from "@/lib/auth";
 import { CONFIG, isConfigured } from "@/lib/config";
+import { fetchLatestBuild, isNewerBuild, type LatestBuild } from "@/lib/updates";
 
 type Status = "loading" | "signedOut" | "ready";
 
@@ -58,7 +59,84 @@ export function App() {
       ) : (
         <SaveView onSignedOut={() => setStatus("signedOut")} />
       )}
+
+      {isConfigured() && <BuildFooter />}
     </div>
+  );
+}
+
+type UpdateState =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "current" }
+  | { status: "available"; latest: LatestBuild }
+  | { status: "error"; message: string };
+
+function BuildFooter() {
+  const [update, setUpdate] = useState<UpdateState>({ status: "idle" });
+  // Only CI builds carry a run number to compare against the latest main build;
+  // a local build (number 0) just shows its SHA, no check.
+  const isCiBuild = CONFIG.buildNumber > 0;
+
+  async function check() {
+    setUpdate({ status: "checking" });
+    try {
+      const latest = await fetchLatestBuild();
+      setUpdate(
+        isNewerBuild(CONFIG.buildNumber, latest.number)
+          ? { status: "available", latest }
+          : { status: "current" },
+      );
+    } catch (err) {
+      setUpdate({
+        status: "error",
+        message: err instanceof Error ? err.message : "Check failed",
+      });
+    }
+  }
+
+  return (
+    <footer className="flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-2">
+        <span>
+          {isCiBuild ? `Build ${CONFIG.buildNumber}` : "Dev build"} ·{" "}
+          <code>{CONFIG.buildSha}</code>
+        </span>
+        {isCiBuild &&
+          (update.status === "checking" ? (
+            <span className="inline-flex items-center gap-1">
+              <Spinner className="size-3" /> Checking
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={check}
+              className="transition-colors hover:text-foreground"
+            >
+              Check for updates
+            </button>
+          ))}
+      </div>
+
+      {update.status === "current" && (
+        <span className="text-foreground">You're on the latest build.</span>
+      )}
+      {update.status === "available" && (
+        <a
+          href={update.latest.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-foreground underline"
+        >
+          Build {update.latest.number} available — download &amp; reload
+        </a>
+      )}
+      {update.status === "error" && (
+        <span className="text-destructive">
+          Couldn't check for updates ({update.message}).
+        </span>
+      )}
+    </footer>
   );
 }
 

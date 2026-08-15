@@ -71,6 +71,16 @@ config: the build derives the Supabase URL and anon key (both public) from the
 existing `SUPABASE_PROJECT_REF` + `SUPABASE_ACCESS_TOKEN` secrets — the URL from
 the ref, the anon key via the Supabase Management API.
 
+**Knowing if you're stale.** Each CI build bakes in its GitHub Actions run
+number and commit SHA (shown as `Build 234 · abc1234` in the popup footer and as
+the manifest `version_name` in `chrome://extensions`). The popup's **Check for
+updates** asks the public GitHub API for the latest successful `main` run and
+tells you if a higher build number exists, linking to it. It can't self-update a
+load-unpacked extension (Chrome doesn't allow that) — it flags staleness so you
+know when to re-download. Build numbers have gaps because PR runs share the
+counter; only the ordering matters. Locally-built extensions show `Dev build`
+(no run number) and skip the check.
+
 ## Configuration
 
 Config comes from `WXT_`-prefixed env vars (see `.env.example`). All are **public** — never put the Supabase service-role key here.
@@ -102,7 +112,8 @@ extension/
 ├─ lib/
 │  ├─ auth.ts             # Supabase client + chrome.storage session + refresh
 │  ├─ api.ts              # bearer-authed saves to abode
-│  └─ config.ts           # env-sourced runtime config
+│  ├─ updates.ts          # "am I on the latest build?" via the GitHub API
+│  └─ config.ts           # env-sourced runtime config (incl. baked build id)
 ├─ components/ui.tsx       # Button / Input / Spinner (abode-styled)
 └─ assets/theme.css        # abode design tokens (kept in sync with the web app)
 ```
