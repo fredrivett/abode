@@ -105,8 +105,11 @@ jobs:
           path: extension/.output/chrome-mv3
           if-no-files-found: error
 
+      # Only when an artifact was actually built+uploaded. Omitting a status
+      # function means this implicitly ANDs with success(), so it's skipped on a
+      # build failure too — never point people at a nonexistent artifact.
       - name: Summarise how to load it
-        if: ${{ always() }}
+        if: steps.env.outputs.configured == 'true'
         shell: bash
         run: |
           {
