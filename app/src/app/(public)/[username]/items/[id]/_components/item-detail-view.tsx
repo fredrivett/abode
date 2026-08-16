@@ -7,6 +7,7 @@ import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import { DateTime } from "@/components/ui/date-time";
 import { VideoDetailView } from "@/components/video/video-detail-view";
+import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { Item } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
@@ -104,6 +105,14 @@ export function ItemDetailView({
 
   const ownerHref = owner.username ? `/@${owner.username}` : null;
 
+  // Designed bookmark fallback for URL-backed items with no renderable media,
+  // shown in place of the bare "no preview" icon when we have a source link.
+  // Title/description are omitted — this page already renders both prominently.
+  const linkFallback =
+    item.sourceUrl && isValidUrl(item.sourceUrl) ? (
+      <WebpageLinkCard url={item.sourceUrl} />
+    ) : null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6 md:py-10">
       {/* Breadcrumb / owner context */}
@@ -177,7 +186,7 @@ export function ItemDetailView({
               </div>
             </div>
           ) : (
-            <EmptyState label="No article content" />
+            (linkFallback ?? <EmptyState label="No article content" />)
           )
         ) : isTwitter ? (
           item.twitterDetails ? (
@@ -241,7 +250,7 @@ export function ItemDetailView({
             />
           </div>
         ) : (
-          <EmptyState label="No preview available" />
+          (linkFallback ?? <EmptyState label="No preview available" />)
         )}
 
         {/* Description */}
