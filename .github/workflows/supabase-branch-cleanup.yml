@@ -7,10 +7,14 @@ name: Supabase Branch Cleanup
 # preview deploys on every new PR. This deletes the branch on PR close as a
 # belt-and-suspenders backstop; it's a no-op when the integration already did.
 
+# DISABLED alongside vercel-preview.yml — Supabase branching is off, so there
+# are no preview branches to clean up. Manual-only until previews return.
+# To re-enable: restore the pull_request trigger below.
 on:
-  pull_request:
-    branches: [main]
-    types: [closed]
+  workflow_dispatch:
+  # pull_request:
+  #   branches: [main]
+  #   types: [closed]
 
 concurrency:
   group: supabase-branch-cleanup-${{ github.event.pull_request.number }}
