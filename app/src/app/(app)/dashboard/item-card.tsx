@@ -1983,7 +1983,9 @@ function ItemDetailDialog({
                       </div>
                     )}
                 </motion.div>
-              ) : isArticleOrWebpage && item.sourceUrl ? (
+              ) : isArticleOrWebpage &&
+                item.sourceUrl &&
+                isValidUrl(item.sourceUrl) ? (
                 <motion.div
                   className="flex h-full w-full items-center justify-center bg-background p-8"
                   initial={{ opacity: 0 }}

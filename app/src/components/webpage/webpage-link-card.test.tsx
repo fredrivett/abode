@@ -60,6 +60,12 @@ describe("WebpageLinkCard", () => {
     expect(screen.getByText("A short summary")).toBeInTheDocument();
   });
 
+  it("does not render a navigable link for a non-http(s) url", () => {
+    // sourceUrl is untrusted — a javascript: scheme must never become an anchor
+    render(<WebpageLinkCard url="javascript:alert(1)" />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("omits the title and description when absent", () => {
     const { container } = render(<WebpageLinkCard url="https://example.com" />);
     // Only the monogram glyph and the domain link carry text

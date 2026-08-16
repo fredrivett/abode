@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getHostname } from "@/lib/url-utils";
+import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 
 type WebpageLinkCardProps = {
@@ -52,6 +52,9 @@ export function WebpageLinkCard({
 }: WebpageLinkCardProps) {
   const domain = getDisplayDomain(url);
   const monogram = getMonogram(domain);
+  // sourceUrl is untrusted stored data — never render a non-http(s) scheme
+  // (e.g. javascript:) as a navigable link
+  const safeToOpen = isValidUrl(url);
 
   return (
     <div
@@ -78,12 +81,16 @@ export function WebpageLinkCard({
           {description}
         </p>
       )}
-      <Button asChild variant="outline" size="sm">
-        <a href={url} target="_blank" rel="noopener noreferrer">
-          {domain}
-          <ExternalLink />
-        </a>
-      </Button>
+      {safeToOpen ? (
+        <Button asChild variant="outline" size="sm">
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            {domain}
+            <ExternalLink />
+          </a>
+        </Button>
+      ) : (
+        <span className="text-muted-foreground text-sm">{domain}</span>
+      )}
     </div>
   );
 }
