@@ -5,6 +5,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
+import { BrowserChrome } from "./browser-chrome";
 import {
   CardBody,
   faceClass,
@@ -46,6 +47,9 @@ const STEPS = [
 // scooting the wall left before the steps begin.
 const CAPTURE_VH = 2.2;
 const SCOOT_FRAC = 0.22;
+
+// The "save from anywhere" (browser extension) step — its demo frames the wall.
+const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
 
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
@@ -188,6 +192,10 @@ export function LivingGallery() {
   }, [effectOn, settled]);
 
   const flying = effectOn && !settled;
+  // The browser chrome frames the wall once it's fully scooted and the
+  // "save from anywhere" step is active.
+  const showExtensionChrome =
+    effectOn && scoot > 0.95 && activeStep === EXTENSION_STEP;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column;
@@ -258,31 +266,35 @@ export function LivingGallery() {
 
           {/* The wall */}
           <div style={wallStyle}>
-            <ul
-              ref={gridRef}
-              className={cn(
-                "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
-                flying && "invisible",
-              )}
-            >
-              {GALLERY_CARDS.map((card, i) => (
-                <li
-                  key={card.id}
-                  ref={(el) => {
-                    liRefs.current[i] = el;
-                  }}
-                  className="group relative break-inside-avoid"
-                >
-                  <div
-                    className={cn(faceClass(card), hoverClass(card))}
-                    style={faceStyle(card)}
+            <BrowserChrome show={showExtensionChrome}>
+              <ul
+                ref={gridRef}
+                className={cn(
+                  // pb absorbs the trailing mb-4 on each column's last item so
+                  // the bottom gutter matches the other three sides (8 + 16 = 24)
+                  "relative z-10 columns-2 gap-4 p-6 pb-2 sm:columns-3 [&>li]:mb-4",
+                  flying && "invisible",
+                )}
+              >
+                {GALLERY_CARDS.map((card, i) => (
+                  <li
+                    key={card.id}
+                    ref={(el) => {
+                      liRefs.current[i] = el;
+                    }}
+                    className="group relative break-inside-avoid"
                   >
-                    <CardBody card={card} />
-                    <Intelligence card={card} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div
+                      className={cn(faceClass(card), hoverClass(card))}
+                      style={faceStyle(card)}
+                    >
+                      <CardBody card={card} />
+                      <Intelligence card={card} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </BrowserChrome>
           </div>
 
           {/* Capture column — fades/slides in from the right during the scoot. */}
