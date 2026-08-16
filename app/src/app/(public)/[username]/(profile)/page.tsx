@@ -42,6 +42,8 @@ const getUser = cache(async (username: string) => {
       avatarUrl: true,
       createdAt: true,
       memberNumber: true,
+      showInvitedBy: true,
+      showInvited: true,
       referredBy: {
         select: {
           id: true,
@@ -186,7 +188,7 @@ export default async function ProfilePage({ params }: Props) {
               }).format(user.createdAt)}
             </p>
 
-            {user.referredBy && (
+            {user.showInvitedBy && user.referredBy && (
               <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
                 <UserPlus className="size-4" />
                 <span>Invited by</span>
@@ -195,7 +197,7 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
 
-          {user.referrals.length > 0 && (
+          {user.showInvited && user.referrals.length > 0 && (
             <div className="mt-12">
               <h2 className="flex items-center justify-center gap-2 font-semibold font-serif text-xl">
                 <Users className="size-5 text-muted-foreground" />
