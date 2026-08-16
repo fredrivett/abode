@@ -204,6 +204,7 @@ model Item {
   // Files
   fileKey          String?          @map("file_key")
   coverFileKey     String?          @map("cover_file_key")
+  faviconFileKey   String?          @map("favicon_file_key")
 
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
   meta             Json?
