@@ -4,9 +4,10 @@
  * Uses Supabase image transforms to serve appropriately sized images.
  */
 
-export type ImageSize = "grid" | "embed" | "detail" | "full";
+export type ImageSize = "thumb" | "grid" | "embed" | "detail" | "full";
 
 const SIZE_PRESETS = {
+  thumb: { w: 200, q: 80 }, // Small previews (e.g. room-card item strip)
   grid: { w: 800, q: 90 }, // Dashboard masonry grid
   embed: { w: 800, q: 90 }, // Embed widget thumbnails
   detail: { w: 1800, q: 90 }, // Detail dialog full view
