@@ -8,6 +8,12 @@ import { ProfileTag } from "@/components/user/profile-tag";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
+import {
+  deriveRoomThumbnails,
+  ROOM_THUMBNAIL_LIMIT,
+  roomThumbnailItemSelect,
+  roomThumbnailItemWhere,
+} from "@/lib/rooms/room-thumbnails";
 import { getHostname } from "@/lib/url-utils";
 
 type Props = {
@@ -80,6 +86,12 @@ const getPublicRooms = cache(async (userId: string) => {
       type: true,
       _count: {
         select: { roomItems: true },
+      },
+      roomItems: {
+        where: { item: roomThumbnailItemWhere },
+        orderBy: { addedAt: "desc" },
+        take: ROOM_THUMBNAIL_LIMIT,
+        select: { item: { select: roomThumbnailItemSelect } },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -224,6 +236,9 @@ export default async function ProfilePage({ params }: Props) {
                     emoji={room.emoji}
                     itemCount={room._count.roomItems}
                     type={room.type}
+                    thumbnails={deriveRoomThumbnails(
+                      room.roomItems.map((roomItem) => roomItem.item),
+                    )}
                   />
                 ))}
               </div>
