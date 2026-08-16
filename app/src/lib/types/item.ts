@@ -194,6 +194,7 @@ export type Item = {
   processingError?: ProcessingErrorReason | null;
   fileKey: string | null;
   coverFileKey: string | null;
+  faviconFileKey: string | null;
   meta: Record<string, unknown> | null;
   sourceType: SourceType | null;
   sourceUrl: string | null;

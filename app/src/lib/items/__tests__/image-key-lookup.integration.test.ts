@@ -64,6 +64,25 @@ describe("findItemOwningImageKey integration", () => {
     }
   });
 
+  test("resolves a webpage item by its re-hosted favicon key", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    const item = await write.item.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId: user.id,
+        kind: "webpage",
+        sourceUrl: "https://example.com",
+        faviconFileKey: `${user.id}/favicon.png`,
+        processingStatus: "completed",
+      },
+      select: { id: true },
+    });
+
+    const found = await findItemOwningImageKey(`${user.id}/favicon.png`);
+    expect(found?.id).toBe(item.id);
+  });
+
   test("returns null for a key no item references", async () => {
     const user = await createUser();
     expect(await findItemOwningImageKey(`${user.id}/missing.jpg`)).toBeNull();
