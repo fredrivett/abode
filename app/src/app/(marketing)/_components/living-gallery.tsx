@@ -64,12 +64,18 @@ export function LivingGallery() {
   // Platform-correct modifier symbol (⌘ on Apple, Ctrl elsewhere). Resolved
   // after mount to avoid an SSR/client mismatch; defaults to the Mac form.
   const [modSym, setModSym] = useState("⌘");
+  // Natural (unscaled) grid height + viewport height, so the wall can scale to
+  // fit the space left below the sticky header once scooted.
+  const [gridNatH, setGridNatH] = useState(0);
+  const [vh, setVh] = useState(0);
 
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
   const liRefs = useRef<(HTMLLIElement | null)[]>([]);
   const flyRefs = useRef<(HTMLDivElement | null)[]>([]);
   const settledRef = useRef(false);
+  const gridHRef = useRef(0);
+  const vhRef = useRef(0);
 
   // Smooth-scroll to the middle of a step's scroll band (makes it active).
   const scrollToStep = (i: number) => {
@@ -135,6 +141,17 @@ export function LivingGallery() {
           Math.max(0, Math.floor((cap - SCOOT_FRAC) / band)),
         ),
       );
+      // Track the viewport + grid's natural height so the wall can scale to fit
+      // (measured off the transform, so scale doesn't feed back into it).
+      if (vh !== vhRef.current) {
+        vhRef.current = vh;
+        setVh(vh);
+      }
+      const gh = gridRef.current?.offsetHeight ?? 0;
+      if (Math.abs(gh - gridHRef.current) > 1) {
+        gridHRef.current = gh;
+        setGridNatH(gh);
+      }
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -198,11 +215,26 @@ export function LivingGallery() {
     effectOn && scoot > 0.95 && activeStep === EXTENSION_STEP;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
-  // so shrinking pulls the right edge in and opens a gutter before the column;
-  // vertical centring is handled by the flex stage.
+  // so shrinking pulls the right edge in and opens a gutter before the column.
+  // Once scooted it also scales down to fit the browser chrome (tab strip +
+  // grid) into the band below the sticky header, and nudges down to sit centred
+  // in that band — so the tab strip clears the header instead of hiding under it.
+  const HEADER_RESERVE = 72; // sticky header height + breathing room
+  const CHROME_TAB_H = 64; // BrowserChrome tab strip (its -top-16)
+  const BOTTOM_RESERVE = 24;
+  const scootScale = 1 - scoot * 0.34;
+  const bandH = Math.max(0, vh - HEADER_RESERVE - BOTTOM_RESERVE);
+  // The scale that fits tab strip + grid into the band; 1 when we have room.
+  const fitScale =
+    gridNatH > 0 && vh > 0 ? clamp01(bandH / (gridNatH + CHROME_TAB_H)) : 1;
+  // Only enforce the fit as we scoot (the settled/heading state keeps full size).
+  const wallScale = Math.min(scootScale, lerp(1, fitScale, scoot));
+  const wallShift =
+    scoot *
+    ((HEADER_RESERVE - BOTTOM_RESERVE) / 2 + (CHROME_TAB_H * wallScale) / 2);
   const wallStyle: CSSProperties | undefined = effectOn
     ? {
-        transform: `scale(${1 - scoot * 0.34})`,
+        transform: `translateY(${wallShift}px) scale(${wallScale})`,
         transformOrigin: "left center",
       }
     : undefined;
