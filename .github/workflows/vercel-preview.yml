@@ -1,9 +1,15 @@
 name: Vercel Preview
 
+# DISABLED: Supabase preview branching is turned off in the dashboard (unused,
+# and branch compute is billed hourly). This workflow needs a per-PR Supabase
+# branch to build against, so it's set to manual-only to stop it failing on
+# every PR. To re-enable previews: turn "Automatic branching" back on in the
+# Supabase dashboard, then restore the pull_request trigger below.
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+  # pull_request:
+  #   branches: [main]
+  #   types: [opened, synchronize, reopened]
 
 concurrency:
   group: vercel-preview-${{ github.event.pull_request.number }}
