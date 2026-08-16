@@ -1,5 +1,6 @@
 import { CalendarDays, Globe, Hash, UserPlus, Users } from "lucide-react";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 import { ProfileTag } from "@/components/user/profile-tag";
 import { formatInvitedCount } from "@/lib/format-invited-count";
 import { formatMemberNumber } from "@/lib/format-member-number";
@@ -71,15 +72,20 @@ export function ProfileHeader({
       )}
 
       {website && (
-        <a
-          href={website}
-          target="_blank"
-          rel="me noopener noreferrer nofollow"
-          className="mt-4 inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        <Badge
+          asChild
+          variant="secondary"
+          className="mt-4 cursor-pointer text-sm"
         >
-          <Globe className="size-4" />
-          {getHostname(website)}
-        </a>
+          <a
+            href={website}
+            target="_blank"
+            rel="me noopener noreferrer nofollow"
+          >
+            <Globe />
+            {getHostname(website)}
+          </a>
+        </Badge>
       )}
 
       <div className="mt-4 flex flex-col items-center gap-2 text-muted-foreground text-sm">

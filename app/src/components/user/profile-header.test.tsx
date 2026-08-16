@@ -23,6 +23,18 @@ describe("ProfileHeader", () => {
     expect(screen.getByText("Joined December 2025")).toBeInTheDocument();
   });
 
+  it("renders the website as a link to the given URL", () => {
+    render(<ProfileHeader {...baseProps} />);
+    const link = screen.getByRole("link", { name: /fredrivett\.com/ });
+    expect(link).toHaveAttribute("href", "https://fredrivett.com");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("omits the website when none is set", () => {
+    render(<ProfileHeader {...baseProps} website={null} />);
+    expect(screen.queryByRole("link", { name: /\./ })).not.toBeInTheDocument();
+  });
+
   it("omits the member row when there is no member number", () => {
     render(<ProfileHeader {...baseProps} memberNumber={null} />);
     expect(screen.queryByText(/^Member #/)).not.toBeInTheDocument();
