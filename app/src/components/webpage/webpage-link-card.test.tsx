@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   getMonogram,
@@ -72,5 +72,34 @@ describe("WebpageLinkCard", () => {
     expect(container).toHaveTextContent("E");
     expect(container).toHaveTextContent("example.com");
     expect(screen.queryByText("My page")).not.toBeInTheDocument();
+  });
+
+  it("renders the favicon in place of the monogram when provided", () => {
+    const { container } = render(
+      <WebpageLinkCard
+        url="https://stripe.com"
+        faviconUrl="/api/v1/images/fav.png"
+      />,
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/v1/images/fav.png",
+    );
+    // monogram glyph is not rendered while the favicon is showing
+    expect(screen.queryByText("S")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the monogram when the favicon fails to load", () => {
+    const { container } = render(
+      <WebpageLinkCard
+        url="https://stripe.com"
+        faviconUrl="/api/v1/images/broken.png"
+      />,
+    );
+    const img = container.querySelector("img");
+    if (!img) throw new Error("expected favicon img to render");
+    fireEvent.error(img);
+    expect(screen.getByText("S")).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
   });
 });

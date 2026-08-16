@@ -29,6 +29,23 @@ export const Full: Story = {
   },
 };
 
+// Inline SVG data URI stands in for a re-hosted favicon so the story renders
+// offline (in CI) without a network fetch
+const SAMPLE_FAVICON =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#635bff"/><path d="M15 10c-2 0-4 1-4 3s2 2.6 4 3.2c2 .6 4 1.2 4 3.8s-2 4-5 4-5-1.4-5-3" fill="none" stroke="#fff" stroke-width="2.4"/></svg>`,
+  );
+
+export const WithFavicon: Story = {
+  args: {
+    url: "https://stripe.com/blog/engineering",
+    title: "The Stripe engineering blog",
+    description: "Notes on building and scaling Stripe's systems.",
+    faviconUrl: SAMPLE_FAVICON,
+  },
+};
+
 export const TitleOnly: Story = {
   args: {
     url: "https://stripe.com/blog/engineering",
