@@ -6,7 +6,7 @@ import { getWaitlistInviteEmail } from "@/lib/email/templates";
 import { createWaitlistInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { inviteSchema } from "./schema";
 
 const log = createLogger("api/v1/admin/waitlist/invite");
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

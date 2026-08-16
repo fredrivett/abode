@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
 
@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

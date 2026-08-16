@@ -6,7 +6,7 @@ import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/rooms/[id]");
@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -226,7 +226,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

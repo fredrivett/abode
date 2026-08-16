@@ -30,7 +30,7 @@ import {
   validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { rankedSearch } from "@/lib/search/ranked-search";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import type {
   BookDetails,
   ImageColor,
@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

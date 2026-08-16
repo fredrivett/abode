@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/stats");
 
@@ -12,7 +12,7 @@ export async function GET(_request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

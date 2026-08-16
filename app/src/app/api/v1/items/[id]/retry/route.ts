@@ -8,7 +8,7 @@ import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/retry");
@@ -23,7 +23,7 @@ export async function POST(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUserWithMfa(supabase);
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

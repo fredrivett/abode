@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/personal-access-token";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { needsMFAChallenge } from "@/lib/mfa";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,6 +34,12 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  * A bearer token takes precedence; we fall back to cookies. A malformed or
  * rejected bearer token returns null (never a silent cookie fallback). Returns
  * null when nothing yields a user.
+ *
+ * Both interactive paths (bearer and cookie) reject a session that hasn't
+ * completed MFA when the user has 2FA enabled — the page middleware only guards
+ * page navigations, not direct API calls. Personal access tokens are exempt (an
+ * explicit, user-created credential, like a GitHub PAT — MFA is a login-time
+ * concern).
  */
 export async function authenticateRequest(
   request: NextRequest,
@@ -51,7 +58,29 @@ export async function authenticateRequest(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user ? { user, method: "cookie" } : null;
+  if (!user) return null;
+
+  // Enforce 2FA here too, not just via the page middleware: an AAL1 cookie
+  // session is set at password sign-in, before the TOTP challenge, so a direct
+  // API call with that cookie would otherwise bypass the 2FA the user opted into.
+  // Fail closed if the MFA lookup itself errors — a transient Supabase failure
+  // must not serve a user who may still owe a challenge (a 401, not a 500).
+  const mfaIncomplete = await needsMFAChallenge(supabase).catch((error) => {
+    log.warn(
+      { userId: user.id, error },
+      "MFA state check failed; failing closed",
+    );
+    return true;
+  });
+  if (mfaIncomplete) {
+    log.warn(
+      { userId: user.id },
+      "Rejected cookie session pending MFA challenge",
+    );
+    return null;
+  }
+
+  return { user, method: "cookie" };
 }
 
 function extractBearerToken(request: NextRequest): string | null {
@@ -147,6 +176,13 @@ function touchLastUsed(id: string, lastUsedAt: Date | null): void {
 /**
  * Validates a Supabase access token and returns its user, or null. Validated
  * against the auth server, so revoked sessions are rejected.
+ *
+ * Enforces 2FA: a user with a verified MFA factor must present an AAL2 token.
+ * A password-only sign-in yields an AAL1 token (raising it to AAL2 needs a TOTP
+ * challenge — the web login does this, the extension does not yet). Accepting an
+ * AAL1 token here would let anyone with just the password reach the account over
+ * the bearer path, silently bypassing the 2FA the user opted into. Fails closed:
+ * an unparseable token is treated as non-AAL2.
  */
 async function resolveBearerUser(token: string): Promise<User | null> {
   const supabaseUrl =
@@ -161,5 +197,47 @@ async function resolveBearerUser(token: string): Promise<User | null> {
     data: { user },
     error,
   } = await supabase.auth.getUser(token);
-  return error ? null : user;
+  if (error || !user) return null;
+
+  if (userHasVerifiedFactor(user) && decodeJwtAal(token) !== "aal2") {
+    log.warn(
+      { userId: user.id },
+      "Rejected AAL1 bearer token for a user with a verified MFA factor",
+    );
+    return null;
+  }
+
+  return user;
+}
+
+/** Whether the user has a verified (i.e. active) MFA factor. */
+function userHasVerifiedFactor(user: User): boolean {
+  return user.factors?.some((factor) => factor.status === "verified") ?? false;
+}
+
+/**
+ * Reads the `aal` (Authenticator Assurance Level) claim from a JWT without
+ * verifying its signature — safe only because the caller resolves this token
+ * against the auth server first. Returns null for a malformed token or a
+ * missing/non-string claim, so callers can fail closed.
+ */
+function decodeJwtAal(token: string): string | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const claims: unknown = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    if (
+      typeof claims === "object" &&
+      claims !== null &&
+      "aal" in claims &&
+      typeof claims.aal === "string"
+    ) {
+      return claims.aal;
+    }
+  } catch {
+    // Malformed token → null → treated as non-AAL2 by the caller
+  }
+  return null;
 }

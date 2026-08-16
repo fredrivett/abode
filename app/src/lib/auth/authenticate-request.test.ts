@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // @supabase/supabase-js; PAT path uses @/lib/db + the service-role admin client.
 const {
   mockCookieGetUser,
+  mockCookieAAL,
+  mockCookieListFactors,
   mockBearerGetUser,
   mockCreateSupabaseClient,
   mockFindUnique,
@@ -11,6 +13,8 @@ const {
   mockAdminGetUserById,
 } = vi.hoisted(() => ({
   mockCookieGetUser: vi.fn(),
+  mockCookieAAL: vi.fn(),
+  mockCookieListFactors: vi.fn(),
   mockBearerGetUser: vi.fn(),
   mockCreateSupabaseClient: vi.fn(),
   mockFindUnique: vi.fn(),
@@ -19,7 +23,15 @@ const {
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser: mockCookieGetUser } }),
+  createClient: async () => ({
+    auth: {
+      getUser: mockCookieGetUser,
+      mfa: {
+        getAuthenticatorAssuranceLevel: mockCookieAAL,
+        listFactors: mockCookieListFactors,
+      },
+    },
+  }),
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -47,6 +59,13 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { authenticateRequest } from "./authenticate-request";
 import { hashPersonalAccessToken } from "./personal-access-token";
 
+// Minimal unsigned JWT carrying an `aal` claim — the gate only reads the payload
+// (the token is already validated against the auth server by getUser).
+function jwt(aal: string): string {
+  const payload = Buffer.from(JSON.stringify({ aal })).toString("base64url");
+  return `header.${payload}.signature`;
+}
+
 function request(authorization?: string) {
   return {
     headers: {
@@ -59,6 +78,12 @@ function request(authorization?: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateMany.mockResolvedValue({ count: 1 });
+  // Default cookie session: no MFA enrolled
+  mockCookieAAL.mockResolvedValue({
+    data: { currentLevel: "aal1", nextLevel: "aal1" },
+    error: null,
+  });
+  mockCookieListFactors.mockResolvedValue({ data: { totp: [] }, error: null });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
 });
@@ -121,6 +146,59 @@ describe("authenticateRequest", () => {
     expect(mockBearerGetUser).not.toHaveBeenCalled();
   });
 
+  it("rejects an AAL1 cookie session for a user with a verified MFA factor", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+    mockCookieAAL.mockResolvedValue({
+      data: { currentLevel: "aal1", nextLevel: "aal2" },
+      error: null,
+    });
+    mockCookieListFactors.mockResolvedValue({
+      data: { totp: [{ status: "verified" }] },
+      error: null,
+    });
+
+    // A direct API call with an unverified (AAL1) cookie must not bypass 2FA,
+    // even though the page middleware would only redirect page navigations
+    const result = await authenticateRequest(request());
+
+    expect(result).toBeNull();
+  });
+
+  it("accepts an AAL2 cookie session for a user with a verified MFA factor", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+    mockCookieAAL.mockResolvedValue({
+      data: { currentLevel: "aal2", nextLevel: "aal2" },
+      error: null,
+    });
+    mockCookieListFactors.mockResolvedValue({
+      data: { totp: [{ status: "verified" }] },
+      error: null,
+    });
+
+    const result = await authenticateRequest(request());
+
+    expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
+  });
+
+  it("fails closed: rejects the cookie session when the MFA lookup errors", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+    // A transient Supabase failure during the MFA check must not grant access
+    mockCookieAAL.mockRejectedValue(new Error("supabase unavailable"));
+
+    const result = await authenticateRequest(request());
+
+    expect(result).toBeNull();
+  });
+
   it("uses the cookie session for a non-Bearer Authorization scheme", async () => {
     mockCookieGetUser.mockResolvedValue({
       data: { user: { id: "u_cookie" } },
@@ -139,6 +217,84 @@ describe("authenticateRequest", () => {
     const result = await authenticateRequest(request());
 
     expect(result).toBeNull();
+  });
+
+  it("accepts an AAL2 bearer token for a user with a verified MFA factor", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: {
+        user: { id: "u_mfa", factors: [{ status: "verified" }] },
+      },
+      error: null,
+    });
+
+    const result = await authenticateRequest(request(`Bearer ${jwt("aal2")}`));
+
+    expect(result).toEqual({
+      user: { id: "u_mfa", factors: [{ status: "verified" }] },
+      method: "bearer",
+    });
+  });
+
+  it("rejects an AAL1 bearer token for a user with a verified MFA factor", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: {
+        user: { id: "u_mfa", factors: [{ status: "verified" }] },
+      },
+      error: null,
+    });
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+
+    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+
+    // 2FA is enrolled but not satisfied → treated as unauthenticated, and never
+    // a silent fallback to the cookie session
+    expect(result).toBeNull();
+    expect(mockCookieGetUser).not.toHaveBeenCalled();
+  });
+
+  it("fails closed: rejects an unparseable token for a user with a verified factor", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: {
+        user: { id: "u_mfa", factors: [{ status: "verified" }] },
+      },
+      error: null,
+    });
+
+    // getUser somehow validated it, but there is no readable aal claim
+    const result = await authenticateRequest(request("Bearer not-a-jwt"));
+
+    expect(result).toBeNull();
+  });
+
+  it("accepts an AAL1 bearer token when the user has no verified factor", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: {
+        // an unverified (mid-enrollment) factor is not active 2FA
+        user: { id: "u_nomfa", factors: [{ status: "unverified" }] },
+      },
+      error: null,
+    });
+
+    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+
+    expect(result).toEqual({
+      user: { id: "u_nomfa", factors: [{ status: "unverified" }] },
+      method: "bearer",
+    });
+  });
+
+  it("accepts a bearer token for a user with no factors field", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: { user: { id: "u_plain" } },
+      error: null,
+    });
+
+    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+
+    expect(result).toEqual({ user: { id: "u_plain" }, method: "bearer" });
   });
 
   it("returns null for a bearer token when Supabase env is not configured", async () => {
