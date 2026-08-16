@@ -16,6 +16,8 @@ const profileUpdateSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   website: z.string().max(2048).optional(),
+  showInvitedBy: z.boolean().optional(),
+  showInvited: z.boolean().optional(),
 });
 
 export async function GET(_request: NextRequest) {
@@ -84,7 +86,8 @@ export async function PATCH(request: NextRequest) {
       return zodErrorResponse(parsed.error);
     }
 
-    const { firstName, lastName, website } = parsed.data;
+    const { firstName, lastName, website, showInvitedBy, showInvited } =
+      parsed.data;
 
     // Normalize the website: empty clears it, otherwise it must be a valid URL
     let websiteValue: string | null | undefined;
@@ -109,6 +112,8 @@ export async function PATCH(request: NextRequest) {
         ...(firstName !== undefined && { firstName: firstName || null }),
         ...(lastName !== undefined && { lastName: lastName || null }),
         ...(websiteValue !== undefined && { website: websiteValue }),
+        ...(showInvitedBy !== undefined && { showInvitedBy }),
+        ...(showInvited !== undefined && { showInvited }),
       },
       select: {
         firstName: true,
@@ -118,10 +123,15 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    // Log activity (fire-and-forget)
-    void logActivity(user.id, "user_update", {
-      fields: ["firstName", "lastName", "website"],
-    });
+    // Log activity (fire-and-forget) with the fields that were actually sent
+    const changedFields = [
+      ...(firstName !== undefined ? ["firstName"] : []),
+      ...(lastName !== undefined ? ["lastName"] : []),
+      ...(website !== undefined ? ["website"] : []),
+      ...(showInvitedBy !== undefined ? ["showInvitedBy"] : []),
+      ...(showInvited !== undefined ? ["showInvited"] : []),
+    ];
+    void logActivity(user.id, "user_update", { fields: changedFields });
 
     // Check if profile is now complete: (firstName OR lastName) AND avatarUrl
     if (shouldCompleteProfile(updatedUser)) {
