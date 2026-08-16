@@ -49,9 +49,11 @@ export function ProfileSettings({
   // Public profile visibility toggles (saved immediately on change)
   const [showInvitedBy, setShowInvitedBy] = useState(initialShowInvitedBy);
   const [showInvited, setShowInvited] = useState(initialShowInvited);
-  const [savingToggle, setSavingToggle] = useState<
-    "showInvitedBy" | "showInvited" | null
-  >(null);
+  // Track pending toggles per field so an in-flight PATCH for one doesn't
+  // re-enable the other
+  const [savingToggles, setSavingToggles] = useState<
+    Set<"showInvitedBy" | "showInvited">
+  >(new Set());
 
   // Email change state
   const [newEmail, setNewEmail] = useState(email ?? "");
@@ -104,7 +106,7 @@ export function ProfileSettings({
       field === "showInvitedBy" ? setShowInvitedBy : setShowInvited;
     // Optimistic update
     setLocal(value);
-    setSavingToggle(field);
+    setSavingToggles((prev) => new Set(prev).add(field));
     try {
       const response = await fetch("/api/v1/user/profile", {
         method: "PATCH",
@@ -123,7 +125,11 @@ export function ProfileSettings({
       posthog.captureException(error);
       toast.error("Failed to update setting");
     } finally {
-      setSavingToggle(null);
+      setSavingToggles((prev) => {
+        const next = new Set(prev);
+        next.delete(field);
+        return next;
+      });
     }
   };
 
@@ -260,7 +266,7 @@ export function ProfileSettings({
               <Switch
                 id="showInvitedBy"
                 checked={showInvitedBy}
-                disabled={savingToggle === "showInvitedBy"}
+                disabled={savingToggles.has("showInvitedBy")}
                 onCheckedChange={(checked) =>
                   handleToggleVisibility("showInvitedBy", checked)
                 }
@@ -276,7 +282,7 @@ export function ProfileSettings({
               <Switch
                 id="showInvited"
                 checked={showInvited}
-                disabled={savingToggle === "showInvited"}
+                disabled={savingToggles.has("showInvited")}
                 onCheckedChange={(checked) =>
                   handleToggleVisibility("showInvited", checked)
                 }

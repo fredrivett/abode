@@ -105,4 +105,39 @@ describe("ProfileSettings visibility toggles", () => {
       screen.getByRole("switch", { name: "Show who you invited" }),
     ).toBeChecked();
   });
+
+  it("keeps each toggle's pending state independent while both are in flight", async () => {
+    // Two deferred responses so we can resolve the toggles independently
+    const deferreds: Array<(v: { ok: boolean }) => void> = [];
+    const fetchMock = vi.fn(
+      () => new Promise((resolve) => deferreds.push(resolve)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ProfileSettings showInvitedBy={true} showInvited={true} />);
+
+    const invitedBy = screen.getByRole("switch", {
+      name: "Show who invited you",
+    });
+    const invited = screen.getByRole("switch", {
+      name: "Show who you invited",
+    });
+
+    fireEvent.click(invitedBy);
+    fireEvent.click(invited);
+
+    // Both requests in flight → both switches disabled
+    await waitFor(() => expect(invitedBy).toBeDisabled());
+    expect(invited).toBeDisabled();
+
+    // Resolve only the first request
+    deferreds[0]({ ok: true });
+
+    // First re-enables; the second stays disabled because its PATCH is pending
+    await waitFor(() => expect(invitedBy).toBeEnabled());
+    expect(invited).toBeDisabled();
+
+    deferreds[1]({ ok: true });
+    await waitFor(() => expect(invited).toBeEnabled());
+  });
 });
