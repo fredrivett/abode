@@ -66,6 +66,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
+import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -1955,6 +1956,21 @@ function ItemDetailDialog({
                         />
                       </div>
                     )}
+                </motion.div>
+              ) : isArticleOrWebpage &&
+                item.sourceUrl &&
+                isValidUrl(item.sourceUrl) ? (
+                <motion.div
+                  className="flex h-full w-full items-center justify-center bg-background p-8"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <WebpageLinkCard
+                    url={item.sourceUrl}
+                    title={name}
+                    description={item.description}
+                  />
                 </motion.div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
