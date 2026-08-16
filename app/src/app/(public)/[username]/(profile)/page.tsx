@@ -1,9 +1,10 @@
-import { DoorOpen, Globe, UserPlus, Users } from "lucide-react";
+import { DoorOpen, Globe, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { RoomCard } from "@/components/rooms/room-card";
 import { ProfileViewTracker } from "@/components/tracking/profile-view-tracker";
+import { InvitedSection } from "@/components/user/invited-section";
 import { ProfileTag } from "@/components/user/profile-tag";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
@@ -197,19 +198,10 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
 
-          {user.showInvited && user.referrals.length > 0 && (
-            <div className="mt-12">
-              <h2 className="flex items-center justify-center gap-2 font-semibold font-serif text-xl">
-                <Users className="size-5 text-muted-foreground" />
-                Invited
-              </h2>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                {user.referrals.map((referral) => (
-                  <ProfileTag key={referral.id} user={referral} />
-                ))}
-              </div>
-            </div>
-          )}
+          <InvitedSection
+            referrals={user.referrals}
+            showProfiles={user.showInvited}
+          />
 
           {publicRooms.length > 0 && (
             <div className="mt-12">

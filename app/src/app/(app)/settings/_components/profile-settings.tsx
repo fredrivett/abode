@@ -276,7 +276,8 @@ export function ProfileSettings({
               <div className="space-y-0.5">
                 <Label htmlFor="showInvited">Show who you invited</Label>
                 <p className="text-muted-foreground text-xs">
-                  Display the people you invited on your public profile.
+                  When off, your profile shows just a count instead of the
+                  individual people.
                 </p>
               </div>
               <Switch
