@@ -3,6 +3,8 @@ import { Hand, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { FilterBadges } from "@/components/rooms/filter-badges";
 import { Badge } from "@/components/ui/badge";
+import { BlurImage } from "@/components/ui/blur-image";
+import type { RoomThumbnail } from "@/lib/rooms/room-thumbnails";
 import type { Filter } from "@/lib/search/types";
 
 type RoomCardProps = {
@@ -15,6 +17,8 @@ type RoomCardProps = {
   showPublicBadge?: boolean;
   /** Smart-room filters; rendered as a compact preview when present */
   filters?: Filter[] | null;
+  /** Item cover previews; rendered as a thumbnail strip when present */
+  thumbnails?: RoomThumbnail[];
 };
 
 /**
@@ -32,6 +36,7 @@ export function RoomCard({
   type,
   showPublicBadge = false,
   filters,
+  thumbnails,
 }: RoomCardProps) {
   return (
     <Link
@@ -69,6 +74,25 @@ export function RoomCard({
       {type === "smart" && filters && (
         <div className="mt-3 flex flex-wrap gap-1">
           <FilterBadges filters={filters} compact />
+        </div>
+      )}
+      {thumbnails && thumbnails.length > 0 && (
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {thumbnails.map((thumb, i) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: order-stable preview list, no reordering
+              key={i}
+              className="relative aspect-square overflow-hidden rounded-md bg-muted"
+            >
+              <BlurImage
+                src={thumb.url}
+                alt=""
+                blurDataUrl={thumb.blurDataUrl}
+                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                loading="lazy"
+              />
+            </div>
+          ))}
         </div>
       )}
     </Link>

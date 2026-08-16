@@ -92,4 +92,26 @@ describe("RoomCard", () => {
       expect(screen.queryByText("Brazil")).not.toBeInTheDocument();
     });
   });
+
+  describe("thumbnail strip", () => {
+    it("renders an image per thumbnail", () => {
+      const { container } = renderCard({
+        thumbnails: [
+          { url: "/a.jpg", blurDataUrl: null },
+          { url: "/b.jpg", blurDataUrl: "data:blur" },
+        ],
+      });
+      expect(container.querySelectorAll("img")).toHaveLength(2);
+    });
+
+    it("renders no thumbnail strip when the list is empty", () => {
+      const { container } = renderCard({ thumbnails: [] });
+      expect(container.querySelectorAll("img")).toHaveLength(0);
+    });
+
+    it("renders no thumbnail strip when thumbnails are omitted", () => {
+      const { container } = renderCard();
+      expect(container.querySelectorAll("img")).toHaveLength(0);
+    });
+  });
 });
