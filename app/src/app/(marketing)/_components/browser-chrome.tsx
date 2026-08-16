@@ -66,14 +66,12 @@ export function BrowserChrome({
               <Tab key={tab.title} {...tab} active={i === activeTab} />
             ))}
             {/* abode's browser extension, pinned to the toolbar's right edge */}
-            <span className="mr-1 mb-2.5 ml-auto flex size-9 items-center justify-center rounded-md ring-1 ring-border/70">
-              {/* biome-ignore lint/performance/noImgElement: tiny static icon */}
-              <img
-                src="/favicon-light.png"
-                alt=""
-                className="size-5 rounded-[5px]"
-              />
-            </span>
+            {/* biome-ignore lint/performance/noImgElement: tiny static icon */}
+            <img
+              src="/favicon-light.png"
+              alt=""
+              className="mr-1 mb-4 ml-auto size-6 rounded-[6px]"
+            />
           </div>
           {/* Radius = card radius (rounded-2xl, 16px) + the grid's p-6 (24px),
               so the frame stays concentric with the items inside it. */}
