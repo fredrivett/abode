@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
@@ -22,6 +23,8 @@ type ProfileSettingsProps = {
   email?: string | null;
   initialAvatarUrl?: string | null;
   emailChanged?: boolean;
+  showInvitedBy?: boolean;
+  showInvited?: boolean;
 };
 
 export function ProfileSettings({
@@ -32,6 +35,8 @@ export function ProfileSettings({
   email,
   initialAvatarUrl,
   emailChanged,
+  showInvitedBy: initialShowInvitedBy = true,
+  showInvited: initialShowInvited = true,
 }: ProfileSettingsProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
@@ -40,6 +45,15 @@ export function ProfileSettings({
   const [savedLastName, setSavedLastName] = useState(initialLastName ?? "");
   const [savedWebsite, setSavedWebsite] = useState(initialWebsite ?? "");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Public profile visibility toggles (saved immediately on change)
+  const [showInvitedBy, setShowInvitedBy] = useState(initialShowInvitedBy);
+  const [showInvited, setShowInvited] = useState(initialShowInvited);
+  // Track pending toggles per field so an in-flight PATCH for one doesn't
+  // re-enable the other
+  const [savingToggles, setSavingToggles] = useState<
+    Set<"showInvitedBy" | "showInvited">
+  >(new Set());
 
   // Email change state
   const [newEmail, setNewEmail] = useState(email ?? "");
@@ -83,6 +97,41 @@ export function ProfileSettings({
       );
     }
   }, [emailState, newEmail]);
+
+  const handleToggleVisibility = async (
+    field: "showInvitedBy" | "showInvited",
+    value: boolean,
+  ) => {
+    const setLocal =
+      field === "showInvitedBy" ? setShowInvitedBy : setShowInvited;
+    // Optimistic update
+    setLocal(value);
+    setSavingToggles((prev) => new Set(prev).add(field));
+    try {
+      const response = await fetch("/api/v1/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update setting");
+      }
+
+      posthog.capture("profile_visibility_updated", { field, value });
+    } catch (error) {
+      // Revert on failure
+      setLocal(!value);
+      posthog.captureException(error);
+      toast.error("Failed to update setting");
+    } finally {
+      setSavingToggles((prev) => {
+        const next = new Set(prev);
+        next.delete(field);
+        return next;
+      });
+    }
+  };
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
@@ -205,6 +254,41 @@ export function ProfileSettings({
             <p className="text-muted-foreground text-xs">
               Shown on your public profile.
             </p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="showInvitedBy">Show who invited you</Label>
+                <p className="text-muted-foreground text-xs">
+                  Display who invited you on your public profile.
+                </p>
+              </div>
+              <Switch
+                id="showInvitedBy"
+                checked={showInvitedBy}
+                disabled={savingToggles.has("showInvitedBy")}
+                onCheckedChange={(checked) =>
+                  handleToggleVisibility("showInvitedBy", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="showInvited">Show who you invited</Label>
+                <p className="text-muted-foreground text-xs">
+                  When off, your profile shows just a count instead of the
+                  individual people.
+                </p>
+              </div>
+              <Switch
+                id="showInvited"
+                checked={showInvited}
+                disabled={savingToggles.has("showInvited")}
+                onCheckedChange={(checked) =>
+                  handleToggleVisibility("showInvited", checked)
+                }
+              />
+            </div>
           </div>
           <form action={emailAction} className="space-y-1.5">
             <Label htmlFor="email">Email</Label>

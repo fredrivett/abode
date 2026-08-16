@@ -34,6 +34,8 @@ export default async function AccountSettingsPage({
       firstName: true,
       lastName: true,
       website: true,
+      showInvitedBy: true,
+      showInvited: true,
       storageUsedBytes: true,
       itemCount: true,
     },
@@ -60,6 +62,8 @@ export default async function AccountSettingsPage({
         email={email}
         initialAvatarUrl={dbUser?.avatarUrl}
         emailChanged={email_changed === "true"}
+        showInvitedBy={dbUser?.showInvitedBy ?? true}
+        showInvited={dbUser?.showInvited ?? true}
       />
       <UsernameSettings
         currentUsername={dbUser?.username || null}

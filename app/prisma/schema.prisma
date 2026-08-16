@@ -38,6 +38,10 @@ model User {
   inviteAllocation  Int            @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
   origin            InviteOrigin?  @map("origin")
 
+  // Public profile visibility toggles
+  showInvitedBy     Boolean        @default(true) @map("show_invited_by") // Show who invited this user
+  showInvited       Boolean        @default(true) @map("show_invited") // Show the people this user invited
+
   // Relations
   referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals         User[]  @relation("Referrals")
