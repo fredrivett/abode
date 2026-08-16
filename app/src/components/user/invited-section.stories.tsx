@@ -37,30 +37,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Profiles: Story = {
+export const Default: Story = {
   args: {
     referrals,
-    showProfiles: true,
-  },
-};
-
-export const CountOnly: Story = {
-  args: {
-    referrals,
-    showProfiles: false,
   },
 };
 
 export const SinglePerson: Story = {
   args: {
     referrals: referrals.slice(0, 1),
-    showProfiles: false,
   },
 };
 
 export const Empty: Story = {
   args: {
     referrals: [],
-    showProfiles: true,
   },
 };
