@@ -5,19 +5,21 @@ type TabInfo = { favicon: string; title: string };
 
 const TABS: TabInfo[] = [
   { favicon: "/favicon-light.png", title: "abode" },
-  { favicon: "/globe.svg", title: "How to Start a Startup" },
+  { favicon: "/pg-favicon.png", title: "How to Start a Startup" },
 ];
 
 function Tab({ favicon, title, active }: TabInfo & { active: boolean }) {
   return (
     <div
       className={cn(
-        "-mb-px flex h-14 min-w-0 max-w-96 items-center gap-3.5 rounded-t-xl px-6 text-lg transition-colors",
-        // The active tab is opaque and shares the body's border, so it reads as
-        // sitting in front of and connected to the window below.
+        // Both tabs share the same box — a bottom-borderless 1px border, nudged
+        // down (translate) so it laps over the window's top border — so the
+        // layout never shifts when active changes and the active tab (which
+        // shares the chrome's bg) hides the top border where it sits.
+        "flex h-14 min-w-0 max-w-96 translate-y-[2px] items-center gap-3.5 rounded-t-xl border border-transparent border-b-0 px-6 text-lg transition-colors",
         active
-          ? "border border-border border-b-0 bg-background font-medium text-foreground"
-          : "border border-transparent text-muted-foreground/70 hover:text-muted-foreground",
+          ? "border-border bg-card font-medium text-foreground"
+          : "text-muted-foreground/70 hover:text-muted-foreground",
       )}
     >
       {/* biome-ignore lint/performance/noImgElement: tiny static favicon */}
@@ -75,7 +77,7 @@ export function BrowserChrome({
           </div>
           {/* Radius = card radius (rounded-2xl, 16px) + the grid's p-6 (24px),
               so the frame stays concentric with the items inside it. */}
-          <div className="min-h-0 flex-1 rounded-[2.5rem] border border-border bg-background/60 shadow-2xl backdrop-blur-sm" />
+          <div className="min-h-0 flex-1 rounded-[2.5rem] border border-border bg-card shadow-2xl" />
         </div>
       </div>
       {children}
