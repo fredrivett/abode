@@ -302,9 +302,12 @@ export function LivingGallery() {
               <ul
                 ref={gridRef}
                 className={cn(
-                  // pb absorbs the trailing mb-4 on each column's last item so
-                  // the bottom gutter matches the other three sides (8 + 16 = 24)
-                  "relative z-10 columns-2 gap-4 p-6 pb-2 sm:columns-3 [&>li]:mb-4",
+                  "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
+                  // Chrome gutter only when the effect is on; without it the
+                  // static fallback grid keeps its original edge-to-edge layout.
+                  // pb absorbs each column's trailing mb-4 so the bottom gutter
+                  // matches the other three sides (8 + 16 = 24).
+                  effectOn && "p-6 pb-2",
                   flying && "invisible",
                 )}
               >
