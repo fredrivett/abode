@@ -65,8 +65,10 @@ export function WebpageLinkCard({
   // sourceUrl is untrusted stored data — never render a non-http(s) scheme
   // (e.g. javascript:) as a navigable link
   const safeToOpen = isValidUrl(url);
-  const [faviconFailed, setFaviconFailed] = useState(false);
-  const showFavicon = Boolean(faviconUrl) && !faviconFailed;
+  // Track which URL failed (not just a boolean) so a reprocessed item with a
+  // new favicon isn't stuck on the monogram from a prior load error
+  const [failedFaviconUrl, setFailedFaviconUrl] = useState<string | null>(null);
+  const showFavicon = Boolean(faviconUrl) && faviconUrl !== failedFaviconUrl;
 
   return (
     <div
@@ -89,7 +91,7 @@ export function WebpageLinkCard({
             src={faviconUrl}
             alt=""
             className="size-11 rounded-md object-contain"
-            onError={() => setFaviconFailed(true)}
+            onError={() => setFailedFaviconUrl(faviconUrl ?? null)}
           />
         ) : (
           <span className="font-semibold font-serif text-3xl text-white">

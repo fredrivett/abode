@@ -105,12 +105,18 @@ export function extractOgImage(html: string): string | null {
   );
 }
 
-/** Reads a single (quoted) attribute value from one HTML tag string */
+/** Reads a single attribute value (quoted or unquoted) from one HTML tag string */
 function extractTagAttr(tag: string, attr: string): string | null {
+  // Leading \s anchors to a whole attribute name (so "rel" doesn't match
+  // "data-rel"); handles double-quoted, single-quoted, and bare values
   const match = tag.match(
-    new RegExp(`${escapeRegex(attr)}\\s*=\\s*["']([^"']*)["']`, "i"),
+    new RegExp(
+      `\\s${escapeRegex(attr)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+      "i",
+    ),
   );
-  return match ? decodeHtmlEntities(match[1]) : null;
+  const value = match?.[1] ?? match?.[2] ?? match?.[3];
+  return value ? decodeHtmlEntities(value) : null;
 }
 
 /**

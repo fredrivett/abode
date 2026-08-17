@@ -102,4 +102,30 @@ describe("WebpageLinkCard", () => {
     expect(screen.getByText("S")).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
   });
+
+  it("shows a newly provided favicon after a prior one failed", () => {
+    // A reprocessed item can hand the same mounted card a fresh favicon URL —
+    // the earlier failure must not permanently pin it to the monogram
+    const { container, rerender } = render(
+      <WebpageLinkCard
+        url="https://stripe.com"
+        faviconUrl="/api/v1/images/old.png"
+      />,
+    );
+    const img = container.querySelector("img");
+    if (!img) throw new Error("expected favicon img to render");
+    fireEvent.error(img);
+    expect(container.querySelector("img")).toBeNull();
+
+    rerender(
+      <WebpageLinkCard
+        url="https://stripe.com"
+        faviconUrl="/api/v1/images/new.png"
+      />,
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/v1/images/new.png",
+    );
+  });
 });

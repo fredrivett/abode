@@ -786,6 +786,8 @@ async function handleImageUrl(
         fileKey: imageResult.fileKey,
         // An image has no separate cover; clear any stale one
         coverFileKey: null,
+        // Only article/webpage items carry a favicon — clear a stale one
+        faviconFileKey: null,
         meta: {
           size: imageResult.size,
           type: imageResult.contentType,
@@ -882,6 +884,7 @@ async function handleBookUrl(
         // at a blob deleteReplacedFiles is about to remove
         fileKey: null,
         coverFileKey: coverResult ? coverResult.fileKey : null,
+        faviconFileKey: null,
         meta: {
           originalName: bookMeta.title,
           ...(coverResult && { coverSize: coverResult.size }),
@@ -1132,6 +1135,7 @@ async function handleProductUrl(
         // at a blob deleteReplacedFiles is about to remove
         fileKey: null,
         coverFileKey,
+        faviconFileKey: null,
         meta: {
           originalName: productMeta.title,
           ...(coverSize > 0 && { coverSize }),

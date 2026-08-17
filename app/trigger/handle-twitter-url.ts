@@ -313,6 +313,8 @@ export async function handleTwitterUrl(
           // blob deleteReplacedFiles is about to remove
           fileKey: null,
           coverFileKey: rehosted.coverFileKey,
+          // Only article/webpage items carry a favicon — clear a stale one
+          faviconFileKey: null,
           meta:
             rehosted.coverSize > 0
               ? { coverSize: rehosted.coverSize }

@@ -2370,4 +2370,15 @@ describe("extractFaviconUrl", () => {
     const html = `<link href='/f.ico' rel='shortcut icon'>`;
     expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/f.ico");
   });
+
+  it("handles unquoted rel and href attribute values", () => {
+    const html = `<link rel=icon href=/fav.png>`;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/fav.png");
+  });
+
+  it("does not match a substring attribute like data-rel", () => {
+    // Only the real `rel=icon` should be recognised, not `data-rel`
+    const html = `<link data-rel=noticon rel=icon href=/real.png>`;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/real.png");
+  });
 });
