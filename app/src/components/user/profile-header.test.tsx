@@ -8,7 +8,8 @@ const baseProps = {
   lastName: "Rivett",
   website: "https://fredrivett.com",
   avatarUrl: null,
-  createdAt: new Date("2025-12-01T00:00:00Z"),
+  // Local mid-month date so the formatted month is timezone-independent
+  createdAt: new Date(2025, 11, 15),
   memberNumber: 1,
   showInvitedBy: false,
   referredBy: null,
