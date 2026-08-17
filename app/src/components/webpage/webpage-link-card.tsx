@@ -1,4 +1,7 @@
+"use client";
+
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
@@ -8,6 +11,12 @@ type WebpageLinkCardProps = {
   url: string;
   title?: string | null;
   description?: string | null;
+  /**
+   * Proxied URL of the site's re-hosted favicon. When present (and it loads),
+   * it renders on the tile in place of the monogram; on load error we fall back
+   * to the monogram.
+   */
+  faviconUrl?: string | null;
   className?: string;
 };
 
@@ -39,15 +48,16 @@ export function getMonogramColor(domain: string): string {
 /**
  * Fallback preview for a webpage/article item that has no cover image.
  *
- * Renders a designed "bookmark" card — a domain monogram tile, the page title
- * and description, and a domain-labelled button that opens the source — instead
- * of a bare document icon. Favicon support is a later enhancement (the capture
- * layers can supply a re-hosted favicon); today the monogram is the anchor.
+ * Renders a designed "bookmark" card — an icon tile (the site's favicon, or a
+ * domain monogram when there's none), the page title and description, and a
+ * domain-labelled button that opens the source — instead of a bare document
+ * icon.
  */
 export function WebpageLinkCard({
   url,
   title,
   description,
+  faviconUrl,
   className,
 }: WebpageLinkCardProps) {
   const domain = getDisplayDomain(url);
@@ -55,6 +65,10 @@ export function WebpageLinkCard({
   // sourceUrl is untrusted stored data — never render a non-http(s) scheme
   // (e.g. javascript:) as a navigable link
   const safeToOpen = isValidUrl(url);
+  // Track which URL failed (not just a boolean) so a reprocessed item with a
+  // new favicon isn't stuck on the monogram from a prior load error
+  const [failedFaviconUrl, setFailedFaviconUrl] = useState<string | null>(null);
+  const showFavicon = Boolean(faviconUrl) && faviconUrl !== failedFaviconUrl;
 
   return (
     <div
@@ -65,11 +79,25 @@ export function WebpageLinkCard({
     >
       <div
         className="flex size-20 items-center justify-center rounded-2xl shadow-sm"
-        style={{ backgroundColor: getMonogramColor(domain) }}
+        style={
+          showFavicon
+            ? undefined
+            : { backgroundColor: getMonogramColor(domain) }
+        }
       >
-        <span className="font-semibold font-serif text-3xl text-white">
-          {monogram}
-        </span>
+        {showFavicon && faviconUrl ? (
+          // biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content
+          <img
+            src={faviconUrl}
+            alt=""
+            className="size-11 rounded-md object-contain"
+            onError={() => setFailedFaviconUrl(faviconUrl ?? null)}
+          />
+        ) : (
+          <span className="font-semibold font-serif text-3xl text-white">
+            {monogram}
+          </span>
+        )}
       </div>
       {title && (
         <p className="line-clamp-3 font-semibold font-serif text-foreground text-xl">

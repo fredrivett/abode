@@ -174,6 +174,8 @@ export async function handleVideoUrl(
         // at a blob deleteReplacedFiles is about to remove
         fileKey: null,
         coverFileKey: thumbnailResult ? thumbnailResult.fileKey : null,
+        // Only article/webpage items carry a favicon — clear a stale one
+        faviconFileKey: null,
         meta: {
           originalName: metadata.title,
           ...(thumbnailResult && { coverSize: thumbnailResult.size }),

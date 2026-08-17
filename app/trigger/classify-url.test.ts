@@ -128,6 +128,31 @@ function htmlResponse(url: string, opts?: { method?: string }) {
   return { ok: true, headers, url, text: async () => ARTICLE_HTML };
 }
 
+// Smallest valid PNG (1×1) — image-size must parse the favicon bytes, so a real
+// image header is required, not arbitrary bytes.
+const PNG_1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+function imageResponse(url: string) {
+  const headers = {
+    get: (k: string) => (k === "content-type" ? "image/png" : null),
+  };
+  return {
+    ok: true,
+    headers,
+    url,
+    arrayBuffer: async () => PNG_1x1,
+  };
+}
+
+// A plain webpage (no og:image) that declares a favicon — reaches the favicon
+// re-host branch because there's no cover to show.
+const FAVICON_PAGE_URL = "https://example.com/page";
+const FAVICON_PAGE_HTML =
+  '<html><head><link rel="icon" href="/fav.png"></head><body>just some plain text, not an article</body></html>';
+
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.SUPABASE_URL = "https://test.supabase.co";
@@ -155,8 +180,12 @@ describe("classifyUrlTask — extension-provided rendered HTML", () => {
       html: ARTICLE_HTML,
     });
 
-    // The whole point: no network fetch when the client already captured the DOM.
-    expect(mockSafeFetch).not.toHaveBeenCalled();
+    // The whole point: the page DOM isn't re-fetched when the client already
+    // captured it (favicon re-hosting may still fetch its own small URL).
+    expect(mockSafeFetch).not.toHaveBeenCalledWith(
+      ARTICLE_URL,
+      expect.anything(),
+    );
     // Persisted as an article, derived from the provided HTML.
     expect(mockItemUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -211,12 +240,57 @@ describe("classifyUrlTask — extension-provided rendered HTML", () => {
       }),
     ).resolves.toBeDefined();
 
-    expect(mockSafeFetch).not.toHaveBeenCalled();
+    // Page DOM not re-fetched; a favicon fetch to its own URL is allowed.
+    expect(mockSafeFetch).not.toHaveBeenCalledWith(
+      "https://example.com/page",
+      expect.anything(),
+    );
     expect(mockItemUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ kind: "webpage" }),
       }),
     );
     expect(mockArticleUpsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("classifyUrlTask — favicon re-hosting", () => {
+  it("stores a re-hosted favicon for a webpage with no cover", async () => {
+    // Only the favicon is fetched (page DOM is provided); return an image.
+    mockSafeFetch.mockResolvedValue(
+      imageResponse("https://example.com/fav.png"),
+    );
+
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url: FAVICON_PAGE_URL,
+      html: FAVICON_PAGE_HTML,
+    });
+
+    const { data } = mockItemUpdate.mock.calls[0][0];
+    expect(data.kind).toBe("webpage");
+    expect(typeof data.faviconFileKey).toBe("string");
+    expect(data.faviconFileKey).toMatch(/^user_1\//);
+  });
+
+  it("leaves faviconFileKey null when the favicon isn't a usable image", async () => {
+    // Favicon URL responds with HTML, not an image — must skip, not fail.
+    mockSafeFetch.mockResolvedValue(
+      htmlResponse("https://example.com/fav.png"),
+    );
+
+    await expect(
+      run({
+        itemId: "item_1",
+        userId: "user_1",
+        url: FAVICON_PAGE_URL,
+        html: FAVICON_PAGE_HTML,
+      }),
+    ).resolves.toBeDefined();
+
+    const { data } = mockItemUpdate.mock.calls[0][0];
+    expect(data.kind).toBe("webpage");
+    expect(data.faviconFileKey).toBeNull();
   });
 });

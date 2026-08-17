@@ -36,6 +36,7 @@ type ClientItem = Pick<
   | "processingStatus"
   | "fileKey"
   | "coverFileKey"
+  | "faviconFileKey"
   | "meta"
   | "sourceType"
   | "sourceUrl"
@@ -110,7 +111,14 @@ export function ItemDetailView({
   // Title/description are omitted — this page already renders both prominently.
   const linkFallback =
     item.sourceUrl && isValidUrl(item.sourceUrl) ? (
-      <WebpageLinkCard url={item.sourceUrl} />
+      <WebpageLinkCard
+        url={item.sourceUrl}
+        faviconUrl={
+          item.faviconFileKey
+            ? getProxyImageUrl(item.faviconFileKey, "full")
+            : undefined
+        }
+      />
     ) : null;
 
   return (

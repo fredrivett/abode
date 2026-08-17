@@ -33,6 +33,7 @@ export const itemSelect = {
   sourceUrl: true,
   captureSource: true,
   coverFileKey: true,
+  faviconFileKey: true,
   createdAt: true,
   updatedAt: true,
   title: true,

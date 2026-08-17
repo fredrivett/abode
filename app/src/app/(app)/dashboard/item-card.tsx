@@ -1970,6 +1970,11 @@ function ItemDetailDialog({
                     url={item.sourceUrl}
                     title={name}
                     description={item.description}
+                    faviconUrl={
+                      item.faviconFileKey
+                        ? getProxyImageUrl(item.faviconFileKey, "full")
+                        : null
+                    }
                   />
                 </motion.div>
               ) : (

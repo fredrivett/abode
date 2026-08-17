@@ -105,6 +105,75 @@ export function extractOgImage(html: string): string | null {
   );
 }
 
+/** Reads a single attribute value (quoted or unquoted) from one HTML tag string */
+function extractTagAttr(tag: string, attr: string): string | null {
+  // Leading \s anchors to a whole attribute name (so "rel" doesn't match
+  // "data-rel"); handles double-quoted, single-quoted, and bare values
+  const match = tag.match(
+    new RegExp(
+      `\\s${escapeRegex(attr)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+      "i",
+    ),
+  );
+  const value = match?.[1] ?? match?.[2] ?? match?.[3];
+  return value ? decodeHtmlEntities(value) : null;
+}
+
+/**
+ * Rough "how big is this icon" score used to pick the crispest favicon.
+ * `sizes="180x180"` → 180; `sizes="any"` (usually SVG) scales perfectly so it
+ * wins; apple-touch icons default to ~180 when unsized; a bare `rel="icon"`
+ * (typically a 16px .ico) scores lowest.
+ */
+function scoreIcon(rel: string, sizes: string | null): number {
+  if (sizes) {
+    if (sizes.toLowerCase() === "any") return 1024;
+    const dims = sizes.match(/(\d+)\s*x\s*\d+/i);
+    if (dims) return Number.parseInt(dims[1], 10);
+  }
+  if (rel.includes("apple-touch-icon")) return 180;
+  return 16;
+}
+
+/**
+ * Extracts the best favicon URL from a page's HTML, resolved to an absolute URL.
+ *
+ * Prefers the largest declared icon (apple-touch / sized `<link rel="icon">` /
+ * scalable SVG), skipping monochrome `mask-icon` silhouettes. Falls back to the
+ * conventional `/favicon.ico` at the origin when no usable `<link>` is present,
+ * so we always return a candidate to try (the re-host fetch degrades gracefully
+ * if it 404s). Returns null only when the page URL itself can't be parsed.
+ */
+export function extractFaviconUrl(html: string, url: string): string | null {
+  let origin: string;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return null;
+  }
+
+  let best: { href: string; score: number } | null = null;
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    const rel = extractTagAttr(tag, "rel")?.toLowerCase();
+    // mask-icon is a single-colour silhouette that needs a `color` to render —
+    // a poor thumbnail, so skip it
+    if (!rel || !rel.includes("icon") || rel.includes("mask-icon")) continue;
+    const href = extractTagAttr(tag, "href");
+    if (!href) continue;
+    const score = scoreIcon(rel, extractTagAttr(tag, "sizes"));
+    if (!best || score > best.score) best = { href, score };
+  }
+
+  const candidate = best?.href;
+  if (!candidate) return `${origin}/favicon.ico`;
+  try {
+    // Resolves relative, protocol-relative, and absolute hrefs against the page
+    return new URL(candidate, url).href;
+  } catch {
+    return `${origin}/favicon.ico`;
+  }
+}
+
 /**
  * Parses a date string into a Date object, returns null if invalid
  */

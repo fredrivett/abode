@@ -9,6 +9,7 @@ import {
   extractBookMetadata,
   extractDescription,
   extractDomain,
+  extractFaviconUrl,
   extractJsonLdArticleType,
   extractJsonLdBook,
   extractJsonLdProduct,
@@ -2300,5 +2301,84 @@ describe("JSON-LD guards (malformed / hostile input)", () => {
       );
       expect(result?.description).toBeNull();
     });
+  });
+});
+
+describe("extractFaviconUrl", () => {
+  const PAGE = "https://example.com/blog/post";
+
+  it("resolves a relative icon href against the page URL", () => {
+    const html = `<link rel="icon" href="/favicon-32.png">`;
+    expect(extractFaviconUrl(html, PAGE)).toBe(
+      "https://example.com/favicon-32.png",
+    );
+  });
+
+  it("keeps an absolute icon href as-is", () => {
+    const html = `<link rel="icon" href="https://cdn.example.com/fav.png">`;
+    expect(extractFaviconUrl(html, PAGE)).toBe(
+      "https://cdn.example.com/fav.png",
+    );
+  });
+
+  it("resolves a protocol-relative href using the page protocol", () => {
+    const html = `<link rel="icon" href="//cdn.example.com/fav.png">`;
+    expect(extractFaviconUrl(html, PAGE)).toBe(
+      "https://cdn.example.com/fav.png",
+    );
+  });
+
+  it("prefers the larger declared icon", () => {
+    const html = `
+      <link rel="icon" sizes="16x16" href="/small.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/large.png">
+    `;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/large.png");
+  });
+
+  it("prefers a scalable SVG (sizes=any) over a raster icon", () => {
+    const html = `
+      <link rel="icon" sizes="32x32" href="/raster.png">
+      <link rel="icon" sizes="any" href="/vector.svg">
+    `;
+    expect(extractFaviconUrl(html, PAGE)).toBe(
+      "https://example.com/vector.svg",
+    );
+  });
+
+  it("skips monochrome mask-icon links", () => {
+    const html = `<link rel="mask-icon" href="/mask.svg" color="#000">`;
+    // no usable <link> → conventional /favicon.ico fallback
+    expect(extractFaviconUrl(html, PAGE)).toBe(
+      "https://example.com/favicon.ico",
+    );
+  });
+
+  it("falls back to /favicon.ico at the origin when no icon link exists", () => {
+    expect(extractFaviconUrl("<html><head></head></html>", PAGE)).toBe(
+      "https://example.com/favicon.ico",
+    );
+  });
+
+  it("returns null when the page URL cannot be parsed", () => {
+    expect(
+      extractFaviconUrl(`<link rel="icon" href="/x.png">`, "not a url"),
+    ).toBe(null);
+  });
+
+  it("handles attribute order and single quotes", () => {
+    const html = `<link href='/f.ico' rel='shortcut icon'>`;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/f.ico");
+  });
+
+  it("handles unquoted rel and href attribute values", () => {
+    const html = `<link rel=icon href=/fav.png>`;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/fav.png");
+  });
+
+  it("does not match a substring attribute like data-rel", () => {
+    // Only the real `rel=icon` should be recognised, not `data-rel`
+    const html = `<link data-rel=noticon rel=icon href=/real.png>`;
+    expect(extractFaviconUrl(html, PAGE)).toBe("https://example.com/real.png");
   });
 });

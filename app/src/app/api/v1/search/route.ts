@@ -81,6 +81,7 @@ type RawItemRow = {
   processing_status: string;
   file_key: string | null;
   cover_file_key: string | null;
+  favicon_file_key: string | null;
   meta: unknown;
   source_type: string | null;
   source_url: string | null;
@@ -183,6 +184,7 @@ function transformRawItemToItem(
     processingStatus: row.processing_status as ProcessingStatus,
     fileKey: row.file_key,
     coverFileKey: row.cover_file_key,
+    faviconFileKey: row.favicon_file_key,
     meta: (row.meta as Record<string, unknown>) || null,
     sourceType: row.source_type as SourceType | null,
     sourceUrl: row.source_url,
@@ -676,6 +678,7 @@ async function executeFiltersOnlySearch(
       items.processing_status,
       items.file_key,
       items.cover_file_key,
+      items.favicon_file_key,
       items.meta,
       items.source_type,
       items.source_url,
@@ -927,6 +930,7 @@ async function executeRankedSearch(
       i.processing_status,
       i.file_key,
       i.cover_file_key,
+      i.favicon_file_key,
       i.meta,
       i.source_type,
       i.source_url,

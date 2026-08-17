@@ -35,6 +35,7 @@ export async function reclaimReplacedStorage(
       meta: true,
       fileKey: true,
       coverFileKey: true,
+      faviconFileKey: true,
       productDetails: { select: { images: true } },
       twitterDetails: { select: { media: true, card: true } },
       instagramDetails: { select: { media: true } },
@@ -54,6 +55,7 @@ export async function reclaimReplacedStorage(
   return [
     existing.fileKey,
     existing.coverFileKey,
+    existing.faviconFileKey,
     ...extractProductImageKeys(existing.productDetails?.images),
     ...extractTwitterImageKeys(
       existing.twitterDetails?.media,

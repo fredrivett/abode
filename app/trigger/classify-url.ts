@@ -12,6 +12,7 @@ import {
   type BookMetadata,
   extractAllProductImageCandidates,
   extractArticleMetadata,
+  extractFaviconUrl,
   type ProductImageCandidate,
   type ProductMetadata,
 } from "../src/lib/html-metadata";
@@ -616,6 +617,35 @@ export const classifyUrlTask = task({
         }
       }
 
+      // Re-host the site favicon as the link-card fallback's visual anchor —
+      // only when there's no cover to show (the card only appears without one).
+      // Best-effort: an optional enhancement that must never fail capture.
+      let faviconResult: { fileKey: string } | null = null;
+      if (!coverResult) {
+        try {
+          const faviconUrl = extractFaviconUrl(html, fetchUrl);
+          if (faviconUrl) {
+            const stored = await downloadAndStoreImage(
+              faviconUrl,
+              userId,
+              supabase,
+            );
+            if (stored.ok) {
+              faviconResult = { fileKey: stored.fileKey };
+              logger.log("Favicon stored", {
+                itemId,
+                faviconFileKey: stored.fileKey,
+              });
+            }
+          }
+        } catch (error) {
+          logger.warn("Favicon fetch failed; continuing without it", {
+            itemId,
+            error,
+          });
+        }
+      }
+
       // Update item with data and reconcile cover image storage
       const replacedFileKeys = await db.$transaction(async (tx) => {
         // Reclaim the previous cover's storage before overwriting meta
@@ -635,6 +665,7 @@ export const classifyUrlTask = task({
             // at a blob deleteReplacedFiles is about to remove
             fileKey: null,
             coverFileKey: coverResult ? coverResult.fileKey : null,
+            faviconFileKey: faviconResult ? faviconResult.fileKey : null,
             meta: {
               originalName: metadata.title,
               ...(coverResult && { coverSize: coverResult.size }),
@@ -648,11 +679,13 @@ export const classifyUrlTask = task({
         return oldFileKeys;
       });
 
-      // Delete the previous blobs now the new cover is committed
+      // Delete the previous blobs now the new cover/favicon are committed
       await deleteReplacedFiles(
         supabase,
         replacedFileKeys,
-        coverResult ? [coverResult.fileKey] : [],
+        [coverResult?.fileKey, faviconResult?.fileKey].filter(
+          (key): key is string => Boolean(key),
+        ),
       );
 
       // Upsert article details record (idempotent for retries, only for articles with real content)
@@ -753,6 +786,8 @@ async function handleImageUrl(
         fileKey: imageResult.fileKey,
         // An image has no separate cover; clear any stale one
         coverFileKey: null,
+        // Only article/webpage items carry a favicon — clear a stale one
+        faviconFileKey: null,
         meta: {
           size: imageResult.size,
           type: imageResult.contentType,
@@ -849,6 +884,7 @@ async function handleBookUrl(
         // at a blob deleteReplacedFiles is about to remove
         fileKey: null,
         coverFileKey: coverResult ? coverResult.fileKey : null,
+        faviconFileKey: null,
         meta: {
           originalName: bookMeta.title,
           ...(coverResult && { coverSize: coverResult.size }),
@@ -1099,6 +1135,7 @@ async function handleProductUrl(
         // at a blob deleteReplacedFiles is about to remove
         fileKey: null,
         coverFileKey,
+        faviconFileKey: null,
         meta: {
           originalName: productMeta.title,
           ...(coverSize > 0 && { coverSize }),
