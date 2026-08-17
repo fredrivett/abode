@@ -20,6 +20,7 @@ const meta = {
     firstName: "Fred",
     lastName: "Rivett",
     website: "https://fredrivett.com",
+    bio: null,
     avatarUrl: null,
     createdAt: new Date(2025, 11, 15),
     memberNumber: 1,
@@ -34,6 +35,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const WithBio: Story = {
+  args: {
+    bio: "Building things on the web. Collector of curiosities and half-finished side projects.",
+  },
+};
 
 export const WithInviter: Story = {
   args: {

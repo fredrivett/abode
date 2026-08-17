@@ -43,6 +43,7 @@ const getUser = cache(async (username: string) => {
       firstName: true,
       lastName: true,
       website: true,
+      bio: true,
       avatarUrl: true,
       createdAt: true,
       memberNumber: true,
@@ -152,6 +153,7 @@ export default async function ProfilePage({ params }: Props) {
             firstName={user.firstName}
             lastName={user.lastName}
             website={user.website}
+            bio={user.bio}
             avatarUrl={user.avatarUrl}
             createdAt={user.createdAt}
             memberNumber={user.memberNumber}

@@ -7,6 +7,7 @@ const baseProps = {
   firstName: "Fred",
   lastName: "Rivett",
   website: "https://fredrivett.com",
+  bio: null,
   avatarUrl: null,
   // Local mid-month date so the formatted month is timezone-independent
   createdAt: new Date(2025, 11, 15),
@@ -34,6 +35,18 @@ describe("ProfileHeader", () => {
   it("omits the website when none is set", () => {
     render(<ProfileHeader {...baseProps} website={null} />);
     expect(screen.queryByRole("link", { name: /\./ })).not.toBeInTheDocument();
+  });
+
+  it("renders the bio when set", () => {
+    render(<ProfileHeader {...baseProps} bio="Building things on the web." />);
+    expect(screen.getByText("Building things on the web.")).toBeInTheDocument();
+  });
+
+  it("omits the bio when none is set", () => {
+    render(<ProfileHeader {...baseProps} bio={null} />);
+    expect(
+      screen.queryByText("Building things on the web."),
+    ).not.toBeInTheDocument();
   });
 
   it("omits the member row when there is no member number", () => {

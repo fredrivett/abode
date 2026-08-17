@@ -106,6 +106,33 @@ describe("ProfileSettings visibility toggles", () => {
     ).toBeChecked();
   });
 
+  it("PATCHes the bio (with name and website) when saving profile changes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ bio: "Hello" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ProfileSettings firstName="Fred" bio="" />);
+
+    fireEvent.change(screen.getByLabelText("Bio"), {
+      target: { value: "Hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Fred",
+          lastName: "",
+          website: "",
+          bio: "Hello",
+        }),
+      }),
+    );
+  });
+
   it("keeps each toggle's pending state independent while both are in flight", async () => {
     // Two deferred responses so we can resolve the toggles independently
     const deferreds: Array<(v: { ok: boolean }) => void> = [];
