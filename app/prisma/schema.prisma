@@ -23,6 +23,7 @@ model User {
   firstName             String?   @map("first_name")
   lastName              String?   @map("last_name")
   website               String?   // Personal website / link shown on the public profile
+  bio                   String?   // Short free-text bio shown under the username on the public profile
   avatarUrl             String?   @map("avatar_url")
   avatarSource          AvatarSource? @map("avatar_source")
   memberNumber          Int?      @unique @map("member_number") // Sequential member number based on signup order
