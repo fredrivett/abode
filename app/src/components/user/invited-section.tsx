@@ -11,14 +11,12 @@ type InvitedUser = {
 
 type InvitedSectionProps = {
   referrals: InvitedUser[];
-  // When false, render just a count instead of surfacing individual profiles
-  showProfiles: boolean;
 };
 
-export function InvitedSection({
-  referrals,
-  showProfiles,
-}: InvitedSectionProps) {
+// Split-out section showing the individual people a user invited. Shown only
+// when the user opts to reveal profiles; otherwise the count is rendered inline
+// in the profile header.
+export function InvitedSection({ referrals }: InvitedSectionProps) {
   if (referrals.length === 0) return null;
 
   return (
@@ -27,17 +25,11 @@ export function InvitedSection({
         <Users className="size-5 text-muted-foreground" />
         Invited
       </h2>
-      {showProfiles ? (
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          {referrals.map((referral) => (
-            <ProfileTag key={referral.id} user={referral} />
-          ))}
-        </div>
-      ) : (
-        <p className="mt-6 text-center text-muted-foreground">
-          {referrals.length} {referrals.length === 1 ? "person" : "people"}
-        </p>
-      )}
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {referrals.map((referral) => (
+          <ProfileTag key={referral.id} user={referral} />
+        ))}
+      </div>
     </div>
   );
 }

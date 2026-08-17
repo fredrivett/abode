@@ -1,13 +1,11 @@
-import { DoorOpen, Globe, UserPlus } from "lucide-react";
-import Image from "next/image";
+import { DoorOpen } from "lucide-react";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { RoomCard } from "@/components/rooms/room-card";
 import { ProfileViewTracker } from "@/components/tracking/profile-view-tracker";
 import { InvitedSection } from "@/components/user/invited-section";
-import { ProfileTag } from "@/components/user/profile-tag";
+import { ProfileHeader } from "@/components/user/profile-header";
 import db from "@/lib/db";
-import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
 import {
   deriveRoomThumbnails,
@@ -15,7 +13,6 @@ import {
   roomThumbnailItemSelect,
   roomThumbnailItemWhere,
 } from "@/lib/rooms/room-thumbnails";
-import { getHostname } from "@/lib/url-utils";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -139,8 +136,6 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   const publicRooms = await getPublicRooms(user.id);
-  const displayName = getDisplayName(user);
-  const showUsername = user.firstName !== null;
 
   return (
     <>
@@ -152,68 +147,21 @@ export default async function ProfilePage({ params }: Props) {
       />
       <div className="flex flex-1 flex-col">
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-16">
-          <div className="flex flex-col items-center text-center">
-            {user.avatarUrl ? (
-              <Image
-                src={user.avatarUrl}
-                alt={displayName}
-                width={96}
-                height={96}
-                className="h-24 w-24 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted font-medium text-3xl text-muted-foreground">
-                {(
-                  user.firstName?.[0] ||
-                  user.username?.[0] ||
-                  "?"
-                ).toUpperCase()}
-              </div>
-            )}
-
-            <h1 className="mt-6 font-semibold font-serif text-3xl tracking-tight">
-              {displayName}
-            </h1>
-
-            {showUsername && (
-              <p className="mt-1 text-muted-foreground">@{user.username}</p>
-            )}
-
-            {user.website && (
-              <a
-                href={user.website}
-                target="_blank"
-                rel="me noopener noreferrer nofollow"
-                className="mt-4 inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-              >
-                <Globe className="size-4" />
-                {getHostname(user.website)}
-              </a>
-            )}
-
-            <p className="mt-4 text-muted-foreground text-sm">
-              {user.memberNumber &&
-                `Member #${formatMemberNumber(user.memberNumber)}, since `}
-              {!user.memberNumber && "Member since "}
-              {new Intl.DateTimeFormat("en-US", {
-                month: "long",
-                year: "numeric",
-              }).format(user.createdAt)}
-            </p>
-
-            {user.showInvitedBy && user.referredBy && (
-              <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
-                <UserPlus className="size-4" />
-                <span>Invited by</span>
-                <ProfileTag user={user.referredBy} />
-              </div>
-            )}
-          </div>
-
-          <InvitedSection
-            referrals={user.referrals}
-            showProfiles={user.showInvited}
+          <ProfileHeader
+            username={user.username}
+            firstName={user.firstName}
+            lastName={user.lastName}
+            website={user.website}
+            avatarUrl={user.avatarUrl}
+            createdAt={user.createdAt}
+            memberNumber={user.memberNumber}
+            showInvitedBy={user.showInvitedBy}
+            referredBy={user.referredBy}
+            showInvited={user.showInvited}
+            referralCount={user.referrals.length}
           />
+
+          {user.showInvited && <InvitedSection referrals={user.referrals} />}
 
           {publicRooms.length > 0 && (
             <div className="mt-12">
