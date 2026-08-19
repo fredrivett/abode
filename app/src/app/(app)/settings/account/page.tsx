@@ -34,6 +34,7 @@ export default async function AccountSettingsPage({
       firstName: true,
       lastName: true,
       website: true,
+      bio: true,
       showInvitedBy: true,
       showInvited: true,
       storageUsedBytes: true,
@@ -58,6 +59,7 @@ export default async function AccountSettingsPage({
         firstName={firstName}
         lastName={lastName}
         website={dbUser?.website}
+        bio={dbUser?.bio}
         username={dbUser?.username}
         email={email}
         initialAvatarUrl={dbUser?.avatarUrl}

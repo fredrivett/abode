@@ -7,6 +7,7 @@ import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
+import { BIO_MAX_LENGTH } from "@/lib/profile";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { normalizeWebsiteUrl } from "@/lib/url-utils";
 
@@ -16,6 +17,7 @@ const profileUpdateSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   website: z.string().max(2048).optional(),
+  bio: z.string().max(BIO_MAX_LENGTH).optional(),
   showInvitedBy: z.boolean().optional(),
   showInvited: z.boolean().optional(),
 });
@@ -41,6 +43,7 @@ export async function GET(_request: NextRequest) {
         firstName: true,
         lastName: true,
         website: true,
+        bio: true,
         avatarUrl: true,
         createdAt: true,
         updatedAt: true,
@@ -86,8 +89,12 @@ export async function PATCH(request: NextRequest) {
       return zodErrorResponse(parsed.error);
     }
 
-    const { firstName, lastName, website, showInvitedBy, showInvited } =
+    const { firstName, lastName, website, bio, showInvitedBy, showInvited } =
       parsed.data;
+
+    // Normalize the bio: empty (or whitespace-only) clears it
+    const bioValue: string | null | undefined =
+      bio === undefined ? undefined : bio.trim() || null;
 
     // Normalize the website: empty clears it, otherwise it must be a valid URL
     let websiteValue: string | null | undefined;
@@ -112,6 +119,7 @@ export async function PATCH(request: NextRequest) {
         ...(firstName !== undefined && { firstName: firstName || null }),
         ...(lastName !== undefined && { lastName: lastName || null }),
         ...(websiteValue !== undefined && { website: websiteValue }),
+        ...(bioValue !== undefined && { bio: bioValue }),
         ...(showInvitedBy !== undefined && { showInvitedBy }),
         ...(showInvited !== undefined && { showInvited }),
       },
@@ -120,6 +128,7 @@ export async function PATCH(request: NextRequest) {
         lastName: true,
         avatarUrl: true,
         website: true,
+        bio: true,
       },
     });
 
@@ -128,6 +137,7 @@ export async function PATCH(request: NextRequest) {
       ...(firstName !== undefined ? ["firstName"] : []),
       ...(lastName !== undefined ? ["lastName"] : []),
       ...(website !== undefined ? ["website"] : []),
+      ...(bio !== undefined ? ["bio"] : []),
       ...(showInvitedBy !== undefined ? ["showInvitedBy"] : []),
       ...(showInvited !== undefined ? ["showInvited"] : []),
     ];

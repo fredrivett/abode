@@ -106,6 +106,63 @@ describe("ProfileSettings visibility toggles", () => {
     ).toBeChecked();
   });
 
+  it("PATCHes the bio (with name and website) when saving profile changes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ bio: "Hello" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ProfileSettings firstName="Fred" bio="" />);
+
+    fireEvent.change(screen.getByLabelText("Bio"), {
+      target: { value: "Hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Fred",
+          lastName: "",
+          website: "",
+          bio: "Hello",
+        }),
+      }),
+    );
+  });
+
+  it("preserves bio edited while the save is in flight", async () => {
+    const deferreds: Array<
+      (v: { ok: boolean; json: () => Promise<unknown> }) => void
+    > = [];
+    const fetchMock = vi.fn(
+      () => new Promise((resolve) => deferreds.push(resolve)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ProfileSettings firstName="Fred" bio="" />);
+
+    const bioField = screen.getByLabelText("Bio");
+    fireEvent.change(bioField, { target: { value: "Hello" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    // User keeps typing before the response lands
+    fireEvent.change(bioField, { target: { value: "Hello world" } });
+
+    // Server echoes the normalized value of the *submitted* bio
+    deferreds[0]({ ok: true, json: async () => ({ bio: "Hello" }) });
+
+    // The newer text must survive, and the field stays dirty (save shown again)
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeVisible(),
+    );
+    expect(bioField).toHaveValue("Hello world");
+  });
+
   it("keeps each toggle's pending state independent while both are in flight", async () => {
     // Two deferred responses so we can resolve the toggles independently
     const deferreds: Array<(v: { ok: boolean }) => void> = [];

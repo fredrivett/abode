@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
+import { BIO_MAX_LENGTH } from "@/lib/profile";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
 import { requestEmailChange } from "../actions";
@@ -19,6 +21,7 @@ type ProfileSettingsProps = {
   firstName?: string | null;
   lastName?: string | null;
   website?: string | null;
+  bio?: string | null;
   username?: string | null;
   email?: string | null;
   initialAvatarUrl?: string | null;
@@ -31,6 +34,7 @@ export function ProfileSettings({
   firstName: initialFirstName,
   lastName: initialLastName,
   website: initialWebsite,
+  bio: initialBio,
   username,
   email,
   initialAvatarUrl,
@@ -41,9 +45,11 @@ export function ProfileSettings({
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
   const [website, setWebsite] = useState(initialWebsite ?? "");
+  const [bio, setBio] = useState(initialBio ?? "");
   const [savedFirstName, setSavedFirstName] = useState(initialFirstName ?? "");
   const [savedLastName, setSavedLastName] = useState(initialLastName ?? "");
   const [savedWebsite, setSavedWebsite] = useState(initialWebsite ?? "");
+  const [savedBio, setSavedBio] = useState(initialBio ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   // Public profile visibility toggles (saved immediately on change)
@@ -69,7 +75,8 @@ export function ProfileSettings({
   const hasProfileChanges =
     firstName !== savedFirstName ||
     lastName !== savedLastName ||
-    website !== savedWebsite;
+    website !== savedWebsite ||
+    bio !== savedBio;
 
   const hasEmailChanged =
     newEmail.trim().toLowerCase() !== (email ?? "").toLowerCase();
@@ -139,7 +146,7 @@ export function ProfileSettings({
       const response = await fetch("/api/v1/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, website }),
+        body: JSON.stringify({ firstName, lastName, website, bio }),
       });
 
       if (!response.ok) {
@@ -152,20 +159,26 @@ export function ProfileSettings({
 
       const updated = await response.json();
       const normalizedWebsite = updated.website ?? "";
+      const normalizedBio = updated.bio ?? "";
 
       // Capture which fields actually changed before we overwrite the saved state
       const updatedFields = [
         ...(firstName !== savedFirstName ? ["first_name"] : []),
         ...(lastName !== savedLastName ? ["last_name"] : []),
         ...(normalizedWebsite !== savedWebsite ? ["website"] : []),
+        ...(normalizedBio !== savedBio ? ["bio"] : []),
       ];
 
       // Update local saved state to track changes; reflect the server-normalized
-      // website (e.g. "example.com" saved as "https://example.com")
+      // website (e.g. "example.com" saved as "https://example.com") and trimmed bio
       setSavedFirstName(firstName);
       setSavedLastName(lastName);
       setWebsite(normalizedWebsite);
       setSavedWebsite(normalizedWebsite);
+      // Only reflect the normalized value if the field wasn't edited mid-save,
+      // otherwise we'd discard the newer text the user typed while in flight
+      setBio((currentBio) => (currentBio === bio ? normalizedBio : currentBio));
+      setSavedBio(normalizedBio);
 
       // Update zustand store so header reflects changes immediately
       setStoreFirstName(firstName || null);
@@ -254,6 +267,25 @@ export function ProfileSettings({
             <p className="text-muted-foreground text-xs">
               Shown on your public profile.
             </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={BIO_MAX_LENGTH}
+              rows={3}
+              placeholder="A short line or two about you."
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-muted-foreground text-xs">
+                Shown under your name on your public profile.
+              </p>
+              <p className="text-muted-foreground text-xs tabular-nums">
+                {bio.length}/{BIO_MAX_LENGTH}
+              </p>
+            </div>
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-4">

@@ -19,6 +19,7 @@ type ProfileHeaderProps = {
   firstName: string | null;
   lastName: string | null;
   website: string | null;
+  bio: string | null;
   avatarUrl: string | null;
   createdAt: Date;
   memberNumber: number | null;
@@ -36,6 +37,7 @@ export function ProfileHeader({
   firstName,
   lastName,
   website,
+  bio,
   avatarUrl,
   createdAt,
   memberNumber,
@@ -69,6 +71,12 @@ export function ProfileHeader({
 
       {showUsername && (
         <p className="mt-1 text-muted-foreground">@{username}</p>
+      )}
+
+      {bio && (
+        <p className="mt-4 max-w-md whitespace-pre-wrap text-pretty text-muted-foreground">
+          {bio}
+        </p>
       )}
 
       {website && (
