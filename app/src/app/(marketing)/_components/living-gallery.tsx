@@ -6,6 +6,8 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
+import { EssayPage } from "./essay-page";
+import { ExtensionPopup, type SaveState } from "./extension-popup";
 import {
   CardBody,
   faceClass,
@@ -51,6 +53,33 @@ const SCOOT_FRAC = 0.22;
 // The "save from anywhere" (browser extension) step — its demo frames the wall.
 const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
 
+// The extension vignette: while the "save from anywhere" step is active it
+// auto-plays — switch to the essay tab, open the extension popup, save, then
+// switch back to the abode tab. Reset to "idle" whenever the step deactivates.
+type VignettePhase =
+  | "idle" // abode tab, grid
+  | "essay" // switched to the essay tab
+  | "popup" // extension popup open
+  | "saving" // save in progress
+  | "saved" // save complete
+  | "returned"; // back on the abode tab, holding
+
+// Milliseconds each phase waits before advancing to the next.
+const VIGNETTE_TIMELINE: Partial<Record<VignettePhase, number>> = {
+  idle: 800,
+  essay: 900,
+  popup: 700,
+  saving: 1100,
+  saved: 900,
+};
+const NEXT_PHASE: Partial<Record<VignettePhase, VignettePhase>> = {
+  idle: "essay",
+  essay: "popup",
+  popup: "saving",
+  saving: "saved",
+  saved: "returned",
+};
+
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
   // off under reduced-motion. Off by default so SSR matches the static grid.
@@ -68,6 +97,8 @@ export function LivingGallery() {
   // fit the space left below the sticky header once scooted.
   const [gridNatH, setGridNatH] = useState(0);
   const [vh, setVh] = useState(0);
+  // Current phase of the auto-playing extension vignette.
+  const [vignette, setVignette] = useState<VignettePhase>("idle");
 
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
@@ -214,6 +245,33 @@ export function LivingGallery() {
   const showExtensionChrome =
     effectOn && scoot > 0.95 && activeStep === EXTENSION_STEP;
 
+  // Drive the vignette: while the extension step is framed, advance through the
+  // timeline one phase at a time; reset to the start whenever it deactivates
+  // (so scrolling away and back replays it).
+  useEffect(() => {
+    if (!showExtensionChrome) {
+      setVignette("idle");
+      return;
+    }
+    const delay = VIGNETTE_TIMELINE[vignette];
+    const next = NEXT_PHASE[vignette];
+    if (delay === undefined || next === undefined) return; // "returned" holds
+    const t = setTimeout(() => setVignette(next), delay);
+    return () => clearTimeout(t);
+  }, [showExtensionChrome, vignette]);
+
+  // The essay tab is active from the switch through to the save completing.
+  const onEssayTab =
+    vignette === "essay" ||
+    vignette === "popup" ||
+    vignette === "saving" ||
+    vignette === "saved";
+  const activeTab = onEssayTab ? 1 : 0;
+  const popupOpen =
+    vignette === "popup" || vignette === "saving" || vignette === "saved";
+  const saveState: SaveState =
+    vignette === "saving" ? "saving" : vignette === "saved" ? "saved" : "idle";
+
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
   // Once scooted it also scales down to fit the browser chrome (tab strip +
@@ -298,7 +356,15 @@ export function LivingGallery() {
 
           {/* The wall */}
           <div style={wallStyle}>
-            <BrowserChrome show={showExtensionChrome}>
+            <BrowserChrome
+              show={showExtensionChrome}
+              activeTab={activeTab}
+              extensionActive={popupOpen}
+            >
+              {effectOn && <EssayPage show={onEssayTab} />}
+              {effectOn && (
+                <ExtensionPopup show={popupOpen} state={saveState} />
+              )}
               <ul
                 ref={gridRef}
                 className={cn(
