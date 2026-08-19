@@ -175,7 +175,9 @@ export function ProfileSettings({
       setSavedLastName(lastName);
       setWebsite(normalizedWebsite);
       setSavedWebsite(normalizedWebsite);
-      setBio(normalizedBio);
+      // Only reflect the normalized value if the field wasn't edited mid-save,
+      // otherwise we'd discard the newer text the user typed while in flight
+      setBio((currentBio) => (currentBio === bio ? normalizedBio : currentBio));
       setSavedBio(normalizedBio);
 
       // Update zustand store so header reflects changes immediately
