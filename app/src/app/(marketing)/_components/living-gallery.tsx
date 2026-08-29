@@ -6,6 +6,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
+import { DragDropDemo } from "./drag-drop-demo";
 import { EssayPage } from "./essay-page";
 import { ExtensionPopup, type SaveState } from "./extension-popup";
 import {
@@ -84,8 +85,23 @@ const NEXT_PHASE: Partial<Record<VignettePhase, VignettePhase>> = {
   returning: "landed",
 };
 
-// The article the vignette "saves" — deliberately NOT one of the wall's cards,
-// so it genuinely appears (loads in) when we switch back after saving.
+// Demo cards land in the wall directly (they don't fly in from the hero), so
+// their scatter config is unused — but the type requires it.
+const NO_SCATTER = {
+  x: 0,
+  y: 0,
+  scale: 1,
+  blur: 0,
+  opacity: 1,
+  rot: 0,
+  z: 0,
+  amp: 0,
+  period: 1000,
+  phase: 0,
+} as const;
+
+// The article the extension vignette "saves" — deliberately NOT one of the
+// wall's cards, so it genuinely appears (loads in) after saving.
 const SAVED_CARD: GalleryCard = {
   kind: "article",
   id: "meat-proxy",
@@ -94,20 +110,77 @@ const SAVED_CARD: GalleryCard = {
   author: "Niklas Gruhn",
   readingTime: 3,
   insight: { kindLabel: "article", tags: ["ai", "writing", "blog"] },
-  // Unused (this card doesn't fly in), but required by the type.
-  scatter: {
-    x: 0,
-    y: 0,
-    scale: 1,
-    blur: 0,
-    opacity: 1,
-    rot: 0,
-    z: 0,
-    amp: 0,
-    period: 1000,
-    phase: 0,
-  },
+  scatter: NO_SCATTER,
 };
+
+// The image the drag & drop vignette drops onto the wall.
+const DROP_CARD: GalleryCard = {
+  kind: "image",
+  id: "bo-kaap-car",
+  src: "/gallery/bo-kaap-car.jpg",
+  width: 1200,
+  height: 1599,
+  title: "Bo-Kaap street",
+  insight: {
+    kindLabel: "photo",
+    objects: ["car", "house", "street", "building"],
+    colors: [
+      { hex: "#EC6A93", name: "pink" },
+      { hex: "#6FBF3B", name: "green" },
+      { hex: "#3FA9E0", name: "blue" },
+    ],
+    tags: ["photography", "travel", "colourful", "architecture"],
+  },
+  scatter: NO_SCATTER,
+};
+
+// The "drag & drop" step — its demo drops an image onto the wall.
+const DROP_STEP = STEPS.findIndex((s) => s.id === "drop");
+
+// The drag & drop vignette: a file is dragged over the wall, dropped, and grows
+// in as a new card.
+type DropPhase =
+  | "idle" // nothing yet
+  | "dragging" // file held over the dropzone
+  | "dropped" // released — uploading
+  | "landed"; // image grown into the wall
+const DROP_TIMELINE: Partial<Record<DropPhase, number>> = {
+  idle: 700,
+  dragging: 1600,
+  dropped: 600,
+};
+const DROP_NEXT: Partial<Record<DropPhase, DropPhase>> = {
+  idle: "dragging",
+  dragging: "dropped",
+  dropped: "landed",
+};
+
+// A demo card that grows into the wall (height 0fr → 1fr + fade, like the real
+// grid's ItemFrame). The inner box is pinned so it lays out once instead of
+// reflowing on every frame of the grow.
+function GrowInCard({ card, grown }: { card: GalleryCard; grown: boolean }) {
+  return (
+    <li className="group relative break-inside-avoid">
+      <div
+        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
+        style={{
+          gridTemplateRows: grown ? "1fr" : "0fr",
+          opacity: grown ? 1 : 0,
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={cn(faceClass(card), hoverClass(card))}
+            style={faceStyle(card)}
+          >
+            <CardBody card={card} />
+            <Intelligence card={card} />
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
 
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
@@ -128,6 +201,8 @@ export function LivingGallery() {
   const [vh, setVh] = useState(0);
   // Current phase of the auto-playing extension vignette.
   const [vignette, setVignette] = useState<VignettePhase>("idle");
+  // Current phase of the auto-playing drag & drop vignette.
+  const [drop, setDrop] = useState<DropPhase>("idle");
 
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
@@ -302,6 +377,21 @@ export function LivingGallery() {
     return () => clearTimeout(t);
   }, [vignetteEngaged, vignette]);
 
+  // Drive the drag & drop vignette the same way, but only engage once its step
+  // is reached (and beyond), so its dropped image also carries forward.
+  const dropEngaged = effectOn && scoot >= 0.95 && activeStep >= DROP_STEP;
+  useEffect(() => {
+    if (!dropEngaged) {
+      setDrop("idle");
+      return;
+    }
+    const delay = DROP_TIMELINE[drop];
+    const next = DROP_NEXT[drop];
+    if (delay === undefined || next === undefined) return; // "landed" holds
+    const t = setTimeout(() => setDrop(next), delay);
+    return () => clearTimeout(t);
+  }, [dropEngaged, drop]);
+
   // The essay tab is active from the switch through to the save completing.
   const onEssayTab =
     vignette === "essay" ||
@@ -321,7 +411,19 @@ export function LivingGallery() {
   const savedCardVisible =
     vignette === "saved" || vignette === "returning" || vignette === "landed";
   const savedCardGrown = vignette === "landed";
-  savedCardVisibleRef.current = savedCardVisible;
+
+  // Drag & drop: the demo overlay plays only on its own step; the dropped image
+  // mounts (collapsed) on release and grows in once it lands, like the saved
+  // card — and stays in the wall thereafter.
+  const atDropStep = activeStep === DROP_STEP;
+  const showDropDemo =
+    showChrome && atDropStep && (drop === "dragging" || drop === "dropped");
+  const dropCardVisible = drop === "dropped" || drop === "landed";
+  const dropCardGrown = drop === "landed";
+
+  // Freeze the measured baseline while any demo card sits in the wall, so the
+  // window keeps its height and clips the extra cards instead of growing.
+  savedCardVisibleRef.current = savedCardVisible || dropCardVisible;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -421,11 +523,19 @@ export function LivingGallery() {
                   state={saveState}
                 />
               )}
-              {/* Fixed-height window: once the saved card lands, hold the wall's
+              {effectOn && (
+                <DragDropDemo
+                  show={showDropDemo}
+                  dropping={drop === "dropped"}
+                />
+              )}
+              {/* Fixed-height window: once a demo card lands, hold the wall's
                   height and clip the overflow rather than growing the window. */}
               <div
                 style={
-                  effectOn && savedCardVisible && gridNatH > 0
+                  effectOn &&
+                  (savedCardVisible || dropCardVisible) &&
+                  gridNatH > 0
                     ? { height: gridNatH, overflow: "hidden" }
                     : undefined
                 }
@@ -442,35 +552,13 @@ export function LivingGallery() {
                     flying && "invisible",
                   )}
                 >
-                  {/* The freshly-saved article lands at the top of the wall.
-                    Mounted collapsed behind the essay page, it grows in (height
-                    0fr → 1fr + fade) once we're back on the abode tab — like the
-                    real grid's ItemFrame, minus a pixel measurement. The inner
-                    box is pinned so the card lays out once instead of reflowing
-                    on every frame of the grow. */}
+                  {/* Freshly-captured items land at the top of the wall, newest
+                      first, growing in as they arrive (drop after save). */}
+                  {effectOn && dropCardVisible && (
+                    <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
+                  )}
                   {effectOn && savedCardVisible && (
-                    <li className="group relative break-inside-avoid">
-                      <div
-                        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
-                        style={{
-                          gridTemplateRows: savedCardGrown ? "1fr" : "0fr",
-                          opacity: savedCardGrown ? 1 : 0,
-                        }}
-                      >
-                        <div className="min-h-0 overflow-hidden">
-                          <div
-                            className={cn(
-                              faceClass(SAVED_CARD),
-                              hoverClass(SAVED_CARD),
-                            )}
-                            style={faceStyle(SAVED_CARD)}
-                          >
-                            <CardBody card={SAVED_CARD} />
-                            <Intelligence card={SAVED_CARD} />
-                          </div>
-                        </div>
-                      </div>
-                    </li>
+                    <GrowInCard card={SAVED_CARD} grown={savedCardGrown} />
                   )}
                   {GALLERY_CARDS.map((card, i) => (
                     <li
