@@ -559,7 +559,7 @@ function ReadingDateField({
                 <div className="flex justify-center">
                   <Calendar
                     mode="single"
-                    selected={selected}
+                    selected={precision === "day" ? selected : undefined}
                     defaultMonth={selected ?? new Date()}
                     onSelect={pickDay}
                     disabled={{ after: new Date() }}
@@ -601,11 +601,16 @@ function ReadingDateField({
                     const disabled =
                       monthGridYear > currentYear ||
                       (monthGridYear === currentYear && i > currentMonth);
+                    const isSelected =
+                      precision === "month" &&
+                      selected !== undefined &&
+                      monthGridYear === selected.getUTCFullYear() &&
+                      i === selected.getUTCMonth();
                     return (
                       <Button
                         key={label}
                         type="button"
-                        variant="ghost"
+                        variant={isSelected ? "secondary" : "ghost"}
                         size="sm"
                         disabled={disabled}
                         className="h-8 text-xs"
@@ -651,19 +656,25 @@ function ReadingDateField({
                   {Array.from(
                     { length: YEARS_PER_PAGE },
                     (_, i) => yearGridStart + i,
-                  ).map((year) => (
-                    <Button
-                      key={year}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={year > currentYear || year < EARLIEST_YEAR}
-                      className="h-8 text-xs tabular-nums"
-                      onClick={() => pickYear(year)}
-                    >
-                      {year}
-                    </Button>
-                  ))}
+                  ).map((year) => {
+                    const isSelected =
+                      precision === "year" &&
+                      selected !== undefined &&
+                      year === selected.getUTCFullYear();
+                    return (
+                      <Button
+                        key={year}
+                        type="button"
+                        variant={isSelected ? "secondary" : "ghost"}
+                        size="sm"
+                        disabled={year > currentYear || year < EARLIEST_YEAR}
+                        className="h-8 text-xs tabular-nums"
+                        onClick={() => pickYear(year)}
+                      >
+                        {year}
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
             )}

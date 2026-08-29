@@ -149,6 +149,58 @@ describe("BookReadingControls date precision", () => {
     expect(screen.getByText("January 2016")).toBeInTheDocument();
   });
 
+  it("highlights only the matching month, not a day or year, for a month-precision value", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2010-02-01T00:00:00.000Z",
+      startedAtPrecision: "month",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Feb 2010" }));
+    expect(screen.getByRole("button", { name: "Feb" }).className).toContain(
+      "bg-secondary",
+    );
+    expect(screen.getByRole("button", { name: "Jan" }).className).not.toContain(
+      "bg-secondary",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Day" }));
+    expect(
+      screen.getByRole("button", { name: "Monday, February 1st, 2010" })
+        .className,
+    ).not.toContain("bg-secondary");
+
+    fireEvent.click(screen.getByRole("button", { name: "Year" }));
+    expect(
+      screen.getByRole("button", { name: "2010" }).className,
+    ).not.toContain("bg-secondary");
+  });
+
+  it("highlights only the matching year, not a month or day, for a year-precision value", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2010-01-01T00:00:00.000Z",
+      startedAtPrecision: "year",
+    });
+    // The trigger button and the grid cell for the selected year share the
+    // same "2010" accessible name once the popover is open — disambiguate by
+    // reference rather than name.
+    const trigger = screen.getByRole("button", { name: "2010" });
+    fireEvent.click(trigger);
+    const yearButtons = screen
+      .getAllByRole("button", { name: "2010" })
+      .filter((btn) => btn !== trigger);
+    expect(yearButtons).toHaveLength(1);
+    expect(yearButtons[0].className).toContain("bg-secondary");
+    expect(
+      screen.getByRole("button", { name: "2009" }).className,
+    ).not.toContain("bg-secondary");
+
+    fireEvent.click(screen.getByRole("button", { name: "Month" }));
+    expect(screen.getByRole("button", { name: "Jan" }).className).not.toContain(
+      "bg-secondary",
+    );
+  });
+
   it("picks a month-only start date via the Month tab", () => {
     renderControls({ status: "reading" });
     fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
