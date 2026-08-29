@@ -46,23 +46,40 @@ export function useSearch() {
   // Debounced URL update
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const updateUrl = useCallback((newState: SearchState) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+  const writeUrl = useCallback((newState: SearchState) => {
+    const params = serializeSearchParams(newState);
+    const queryString = params.toString();
+    const url = queryString ? `?${queryString}` : window.location.pathname;
 
-    timeoutRef.current = setTimeout(() => {
-      const params = serializeSearchParams(newState);
-      const queryString = params.toString();
-      const url = queryString ? `?${queryString}` : window.location.pathname;
+    // Track this URL so we ignore the popstate event
+    lastUrlRef.current = queryString;
 
-      // Track this URL so we ignore the popstate event
-      lastUrlRef.current = queryString;
-
-      // Use history.replaceState to update URL without triggering navigation
-      window.history.replaceState(null, "", url);
-    }, DEBOUNCE_MS);
+    // Use history.replaceState to update URL without triggering navigation
+    window.history.replaceState(null, "", url);
   }, []);
+
+  // Update the URL. Debounced by default (write-only during typing); pass
+  // `immediate` for discrete actions (e.g. clicking a chip) that may unmount
+  // this hook right after — a pending debounce would be cancelled on unmount
+  // and the URL never written.
+  const updateUrl = useCallback(
+    (newState: SearchState, immediate = false) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      if (immediate) {
+        writeUrl(newState);
+        return;
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        writeUrl(newState);
+      }, DEBOUNCE_MS);
+    },
+    [writeUrl],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -73,11 +90,11 @@ export function useSearch() {
     };
   }, []);
 
-  // Update local state immediately, debounce URL update
+  // Update local state immediately, debounce URL update (unless `immediate`)
   const setState = useCallback(
-    (newState: SearchState) => {
+    (newState: SearchState, options?: { immediate?: boolean }) => {
       setLocalState(newState);
-      updateUrl(newState);
+      updateUrl(newState, options?.immediate);
     },
     [updateUrl],
   );
