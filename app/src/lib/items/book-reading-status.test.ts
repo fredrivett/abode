@@ -3,7 +3,49 @@ import { describe, expect, it } from "vitest";
 import {
   BOOK_READING_STATUS_LABELS,
   bookReadingSchema,
+  isReadingDateRangeInverted,
 } from "./book-reading-status";
+
+describe("isReadingDateRangeInverted", () => {
+  it("is false when either date is missing", () => {
+    expect(isReadingDateRangeInverted(null, new Date(), "day")).toBe(false);
+    expect(isReadingDateRangeInverted(new Date(), null, "day")).toBe(false);
+  });
+
+  it("is true for a same-precision inverted pair", () => {
+    expect(
+      isReadingDateRangeInverted(
+        new Date("2026-08-01"),
+        new Date("2026-07-01"),
+        "day",
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for an overlapping coarse-precision pair", () => {
+    // Started March 2020 (month), finished sometime in 2020 (year) — not
+    // provably inverted.
+    expect(
+      isReadingDateRangeInverted(
+        new Date(Date.UTC(2020, 2, 1)),
+        new Date(Date.UTC(2020, 0, 1)),
+        "year",
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when the finished period ends before the started period starts", () => {
+    // Started March 2020, finished sometime in 2019 — every day in 2019 is
+    // before March 2020.
+    expect(
+      isReadingDateRangeInverted(
+        new Date(Date.UTC(2020, 2, 1)),
+        new Date(Date.UTC(2019, 0, 1)),
+        "year",
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("BOOK_READING_STATUS_LABELS", () => {
   it("has a label for every reading status", () => {
@@ -89,5 +131,62 @@ describe("bookReadingSchema", () => {
         finishedAt: "2026-07-01T00:00:00.000Z",
       }).success,
     ).toBe(true);
+  });
+
+  it("defaults to day precision (unchanged) when no precision is sent", () => {
+    const parsed = bookReadingSchema.parse({
+      startedAt: "2026-07-15T00:00:00.000Z",
+    });
+    expect(parsed.startedAtPrecision).toBe("day");
+    expect(parsed.startedAt).toEqual(new Date("2026-07-15T00:00:00.000Z"));
+  });
+
+  it("normalizes a month-precision date to the 1st of the month", () => {
+    const parsed = bookReadingSchema.parse({
+      startedAt: "2026-07-15T00:00:00.000Z",
+      startedAtPrecision: "month",
+    });
+    expect(parsed.startedAt).toEqual(new Date(Date.UTC(2026, 6, 1)));
+  });
+
+  it("normalizes a year-precision date to Jan 1", () => {
+    const parsed = bookReadingSchema.parse({
+      finishedAt: "2019-07-15T00:00:00.000Z",
+      finishedAtPrecision: "year",
+    });
+    expect(parsed.finishedAt).toEqual(new Date(Date.UTC(2019, 0, 1)));
+  });
+
+  it("clears precision alongside the date when clearing a field", () => {
+    const parsed = bookReadingSchema.parse({ startedAt: null });
+    expect(parsed.startedAt).toBeNull();
+    expect(parsed.startedAtPrecision).toBeNull();
+  });
+
+  it("allows an overlapping coarse-precision pair that isn't provably inverted", () => {
+    // Started March 2020 (month), finished sometime in 2020 (year) — the
+    // finished year could plausibly be after March, so this must not be
+    // rejected just because Jan 1 < Mar 1.
+    expect(
+      bookReadingSchema.safeParse({
+        startedAt: "2020-03-01T00:00:00.000Z",
+        startedAtPrecision: "month",
+        finishedAt: "2020-01-01T00:00:00.000Z",
+        finishedAtPrecision: "year",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a coarse-precision pair that is provably inverted", () => {
+    // Started March 2020, finished sometime in 2019 — every possible day in
+    // 2019 is before March 2020.
+    expect(
+      bookReadingSchema.safeParse({
+        startedAt: "2020-03-01T00:00:00.000Z",
+        startedAtPrecision: "month",
+        finishedAt: "2019-06-01T00:00:00.000Z",
+        finishedAtPrecision: "year",
+      }).success,
+    ).toBe(false);
   });
 });

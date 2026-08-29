@@ -1,5 +1,11 @@
 import { BookProgressUnit, BookReadingStatus } from "@prisma/client";
 import { z } from "zod";
+import {
+  type DatePrecisionValue,
+  datePrecisionSchema,
+  endOfPrecision,
+  startOfPrecision,
+} from "@/lib/items/date-precision";
 import type { BookDetails } from "@/lib/types/item";
 
 // Reading fields in their "not tracked" state. Used by read paths that don't
@@ -9,7 +15,9 @@ export const UNTRACKED_BOOK_READING: Pick<
   BookDetails,
   | "status"
   | "startedAt"
+  | "startedAtPrecision"
   | "finishedAt"
+  | "finishedAtPrecision"
   | "progressValue"
   | "progressUnit"
   | "progressUpdatedAt"
@@ -17,12 +25,52 @@ export const UNTRACKED_BOOK_READING: Pick<
 > = {
   status: null,
   startedAt: null,
+  startedAtPrecision: null,
   finishedAt: null,
+  finishedAtPrecision: null,
   progressValue: null,
   progressUnit: "page",
   progressUpdatedAt: null,
   rating: null,
 };
+
+// Normalizes a date + optional precision to a start-of-period instant plus a
+// definite precision. undefined date => field wasn't touched (undefined
+// passes through unchanged so callers can tell "not sent" from "cleared").
+function normalizeDateField(
+  date: Date | null | undefined,
+  precision: DatePrecisionValue | null | undefined,
+): {
+  date: Date | null | undefined;
+  precision: DatePrecisionValue | null | undefined;
+} {
+  if (date === undefined) return { date: undefined, precision: undefined };
+  if (date === null) return { date: null, precision: null };
+  const effectivePrecision = precision ?? "day";
+  return {
+    date: startOfPrecision(date, effectivePrecision),
+    precision: effectivePrecision,
+  };
+}
+
+// Whether a started/finished pair is provably inverted — i.e. every possible
+// instant in the finished period is before the started period. Coarse
+// precisions overlap rather than compare exactly (e.g. "started March 2020" /
+// "finished 2020" isn't inverted, since the finish could plausibly land after
+// March), so this compares the *latest* possible finished instant against the
+// *earliest* possible started instant. Shared by the in-request schema refine
+// and the route's merge-with-stored-values check.
+export function isReadingDateRangeInverted(
+  startedAt: Date | null,
+  finishedAt: Date | null,
+  finishedAtPrecision: DatePrecisionValue,
+): boolean {
+  return Boolean(
+    startedAt &&
+      finishedAt &&
+      endOfPrecision(finishedAt, finishedAtPrecision) < startedAt,
+  );
+}
 
 // Human-readable labels for each reading status. Vocabulary is book-specific —
 // other item kinds (e.g. movies) get their own status enum + labels rather than
@@ -52,7 +100,9 @@ export const bookReadingSchema = z
   .object({
     status: z.enum(BookReadingStatus).nullable().optional(),
     startedAt: z.coerce.date().nullable().optional(),
+    startedAtPrecision: datePrecisionSchema.nullable().optional(),
     finishedAt: z.coerce.date().nullable().optional(),
+    finishedAtPrecision: datePrecisionSchema.nullable().optional(),
     progressValue: z.number().int().nonnegative().nullable().optional(),
     progressUnit: z.enum(BookProgressUnit).optional(),
     rating: z
@@ -73,11 +123,27 @@ export const bookReadingSchema = z
       path: ["progressValue"],
     },
   )
+  // Normalize each date to the start of its known period (e.g. "month"
+  // precision truncates to the 1st) so a client can't send a mismatched
+  // date/precision pair.
+  .transform((v) => {
+    const started = normalizeDateField(v.startedAt, v.startedAtPrecision);
+    const finished = normalizeDateField(v.finishedAt, v.finishedAtPrecision);
+    return {
+      ...v,
+      startedAt: started.date,
+      startedAtPrecision: started.precision,
+      finishedAt: finished.date,
+      finishedAtPrecision: finished.precision,
+    };
+  })
   .refine(
     (v) =>
-      v.startedAt == null ||
-      v.finishedAt == null ||
-      v.finishedAt >= v.startedAt,
+      !isReadingDateRangeInverted(
+        v.startedAt ?? null,
+        v.finishedAt ?? null,
+        v.finishedAtPrecision ?? "day",
+      ),
     {
       message: "Finished date cannot be before started date",
       path: ["finishedAt"],

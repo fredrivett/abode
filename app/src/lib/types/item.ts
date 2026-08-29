@@ -16,6 +16,7 @@ import type {
   RoomType,
   SourceType,
 } from "@prisma/client";
+import type { DatePrecisionValue } from "@/lib/items/date-precision";
 
 // Re-export Instagram types for convenience
 export type {
@@ -106,8 +107,11 @@ export type BookDetails = {
   domain: string | null;
   // Per-user reading lifecycle. status null = saved but not tracked.
   status: BookReadingStatus | null;
+  // Precision null iff the corresponding date is null.
   startedAt: string | null;
+  startedAtPrecision: DatePrecisionValue | null;
   finishedAt: string | null;
+  finishedAtPrecision: DatePrecisionValue | null;
   progressValue: number | null;
   progressUnit: BookProgressUnit;
   progressUpdatedAt: string | null;
