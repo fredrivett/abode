@@ -20,7 +20,7 @@ export function EssayPage({ show }: { show: boolean }) {
     <div
       aria-hidden
       className={cn(
-        "absolute inset-0 z-20 overflow-hidden rounded-[2.5rem] bg-[#faf9f6] transition-opacity duration-500 ease-out",
+        "pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-[2.5rem] bg-[#faf9f6] transition-opacity duration-500 ease-out",
         show ? "opacity-100" : "opacity-0",
       )}
     >

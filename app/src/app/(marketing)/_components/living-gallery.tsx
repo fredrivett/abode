@@ -470,12 +470,19 @@ export function LivingGallery() {
     vignette === "popup" || vignette === "saving" || vignette === "saved";
   const saveState: SaveState =
     vignette === "saving" ? "saving" : vignette === "saved" ? "saved" : "idle";
-  // The saved card is mounted (collapsed, height 0) from "saved" on — behind the
-  // essay page and through the switch back — then grows into the wall (height +
-  // fade, like the real grid's ItemFrame) once we land on the abode tab.
+  // Card visibility is kept separate from the (per-step) replay phase so
+  // captured cards carry forward: while you're at a card's step it follows that
+  // step's playback (mounts collapsed, then grows in on land), and once you're
+  // past the step (activeStep > STEP) it stays in the wall even though the
+  // replay has reset. Scrolling back before a step grows it out again.
+  const scooted = scoot >= 0.95;
   const savedCardVisible =
-    vignette === "saved" || vignette === "returning" || vignette === "landed";
-  const savedCardGrown = vignette === "landed";
+    scooted &&
+    (activeStep > EXTENSION_STEP ||
+      vignette === "saved" ||
+      vignette === "returning" ||
+      vignette === "landed");
+  const savedCardGrown = activeStep > EXTENSION_STEP || vignette === "landed";
 
   // Drag & drop: the demo overlay plays only on its own step; the dropped image
   // mounts (collapsed) on release and grows in once it lands, like the saved
@@ -483,15 +490,19 @@ export function LivingGallery() {
   const atDropStep = activeStep === DROP_STEP;
   const showDropDemo =
     showChrome && atDropStep && (drop === "dragging" || drop === "dropped");
-  const dropCardVisible = drop === "dropped" || drop === "landed";
-  const dropCardGrown = drop === "landed";
+  const dropCardVisible =
+    scooted &&
+    (activeStep > DROP_STEP || drop === "dropped" || drop === "landed");
+  const dropCardGrown = activeStep > DROP_STEP || drop === "landed";
 
   // Paste: the shortcut shows only on its own step; the pasted tweet mounts on
   // release and grows in once it lands, then stays in the wall.
   const atPasteStep = activeStep === PASTE_STEP;
   const showPasteKeys = showChrome && atPasteStep && paste === "keys";
-  const pasteCardVisible = paste === "pasted" || paste === "landed";
-  const pasteCardGrown = paste === "landed";
+  const pasteCardVisible =
+    scooted &&
+    (activeStep > PASTE_STEP || paste === "pasted" || paste === "landed");
+  const pasteCardGrown = activeStep > PASTE_STEP || paste === "landed";
 
   // Keep each card mounted through its grow-out on the way back, so scrolling
   // back before a step reverses the entrance instead of popping the card away.
