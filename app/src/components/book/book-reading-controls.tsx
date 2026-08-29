@@ -9,7 +9,7 @@ import {
   X,
 } from "lucide-react";
 import posthog from "posthog-js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -124,6 +125,7 @@ export function BookReadingControls({
   // invalidation can't clobber what the user is actively typing — it only
   // re-syncs from the server while the field isn't focused.
   const [reviewDraft, setReviewDraft] = useState(bookDetails.review ?? "");
+  const reviewFieldId = useId();
   const reviewFocused = useRef(false);
   useEffect(() => {
     if (!reviewFocused.current) setReviewDraft(bookDetails.review ?? "");
@@ -410,11 +412,20 @@ export function BookReadingControls({
         </div>
       )}
 
-      {/* Review — visible publicly only when the item itself is shared */}
+      {/* Review — visible publicly only when the item itself is shared. The
+          one real form field here, so it gets a wired <Label> (accessible name
+          + predictable leading-none spacing), unlike the caption spans beside
+          the custom controls above. */}
       {isTracking && (
         <div className="space-y-2">
-          <span className="text-gray-500 text-xs">Review</span>
+          <Label
+            htmlFor={reviewFieldId}
+            className="font-normal text-gray-500 text-xs"
+          >
+            Review
+          </Label>
           <Textarea
+            id={reviewFieldId}
             value={reviewDraft}
             onChange={(e) => onReviewChange(e.target.value)}
             onFocus={() => {
