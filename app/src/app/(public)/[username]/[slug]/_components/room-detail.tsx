@@ -109,6 +109,10 @@ export function RoomDetail({
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
   const [items, setItems] = useState(initialItems);
+  // Track the room's total count locally so the header stays in sync with
+  // client-side deletes. Seeded from the server count (which can exceed the
+  // number of loaded items when the grid is paginated).
+  const [itemCount, setItemCount] = useState(room.itemCount);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -290,7 +294,7 @@ export function RoomDetail({
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <span>
-                {room.itemCount} {room.itemCount === 1 ? "item" : "items"}
+                {itemCount} {itemCount === 1 ? "item" : "items"}
               </span>
               {room.type === "smart" ? (
                 <>
@@ -412,9 +416,12 @@ export function RoomDetail({
                       size={size}
                       mimeType={mimeType}
                       canEdit={isOwner}
-                      onDeleted={() =>
-                        setItems((prev) => prev.filter((i) => i.id !== item.id))
-                      }
+                      onDeleted={() => {
+                        setItems((prev) =>
+                          prev.filter((i) => i.id !== item.id),
+                        );
+                        setItemCount((prev) => Math.max(0, prev - 1));
+                      }}
                     />
                   </Frame>
                 );

@@ -84,17 +84,20 @@ describe("RoomDetail", () => {
     vi.clearAllMocks();
   });
 
-  it("removes an item from the room grid when it reports being deleted", () => {
+  it("removes an item and updates the header count when it reports being deleted", () => {
     renderRoom();
 
     expect(screen.getByTestId("item-a")).toBeInTheDocument();
     expect(screen.getByTestId("item-b")).toBeInTheDocument();
+    expect(screen.getByText("2 items")).toBeInTheDocument();
 
     // ItemCard closes its own detail modal and calls onDeleted; the room view
-    // must drop the item from its local list so the card stops rendering.
+    // must drop the item from its local list so the card stops rendering, and
+    // keep the header count in sync with the grid.
     fireEvent.click(screen.getByRole("button", { name: "Delete Alpha" }));
 
     expect(screen.queryByTestId("item-a")).not.toBeInTheDocument();
     expect(screen.getByTestId("item-b")).toBeInTheDocument();
+    expect(screen.getByText("1 item")).toBeInTheDocument();
   });
 });
