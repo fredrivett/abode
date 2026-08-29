@@ -5,6 +5,7 @@ import { ProfileTag } from "@/components/user/profile-tag";
 import { formatInvitedCount } from "@/lib/format-invited-count";
 import { formatMemberNumber } from "@/lib/format-member-number";
 import { getDisplayName } from "@/lib/get-display-name";
+import { linkifyBio } from "@/lib/linkify-bio";
 import { getHostname } from "@/lib/url-utils";
 
 type InviterUser = {
@@ -75,7 +76,7 @@ export function ProfileHeader({
 
       {bio && (
         <p className="mt-4 max-w-md whitespace-pre-wrap text-pretty text-muted-foreground">
-          {bio}
+          {linkifyBio(bio)}
         </p>
       )}
 
