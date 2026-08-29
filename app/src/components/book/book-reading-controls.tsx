@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Star,
   X,
 } from "lucide-react";
 import posthog from "posthog-js";
@@ -30,6 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { RatingStars } from "@/components/ui/rating-stars";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { BOOK_READING_STATUS_LABELS } from "@/lib/items/book-reading-status";
@@ -83,11 +83,6 @@ const STATUS_ORDER: BookReadingStatus[] = [
   "read",
   "dnf",
 ];
-
-// Rating is stored /10 (half-stars); the UI currently offers whole stars only,
-// so a click on star N persists N*2. Half-star entry can be layered on later
-// without a storage change.
-const STARS = [1, 2, 3, 4, 5];
 
 type ReadingState = Pick<
   BookDetails,
@@ -274,7 +269,6 @@ export function BookReadingControls({
   const usePercentSlider = percentView || hasPages === null;
   const sliderMax = usePercentSlider ? 100 : hasPages;
   const sliderValue = usePercentSlider ? currentPercent : currentPage;
-  const filledStars = state.rating != null ? Math.round(state.rating / 2) : 0;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -403,36 +397,7 @@ export function BookReadingControls({
       {isTracking && (
         <div className="flex items-center justify-between">
           <span className="text-gray-500 text-xs">Rating</span>
-          <div className="flex items-center gap-0.5">
-            {STARS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
-                onClick={() => setRating(n * 2)}
-                className="p-0.5"
-              >
-                <Star
-                  className={cn(
-                    "size-4",
-                    n <= filledStars
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-gray-300 dark:text-gray-600",
-                  )}
-                />
-              </button>
-            ))}
-            {state.rating != null && (
-              <button
-                type="button"
-                aria-label="Clear rating"
-                onClick={() => setRating(null)}
-                className="ml-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
+          <RatingStars rating={state.rating} onChange={setRating} />
         </div>
       )}
     </div>
