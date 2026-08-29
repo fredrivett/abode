@@ -62,23 +62,30 @@ type VignettePhase =
   | "popup" // extension popup open
   | "saving" // save in progress
   | "saved" // save complete
-  | "returned"; // back on the abode tab, holding
+  | "returning" // back on the abode tab, the saved card loading in
+  | "landed"; // saved card resolved, holding
 
-// Milliseconds each phase waits before advancing to the next.
+// Milliseconds each phase waits before advancing to the next. "landed" has no
+// entry, so the vignette holds there until the step deactivates.
 const VIGNETTE_TIMELINE: Partial<Record<VignettePhase, number>> = {
-  idle: 800,
-  essay: 900,
-  popup: 700,
-  saving: 1100,
-  saved: 900,
+  idle: 1100,
+  essay: 1700,
+  popup: 1500,
+  saving: 1500,
+  saved: 1600,
+  returning: 1400,
 };
 const NEXT_PHASE: Partial<Record<VignettePhase, VignettePhase>> = {
   idle: "essay",
   essay: "popup",
   popup: "saving",
   saving: "saved",
-  saved: "returned",
+  saved: "returning",
+  returning: "landed",
 };
+
+// The card that "gets saved" in the vignette — it loads in on the switch back.
+const SAVED_CARD_ID = "start-a-startup";
 
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
@@ -271,6 +278,8 @@ export function LivingGallery() {
     vignette === "popup" || vignette === "saving" || vignette === "saved";
   const saveState: SaveState =
     vignette === "saving" ? "saving" : vignette === "saved" ? "saved" : "idle";
+  // On the switch back, the just-saved card loads in (skeleton → content).
+  const cardLoading = vignette === "returning";
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -391,6 +400,19 @@ export function LivingGallery() {
                     >
                       <CardBody card={card} />
                       <Intelligence card={card} />
+                      {/* The saved card loads in on the switch back: a pulsing
+                          skeleton that fades to reveal the real card. */}
+                      {effectOn && card.id === SAVED_CARD_ID && (
+                        <div
+                          aria-hidden
+                          className={cn(
+                            "absolute inset-0 z-20 animate-pulse bg-muted transition-opacity duration-500 ease-out",
+                            cardLoading
+                              ? "opacity-100"
+                              : "pointer-events-none opacity-0",
+                          )}
+                        />
+                      )}
                     </div>
                   </li>
                 ))}

@@ -22,38 +22,37 @@ export function ExtensionPopup({
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute top-3 right-3 z-30 w-72 origin-top-right transition-all duration-300 ease-out",
+        "pointer-events-none absolute top-3 right-3 z-30 w-96 origin-top-right transition-all duration-300 ease-out",
         show ? "scale-100 opacity-100" : "scale-95 opacity-0",
       )}
     >
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 text-left shadow-2xl">
-        <AbodeLogo className="h-5 w-auto text-foreground" aria-label="abode" />
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-5 text-left shadow-2xl">
+        <AbodeLogo className="h-6 w-auto text-foreground" aria-label="abode" />
 
         {/* the page being saved */}
-        <div className="flex items-center gap-2 rounded-md border border-border bg-card p-2">
+        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-2.5">
           {/* biome-ignore lint/performance/noImgElement: tiny static favicon */}
           <img
             src="/pg-favicon.png"
             alt=""
-            className="size-4 shrink-0 rounded-[3px]"
+            className="size-5 shrink-0 rounded-[4px]"
           />
           <div className="min-w-0">
-            <p className="truncate font-medium text-sm">
+            <p className="truncate font-medium text-[15px]">
               How to Start a Startup
             </p>
-            <p className="truncate text-muted-foreground text-xs">
+            <p className="truncate text-muted-foreground text-sm">
               paulgraham.com
             </p>
           </div>
         </div>
 
         {state === "saved" ? (
-          <Button variant="secondary" size="sm" disabled className="w-full">
+          <Button variant="secondary" disabled className="w-full">
             <Check className="size-4" /> Saved
           </Button>
         ) : (
           <Button
-            size="sm"
             disabled={state === "saving"}
             tabIndex={-1}
             className="w-full"

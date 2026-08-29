@@ -1,12 +1,14 @@
 import { cn } from "@/lib/utils";
 
-// Row widths (% of column) that stand in for the essay's body text — a couple
-// of paragraphs of greeked lines, so the page reads as paulgraham.com without
-// reproducing the real essay. 0 marks a paragraph gap. Keyed up-front so the
-// render doesn't lean on array indices.
-const BODY_ROWS = [
-  98, 94, 96, 88, 60, 0, 92, 97, 90, 95, 84, 68, 0, 96, 89, 72,
-].map((w, i) => ({ key: `row-${i}`, w }));
+// Placeholder (lorem ipsum) body copy so the page reads as an article without
+// reproducing the real essay. Keyed up-front so the render doesn't lean on
+// array indices.
+const PARAGRAPHS = [
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+  "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+  "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.",
+  "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est qui dolorem ipsum quia dolor sit amet.",
+].map((text, i) => ({ key: `p${i}`, text }));
 
 /**
  * A minimal paulgraham.com essay page, shown inside the browser chrome when the
@@ -29,19 +31,10 @@ export function EssayPage({ show }: { show: boolean }) {
         <p className="mt-3 text-neutral-500 text-sm">
           Paul Graham · March 2005
         </p>
-        <div className="mt-9 flex flex-col gap-3.5">
-          {BODY_ROWS.map((row) =>
-            row.w === 0 ? (
-              // paragraph break
-              <div key={row.key} className="h-2" />
-            ) : (
-              <div
-                key={row.key}
-                className="h-3 rounded-full bg-neutral-300/70"
-                style={{ width: `${row.w}%` }}
-              />
-            ),
-          )}
+        <div className="mt-8 flex flex-col gap-4 text-[13px] text-neutral-700 leading-[1.75]">
+          {PARAGRAPHS.map((p) => (
+            <p key={p.key}>{p.text}</p>
+          ))}
         </div>
       </div>
     </div>
