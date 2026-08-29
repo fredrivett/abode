@@ -292,6 +292,34 @@ describe("BookReadingControls rating", () => {
   });
 });
 
+describe("BookReadingControls review", () => {
+  it("debounce-saves a typed review", async () => {
+    renderControls({ status: "read" });
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Loved it" },
+    });
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+        bookReading: { review: "Loved it" },
+      }),
+    );
+  });
+
+  it("flushes a pending review save on unmount", async () => {
+    const { unmount } = renderControls({ status: "read" });
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Closed too soon" },
+    });
+    // Unmount before the 600ms debounce elapses — the edit must still persist.
+    unmount();
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+        bookReading: { review: "Closed too soon" },
+      }),
+    );
+  });
+});
+
 describe("BookReadingControls progress persistence", () => {
   it("debounces to store an exact page (not percent) when a page count is known", async () => {
     renderControls({

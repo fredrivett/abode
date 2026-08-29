@@ -53,9 +53,12 @@ describe("BookReadingSummary", () => {
       <BookReadingSummary
         bookDetails={{
           ...baseBook,
-          startedAt: "2026-07-01T00:00:00.000Z",
+          // Midday UTC so the local calendar day is stable across timezones —
+          // day precision formats in local time, and a midnight UTC timestamp
+          // would render as the previous day west of UTC.
+          startedAt: "2026-07-01T12:00:00.000Z",
           startedAtPrecision: "day",
-          finishedAt: "2026-08-01T00:00:00.000Z",
+          finishedAt: "2026-08-01T12:00:00.000Z",
           finishedAtPrecision: "day",
         }}
       />,

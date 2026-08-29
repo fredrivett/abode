@@ -241,17 +241,30 @@ export function BookReadingControls({
     posthog.capture("item_reading_rating_updated", { item_id: itemId, rating });
   };
 
+  // Serialize review saves through a promise chain so a slow older PATCH can't
+  // land after a newer one and overwrite the latest text in the DB — saves
+  // always apply in the order they were queued. (Debounce coalesces bursts;
+  // the chain guards the rarer case of two saves in flight on a slow network.)
+  const reviewSaveChain = useRef<Promise<void>>(Promise.resolve());
   const commitReview = useDebouncedCallback((review: string) => {
-    void (async () => {
-      try {
-        await api.patch(`/api/v1/items/${itemId}`, { bookReading: { review } });
-        invalidateItems();
-        posthog.capture("item_reading_review_updated", { item_id: itemId });
-      } catch {
-        toast.error("Failed to update review");
-      }
-    })();
+    reviewSaveChain.current = reviewSaveChain.current
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await api.patch(`/api/v1/items/${itemId}`, {
+            bookReading: { review },
+          });
+          invalidateItems();
+          posthog.capture("item_reading_review_updated", { item_id: itemId });
+        } catch {
+          toast.error("Failed to update review");
+        }
+      });
   }, 600);
+
+  // Flush a pending review save if the dialog unmounts before the debounce
+  // fires (e.g. the user closes it right after typing), so edits aren't lost.
+  useEffect(() => () => commitReview.flush(), [commitReview]);
 
   const onReviewChange = (review: string) => {
     setReviewDraft(review);
