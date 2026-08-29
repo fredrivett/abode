@@ -128,6 +128,18 @@ work with a *negative* priority: that schedules the run into the future and
 strands it in `queued`. Prioritise the foreground instead — that's what
 `USER_ACTION_PRIORITY` does.
 
+### Run tags for item runs
+
+Runs that process an item carry `item_<id>` + `user_<id>` tags so they're
+findable by item/owner in the dashboard (and via the Management API). You almost
+never tag manually: a **global `tasks.onStartAttempt` hook in `init.ts`** tags any
+run whose payload has `{ itemId, userId }` as it starts — children of a pipeline
+included, since Trigger doesn't propagate tags to child runs. So a new task that
+takes an item payload is tagged automatically; don't add `tags` at
+`tasks.trigger` sites. The one exception is `enqueueUserProcessing`, which also
+tags at trigger time so user runs are findable while still queued (the hook only
+fires once a run starts).
+
 ### From Inside Tasks (with Result handling)
 
 ```ts
