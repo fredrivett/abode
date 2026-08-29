@@ -412,7 +412,7 @@ export function BookReadingControls({
 
       {/* Review — visible publicly only when the item itself is shared */}
       {isTracking && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <span className="text-gray-500 text-xs">Review</span>
           <Textarea
             value={reviewDraft}
