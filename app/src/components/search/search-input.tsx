@@ -257,9 +257,24 @@ export function SearchInput({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
 
-    // Escape blurs the input
     if (e.key === "Escape") {
       e.preventDefault();
+      // Close an open filter dropdown first (strip incomplete @filter syntax)
+      if (dropdownOpen) {
+        handleCloseDropdown();
+        return;
+      }
+      // Close an open date picker (cancel the incomplete @date: filter)
+      if (datePickerOpen) {
+        handleCloseDatePicker(false);
+        return;
+      }
+      // Clear the search when there's anything to clear
+      if (value.query.length > 0 || value.filters.length > 0) {
+        onChange({ query: "", filters: [] });
+        return;
+      }
+      // Nothing to clear — blur the input
       input.blur();
       return;
     }

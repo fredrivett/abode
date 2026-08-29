@@ -97,6 +97,7 @@ function HeaderSearchSection() {
           >
             <X className="size-4" />
             Clear
+            <Kbd className="hidden md:inline-flex">esc</Kbd>
           </Button>
           <SaveAsRoomButton searchState={searchState} />
         </div>
