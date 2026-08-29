@@ -1,4 +1,10 @@
-import { ArrowLeft, Check, Minus, TriangleAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ExternalLink,
+  Minus,
+  TriangleAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -12,6 +18,8 @@ import {
   reconcileTweetMedia,
   SIMILAR_INSPECTOR_META,
 } from "@/lib/admin/item-inspector";
+import { triggerRunsUrl } from "@/lib/admin/trigger-dashboard";
+import { itemTag } from "@/lib/items/run-tags";
 import type { ImageColor, TwitterMedia } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
@@ -430,6 +438,9 @@ export default async function AdminItemInspectorPage({
 
   const visualVector = item.visualVectors[0] ?? null;
   const textVector = item.textVectors[0] ?? null;
+  // All background runs for this item are tagged item_<id>; link to that filter
+  // in the Trigger dashboard (null when TRIGGER_RUNS_DASHBOARD_URL is unset).
+  const runsUrl = triggerRunsUrl([itemTag(item.id)], { rootOnly: false });
   const similarImages = visualVector
     ? await getSimilarImagesForInspector({
         itemId: item.id,
@@ -481,6 +492,17 @@ export default async function AdminItemInspectorPage({
               </Link>
             </p>
           </div>
+          {runsUrl && (
+            <a
+              href={runsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
+            >
+              <ExternalLink className="size-4" />
+              Trigger runs
+            </a>
+          )}
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">

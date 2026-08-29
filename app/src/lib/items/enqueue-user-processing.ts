@@ -1,5 +1,16 @@
 import type { AnyTask, TaskIdentifier, TaskPayload } from "@trigger.dev/sdk";
 import { tasks } from "@trigger.dev/sdk";
+import { itemTag, userTag } from "@/lib/items/run-tags";
+
+/** Narrow a task payload to those carrying an `itemId` (all item pipelines do). */
+function hasItemId(payload: unknown): payload is { itemId: string } {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "itemId" in payload &&
+    typeof payload.itemId === "string"
+  );
+}
 
 /**
  * Trigger priority for user-initiated item processing on the shared processing
@@ -47,14 +58,22 @@ export const MAX_SAFE_PRIORITY = 2_000_000;
  * `no-raw-user-processing` Biome rule). Background work (admin reprocess,
  * backfills) intentionally does NOT use this: it triggers directly and runs at
  * the default priority 0.
+ *
+ * Also stamps `item_<id>` + `user_<id>` run tags (see run-tags.ts) so every
+ * user run is filterable back to its item/owner in the Trigger dashboard —
+ * centralised here so no user path can ship an untagged run.
  */
 export function enqueueUserProcessing<TTask extends AnyTask>(
   id: TaskIdentifier<TTask>,
   payload: TaskPayload<TTask>,
   userId: string,
 ) {
+  const tags = hasItemId(payload)
+    ? [itemTag(payload.itemId), userTag(userId)]
+    : [userTag(userId)];
   return tasks.trigger<TTask>(id, payload, {
     concurrencyKey: userId,
     priority: USER_ACTION_PRIORITY,
+    tags,
   });
 }

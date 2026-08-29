@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { USER_ACTION_PRIORITY } from "@/lib/items/enqueue-user-processing";
+import { itemTag, userTag } from "@/lib/items/run-tags";
 
 const {
   mockGetUser,
@@ -173,7 +174,11 @@ describe("POST /api/v1/items/[id]/reassign", () => {
         url: "https://example.com/x",
         forcedKind: "article",
       },
-      { concurrencyKey: "user_1", priority: USER_ACTION_PRIORITY },
+      {
+        concurrencyKey: "user_1",
+        priority: USER_ACTION_PRIORITY,
+        tags: [itemTag(ITEM_ID), userTag("user_1")],
+      },
     );
     expect(mockItemUpdate).not.toHaveBeenCalled();
   });
