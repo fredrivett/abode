@@ -87,6 +87,20 @@ describe("linkifyBio", () => {
       expect(result[2]).toBe("),");
       expect(result[3]).toBe(" then more");
     });
+
+    it("keeps a balanced closing paren that is part of the path", () => {
+      const url = "https://en.wikipedia.org/wiki/Foo_(bar)";
+      const result = linkifyBio(`see ${url}`);
+      expect(result).toHaveLength(2);
+      expect(asLink(result[1]).props.href).toBe(url);
+    });
+
+    it("keeps a balanced paren but still peels a trailing period", () => {
+      const url = "https://en.wikipedia.org/wiki/Foo_(bar)";
+      const result = linkifyBio(`see ${url}.`);
+      expect(asLink(result[1]).props.href).toBe(url);
+      expect(result[2]).toBe(".");
+    });
   });
 
   describe("multiple URLs", () => {
