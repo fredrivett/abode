@@ -4,8 +4,9 @@ import type { backfillTextVectorsTask } from "@app/trigger/backfill-text-vectors
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import type { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk";
-import { env } from "@/env.server";
+import { triggerRunsUrl } from "@/lib/admin/trigger-dashboard";
 import db from "@/lib/db";
+import { itemRunTags } from "@/lib/items/run-tags";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { batchIdempotencyKey } from "./batch-idempotency-key";
@@ -31,16 +32,9 @@ const REPROCESS_IDEMPOTENCY_TTL = "15m";
 /** All reprocess runs carry this tag so they're filterable in the dashboard. */
 const REPROCESS_TAG = "admin-reprocess";
 
-/**
- * A Trigger dashboard link filtered to this run's reprocess tag, or null when
- * `TRIGGER_RUNS_DASHBOARD_URL` isn't set. The base URL (which carries the private
- * org/project/env slugs) is config, not code — see env.server.ts.
- */
+/** Dashboard link filtered to this batch's reprocess tag (recent runs only). */
 function monitorUrl(): string | null {
-  const base = env.TRIGGER_RUNS_DASHBOARD_URL;
-  if (!base) return null;
-  const sep = base.includes("?") ? "&" : "?";
-  return `${base}${sep}tags=${REPROCESS_TAG}&period=1d&rootOnly=false`;
+  return triggerRunsUrl([REPROCESS_TAG], { period: "1d", rootOnly: false });
 }
 
 /**
@@ -181,7 +175,8 @@ async function reprocessHealGroup(
  * those tasks so every guardrail — the shared concurrency-2 queue, per-user
  * `concurrencyKey`, `markProcessingActive` — applies automatically, and carries
  * a per-item idempotency key so a double-click can't double-charge. Runs are
- * tagged `admin-reprocess` for dashboard monitoring.
+ * tagged `admin-reprocess` (plus per-item `item_<id>` / `user_<id>` tags) for
+ * dashboard monitoring.
  *
  * Error groups (failed/stuck) are a fresh attempt → flip to `processing` and
  * reset the reaper clock. Completed items are re-analysed silently in place, so
@@ -235,7 +230,7 @@ export async function reprocessIssueGroup(
     concurrencyKey: userId,
     idempotencyKey: `reprocess:${itemId}`,
     idempotencyKeyTTL: REPROCESS_IDEMPOTENCY_TTL,
-    tags: [REPROCESS_TAG],
+    tags: [REPROCESS_TAG, ...itemRunTags({ itemId, userId })],
   });
 
   const failedIds: string[] = [];

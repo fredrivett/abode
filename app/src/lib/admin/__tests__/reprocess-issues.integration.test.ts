@@ -108,13 +108,18 @@ describe("reprocessIssueGroup", () => {
     expect(urlCall?.map((i) => i.payload.itemId)).toEqual([urlItem]);
     expect(imageCall?.map((i) => i.payload.itemId)).toEqual([imageItem]);
     // Guardrails: per-user concurrencyKey, a per-item idempotency key (no
-    // double-charge), and a filterable dashboard tag. No `priority` — a negative
-    // priority delays the run (it's a createdAt offset), which stranded them.
+    // double-charge), and filterable dashboard tags (class + per-item + owner).
+    // No `priority` — a negative priority delays the run (it's a createdAt
+    // offset), which stranded them.
     expect(urlCall?.[0].options).toMatchObject({
       concurrencyKey: expect.any(String),
       idempotencyKey: `reprocess:${urlItem}`,
       idempotencyKeyTTL: expect.any(String),
-      tags: ["admin-reprocess"],
+      tags: expect.arrayContaining([
+        "admin-reprocess",
+        `item_${urlItem}`,
+        expect.stringMatching(/^user_/),
+      ]),
     });
     expect(urlCall?.[0].options).not.toHaveProperty("priority");
 
