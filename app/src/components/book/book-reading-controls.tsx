@@ -2,7 +2,14 @@
 
 import type { BookReadingStatus } from "@prisma/client";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Star, X } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  X,
+} from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -26,8 +33,49 @@ import {
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { BOOK_READING_STATUS_LABELS } from "@/lib/items/book-reading-status";
+import type { DatePrecisionValue } from "@/lib/items/date-precision";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
+
+// Earliest year selectable in the year-precision picker — comfortably before
+// any plausible reading date without listing an unbounded range.
+const EARLIEST_YEAR = 1900;
+
+// Years shown per page in the Year tab's grid (3 columns x 4 rows).
+const YEARS_PER_PAGE = 12;
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const PRECISION_OPTIONS: { value: DatePrecisionValue; label: string }[] = [
+  { value: "day", label: "Day" },
+  { value: "month", label: "Month" },
+  { value: "year", label: "Year" },
+];
+
+// Formats a stored date per its precision. Month/year read from UTC fields
+// (they're always normalized to a UTC period start) so display can't drift
+// across a month/year boundary depending on the viewer's local timezone; day
+// precision keeps the existing local-time `format` call unchanged.
+function formatReadingDate(iso: string, precision: DatePrecisionValue): string {
+  const date = new Date(iso);
+  if (precision === "year") return String(date.getUTCFullYear());
+  if (precision === "month")
+    return `${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return format(date, "MMM d, yyyy");
+}
 
 const STATUS_ORDER: BookReadingStatus[] = [
   "want_to_read",
@@ -45,7 +93,9 @@ type ReadingState = Pick<
   BookDetails,
   | "status"
   | "startedAt"
+  | "startedAtPrecision"
   | "finishedAt"
+  | "finishedAtPrecision"
   | "progressValue"
   | "progressUnit"
   | "rating"
@@ -55,7 +105,9 @@ function toReadingState(book: BookDetails): ReadingState {
   return {
     status: book.status,
     startedAt: book.startedAt,
+    startedAtPrecision: book.startedAtPrecision,
     finishedAt: book.finishedAt,
+    finishedAtPrecision: book.finishedAtPrecision,
     progressValue: book.progressValue,
     progressUnit: book.progressUnit,
     rating: book.rating,
@@ -272,7 +324,10 @@ export function BookReadingControls({
         <ReadingDateField
           label="Started"
           value={state.startedAt}
-          onChange={(iso) => save({ startedAt: iso })}
+          precision={state.startedAtPrecision}
+          onChange={(iso, precision) =>
+            save({ startedAt: iso, startedAtPrecision: precision })
+          }
         />
       )}
 
@@ -337,7 +392,10 @@ export function BookReadingControls({
         <ReadingDateField
           label="Finished"
           value={state.finishedAt}
-          onChange={(iso) => save({ finishedAt: iso })}
+          precision={state.finishedAtPrecision}
+          onChange={(iso, precision) =>
+            save({ finishedAt: iso, finishedAtPrecision: precision })
+          }
         />
       )}
 
@@ -384,15 +442,58 @@ export function BookReadingControls({
 type ReadingDateFieldProps = {
   label: string;
   value: string | null;
-  onChange: (iso: string | null) => void;
+  precision: DatePrecisionValue | null;
+  onChange: (iso: string | null, precision: DatePrecisionValue | null) => void;
 };
 
-function ReadingDateField({ label, value, onChange }: ReadingDateFieldProps) {
+function ReadingDateField({
+  label,
+  value,
+  precision,
+  onChange,
+}: ReadingDateFieldProps) {
   const [open, setOpen] = useState(false);
+  // Which precision tab is showing while the popover is open — defaults to
+  // the saved value's precision (or "day" for a fresh pick).
+  const [activePrecision, setActivePrecision] = useState<DatePrecisionValue>(
+    precision ?? "day",
+  );
+  const currentYear = new Date().getUTCFullYear();
+  const currentMonth = new Date().getUTCMonth();
+  const [monthGridYear, setMonthGridYear] = useState(
+    value ? new Date(value).getUTCFullYear() : currentYear,
+  );
+  // First year shown in the Year tab's paged grid — the page is sized so the
+  // relevant year (saved value, or currentYear) lands in the last slot,
+  // matching the month grid's "most recent visible by default" feel.
+  const [yearGridStart, setYearGridStart] = useState(
+    (value ? new Date(value).getUTCFullYear() : currentYear) -
+      YEARS_PER_PAGE +
+      1,
+  );
+
   const selected = value ? new Date(value) : undefined;
 
-  const pick = (date: Date | undefined) => {
-    onChange(date ? date.toISOString() : null);
+  const pickDay = (date: Date | undefined) => {
+    onChange(date ? date.toISOString() : null, date ? "day" : null);
+    setOpen(false);
+  };
+
+  const pickMonth = (monthIndex: number) => {
+    onChange(
+      new Date(Date.UTC(monthGridYear, monthIndex, 1)).toISOString(),
+      "month",
+    );
+    setOpen(false);
+  };
+
+  const pickYear = (year: number) => {
+    onChange(new Date(Date.UTC(year, 0, 1)).toISOString(), "year");
+    setOpen(false);
+  };
+
+  const clear = () => {
+    onChange(null, null);
     setOpen(false);
   };
 
@@ -400,7 +501,20 @@ function ReadingDateField({ label, value, onChange }: ReadingDateFieldProps) {
     <div className="flex items-center justify-between">
       <span className="text-gray-500 text-xs">{label}</span>
       <div className="flex items-center gap-1">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (next) {
+              setActivePrecision(precision ?? "day");
+              const referenceYear = value
+                ? new Date(value).getUTCFullYear()
+                : currentYear;
+              setMonthGridYear(referenceYear);
+              setYearGridStart(referenceYear - YEARS_PER_PAGE + 1);
+            }
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
@@ -408,34 +522,173 @@ function ReadingDateField({ label, value, onChange }: ReadingDateFieldProps) {
               className="h-7 gap-1.5 px-2 text-sm"
             >
               <CalendarIcon className="size-3.5 opacity-60" />
-              {selected ? format(selected, "MMM d, yyyy") : "Set date"}
+              {value
+                ? formatReadingDate(value, precision ?? "day")
+                : "Set date"}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <div className="border-b p-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => pick(new Date())}
-              >
-                Today
-              </Button>
+          <PopoverContent className="w-64 p-0" align="end">
+            <div className="flex items-center gap-1 border-b p-2">
+              {PRECISION_OPTIONS.map((opt) => (
+                <Button
+                  key={opt.value}
+                  type="button"
+                  variant={
+                    activePrecision === opt.value ? "secondary" : "ghost"
+                  }
+                  size="sm"
+                  className="h-7 flex-1 px-2 text-xs"
+                  onClick={() => setActivePrecision(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
             </div>
-            <Calendar
-              mode="single"
-              selected={selected}
-              onSelect={pick}
-              disabled={{ after: new Date() }}
-              autoFocus
-            />
+            {activePrecision === "day" && (
+              <>
+                <div className="border-b p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => pickDay(new Date())}
+                  >
+                    Today
+                  </Button>
+                </div>
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={
+                      precision === null || precision === "day"
+                        ? selected
+                        : undefined
+                    }
+                    defaultMonth={selected ?? new Date()}
+                    onSelect={pickDay}
+                    disabled={{ after: new Date() }}
+                    autoFocus
+                  />
+                </div>
+              </>
+            )}
+            {activePrecision === "month" && (
+              <div className="p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Previous year"
+                    onClick={() => setMonthGridYear((y) => y - 1)}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="font-medium text-sm tabular-nums">
+                    {monthGridYear}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Next year"
+                    disabled={monthGridYear >= currentYear}
+                    onClick={() => setMonthGridYear((y) => y + 1)}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {MONTH_LABELS.map((label, i) => {
+                    const disabled =
+                      monthGridYear > currentYear ||
+                      (monthGridYear === currentYear && i > currentMonth);
+                    const isSelected =
+                      precision === "month" &&
+                      selected !== undefined &&
+                      monthGridYear === selected.getUTCFullYear() &&
+                      i === selected.getUTCMonth();
+                    return (
+                      <Button
+                        key={label}
+                        type="button"
+                        variant={isSelected ? "secondary" : "ghost"}
+                        size="sm"
+                        disabled={disabled}
+                        className="h-8 text-xs"
+                        onClick={() => pickMonth(i)}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {activePrecision === "year" && (
+              <div className="p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Previous years"
+                    disabled={yearGridStart <= EARLIEST_YEAR}
+                    onClick={() => setYearGridStart((y) => y - YEARS_PER_PAGE)}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="font-medium text-sm tabular-nums">
+                    {yearGridStart}–{yearGridStart + YEARS_PER_PAGE - 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Next years"
+                    disabled={yearGridStart + YEARS_PER_PAGE - 1 >= currentYear}
+                    onClick={() => setYearGridStart((y) => y + YEARS_PER_PAGE)}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {Array.from(
+                    { length: YEARS_PER_PAGE },
+                    (_, i) => yearGridStart + i,
+                  ).map((year) => {
+                    const isSelected =
+                      precision === "year" &&
+                      selected !== undefined &&
+                      year === selected.getUTCFullYear();
+                    return (
+                      <Button
+                        key={year}
+                        type="button"
+                        variant={isSelected ? "secondary" : "ghost"}
+                        size="sm"
+                        disabled={year > currentYear || year < EARLIEST_YEAR}
+                        className="h-8 text-xs tabular-nums"
+                        onClick={() => pickYear(year)}
+                      >
+                        {year}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </PopoverContent>
         </Popover>
         {selected && (
           <button
             type="button"
             aria-label={`Clear ${label.toLowerCase()} date`}
-            onClick={() => onChange(null)}
+            onClick={clear}
             className="text-gray-400 hover:text-gray-600"
           >
             <X className="size-3.5" />

@@ -144,7 +144,9 @@ type RawItemRow = {
   book_domain: string | null;
   book_status: string | null;
   book_started_at: Date | null;
+  book_started_at_precision: string | null;
   book_finished_at: Date | null;
+  book_finished_at_precision: string | null;
   book_progress_value: number | null;
   book_progress_unit: string | null;
   book_progress_updated_at: Date | null;
@@ -293,7 +295,11 @@ function transformRawItemToItem(
             domain: row.book_domain,
             status: row.book_status as BookDetails["status"],
             startedAt: row.book_started_at?.toISOString() ?? null,
+            startedAtPrecision:
+              row.book_started_at_precision as BookDetails["startedAtPrecision"],
             finishedAt: row.book_finished_at?.toISOString() ?? null,
+            finishedAtPrecision:
+              row.book_finished_at_precision as BookDetails["finishedAtPrecision"],
             progressValue: row.book_progress_value,
             progressUnit: (row.book_progress_unit ??
               "page") as BookDetails["progressUnit"],
@@ -740,7 +746,9 @@ async function executeFiltersOnlySearch(
       bd.domain as book_domain,
       bd.status as book_status,
       bd.started_at as book_started_at,
+      bd.started_at_precision as book_started_at_precision,
       bd.finished_at as book_finished_at,
+      bd.finished_at_precision as book_finished_at_precision,
       bd.progress_value as book_progress_value,
       bd.progress_unit as book_progress_unit,
       bd.progress_updated_at as book_progress_updated_at,
@@ -993,7 +1001,9 @@ async function executeRankedSearch(
       bd.domain as book_domain,
       bd.status as book_status,
       bd.started_at as book_started_at,
+      bd.started_at_precision as book_started_at_precision,
       bd.finished_at as book_finished_at,
+      bd.finished_at_precision as book_finished_at_precision,
       bd.progress_value as book_progress_value,
       bd.progress_unit as book_progress_unit,
       bd.progress_updated_at as book_progress_updated_at,

@@ -527,6 +527,15 @@ enum BookProgressUnit {
   percent
 }
 
+// How precisely a started/finished date is known. The DateTime itself is
+// always normalized to the start of the known period (month -> 1st, year ->
+// Jan 1) so it stays directly sortable/comparable regardless of precision.
+enum DatePrecision {
+  day
+  month
+  year
+}
+
 model ItemBookDetails {
   itemId      String    @id @map("item_id") @db.Uuid
   item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -545,8 +554,12 @@ model ItemBookDetails {
   // When the user started/finished. Both nullable and never auto-stamped, so
   // back-dating books read before tracking existed stays clean. finishedAt is
   // set for both `read` and `dnf` (when the user stopped); status distinguishes.
-  startedAt   DateTime? @map("started_at")
-  finishedAt  DateTime? @map("finished_at")
+  // Precision defaults to day for existing/new exact dates; null precision
+  // with a non-null date also means day (keeps old rows valid pre-migration).
+  startedAt           DateTime?      @map("started_at")
+  startedAtPrecision  DatePrecision? @map("started_at_precision")
+  finishedAt          DateTime?      @map("finished_at")
+  finishedAtPrecision DatePrecision? @map("finished_at_precision")
 
   // Reading progress. Value is stored in whatever unit `progressUnit` names and
   // is never convert-and-restored on a unit toggle — the other unit is derived

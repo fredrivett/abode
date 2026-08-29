@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { zodErrorResponse } from "@/lib/http/zod-error";
+import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -293,7 +294,11 @@ export async function PATCH(
       ) {
         const stored = await db.itemBookDetails.findUnique({
           where: { itemId: id },
-          select: { startedAt: true, finishedAt: true },
+          select: {
+            startedAt: true,
+            finishedAt: true,
+            finishedAtPrecision: true,
+          },
         });
         const startedAt =
           bookReading.startedAt !== undefined
@@ -303,7 +308,13 @@ export async function PATCH(
           bookReading.finishedAt !== undefined
             ? bookReading.finishedAt
             : (stored?.finishedAt ?? null);
-        if (startedAt && finishedAt && startedAt > finishedAt) {
+        const finishedAtPrecision =
+          bookReading.finishedAt !== undefined
+            ? (bookReading.finishedAtPrecision ?? "day")
+            : (stored?.finishedAtPrecision ?? "day");
+        if (
+          isReadingDateRangeInverted(startedAt, finishedAt, finishedAtPrecision)
+        ) {
           return NextResponse.json(
             { message: "Finished date cannot be before started date" },
             { status: 400 },
@@ -315,9 +326,11 @@ export async function PATCH(
         ...(bookReading.status !== undefined && { status: bookReading.status }),
         ...(bookReading.startedAt !== undefined && {
           startedAt: bookReading.startedAt,
+          startedAtPrecision: bookReading.startedAtPrecision ?? null,
         }),
         ...(bookReading.finishedAt !== undefined && {
           finishedAt: bookReading.finishedAt,
+          finishedAtPrecision: bookReading.finishedAtPrecision ?? null,
         }),
         ...(bookReading.progressValue !== undefined && {
           progressValue: bookReading.progressValue,

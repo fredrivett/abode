@@ -14,7 +14,9 @@ const baseBook: BookDetails = {
   domain: "goodreads.com",
   status: null,
   startedAt: null,
+  startedAtPrecision: null,
   finishedAt: null,
+  finishedAtPrecision: null,
   progressValue: null,
   progressUnit: "page",
   progressUpdatedAt: null,
@@ -57,6 +59,21 @@ export const Reading: Story = {
       ...baseBook,
       status: "reading",
       startedAt: "2026-07-20T00:00:00.000Z",
+      startedAtPrecision: "day",
+      progressValue: 132,
+      progressUnit: "page",
+    },
+  },
+};
+
+/** Reading with a partial-precision started date (month only known). */
+export const ReadingStartedMonthOnly: Story = {
+  args: {
+    bookDetails: {
+      ...baseBook,
+      status: "reading",
+      startedAt: "2026-06-01T00:00:00.000Z",
+      startedAtPrecision: "month",
       progressValue: 132,
       progressUnit: "page",
     },
@@ -83,8 +100,25 @@ export const Read: Story = {
       ...baseBook,
       status: "read",
       startedAt: "2026-06-01T00:00:00.000Z",
+      startedAtPrecision: "day",
       finishedAt: "2026-07-01T00:00:00.000Z",
+      finishedAtPrecision: "day",
       rating: 10,
+    },
+  },
+};
+
+/** Finished — only the year of both dates is known. */
+export const ReadYearOnly: Story = {
+  args: {
+    bookDetails: {
+      ...baseBook,
+      status: "read",
+      startedAt: "2019-01-01T00:00:00.000Z",
+      startedAtPrecision: "year",
+      finishedAt: "2019-01-01T00:00:00.000Z",
+      finishedAtPrecision: "year",
+      rating: 8,
     },
   },
 };
@@ -95,7 +129,9 @@ export const DidNotFinish: Story = {
       ...baseBook,
       status: "dnf",
       startedAt: "2026-05-01T00:00:00.000Z",
+      startedAtPrecision: "day",
       finishedAt: "2026-05-10T00:00:00.000Z",
+      finishedAtPrecision: "day",
     },
   },
 };
