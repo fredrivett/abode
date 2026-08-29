@@ -2,13 +2,20 @@
 #
 # Conductor workspace run command. Starts the app dev server.
 #
-# Before booting we run two independent checks. The local Supabase DB is shared
-# across all workspaces, so we deliberately do NOT auto-apply or generate
-# migrations here — a feature branch could mutate the schema other workspaces
-# read from. Instead we fail fast and let the user act.
+# First we make sure the shared local Supabase stack is up (step 0), then we run
+# two independent checks against it. The local Supabase DB is shared across all
+# workspaces (fixed project_id "abode" → fixed containers/ports), so we
+# deliberately do NOT auto-apply or generate migrations here — a feature branch
+# could mutate the schema other workspaces read from. Instead we fail fast and
+# let the user act.
 #
+#   0. supabase up  — boot the shared stack if it isn't already running
 #   1. migrate status — are all committed migrations applied to the local DB?
 #   2. schema drift  — has schema.prisma changed without a migration generated?
+#
+# Step 0 only *starts* the stack (idempotent, safe from any workspace); it never
+# applies a feature branch's migrations, and a cold boot is run from the root
+# checkout so it seeds from the canonical (main) migrations, not this branch's.
 #
 # Check 2 must run after check 1: it diffs the live DB against schema.prisma, so
 # a pending-but-unapplied migration would also look like drift. Once check 1
@@ -25,6 +32,28 @@ yellow=$'\033[33m'
 cyan=$'\033[36m'
 reset=$'\033[0m'
 rule="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Step 0: ensure the shared Supabase stack is running.
+# The stack is shared (project_id "abode" → container "supabase_auth_abode",
+# fixed ports), so `supabase start` from any workspace attaches to the SAME
+# stack — starting it is idempotent and safe. We only boot it when it's down so
+# the migrate checks below have a DB to reach, mirroring what bin/dev does for
+# the non-Conductor flow. We start from the ROOT checkout ($CONDUCTOR_ROOT_PATH,
+# falling back to this workspace root): a cold boot applies whatever migrations
+# live there, and the root sits on the canonical branch, so a feature branch
+# never seeds the shared DB with its own not-yet-merged migrations. If Docker or
+# the Supabase CLI is missing, or the start fails, we don't abort — the migrate
+# check below then surfaces the clear "can't reach the local database" banner.
+supabase_root="${CONDUCTOR_ROOT_PATH:-$(cd .. && pwd)}"
+if command -v docker >/dev/null 2>&1; then
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^supabase_auth_abode$'; then
+    echo "${green}✓ Supabase already running${reset}"
+  elif [ -x "$supabase_root/scripts/start-supabase.sh" ]; then
+    echo "${cyan}Local Supabase isn't running — starting it from ${supabase_root}...${reset}"
+    (cd "$supabase_root" && ./scripts/start-supabase.sh) \
+      || echo "${yellow}⚠  Supabase start failed; continuing (the DB check below will report if it's unreachable).${reset}"
+  fi
+fi
 
 # Check 1: pending (generated but unapplied) migrations.
 # `prisma migrate status` exits non-zero when migrations are pending, the schema
