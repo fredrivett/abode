@@ -568,9 +568,13 @@ model ItemBookDetails {
   progressUnit      BookProgressUnit @default(page) @map("progress_unit")
   progressUpdatedAt DateTime?        @map("progress_updated_at")
 
-  // Rating stored on a /10 scale so half-stars work; displayed as /5. Review
-  // text reuses Item.notes rather than a dedicated column.
+  // Rating stored on a /10 scale so half-stars work; displayed as /5.
   rating      Int?
+
+  // Public-facing book review. Distinct from Item.notes (which is always
+  // private): review surfaces on public shelves/pages whenever the item itself
+  // is publicly viewable.
+  review      String?
 
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
