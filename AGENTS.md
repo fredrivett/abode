@@ -107,6 +107,18 @@ if (!isValidOtpType(type)) {
 // type is now narrowed to OtpType
 ```
 
+### Function Signatures
+
+- **No two positional params of the same type.** When a function takes two or more args of the same type (e.g. two `string`s), take a single object param so call sites are self-labeling and can't be silently transposed. A single param, or params of clearly distinct types, can stay positional.
+
+```ts
+// ❌ Bad: itemRunTags(userId, itemId) type-checks but is silently wrong
+function itemRunTags(itemId: string, userId: string): string[] { ... }
+
+// ✅ Good: the call site names each value — itemRunTags({ itemId, userId })
+function itemRunTags({ itemId, userId }: { itemId: string; userId: string }): string[] { ... }
+```
+
 ## Optional Services & Graceful Degradation
 
 abode must run on a **minimal core** (Postgres + Supabase) so it's genuinely self-hostable. Everything else is an **optional enhancement** that lights up when its key is present and degrades cleanly when it isn't. This is a core principle — follow it whenever you touch a third-party integration.
