@@ -154,6 +154,33 @@ describe("BookReadingControls date precision", () => {
       },
     });
   });
+
+  it("disables paging into the future on the Year tab", () => {
+    renderControls({ status: "reading" });
+    fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Year" }));
+    expect(screen.getByRole("button", { name: "Next years" })).toBeDisabled();
+  });
+
+  it("pages back to select a year outside the initial 12-year window", () => {
+    renderControls({ status: "reading" });
+    fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Year" }));
+    // 1950 isn't in the initial window (current year and the 11 before it)
+    expect(
+      screen.queryByRole("button", { name: "1950" }),
+    ).not.toBeInTheDocument();
+    for (let i = 0; i < 6; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "Previous years" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "1950" }));
+    expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+      bookReading: {
+        startedAt: new Date(Date.UTC(1950, 0, 1)).toISOString(),
+        startedAtPrecision: "year",
+      },
+    });
+  });
 });
 
 describe("BookReadingControls rating", () => {

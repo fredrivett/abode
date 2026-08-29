@@ -41,6 +41,9 @@ import { cn } from "@/lib/utils";
 // any plausible reading date without listing an unbounded range.
 const EARLIEST_YEAR = 1900;
 
+// Years shown per page in the Year tab's grid (3 columns x 4 rows).
+const YEARS_PER_PAGE = 12;
+
 const MONTH_LABELS = [
   "Jan",
   "Feb",
@@ -460,6 +463,14 @@ function ReadingDateField({
   const [monthGridYear, setMonthGridYear] = useState(
     value ? new Date(value).getUTCFullYear() : currentYear,
   );
+  // First year shown in the Year tab's paged grid — the page is sized so the
+  // relevant year (saved value, or currentYear) lands in the last slot,
+  // matching the month grid's "most recent visible by default" feel.
+  const [yearGridStart, setYearGridStart] = useState(
+    (value ? new Date(value).getUTCFullYear() : currentYear) -
+      YEARS_PER_PAGE +
+      1,
+  );
 
   const selected = value ? new Date(value) : undefined;
 
@@ -496,9 +507,11 @@ function ReadingDateField({
             setOpen(next);
             if (next) {
               setActivePrecision(precision ?? "day");
-              setMonthGridYear(
-                value ? new Date(value).getUTCFullYear() : currentYear,
-              );
+              const referenceYear = value
+                ? new Date(value).getUTCFullYear()
+                : currentYear;
+              setMonthGridYear(referenceYear);
+              setYearGridStart(referenceYear - YEARS_PER_PAGE + 1);
             }
           }}
         >
@@ -605,22 +618,52 @@ function ReadingDateField({
               </div>
             )}
             {activePrecision === "year" && (
-              <div className="max-h-56 overflow-y-auto p-1">
-                {Array.from(
-                  { length: currentYear - EARLIEST_YEAR + 1 },
-                  (_, i) => currentYear - i,
-                ).map((year) => (
+              <div className="p-3">
+                <div className="mb-2 flex items-center justify-between">
                   <Button
-                    key={year}
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="w-full justify-center text-sm tabular-nums"
-                    onClick={() => pickYear(year)}
+                    size="icon"
+                    className="size-7"
+                    aria-label="Previous years"
+                    disabled={yearGridStart <= EARLIEST_YEAR}
+                    onClick={() => setYearGridStart((y) => y - YEARS_PER_PAGE)}
                   >
-                    {year}
+                    <ChevronLeft className="size-4" />
                   </Button>
-                ))}
+                  <span className="font-medium text-sm tabular-nums">
+                    {yearGridStart}–{yearGridStart + YEARS_PER_PAGE - 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Next years"
+                    disabled={yearGridStart + YEARS_PER_PAGE - 1 >= currentYear}
+                    onClick={() => setYearGridStart((y) => y + YEARS_PER_PAGE)}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {Array.from(
+                    { length: YEARS_PER_PAGE },
+                    (_, i) => yearGridStart + i,
+                  ).map((year) => (
+                    <Button
+                      key={year}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={year > currentYear || year < EARLIEST_YEAR}
+                      className="h-8 text-xs tabular-nums"
+                      onClick={() => pickYear(year)}
+                    >
+                      {year}
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
           </PopoverContent>
