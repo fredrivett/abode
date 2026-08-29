@@ -140,9 +140,15 @@ export default async function RoomPage({ params }: Props) {
 
   const PAGE_SIZE = 100;
 
-  // Fetch room items with their associated items
+  // Fetch room items with their associated items. Non-owners only see items
+  // that are actually publicly viewable in this room: an item opted out of
+  // public rooms (`excludeFromPublicRooms`) isn't viewable per `canViewItem`,
+  // so it must not appear here — otherwise its now-public reading data leaks.
   const roomItems = await db.roomItem.findMany({
-    where: { roomId: room.id },
+    where: {
+      roomId: room.id,
+      ...(isOwner ? {} : { item: { excludeFromPublicRooms: false } }),
+    },
     take: PAGE_SIZE + 1,
     orderBy: { addedAt: "desc" },
     select: {
