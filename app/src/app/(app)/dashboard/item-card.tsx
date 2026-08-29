@@ -98,7 +98,11 @@ import {
 } from "@/lib/milestones/conditions";
 import { getPlatformName } from "@/lib/platforms";
 import { useSearch } from "@/lib/search";
-import { createFilterId } from "@/lib/search/types";
+import {
+  type ChipSearch,
+  chipSearchAnalytics,
+  chipSearchState,
+} from "@/lib/search/chip-search";
 import { createClient } from "@/lib/supabase/client";
 import type {
   ExternalLink as ExternalLinkType,
@@ -1591,6 +1595,19 @@ function ItemDetailDialog({
     void saveUserTags(newTags, "removed", tagToRemove);
   };
 
+  // Clicking a value chip (color, object, or tag) replaces the current search
+  // with that single filter and closes the dialog
+  const handleChipSearch = (chip: ChipSearch) => {
+    // Write the URL immediately: closing the dialog unmounts this hook, which
+    // would cancel a debounced URL update before it fires
+    setSearchState(chipSearchState(chip), { immediate: true });
+    posthog.capture(
+      "item_detail_chip_searched",
+      chipSearchAnalytics({ itemId: item.id, ...chip }),
+    );
+    onOpenChange(false);
+  };
+
   const handleDownload = async () => {
     if (!item.fileKey) {
       toast.error("No file available to download");
@@ -1939,20 +1956,9 @@ function ItemDetailDialog({
                           visible={!!fullQualityUrl}
                           onColorHover={setHoveredColorHex}
                           onColorHoverEnd={() => setHoveredColorHex(null)}
-                          onColorSearch={(hex) => {
-                            setSearchState({
-                              query: "",
-                              filters: [
-                                {
-                                  id: createFilterId(),
-                                  type: "color",
-                                  value: hex,
-                                  negated: false,
-                                },
-                              ],
-                            });
-                            onOpenChange(false);
-                          }}
+                          onColorSearch={(hex) =>
+                            handleChipSearch({ type: "color", value: hex })
+                          }
                         />
                       </div>
                     )}
@@ -2475,12 +2481,20 @@ function ItemDetailDialog({
                           </h3>
                           <div className="flex flex-wrap gap-1.5">
                             {item.objects.map((obj) => (
-                              <span
+                              <button
+                                type="button"
                                 key={obj}
-                                className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs dark:bg-blue-900/30 dark:text-blue-300"
+                                onClick={() =>
+                                  handleChipSearch({
+                                    type: "object",
+                                    value: obj,
+                                  })
+                                }
+                                className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs transition-colors hover:bg-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                                aria-label={`Search for ${obj}`}
                               >
                                 {obj}
-                              </span>
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -2514,7 +2528,20 @@ function ItemDetailDialog({
                                   key={`user-${tag}`}
                                   className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-medium text-primary text-xs dark:bg-primary/20"
                                 >
-                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleChipSearch({
+                                        type: "tag",
+                                        value: tag,
+                                        isUserTag: true,
+                                      })
+                                    }
+                                    className="cursor-pointer rounded transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    aria-label={`Search for ${tag}`}
+                                  >
+                                    {tag}
+                                  </button>
                                   {canEdit && (
                                     <button
                                       type="button"
@@ -2529,12 +2556,20 @@ function ItemDetailDialog({
                               ))}
                               {/* Auto-generated tags (secondary/gray styling, read-only) */}
                               {item.tags.map((tag) => (
-                                <span
+                                <button
+                                  type="button"
                                   key={`auto-${tag}`}
-                                  className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700 text-xs dark:bg-gray-800 dark:text-gray-300"
+                                  onClick={() =>
+                                    handleChipSearch({
+                                      type: "tag",
+                                      value: tag,
+                                    })
+                                  }
+                                  className="inline-flex cursor-pointer items-center rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  aria-label={`Search for ${tag}`}
                                 >
                                   {tag}
-                                </span>
+                                </button>
                               ))}
                             </div>
                           )}

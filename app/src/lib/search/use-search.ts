@@ -29,7 +29,11 @@ export function useSearch() {
   // Track the last URL we set to avoid reacting to our own changes
   const lastUrlRef = useRef<string | null>(null);
 
-  // Handle browser back/forward navigation
+  // Debounced URL update
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle external URL changes (browser back/forward, or another useSearch
+  // instance writing the URL — e.g. clicking a chip in the item dialog)
   useEffect(() => {
     const currentUrl = searchParams.toString();
 
@@ -38,31 +42,52 @@ export function useSearch() {
       return;
     }
 
-    // External navigation (back/forward) - sync from URL
+    // A pending debounced write is now stale — the external change supersedes
+    // it. Drop it so it can't clobber the URL after we sync (e.g. a chip's
+    // immediate write being overwritten by the header's typed-query timer).
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const urlState = parseSearchParams(searchParams);
     setLocalState(urlState);
   }, [searchParams]);
 
-  // Debounced URL update
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const writeUrl = useCallback((newState: SearchState) => {
+    const params = serializeSearchParams(newState);
+    const queryString = params.toString();
+    const url = queryString ? `?${queryString}` : window.location.pathname;
 
-  const updateUrl = useCallback((newState: SearchState) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    // Track this URL so we ignore the popstate event
+    lastUrlRef.current = queryString;
 
-    timeoutRef.current = setTimeout(() => {
-      const params = serializeSearchParams(newState);
-      const queryString = params.toString();
-      const url = queryString ? `?${queryString}` : window.location.pathname;
-
-      // Track this URL so we ignore the popstate event
-      lastUrlRef.current = queryString;
-
-      // Use history.replaceState to update URL without triggering navigation
-      window.history.replaceState(null, "", url);
-    }, DEBOUNCE_MS);
+    // Use history.replaceState to update URL without triggering navigation
+    window.history.replaceState(null, "", url);
   }, []);
+
+  // Update the URL. Debounced by default (write-only during typing); pass
+  // `immediate` for discrete actions (e.g. clicking a chip) that may unmount
+  // this hook right after — a pending debounce would be cancelled on unmount
+  // and the URL never written.
+  const updateUrl = useCallback(
+    (newState: SearchState, immediate = false) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      if (immediate) {
+        writeUrl(newState);
+        return;
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        writeUrl(newState);
+      }, DEBOUNCE_MS);
+    },
+    [writeUrl],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -73,11 +98,11 @@ export function useSearch() {
     };
   }, []);
 
-  // Update local state immediately, debounce URL update
+  // Update local state immediately, debounce URL update (unless `immediate`)
   const setState = useCallback(
-    (newState: SearchState) => {
+    (newState: SearchState, options?: { immediate?: boolean }) => {
       setLocalState(newState);
-      updateUrl(newState);
+      updateUrl(newState, options?.immediate);
     },
     [updateUrl],
   );
