@@ -272,6 +272,15 @@ export default async function RoomPage({ params }: Props) {
     ? (paginatedRoomItems[paginatedRoomItems.length - 1]?.id ?? null)
     : null;
 
+  // Count only what the viewer can actually see: the grid filters out excluded
+  // items for non-owners (above), so the header count must use the same
+  // predicate or it reveals that hidden items exist.
+  const itemCount = isOwner
+    ? room._count.roomItems
+    : await db.roomItem.count({
+        where: { roomId: room.id, item: { excludeFromPublicRooms: false } },
+      });
+
   const roomForClient = {
     id: room.id,
     name: room.name,
@@ -282,7 +291,7 @@ export default async function RoomPage({ params }: Props) {
     visibility: room.visibility as RoomVisibility,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
-    itemCount: room._count.roomItems,
+    itemCount,
   };
 
   const itemsForClient = paginatedRoomItems.map((roomItem) => ({
