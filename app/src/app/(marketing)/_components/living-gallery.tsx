@@ -204,6 +204,18 @@ function useExitDelay(active: boolean, ms: number) {
   return rendered;
 }
 
+// Latch a capture's completion: turns true once `landed` happens and stays true
+// (so its card carries forward) until `active` goes false — i.e. you scroll
+// back before its step. A card scrolled past before it lands never latches.
+function useLandedLatch(landed: boolean, active: boolean) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (landed) setDone(true);
+    else if (!active) setDone(false);
+  }, [landed, active]);
+  return done;
+}
+
 // A demo card that grows into the wall (height 0fr → 1fr + fade, like the real
 // grid's ItemFrame) and, when it leaves, reverses that to grow out. The inner
 // box is pinned so it lays out once instead of reflowing on every frame.
@@ -476,13 +488,25 @@ export function LivingGallery() {
   // past the step (activeStep > STEP) it stays in the wall even though the
   // replay has reset. Scrolling back before a step grows it out again.
   const scooted = scoot >= 0.95;
+  // Latch each capture's completion so a card only carries forward once its
+  // vignette actually reached "landed" — scrolling past mid-play doesn't count.
+  const savedDone = useLandedLatch(vignette === "landed", scooted);
+  const dropDone = useLandedLatch(
+    drop === "landed",
+    scooted && activeStep >= DROP_STEP,
+  );
+  const pasteDone = useLandedLatch(
+    paste === "landed",
+    scooted && activeStep >= PASTE_STEP,
+  );
   const savedCardVisible =
     scooted &&
-    (activeStep > EXTENSION_STEP ||
+    ((activeStep > EXTENSION_STEP && savedDone) ||
       vignette === "saved" ||
       vignette === "returning" ||
       vignette === "landed");
-  const savedCardGrown = activeStep > EXTENSION_STEP || vignette === "landed";
+  const savedCardGrown =
+    (activeStep > EXTENSION_STEP && savedDone) || vignette === "landed";
 
   // Drag & drop: the demo overlay plays only on its own step; the dropped image
   // mounts (collapsed) on release and grows in once it lands, like the saved
@@ -492,8 +516,11 @@ export function LivingGallery() {
     showChrome && atDropStep && (drop === "dragging" || drop === "dropped");
   const dropCardVisible =
     scooted &&
-    (activeStep > DROP_STEP || drop === "dropped" || drop === "landed");
-  const dropCardGrown = activeStep > DROP_STEP || drop === "landed";
+    ((activeStep > DROP_STEP && dropDone) ||
+      drop === "dropped" ||
+      drop === "landed");
+  const dropCardGrown =
+    (activeStep > DROP_STEP && dropDone) || drop === "landed";
 
   // Paste: the shortcut shows only on its own step; the pasted tweet mounts on
   // release and grows in once it lands, then stays in the wall.
@@ -501,8 +528,11 @@ export function LivingGallery() {
   const showPasteKeys = showChrome && atPasteStep && paste === "keys";
   const pasteCardVisible =
     scooted &&
-    (activeStep > PASTE_STEP || paste === "pasted" || paste === "landed");
-  const pasteCardGrown = activeStep > PASTE_STEP || paste === "landed";
+    ((activeStep > PASTE_STEP && pasteDone) ||
+      paste === "pasted" ||
+      paste === "landed");
+  const pasteCardGrown =
+    (activeStep > PASTE_STEP && pasteDone) || paste === "landed";
 
   // Keep each card mounted through its grow-out on the way back, so scrolling
   // back before a step reverses the entrance instead of popping the card away.
