@@ -33,17 +33,15 @@ export function ExtensionPopup({
         <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-2.5">
           {/* biome-ignore lint/performance/noImgElement: tiny static favicon */}
           <img
-            src="/pg-favicon.png"
+            src="/globe.svg"
             alt=""
             className="size-5 shrink-0 rounded-[4px]"
           />
           <div className="min-w-0">
             <p className="truncate font-medium text-[15px]">
-              How to Start a Startup
+              Don't be a meat proxy
             </p>
-            <p className="truncate text-muted-foreground text-sm">
-              paulgraham.com
-            </p>
+            <p className="truncate text-muted-foreground text-sm">gruhn.me</p>
           </div>
         </div>
 

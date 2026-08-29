@@ -5,7 +5,7 @@ type TabInfo = { favicon: string; title: string };
 
 const TABS: TabInfo[] = [
   { favicon: "/favicon-light.png", title: "abode" },
-  { favicon: "/pg-favicon.png", title: "How to Start a Startup" },
+  { favicon: "/globe.svg", title: "Don't be a meat proxy" },
 ];
 
 function Tab({ favicon, title, active }: TabInfo & { active: boolean }) {

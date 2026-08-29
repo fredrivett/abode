@@ -15,7 +15,7 @@ import {
   hoverClass,
   Intelligence,
 } from "./gallery-card";
-import { GALLERY_CARDS } from "./gallery-data";
+import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 import { Highlight } from "./highlight";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -84,8 +84,30 @@ const NEXT_PHASE: Partial<Record<VignettePhase, VignettePhase>> = {
   returning: "landed",
 };
 
-// The card that "gets saved" in the vignette — it loads in on the switch back.
-const SAVED_CARD_ID = "start-a-startup";
+// The article the vignette "saves" — deliberately NOT one of the wall's cards,
+// so it genuinely appears (loads in) when we switch back after saving.
+const SAVED_CARD: GalleryCard = {
+  kind: "article",
+  id: "meat-proxy",
+  title: "Don't be a meat proxy",
+  domain: "gruhn.me",
+  author: "Niklas Gruhn",
+  readingTime: 3,
+  insight: { kindLabel: "article", tags: ["ai", "writing", "blog"] },
+  // Unused (this card doesn't fly in), but required by the type.
+  scatter: {
+    x: 0,
+    y: 0,
+    scale: 1,
+    blur: 0,
+    opacity: 1,
+    rot: 0,
+    z: 0,
+    amp: 0,
+    period: 1000,
+    phase: 0,
+  },
+};
 
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
@@ -278,8 +300,12 @@ export function LivingGallery() {
     vignette === "popup" || vignette === "saving" || vignette === "saved";
   const saveState: SaveState =
     vignette === "saving" ? "saving" : vignette === "saved" ? "saved" : "idle";
-  // On the switch back, the just-saved card loads in (skeleton → content).
-  const cardLoading = vignette === "returning";
+  // The saved card is mounted (collapsed, height 0) from "saved" on — behind the
+  // essay page and through the switch back — then grows into the wall (height +
+  // fade, like the real grid's ItemFrame) once we land on the abode tab.
+  const savedCardVisible =
+    vignette === "saved" || vignette === "returning" || vignette === "landed";
+  const savedCardGrown = vignette === "landed";
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -374,49 +400,76 @@ export function LivingGallery() {
               {effectOn && (
                 <ExtensionPopup show={popupOpen} state={saveState} />
               )}
-              <ul
-                ref={gridRef}
-                className={cn(
-                  "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
-                  // Chrome gutter only when the effect is on; without it the
-                  // static fallback grid keeps its original edge-to-edge layout.
-                  // pb absorbs each column's trailing mb-4 so the bottom gutter
-                  // matches the other three sides (8 + 16 = 24).
-                  effectOn && "p-6 pb-2",
-                  flying && "invisible",
-                )}
+              {/* Fixed-height window: once the saved card lands, hold the wall's
+                  height and clip the overflow rather than growing the window. */}
+              <div
+                style={
+                  effectOn && savedCardVisible && gridNatH > 0
+                    ? { height: gridNatH, overflow: "hidden" }
+                    : undefined
+                }
               >
-                {GALLERY_CARDS.map((card, i) => (
-                  <li
-                    key={card.id}
-                    ref={(el) => {
-                      liRefs.current[i] = el;
-                    }}
-                    className="group relative break-inside-avoid"
-                  >
-                    <div
-                      className={cn(faceClass(card), hoverClass(card))}
-                      style={faceStyle(card)}
+                <ul
+                  ref={gridRef}
+                  className={cn(
+                    "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
+                    // Chrome gutter only when the effect is on; without it the
+                    // static fallback grid keeps its original edge-to-edge layout.
+                    // pb absorbs each column's trailing mb-4 so the bottom gutter
+                    // matches the other three sides (8 + 16 = 24).
+                    effectOn && "p-6 pb-2",
+                    flying && "invisible",
+                  )}
+                >
+                  {/* The freshly-saved article lands at the top of the wall.
+                    Mounted collapsed behind the essay page, it grows in (height
+                    0fr → 1fr + fade) once we're back on the abode tab — like the
+                    real grid's ItemFrame, minus a pixel measurement. The inner
+                    box is pinned so the card lays out once instead of reflowing
+                    on every frame of the grow. */}
+                  {effectOn && savedCardVisible && (
+                    <li className="group relative break-inside-avoid">
+                      <div
+                        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
+                        style={{
+                          gridTemplateRows: savedCardGrown ? "1fr" : "0fr",
+                          opacity: savedCardGrown ? 1 : 0,
+                        }}
+                      >
+                        <div className="min-h-0 overflow-hidden">
+                          <div
+                            className={cn(
+                              faceClass(SAVED_CARD),
+                              hoverClass(SAVED_CARD),
+                            )}
+                            style={faceStyle(SAVED_CARD)}
+                          >
+                            <CardBody card={SAVED_CARD} />
+                            <Intelligence card={SAVED_CARD} />
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )}
+                  {GALLERY_CARDS.map((card, i) => (
+                    <li
+                      key={card.id}
+                      ref={(el) => {
+                        liRefs.current[i] = el;
+                      }}
+                      className="group relative break-inside-avoid"
                     >
-                      <CardBody card={card} />
-                      <Intelligence card={card} />
-                      {/* The saved card loads in on the switch back: a pulsing
-                          skeleton that fades to reveal the real card. */}
-                      {effectOn && card.id === SAVED_CARD_ID && (
-                        <div
-                          aria-hidden
-                          className={cn(
-                            "absolute inset-0 z-20 animate-pulse bg-muted transition-opacity duration-500 ease-out",
-                            cardLoading
-                              ? "opacity-100"
-                              : "pointer-events-none opacity-0",
-                          )}
-                        />
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      <div
+                        className={cn(faceClass(card), hoverClass(card))}
+                        style={faceStyle(card)}
+                      >
+                        <CardBody card={card} />
+                        <Intelligence card={card} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </BrowserChrome>
           </div>
 
