@@ -18,6 +18,7 @@ import {
 } from "./gallery-card";
 import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 import { Highlight } from "./highlight";
+import { PasteKeys } from "./paste-keys";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -155,9 +156,57 @@ const DROP_NEXT: Partial<Record<DropPhase, DropPhase>> = {
   dropped: "landed",
 };
 
+// The tweet the paste vignette pastes onto the wall.
+const PASTE_CARD: GalleryCard = {
+  kind: "tweet",
+  id: "dylan-tweet",
+  author: "Dylan O'Sullivan",
+  handle: "DylanoA4",
+  avatar: "/gallery/dylan-avatar.jpg",
+  text: "I walk somewhere, I run someplace, I lift something heavy, I eat something healthy, I read something good, I write something down, and only then do I take my bad mood seriously",
+  insight: { kindLabel: "tweet", tags: ["habits", "routine", "wellbeing"] },
+  scatter: NO_SCATTER,
+};
+
+// The "paste a link" step — its demo pastes a tweet onto the wall.
+const PASTE_STEP = STEPS.findIndex((s) => s.id === "paste");
+
+// The paste vignette: the paste shortcut is shown, and a tweet pastes in.
+type PastePhase =
+  | "idle" // nothing yet
+  | "keys" // paste shortcut shown at the bottom of the screen
+  | "pasted" // tweet mounts
+  | "landed"; // tweet grown into the wall
+const PASTE_TIMELINE: Partial<Record<PastePhase, number>> = {
+  idle: 700,
+  keys: 1500,
+  pasted: 500,
+};
+const PASTE_NEXT: Partial<Record<PastePhase, PastePhase>> = {
+  idle: "keys",
+  keys: "pasted",
+  pasted: "landed",
+};
+
+// Keep a card mounted through its exit: stays true while `active`, then holds
+// for `ms` after it flips false so the card can animate out (grow-in reversed)
+// before it unmounts.
+function useExitDelay(active: boolean, ms: number) {
+  const [rendered, setRendered] = useState(active);
+  useEffect(() => {
+    if (active) {
+      setRendered(true);
+      return;
+    }
+    const t = setTimeout(() => setRendered(false), ms);
+    return () => clearTimeout(t);
+  }, [active, ms]);
+  return rendered;
+}
+
 // A demo card that grows into the wall (height 0fr → 1fr + fade, like the real
-// grid's ItemFrame). The inner box is pinned so it lays out once instead of
-// reflowing on every frame of the grow.
+// grid's ItemFrame) and, when it leaves, reverses that to grow out. The inner
+// box is pinned so it lays out once instead of reflowing on every frame.
 function GrowInCard({ card, grown }: { card: GalleryCard; grown: boolean }) {
   return (
     <li className="group relative break-inside-avoid">
@@ -203,6 +252,8 @@ export function LivingGallery() {
   const [vignette, setVignette] = useState<VignettePhase>("idle");
   // Current phase of the auto-playing drag & drop vignette.
   const [drop, setDrop] = useState<DropPhase>("idle");
+  // Current phase of the auto-playing paste vignette.
+  const [paste, setPaste] = useState<PastePhase>("idle");
 
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
@@ -392,6 +443,20 @@ export function LivingGallery() {
     return () => clearTimeout(t);
   }, [dropEngaged, drop]);
 
+  // Drive the paste vignette the same way, engaging once its step is reached.
+  const pasteEngaged = effectOn && scoot >= 0.95 && activeStep >= PASTE_STEP;
+  useEffect(() => {
+    if (!pasteEngaged) {
+      setPaste("idle");
+      return;
+    }
+    const delay = PASTE_TIMELINE[paste];
+    const next = PASTE_NEXT[paste];
+    if (delay === undefined || next === undefined) return; // "landed" holds
+    const t = setTimeout(() => setPaste(next), delay);
+    return () => clearTimeout(t);
+  }, [pasteEngaged, paste]);
+
   // The essay tab is active from the switch through to the save completing.
   const onEssayTab =
     vignette === "essay" ||
@@ -421,9 +486,24 @@ export function LivingGallery() {
   const dropCardVisible = drop === "dropped" || drop === "landed";
   const dropCardGrown = drop === "landed";
 
-  // Freeze the measured baseline while any demo card sits in the wall, so the
-  // window keeps its height and clips the extra cards instead of growing.
-  savedCardVisibleRef.current = savedCardVisible || dropCardVisible;
+  // Paste: the shortcut shows only on its own step; the pasted tweet mounts on
+  // release and grows in once it lands, then stays in the wall.
+  const atPasteStep = activeStep === PASTE_STEP;
+  const showPasteKeys = showChrome && atPasteStep && paste === "keys";
+  const pasteCardVisible = paste === "pasted" || paste === "landed";
+  const pasteCardGrown = paste === "landed";
+
+  // Keep each card mounted through its grow-out on the way back, so scrolling
+  // back before a step reverses the entrance instead of popping the card away.
+  const savedCardRendered = useExitDelay(savedCardVisible, 340);
+  const dropCardRendered = useExitDelay(dropCardVisible, 340);
+  const pasteCardRendered = useExitDelay(pasteCardVisible, 340);
+  const anyCardPresent =
+    savedCardRendered || dropCardRendered || pasteCardRendered;
+
+  // Freeze the measured baseline while any demo card is in the wall (including
+  // its exit), so the window keeps its height and clips the extras.
+  savedCardVisibleRef.current = anyCardPresent;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -529,13 +609,12 @@ export function LivingGallery() {
                   dropping={drop === "dropped"}
                 />
               )}
+              {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
               {/* Fixed-height window: once a demo card lands, hold the wall's
                   height and clip the overflow rather than growing the window. */}
               <div
                 style={
-                  effectOn &&
-                  (savedCardVisible || dropCardVisible) &&
-                  gridNatH > 0
+                  effectOn && anyCardPresent && gridNatH > 0
                     ? { height: gridNatH, overflow: "hidden" }
                     : undefined
                 }
@@ -553,11 +632,15 @@ export function LivingGallery() {
                   )}
                 >
                   {/* Freshly-captured items land at the top of the wall, newest
-                      first, growing in as they arrive (drop after save). */}
-                  {effectOn && dropCardVisible && (
+                      first, growing in as they arrive (paste, drop, save) and
+                      growing out again when scrolled back before their step. */}
+                  {effectOn && pasteCardRendered && (
+                    <GrowInCard card={PASTE_CARD} grown={pasteCardGrown} />
+                  )}
+                  {effectOn && dropCardRendered && (
                     <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
                   )}
-                  {effectOn && savedCardVisible && (
+                  {effectOn && savedCardRendered && (
                     <GrowInCard card={SAVED_CARD} grown={savedCardGrown} />
                   )}
                   {GALLERY_CARDS.map((card, i) => (
