@@ -141,6 +141,18 @@ describe("BookReadingControls date precision", () => {
     expect(screen.queryByText("Set date")).not.toBeInTheDocument();
   });
 
+  it("highlights the calendar day for a pre-migration date (null precision)", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2024-03-05T12:00:00.000Z",
+      startedAtPrecision: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mar 5, 2024" }));
+    expect(
+      screen.getByRole("button", { name: /March 5th, 2024/ }),
+    ).toHaveAttribute("data-selected-single", "true");
+  });
+
   it("defaults the Day tab calendar to the set value's month, not today", () => {
     renderControls({
       status: "reading",
@@ -155,7 +167,9 @@ describe("BookReadingControls date precision", () => {
   it("highlights only the matching month, not a day or year, for a month-precision value", () => {
     renderControls({
       status: "reading",
-      startedAt: "2010-02-01T00:00:00.000Z",
+      // Midday UTC so the local calendar day is stable across timezones —
+      // the Day tab's calendar renders in local time.
+      startedAt: "2010-02-01T12:00:00.000Z",
       startedAtPrecision: "month",
     });
     fireEvent.click(screen.getByRole("button", { name: "Feb 2010" }));

@@ -559,7 +559,11 @@ function ReadingDateField({
                 <div className="flex justify-center">
                   <Calendar
                     mode="single"
-                    selected={precision === "day" ? selected : undefined}
+                    selected={
+                      precision === null || precision === "day"
+                        ? selected
+                        : undefined
+                    }
                     defaultMonth={selected ?? new Date()}
                     onSelect={pickDay}
                     disabled={{ after: new Date() }}
