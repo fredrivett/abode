@@ -56,6 +56,11 @@ const envSchema = z.object({
     z.string().url().optional(),
   ),
 
+  // Trigger.dev secret API key. The SDK reads it from process.env directly for
+  // triggering; we validate it here (optional) only so the admin runs-list can
+  // gate the Management API call on its presence — absent = show no runs list.
+  TRIGGER_SECRET_KEY: z.string().optional(),
+
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
 });

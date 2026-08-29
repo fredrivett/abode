@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -23,6 +23,7 @@ import { itemTag } from "@/lib/items/run-tags";
 import type { ImageColor, TwitterMedia } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
+import { ItemRunsSection } from "./_components/item-runs-section";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -504,6 +505,16 @@ export default async function AdminItemInspectorPage({
             </a>
           )}
         </header>
+
+        <div className="mt-8">
+          <Suspense
+            fallback={
+              <p className="text-muted-foreground text-sm">Loading runs…</p>
+            }
+          >
+            <ItemRunsSection itemId={item.id} />
+          </Suspense>
+        </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Card>
