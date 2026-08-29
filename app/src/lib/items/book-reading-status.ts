@@ -123,6 +123,23 @@ export const bookReadingSchema = z
       path: ["progressValue"],
     },
   )
+  // A precision belongs to the date it's sent alongside — reject it arriving
+  // alone rather than silently dropping it (the transform below only acts on
+  // a defined date).
+  .refine(
+    (v) => v.startedAtPrecision === undefined || v.startedAt !== undefined,
+    {
+      message: "startedAtPrecision requires startedAt in the same request",
+      path: ["startedAtPrecision"],
+    },
+  )
+  .refine(
+    (v) => v.finishedAtPrecision === undefined || v.finishedAt !== undefined,
+    {
+      message: "finishedAtPrecision requires finishedAt in the same request",
+      path: ["finishedAtPrecision"],
+    },
+  )
   // Normalize each date to the start of its known period (e.g. "month"
   // precision truncates to the 1st) so a client can't send a mismatched
   // date/precision pair.

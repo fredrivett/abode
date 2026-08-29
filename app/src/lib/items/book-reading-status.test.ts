@@ -178,6 +178,18 @@ describe("bookReadingSchema", () => {
     expect(parsed.startedAtPrecision).toBeNull();
   });
 
+  it("rejects startedAtPrecision sent without startedAt", () => {
+    expect(
+      bookReadingSchema.safeParse({ startedAtPrecision: "month" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects finishedAtPrecision sent without finishedAt", () => {
+    expect(
+      bookReadingSchema.safeParse({ finishedAtPrecision: "year" }).success,
+    ).toBe(false);
+  });
+
   it("allows an overlapping coarse-precision pair that isn't provably inverted", () => {
     // Started March 2020 (month), finished sometime in 2020 (year) — the
     // finished year could plausibly be after March, so this must not be
