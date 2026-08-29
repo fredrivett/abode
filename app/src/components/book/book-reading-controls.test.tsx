@@ -20,7 +20,9 @@ const baseBook: BookDetails = {
   domain: null,
   status: null,
   startedAt: null,
+  startedAtPrecision: null,
   finishedAt: null,
+  finishedAtPrecision: null,
   progressValue: null,
   progressUnit: "page",
   progressUpdatedAt: null,
@@ -104,6 +106,53 @@ describe("BookReadingControls progress display", () => {
     expect(
       screen.queryByRole("button", { name: "Pages" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("BookReadingControls date precision", () => {
+  it("formats a month-precision date without a day", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2026-06-15T00:00:00.000Z",
+      startedAtPrecision: "month",
+    });
+    expect(screen.getByText("Jun 2026")).toBeInTheDocument();
+  });
+
+  it("formats a year-precision date as just the year", () => {
+    renderControls({
+      status: "read",
+      finishedAt: "2019-06-15T00:00:00.000Z",
+      finishedAtPrecision: "year",
+    });
+    expect(screen.getByText("2019")).toBeInTheDocument();
+  });
+
+  it("picks a month-only start date via the Month tab", () => {
+    renderControls({ status: "reading" });
+    fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Month" }));
+    fireEvent.click(screen.getByRole("button", { name: "Jan" }));
+    const now = new Date();
+    expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+      bookReading: {
+        startedAt: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(),
+        startedAtPrecision: "month",
+      },
+    });
+  });
+
+  it("picks a year-only start date via the Year tab", () => {
+    renderControls({ status: "reading" });
+    fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Year" }));
+    fireEvent.click(screen.getByRole("button", { name: "2019" }));
+    expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+      bookReading: {
+        startedAt: new Date(Date.UTC(2019, 0, 1)).toISOString(),
+        startedAtPrecision: "year",
+      },
+    });
   });
 });
 
