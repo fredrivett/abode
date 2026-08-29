@@ -27,6 +27,7 @@ const baseBook: BookDetails = {
   progressUnit: "page",
   progressUpdatedAt: null,
   rating: null,
+  review: null,
 };
 
 function renderControls(overrides: Partial<BookDetails> = {}) {

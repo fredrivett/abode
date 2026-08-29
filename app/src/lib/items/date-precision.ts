@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { z } from "zod";
 
 // Precision at which a started/finished reading date is known. Mirrors the
@@ -7,6 +8,36 @@ export const DATE_PRECISIONS = ["day", "month", "year"] as const;
 export type DatePrecisionValue = (typeof DATE_PRECISIONS)[number];
 
 export const datePrecisionSchema = z.enum(DATE_PRECISIONS);
+
+export const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+// Formats a stored date per its precision. Month/year read from UTC fields
+// (they're always normalized to a UTC period start) so display can't drift
+// across a month/year boundary depending on the viewer's local timezone; day
+// precision keeps the local-time `format` call unchanged.
+export function formatReadingDate(
+  iso: string,
+  precision: DatePrecisionValue,
+): string {
+  const date = new Date(iso);
+  if (precision === "year") return String(date.getUTCFullYear());
+  if (precision === "month")
+    return `${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return format(date, "MMM d, yyyy");
+}
 
 // Truncate to the start of the period implied by precision, in UTC, so the
 // stored instant is stable regardless of caller timezone. Day precision is

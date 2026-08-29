@@ -151,6 +151,7 @@ type RawItemRow = {
   book_progress_unit: string | null;
   book_progress_updated_at: Date | null;
   book_rating: number | null;
+  book_review: string | null;
   note_content: string | null;
 };
 
@@ -306,6 +307,7 @@ function transformRawItemToItem(
             progressUpdatedAt:
               row.book_progress_updated_at?.toISOString() ?? null,
             rating: row.book_rating,
+            review: row.book_review,
           } satisfies BookDetails)
         : null,
     noteDetails:
@@ -753,6 +755,7 @@ async function executeFiltersOnlySearch(
       bd.progress_unit as book_progress_unit,
       bd.progress_updated_at as book_progress_updated_at,
       bd.rating as book_rating,
+      bd.review as book_review,
       nd.content as note_content
     FROM items
     LEFT JOIN item_image_details iid ON iid.item_id = items.id
@@ -1008,6 +1011,7 @@ async function executeRankedSearch(
       bd.progress_unit as book_progress_unit,
       bd.progress_updated_at as book_progress_updated_at,
       bd.rating as book_rating,
+      bd.review as book_review,
       nd.content as note_content
     FROM items i
     LEFT JOIN item_image_details iid ON iid.item_id = i.id

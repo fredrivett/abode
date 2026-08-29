@@ -6,33 +6,6 @@ import {
   endOfPrecision,
   startOfPrecision,
 } from "@/lib/items/date-precision";
-import type { BookDetails } from "@/lib/types/item";
-
-// Reading fields in their "not tracked" state. Used by read paths that don't
-// (yet) surface per-user reading state — public shelves must not leak the
-// owner's private reading status, and search-result cards don't render it.
-export const UNTRACKED_BOOK_READING: Pick<
-  BookDetails,
-  | "status"
-  | "startedAt"
-  | "startedAtPrecision"
-  | "finishedAt"
-  | "finishedAtPrecision"
-  | "progressValue"
-  | "progressUnit"
-  | "progressUpdatedAt"
-  | "rating"
-> = {
-  status: null,
-  startedAt: null,
-  startedAtPrecision: null,
-  finishedAt: null,
-  finishedAtPrecision: null,
-  progressValue: null,
-  progressUnit: "page",
-  progressUpdatedAt: null,
-  rating: null,
-};
 
 // Normalizes a date + optional precision to a start-of-period instant plus a
 // definite precision. undefined date => field wasn't touched (undefined
@@ -92,6 +65,10 @@ export const MAX_BOOK_RATING = 10;
 export const MIN_PERCENT = 0;
 export const MAX_PERCENT = 100;
 
+// Review is a public-facing free-text field. No UX-driven cap (review-centric
+// apps don't cap for length) — this ceiling is purely an abuse guard.
+export const MAX_BOOK_REVIEW_LENGTH = 5000;
+
 // Per-kind (book) validation for the reading-lifecycle fields sent in an item
 // PATCH body. Grouped under `bookReading` so the route can route it straight to
 // the itemBookDetails write. Every field is optional so callers can patch a
@@ -110,6 +87,15 @@ export const bookReadingSchema = z
       .int()
       .min(MIN_BOOK_RATING)
       .max(MAX_BOOK_RATING)
+      .nullable()
+      .optional(),
+    // Trimmed; a blank review normalizes to null so clearing works uniformly
+    // with an explicit null.
+    review: z
+      .string()
+      .trim()
+      .max(MAX_BOOK_REVIEW_LENGTH)
+      .transform((s) => (s.length === 0 ? null : s))
       .nullable()
       .optional(),
   })

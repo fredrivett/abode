@@ -7,6 +7,10 @@ import {
   canViewItemHighlights,
   itemAccessSelect,
 } from "@/lib/items/access";
+import {
+  mapPublicBookDetails,
+  publicBookDetailsSelect,
+} from "@/lib/items/query";
 import type {
   InstagramDetails,
   InstagramMedia,
@@ -171,6 +175,7 @@ const itemDetailSelect = {
       coverImageIndex: true,
     },
   },
+  bookDetails: { select: publicBookDetailsSelect },
 } satisfies Prisma.ItemSelect;
 
 type ItemDetailPayload = Prisma.ItemGetPayload<{
@@ -393,6 +398,9 @@ export default async function ItemPage({ params, searchParams }: Props) {
           images: item.productDetails.images as ProductImage[] | null,
           coverImageIndex: item.productDetails.coverImageIndex,
         } satisfies ProductDetails)
+      : null,
+    bookDetails: item.bookDetails
+      ? mapPublicBookDetails(item.bookDetails)
       : null,
   };
 

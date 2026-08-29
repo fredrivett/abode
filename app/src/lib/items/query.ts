@@ -144,6 +144,7 @@ export const itemSelect = {
       progressUnit: true,
       progressUpdatedAt: true,
       rating: true,
+      review: true,
     },
   },
   noteDetails: {
@@ -295,5 +296,63 @@ export function mapBookDetails(
     progressUnit: book.progressUnit,
     progressUpdatedAt: book.progressUpdatedAt?.toISOString() ?? null,
     rating: book.rating,
+    review: book.review,
+  };
+}
+
+/**
+ * Prisma select fragment for the book fields safe to expose on PUBLIC pages
+ * once the item itself is publicly viewable (see `canViewItem`). Bibliographic
+ * fields plus the user's review, rating, reading status, and start/finish
+ * dates — but NOT reading progress, which stays private. Kept as a shared
+ * fragment so both public paths (room page, single-item page) expose exactly
+ * the same set.
+ */
+export const publicBookDetailsSelect = {
+  authors: true,
+  publisher: true,
+  publishedAt: true,
+  isbn: true,
+  pageCount: true,
+  domain: true,
+  status: true,
+  startedAt: true,
+  startedAtPrecision: true,
+  finishedAt: true,
+  finishedAtPrecision: true,
+  rating: true,
+  review: true,
+} satisfies Prisma.ItemBookDetailsSelect;
+
+type PublicBookDetailsRaw = Prisma.ItemBookDetailsGetPayload<{
+  select: typeof publicBookDetailsSelect;
+}>;
+
+/**
+ * Map a publicly-selected book row to the client BookDetails DTO. Progress
+ * fields are forced to their empty state here (never selected publicly) so a
+ * viewer can't learn how far the owner has read. This is the single, tested
+ * choke point for what book reading data leaves a public page — mirror any
+ * change with the colocated leak test.
+ */
+export function mapPublicBookDetails(book: PublicBookDetailsRaw): BookDetails {
+  return {
+    authors: book.authors,
+    publisher: book.publisher,
+    publishedAt: book.publishedAt?.toISOString() ?? null,
+    isbn: book.isbn,
+    pageCount: book.pageCount,
+    domain: book.domain,
+    status: book.status,
+    startedAt: book.startedAt?.toISOString() ?? null,
+    startedAtPrecision: book.startedAtPrecision,
+    finishedAt: book.finishedAt?.toISOString() ?? null,
+    finishedAtPrecision: book.finishedAtPrecision,
+    // Progress stays private on public pages.
+    progressValue: null,
+    progressUnit: "page",
+    progressUpdatedAt: null,
+    rating: book.rating,
+    review: book.review,
   };
 }

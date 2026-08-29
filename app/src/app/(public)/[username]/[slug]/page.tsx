@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
-import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
+import {
+  mapPublicBookDetails,
+  publicBookDetailsSelect,
+} from "@/lib/items/query";
 import type { Filter } from "@/lib/search/types";
 import type {
-  BookDetails,
   InstagramDetails,
   InstagramMedia,
   NoteDetails,
@@ -245,16 +247,7 @@ export default async function RoomPage({ params }: Props) {
               coverImageIndex: true,
             },
           },
-          bookDetails: {
-            select: {
-              authors: true,
-              publisher: true,
-              publishedAt: true,
-              isbn: true,
-              pageCount: true,
-              domain: true,
-            },
-          },
+          bookDetails: { select: publicBookDetailsSelect },
           noteDetails: {
             select: {
               content: true,
@@ -375,16 +368,7 @@ export default async function RoomPage({ params }: Props) {
         } satisfies ProductDetails)
       : null,
     bookDetails: roomItem.item.bookDetails
-      ? ({
-          authors: roomItem.item.bookDetails.authors,
-          publisher: roomItem.item.bookDetails.publisher,
-          publishedAt:
-            roomItem.item.bookDetails.publishedAt?.toISOString() ?? null,
-          isbn: roomItem.item.bookDetails.isbn,
-          pageCount: roomItem.item.bookDetails.pageCount,
-          domain: roomItem.item.bookDetails.domain,
-          ...UNTRACKED_BOOK_READING,
-        } satisfies BookDetails)
+      ? mapPublicBookDetails(roomItem.item.bookDetails)
       : null,
     noteDetails: roomItem.item.noteDetails
       ? ({ content: roomItem.item.noteDetails.content } satisfies NoteDetails)

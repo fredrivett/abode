@@ -115,8 +115,10 @@ export type BookDetails = {
   progressValue: number | null;
   progressUnit: BookProgressUnit;
   progressUpdatedAt: string | null;
-  // Stored /10 (half-stars), displayed /5; null = unrated
+  // Stored /10 (half-stars), displayed /5
   rating: number | null;
+  // Public-facing review; distinct from the always-private Item.notes
+  review: string | null;
 };
 
 /**

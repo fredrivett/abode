@@ -341,6 +341,7 @@ export async function PATCH(
           progressUnit: bookReading.progressUnit,
         }),
         ...(bookReading.rating !== undefined && { rating: bookReading.rating }),
+        ...(bookReading.review !== undefined && { review: bookReading.review }),
       };
 
       const upsertedBook = await db.itemBookDetails.upsert({

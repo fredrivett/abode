@@ -87,3 +87,45 @@ export function RatingStars({ rating, onChange }: RatingStarsProps) {
     </div>
   );
 }
+
+type RatingStarsDisplayProps = {
+  /** Rating on the /10 scale (half-star precision). */
+  rating: number;
+  className?: string;
+};
+
+/**
+ * Read-only 5-star display (no interaction). Mirrors the fill logic of the
+ * interactive RatingStars for consistent presentation on public/read-only
+ * surfaces.
+ */
+export function RatingStarsDisplay({
+  rating,
+  className,
+}: RatingStarsDisplayProps) {
+  return (
+    <div
+      role="img"
+      className={cn("flex items-center gap-0.5", className)}
+      aria-label={`Rated ${rating / 2} out of 5`}
+    >
+      {STARS.map((n) => {
+        const isFull = n * 2 <= rating;
+        const isHalf = !isFull && n * 2 - 1 === rating;
+        return (
+          <span key={n} className="relative inline-flex">
+            <Star className="size-4 text-gray-300 dark:text-gray-600" />
+            {(isFull || isHalf) && (
+              <Star
+                className={cn(
+                  "absolute top-0 left-0 size-4 fill-yellow-400 text-yellow-400",
+                  isHalf && "[clip-path:inset(0_50%_0_0)]",
+                )}
+              />
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
