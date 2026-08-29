@@ -49,6 +49,23 @@ describe("ProfileHeader", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("links an https URL in the bio, shown shortened to its hostname", () => {
+    render(
+      <ProfileHeader {...baseProps} bio="🏡 https://abode.fyi by night" />,
+    );
+    const link = screen.getByRole("link", { name: "abode.fyi" });
+    expect(link).toHaveAttribute("href", "https://abode.fyi");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("leaves a bare domain in the bio as plain text", () => {
+    render(<ProfileHeader {...baseProps} bio="🏡 abode.fyi by night" />);
+    expect(screen.getByText(/abode\.fyi by night/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /abode\.fyi/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("omits the member row when there is no member number", () => {
     render(<ProfileHeader {...baseProps} memberNumber={null} />);
     expect(screen.queryByText(/^Member #/)).not.toBeInTheDocument();

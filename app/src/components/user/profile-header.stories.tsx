@@ -42,6 +42,14 @@ export const WithBio: Story = {
   },
 };
 
+// Only explicit https links become clickable (shown shortened to the hostname);
+// bare domains stay as plain text.
+export const WithLinkedBio: Story = {
+  args: {
+    bio: "🧑‍🚀 superhuman.com by day\n🏡 https://abode.fyi by night\n✍️ writing https://fredrivett.com\n⬅️ prev founding eng lex.page",
+  },
+};
+
 export const WithInviter: Story = {
   args: {
     showInvitedBy: true,
