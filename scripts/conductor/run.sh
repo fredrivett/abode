@@ -39,7 +39,11 @@ rule="━━━━━━━━━━━━━━━━━━━━━━━━�
 # we continue and let the migrate check surface the P1001 banner.
 supabase_root="${CONDUCTOR_ROOT_PATH:-$(cd .. && pwd)}"
 if command -v docker >/dev/null 2>&1; then
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^supabase_auth_abode$'; then
+  # Require BOTH the db (what Prisma reaches) and auth containers up. If only one
+  # survives, treat the stack as down so we fall through to the stop+start
+  # recovery rather than declaring it healthy and hitting P1001 later.
+  running=$(docker ps --format '{{.Names}}' 2>/dev/null || true)
+  if grep -q '^supabase_db_abode$' <<<"$running" && grep -q '^supabase_auth_abode$' <<<"$running"; then
     echo "${green}✓ Supabase already running${reset}"
   elif [ -x "$supabase_root/scripts/start-supabase.sh" ]; then
     echo "${cyan}Local Supabase isn't running — starting it from ${supabase_root}...${reset}"
