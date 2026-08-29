@@ -128,6 +128,16 @@ describe("BookReadingControls date precision", () => {
     expect(screen.getByText("2019")).toBeInTheDocument();
   });
 
+  it("shows a pre-migration date (non-null value, null precision) as a full date instead of Set date", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2024-03-05T00:00:00.000Z",
+      startedAtPrecision: null,
+    });
+    expect(screen.getByText("Mar 5, 2024")).toBeInTheDocument();
+    expect(screen.queryByText("Set date")).not.toBeInTheDocument();
+  });
+
   it("defaults the Day tab calendar to the set value's month, not today", () => {
     renderControls({
       status: "reading",

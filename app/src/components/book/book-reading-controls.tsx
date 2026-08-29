@@ -522,8 +522,8 @@ function ReadingDateField({
               className="h-7 gap-1.5 px-2 text-sm"
             >
               <CalendarIcon className="size-3.5 opacity-60" />
-              {value && precision
-                ? formatReadingDate(value, precision)
+              {value
+                ? formatReadingDate(value, precision ?? "day")
                 : "Set date"}
             </Button>
           </PopoverTrigger>
