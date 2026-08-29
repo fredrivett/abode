@@ -26,8 +26,12 @@ describe("RatingStars", () => {
   it("calls onChange with a half-star value when clicking the left half of a star", () => {
     const onChange = vi.fn();
     render(<RatingStars rating={null} onChange={onChange} />);
+    // detail: 1 marks this as a real mouse click (browsers default it to 1;
+    // RTL's fireEvent.click doesn't, so it must be set explicitly here to
+    // avoid being mistaken for the detail: 0 of a keyboard activation).
     fireEvent.click(screen.getByRole("button", { name: "Rate 3 stars" }), {
       clientX: 105,
+      detail: 1,
     });
     expect(onChange).toHaveBeenCalledWith(5);
   });
@@ -37,6 +41,19 @@ describe("RatingStars", () => {
     render(<RatingStars rating={null} onChange={onChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Rate 3 stars" }), {
       clientX: 115,
+      detail: 1,
+    });
+    expect(onChange).toHaveBeenCalledWith(6);
+  });
+
+  it("commits the labeled whole-star value on keyboard activation (Enter/Space), ignoring stale pointer position", () => {
+    const onChange = vi.fn();
+    render(<RatingStars rating={null} onChange={onChange} />);
+    // A keyboard-activated click has detail: 0 and no meaningful clientX —
+    // this clientX would read as "left half" if it were used.
+    fireEvent.click(screen.getByRole("button", { name: "Rate 3 stars" }), {
+      clientX: 105,
+      detail: 0,
     });
     expect(onChange).toHaveBeenCalledWith(6);
   });
@@ -74,5 +91,21 @@ describe("RatingStars", () => {
     render(<RatingStars rating={8} onChange={onChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Clear rating" }));
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it("stops showing the stale hover preview after clearing while a star is hovered", () => {
+    const { rerender } = render(<RatingStars rating={8} onChange={vi.fn()} />);
+    const row = screen.getByRole("button", { name: "Rate 3 stars" })
+      .parentElement as HTMLElement;
+
+    fireEvent.mouseMove(screen.getByRole("button", { name: "Rate 3 stars" }), {
+      clientX: 115,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Clear rating" }));
+    // The clear button unmounts once rating is null — simulate the parent
+    // applying the cleared rating, as it would after a real onChange(null).
+    rerender(<RatingStars rating={null} onChange={vi.fn()} />);
+
+    expect(row.querySelectorAll('[class*="fill-yellow-400"]')).toHaveLength(0);
   });
 });

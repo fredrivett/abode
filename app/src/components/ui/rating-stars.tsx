@@ -32,6 +32,14 @@ export function RatingStars({ rating, onChange }: RatingStarsProps) {
     return isLeftHalf ? starIndex * 2 - 1 : starIndex * 2;
   };
 
+  // A keyboard-activated click (Enter/Space) has no real pointer position —
+  // browsers report it with detail 0, unlike a genuine mouse click — so it
+  // commits the whole-star value the button's label advertises instead of
+  // reading a meaningless clientX as "left half".
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>, n: number) => {
+    onChange(e.detail === 0 ? n * 2 : valueFromPointer(e, n));
+  };
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: reverts hover preview to the committed rating on mouse leave
     <div
@@ -47,7 +55,7 @@ export function RatingStars({ rating, onChange }: RatingStarsProps) {
             type="button"
             aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
             onMouseMove={(e) => setHoverValue(valueFromPointer(e, n))}
-            onClick={(e) => onChange(valueFromPointer(e, n))}
+            onClick={(e) => handleClick(e, n)}
             className="relative cursor-pointer p-0.5"
           >
             <Star className="size-4 text-gray-300 dark:text-gray-600" />
@@ -67,7 +75,10 @@ export function RatingStars({ rating, onChange }: RatingStarsProps) {
         <button
           type="button"
           aria-label="Clear rating"
-          onClick={() => onChange(null)}
+          onClick={() => {
+            setHoverValue(null);
+            onChange(null);
+          }}
           className="ml-1 text-gray-400 hover:text-gray-600"
         >
           <X className="size-3.5" />
