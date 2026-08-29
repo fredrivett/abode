@@ -106,6 +106,30 @@ describe("bookReadingSchema", () => {
     expect(bookReadingSchema.safeParse({ rating: 4.5 }).success).toBe(false);
   });
 
+  it("trims a review and keeps its text", () => {
+    expect(bookReadingSchema.parse({ review: "  Loved it  " }).review).toBe(
+      "Loved it",
+    );
+  });
+
+  it("normalizes a blank/whitespace-only review to null", () => {
+    expect(bookReadingSchema.parse({ review: "   " }).review).toBeNull();
+    expect(bookReadingSchema.parse({ review: "" }).review).toBeNull();
+  });
+
+  it("allows explicit null to clear a review", () => {
+    expect(bookReadingSchema.parse({ review: null }).review).toBeNull();
+  });
+
+  it("rejects a review over the max length", () => {
+    expect(
+      bookReadingSchema.safeParse({ review: "a".repeat(5001) }).success,
+    ).toBe(false);
+    expect(
+      bookReadingSchema.safeParse({ review: "a".repeat(5000) }).success,
+    ).toBe(true);
+  });
+
   it("rejects a negative page value", () => {
     expect(bookReadingSchema.safeParse({ progressValue: -1 }).success).toBe(
       false,

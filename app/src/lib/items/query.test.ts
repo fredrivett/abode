@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { itemSelect, type RawItem, transformItem } from "./query";
+import {
+  itemSelect,
+  mapPublicBookDetails,
+  publicBookDetailsSelect,
+  type RawItem,
+  transformItem,
+} from "./query";
 
 /**
  * Guards the regression where `processingError` was classified and stored but
@@ -25,6 +31,62 @@ describe("itemSelect", () => {
     expect(itemSelect.articleDetails).toBeTruthy();
     expect(itemSelect.noteDetails).toBeTruthy();
     expect(itemSelect.externalLinks).toBe(true);
+  });
+});
+
+/**
+ * The single choke point for what book reading data leaves a PUBLIC page.
+ * Review, rating, status, and read dates are public once the item is viewable;
+ * reading progress must stay private. These tests guard both the select (never
+ * fetch progress) and the mapper (mask it even if it somehow appears).
+ */
+describe("publicBookDetailsSelect", () => {
+  it("selects the publicly-shareable reading fields", () => {
+    expect(publicBookDetailsSelect.rating).toBe(true);
+    expect(publicBookDetailsSelect.review).toBe(true);
+    expect(publicBookDetailsSelect.status).toBe(true);
+    expect(publicBookDetailsSelect.startedAt).toBe(true);
+    expect(publicBookDetailsSelect.finishedAt).toBe(true);
+  });
+
+  it("never selects private reading progress", () => {
+    expect("progressValue" in publicBookDetailsSelect).toBe(false);
+    expect("progressUnit" in publicBookDetailsSelect).toBe(false);
+    expect("progressUpdatedAt" in publicBookDetailsSelect).toBe(false);
+  });
+});
+
+describe("mapPublicBookDetails", () => {
+  const raw = {
+    authors: ["Ursula K. Le Guin"],
+    publisher: "Ace",
+    publishedAt: null,
+    isbn: null,
+    pageCount: 304,
+    domain: "goodreads.com",
+    status: "read" as const,
+    startedAt: new Date("2026-07-01T00:00:00.000Z"),
+    startedAtPrecision: "day" as const,
+    finishedAt: new Date("2026-08-01T00:00:00.000Z"),
+    finishedAtPrecision: "day" as const,
+    rating: 9,
+    review: "Loved it",
+  };
+
+  it("exposes review, rating, status, and read dates", () => {
+    const mapped = mapPublicBookDetails(raw);
+    expect(mapped.review).toBe("Loved it");
+    expect(mapped.rating).toBe(9);
+    expect(mapped.status).toBe("read");
+    expect(mapped.startedAt).toBe("2026-07-01T00:00:00.000Z");
+    expect(mapped.finishedAt).toBe("2026-08-01T00:00:00.000Z");
+  });
+
+  it("masks reading progress regardless of input", () => {
+    const mapped = mapPublicBookDetails(raw);
+    expect(mapped.progressValue).toBeNull();
+    expect(mapped.progressUnit).toBe("page");
+    expect(mapped.progressUpdatedAt).toBeNull();
   });
 });
 

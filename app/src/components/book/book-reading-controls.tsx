@@ -1,7 +1,6 @@
 "use client";
 
 import type { BookReadingStatus } from "@prisma/client";
-import { format } from "date-fns";
 import {
   CalendarIcon,
   ChevronDown,
@@ -10,7 +9,7 @@ import {
   X,
 } from "lucide-react";
 import posthog from "posthog-js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
@@ -24,16 +23,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
-import { BOOK_READING_STATUS_LABELS } from "@/lib/items/book-reading-status";
-import type { DatePrecisionValue } from "@/lib/items/date-precision";
+import {
+  BOOK_READING_STATUS_LABELS,
+  MAX_BOOK_REVIEW_LENGTH,
+} from "@/lib/items/book-reading-status";
+import {
+  type DatePrecisionValue,
+  formatReadingDate,
+  MONTH_LABELS,
+} from "@/lib/items/date-precision";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 
@@ -44,38 +52,11 @@ const EARLIEST_YEAR = 1900;
 // Years shown per page in the Year tab's grid (3 columns x 4 rows).
 const YEARS_PER_PAGE = 12;
 
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 const PRECISION_OPTIONS: { value: DatePrecisionValue; label: string }[] = [
   { value: "day", label: "Day" },
   { value: "month", label: "Month" },
   { value: "year", label: "Year" },
 ];
-
-// Formats a stored date per its precision. Month/year read from UTC fields
-// (they're always normalized to a UTC period start) so display can't drift
-// across a month/year boundary depending on the viewer's local timezone; day
-// precision keeps the existing local-time `format` call unchanged.
-function formatReadingDate(iso: string, precision: DatePrecisionValue): string {
-  const date = new Date(iso);
-  if (precision === "year") return String(date.getUTCFullYear());
-  if (precision === "month")
-    return `${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  return format(date, "MMM d, yyyy");
-}
 
 const STATUS_ORDER: BookReadingStatus[] = [
   "want_to_read",
@@ -94,6 +75,7 @@ type ReadingState = Pick<
   | "progressValue"
   | "progressUnit"
   | "rating"
+  | "review"
 >;
 
 function toReadingState(book: BookDetails): ReadingState {
@@ -106,6 +88,7 @@ function toReadingState(book: BookDetails): ReadingState {
     progressValue: book.progressValue,
     progressUnit: book.progressUnit,
     rating: book.rating,
+    review: book.review,
   };
 }
 
@@ -136,6 +119,17 @@ export function BookReadingControls({
   useEffect(() => {
     setState(toReadingState(bookDetails));
   }, [bookDetails]);
+
+  // Review is free text edited continuously, so it gets its own draft state and
+  // is debounce-saved. Kept separate from `state` so an in-flight save's query
+  // invalidation can't clobber what the user is actively typing — it only
+  // re-syncs from the server while the field isn't focused.
+  const [reviewDraft, setReviewDraft] = useState(bookDetails.review ?? "");
+  const reviewFieldId = useId();
+  const reviewFocused = useRef(false);
+  useEffect(() => {
+    if (!reviewFocused.current) setReviewDraft(bookDetails.review ?? "");
+  }, [bookDetails.review]);
 
   const hasPages =
     bookDetails.pageCount != null && bookDetails.pageCount > 0
@@ -245,6 +239,36 @@ export function BookReadingControls({
   const setRating = (rating: number | null) => {
     save({ rating });
     posthog.capture("item_reading_rating_updated", { item_id: itemId, rating });
+  };
+
+  // Serialize review saves through a promise chain so a slow older PATCH can't
+  // land after a newer one and overwrite the latest text in the DB — saves
+  // always apply in the order they were queued. (Debounce coalesces bursts;
+  // the chain guards the rarer case of two saves in flight on a slow network.)
+  const reviewSaveChain = useRef<Promise<void>>(Promise.resolve());
+  const commitReview = useDebouncedCallback((review: string) => {
+    reviewSaveChain.current = reviewSaveChain.current
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await api.patch(`/api/v1/items/${itemId}`, {
+            bookReading: { review },
+          });
+          invalidateItems();
+          posthog.capture("item_reading_review_updated", { item_id: itemId });
+        } catch {
+          toast.error("Failed to update review");
+        }
+      });
+  }, 600);
+
+  // Flush a pending review save if the dialog unmounts before the debounce
+  // fires (e.g. the user closes it right after typing), so edits aren't lost.
+  useEffect(() => () => commitReview.flush(), [commitReview]);
+
+  const onReviewChange = (review: string) => {
+    setReviewDraft(review);
+    commitReview(review);
   };
 
   const status = state.status;
@@ -398,6 +422,36 @@ export function BookReadingControls({
         <div className="flex items-center justify-between">
           <span className="text-gray-500 text-xs">Rating</span>
           <RatingStars rating={state.rating} onChange={setRating} />
+        </div>
+      )}
+
+      {/* Review — visible publicly only when the item itself is shared. The
+          one real form field here, so it gets a wired <Label> (accessible name
+          + predictable leading-none spacing), unlike the caption spans beside
+          the custom controls above. */}
+      {isTracking && (
+        <div className="space-y-2">
+          <Label
+            htmlFor={reviewFieldId}
+            className="font-normal text-gray-500 text-xs"
+          >
+            Review
+          </Label>
+          <Textarea
+            id={reviewFieldId}
+            value={reviewDraft}
+            onChange={(e) => onReviewChange(e.target.value)}
+            onFocus={() => {
+              reviewFocused.current = true;
+            }}
+            onBlur={() => {
+              reviewFocused.current = false;
+              commitReview.flush();
+            }}
+            maxLength={MAX_BOOK_REVIEW_LENGTH}
+            placeholder="Write a review…"
+            className="min-h-20 text-sm"
+          />
         </div>
       )}
     </div>

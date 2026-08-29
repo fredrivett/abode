@@ -21,6 +21,7 @@ const baseBook: BookDetails = {
   progressUnit: "page",
   progressUpdatedAt: null,
   rating: null,
+  review: null,
 };
 
 const meta = {

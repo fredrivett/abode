@@ -2,6 +2,7 @@
 
 import { ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
+import { BookReadingSummary } from "@/components/book/book-reading-summary";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
@@ -54,6 +55,7 @@ type ClientItem = Pick<
   | "instagramDetails"
   | "videoDetails"
   | "productDetails"
+  | "bookDetails"
 > & { createdAt: string };
 
 type Props = {
@@ -90,6 +92,7 @@ export function ItemDetailView({
   const isInstagram = item.kind === "instagram";
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
+  const isBook = item.kind === "book";
 
   const meta = item.meta || {};
   const articleTitle = meta.originalName as string | undefined;
@@ -101,6 +104,7 @@ export function ItemDetailView({
     !isInstagram &&
     !isVideo &&
     !isProduct &&
+    !isBook &&
     !!imageFileKey;
   const imageUrl = showImage ? getProxyImageUrl(imageFileKey, "detail") : null;
 
@@ -248,6 +252,25 @@ export function ItemDetailView({
           ) : (
             <EmptyState label="No product details" />
           )
+        ) : isBook ? (
+          <div className="rounded-lg border border-border bg-background p-6 md:p-8">
+            <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6">
+              {item.coverFileKey && (
+                // biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content
+                <img
+                  src={getProxyImageUrl(item.coverFileKey, "detail")}
+                  alt={item.title ?? "Book cover"}
+                  className="max-h-[60vh] w-auto rounded-md shadow-md"
+                />
+              )}
+              {item.bookDetails && (
+                <BookReadingSummary
+                  bookDetails={item.bookDetails}
+                  className="w-full"
+                />
+              )}
+            </div>
+          </div>
         ) : imageUrl ? (
           <div className="overflow-hidden rounded-lg border border-border bg-gray-900">
             {/* biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content */}

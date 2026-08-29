@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
-import { UNTRACKED_BOOK_READING } from "@/lib/items/book-reading-status";
+import {
+  mapPublicBookDetails,
+  publicBookDetailsSelect,
+} from "@/lib/items/query";
 import type { Filter } from "@/lib/search/types";
 import type {
-  BookDetails,
   InstagramDetails,
   InstagramMedia,
   NoteDetails,
@@ -138,9 +140,15 @@ export default async function RoomPage({ params }: Props) {
 
   const PAGE_SIZE = 100;
 
-  // Fetch room items with their associated items
+  // Fetch room items with their associated items. Non-owners only see items
+  // that are actually publicly viewable in this room: an item opted out of
+  // public rooms (`excludeFromPublicRooms`) isn't viewable per `canViewItem`,
+  // so it must not appear here — otherwise its now-public reading data leaks.
   const roomItems = await db.roomItem.findMany({
-    where: { roomId: room.id },
+    where: {
+      roomId: room.id,
+      ...(isOwner ? {} : { item: { excludeFromPublicRooms: false } }),
+    },
     take: PAGE_SIZE + 1,
     orderBy: { addedAt: "desc" },
     select: {
@@ -245,16 +253,7 @@ export default async function RoomPage({ params }: Props) {
               coverImageIndex: true,
             },
           },
-          bookDetails: {
-            select: {
-              authors: true,
-              publisher: true,
-              publishedAt: true,
-              isbn: true,
-              pageCount: true,
-              domain: true,
-            },
-          },
+          bookDetails: { select: publicBookDetailsSelect },
           noteDetails: {
             select: {
               content: true,
@@ -273,6 +272,15 @@ export default async function RoomPage({ params }: Props) {
     ? (paginatedRoomItems[paginatedRoomItems.length - 1]?.id ?? null)
     : null;
 
+  // Count only what the viewer can actually see: the grid filters out excluded
+  // items for non-owners (above), so the header count must use the same
+  // predicate or it reveals that hidden items exist.
+  const itemCount = isOwner
+    ? room._count.roomItems
+    : await db.roomItem.count({
+        where: { roomId: room.id, item: { excludeFromPublicRooms: false } },
+      });
+
   const roomForClient = {
     id: room.id,
     name: room.name,
@@ -283,7 +291,7 @@ export default async function RoomPage({ params }: Props) {
     visibility: room.visibility as RoomVisibility,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
-    itemCount: room._count.roomItems,
+    itemCount,
   };
 
   const itemsForClient = paginatedRoomItems.map((roomItem) => ({
@@ -375,16 +383,7 @@ export default async function RoomPage({ params }: Props) {
         } satisfies ProductDetails)
       : null,
     bookDetails: roomItem.item.bookDetails
-      ? ({
-          authors: roomItem.item.bookDetails.authors,
-          publisher: roomItem.item.bookDetails.publisher,
-          publishedAt:
-            roomItem.item.bookDetails.publishedAt?.toISOString() ?? null,
-          isbn: roomItem.item.bookDetails.isbn,
-          pageCount: roomItem.item.bookDetails.pageCount,
-          domain: roomItem.item.bookDetails.domain,
-          ...UNTRACKED_BOOK_READING,
-        } satisfies BookDetails)
+      ? mapPublicBookDetails(roomItem.item.bookDetails)
       : null,
     noteDetails: roomItem.item.noteDetails
       ? ({ content: roomItem.item.noteDetails.content } satisfies NoteDetails)
