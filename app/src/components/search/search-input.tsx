@@ -264,6 +264,11 @@ export function SearchInput({
         handleCloseDropdown();
         return;
       }
+      // Close an open date picker (cancel the incomplete @date: filter)
+      if (datePickerOpen) {
+        handleCloseDatePicker(false);
+        return;
+      }
       // Clear the search when there's anything to clear
       if (value.query.length > 0 || value.filters.length > 0) {
         onChange({ query: "", filters: [] });

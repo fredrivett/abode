@@ -34,4 +34,20 @@ describe("SearchInput escape key", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(input).not.toHaveFocus();
   });
+
+  it("closes an open filter dropdown instead of clearing everything", () => {
+    // Trailing `@` opens the filter-type dropdown
+    const { onChange, input } = renderInput({ query: "beach @", filters });
+    fireEvent.keyDown(input, { key: "Escape" });
+    // Strips the incomplete `@` but keeps the query text and filters
+    expect(onChange).toHaveBeenCalledWith({ query: "beach", filters });
+  });
+
+  it("closes an open date picker instead of clearing everything", () => {
+    // `@date:` opens the date picker (separate from the filter dropdown)
+    const { onChange, input } = renderInput({ query: "beach @date:", filters });
+    fireEvent.keyDown(input, { key: "Escape" });
+    // Strips the incomplete `@date:` but keeps the query text and filters
+    expect(onChange).toHaveBeenCalledWith({ query: "beach", filters });
+  });
 });
