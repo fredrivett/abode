@@ -103,6 +103,7 @@ describe("enqueueImageAnalysis integration", () => {
     expect(options).toMatchObject({
       concurrencyKey: item.userId,
       priority: USER_ACTION_PRIORITY,
+      tags: [`item_${item.id}`, `user_${item.userId}`],
     });
     expect(USER_ACTION_PRIORITY).toBeGreaterThan(0);
   });
