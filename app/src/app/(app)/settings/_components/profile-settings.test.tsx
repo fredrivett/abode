@@ -163,6 +163,20 @@ describe("ProfileSettings visibility toggles", () => {
     expect(bioField).toHaveValue("Hello world");
   });
 
+  it("links to the public profile when a username is set", () => {
+    render(<ProfileSettings username="fred" />);
+    const link = screen.getByRole("link", { name: /view profile/i });
+    expect(link).toHaveAttribute("href", "/@fred");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("hides the view profile link when there is no username", () => {
+    render(<ProfileSettings />);
+    expect(
+      screen.queryByRole("link", { name: /view profile/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps each toggle's pending state independent while both are in flight", async () => {
     // Two deferred responses so we can resolve the toggles independently
     const deferreds: Array<(v: { ok: boolean }) => void> = [];

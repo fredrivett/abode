@@ -1,6 +1,7 @@
 "use client";
 
-import { User } from "lucide-react";
+import { ExternalLink, User } from "lucide-react";
+import Link from "next/link";
 import posthog from "posthog-js";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -216,13 +217,27 @@ export function ProfileSettings({
 
   return (
     <section className="rounded-xl border p-6">
-      <h3 className="flex items-center gap-2 font-semibold text-xl">
-        <User className="size-5 text-muted-foreground" />
-        Profile
-      </h3>
-      <p className="mt-1 font-mono text-muted-foreground text-sm">
-        Your avatar and name appear in shared or public rooms.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="flex items-center gap-2 font-semibold text-xl">
+            <User className="size-5 text-muted-foreground" />
+            Profile
+          </h3>
+          <p className="mt-1 font-mono text-muted-foreground text-sm">
+            Your avatar and name appear in shared or public rooms.
+          </p>
+        </div>
+        {username && (
+          <Link
+            href={`/@${username}`}
+            target="_blank"
+            className="flex shrink-0 items-center gap-1.5 font-medium text-muted-foreground text-sm hover:text-foreground"
+          >
+            View profile
+            <ExternalLink className="size-4" />
+          </Link>
+        )}
+      </div>
 
       <div className="mt-4 flex items-start gap-4">
         <UserAvatarSetting
