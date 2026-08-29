@@ -124,22 +124,17 @@ export const bookReadingSchema = z
     },
   )
   // A precision belongs to the date it's sent alongside — reject it arriving
-  // alone rather than silently dropping it (the transform below only acts on
-  // a defined date).
-  .refine(
-    (v) => v.startedAtPrecision === undefined || v.startedAt !== undefined,
-    {
-      message: "startedAtPrecision requires startedAt in the same request",
-      path: ["startedAtPrecision"],
-    },
-  )
-  .refine(
-    (v) => v.finishedAtPrecision === undefined || v.finishedAt !== undefined,
-    {
-      message: "finishedAtPrecision requires finishedAt in the same request",
-      path: ["finishedAtPrecision"],
-    },
-  )
+  // without an actual date value (missing OR null) rather than silently
+  // dropping it (the transform below discards precision whenever date is
+  // null, since a null date means "clear").
+  .refine((v) => v.startedAtPrecision == null || v.startedAt != null, {
+    message: "startedAtPrecision requires startedAt in the same request",
+    path: ["startedAtPrecision"],
+  })
+  .refine((v) => v.finishedAtPrecision == null || v.finishedAt != null, {
+    message: "finishedAtPrecision requires finishedAt in the same request",
+    path: ["finishedAtPrecision"],
+  })
   // Normalize each date to the start of its known period (e.g. "month"
   // precision truncates to the 1st) so a client can't send a mismatched
   // date/precision pair.
