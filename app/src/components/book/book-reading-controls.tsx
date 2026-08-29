@@ -560,6 +560,7 @@ function ReadingDateField({
                   <Calendar
                     mode="single"
                     selected={selected}
+                    defaultMonth={selected ?? new Date()}
                     onSelect={pickDay}
                     disabled={{ after: new Date() }}
                     autoFocus

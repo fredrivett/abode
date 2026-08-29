@@ -128,6 +128,17 @@ describe("BookReadingControls date precision", () => {
     expect(screen.getByText("2019")).toBeInTheDocument();
   });
 
+  it("defaults the Day tab calendar to the set value's month, not today", () => {
+    renderControls({
+      status: "reading",
+      startedAt: "2016-01-01T00:00:00.000Z",
+      startedAtPrecision: "year",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "2016" }));
+    fireEvent.click(screen.getByRole("button", { name: "Day" }));
+    expect(screen.getByText("January 2016")).toBeInTheDocument();
+  });
+
   it("picks a month-only start date via the Month tab", () => {
     renderControls({ status: "reading" });
     fireEvent.click(screen.getByRole("button", { name: /Set date/i }));
