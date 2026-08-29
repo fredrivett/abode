@@ -6,6 +6,9 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
+import { DragDropDemo } from "./drag-drop-demo";
+import { EssayPage } from "./essay-page";
+import { ExtensionPopup, type SaveState } from "./extension-popup";
 import {
   CardBody,
   faceClass,
@@ -13,8 +16,9 @@ import {
   hoverClass,
   Intelligence,
 } from "./gallery-card";
-import { GALLERY_CARDS } from "./gallery-data";
+import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 import { Highlight } from "./highlight";
+import { PasteKeys } from "./paste-keys";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -51,6 +55,194 @@ const SCOOT_FRAC = 0.22;
 // The "save from anywhere" (browser extension) step — its demo frames the wall.
 const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
 
+// The extension vignette: while the "save from anywhere" step is active it
+// auto-plays — switch to the essay tab, open the extension popup, save, then
+// switch back to the abode tab. Reset to "idle" whenever the step deactivates.
+type VignettePhase =
+  | "idle" // abode tab, grid
+  | "essay" // switched to the essay tab
+  | "popup" // extension popup open
+  | "saving" // save in progress
+  | "saved" // save complete
+  | "returning" // back on the abode tab, the saved card loading in
+  | "landed"; // saved card resolved, holding
+
+// Milliseconds each phase waits before advancing to the next. "landed" has no
+// entry, so the vignette holds there until the step deactivates.
+const VIGNETTE_TIMELINE: Partial<Record<VignettePhase, number>> = {
+  idle: 1100,
+  essay: 1700,
+  popup: 1500,
+  saving: 1500,
+  saved: 1600,
+  returning: 1400,
+};
+const NEXT_PHASE: Partial<Record<VignettePhase, VignettePhase>> = {
+  idle: "essay",
+  essay: "popup",
+  popup: "saving",
+  saving: "saved",
+  saved: "returning",
+  returning: "landed",
+};
+
+// Demo cards land in the wall directly (they don't fly in from the hero), so
+// their scatter config is unused — but the type requires it.
+const NO_SCATTER = {
+  x: 0,
+  y: 0,
+  scale: 1,
+  blur: 0,
+  opacity: 1,
+  rot: 0,
+  z: 0,
+  amp: 0,
+  period: 1000,
+  phase: 0,
+} as const;
+
+// The article the extension vignette "saves" — deliberately NOT one of the
+// wall's cards, so it genuinely appears (loads in) after saving.
+const SAVED_CARD: GalleryCard = {
+  kind: "article",
+  id: "meat-proxy",
+  title: "Don't be a meat proxy",
+  domain: "gruhn.me",
+  author: "Niklas Gruhn",
+  readingTime: 3,
+  insight: { kindLabel: "article", tags: ["ai", "writing", "blog"] },
+  scatter: NO_SCATTER,
+};
+
+// The image the drag & drop vignette drops onto the wall.
+const DROP_CARD: GalleryCard = {
+  kind: "image",
+  id: "bo-kaap-car",
+  src: "/gallery/bo-kaap-car.jpg",
+  width: 1200,
+  height: 1599,
+  title: "Bo-Kaap street",
+  insight: {
+    kindLabel: "photo",
+    objects: ["car", "house", "street", "building"],
+    colors: [
+      { hex: "#EC6A93", name: "pink" },
+      { hex: "#6FBF3B", name: "green" },
+      { hex: "#3FA9E0", name: "blue" },
+    ],
+    tags: ["photography", "travel", "colourful", "architecture"],
+  },
+  scatter: NO_SCATTER,
+};
+
+// The "drag & drop" step — its demo drops an image onto the wall.
+const DROP_STEP = STEPS.findIndex((s) => s.id === "drop");
+
+// The drag & drop vignette: a file is dragged over the wall, dropped, and grows
+// in as a new card.
+type DropPhase =
+  | "idle" // nothing yet
+  | "dragging" // file held over the dropzone
+  | "dropped" // released — uploading
+  | "landed"; // image grown into the wall
+const DROP_TIMELINE: Partial<Record<DropPhase, number>> = {
+  idle: 700,
+  dragging: 1600,
+  dropped: 600,
+};
+const DROP_NEXT: Partial<Record<DropPhase, DropPhase>> = {
+  idle: "dragging",
+  dragging: "dropped",
+  dropped: "landed",
+};
+
+// The tweet the paste vignette pastes onto the wall.
+const PASTE_CARD: GalleryCard = {
+  kind: "tweet",
+  id: "dylan-tweet",
+  author: "Dylan O'Sullivan",
+  handle: "DylanoA4",
+  avatar: "/gallery/dylan-avatar.jpg",
+  text: "I walk somewhere, I run someplace, I lift something heavy, I eat something healthy, I read something good, I write something down, and only then do I take my bad mood seriously",
+  insight: { kindLabel: "tweet", tags: ["habits", "routine", "wellbeing"] },
+  scatter: NO_SCATTER,
+};
+
+// The "paste a link" step — its demo pastes a tweet onto the wall.
+const PASTE_STEP = STEPS.findIndex((s) => s.id === "paste");
+
+// The paste vignette: the paste shortcut is shown, and a tweet pastes in.
+type PastePhase =
+  | "idle" // nothing yet
+  | "keys" // paste shortcut shown at the bottom of the screen
+  | "pasted" // tweet mounts
+  | "landed"; // tweet grown into the wall
+const PASTE_TIMELINE: Partial<Record<PastePhase, number>> = {
+  idle: 700,
+  keys: 1500,
+  pasted: 500,
+};
+const PASTE_NEXT: Partial<Record<PastePhase, PastePhase>> = {
+  idle: "keys",
+  keys: "pasted",
+  pasted: "landed",
+};
+
+// Keep a card mounted through its exit: stays true while `active`, then holds
+// for `ms` after it flips false so the card can animate out (grow-in reversed)
+// before it unmounts.
+function useExitDelay(active: boolean, ms: number) {
+  const [rendered, setRendered] = useState(active);
+  useEffect(() => {
+    if (active) {
+      setRendered(true);
+      return;
+    }
+    const t = setTimeout(() => setRendered(false), ms);
+    return () => clearTimeout(t);
+  }, [active, ms]);
+  return rendered;
+}
+
+// Latch a capture's completion: turns true once `landed` happens and stays true
+// (so its card carries forward) until `active` goes false — i.e. you scroll
+// back before its step. A card scrolled past before it lands never latches.
+function useLandedLatch(landed: boolean, active: boolean) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (landed) setDone(true);
+    else if (!active) setDone(false);
+  }, [landed, active]);
+  return done;
+}
+
+// A demo card that grows into the wall (height 0fr → 1fr + fade, like the real
+// grid's ItemFrame) and, when it leaves, reverses that to grow out. The inner
+// box is pinned so it lays out once instead of reflowing on every frame.
+function GrowInCard({ card, grown }: { card: GalleryCard; grown: boolean }) {
+  return (
+    <li className="group relative break-inside-avoid">
+      <div
+        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
+        style={{
+          gridTemplateRows: grown ? "1fr" : "0fr",
+          opacity: grown ? 1 : 0,
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={cn(faceClass(card), hoverClass(card))}
+            style={faceStyle(card)}
+          >
+            <CardBody card={card} />
+            <Intelligence card={card} />
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function LivingGallery() {
   // The whole choreography (fly-in + capture) is a desktop (lg+) treatment and
   // off under reduced-motion. Off by default so SSR matches the static grid.
@@ -68,6 +260,12 @@ export function LivingGallery() {
   // fit the space left below the sticky header once scooted.
   const [gridNatH, setGridNatH] = useState(0);
   const [vh, setVh] = useState(0);
+  // Current phase of the auto-playing extension vignette.
+  const [vignette, setVignette] = useState<VignettePhase>("idle");
+  // Current phase of the auto-playing drag & drop vignette.
+  const [drop, setDrop] = useState<DropPhase>("idle");
+  // Current phase of the auto-playing paste vignette.
+  const [paste, setPaste] = useState<PastePhase>("idle");
 
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
@@ -76,6 +274,10 @@ export function LivingGallery() {
   const settledRef = useRef(false);
   const gridHRef = useRef(0);
   const vhRef = useRef(0);
+  // Mirrors `savedCardVisible` for the scroll handler: while the saved card is
+  // in the wall we freeze the measured grid height at its baseline, so the
+  // window keeps its size and clips the extra card instead of growing.
+  const savedCardVisibleRef = useRef(false);
 
   // Smooth-scroll to the middle of a step's scroll band (makes it active).
   const scrollToStep = (i: number) => {
@@ -147,10 +349,14 @@ export function LivingGallery() {
         vhRef.current = vh;
         setVh(vh);
       }
-      const gh = gridRef.current?.offsetHeight ?? 0;
-      if (Math.abs(gh - gridHRef.current) > 1) {
-        gridHRef.current = gh;
-        setGridNatH(gh);
+      // Freeze the baseline once the saved card is in the wall, so re-measuring
+      // mid-scroll doesn't grow the window to swallow the extra (clipped) card.
+      if (!savedCardVisibleRef.current) {
+        const gh = gridRef.current?.offsetHeight ?? 0;
+        if (Math.abs(gh - gridHRef.current) > 1) {
+          gridHRef.current = gh;
+          setGridNatH(gh);
+        }
       }
     };
     const onScroll = () => {
@@ -209,10 +415,136 @@ export function LivingGallery() {
   }, [effectOn, settled]);
 
   const flying = effectOn && !settled;
-  // The browser chrome frames the wall once it's fully scooted and the
-  // "save from anywhere" step is active.
-  const showExtensionChrome =
-    effectOn && scoot > 0.95 && activeStep === EXTENSION_STEP;
+  // The browser chrome frames the wall once it's scooted and stays framed as you
+  // carry on through the capture steps — the UI is carried forward.
+  const showChrome = effectOn && scoot > 0.95;
+  // The extension-specific overlays (essay page, popup, active essay tab) only
+  // play while the "save from anywhere" step is the active one.
+  const showExtensionChrome = showChrome && activeStep === EXTENSION_STEP;
+
+  // Drive the vignette. Each stage's demo plays only while its own step is the
+  // active one and resets to idle the moment you leave — so it never runs in the
+  // background, and scrolling (back or forward) to a step always replays it from
+  // the start rather than resuming mid-step.
+  const vignetteEngaged =
+    effectOn && scoot >= 0.95 && activeStep === EXTENSION_STEP;
+  useEffect(() => {
+    if (!vignetteEngaged) {
+      setVignette("idle");
+      return;
+    }
+    const delay = VIGNETTE_TIMELINE[vignette];
+    const next = NEXT_PHASE[vignette];
+    if (delay === undefined || next === undefined) return; // "landed" holds
+    const t = setTimeout(() => setVignette(next), delay);
+    return () => clearTimeout(t);
+  }, [vignetteEngaged, vignette]);
+
+  // Drive the drag & drop vignette the same way, but only engage once its step
+  // is reached (and beyond), so its dropped image also carries forward.
+  const dropEngaged = effectOn && scoot >= 0.95 && activeStep === DROP_STEP;
+  useEffect(() => {
+    if (!dropEngaged) {
+      setDrop("idle");
+      return;
+    }
+    const delay = DROP_TIMELINE[drop];
+    const next = DROP_NEXT[drop];
+    if (delay === undefined || next === undefined) return; // "landed" holds
+    const t = setTimeout(() => setDrop(next), delay);
+    return () => clearTimeout(t);
+  }, [dropEngaged, drop]);
+
+  // Drive the paste vignette the same way, engaging once its step is reached.
+  const pasteEngaged = effectOn && scoot >= 0.95 && activeStep === PASTE_STEP;
+  useEffect(() => {
+    if (!pasteEngaged) {
+      setPaste("idle");
+      return;
+    }
+    const delay = PASTE_TIMELINE[paste];
+    const next = PASTE_NEXT[paste];
+    if (delay === undefined || next === undefined) return; // "landed" holds
+    const t = setTimeout(() => setPaste(next), delay);
+    return () => clearTimeout(t);
+  }, [pasteEngaged, paste]);
+
+  // The essay tab is active from the switch through to the save completing.
+  const onEssayTab =
+    vignette === "essay" ||
+    vignette === "popup" ||
+    vignette === "saving" ||
+    vignette === "saved";
+  // Only surface the essay tab while its overlay is actually playing; otherwise
+  // (e.g. carried forward into a later step) the abode tab stays active.
+  const activeTab = showExtensionChrome && onEssayTab ? 1 : 0;
+  const popupOpen =
+    vignette === "popup" || vignette === "saving" || vignette === "saved";
+  const saveState: SaveState =
+    vignette === "saving" ? "saving" : vignette === "saved" ? "saved" : "idle";
+  // Card visibility is kept separate from the (per-step) replay phase so
+  // captured cards carry forward: while you're at a card's step it follows that
+  // step's playback (mounts collapsed, then grows in on land), and once you're
+  // past the step (activeStep > STEP) it stays in the wall even though the
+  // replay has reset. Scrolling back before a step grows it out again.
+  const scooted = scoot >= 0.95;
+  // Latch each capture's completion so a card only carries forward once its
+  // vignette actually reached "landed" — scrolling past mid-play doesn't count.
+  const savedDone = useLandedLatch(vignette === "landed", scooted);
+  const dropDone = useLandedLatch(
+    drop === "landed",
+    scooted && activeStep >= DROP_STEP,
+  );
+  const pasteDone = useLandedLatch(
+    paste === "landed",
+    scooted && activeStep >= PASTE_STEP,
+  );
+  const savedCardVisible =
+    scooted &&
+    ((activeStep > EXTENSION_STEP && savedDone) ||
+      vignette === "saved" ||
+      vignette === "returning" ||
+      vignette === "landed");
+  const savedCardGrown =
+    (activeStep > EXTENSION_STEP && savedDone) || vignette === "landed";
+
+  // Drag & drop: the demo overlay plays only on its own step; the dropped image
+  // mounts (collapsed) on release and grows in once it lands, like the saved
+  // card — and stays in the wall thereafter.
+  const atDropStep = activeStep === DROP_STEP;
+  const showDropDemo =
+    showChrome && atDropStep && (drop === "dragging" || drop === "dropped");
+  const dropCardVisible =
+    scooted &&
+    ((activeStep > DROP_STEP && dropDone) ||
+      drop === "dropped" ||
+      drop === "landed");
+  const dropCardGrown =
+    (activeStep > DROP_STEP && dropDone) || drop === "landed";
+
+  // Paste: the shortcut shows only on its own step; the pasted tweet mounts on
+  // release and grows in once it lands, then stays in the wall.
+  const atPasteStep = activeStep === PASTE_STEP;
+  const showPasteKeys = showChrome && atPasteStep && paste === "keys";
+  const pasteCardVisible =
+    scooted &&
+    ((activeStep > PASTE_STEP && pasteDone) ||
+      paste === "pasted" ||
+      paste === "landed");
+  const pasteCardGrown =
+    (activeStep > PASTE_STEP && pasteDone) || paste === "landed";
+
+  // Keep each card mounted through its grow-out on the way back, so scrolling
+  // back before a step reverses the entrance instead of popping the card away.
+  const savedCardRendered = useExitDelay(savedCardVisible, 340);
+  const dropCardRendered = useExitDelay(dropCardVisible, 340);
+  const pasteCardRendered = useExitDelay(pasteCardVisible, 340);
+  const anyCardPresent =
+    savedCardRendered || dropCardRendered || pasteCardRendered;
+
+  // Freeze the measured baseline while any demo card is in the wall (including
+  // its exit), so the window keeps its height and clips the extras.
+  savedCardVisibleRef.current = anyCardPresent;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -298,37 +630,79 @@ export function LivingGallery() {
 
           {/* The wall */}
           <div style={wallStyle}>
-            <BrowserChrome show={showExtensionChrome}>
-              <ul
-                ref={gridRef}
-                className={cn(
-                  "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
-                  // Chrome gutter only when the effect is on; without it the
-                  // static fallback grid keeps its original edge-to-edge layout.
-                  // pb absorbs each column's trailing mb-4 so the bottom gutter
-                  // matches the other three sides (8 + 16 = 24).
-                  effectOn && "p-6 pb-2",
-                  flying && "invisible",
-                )}
+            <BrowserChrome
+              show={showChrome}
+              activeTab={activeTab}
+              extensionActive={showExtensionChrome && popupOpen}
+            >
+              {effectOn && (
+                <EssayPage show={showExtensionChrome && onEssayTab} />
+              )}
+              {effectOn && (
+                <ExtensionPopup
+                  show={showExtensionChrome && popupOpen}
+                  state={saveState}
+                />
+              )}
+              {effectOn && (
+                <DragDropDemo
+                  show={showDropDemo}
+                  dropping={drop === "dropped"}
+                />
+              )}
+              {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
+              {/* Fixed-height window: once a demo card lands, hold the wall's
+                  height and clip the overflow rather than growing the window. */}
+              <div
+                style={
+                  effectOn && anyCardPresent && gridNatH > 0
+                    ? { height: gridNatH, overflow: "hidden" }
+                    : undefined
+                }
               >
-                {GALLERY_CARDS.map((card, i) => (
-                  <li
-                    key={card.id}
-                    ref={(el) => {
-                      liRefs.current[i] = el;
-                    }}
-                    className="group relative break-inside-avoid"
-                  >
-                    <div
-                      className={cn(faceClass(card), hoverClass(card))}
-                      style={faceStyle(card)}
+                <ul
+                  ref={gridRef}
+                  className={cn(
+                    "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
+                    // Chrome gutter only when the effect is on; without it the
+                    // static fallback grid keeps its original edge-to-edge layout.
+                    // pb absorbs each column's trailing mb-4 so the bottom gutter
+                    // matches the other three sides (8 + 16 = 24).
+                    effectOn && "p-6 pb-2",
+                    flying && "invisible",
+                  )}
+                >
+                  {/* Freshly-captured items land at the top of the wall, newest
+                      first, growing in as they arrive (paste, drop, save) and
+                      growing out again when scrolled back before their step. */}
+                  {effectOn && pasteCardRendered && (
+                    <GrowInCard card={PASTE_CARD} grown={pasteCardGrown} />
+                  )}
+                  {effectOn && dropCardRendered && (
+                    <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
+                  )}
+                  {effectOn && savedCardRendered && (
+                    <GrowInCard card={SAVED_CARD} grown={savedCardGrown} />
+                  )}
+                  {GALLERY_CARDS.map((card, i) => (
+                    <li
+                      key={card.id}
+                      ref={(el) => {
+                        liRefs.current[i] = el;
+                      }}
+                      className="group relative break-inside-avoid"
                     >
-                      <CardBody card={card} />
-                      <Intelligence card={card} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      <div
+                        className={cn(faceClass(card), hoverClass(card))}
+                        style={faceStyle(card)}
+                      >
+                        <CardBody card={card} />
+                        <Intelligence card={card} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </BrowserChrome>
           </div>
 
@@ -342,7 +716,7 @@ export function LivingGallery() {
               }}
             >
               <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
-                save it all.
+                save <Highlight>it all.</Highlight>
               </h3>
               <p className="mt-4 text-muted-foreground leading-relaxed">
                 no folders, no filing — just paste, drop, or save.

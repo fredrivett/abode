@@ -5,7 +5,7 @@ type TabInfo = { favicon: string; title: string };
 
 const TABS: TabInfo[] = [
   { favicon: "/favicon-light.png", title: "abode" },
-  { favicon: "/pg-favicon.png", title: "How to Start a Startup" },
+  { favicon: "/globe.svg", title: "Don't be a meat proxy" },
 ];
 
 function Tab({ favicon, title, active }: TabInfo & { active: boolean }) {
@@ -38,11 +38,14 @@ function Tab({ favicon, title, active }: TabInfo & { active: boolean }) {
 export function BrowserChrome({
   show,
   activeTab = 0,
+  extensionActive = false,
   children,
 }: {
   show: boolean;
   /** Which tab's content is showing (0 = abode/grid, 1 = the essay). */
   activeTab?: number;
+  /** Highlights the extension button while its popup is open. */
+  extensionActive?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -68,12 +71,19 @@ export function BrowserChrome({
               <Tab key={tab.title} {...tab} active={i === activeTab} />
             ))}
             {/* abode's browser extension, pinned to the toolbar's right edge */}
-            {/* biome-ignore lint/performance/noImgElement: tiny static icon */}
-            <img
-              src="/favicon-light.png"
-              alt=""
-              className="mr-1 mb-4 ml-auto size-6 rounded-[6px]"
-            />
+            <span
+              className={cn(
+                "mr-1 mb-3 ml-auto flex size-9 items-center justify-center rounded-lg transition-colors",
+                extensionActive ? "bg-muted" : "bg-transparent",
+              )}
+            >
+              {/* biome-ignore lint/performance/noImgElement: tiny static icon */}
+              <img
+                src="/favicon-light.png"
+                alt=""
+                className="size-6 rounded-[6px]"
+              />
+            </span>
           </div>
           {/* Radius = card radius (rounded-2xl, 16px) + the grid's p-6 (24px),
               so the frame stays concentric with the items inside it. */}

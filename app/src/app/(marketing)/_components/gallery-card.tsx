@@ -45,7 +45,10 @@ export function faceStyle(card: GalleryCard): CSSProperties | undefined {
   // No fixed aspect — the note grows with its content. Just round NoteCard to
   // match the gallery (it reads --grid-border-radius, default 8px).
   if (card.kind === "note") {
-    return { "--grid-border-radius": "16px" } as CSSProperties;
+    return {
+      "--grid-border-radius": "16px",
+      "--grid-font-scale": "1.15",
+    } as CSSProperties;
   }
   return undefined;
 }
@@ -189,7 +192,7 @@ function CardMedia({ card }: { card: GalleryCard }) {
               </p>
             </div>
           </div>
-          <p className="text-[15px] leading-snug">{card.text}</p>
+          <p className="text-[17px] leading-snug">{card.text}</p>
         </div>
       );
     case "note":
