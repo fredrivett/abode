@@ -2,13 +2,20 @@
 #
 # Conductor workspace run command. Starts the app dev server.
 #
-# Before booting we run two independent checks. The local Supabase DB is shared
-# across all workspaces, so we deliberately do NOT auto-apply or generate
-# migrations here — a feature branch could mutate the schema other workspaces
-# read from. Instead we fail fast and let the user act.
+# First we make sure the shared local Supabase stack is up (step 0), then we run
+# two independent checks against it. The local Supabase DB is shared across all
+# workspaces (fixed project_id "abode" → fixed containers/ports), so we
+# deliberately do NOT auto-apply or generate migrations here — a feature branch
+# could mutate the schema other workspaces read from. Instead we fail fast and
+# let the user act.
 #
+#   0. supabase up  — boot the shared stack if it isn't already running
 #   1. migrate status — are all committed migrations applied to the local DB?
 #   2. schema drift  — has schema.prisma changed without a migration generated?
+#
+# Step 0 only *starts* the stack (idempotent, safe from any workspace); it never
+# applies a feature branch's migrations, and a cold boot is run from the root
+# checkout so it seeds from the canonical (main) migrations, not this branch's.
 #
 # Check 2 must run after check 1: it diffs the live DB against schema.prisma, so
 # a pending-but-unapplied migration would also look like drift. Once check 1
@@ -25,6 +32,31 @@ yellow=$'\033[33m'
 cyan=$'\033[36m'
 reset=$'\033[0m'
 rule="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Step 0: boot the shared stack if it's down, so the checks below have a DB.
+# Start from the root checkout (canonical branch) so a cold boot never seeds the
+# shared DB with this branch's unmerged migrations. Best-effort: on any failure
+# we continue and let the migrate check surface the P1001 banner.
+supabase_root="${CONDUCTOR_ROOT_PATH:-$(cd .. && pwd)}"
+if command -v docker >/dev/null 2>&1; then
+  # Require BOTH the db (what Prisma reaches) and auth containers up. If only one
+  # survives, treat the stack as down so we fall through to the stop+start
+  # recovery rather than declaring it healthy and hitting P1001 later.
+  running=$(docker ps --format '{{.Names}}' 2>/dev/null || true)
+  if grep -q '^supabase_db_abode$' <<<"$running" && grep -q '^supabase_auth_abode$' <<<"$running"; then
+    echo "${green}✓ Supabase already running${reset}"
+  elif [ -x "$supabase_root/scripts/start-supabase.sh" ]; then
+    echo "${cyan}Local Supabase isn't running — starting it from ${supabase_root}...${reset}"
+    # A plain start can't recover a half-dead stack (a container exited but the
+    # CLI still thinks it's up); a stop (keeps a backup) + start clears that.
+    if ! (cd "$supabase_root" && ./scripts/start-supabase.sh); then
+      echo "${yellow}⚠  Start failed — resetting the stack (stop + start)...${reset}"
+      (cd "$supabase_root" && supabase stop >/dev/null 2>&1) || true
+      (cd "$supabase_root" && ./scripts/start-supabase.sh) \
+        || echo "${yellow}⚠  Supabase still won't start; continuing (DB check below will report it).${reset}"
+    fi
+  fi
+fi
 
 # Check 1: pending (generated but unapplied) migrations.
 # `prisma migrate status` exits non-zero when migrations are pending, the schema
