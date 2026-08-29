@@ -29,7 +29,11 @@ export function useSearch() {
   // Track the last URL we set to avoid reacting to our own changes
   const lastUrlRef = useRef<string | null>(null);
 
-  // Handle browser back/forward navigation
+  // Debounced URL update
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle external URL changes (browser back/forward, or another useSearch
+  // instance writing the URL — e.g. clicking a chip in the item dialog)
   useEffect(() => {
     const currentUrl = searchParams.toString();
 
@@ -38,13 +42,17 @@ export function useSearch() {
       return;
     }
 
-    // External navigation (back/forward) - sync from URL
+    // A pending debounced write is now stale — the external change supersedes
+    // it. Drop it so it can't clobber the URL after we sync (e.g. a chip's
+    // immediate write being overwritten by the header's typed-query timer).
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const urlState = parseSearchParams(searchParams);
     setLocalState(urlState);
   }, [searchParams]);
-
-  // Debounced URL update
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const writeUrl = useCallback((newState: SearchState) => {
     const params = serializeSearchParams(newState);
