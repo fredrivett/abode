@@ -410,12 +410,12 @@ export function LivingGallery() {
   // play while the "save from anywhere" step is the active one.
   const showExtensionChrome = showChrome && activeStep === EXTENSION_STEP;
 
-  // Drive the vignette. It engages once the wall has scooted and always plays
-  // forward to "landed", holding there — so scrolling on past the step doesn't
-  // rewind it: the chrome just fades and the saved card is left in the wall (it
-  // transitions to that end state rather than jumping). It resets only when you
-  // scroll back before the wall has scooted, so it replays on re-entry.
-  const vignetteEngaged = effectOn && scoot >= 0.95;
+  // Drive the vignette. Each stage's demo plays only while its own step is the
+  // active one and resets to idle the moment you leave — so it never runs in the
+  // background, and scrolling (back or forward) to a step always replays it from
+  // the start rather than resuming mid-step.
+  const vignetteEngaged =
+    effectOn && scoot >= 0.95 && activeStep === EXTENSION_STEP;
   useEffect(() => {
     if (!vignetteEngaged) {
       setVignette("idle");
@@ -430,7 +430,7 @@ export function LivingGallery() {
 
   // Drive the drag & drop vignette the same way, but only engage once its step
   // is reached (and beyond), so its dropped image also carries forward.
-  const dropEngaged = effectOn && scoot >= 0.95 && activeStep >= DROP_STEP;
+  const dropEngaged = effectOn && scoot >= 0.95 && activeStep === DROP_STEP;
   useEffect(() => {
     if (!dropEngaged) {
       setDrop("idle");
@@ -444,7 +444,7 @@ export function LivingGallery() {
   }, [dropEngaged, drop]);
 
   // Drive the paste vignette the same way, engaging once its step is reached.
-  const pasteEngaged = effectOn && scoot >= 0.95 && activeStep >= PASTE_STEP;
+  const pasteEngaged = effectOn && scoot >= 0.95 && activeStep === PASTE_STEP;
   useEffect(() => {
     if (!pasteEngaged) {
       setPaste("idle");
