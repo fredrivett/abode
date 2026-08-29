@@ -514,7 +514,7 @@ function ReadingDateField({
                 : "Set date"}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
+          <PopoverContent className="w-64 p-0" align="end">
             <div className="flex items-center gap-1 border-b p-2">
               {PRECISION_OPTIONS.map((opt) => (
                 <Button
@@ -543,17 +543,19 @@ function ReadingDateField({
                     Today
                   </Button>
                 </div>
-                <Calendar
-                  mode="single"
-                  selected={selected}
-                  onSelect={pickDay}
-                  disabled={{ after: new Date() }}
-                  autoFocus
-                />
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selected}
+                    onSelect={pickDay}
+                    disabled={{ after: new Date() }}
+                    autoFocus
+                  />
+                </div>
               </>
             )}
             {activePrecision === "month" && (
-              <div className="w-64 p-3">
+              <div className="p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <Button
                     type="button"
@@ -603,7 +605,7 @@ function ReadingDateField({
               </div>
             )}
             {activePrecision === "year" && (
-              <div className="max-h-56 w-32 overflow-y-auto p-1">
+              <div className="max-h-56 overflow-y-auto p-1">
                 {Array.from(
                   { length: currentYear - EARLIEST_YEAR + 1 },
                   (_, i) => currentYear - i,
