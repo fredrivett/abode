@@ -45,6 +45,21 @@ describe("isReadingDateRangeInverted", () => {
       ),
     ).toBe(true);
   });
+
+  it("is false for an exact same-day started time on the coarse period's final day", () => {
+    // Finished sometime in August 2026 (month precision, normalized to Aug 1
+    // midnight); started at an exact, non-midnight time on Aug 31 — the last
+    // day of that month. The finished period must be treated as extending to
+    // the END of Aug 31, not midnight at its start, or this exact-time
+    // startedAt would wrongly appear to be after it.
+    expect(
+      isReadingDateRangeInverted(
+        new Date(Date.UTC(2026, 7, 31, 14, 30)),
+        new Date(Date.UTC(2026, 7, 1)),
+        "month",
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("BOOK_READING_STATUS_LABELS", () => {

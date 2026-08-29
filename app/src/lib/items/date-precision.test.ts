@@ -28,15 +28,15 @@ describe("endOfPrecision", () => {
     expect(endOfPrecision(date, "day")).toEqual(date);
   });
 
-  it("returns the last day of the month for month precision", () => {
+  it("returns the end of the last day of the month for month precision", () => {
     expect(endOfPrecision(new Date(Date.UTC(2026, 1, 1)), "month")).toEqual(
-      new Date(Date.UTC(2026, 1, 28)),
+      new Date(Date.UTC(2026, 1, 28, 23, 59, 59, 999)),
     );
   });
 
-  it("returns Dec 31 for year precision", () => {
+  it("returns the end of Dec 31 for year precision", () => {
     expect(endOfPrecision(new Date(Date.UTC(2026, 0, 1)), "year")).toEqual(
-      new Date(Date.UTC(2026, 11, 31)),
+      new Date(Date.UTC(2026, 11, 31, 23, 59, 59, 999)),
     );
   });
 });

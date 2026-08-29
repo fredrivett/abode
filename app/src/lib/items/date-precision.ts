@@ -27,9 +27,9 @@ export function startOfPrecision(
 }
 
 // Latest instant still within the known period, given a date already
-// normalized to the start of that period. Used to check whether a
-// start/finish pair is *possibly* valid without over-rejecting coarse dates —
-// e.g. "started March 2020" / "finished 2020" isn't provably inverted.
+// normalized to the start of that period. Must land at 23:59:59.999 on the
+// final day, not midnight — day precision isn't truncated, so an exact
+// same-day time would otherwise compare as after it.
 export function endOfPrecision(
   normalizedStart: Date,
   precision: DatePrecisionValue,
@@ -43,9 +43,15 @@ export function endOfPrecision(
           normalizedStart.getUTCFullYear(),
           normalizedStart.getUTCMonth() + 1,
           0,
+          23,
+          59,
+          59,
+          999,
         ),
       );
     case "year":
-      return new Date(Date.UTC(normalizedStart.getUTCFullYear(), 11, 31));
+      return new Date(
+        Date.UTC(normalizedStart.getUTCFullYear(), 11, 31, 23, 59, 59, 999),
+      );
   }
 }
