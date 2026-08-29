@@ -209,6 +209,12 @@ type ItemCardProps = {
    * Defaults to true for backwards compatibility.
    */
   canEdit?: boolean;
+  /**
+   * Called after the item is successfully deleted.
+   * Lets a parent that keeps its own list (e.g. the room view's local state)
+   * remove the card, since invalidateItems only touches the ["items"] query.
+   */
+  onDeleted?: () => void;
 };
 
 /**
@@ -224,6 +230,7 @@ export function ItemCard({
   size,
   mimeType,
   canEdit = true,
+  onDeleted,
 }: ItemCardProps) {
   const invalidateItems = useInvalidateItems();
   const [itemName, setItemName] = useState(name);
@@ -321,7 +328,11 @@ export function ItemCard({
 
       toast.success("Item deleted");
       setShowDeleteDialog(false);
+      // Close the detail dialog explicitly so it dismisses regardless of whether
+      // the parent list unmounts this card (the room view keeps its own state).
+      setShowDetailDialog(false);
       invalidateItems();
+      onDeleted?.();
     } catch (error) {
       log.error({ error }, "Delete error");
       posthog.captureException(error);

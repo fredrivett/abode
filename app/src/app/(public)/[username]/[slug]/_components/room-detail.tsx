@@ -412,6 +412,9 @@ export function RoomDetail({
                       size={size}
                       mimeType={mimeType}
                       canEdit={isOwner}
+                      onDeleted={() =>
+                        setItems((prev) => prev.filter((i) => i.id !== item.id))
+                      }
                     />
                   </Frame>
                 );
