@@ -27,3 +27,22 @@ export function triggerRunsUrl(
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}${params.toString()}`;
 }
+
+/**
+ * A Trigger.dev dashboard link to a single run's detail page, or `null` when
+ * `TRIGGER_RUNS_DASHBOARD_URL` isn't set. The base is the env's runs-list URL; a
+ * run detail lives one path segment deeper (`<base>/<runId>`), so we append the
+ * id to the path and preserve any query string.
+ */
+export function triggerRunUrl(runId: string): string | null {
+  const base = env.TRIGGER_RUNS_DASHBOARD_URL;
+  if (!base) return null;
+
+  try {
+    const url = new URL(base);
+    url.pathname = `${url.pathname.replace(/\/$/, "")}/${runId}`;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
