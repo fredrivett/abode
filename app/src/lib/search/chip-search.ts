@@ -31,7 +31,8 @@ export function chipSearchAnalytics({
   isUserTag = false,
 }: ChipSearch & { itemId: string }): Record<string, unknown> {
   return {
-    itemId,
+    // snake_case to match the other item_* PostHog events
+    item_id: itemId,
     facet: isUserTag ? "userTag" : type,
     ...(isUserTag ? {} : { value }),
   };

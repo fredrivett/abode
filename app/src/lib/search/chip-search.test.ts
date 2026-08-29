@@ -35,13 +35,13 @@ describe("chipSearchAnalytics", () => {
   it("includes the raw value for colors and Vision objects/tags", () => {
     expect(
       chipSearchAnalytics({ itemId: "i1", type: "color", value: "#FF5733" }),
-    ).toEqual({ itemId: "i1", facet: "color", value: "#FF5733" });
+    ).toEqual({ item_id: "i1", facet: "color", value: "#FF5733" });
     expect(
       chipSearchAnalytics({ itemId: "i1", type: "object", value: "Car" }),
-    ).toEqual({ itemId: "i1", facet: "object", value: "Car" });
+    ).toEqual({ item_id: "i1", facet: "object", value: "Car" });
     expect(
       chipSearchAnalytics({ itemId: "i1", type: "tag", value: "Sedan" }),
-    ).toEqual({ itemId: "i1", facet: "tag", value: "Sedan" });
+    ).toEqual({ item_id: "i1", facet: "tag", value: "Sedan" });
   });
 
   it("omits the raw value for user tags (may be personal)", () => {
@@ -51,7 +51,7 @@ describe("chipSearchAnalytics", () => {
       value: "my private note",
       isUserTag: true,
     });
-    expect(payload).toEqual({ itemId: "i1", facet: "userTag" });
+    expect(payload).toEqual({ item_id: "i1", facet: "userTag" });
     expect(payload).not.toHaveProperty("value");
   });
 });
