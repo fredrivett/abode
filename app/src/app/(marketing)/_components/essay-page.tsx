@@ -24,12 +24,12 @@ export function EssayPage({ show }: { show: boolean }) {
         show ? "opacity-100" : "opacity-0",
       )}
     >
-      <div className="mx-auto max-w-2xl px-14 py-14">
-        <h1 className="font-serif text-3xl text-neutral-900 leading-tight tracking-tight">
+      <div className="mx-auto max-w-4xl px-16 py-16">
+        <h1 className="font-serif text-6xl text-neutral-900 leading-tight tracking-tight">
           Don't be a meat proxy
         </h1>
-        <p className="mt-3 text-neutral-500 text-sm">Niklas Gruhn · Aug 2026</p>
-        <div className="mt-8 flex flex-col gap-4 text-[13px] text-neutral-700 leading-[1.75]">
+        <p className="mt-5 text-neutral-500 text-xl">Niklas Gruhn · Aug 2026</p>
+        <div className="mt-12 flex flex-col gap-7 text-2xl text-neutral-700 leading-relaxed">
           {PARAGRAPHS.map((p) => (
             <p key={p.key}>{p.text}</p>
           ))}

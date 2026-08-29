@@ -675,7 +675,7 @@ export function LivingGallery() {
               }}
             >
               <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
-                save it all.
+                save <Highlight>it all.</Highlight>
               </h3>
               <p className="mt-4 text-muted-foreground leading-relaxed">
                 no folders, no filing — just paste, drop, or save.
