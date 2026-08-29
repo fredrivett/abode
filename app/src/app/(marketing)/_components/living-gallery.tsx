@@ -136,6 +136,10 @@ export function LivingGallery() {
   const settledRef = useRef(false);
   const gridHRef = useRef(0);
   const vhRef = useRef(0);
+  // Mirrors `savedCardVisible` for the scroll handler: while the saved card is
+  // in the wall we freeze the measured grid height at its baseline, so the
+  // window keeps its size and clips the extra card instead of growing.
+  const savedCardVisibleRef = useRef(false);
 
   // Smooth-scroll to the middle of a step's scroll band (makes it active).
   const scrollToStep = (i: number) => {
@@ -207,10 +211,14 @@ export function LivingGallery() {
         vhRef.current = vh;
         setVh(vh);
       }
-      const gh = gridRef.current?.offsetHeight ?? 0;
-      if (Math.abs(gh - gridHRef.current) > 1) {
-        gridHRef.current = gh;
-        setGridNatH(gh);
+      // Freeze the baseline once the saved card is in the wall, so re-measuring
+      // mid-scroll doesn't grow the window to swallow the extra (clipped) card.
+      if (!savedCardVisibleRef.current) {
+        const gh = gridRef.current?.offsetHeight ?? 0;
+        if (Math.abs(gh - gridHRef.current) > 1) {
+          gridHRef.current = gh;
+          setGridNatH(gh);
+        }
       }
     };
     const onScroll = () => {
@@ -269,25 +277,30 @@ export function LivingGallery() {
   }, [effectOn, settled]);
 
   const flying = effectOn && !settled;
-  // The browser chrome frames the wall once it's fully scooted and the
-  // "save from anywhere" step is active.
-  const showExtensionChrome =
-    effectOn && scoot > 0.95 && activeStep === EXTENSION_STEP;
+  // The browser chrome frames the wall once it's scooted and stays framed as you
+  // carry on through the capture steps — the UI is carried forward.
+  const showChrome = effectOn && scoot > 0.95;
+  // The extension-specific overlays (essay page, popup, active essay tab) only
+  // play while the "save from anywhere" step is the active one.
+  const showExtensionChrome = showChrome && activeStep === EXTENSION_STEP;
 
-  // Drive the vignette: while the extension step is framed, advance through the
-  // timeline one phase at a time; reset to the start whenever it deactivates
-  // (so scrolling away and back replays it).
+  // Drive the vignette. It engages once the wall has scooted and always plays
+  // forward to "landed", holding there — so scrolling on past the step doesn't
+  // rewind it: the chrome just fades and the saved card is left in the wall (it
+  // transitions to that end state rather than jumping). It resets only when you
+  // scroll back before the wall has scooted, so it replays on re-entry.
+  const vignetteEngaged = effectOn && scoot >= 0.95;
   useEffect(() => {
-    if (!showExtensionChrome) {
+    if (!vignetteEngaged) {
       setVignette("idle");
       return;
     }
     const delay = VIGNETTE_TIMELINE[vignette];
     const next = NEXT_PHASE[vignette];
-    if (delay === undefined || next === undefined) return; // "returned" holds
+    if (delay === undefined || next === undefined) return; // "landed" holds
     const t = setTimeout(() => setVignette(next), delay);
     return () => clearTimeout(t);
-  }, [showExtensionChrome, vignette]);
+  }, [vignetteEngaged, vignette]);
 
   // The essay tab is active from the switch through to the save completing.
   const onEssayTab =
@@ -295,7 +308,9 @@ export function LivingGallery() {
     vignette === "popup" ||
     vignette === "saving" ||
     vignette === "saved";
-  const activeTab = onEssayTab ? 1 : 0;
+  // Only surface the essay tab while its overlay is actually playing; otherwise
+  // (e.g. carried forward into a later step) the abode tab stays active.
+  const activeTab = showExtensionChrome && onEssayTab ? 1 : 0;
   const popupOpen =
     vignette === "popup" || vignette === "saving" || vignette === "saved";
   const saveState: SaveState =
@@ -306,6 +321,7 @@ export function LivingGallery() {
   const savedCardVisible =
     vignette === "saved" || vignette === "returning" || vignette === "landed";
   const savedCardGrown = vignette === "landed";
+  savedCardVisibleRef.current = savedCardVisible;
 
   // The wall shrinks as the capture column fades in. Anchored to its left edge,
   // so shrinking pulls the right edge in and opens a gutter before the column.
@@ -392,13 +408,18 @@ export function LivingGallery() {
           {/* The wall */}
           <div style={wallStyle}>
             <BrowserChrome
-              show={showExtensionChrome}
+              show={showChrome}
               activeTab={activeTab}
-              extensionActive={popupOpen}
+              extensionActive={showExtensionChrome && popupOpen}
             >
-              {effectOn && <EssayPage show={onEssayTab} />}
               {effectOn && (
-                <ExtensionPopup show={popupOpen} state={saveState} />
+                <EssayPage show={showExtensionChrome && onEssayTab} />
+              )}
+              {effectOn && (
+                <ExtensionPopup
+                  show={showExtensionChrome && popupOpen}
+                  state={saveState}
+                />
               )}
               {/* Fixed-height window: once the saved card lands, hold the wall's
                   height and clip the overflow rather than growing the window. */}
