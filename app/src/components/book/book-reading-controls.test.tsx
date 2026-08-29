@@ -131,7 +131,10 @@ describe("BookReadingControls date precision", () => {
   it("shows a pre-migration date (non-null value, null precision) as a full date instead of Set date", () => {
     renderControls({
       status: "reading",
-      startedAt: "2024-03-05T00:00:00.000Z",
+      // Midday UTC so the local calendar day is stable across timezones —
+      // day precision formats in local time, and a midnight UTC timestamp
+      // would render as the previous day west of UTC.
+      startedAt: "2024-03-05T12:00:00.000Z",
       startedAtPrecision: null,
     });
     expect(screen.getByText("Mar 5, 2024")).toBeInTheDocument();
