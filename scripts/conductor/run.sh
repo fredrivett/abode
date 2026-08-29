@@ -33,25 +33,24 @@ cyan=$'\033[36m'
 reset=$'\033[0m'
 rule="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Step 0: ensure the shared Supabase stack is running.
-# The stack is shared (project_id "abode" → container "supabase_auth_abode",
-# fixed ports), so `supabase start` from any workspace attaches to the SAME
-# stack — starting it is idempotent and safe. We only boot it when it's down so
-# the migrate checks below have a DB to reach, mirroring what bin/dev does for
-# the non-Conductor flow. We start from the ROOT checkout ($CONDUCTOR_ROOT_PATH,
-# falling back to this workspace root): a cold boot applies whatever migrations
-# live there, and the root sits on the canonical branch, so a feature branch
-# never seeds the shared DB with its own not-yet-merged migrations. If Docker or
-# the Supabase CLI is missing, or the start fails, we don't abort — the migrate
-# check below then surfaces the clear "can't reach the local database" banner.
+# Step 0: boot the shared stack if it's down, so the checks below have a DB.
+# Start from the root checkout (canonical branch) so a cold boot never seeds the
+# shared DB with this branch's unmerged migrations. Best-effort: on any failure
+# we continue and let the migrate check surface the P1001 banner.
 supabase_root="${CONDUCTOR_ROOT_PATH:-$(cd .. && pwd)}"
 if command -v docker >/dev/null 2>&1; then
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^supabase_auth_abode$'; then
     echo "${green}✓ Supabase already running${reset}"
   elif [ -x "$supabase_root/scripts/start-supabase.sh" ]; then
     echo "${cyan}Local Supabase isn't running — starting it from ${supabase_root}...${reset}"
-    (cd "$supabase_root" && ./scripts/start-supabase.sh) \
-      || echo "${yellow}⚠  Supabase start failed; continuing (the DB check below will report if it's unreachable).${reset}"
+    # A plain start can't recover a half-dead stack (a container exited but the
+    # CLI still thinks it's up); a stop (keeps a backup) + start clears that.
+    if ! (cd "$supabase_root" && ./scripts/start-supabase.sh); then
+      echo "${yellow}⚠  Start failed — resetting the stack (stop + start)...${reset}"
+      (cd "$supabase_root" && supabase stop >/dev/null 2>&1) || true
+      (cd "$supabase_root" && ./scripts/start-supabase.sh) \
+        || echo "${yellow}⚠  Supabase still won't start; continuing (DB check below will report it).${reset}"
+    fi
   fi
 fi
 
