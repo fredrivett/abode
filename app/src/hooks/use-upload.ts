@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api-client";
+import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
@@ -14,6 +14,7 @@ import {
   MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
+import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("hooks/use-upload");
@@ -79,7 +80,9 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         return true;
       } catch (error) {
         log.error({ error }, "URL submission error");
-        const errorMsg = "Failed to add URL. Please try again.";
+        const errorMsg = isDailyLimitError(error)
+          ? DAILY_LIMIT_REACHED_MESSAGE
+          : "Failed to add URL. Please try again.";
         toast.error(errorMsg);
         onError?.(errorMsg);
         return false;
@@ -179,7 +182,9 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         return true;
       } catch (error) {
         log.error({ error }, "File upload error");
-        const errorMsg = "Upload failed. Please try again.";
+        const errorMsg = isDailyLimitError(error)
+          ? DAILY_LIMIT_REACHED_MESSAGE
+          : "Upload failed. Please try again.";
         toast.error(errorMsg);
         onError?.(errorMsg);
         return false;

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimDailyReassign } from "@/lib/items/reassign-claim";
@@ -107,13 +108,7 @@ export async function POST(
     const guard = await guardDailyLimit(user.id, "reanalysis");
     if (!guard.ok) {
       await restoreClaim();
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     try {

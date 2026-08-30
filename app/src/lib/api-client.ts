@@ -1,4 +1,5 @@
 import { createClient } from "./supabase/client";
+import { DAILY_LIMIT_REACHED_CODE } from "./usage-limits.shared";
 
 export interface ApiError {
   message: string;
@@ -16,6 +17,17 @@ export class ApiClientError extends Error {
     this.status = error.status;
     this.code = error.code;
   }
+}
+
+/**
+ * True when an error is a 429 from the durable daily usage cap (as opposed to a
+ * per-minute rate limit or the once-per-item-per-day reassign cap, which share
+ * the 429 status). Lets callers show a clear "daily limit" message.
+ */
+export function isDailyLimitError(error: unknown): error is ApiClientError {
+  return (
+    error instanceof ApiClientError && error.code === DAILY_LIMIT_REACHED_CODE
+  );
 }
 
 async function apiClient<T>(

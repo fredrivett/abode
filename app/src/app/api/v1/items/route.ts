@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { isItemSource } from "@/lib/items/capture-source";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import { itemSelect, transformItem } from "@/lib/items/query";
@@ -127,13 +128,7 @@ export async function POST(request: NextRequest) {
     // USAGE_LIMITS_ENFORCED). Each item = several paid AI calls.
     const guard = await guardDailyLimit(user.id, "ingestion");
     if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     const body = await request.json();

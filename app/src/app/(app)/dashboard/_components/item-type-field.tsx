@@ -13,13 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IsLoading } from "@/components/ui/is-loading";
-import { api } from "@/lib/api-client";
+import { api, isDailyLimitError } from "@/lib/api-client";
 import {
   ITEM_KIND_LABELS,
   isForcibleKind,
   reassignableTargets,
 } from "@/lib/item-kind-reassignment";
 import { createLogger } from "@/lib/logger.client";
+import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 
 const log = createLogger("dashboard/item-type-field");
 
@@ -78,7 +79,11 @@ export function ItemTypeField({
     } catch (error) {
       log.error({ error }, "Reassign error");
       posthog.captureException(error);
-      toast.error("Failed to change type");
+      toast.error(
+        isDailyLimitError(error)
+          ? DAILY_LIMIT_REACHED_MESSAGE
+          : "Failed to change type",
+      );
     } finally {
       setIsReassigning(false);
     }

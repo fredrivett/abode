@@ -28,14 +28,25 @@ import { getPostHogClient } from "@/lib/posthog-server";
 const log = createLogger("lib/usage-limits");
 
 /**
- * Per-bucket daily action limits. Starting points — tune against real usage in
- * shadow mode (these are deliberately generous guesses, not measured p99s).
- * Mirrors the shape of `RATE_LIMITS` in rate-limit.ts.
+ * Per-bucket daily action limits. Mirrors the shape of `RATE_LIMITS` in
+ * rate-limit.ts.
+ *
+ * Calibrated 2026-08-30 against the shadow-mode window: observed real usage sits
+ * well below every cap and no bucket has produced a would-be-block, so the
+ * original values are kept — each cap bounds a runaway abuse loop while leaving
+ * generous headroom for legit power users. The tighter money control is
+ * `PER_USER_DAILY_USD` ($2/day), which bites well before 150 paid ingestions.
  */
 export const DAILY_LIMITS = {
-  ingestion: 150, // POST /items + /items/from-url
-  reanalysis: 20, // /items/[id]/reassign + /retry (rarely legitimately high)
-  location: 150, // /items/[id]/location (Mapbox geocode per call)
+  // POST /items + /items/from-url. Comfortably above real use; each item is
+  // several paid AI calls, so the $2/day cost cap gates money before this count.
+  ingestion: 150,
+  // /items/[id]/reassign + /retry. reassign is also capped once-per-item-per-day,
+  // so 20 distinct items reanalysed/day is already ample headroom.
+  reanalysis: 20,
+  // /items/[id]/location (Mapbox geocode per call). Geocode is cheap; mirrors
+  // ingestion as a coarse abuse bound.
+  location: 150,
   search: 500, // reserved — search route still uses its in-memory cap in v1
   emoji: 180, // reserved — matches today's emojiSuggestDaily cap
 } as const;

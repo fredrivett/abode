@@ -9,6 +9,8 @@
 
 This repository is public/open-source. Everything you write into git or GitHub is world-readable — commit messages, branch names, PR and issue text, code comments, and screenshots, not just code. Never put secrets, real user data (e.g. emails), private/internal URLs, or sensitive business context in any of them. The gitleaks hook and CI only scan committed code, not PR/commit text or images — those are on you.
 
+**"Sensitive business context" includes metrics.** When a task has you query analytics or the DB (PostHog, Supabase, prod) and you then document what you found in committed content (code comments, commit/PR text), record only the engineering rationale — never the concrete figures that reveal business state: active-user counts, traffic/usage volumes, revenue, conversion, or growth stage. "Caps sit well above observed use" is fine; "peak was 7/day across ~2 users" is not. Keep the raw numbers in local/session notes, out of the repo.
+
 ## Commands
 
 Run from the `./app` directory unless noted. `bun run check:fix` is the primary quality gate after any code change.

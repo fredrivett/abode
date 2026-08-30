@@ -192,6 +192,52 @@ describe("usage-limits integration", () => {
     expect(Number(row?.cost_usd)).toBeCloseTo(0.00002, 8);
   });
 
+  describe("guardDailyLimit enforcement", () => {
+    const original = process.env.USAGE_LIMITS_ENFORCED;
+    afterEach(() => {
+      if (original === undefined) delete process.env.USAGE_LIMITS_ENFORCED;
+      else process.env.USAGE_LIMITS_ENFORCED = original;
+    });
+
+    test("enforced mode blocks with 429 metadata once over the limit", async () => {
+      process.env.USAGE_LIMITS_ENFORCED = "true";
+      const user = await createUser();
+      const limit = DAILY_LIMITS.reanalysis; // 20
+
+      const results = [];
+      for (let i = 0; i < limit + 1; i++) {
+        results.push(await guardDailyLimit(user.id, "reanalysis"));
+      }
+
+      // The first `limit` calls proceed; the guard only blocks the one over.
+      expect(
+        results.slice(0, limit).every((r) => r.ok && r.action === "allow"),
+      ).toBe(true);
+
+      const blocked = results[limit];
+      expect(blocked.ok).toBe(false); // route turns this into a 429
+      expect(blocked.action).toBe("block");
+      expect(blocked.check.count).toBe(limit + 1);
+      expect(blocked.check.limit).toBe(limit);
+      // Retry-After header value is derived from this — must be positive.
+      expect(blocked.check.retryAfterSeconds).toBeGreaterThan(0);
+    });
+
+    test("shadow mode (flag unset) keeps allowing past the limit", async () => {
+      delete process.env.USAGE_LIMITS_ENFORCED;
+      const user = await createUser();
+      const limit = DAILY_LIMITS.reanalysis;
+
+      let last: Awaited<ReturnType<typeof guardDailyLimit>> | undefined;
+      for (let i = 0; i < limit + 1; i++) {
+        last = await guardDailyLimit(user.id, "reanalysis");
+      }
+
+      expect(last?.ok).toBe(true); // never blocks in shadow mode
+      expect(last?.action).toBe("shadow");
+    });
+  });
+
   test("shadow mode never blocks even if analytics capture throws", async () => {
     const user = await createUser();
     const { write } = await import("@/lib/db");

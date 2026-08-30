@@ -8,7 +8,8 @@ vi.mock("./supabase/client", () => ({
   }),
 }));
 
-import { type ApiClientError, api } from "./api-client";
+import { ApiClientError, api, isDailyLimitError } from "./api-client";
+import { DAILY_LIMIT_REACHED_CODE } from "./usage-limits.shared";
 
 describe("api-client", () => {
   beforeEach(() => {
@@ -114,5 +115,35 @@ describe("api-client", () => {
     );
 
     await expect(api.delete("/api/test")).resolves.toEqual({});
+  });
+});
+
+describe("isDailyLimitError", () => {
+  test("true for a 429 carrying the daily-limit code", () => {
+    const error = new ApiClientError({
+      message: "Daily limit reached",
+      status: 429,
+      code: DAILY_LIMIT_REACHED_CODE,
+    });
+    expect(isDailyLimitError(error)).toBe(true);
+  });
+
+  test("false for a 429 without the code (per-minute / once-per-day caps)", () => {
+    const error = new ApiClientError({
+      message: "Too many requests",
+      status: 429,
+    });
+    expect(isDailyLimitError(error)).toBe(false);
+  });
+
+  test("false for other error codes and non-ApiClientError values", () => {
+    expect(
+      isDailyLimitError(
+        new ApiClientError({ message: "Nope", status: 400, code: "BAD" }),
+      ),
+    ).toBe(false);
+    expect(isDailyLimitError(new Error("Daily limit reached"))).toBe(false);
+    expect(isDailyLimitError(null)).toBe(false);
+    expect(isDailyLimitError("Daily limit reached")).toBe(false);
   });
 });
