@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TreeIndent } from "@/components/ui/tree-indent";
 import type { ItemRun } from "@/lib/trigger/item-runs";
 import { cn } from "@/lib/utils";
 
@@ -85,13 +86,8 @@ export function ItemRunsCard({ result }: ItemRunsCardProps) {
                 {result.runs.map((run) => (
                   <tr key={run.id} className="border-border/60 border-t">
                     <td className="py-2 pr-4 font-mono text-xs">
-                      <span
-                        className="flex items-center gap-1"
-                        style={{ paddingLeft: `${run.indent * 1.25}rem` }}
-                      >
-                        {run.indent > 0 && (
-                          <span className="text-muted-foreground">└</span>
-                        )}
+                      <span className="flex items-center">
+                        <TreeIndent depth={run.indent} />
                         {run.taskIdentifier}
                       </span>
                     </td>
