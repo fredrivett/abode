@@ -52,7 +52,11 @@ const itemWithVariant = (src: string = TWIMG_URL) => ({
   },
 });
 
-const publicRoomWhere = {
+// Grants matching itemViewableWhere / canViewItem: shared via link, or in a
+// public room and not excluded from public rooms.
+const sharedGrant = { sharedAt: { not: null } };
+const publicRoomGrant = {
+  excludeFromPublicRooms: false,
   roomItems: { some: { room: { visibility: "public" } } },
 };
 
@@ -257,7 +261,7 @@ describe("GET /api/v1/twitter-video — item scoping", () => {
     expect(res.status).toBe(200);
     expect(mockItemFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: ITEM_ID, ...publicRoomWhere },
+        where: { id: ITEM_ID, OR: [sharedGrant, publicRoomGrant] },
       }),
     );
   });
@@ -278,7 +282,7 @@ describe("GET /api/v1/twitter-video — item scoping", () => {
       expect.objectContaining({
         where: {
           id: ITEM_ID,
-          OR: [{ userId: "user_1" }, publicRoomWhere],
+          OR: [{ userId: "user_1" }, sharedGrant, publicRoomGrant],
         },
       }),
     );

@@ -48,7 +48,11 @@ const ITEM_ID = "item_1";
 const DB_LAT = 47.6205;
 const DB_LNG = -122.3493;
 
-const publicRoomWhere = {
+// Grants matching itemViewableWhere / canViewItem: shared via link, or in a
+// public room and not excluded from public rooms.
+const sharedGrant = { sharedAt: { not: null } };
+const publicRoomGrant = {
+  excludeFromPublicRooms: false,
   roomItems: { some: { room: { visibility: "public" } } },
 };
 
@@ -203,7 +207,7 @@ describe("GET /api/v1/map-image", () => {
       expect(res.status).toBe(200);
       expect(mockItemFindFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: ITEM_ID, ...publicRoomWhere },
+          where: { id: ITEM_ID, OR: [sharedGrant, publicRoomGrant] },
         }),
       );
     });
@@ -224,7 +228,7 @@ describe("GET /api/v1/map-image", () => {
         expect.objectContaining({
           where: {
             id: ITEM_ID,
-            OR: [{ userId: "user_1" }, publicRoomWhere],
+            OR: [{ userId: "user_1" }, sharedGrant, publicRoomGrant],
           },
         }),
       );

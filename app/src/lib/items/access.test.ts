@@ -3,6 +3,7 @@ import {
   canViewItem,
   canViewItemHighlights,
   type ItemAccessInput,
+  itemViewableWhere,
 } from "./access";
 
 const OWNER = "owner-id";
@@ -90,6 +91,34 @@ describe("canViewItem", () => {
       // userId is non-null but viewerId is null — must not match as owner.
       expect(canViewItem(makeItem(), null)).toBe(false);
     });
+  });
+});
+
+describe("itemViewableWhere", () => {
+  const sharedGrant = { sharedAt: { not: null } };
+  const publicRoomGrant = {
+    excludeFromPublicRooms: false,
+    roomItems: { some: { room: { visibility: "public" } } },
+  };
+
+  test("authenticated viewer gets owner, shared and public-room grants", () => {
+    expect(itemViewableWhere(OWNER)).toEqual({
+      OR: [{ userId: OWNER }, sharedGrant, publicRoomGrant],
+    });
+  });
+
+  test("signed-out viewer gets only the shared and public-room grants", () => {
+    expect(itemViewableWhere(null)).toEqual({
+      OR: [sharedGrant, publicRoomGrant],
+    });
+  });
+
+  test("public-room grant excludes items opted out of public rooms", () => {
+    // Mirrors canViewItem: an excluded item must not be reachable via the
+    // public-room grant.
+    expect(itemViewableWhere(null).OR).toContainEqual(
+      expect.objectContaining({ excludeFromPublicRooms: false }),
+    );
   });
 });
 

@@ -56,6 +56,30 @@ export function canViewItem(
 }
 
 /**
+ * Prisma `where` fragment encoding {@link canViewItem}'s grants, for filtering
+ * items the viewer may access directly in the database. Keep in lockstep with
+ * `canViewItem` — the two must agree.
+ *
+ * Spread alongside other conditions, e.g.
+ * `where: { id, ...itemViewableWhere(viewerId) }`.
+ */
+export function itemViewableWhere(
+  viewerId: string | null,
+): Prisma.ItemWhereInput {
+  const sharedGrant: Prisma.ItemWhereInput = { sharedAt: { not: null } };
+  const publicRoomGrant: Prisma.ItemWhereInput = {
+    excludeFromPublicRooms: false,
+    roomItems: { some: { room: { visibility: "public" } } },
+  };
+
+  return {
+    OR: viewerId
+      ? [{ userId: viewerId }, sharedGrant, publicRoomGrant]
+      : [sharedGrant, publicRoomGrant],
+  };
+}
+
+/**
  * Whether the owner's highlights should be shown on a shared view of this item.
  * Owners always see their own; others only when the item opts in.
  */

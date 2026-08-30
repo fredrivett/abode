@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { read as prisma } from "@/lib/db";
+import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import {
   checkRateLimit,
@@ -247,20 +248,11 @@ export async function GET(request: NextRequest) {
   }
 
   // 4. Item scoping. Load the item the caller claims this media belongs to,
-  //    access-controlled: owner OR the item is in a public room (mirrors
-  //    map-image). Unauthenticated callers only reach public-room items.
+  //    access-controlled to match canViewItem (owner, shared via link, or in a
+  //    public room and not excluded). Anonymous callers only reach the shared /
+  //    public-room grants.
   const item = await prisma.item.findFirst({
-    where: {
-      id: itemId,
-      ...(user
-        ? {
-            OR: [
-              { userId: user.id },
-              { roomItems: { some: { room: { visibility: "public" } } } },
-            ],
-          }
-        : { roomItems: { some: { room: { visibility: "public" } } } }),
-    },
+    where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
     select: { id: true, twitterDetails: { select: { media: true } } },
   });
 
