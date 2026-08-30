@@ -1,10 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { read as prisma } from "@/lib/db";
+import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import {
   checkRateLimit,
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { getAppBaseUrl } from "@/lib/url";
 
 const log = createLogger("api/v1/twitter-video");
@@ -91,6 +94,33 @@ function isFirstPartyRequest(request: NextRequest): boolean {
   return false;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Collect every stored video-variant `src` from an item's tweet media JSON.
+ *
+ * The proxy only serves a `url` that appears in this set, so a valid item id
+ * can't be used as a free proxy for an arbitrary twimg URL. Walked defensively
+ * because `media` is untyped JSON.
+ */
+function collectItemVideoSrcs(media: unknown): Set<string> {
+  const srcs = new Set<string>();
+  if (!Array.isArray(media)) return srcs;
+  for (const entry of media) {
+    if (!isRecord(entry)) continue;
+    const { variants } = entry;
+    if (!Array.isArray(variants)) continue;
+    for (const variant of variants) {
+      if (isRecord(variant) && typeof variant.src === "string") {
+        srcs.add(variant.src);
+      }
+    }
+  }
+  return srcs;
+}
+
 type UpstreamOutcome =
   | { ok: true; response: Response }
   | { ok: false; status: number; reason: string };
@@ -153,16 +183,30 @@ async function fetchAllowlisted(
  * Range requests are forwarded so the <video> element can seek without
  * downloading the whole file.
  *
- * The endpoint is unauthenticated (a <video> can't send a bearer token, and
- * tweet cards render on public pages), so abuse is contained by: a same-origin
- * gate (primary), a per-IP rate limit, no blind redirect following, a response
- * size cap, and an upstream timeout.
+ * The proxy is item-scoped: a caller passes the owning item's id, and we only
+ * serve a `url` that is one of that item's stored tweet-media variants and only
+ * for an item the caller may access (owner, or the item is in a public room).
+ * This means a valid item id can't be turned into a free proxy for an arbitrary
+ * twimg URL, and another user's private media can't be fetched. A `<video>`
+ * can't send a bearer token and tweet cards render on anonymously-viewable
+ * public rooms, so unauthenticated access to public-room items is allowed
+ * rather than blanket-401'd. Abuse is further contained by: a same-origin gate,
+ * a rate limit, no blind redirect following, a response size cap, and an
+ * upstream timeout.
  */
 export async function GET(request: NextRequest) {
   // 1. First-party gate (primary control). Reject cross-site embeds and bare
   //    curl/script hits before doing any work or touching the upstream.
   if (!isFirstPartyRequest(request)) {
     return NextResponse.json({ message: "forbidden" }, { status: 403 });
+  }
+
+  const itemId = request.nextUrl.searchParams.get("itemId");
+  if (!itemId) {
+    return NextResponse.json(
+      { message: "itemId is required" },
+      { status: 400 },
+    );
   }
 
   const target = request.nextUrl.searchParams.get("url");
@@ -181,11 +225,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "host not allowed" }, { status: 400 });
   }
 
-  // 2. Per-IP rate limit (defense-in-depth). Best-effort: in-memory, per
-  //    instance, and reset on deploy — the same-origin gate + size cap are the
-  //    primary egress controls.
-  const ip = getClientIp(request.headers);
-  const rateLimit = checkRateLimit(ip, "twitterVideo");
+  // 2. Auth (may be anonymous). getUserWithMfa, never raw getUser, so a 2FA
+  //    user's AAL1 session can't slip past — see no-raw-cookie-getuser.grit.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await getUserWithMfa(supabase);
+
+  // 3. Rate limit (defense-in-depth). Best-effort: in-memory, per instance, and
+  //    reset on deploy — the same-origin gate + item scoping + size cap are the
+  //    primary controls. Keyed on the user when authenticated, else the IP.
+  const rateLimitKey = user?.id ?? getClientIp(request.headers);
+  const rateLimit = checkRateLimit(rateLimitKey, "twitterVideo");
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { message: "Too many requests" },
@@ -193,6 +244,30 @@ export async function GET(request: NextRequest) {
         status: 429,
         headers: getRateLimitHeaders(rateLimit, "twitterVideo"),
       },
+    );
+  }
+
+  // 4. Item scoping. Load the item the caller claims this media belongs to,
+  //    access-controlled to match canViewItem (owner, shared via link, or in a
+  //    public room and not excluded). Anonymous callers only reach the shared /
+  //    public-room grants.
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
+    select: { id: true, twitterDetails: { select: { media: true } } },
+  });
+
+  if (!item) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  // 5. Confirm the requested url is one of this item's stored variants, so a
+  //    valid item id can't proxy an arbitrary twimg URL.
+  const allowedSrcs = collectItemVideoSrcs(item.twitterDetails?.media);
+  if (!allowedSrcs.has(target)) {
+    log.warn({ itemId, url: target }, "url not a stored variant of item");
+    return NextResponse.json(
+      { message: "media does not belong to item" },
+      { status: 403 },
     );
   }
 

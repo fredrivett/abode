@@ -705,6 +705,7 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <TwitterCard
             twitterDetails={item.twitterDetails}
+            itemId={item.id}
             blurDataUrl={blurDataUrl}
             onClick={handleOpenDetail}
           />
@@ -1841,6 +1842,7 @@ function ItemDetailDialog({
                 >
                   <TwitterDetailView
                     twitterDetails={item.twitterDetails}
+                    itemId={item.id}
                     sourceUrl={item.sourceUrl}
                     className="py-8"
                     onCoverImageChange={

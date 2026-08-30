@@ -27,7 +27,13 @@ const baseTweet: TwitterDetails = {
 
 describe("TwitterCard", () => {
   it("shows the tweet text and author when there is no media", () => {
-    render(<TwitterCard twitterDetails={baseTweet} onClick={() => {}} />);
+    render(
+      <TwitterCard
+        twitterDetails={baseTweet}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
     expect(screen.getByText(/Every map is out of date/)).toBeInTheDocument();
     expect(screen.getByText("Cora Meridian")).toBeInTheDocument();
   });
@@ -39,6 +45,7 @@ describe("TwitterCard", () => {
           ...baseTweet,
           media: [{ type: "photo", url: "https://example.com/p.jpg" }],
         }}
+        itemId="item-1"
         onClick={() => {}}
       />,
     );
@@ -60,6 +67,7 @@ describe("TwitterCard", () => {
           ...baseTweet,
           authorAvatarUrl: "https://example.com/avatar.jpg",
         }}
+        itemId="item-1"
         onClick={() => {}}
       />,
     );
@@ -72,6 +80,7 @@ describe("TwitterCard", () => {
     render(
       <TwitterCard
         twitterDetails={{ ...baseTweet, text: null }}
+        itemId="item-1"
         onClick={() => {}}
       />,
     );
@@ -86,6 +95,7 @@ describe("TwitterCard", () => {
           media: [{ type: "photo", url: "https://example.com/p.jpg" }],
         }}
         blurDataUrl="data:image/webp;base64,BLUR"
+        itemId="item-1"
         onClick={() => {}}
       />,
     );
@@ -103,6 +113,7 @@ describe("TwitterCard", () => {
           ...baseTweet,
           media: [{ type: "photo", url: "https://example.com/p.jpg" }],
         }}
+        itemId="item-1"
         onClick={() => {}}
       />,
     );

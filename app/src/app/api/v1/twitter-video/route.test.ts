@@ -1,9 +1,13 @@
 import type { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCheckRateLimit } = vi.hoisted(() => ({
-  mockCheckRateLimit: vi.fn(),
-}));
+const { mockCheckRateLimit, mockGetUser, mockItemFindFirst } = vi.hoisted(
+  () => ({
+    mockCheckRateLimit: vi.fn(),
+    mockGetUser: vi.fn(),
+    mockItemFindFirst: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({
@@ -16,6 +20,16 @@ vi.mock("@/lib/logger.server", () => ({
 
 vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://www.abode.fyi" }));
 
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({ auth: { getUser: mockGetUser } }),
+  // Route auth goes through getUserWithMfa; pass through to the mocked getUser
+  getUserWithMfa: () => mockGetUser(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  read: { item: { findFirst: mockItemFindFirst } },
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: mockCheckRateLimit,
   getClientIp: () => "203.0.113.7",
@@ -24,20 +38,41 @@ vi.mock("@/lib/rate-limit", () => ({
 
 import { GET } from "./route";
 
+const ITEM_ID = "item_1";
 const TWIMG_URL =
   "https://video.twimg.com/ext_tw_video/123/pu/vid/720x1280/abc.mp4";
 const MAX_UPSTREAM_BYTES = 150 * 1024 * 1024;
+
+// A stored tweet-media JSON blob whose only video variant is TWIMG_URL, so the
+// happy-path request's `url` is a variant the item actually owns.
+const itemWithVariant = (src: string = TWIMG_URL) => ({
+  id: ITEM_ID,
+  twitterDetails: {
+    media: [{ type: "video", variants: [{ type: "video/mp4", src }] }],
+  },
+});
+
+// Grants matching itemViewableWhere / canViewItem: shared via link, or in a
+// public room and not excluded from public rooms.
+const sharedGrant = { sharedAt: { not: null } };
+const publicRoomGrant = {
+  excludeFromPublicRooms: false,
+  roomItems: { some: { room: { visibility: "public" } } },
+};
 
 const mockFetch = vi.fn();
 
 function makeRequest({
   headers = {},
   url = TWIMG_URL as string | null,
+  itemId = ITEM_ID as string | null,
 }: {
   headers?: Record<string, string>;
   url?: string | null;
+  itemId?: string | null;
 } = {}): NextRequest {
   const searchParams = new URLSearchParams();
+  if (itemId !== null) searchParams.set("itemId", itemId);
   if (url !== null) searchParams.set("url", url);
   return {
     nextUrl: { searchParams },
@@ -70,6 +105,11 @@ beforeEach(() => {
     remaining: 199,
     resetAt: 0,
   });
+  mockGetUser.mockResolvedValue({
+    data: { user: { id: "user_1" } },
+    error: null,
+  });
+  mockItemFindFirst.mockResolvedValue(itemWithVariant());
   mockFetch.mockResolvedValue(
     upstream({
       status: 200,
@@ -169,6 +209,13 @@ describe("GET /api/v1/twitter-video — same-origin gate", () => {
 });
 
 describe("GET /api/v1/twitter-video — request validation", () => {
+  it("returns 400 when itemId is missing and never fetches", async () => {
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN, itemId: null }));
+    expect(res.status).toBe(400);
+    expect(mockItemFindFirst).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for a disallowed host and never fetches", async () => {
     const res = await GET(
       makeRequest({ headers: SAME_ORIGIN, url: "https://evil.com/x.mp4" }),
@@ -207,6 +254,63 @@ describe("GET /api/v1/twitter-video — request validation", () => {
   });
 });
 
+describe("GET /api/v1/twitter-video — item scoping", () => {
+  it("allows an unauthenticated request for a public-room item", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(200);
+    expect(mockItemFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ITEM_ID, OR: [sharedGrant, publicRoomGrant] },
+      }),
+    );
+  });
+
+  it("returns 401 for an unauthenticated request to a private item", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    mockItemFindFirst.mockResolvedValue(null);
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(401);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an authenticated non-owner of a private item", async () => {
+    mockItemFindFirst.mockResolvedValue(null);
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(401);
+    expect(mockItemFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: ITEM_ID,
+          OR: [{ userId: "user_1" }, sharedGrant, publicRoomGrant],
+        },
+      }),
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the url is not a stored variant of the item", async () => {
+    // Valid, accessible item, but the requested url isn't one of its variants —
+    // the item id must not become a free proxy for an arbitrary twimg URL.
+    mockItemFindFirst.mockResolvedValue(
+      itemWithVariant("https://video.twimg.com/some/other-video.mp4"),
+    );
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the item has no stored media", async () => {
+    mockItemFindFirst.mockResolvedValue({
+      id: ITEM_ID,
+      twitterDetails: null,
+    });
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("GET /api/v1/twitter-video — rate limit", () => {
   it("returns 429 with Retry-After and never fetches when over the limit", async () => {
     mockCheckRateLimit.mockReturnValue({
@@ -221,7 +325,13 @@ describe("GET /api/v1/twitter-video — rate limit", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("rate-limits under the twitterVideo bucket key", async () => {
+  it("keys the limiter on the user id when authenticated", async () => {
+    await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(mockCheckRateLimit).toHaveBeenCalledWith("user_1", "twitterVideo");
+  });
+
+  it("keys the limiter on the client IP when unauthenticated", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
     await GET(makeRequest({ headers: SAME_ORIGIN }));
     expect(mockCheckRateLimit).toHaveBeenCalledWith(
       "203.0.113.7",

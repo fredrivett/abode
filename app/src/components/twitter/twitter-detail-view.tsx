@@ -16,6 +16,7 @@ import type { TwitterDetails, TwitterMedia } from "./types";
 
 type TwitterDetailViewProps = {
   twitterDetails: TwitterDetails;
+  itemId: string;
   sourceUrl?: string | null;
   className?: string;
   onCoverImageChange?: (index: number) => Promise<void>;
@@ -27,6 +28,7 @@ type TwitterDetailViewProps = {
  */
 export function TwitterDetailView({
   twitterDetails,
+  itemId,
   sourceUrl,
   className,
   onCoverImageChange,
@@ -121,6 +123,7 @@ export function TwitterDetailView({
                 <CoverImageMedia
                   key={`${item.url}-${index}`}
                   item={item}
+                  itemId={itemId}
                   index={index}
                   isCover={isCover}
                   mediaLength={media.length}
@@ -195,6 +198,7 @@ export function TwitterDetailView({
 
 function CoverImageMedia({
   item,
+  itemId,
   index,
   isCover,
   mediaLength,
@@ -202,6 +206,7 @@ function CoverImageMedia({
   onCoverImageChange,
 }: {
   item: TwitterMedia;
+  itemId: string;
   index: number;
   isCover: boolean;
   mediaLength: number;
@@ -229,7 +234,7 @@ function CoverImageMedia({
     >
       {item.type === "video" || item.type === "animated_gif" ? (
         <video
-          src={getTwitterVideoSrc(item, "highest")}
+          src={getTwitterVideoSrc({ media: item, quality: "highest", itemId })}
           poster={twitterImageSrc(item.fileKey, item.posterUrl, "detail")}
           controls={item.type === "video"}
           autoPlay={item.type === "animated_gif"}

@@ -17,6 +17,7 @@ import type { TwitterDetails } from "./types";
 
 type TwitterCardProps = {
   twitterDetails: TwitterDetails;
+  itemId: string;
   /** LQIP placeholder for the cover media, shown blurred while it loads. */
   blurDataUrl?: string | null;
   onClick: () => void;
@@ -31,6 +32,7 @@ type TwitterCardProps = {
  */
 export function TwitterCard({
   twitterDetails,
+  itemId,
   blurDataUrl,
   onClick,
   className,
@@ -56,7 +58,9 @@ export function TwitterCard({
     coverMedia?.type === "video" || coverMedia?.type === "animated_gif";
   // Lowest bitrate for in-feed autoplay — bandwidth over fidelity
   const videoSrc =
-    isPlayable && coverMedia ? getTwitterVideoSrc(coverMedia, "lowest") : null;
+    isPlayable && coverMedia
+      ? getTwitterVideoSrc({ media: coverMedia, quality: "lowest", itemId })
+      : null;
   const shouldAutoplay = autoplayAllowed && !!videoSrc;
 
   return (

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
+import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -98,21 +99,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Access control: owner OR item in a public room. Unauthenticated access is
-    // allowed only for public-room items. The same query loads the stored
-    // locations so client-supplied coordinates are never used.
+    // Access control matching canViewItem (owner, shared via link, or in a
+    // public room and not excluded). Anonymous callers only reach the shared /
+    // public-room grants. The same query loads the stored locations so
+    // client-supplied coordinates are never used.
     const item = await prisma.item.findFirst({
-      where: {
-        id: itemId,
-        ...(user
-          ? {
-              OR: [
-                { userId: user.id },
-                { roomItems: { some: { room: { visibility: "public" } } } },
-              ],
-            }
-          : { roomItems: { some: { room: { visibility: "public" } } } }),
-      },
+      where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
       select: {
         id: true,
         locations: {

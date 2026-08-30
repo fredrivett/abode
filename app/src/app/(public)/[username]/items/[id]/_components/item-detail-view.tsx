@@ -205,6 +205,7 @@ export function ItemDetailView({
             <div className="rounded-lg border border-border bg-background">
               <TwitterDetailView
                 twitterDetails={item.twitterDetails}
+                itemId={item.id}
                 sourceUrl={item.sourceUrl}
                 className="py-8"
               />

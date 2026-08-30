@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { TwitterMedia } from "@/components/twitter/types";
 import { getTwitterVideoSrc } from "./video-src";
 
+const ITEM_ID = "item-1";
+
 function makeMedia(variants: TwitterMedia["variants"]): TwitterMedia {
   return { type: "video", url: "https://example.com/media", variants };
+}
+
+function proxied(src: string): string {
+  return `/api/v1/twitter-video?itemId=${encodeURIComponent(ITEM_ID)}&url=${encodeURIComponent(src)}`;
 }
 
 describe("getTwitterVideoSrc", () => {
@@ -18,42 +24,58 @@ describe("getTwitterVideoSrc", () => {
   ];
 
   it("picks the highest bitrate mp4 for 'highest'", () => {
-    const src = getTwitterVideoSrc(makeMedia(variants), "highest");
-    expect(src).toBe(
-      `/api/v1/twitter-video?url=${encodeURIComponent("https://video.example/high.mp4")}`,
-    );
+    const src = getTwitterVideoSrc({
+      media: makeMedia(variants),
+      quality: "highest",
+      itemId: ITEM_ID,
+    });
+    expect(src).toBe(proxied("https://video.example/high.mp4"));
   });
 
   it("picks the lowest bitrate mp4 for 'lowest'", () => {
-    const src = getTwitterVideoSrc(makeMedia(variants), "lowest");
-    expect(src).toBe(
-      `/api/v1/twitter-video?url=${encodeURIComponent("https://video.example/low.mp4")}`,
-    );
+    const src = getTwitterVideoSrc({
+      media: makeMedia(variants),
+      quality: "lowest",
+      itemId: ITEM_ID,
+    });
+    expect(src).toBe(proxied("https://video.example/low.mp4"));
+  });
+
+  it("scopes the proxy url to the owning item id", () => {
+    const src = getTwitterVideoSrc({
+      media: makeMedia(variants),
+      quality: "highest",
+      itemId: ITEM_ID,
+    });
+    expect(src).toContain(`itemId=${encodeURIComponent(ITEM_ID)}`);
   });
 
   it("ignores non-mp4 variants when mp4s exist", () => {
-    const src = getTwitterVideoSrc(makeMedia(variants), "lowest");
+    const src = getTwitterVideoSrc({
+      media: makeMedia(variants),
+      quality: "lowest",
+      itemId: ITEM_ID,
+    });
     expect(src).not.toContain(encodeURIComponent(".m3u8"));
   });
 
   it("falls back to non-mp4 variants when no mp4s exist", () => {
-    const src = getTwitterVideoSrc(
-      makeMedia([
+    const src = getTwitterVideoSrc({
+      media: makeMedia([
         {
           type: "application/x-mpegURL",
           src: "https://video.example/playlist.m3u8",
         },
       ]),
-      "highest",
-    );
-    expect(src).toBe(
-      `/api/v1/twitter-video?url=${encodeURIComponent("https://video.example/playlist.m3u8")}`,
-    );
+      quality: "highest",
+      itemId: ITEM_ID,
+    });
+    expect(src).toBe(proxied("https://video.example/playlist.m3u8"));
   });
 
   it("treats missing bitrates as 0", () => {
-    const src = getTwitterVideoSrc(
-      makeMedia([
+    const src = getTwitterVideoSrc({
+      media: makeMedia([
         { type: "video/mp4", src: "https://video.example/unknown.mp4" },
         {
           type: "video/mp4",
@@ -61,13 +83,26 @@ describe("getTwitterVideoSrc", () => {
           bitrate: 100,
         },
       ]),
-      "lowest",
-    );
+      quality: "lowest",
+      itemId: ITEM_ID,
+    });
     expect(src).toContain(encodeURIComponent("unknown.mp4"));
   });
 
   it("returns undefined when there are no variants", () => {
-    expect(getTwitterVideoSrc(makeMedia([]), "highest")).toBeUndefined();
-    expect(getTwitterVideoSrc(makeMedia(undefined), "lowest")).toBeUndefined();
+    expect(
+      getTwitterVideoSrc({
+        media: makeMedia([]),
+        quality: "highest",
+        itemId: ITEM_ID,
+      }),
+    ).toBeUndefined();
+    expect(
+      getTwitterVideoSrc({
+        media: makeMedia(undefined),
+        quality: "lowest",
+        itemId: ITEM_ID,
+      }),
+    ).toBeUndefined();
   });
 });
