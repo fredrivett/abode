@@ -345,28 +345,46 @@ export async function acceptInvite(
     { inviteId: invite.id, email: invite.email, userId },
     "Updating invite status to accepted",
   );
-  const [updatedInvite] = await db.$transaction([
-    db.invite.update({
-      where: { token },
-      data: {
-        status: "accepted",
-        acceptedAt: new Date(),
-        acceptedByUserId: userId,
-      },
-    }),
-    db.invite.updateMany({
-      where: {
-        email: invite.email.toLowerCase(),
-        token: { not: token },
-        status: "pending",
-      },
-      data: {
-        status: "joined_elsewhere",
-        acceptedAt: new Date(),
-        acceptedByUserId: userId,
-      },
-    }),
-  ]);
+  const acceptedAt = new Date();
+
+  // Atomic single-use claim: guard the accept on status:"pending" so that under
+  // concurrent accepts only one wins. Postgres row-locks the invite, so the loser
+  // re-evaluates the WHERE against the winner's committed status:"accepted" and
+  // matches 0 rows. The pre-read above is only for precise error codes — this
+  // guarded write is the source of truth for single-use.
+  const claim = await db.invite.updateMany({
+    where: { token, status: "pending" },
+    data: { status: "accepted", acceptedAt, acceptedByUserId: userId },
+  });
+
+  if (claim.count === 0) {
+    log.warn(
+      { inviteId: invite.id, email: invite.email, userId },
+      "Invite consumed by a concurrent accept - lost the race",
+    );
+    return {
+      success: false,
+      error: "Invite already accepted",
+      code: "ALREADY_ACCEPTED",
+    };
+  }
+
+  // Only after winning the claim, retire sibling pending invites for the same
+  // email so they can't be reused (they joined via this one)
+  await db.invite.updateMany({
+    where: {
+      email: invite.email.toLowerCase(),
+      token: { not: token },
+      status: "pending",
+    },
+    data: {
+      status: "joined_elsewhere",
+      acceptedAt,
+      acceptedByUserId: userId,
+    },
+  });
+
+  const updatedInvite = await db.invite.findUniqueOrThrow({ where: { token } });
   log.info(
     {
       inviteId: updatedInvite.id,

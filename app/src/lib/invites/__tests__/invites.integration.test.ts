@@ -367,6 +367,52 @@ describe("Invites Integration", () => {
       }
     });
 
+    it("consumes a pending invite atomically under concurrent accepts (single-use)", async () => {
+      const { write, read } = await import("@/lib/db");
+      const { acceptInvite } = await import("@/lib/invites");
+
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440030",
+          email: "inviter@example.com",
+        },
+      });
+
+      const invite = await write.invite.create({
+        data: {
+          email: "invited@example.com",
+          token: "race-token",
+          origin: "user",
+          status: "pending",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          inviterId: "550e8400-e29b-41d4-a716-446655440030",
+        },
+      });
+
+      // Two users race to accept the same invite at the same time
+      const firstUserId = "550e8400-e29b-41d4-a716-446655440031";
+      const secondUserId = "550e8400-e29b-41d4-a716-446655440032";
+      const [r1, r2] = await Promise.all([
+        acceptInvite(invite.token, firstUserId),
+        acceptInvite(invite.token, secondUserId),
+      ]);
+
+      // Exactly one wins; the loser is rejected as already-accepted
+      const successes = [r1, r2].filter((r) => r.success);
+      const failures = [r1, r2].filter((r) => !r.success);
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      const failure = failures[0];
+      expect(failure.success ? null : failure.code).toBe("ALREADY_ACCEPTED");
+
+      // The invite is accepted exactly once, attributed to a single user
+      const finalInvite = await read.invite.findUnique({
+        where: { token: invite.token },
+      });
+      expect(finalInvite?.status).toBe("accepted");
+      expect(finalInvite?.acceptedByUserId).not.toBeNull();
+    });
+
     it("returns error for joined_elsewhere invite", async () => {
       const { write, read } = await import("@/lib/db");
       const { acceptInvite } = await import("@/lib/invites");
