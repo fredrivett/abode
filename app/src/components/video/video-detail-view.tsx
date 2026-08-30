@@ -6,6 +6,7 @@ import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
 import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { VideoDetails } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn, formatDuration } from "@/lib/utils";
 
 type VideoDetailViewProps = {
@@ -52,7 +53,12 @@ export function VideoDetailView({
     ? getProxyImageUrl(coverFileKey, "detail")
     : videoDetails.thumbnailUrl;
 
-  const watchUrl = sourceUrl ?? getWatchUrl(platform, videoId);
+  // Only trust a stored sourceUrl if it's a real http(s) URL; otherwise fall
+  // back to the derived watch URL so the link can't navigate somewhere unsafe.
+  const watchUrl =
+    sourceUrl && isValidUrl(sourceUrl)
+      ? sourceUrl
+      : getWatchUrl(platform, videoId);
   const PlatformBadgeIcon = platform === "youtube" ? YouTubeIcon : VimeoIcon;
   const platformName = platform === "youtube" ? "YouTube" : "Vimeo";
 

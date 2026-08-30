@@ -41,6 +41,19 @@ describe("VideoDetailView", () => {
     expect(img).toHaveAttribute("src", baseVideo.thumbnailUrl);
   });
 
+  it("ignores a non-http(s) sourceUrl and falls back to the derived watch URL", () => {
+    render(
+      <VideoDetailView
+        videoDetails={baseVideo}
+        coverFileKey={null}
+        title="Danny Macaskill: The Ridge"
+        sourceUrl="javascript:alert(1)"
+      />,
+    );
+    const link = screen.getByRole("link", { name: /view on/i });
+    expect(link).toHaveAttribute("href", "https://vimeo.com/125896742");
+  });
+
   it("shows the platform placeholder when there is no thumbnail at all", () => {
     const { container } = render(
       <VideoDetailView

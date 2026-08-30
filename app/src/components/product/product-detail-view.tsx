@@ -7,6 +7,7 @@ import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getCurrencySymbol } from "@/lib/currency";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { ProductDetails, ProductImage } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 
 type ProductDetailViewProps = {
@@ -115,7 +116,7 @@ export function ProductDetailView({
         </div>
 
         {/* View product link */}
-        {sourceUrl && (
+        {sourceUrl && isValidUrl(sourceUrl) && (
           <div className="flex items-center gap-2 pt-2">
             <ViewOnButton href={sourceUrl} label={domain ?? "store"} />
           </div>

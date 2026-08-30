@@ -4,6 +4,7 @@ import { ViewOnButton } from "@/components/ui/view-on-button";
 import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { BookCover3D } from "./book-cover-3d";
 
@@ -72,7 +73,7 @@ export function BookDetailView({
           )}
         </div>
 
-        {sourceUrl && (
+        {sourceUrl && isValidUrl(sourceUrl) && (
           <div className="flex items-center justify-center pt-2">
             <ViewOnButton href={sourceUrl} label={domain ?? "site"} />
           </div>

@@ -9,7 +9,7 @@ import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
-import { getHostname } from "@/lib/url-utils";
+import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails, TwitterMedia } from "./types";
 
@@ -41,8 +41,12 @@ export function TwitterDetailView({
     card,
   } = twitterDetails;
 
+  // Only trust a stored sourceUrl if it's a real http(s) URL; otherwise fall
+  // back to the derived tweet URL so the link can't navigate somewhere unsafe.
   const tweetUrl =
-    sourceUrl ?? `https://x.com/${authorUsername}/status/${tweetId}`;
+    sourceUrl && isValidUrl(sourceUrl)
+      ? sourceUrl
+      : `https://x.com/${authorUsername}/status/${tweetId}`;
   const profileUrl = `https://x.com/${authorUsername}`;
 
   return (
