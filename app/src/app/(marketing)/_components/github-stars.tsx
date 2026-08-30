@@ -1,10 +1,23 @@
 import { Github, Star } from "lucide-react";
+import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import { formatStarCount, GITHUB_URL, getGitHubStars } from "@/lib/github";
+import { cn } from "@/lib/utils";
 
-export function StarButton({ count }: { count: number | null }) {
+type StarButtonProps = {
+  count: number | null;
+  size?: ComponentProps<typeof Button>["size"];
+  className?: string;
+};
+
+export function StarButton({ count, size = "sm", className }: StarButtonProps) {
   return (
-    <Button asChild variant="outline" size="sm" className="gap-1.5">
+    <Button
+      asChild
+      variant="outline"
+      size={size}
+      className={cn("gap-1.5", className)}
+    >
       <a href={GITHUB_URL} target="_blank" rel="noreferrer">
         <Github className="size-4" aria-hidden />
         star on github
@@ -19,7 +32,7 @@ export function StarButton({ count }: { count: number | null }) {
   );
 }
 
-export async function GitHubStars() {
+export async function GitHubStars(props: Omit<StarButtonProps, "count">) {
   const count = await getGitHubStars();
-  return <StarButton count={count} />;
+  return <StarButton count={count} {...props} />;
 }

@@ -5,6 +5,7 @@ import { AccountDeletedToast } from "./_components/account-deleted-toast";
 import { Highlight } from "./_components/highlight";
 import { LivingGallery } from "./_components/living-gallery";
 import { OwnershipCallout } from "./_components/ownership-callout";
+import { OwnershipSection } from "./_components/ownership-section";
 import { SearchDemo } from "./_components/search-demo";
 
 export default function Home() {
@@ -62,6 +63,7 @@ export default function Home() {
       </main>
 
       <LivingGallery />
+      <OwnershipSection />
     </div>
   );
 }
