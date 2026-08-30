@@ -38,6 +38,7 @@ function analysis(
     embedding: Array.from({ length: 768 }, () => 0.01),
     embeddingModel: "clip-vit-base-patch32",
     blurDataUrl: "data:image/webp;base64,AA==",
+    openaiConfigured: true,
     ...overrides,
   };
 }

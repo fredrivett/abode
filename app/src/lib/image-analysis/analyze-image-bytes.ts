@@ -1,13 +1,21 @@
 import { recordAiUsage } from "../ai-costs/record-ai-usage";
 import {
   generateImageEmbedding,
+  isOpenAiConfigured,
   isReplicateConfigured,
   VISUAL_EMBEDDING_MODEL,
 } from "../embeddings";
+import { createLogger } from "../logger.server";
 import { captureServerException } from "../posthog-server";
-import { analyzeImageColorsOnly } from "../vision";
+import {
+  analyzeImageColorsOnly,
+  type ImageColor,
+  isGoogleVisionConfigured,
+} from "../vision";
 import { generateBlurDataUrl } from "./blur-placeholder";
 import { analyzeImageWithOpenAI } from "./openai-vision";
+
+const log = createLogger("lib/analyze-image-bytes");
 
 type OpenAiVisionResult = Awaited<ReturnType<typeof analyzeImageWithOpenAI>>;
 
@@ -17,10 +25,11 @@ export type ImageVisionAnalysis = {
   objects: string[];
   ocrText: string | null;
   tags: string[];
-  colors: Awaited<ReturnType<typeof analyzeImageColorsOnly>>;
+  colors: ImageColor[];
   visionData: {
     source: "hybrid";
-    openai: { model: string; usage: OpenAiVisionResult["usage"] };
+    /** null when OpenAI is unconfigured — the vision pass was skipped. */
+    openai: { model: string; usage: OpenAiVisionResult["usage"] } | null;
     visionApiFeatures: string[];
   };
   /** CLIP visual embedding, or null when Replicate is unconfigured or errored. */
@@ -28,6 +37,12 @@ export type ImageVisionAnalysis = {
   embeddingModel: string | null;
   /** Tiny blurred-placeholder data URL (LQIP), or null if the image can't be decoded. */
   blurDataUrl: string | null;
+  /**
+   * False when OPENAI_API_KEY is unset: the AI title/description/tags/objects/OCR
+   * were skipped and come back empty. Callers must not overwrite an item's title
+   * from this result when false (see analyze-image).
+   */
+  openaiConfigured: boolean;
 };
 
 /**
@@ -51,25 +66,42 @@ export async function analyzeImageBytes(params: {
 }): Promise<ImageVisionAnalysis> {
   const { buffer, mimeType, itemId, userId, getSignedUrl } = params;
 
+  const openaiConfigured = isOpenAiConfigured();
+
   // Record each paid call's usage the moment it resolves, inside its own branch
   // — not after the Promise.all. If one rejects, Promise.all skips everything
   // after it, so a shared post-await recording would drop the sibling's cost.
   // recordAiUsage never throws, so it can't affect the Promise.all outcome.
+  //
+  // Google Vision (colours) and OpenAI (title/tags/OCR) are both optional
+  // enhancements: skip cleanly when unconfigured, and never let one failing fail
+  // the analysis. A minimal deploy (no OpenAI, no Google key) still returns a
+  // usable result — bare image details plus the local blur placeholder.
   const [colors, openaiResult, blurDataUrl] = await Promise.all([
-    (async () => {
-      const result = await analyzeImageColorsOnly(buffer);
-      recordAiUsage({
-        userId,
-        itemId,
-        provider: "google_vision",
-        operation: "vision_analysis",
-        model: "IMAGE_PROPERTIES",
-        images: 1,
-        source: "ingestion",
-      });
-      return result;
+    (async (): Promise<ImageColor[]> => {
+      if (!isGoogleVisionConfigured()) return [];
+      try {
+        const result = await analyzeImageColorsOnly(buffer);
+        recordAiUsage({
+          userId,
+          itemId,
+          provider: "google_vision",
+          operation: "vision_analysis",
+          model: "IMAGE_PROPERTIES",
+          images: 1,
+          source: "ingestion",
+        });
+        return result;
+      } catch (error) {
+        captureServerException(error, userId, {
+          source: "analyze-image-bytes:colors",
+          itemId,
+        });
+        return [];
+      }
     })(),
-    (async () => {
+    (async (): Promise<OpenAiVisionResult | null> => {
+      if (!openaiConfigured) return null;
       const result = await analyzeImageWithOpenAI(buffer, mimeType);
       recordAiUsage({
         userId,
@@ -87,12 +119,21 @@ export async function analyzeImageBytes(params: {
     generateBlurDataUrl(buffer),
   ]);
 
-  const { analysis } = openaiResult;
+  if (!openaiConfigured) {
+    log.info(
+      { itemId },
+      "OpenAI not configured — skipping vision analysis (title/description/tags/OCR)",
+    );
+  }
+
+  const analysis = openaiResult?.analysis ?? null;
 
   const visionData = {
     source: "hybrid" as const,
-    openai: { model: openaiResult.model, usage: openaiResult.usage },
-    visionApiFeatures: ["IMAGE_PROPERTIES"],
+    openai: openaiResult
+      ? { model: openaiResult.model, usage: openaiResult.usage }
+      : null,
+    visionApiFeatures: colors.length > 0 ? ["IMAGE_PROPERTIES"] : [],
   };
 
   // CLIP visual embedding — optional. Skip cleanly when Replicate isn't
@@ -125,15 +166,16 @@ export async function analyzeImageBytes(params: {
   }
 
   return {
-    title: analysis.title,
-    description: analysis.description,
-    objects: analysis.objects,
-    ocrText: analysis.ocrText,
-    tags: analysis.tags,
+    title: analysis?.title ?? "",
+    description: analysis?.description ?? "",
+    objects: analysis?.objects ?? [],
+    ocrText: analysis?.ocrText ?? null,
+    tags: analysis?.tags ?? [],
     colors,
     visionData,
     embedding,
     embeddingModel,
     blurDataUrl,
+    openaiConfigured,
   };
 }

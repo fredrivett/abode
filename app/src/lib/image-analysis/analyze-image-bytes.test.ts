@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../vision", () => ({ analyzeImageColorsOnly: vi.fn() }));
+vi.mock("../vision", () => ({
+  analyzeImageColorsOnly: vi.fn(),
+  isGoogleVisionConfigured: vi.fn(),
+}));
 vi.mock("./openai-vision", () => ({ analyzeImageWithOpenAI: vi.fn() }));
 vi.mock("../embeddings", () => ({
+  isOpenAiConfigured: vi.fn(),
   isReplicateConfigured: vi.fn(),
   generateImageEmbedding: vi.fn(),
   VISUAL_EMBEDDING_MODEL: "clip-vit-base-patch32",
@@ -11,15 +15,21 @@ vi.mock("../ai-costs/record-ai-usage", () => ({ recordAiUsage: vi.fn() }));
 vi.mock("../posthog-server", () => ({ captureServerException: vi.fn() }));
 
 import { recordAiUsage } from "../ai-costs/record-ai-usage";
-import { generateImageEmbedding, isReplicateConfigured } from "../embeddings";
+import {
+  generateImageEmbedding,
+  isOpenAiConfigured,
+  isReplicateConfigured,
+} from "../embeddings";
 import { captureServerException } from "../posthog-server";
-import { analyzeImageColorsOnly } from "../vision";
+import { analyzeImageColorsOnly, isGoogleVisionConfigured } from "../vision";
 import { analyzeImageBytes } from "./analyze-image-bytes";
 import { analyzeImageWithOpenAI } from "./openai-vision";
 
 const openai = vi.mocked(analyzeImageWithOpenAI);
 const colors = vi.mocked(analyzeImageColorsOnly);
 const replicateConfigured = vi.mocked(isReplicateConfigured);
+const openaiConfigured = vi.mocked(isOpenAiConfigured);
+const googleVisionConfigured = vi.mocked(isGoogleVisionConfigured);
 const embed = vi.mocked(generateImageEmbedding);
 
 function baseParams(
@@ -36,6 +46,8 @@ function baseParams(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  openaiConfigured.mockReturnValue(true);
+  googleVisionConfigured.mockReturnValue(true);
   colors.mockResolvedValue(
     [] as Awaited<ReturnType<typeof analyzeImageColorsOnly>>,
   );
@@ -91,6 +103,65 @@ describe("analyzeImageBytes", () => {
     expect(result.embedding).toBeNull();
     expect(result.embeddingModel).toBeNull();
     // Vision output is still returned — one optional service failing isn't fatal
+    expect(result.objects).toEqual(["chair"]);
+    expect(captureServerException).toHaveBeenCalled();
+  });
+
+  it("skips OpenAI vision cleanly when unconfigured", async () => {
+    openaiConfigured.mockReturnValue(false);
+    replicateConfigured.mockReturnValue(false);
+
+    const result = await analyzeImageBytes(baseParams());
+
+    // Vision-derived fields come back empty, not thrown
+    expect(result.openaiConfigured).toBe(false);
+    expect(result.title).toBe("");
+    expect(result.description).toBe("");
+    expect(result.tags).toEqual([]);
+    expect(result.objects).toEqual([]);
+    expect(result.ocrText).toBeNull();
+    expect(result.visionData.openai).toBeNull();
+    // The OpenAI call is never made and no OpenAI usage is billed
+    expect(openai).not.toHaveBeenCalled();
+    expect(recordAiUsage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "openai" }),
+    );
+  });
+
+  it("still returns colours + blur when OpenAI is unconfigured", async () => {
+    openaiConfigured.mockReturnValue(false);
+    replicateConfigured.mockReturnValue(false);
+    colors.mockResolvedValue([{ name: "red", hex: "#ff0000" }] as Awaited<
+      ReturnType<typeof analyzeImageColorsOnly>
+    >);
+
+    const result = await analyzeImageBytes(baseParams());
+
+    expect(result.colors).toEqual([{ name: "red", hex: "#ff0000" }]);
+    expect(result.visionData.visionApiFeatures).toEqual(["IMAGE_PROPERTIES"]);
+  });
+
+  it("skips colour analysis cleanly when Google Vision is unconfigured", async () => {
+    googleVisionConfigured.mockReturnValue(false);
+    replicateConfigured.mockReturnValue(false);
+
+    const result = await analyzeImageBytes(baseParams());
+
+    expect(result.colors).toEqual([]);
+    expect(result.visionData.visionApiFeatures).toEqual([]);
+    expect(colors).not.toHaveBeenCalled();
+    // OpenAI vision still ran
+    expect(result.objects).toEqual(["chair"]);
+  });
+
+  it("degrades to empty colours when the Google Vision call throws", async () => {
+    replicateConfigured.mockReturnValue(false);
+    colors.mockRejectedValue(new Error("vision down"));
+
+    const result = await analyzeImageBytes(baseParams());
+
+    expect(result.colors).toEqual([]);
+    // The rest of the analysis is unaffected — one optional service isn't fatal
     expect(result.objects).toEqual(["chair"]);
     expect(captureServerException).toHaveBeenCalled();
   });
