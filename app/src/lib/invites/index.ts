@@ -345,28 +345,55 @@ export async function acceptInvite(
     { inviteId: invite.id, email: invite.email, userId },
     "Updating invite status to accepted",
   );
-  const [updatedInvite] = await db.$transaction([
-    db.invite.update({
-      where: { token },
-      data: {
-        status: "accepted",
-        acceptedAt: new Date(),
-        acceptedByUserId: userId,
-      },
-    }),
-    db.invite.updateMany({
+  const acceptedAt = new Date();
+  const normalizedEmail = invite.email.toLowerCase();
+
+  // Consume the recipient's whole invite set atomically. All accepts for this
+  // email run in one transaction that first locks every invite row for the email
+  // (SELECT ... FOR UPDATE), so concurrent accepts — including sibling invites
+  // from different inviters — serialize: the first wins the guarded claim and
+  // retires the rest, and the loser then re-reads the now-consumed rows so its
+  // claim matches 0. The pre-read above is only for precise error codes; this
+  // guarded write is the source of truth for single-use.
+  const updatedInvite = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM invites WHERE email = ${normalizedEmail} FOR UPDATE`;
+
+    const claim = await tx.invite.updateMany({
+      where: { token, status: "pending" },
+      data: { status: "accepted", acceptedAt, acceptedByUserId: userId },
+    });
+
+    if (claim.count === 0) return null;
+
+    // Retire sibling pending invites for the same email (they joined via this one)
+    await tx.invite.updateMany({
       where: {
-        email: invite.email.toLowerCase(),
+        email: normalizedEmail,
         token: { not: token },
         status: "pending",
       },
       data: {
         status: "joined_elsewhere",
-        acceptedAt: new Date(),
+        acceptedAt,
         acceptedByUserId: userId,
       },
-    }),
-  ]);
+    });
+
+    return tx.invite.findUniqueOrThrow({ where: { token } });
+  });
+
+  if (!updatedInvite) {
+    log.warn(
+      { inviteId: invite.id, email: invite.email, userId },
+      "Invite consumed by a concurrent accept - lost the race",
+    );
+    return {
+      success: false,
+      error: "Invite already accepted",
+      code: "ALREADY_ACCEPTED",
+    };
+  }
+
   log.info(
     {
       inviteId: updatedInvite.id,

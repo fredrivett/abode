@@ -116,6 +116,43 @@ export async function completeSignup(
       };
     }
 
+    // Claim the invite BEFORE finalizing the account. If it was already consumed
+    // (e.g. a concurrent accept won the race), block account creation rather than
+    // completing an unattributed account. An invite already accepted by THIS email
+    // is the retry-after-partial-failure case — proceed without re-claiming.
+    if (invite.status !== "accepted") {
+      log.info(
+        { userId, inviteId: invite.id, inviteStatus: invite.status },
+        "Attempting to accept invite",
+      );
+      const acceptResult = await acceptInvite(inviteToken, userId);
+      if (!acceptResult.success) {
+        log.error(
+          {
+            userId,
+            token: `${inviteToken.substring(0, 8)}...`,
+            error: acceptResult.error,
+            code: acceptResult.code,
+          },
+          "Failed to accept invite - not completing account",
+        );
+        return {
+          success: false,
+          error: acceptResult.error,
+          code: acceptResult.code,
+        };
+      }
+      log.info(
+        { userId, inviteId: invite.id },
+        "Invite marked as accepted successfully",
+      );
+    } else {
+      log.info(
+        { userId, inviteId: invite.id },
+        "Invite already accepted, skipping",
+      );
+    }
+
     // Track origin for notification
     signupOrigin = invite.origin as "user" | "waitlist" | "admin";
     if (invite.origin === "user" && invite.inviter) {
@@ -125,7 +162,7 @@ export async function completeSignup(
       };
     }
 
-    // Update user with username, origin, and referrer
+    // Finalize the account now that the invite is claimed
     log.info(
       { userId, username, origin: invite.origin },
       "Updating user record with username and origin",
@@ -143,56 +180,22 @@ export async function completeSignup(
       },
     });
     log.info({ userId, username }, "User record updated successfully");
-
-    // Mark the invite as accepted (only if not already)
-    if (invite.status !== "accepted") {
-      log.info(
-        { userId, inviteId: invite.id, inviteStatus: invite.status },
-        "Attempting to accept invite",
-      );
-      const acceptResult = await acceptInvite(inviteToken, userId);
-      if (!acceptResult.success) {
-        log.error(
-          {
-            userId,
-            token: `${inviteToken.substring(0, 8)}...`,
-            error: acceptResult.error,
-            code: acceptResult.code,
-          },
-          "Failed to accept invite after verification",
-        );
-      } else {
-        log.info(
-          { userId, inviteId: invite.id },
-          "Invite marked as accepted successfully",
-        );
-      }
-    } else {
-      log.info(
-        { userId, inviteId: invite.id },
-        "Invite already accepted, skipping",
-      );
-    }
   } else {
-    // No invite - just set username (regular signup)
-    log.info(
-      { userId, username },
-      "Regular signup (no invite) - updating user record",
+    // Invite-only launch: no invite means no account. Every legitimate signup
+    // carries an invite_token in Supabase user metadata (set in join/actions.ts
+    // and threaded through /auth/confirm and /complete-signup), so a missing
+    // token here is a bypass attempt or an orphaned/removed path — reject instead
+    // of silently completing the account. This is the keystone gate and also
+    // covers any future OAuth sign-in that reaches completeSignup.
+    log.warn(
+      { userId, email },
+      "Rejecting signup completion: no invite token (invite-only)",
     );
-    await db.user.update({
-      where: { id: userId },
-      data: {
-        username,
-        ...(oauthPicture && {
-          avatarUrl: oauthPicture,
-          avatarSource: "oauth",
-        }),
-      },
-    });
-    log.info(
-      { userId, username },
-      "User record updated successfully (no invite)",
-    );
+    return {
+      success: false,
+      error: "An invite is required to create an account",
+      code: "INVITE_REQUIRED",
+    };
   }
 
   // Trigger Gravatar check if no OAuth avatar
