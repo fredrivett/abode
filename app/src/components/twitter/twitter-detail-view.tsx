@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
-import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
-import { ViewOnButton } from "@/components/ui/view-on-button";
+import { PostedDateFooter } from "@/components/ui/posted-date-footer";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -172,17 +171,11 @@ export function TwitterDetailView({
         )}
 
         {/* Posted date and View on X */}
-        <div className="flex items-center justify-between pt-4">
-          {postedAt ? (
-            <DateTime
-              date={postedAt}
-              className="text-gray-500 text-sm dark:text-gray-400"
-            />
-          ) : (
-            <div />
-          )}
-          <ViewOnButton href={tweetUrl} label="X" />
-        </div>
+        <PostedDateFooter
+          postedAt={postedAt}
+          viewOnHref={tweetUrl}
+          viewOnLabel="X"
+        />
       </article>
     </div>
   );
