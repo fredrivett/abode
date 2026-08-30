@@ -8,17 +8,7 @@
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { getQueryEmbedding } from "./embedding-cache";
-import type { ParsedFilters } from "./query-builder";
-import {
-  buildColorCondition,
-  buildDateCondition,
-  buildLocationCondition,
-  buildObjectCondition,
-  buildSourceCondition,
-  buildTagCondition,
-  buildTypeCondition,
-  remapParamIndices,
-} from "./query-builder";
+import { buildFilterConditions, type ParsedFilters } from "./query-builder";
 
 const log = createLogger("lib/search/vector-search");
 
@@ -63,99 +53,16 @@ export async function vectorSearch(
   const queryEmbedding = await getQueryEmbedding(query);
 
   // Build WHERE conditions for filters
-  const conditions: string[] = ["i.user_id = $1::uuid"];
-  const params: unknown[] = [userId];
-  let paramIndex = 2;
-
-  // Type filter
-  if (filters.type && filters.type.length > 0) {
-    const typeCondition = buildTypeCondition(filters.type);
-    if (typeCondition.sql) {
-      const remapped = remapParamIndices(
-        typeCondition.sql,
-        typeCondition.params.length,
-        paramIndex,
-      );
-      conditions.push(remapped.replace(/\bkind\b/g, "i.kind"));
-      params.push(...typeCondition.params);
-      paramIndex += typeCondition.params.length;
-    }
-  }
-
-  // Tag filter
-  if (filters.tag && filters.tag.length > 0) {
-    const tagCondition = buildTagCondition(filters.tag, paramIndex);
-    if (tagCondition.sql) {
-      conditions.push(tagCondition.sql.replace(/\btags\b/g, "i.tags"));
-      params.push(...tagCondition.params);
-      paramIndex += tagCondition.params.length;
-    }
-  }
-
-  // Object filter
-  if (filters.object && filters.object.length > 0) {
-    const objectCondition = buildObjectCondition(filters.object, paramIndex);
-    if (objectCondition.sql) {
-      conditions.push(objectCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...objectCondition.params);
-      paramIndex += objectCondition.params.length;
-    }
-  }
-
-  // Source filter
-  if (filters.source && filters.source.length > 0) {
-    const sourceCondition = buildSourceCondition(filters.source, paramIndex);
-    if (sourceCondition.sql) {
-      conditions.push(
-        sourceCondition.sql.replace(/\bsource_type\b/g, "i.source_type"),
-      );
-      params.push(...sourceCondition.params);
-      paramIndex += sourceCondition.params.length;
-    }
-  }
-
-  // Location filter
-  if (filters.location && filters.location.length > 0) {
-    const locationCondition = buildLocationCondition(
-      filters.location,
-      paramIndex,
-    );
-    if (locationCondition.sql) {
-      conditions.push(locationCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...locationCondition.params);
-      paramIndex += locationCondition.params.length;
-    }
-  }
-
-  // Date filter
-  if (filters.dateAfter || filters.dateBefore) {
-    const dateCondition = buildDateCondition(
-      filters.dateAfter,
-      filters.dateBefore,
-      paramIndex,
-    );
-    if (dateCondition.sql) {
-      conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
-      params.push(...dateCondition.params);
-      paramIndex += dateCondition.params.length;
-    }
-  }
-
-  // Color filter
-  if (filters.color && filters.color.length > 0) {
-    const colorCondition = buildColorCondition(filters.color, paramIndex);
-    if (colorCondition.sql) {
-      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...colorCondition.params);
-      paramIndex += colorCondition.params.length;
-    }
-  }
+  const { conditions, params, nextParamIndex } = buildFilterConditions(
+    userId,
+    filters,
+  );
 
   const whereClause = conditions.join(" AND ");
   const vectorLiteral = toVectorLiteral(queryEmbedding);
 
   // Add vector as a parameter
-  const vectorParamIndex = paramIndex;
+  const vectorParamIndex = nextParamIndex;
   params.push(vectorLiteral);
 
   // Vector similarity search using inner product

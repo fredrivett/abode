@@ -671,6 +671,115 @@ export function buildColorRelevanceCte(
 }
 
 /**
+ * Assemble the shared WHERE conditions for a filtered item search.
+ *
+ * Seeds the conditions with the user scope (`$1`) and folds in every filter
+ * type (type, tag, object, source, location, date, color), remapping each
+ * fragment's placeholders to the running param index and rewriting the bare
+ * column/table references onto the `i` alias used by the search queries.
+ *
+ * Callers append their own trailing params (the query string, the query
+ * vector) starting at `nextParamIndex`.
+ */
+export function buildFilterConditions(
+  userId: string,
+  filters: ParsedFilters,
+): { conditions: string[]; params: unknown[]; nextParamIndex: number } {
+  const conditions: string[] = ["i.user_id = $1::uuid"];
+  const params: unknown[] = [userId];
+  let paramIndex = 2;
+
+  // Type filter
+  if (filters.type && filters.type.length > 0) {
+    const typeCondition = buildTypeCondition(filters.type);
+    if (typeCondition.sql) {
+      const remapped = remapParamIndices(
+        typeCondition.sql,
+        typeCondition.params.length,
+        paramIndex,
+      );
+      // Replace "kind" with "i.kind" for table alias
+      conditions.push(remapped.replace(/\bkind\b/g, "i.kind"));
+      params.push(...typeCondition.params);
+      paramIndex += typeCondition.params.length;
+    }
+  }
+
+  // Tag filter
+  if (filters.tag && filters.tag.length > 0) {
+    const tagCondition = buildTagCondition(filters.tag, paramIndex);
+    if (tagCondition.sql) {
+      // Replace "tags" with "i.tags" for table alias
+      conditions.push(tagCondition.sql.replace(/\btags\b/g, "i.tags"));
+      params.push(...tagCondition.params);
+      paramIndex += tagCondition.params.length;
+    }
+  }
+
+  // Object filter
+  if (filters.object && filters.object.length > 0) {
+    const objectCondition = buildObjectCondition(filters.object, paramIndex);
+    if (objectCondition.sql) {
+      // Replace "items.id" with "i.id" for table alias
+      conditions.push(objectCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      params.push(...objectCondition.params);
+      paramIndex += objectCondition.params.length;
+    }
+  }
+
+  // Source filter
+  if (filters.source && filters.source.length > 0) {
+    const sourceCondition = buildSourceCondition(filters.source, paramIndex);
+    if (sourceCondition.sql) {
+      conditions.push(
+        sourceCondition.sql.replace(/\bsource_type\b/g, "i.source_type"),
+      );
+      params.push(...sourceCondition.params);
+      paramIndex += sourceCondition.params.length;
+    }
+  }
+
+  // Location filter
+  if (filters.location && filters.location.length > 0) {
+    const locationCondition = buildLocationCondition(
+      filters.location,
+      paramIndex,
+    );
+    if (locationCondition.sql) {
+      conditions.push(locationCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      params.push(...locationCondition.params);
+      paramIndex += locationCondition.params.length;
+    }
+  }
+
+  // Date filter
+  if (filters.dateAfter || filters.dateBefore) {
+    const dateCondition = buildDateCondition(
+      filters.dateAfter,
+      filters.dateBefore,
+      paramIndex,
+    );
+    if (dateCondition.sql) {
+      conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
+      params.push(...dateCondition.params);
+      paramIndex += dateCondition.params.length;
+    }
+  }
+
+  // Color filter
+  if (filters.color && filters.color.length > 0) {
+    const colorCondition = buildColorCondition(filters.color, paramIndex);
+    if (colorCondition.sql) {
+      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      params.push(...colorCondition.params);
+      paramIndex += colorCondition.params.length;
+    }
+  }
+
+  return { conditions, params, nextParamIndex: paramIndex };
+}
+
+/**
  * Check if any filters are present.
  */
 export function hasFilters(filters: ParsedFilters): boolean {

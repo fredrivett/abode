@@ -3,6 +3,7 @@ import {
   buildColorCondition,
   buildColorRelevanceCte,
   buildDateCondition,
+  buildFilterConditions,
   buildLocationCondition,
   buildObjectCondition,
   buildSourceCondition,
@@ -638,6 +639,33 @@ describe("buildColorCondition", () => {
     );
     expect(result.sql).toBe("");
     expect(result.params).toEqual([]);
+  });
+});
+
+describe("buildFilterConditions", () => {
+  it("seeds the user scope and no extra params when there are no filters", () => {
+    const result = buildFilterConditions("user-1", {});
+    expect(result.conditions).toEqual(["i.user_id = $1::uuid"]);
+    expect(result.params).toEqual(["user-1"]);
+    expect(result.nextParamIndex).toBe(2);
+  });
+
+  it("aliases columns onto `i` and advances the param index per filter", () => {
+    const result = buildFilterConditions("user-1", {
+      type: [{ value: "image", negated: false }],
+      tag: [{ value: "vacation", negated: false }],
+    });
+
+    // user scope + type + tag conditions
+    expect(result.conditions).toHaveLength(3);
+    expect(result.conditions[0]).toBe("i.user_id = $1::uuid");
+    // Columns are rewritten onto the `i` alias
+    expect(result.conditions.join(" ")).toContain("i.kind");
+    expect(result.conditions.join(" ")).toContain("i.tags");
+
+    // $1 is the user; type ($2) and tag ($3) each consumed one placeholder
+    expect(result.params).toEqual(["user-1", "image", "vacation"]);
+    expect(result.nextParamIndex).toBe(4);
   });
 });
 

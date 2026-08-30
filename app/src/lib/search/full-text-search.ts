@@ -6,17 +6,7 @@
  */
 
 import db from "@/lib/db";
-import type { ParsedFilters } from "./query-builder";
-import {
-  buildColorCondition,
-  buildDateCondition,
-  buildLocationCondition,
-  buildObjectCondition,
-  buildSourceCondition,
-  buildTagCondition,
-  buildTypeCondition,
-  remapParamIndices,
-} from "./query-builder";
+import { buildFilterConditions, type ParsedFilters } from "./query-builder";
 
 export type FullTextResult = {
   id: string;
@@ -46,96 +36,11 @@ export async function fullTextSearch(
   limit = 100,
 ): Promise<FullTextResult[]> {
   // Build WHERE conditions for filters
-  const conditions: string[] = ["i.user_id = $1::uuid"];
-  const params: unknown[] = [userId];
-  let paramIndex = 2;
-
-  // Type filter
-  if (filters.type && filters.type.length > 0) {
-    const typeCondition = buildTypeCondition(filters.type);
-    if (typeCondition.sql) {
-      const remapped = remapParamIndices(
-        typeCondition.sql,
-        typeCondition.params.length,
-        paramIndex,
-      );
-      // Replace "kind" with "i.kind" for table alias
-      conditions.push(remapped.replace(/\bkind\b/g, "i.kind"));
-      params.push(...typeCondition.params);
-      paramIndex += typeCondition.params.length;
-    }
-  }
-
-  // Tag filter
-  if (filters.tag && filters.tag.length > 0) {
-    const tagCondition = buildTagCondition(filters.tag, paramIndex);
-    if (tagCondition.sql) {
-      // Replace "tags" with "i.tags" for table alias
-      conditions.push(tagCondition.sql.replace(/\btags\b/g, "i.tags"));
-      params.push(...tagCondition.params);
-      paramIndex += tagCondition.params.length;
-    }
-  }
-
-  // Object filter
-  if (filters.object && filters.object.length > 0) {
-    const objectCondition = buildObjectCondition(filters.object, paramIndex);
-    if (objectCondition.sql) {
-      // Replace "items.id" with "i.id" for table alias
-      conditions.push(objectCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...objectCondition.params);
-      paramIndex += objectCondition.params.length;
-    }
-  }
-
-  // Source filter
-  if (filters.source && filters.source.length > 0) {
-    const sourceCondition = buildSourceCondition(filters.source, paramIndex);
-    if (sourceCondition.sql) {
-      conditions.push(
-        sourceCondition.sql.replace(/\bsource_type\b/g, "i.source_type"),
-      );
-      params.push(...sourceCondition.params);
-      paramIndex += sourceCondition.params.length;
-    }
-  }
-
-  // Location filter
-  if (filters.location && filters.location.length > 0) {
-    const locationCondition = buildLocationCondition(
-      filters.location,
-      paramIndex,
-    );
-    if (locationCondition.sql) {
-      conditions.push(locationCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...locationCondition.params);
-      paramIndex += locationCondition.params.length;
-    }
-  }
-
-  // Date filter
-  if (filters.dateAfter || filters.dateBefore) {
-    const dateCondition = buildDateCondition(
-      filters.dateAfter,
-      filters.dateBefore,
-      paramIndex,
-    );
-    if (dateCondition.sql) {
-      conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
-      params.push(...dateCondition.params);
-      paramIndex += dateCondition.params.length;
-    }
-  }
-
-  // Color filter
-  if (filters.color && filters.color.length > 0) {
-    const colorCondition = buildColorCondition(filters.color, paramIndex);
-    if (colorCondition.sql) {
-      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...colorCondition.params);
-      paramIndex += colorCondition.params.length;
-    }
-  }
+  const { conditions, params, nextParamIndex } = buildFilterConditions(
+    userId,
+    filters,
+  );
+  let paramIndex = nextParamIndex;
 
   // Add the query parameter for full-text search
   const queryParamIndex = paramIndex;
@@ -206,96 +111,13 @@ export async function ocrTextSearch(
 ): Promise<OcrSearchResult[]> {
   // Build WHERE conditions for filters
   // Filters are required here to ensure OCR-only matches respect user's filter criteria
-  const conditions: string[] = ["i.user_id = $1::uuid"];
-  const params: unknown[] = [userId];
-  let paramIndex = 2;
-
-  // Type filter
-  if (filters.type && filters.type.length > 0) {
-    const typeCondition = buildTypeCondition(filters.type);
-    if (typeCondition.sql) {
-      const remapped = remapParamIndices(
-        typeCondition.sql,
-        typeCondition.params.length,
-        paramIndex,
-      );
-      conditions.push(remapped.replace(/\bkind\b/g, "i.kind"));
-      params.push(...typeCondition.params);
-      paramIndex += typeCondition.params.length;
-    }
-  }
-
-  // Tag filter
-  if (filters.tag && filters.tag.length > 0) {
-    const tagCondition = buildTagCondition(filters.tag, paramIndex);
-    if (tagCondition.sql) {
-      conditions.push(tagCondition.sql.replace(/\btags\b/g, "i.tags"));
-      params.push(...tagCondition.params);
-      paramIndex += tagCondition.params.length;
-    }
-  }
-
-  // Object filter
-  if (filters.object && filters.object.length > 0) {
-    const objectCondition = buildObjectCondition(filters.object, paramIndex);
-    if (objectCondition.sql) {
-      conditions.push(objectCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...objectCondition.params);
-      paramIndex += objectCondition.params.length;
-    }
-  }
-
-  // Source filter
-  if (filters.source && filters.source.length > 0) {
-    const sourceCondition = buildSourceCondition(filters.source, paramIndex);
-    if (sourceCondition.sql) {
-      conditions.push(
-        sourceCondition.sql.replace(/\bsource_type\b/g, "i.source_type"),
-      );
-      params.push(...sourceCondition.params);
-      paramIndex += sourceCondition.params.length;
-    }
-  }
-
-  // Location filter
-  if (filters.location && filters.location.length > 0) {
-    const locationCondition = buildLocationCondition(
-      filters.location,
-      paramIndex,
-    );
-    if (locationCondition.sql) {
-      conditions.push(locationCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...locationCondition.params);
-      paramIndex += locationCondition.params.length;
-    }
-  }
-
-  // Date filter
-  if (filters.dateAfter || filters.dateBefore) {
-    const dateCondition = buildDateCondition(
-      filters.dateAfter,
-      filters.dateBefore,
-      paramIndex,
-    );
-    if (dateCondition.sql) {
-      conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
-      params.push(...dateCondition.params);
-      paramIndex += dateCondition.params.length;
-    }
-  }
-
-  // Color filter
-  if (filters.color && filters.color.length > 0) {
-    const colorCondition = buildColorCondition(filters.color, paramIndex);
-    if (colorCondition.sql) {
-      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
-      params.push(...colorCondition.params);
-      paramIndex += colorCondition.params.length;
-    }
-  }
+  const { conditions, params, nextParamIndex } = buildFilterConditions(
+    userId,
+    filters,
+  );
 
   // Add the query parameter for OCR full-text search
-  const queryParamIndex = paramIndex;
+  const queryParamIndex = nextParamIndex;
   params.push(query);
 
   const whereClause = conditions.join(" AND ");
