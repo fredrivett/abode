@@ -4,6 +4,7 @@ import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
@@ -122,13 +123,7 @@ export async function POST(
     const guard = await guardDailyLimit(user.id, "reanalysis");
     if (!guard.ok) {
       await revert();
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     try {

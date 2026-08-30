@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import { preflight, withCors } from "@/lib/http/cors";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -73,13 +74,7 @@ async function handlePost(
     // Enrich re-runs image vision — cap it under the shared daily AI budget.
     const guard = await guardDailyLimit(user.id, "reanalysis");
     if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     // Atomically claim the enrichment (completed → processing) so a double-click

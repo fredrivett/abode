@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import {
   createItemFromUrl,
   InvalidUrlError,
@@ -33,13 +34,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     // Durable per-user daily cap (each URL import = several paid AI calls).
     const guard = await guardDailyLimit(user.id, "ingestion");
     if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     const body = await request.json();

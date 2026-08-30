@@ -1,6 +1,7 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { reverseGeocode } from "@/lib/reverse-geocode";
@@ -43,13 +44,7 @@ export async function POST(
     // Setting a manual location reverse-geocodes via Mapbox (paid per call).
     const guard = await guardDailyLimit(user.id, "location");
     if (!guard.ok) {
-      return NextResponse.json(
-        { message: "Daily limit reached" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(guard.check.retryAfterSeconds) },
-        },
-      );
+      return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
     const body = await request.json();
