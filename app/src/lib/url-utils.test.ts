@@ -6,7 +6,22 @@ import {
   isImageUrl,
   isValidUrl,
   normalizeWebsiteUrl,
+  parseMimeType,
 } from "./url-utils";
+
+describe("parseMimeType", () => {
+  it("strips parameters and lowercases", () => {
+    expect(parseMimeType("image/PNG; charset=utf-8")).toBe("image/png");
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(parseMimeType("  image/jpeg ")).toBe("image/jpeg");
+  });
+
+  it("returns a bare type unchanged", () => {
+    expect(parseMimeType("image/webp")).toBe("image/webp");
+  });
+});
 
 describe("isValidUrl", () => {
   it("returns true for valid http URLs", () => {

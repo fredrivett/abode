@@ -106,6 +106,15 @@ export function normalizeWebsiteUrl(input: string): string | null {
 }
 
 /**
+ * Extract the bare MIME type from a Content-Type header, dropping any
+ * parameters (e.g. `"image/png; charset=utf-8"` → `"image/png"`) and
+ * normalising to lowercase for lookups.
+ */
+export function parseMimeType(contentType: string): string {
+  return contentType.split(";")[0].trim().toLowerCase();
+}
+
+/**
  * Determines if a URL points to an image based on:
  * 1. Content-Type header (if provided) - this is authoritative when available
  * 2. URL file extension (fallback when no content type)
@@ -113,8 +122,7 @@ export function normalizeWebsiteUrl(input: string): string | null {
 export function isImageUrl(url: string, contentType?: string | null): boolean {
   // Content type is authoritative when provided
   if (contentType) {
-    const mimeType = contentType.split(";")[0].trim().toLowerCase();
-    return IMAGE_CONTENT_TYPES.has(mimeType);
+    return IMAGE_CONTENT_TYPES.has(parseMimeType(contentType));
   }
 
   // Fall back to URL extension check when no content type
@@ -153,7 +161,7 @@ export function getHostname(url: string): string {
  * @param contentType - A MIME type string, optionally with parameters (e.g. `"image/png; charset=utf-8"`).
  */
 export function getExtensionFromContentType(contentType: string): string {
-  const mimeType = contentType.split(";")[0].trim().toLowerCase();
+  const mimeType = parseMimeType(contentType);
   const extMap: Record<string, string> = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
