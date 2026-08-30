@@ -413,6 +413,66 @@ describe("Invites Integration", () => {
       expect(finalInvite?.acceptedByUserId).not.toBeNull();
     });
 
+    it("accepts only one of two concurrent sibling invites for the same email", async () => {
+      const { write, read } = await import("@/lib/db");
+      const { acceptInvite } = await import("@/lib/invites");
+
+      // Two inviters, one shared recipient email → two pending sibling invites
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440040",
+          email: "inviter-a@example.com",
+        },
+      });
+      await write.user.create({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440041",
+          email: "inviter-b@example.com",
+        },
+      });
+
+      const sharedEmail = "shared-invitee@example.com";
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await write.invite.create({
+        data: {
+          email: sharedEmail,
+          token: "sibling-token-a",
+          origin: "user",
+          status: "pending",
+          expiresAt,
+          inviterId: "550e8400-e29b-41d4-a716-446655440040",
+        },
+      });
+      await write.invite.create({
+        data: {
+          email: sharedEmail,
+          token: "sibling-token-b",
+          origin: "user",
+          status: "pending",
+          expiresAt,
+          inviterId: "550e8400-e29b-41d4-a716-446655440041",
+        },
+      });
+
+      // Both sibling tokens are accepted concurrently by the same recipient
+      const acceptorId = "550e8400-e29b-41d4-a716-446655440042";
+      await Promise.all([
+        acceptInvite("sibling-token-a", acceptorId),
+        acceptInvite("sibling-token-b", acceptorId),
+      ]);
+
+      // Exactly one invite is accepted; the sibling is retired as joined_elsewhere
+      const invites = await read.invite.findMany({
+        where: { email: sharedEmail },
+      });
+      const accepted = invites.filter((i) => i.status === "accepted");
+      const joinedElsewhere = invites.filter(
+        (i) => i.status === "joined_elsewhere",
+      );
+      expect(accepted).toHaveLength(1);
+      expect(joinedElsewhere).toHaveLength(1);
+    });
+
     it("returns error for joined_elsewhere invite", async () => {
       const { write, read } = await import("@/lib/db");
       const { acceptInvite } = await import("@/lib/invites");

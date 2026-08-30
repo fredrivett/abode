@@ -346,18 +346,43 @@ export async function acceptInvite(
     "Updating invite status to accepted",
   );
   const acceptedAt = new Date();
+  const normalizedEmail = invite.email.toLowerCase();
 
-  // Atomic single-use claim: guard the accept on status:"pending" so that under
-  // concurrent accepts only one wins. Postgres row-locks the invite, so the loser
-  // re-evaluates the WHERE against the winner's committed status:"accepted" and
-  // matches 0 rows. The pre-read above is only for precise error codes — this
+  // Consume the recipient's whole invite set atomically. All accepts for this
+  // email run in one transaction that first locks every invite row for the email
+  // (SELECT ... FOR UPDATE), so concurrent accepts — including sibling invites
+  // from different inviters — serialize: the first wins the guarded claim and
+  // retires the rest, and the loser then re-reads the now-consumed rows so its
+  // claim matches 0. The pre-read above is only for precise error codes; this
   // guarded write is the source of truth for single-use.
-  const claim = await db.invite.updateMany({
-    where: { token, status: "pending" },
-    data: { status: "accepted", acceptedAt, acceptedByUserId: userId },
+  const updatedInvite = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM invites WHERE email = ${normalizedEmail} FOR UPDATE`;
+
+    const claim = await tx.invite.updateMany({
+      where: { token, status: "pending" },
+      data: { status: "accepted", acceptedAt, acceptedByUserId: userId },
+    });
+
+    if (claim.count === 0) return null;
+
+    // Retire sibling pending invites for the same email (they joined via this one)
+    await tx.invite.updateMany({
+      where: {
+        email: normalizedEmail,
+        token: { not: token },
+        status: "pending",
+      },
+      data: {
+        status: "joined_elsewhere",
+        acceptedAt,
+        acceptedByUserId: userId,
+      },
+    });
+
+    return tx.invite.findUniqueOrThrow({ where: { token } });
   });
 
-  if (claim.count === 0) {
+  if (!updatedInvite) {
     log.warn(
       { inviteId: invite.id, email: invite.email, userId },
       "Invite consumed by a concurrent accept - lost the race",
@@ -369,22 +394,6 @@ export async function acceptInvite(
     };
   }
 
-  // Only after winning the claim, retire sibling pending invites for the same
-  // email so they can't be reused (they joined via this one)
-  await db.invite.updateMany({
-    where: {
-      email: invite.email.toLowerCase(),
-      token: { not: token },
-      status: "pending",
-    },
-    data: {
-      status: "joined_elsewhere",
-      acceptedAt,
-      acceptedByUserId: userId,
-    },
-  });
-
-  const updatedInvite = await db.invite.findUniqueOrThrow({ where: { token } });
   log.info(
     {
       inviteId: updatedInvite.id,
