@@ -1,3 +1,5 @@
+import { subscribeMediaQuery } from "@/lib/media-query";
+
 export type ThemePreference = "light" | "dark" | "auto";
 
 const THEME_SEQUENCE: ThemePreference[] = ["auto", "light", "dark"];
@@ -179,22 +181,12 @@ export function subscribeToThemeChanges(
     }
   };
 
-  if (mediaQuery) {
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", mediaListener);
-    } else if (typeof mediaQuery.addListener === "function") {
-      mediaQuery.addListener(mediaListener);
-    }
-  }
+  const unsubscribeMedia = mediaQuery
+    ? subscribeMediaQuery(mediaQuery, mediaListener)
+    : undefined;
 
   return () => {
     observer.disconnect();
-    if (mediaQuery) {
-      if (typeof mediaQuery.removeEventListener === "function") {
-        mediaQuery.removeEventListener("change", mediaListener);
-      } else if (typeof mediaQuery.removeListener === "function") {
-        mediaQuery.removeListener(mediaListener);
-      }
-    }
+    unsubscribeMedia?.();
   };
 }

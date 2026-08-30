@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { subscribeMediaQuery } from "@/lib/media-query";
 
 /**
  * Whether the user has requested reduced motion.
@@ -13,28 +14,15 @@ export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    // Guard matchMedia and fall back to the deprecated addListener/
-    // removeListener so this degrades gracefully on Safari < 14 (mirrors
-    // theme.ts) instead of throwing on mount and crashing the grid.
+    // Guard matchMedia so this degrades gracefully on browsers without it
+    // instead of throwing on mount and crashing the grid.
     const mediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (!mediaQuery) return;
 
     const update = () => setReduced(mediaQuery.matches);
     update();
 
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", update);
-    } else if (typeof mediaQuery.addListener === "function") {
-      mediaQuery.addListener(update);
-    }
-
-    return () => {
-      if (typeof mediaQuery.removeEventListener === "function") {
-        mediaQuery.removeEventListener("change", update);
-      } else if (typeof mediaQuery.removeListener === "function") {
-        mediaQuery.removeListener(update);
-      }
-    };
+    return subscribeMediaQuery(mediaQuery, update);
   }, []);
 
   return reduced;
