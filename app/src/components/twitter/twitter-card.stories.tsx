@@ -13,6 +13,7 @@ const meta = {
   },
   args: {
     onClick: noop,
+    itemId: "story-item",
   },
   decorators: [
     (Story) => (
@@ -259,28 +260,60 @@ export const AllVariants: Story = {
     () => (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="h-[320px] w-[250px]">
-          <TwitterCard twitterDetails={tweetWithVideo} onClick={noop} />
+          <TwitterCard
+            twitterDetails={tweetWithVideo}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[320px] w-[250px]">
-          <TwitterCard twitterDetails={tweetWithPhoto} onClick={noop} />
+          <TwitterCard
+            twitterDetails={tweetWithPhoto}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[320px] w-[250px]">
-          <TwitterCard twitterDetails={tweetWithLinkCard} onClick={noop} />
+          <TwitterCard
+            twitterDetails={tweetWithLinkCard}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[240px] w-[250px]">
-          <TwitterCard twitterDetails={textOnlyTweet} onClick={noop} />
+          <TwitterCard
+            twitterDetails={textOnlyTweet}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[240px] w-[250px]">
-          <TwitterCard twitterDetails={longTextTweet} onClick={noop} />
+          <TwitterCard
+            twitterDetails={longTextTweet}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[320px] w-[250px]">
-          <TwitterCard twitterDetails={noAvatarTweet} onClick={noop} />
+          <TwitterCard
+            twitterDetails={noAvatarTweet}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[240px] w-[250px]">
-          <TwitterCard twitterDetails={usernameOnlyTweet} onClick={noop} />
+          <TwitterCard
+            twitterDetails={usernameOnlyTweet}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
         <div className="h-[240px] w-[250px]">
-          <TwitterCard twitterDetails={linkCardNoImageTweet} onClick={noop} />
+          <TwitterCard
+            twitterDetails={linkCardNoImageTweet}
+            itemId="story-item"
+            onClick={noop}
+          />
         </div>
       </div>
     ),

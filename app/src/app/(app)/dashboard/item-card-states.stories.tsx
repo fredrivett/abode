@@ -120,12 +120,24 @@ const TYPES: TypeSpec[] = [
     key: "twitter-photo",
     label: "Tweet · photo",
     aspectRatio: "3 / 2",
-    render: () => <TwitterCard twitterDetails={twitterPhoto} onClick={noop} />,
+    render: () => (
+      <TwitterCard
+        twitterDetails={twitterPhoto}
+        itemId="story-item"
+        onClick={noop}
+      />
+    ),
   },
   {
     key: "twitter-text",
     label: "Tweet · text",
-    render: () => <TwitterCard twitterDetails={twitterText} onClick={noop} />,
+    render: () => (
+      <TwitterCard
+        twitterDetails={twitterText}
+        itemId="story-item"
+        onClick={noop}
+      />
+    ),
   },
   {
     key: "instagram",

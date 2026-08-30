@@ -241,6 +241,7 @@ export const Playground: Story = {
         ) : (
           <TwitterCard
             twitterDetails={tweet(content, { hasAvatar })}
+            itemId="story-item"
             onClick={noop}
           />
         )}
@@ -285,7 +286,11 @@ export const Tweets: Story = {
             { columnWidthPx, measure: measureCardText },
           )}
         >
-          <TwitterCard twitterDetails={c.details} onClick={noop} />
+          <TwitterCard
+            twitterDetails={c.details}
+            itemId="story-item"
+            onClick={noop}
+          />
         </AspectBox>
       ))}
     </div>
@@ -381,7 +386,11 @@ function MasonryDemo() {
                     onClick={noop}
                   />
                 ) : (
-                  <TwitterCard twitterDetails={s.details} onClick={noop} />
+                  <TwitterCard
+                    twitterDetails={s.details}
+                    itemId="story-item"
+                    onClick={noop}
+                  />
                 )}
               </div>
             </Frame>
