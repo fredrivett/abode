@@ -174,25 +174,21 @@ export async function completeSignup(
       );
     }
   } else {
-    // No invite - just set username (regular signup)
-    log.info(
-      { userId, username },
-      "Regular signup (no invite) - updating user record",
+    // Invite-only launch: no invite means no account. Every legitimate signup
+    // carries an invite_token in Supabase user metadata (set in join/actions.ts
+    // and threaded through /auth/confirm and /complete-signup), so a missing
+    // token here is a bypass attempt or an orphaned/removed path — reject instead
+    // of silently completing the account. This is the keystone gate and also
+    // covers any future OAuth sign-in that reaches completeSignup.
+    log.warn(
+      { userId, email },
+      "Rejecting signup completion: no invite token (invite-only)",
     );
-    await db.user.update({
-      where: { id: userId },
-      data: {
-        username,
-        ...(oauthPicture && {
-          avatarUrl: oauthPicture,
-          avatarSource: "oauth",
-        }),
-      },
-    });
-    log.info(
-      { userId, username },
-      "User record updated successfully (no invite)",
-    );
+    return {
+      success: false,
+      error: "An invite is required to create an account",
+      code: "INVITE_REQUIRED",
+    };
   }
 
   // Trigger Gravatar check if no OAuth avatar
