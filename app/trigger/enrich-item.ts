@@ -60,11 +60,15 @@ export const enrichItemTask = task({
         });
       }
 
-      // Update item with tags and mark as completed
+      // Update item with tags and mark as completed. In degraded mode (no
+      // OpenAI) `tags` is empty; don't overwrite an item's existing tags with []
+      // on a reprocess — preserve prior enrichment. When OpenAI is configured,
+      // keep the existing behavior (tags are always written).
+      const preserveExistingTags = tags.length === 0 && !isOpenAiConfigured();
       await db.item.update({
         where: { id: itemId, userId },
         data: {
-          tags,
+          ...(preserveExistingTags ? {} : { tags }),
           processingStatus: "completed",
         },
       });

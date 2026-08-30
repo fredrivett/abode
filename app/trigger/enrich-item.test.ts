@@ -97,15 +97,14 @@ describe("enrichItemTask", () => {
     expect(mockGenerateTextEmbedding).not.toHaveBeenCalled();
     expect(mockUpsertTextVector).not.toHaveBeenCalled();
 
-    // The item is still marked completed (not failed, not left processing)
-    expect(mockItemUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          tags: [],
-          processingStatus: "completed",
-        }),
-      }),
-    );
+    // The item is marked completed (not failed, not left processing) WITHOUT
+    // overwriting its tags — a degraded reprocess must preserve prior enrichment.
+    expect(mockItemUpdate).toHaveBeenCalledTimes(1);
+    const updateArg = mockItemUpdate.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(updateArg.data.processingStatus).toBe("completed");
+    expect(updateArg.data).not.toHaveProperty("tags");
     // Room sync still fires; the task succeeds
     expect(mockTrigger).toHaveBeenCalled();
     expect(result).toMatchObject({ success: true, tagCount: 0 });

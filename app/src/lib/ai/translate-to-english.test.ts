@@ -46,4 +46,30 @@ describe("translateToEnglish", () => {
       expect.objectContaining({ provider: "openai", operation: "translation" }),
     );
   });
+
+  it("still records billed usage when the response has no parsed content, then throws", async () => {
+    openaiConfigured.mockReturnValue(true);
+    // A billed call that returns no parsed content — usage must still be
+    // attributed (recorded before the parse guard) even though we throw.
+    const parse = vi.fn().mockResolvedValue({
+      choices: [{ message: { parsed: null } }],
+      usage: { prompt_tokens: 7, completion_tokens: 4 },
+    });
+    getClient.mockReturnValue({
+      chat: { completions: { parse } },
+    } as unknown as ReturnType<typeof getOpenAiClient>);
+
+    await expect(
+      translateToEnglish("Hola mundo", { userId: "u1" }),
+    ).rejects.toThrow();
+
+    expect(recordAiUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "openai",
+        operation: "translation",
+        inputTokens: 7,
+        outputTokens: 4,
+      }),
+    );
+  });
 });
