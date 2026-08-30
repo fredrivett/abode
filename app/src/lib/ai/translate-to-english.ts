@@ -2,7 +2,7 @@ import type { ItemKind } from "@prisma/client";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { recordAiUsage } from "@/lib/ai-costs/record-ai-usage";
-import { getOpenAiClient } from "@/lib/embeddings";
+import { getOpenAiClient, isOpenAiConfigured } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("lib/ai/translate-to-english");
@@ -30,6 +30,13 @@ export async function translateToEnglish(
   text: string,
   usageContext: TranslationUsageContext,
 ): Promise<string> {
+  // Optional enhancement — when OpenAI is unconfigured, return the text as-is
+  // (the caller already treats a failed translation as "use the original").
+  if (!isOpenAiConfigured()) {
+    log.info("OpenAI not configured — returning text untranslated");
+    return text;
+  }
+
   const client = getOpenAiClient();
 
   const completion = await client.chat.completions.parse({
