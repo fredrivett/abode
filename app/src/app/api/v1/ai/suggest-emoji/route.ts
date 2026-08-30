@@ -24,14 +24,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Optional service: without an OpenAI key, degrade cleanly instead of 500ing
-    if (!isOpenAiConfigured()) {
-      return NextResponse.json(
-        { message: "AI emoji suggestions are not available" },
-        { status: 503 },
-      );
-    }
-
     // Check per-minute rate limit
     const minuteLimit = checkRateLimit(user.id, "emojiSuggest");
     if (!minuteLimit.allowed) {
@@ -53,6 +45,15 @@ export async function POST(request: NextRequest) {
           status: 429,
           headers: getRateLimitHeaders(dailyLimit, "emojiSuggestDaily"),
         },
+      );
+    }
+
+    // Optional service: without an OpenAI key, degrade cleanly instead of 500ing.
+    // Checked after rate limiting so the disabled path can't be hammered unbounded.
+    if (!isOpenAiConfigured()) {
+      return NextResponse.json(
+        { message: "AI emoji suggestions are not available" },
+        { status: 503 },
       );
     }
 
