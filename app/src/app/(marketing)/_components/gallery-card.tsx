@@ -75,7 +75,9 @@ export function Intelligence({ card }: { card: GalleryCard }) {
         "absolute inset-x-2 bottom-2 rounded-xl border border-border/60 bg-background/85 p-3 text-left shadow-lg backdrop-blur-md",
         "translate-y-3 opacity-0 transition-[transform,opacity] duration-500 ease-out",
         "group-hover:translate-y-0 group-hover:opacity-100 group-hover:[transform:translateZ(52px)]",
-        "max-md:translate-y-0 max-md:opacity-100 max-md:[transform:none]",
+        // On touch there's no default hover, so tapping a card reveals it
+        // (sticky :hover) — flat, without the desktop 3D pop.
+        "max-md:group-hover:[transform:none]",
       )}
     >
       <div className="mb-2 flex items-center gap-2">
