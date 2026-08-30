@@ -1,5 +1,5 @@
 import { triggerRunUrl } from "@/lib/admin/trigger-dashboard";
-import { listItemRuns } from "@/lib/trigger/item-runs";
+import { buildItemRunForest, listItemRuns } from "@/lib/trigger/item-runs";
 import { type ItemRunRow, ItemRunsCard } from "./item-runs-card";
 
 /**
@@ -12,10 +12,9 @@ export async function ItemRunsSection({ itemId }: { itemId: string }) {
 
   if (result.state !== "ok") return <ItemRunsCard result={result} />;
 
-  const runs: ItemRunRow[] = result.runs.map((run) => ({
-    ...run,
-    href: triggerRunUrl(run.id),
-  }));
+  const runs: ItemRunRow[] = buildItemRunForest(result.runs).map(
+    ({ run, indent }) => ({ ...run, indent, href: triggerRunUrl(run.id) }),
+  );
 
   return <ItemRunsCard result={{ state: "ok", runs }} />;
 }

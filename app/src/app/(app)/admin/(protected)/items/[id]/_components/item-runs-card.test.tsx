@@ -11,6 +11,8 @@ const row = (over: Partial<ItemRunRow> = {}): ItemRunRow => ({
   finishedAt: null,
   durationMs: 2000,
   costInCents: 1,
+  parentRunId: null,
+  indent: 0,
   href: "https://dash.example/runs/run_1",
   ...over,
 });
@@ -47,5 +49,24 @@ describe("ItemRunsCard", () => {
       <ItemRunsCard result={{ state: "ok", runs: [row({ href: null })] }} />,
     );
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("marks nested child runs and leaves roots unmarked", () => {
+    render(
+      <ItemRunsCard
+        result={{
+          state: "ok",
+          runs: [
+            row({ id: "root", taskIdentifier: "classify-url", indent: 0 }),
+            row({ id: "child", taskIdentifier: "enrich-item", indent: 1 }),
+          ],
+        }}
+      />,
+    );
+    // The child row carries the tree marker; the root row doesn't
+    const rootCell = screen.getByText("classify-url").closest("span");
+    const childCell = screen.getByText("enrich-item").closest("span");
+    expect(rootCell?.textContent).not.toContain("└");
+    expect(childCell?.textContent).toContain("└");
   });
 });
