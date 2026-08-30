@@ -72,6 +72,38 @@ describe("completeSignup (invite-only gate)", () => {
     expect(mockAcceptInvite).toHaveBeenCalledWith("tok_valid", "user-2");
   });
 
+  it("does not finalize the account when the invite claim fails (lost race)", async () => {
+    mockInviteFindUnique.mockResolvedValue({
+      id: "invite-1",
+      email: "invited@example.com",
+      origin: "user",
+      status: "pending",
+      inviterId: "inviter-1",
+      expiresAt: new Date(Date.now() + 60_000),
+      inviter: { username: "host", email: "host@example.com" },
+    });
+    // acceptInvite lost the concurrent claim
+    mockAcceptInvite.mockResolvedValue({
+      success: false,
+      error: "Invite already accepted",
+      code: "ALREADY_ACCEPTED",
+    });
+
+    const result = await completeSignup({
+      userId: "user-4",
+      email: "invited@example.com",
+      username: "invited",
+      inviteToken: "tok_raced",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("ALREADY_ACCEPTED");
+    }
+    // Account must NOT be finalized when the claim fails
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
   it("rejects when the invite token does not exist", async () => {
     mockInviteFindUnique.mockResolvedValue(null);
 
