@@ -1,9 +1,8 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { InstagramIcon } from "@/components/icons/platform-icons";
-import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { instagramImageSrc } from "@/lib/instagram/image-src";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
@@ -133,12 +132,7 @@ export function InstagramDetailView({
           ) : (
             <div />
           )}
-          <Button variant="outline" size="sm" asChild>
-            <a href={postUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              View on Instagram
-            </a>
-          </Button>
+          <ViewOnButton href={postUrl} label="Instagram" />
         </div>
       </article>
     </div>

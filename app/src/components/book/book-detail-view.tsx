@@ -1,7 +1,6 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
@@ -75,12 +74,7 @@ export function BookDetailView({
 
         {sourceUrl && (
           <div className="flex items-center justify-center pt-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="size-4" />
-                View on {domain ?? "site"}
-              </a>
-            </Button>
+            <ViewOnButton href={sourceUrl} label={domain ?? "site"} />
           </div>
         )}
       </div>

@@ -1,9 +1,9 @@
 "use client";
 
-import { ExternalLink, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useState } from "react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
-import { Button } from "@/components/ui/button";
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { VideoDetails } from "@/lib/types/item";
 import { cn, formatDuration } from "@/lib/utils";
@@ -156,12 +156,7 @@ export function VideoDetailView({
 
         {/* Actions */}
         <div className="flex items-center justify-end pt-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={watchUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              View on {platformName}
-            </a>
-          </Button>
+          <ViewOnButton href={watchUrl} label={platformName} />
         </div>
       </div>
     </div>

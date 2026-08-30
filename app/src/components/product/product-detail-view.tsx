@@ -1,9 +1,9 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getCurrencySymbol } from "@/lib/currency";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { ProductDetails, ProductImage } from "@/lib/types/item";
@@ -117,12 +117,7 @@ export function ProductDetailView({
         {/* View product link */}
         {sourceUrl && (
           <div className="flex items-center gap-2 pt-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="size-4" />
-                View on {domain ?? "store"}
-              </a>
-            </Button>
+            <ViewOnButton href={sourceUrl} label={domain ?? "store"} />
           </div>
         )}
       </div>

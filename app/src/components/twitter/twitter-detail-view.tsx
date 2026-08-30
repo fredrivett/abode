@@ -1,11 +1,11 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -181,12 +181,7 @@ export function TwitterDetailView({
           ) : (
             <div />
           )}
-          <Button variant="outline" size="sm" asChild>
-            <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              View on X
-            </a>
-          </Button>
+          <ViewOnButton href={tweetUrl} label="X" />
         </div>
       </article>
     </div>
