@@ -1,5 +1,5 @@
-import db from "@/lib/db";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
+import { markItemEnqueueFailed } from "@/lib/items/mark-enqueue-failed";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import type { analyzeImageTask } from "../../../trigger/analyze-image";
@@ -36,18 +36,9 @@ export async function enqueueImageAnalysis(params: {
       stage: "trigger:analyze-image",
       itemId: params.itemId,
     });
-    await db.item
-      .update({
-        where: { id: params.itemId },
-        // Record a concrete reason so the failure reports as `enqueue_failed`
-        // rather than a null the admin UI has to paper over.
-        data: { processingStatus: "failed", processingError: "enqueue_failed" },
-      })
-      .catch((updateError) => {
-        log.error(
-          { updateError, itemId: params.itemId },
-          "Failed to mark item failed after enqueue error",
-        );
-      });
+    await markItemEnqueueFailed({
+      itemId: params.itemId,
+      context: "analyze-image",
+    });
   }
 }
