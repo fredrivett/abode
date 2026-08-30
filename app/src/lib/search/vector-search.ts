@@ -6,6 +6,7 @@
  */
 
 import db from "@/lib/db";
+import { toVectorLiteral } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
 import { getQueryEmbedding } from "./embedding-cache";
 import { buildFilterConditions, type ParsedFilters } from "./query-builder";
@@ -16,13 +17,6 @@ export type VectorSearchResult = {
   id: string;
   similarity: number;
 };
-
-/**
- * Convert embedding array to pgvector literal format.
- */
-function toVectorLiteral(embedding: number[]): string {
-  return `[${embedding.join(",")}]`;
-}
 
 /**
  * Minimum similarity threshold for vector search results.
