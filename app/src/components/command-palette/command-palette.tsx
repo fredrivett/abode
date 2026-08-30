@@ -45,7 +45,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { UploadDialog } from "@/components/upload-dialog";
 import { signOut } from "@/lib/actions/auth";
 import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
-import { useSearch } from "@/lib/search";
+import { emptySearchState, useSearch } from "@/lib/search";
 import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
@@ -95,10 +95,7 @@ export function CommandPalette() {
   const { open, setOpen, targetPage, uploadDialogOpen, setUploadDialogOpen } =
     useCommandPaletteStore();
 
-  const [searchState, setSearchState] = useState<SearchState>({
-    query: "",
-    filters: [],
-  });
+  const [searchState, setSearchState] = useState<SearchState>(emptySearchState);
   const [page, setPage] = useState<"main" | "theme" | "zoom">("main");
   const [showAllRooms, setShowAllRooms] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("auto");
@@ -170,7 +167,7 @@ export function CommandPalette() {
     if (open && !wasOpenRef.current) {
       setCurrentTheme(getCurrentPreference());
       setPage(targetPage);
-      setSearchState({ query: "", filters: [] });
+      setSearchState(emptySearchState());
       setShowAllRooms(false);
       setFilterValues([]);
       // Set selected value based on target page

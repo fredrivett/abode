@@ -3,6 +3,7 @@ import {
   getModifierKey,
   getModifierKeySymbol,
   isApplePlatform,
+  isEditableTarget,
   matchesShortcut,
 } from "./keyboard";
 
@@ -647,5 +648,31 @@ describe("keyboard utilities", () => {
         ).toBe(true);
       });
     });
+  });
+});
+
+describe("isEditableTarget", () => {
+  it("returns true for input, textarea, and select elements", () => {
+    expect(isEditableTarget(document.createElement("input"))).toBe(true);
+    expect(isEditableTarget(document.createElement("textarea"))).toBe(true);
+    expect(isEditableTarget(document.createElement("select"))).toBe(true);
+  });
+
+  it("returns true for contenteditable elements", () => {
+    const el = document.createElement("div");
+    // jsdom doesn't derive isContentEditable from the attribute, so set it
+    // directly to exercise the helper's branch
+    Object.defineProperty(el, "isContentEditable", { value: true });
+    expect(isEditableTarget(el)).toBe(true);
+  });
+
+  it("returns false for non-editable elements", () => {
+    expect(isEditableTarget(document.createElement("div"))).toBe(false);
+    expect(isEditableTarget(document.createElement("button"))).toBe(false);
+  });
+
+  it("returns false for null or non-HTMLElement targets", () => {
+    expect(isEditableTarget(null)).toBe(false);
+    expect(isEditableTarget(new EventTarget())).toBe(false);
   });
 });

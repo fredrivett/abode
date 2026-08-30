@@ -48,6 +48,11 @@ export type SearchState = {
   filters: Filter[];
 };
 
+/** A blank search — no query, no filters. Returns a fresh object each call. */
+export function emptySearchState(): SearchState {
+  return { query: "", filters: [] };
+}
+
 // Filter type metadata for UI
 // `multiple` reflects whether items can have multiple values of this type in the schema:
 // - Arrays (tags[], objects[]) → multiple: true

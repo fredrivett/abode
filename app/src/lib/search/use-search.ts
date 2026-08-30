@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  emptySearchState,
   type Filter,
   parseSearchParams,
   type SearchState,
@@ -148,7 +149,7 @@ export function useSearch() {
   }, [state, updateUrl]);
 
   const clearAll = useCallback(() => {
-    const newState = { query: "", filters: [] };
+    const newState = emptySearchState();
     setLocalState(newState);
     updateUrl(newState);
   }, [updateUrl]);
