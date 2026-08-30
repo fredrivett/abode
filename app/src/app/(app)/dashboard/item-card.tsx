@@ -67,7 +67,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
-import { api } from "@/lib/api-client";
+import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
   BOOK_TILE_PADDING_X,
@@ -111,6 +111,7 @@ import type {
 } from "@/lib/types/item";
 import { getAppBaseUrl } from "@/lib/url";
 import { isValidUrl } from "@/lib/url-utils";
+import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
@@ -1734,7 +1735,11 @@ function ItemDetailDialog({
     } catch (error) {
       log.error({ error }, "Retry error");
       posthog.captureException(error);
-      toast.error("Failed to retry analysis");
+      toast.error(
+        isDailyLimitError(error)
+          ? DAILY_LIMIT_REACHED_MESSAGE
+          : "Failed to retry analysis",
+      );
     } finally {
       setIsRetrying(false);
     }

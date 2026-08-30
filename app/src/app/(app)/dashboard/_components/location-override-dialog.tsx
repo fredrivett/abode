@@ -13,11 +13,12 @@ import {
   DialogOrDrawerTitle,
 } from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
-import { api } from "@/lib/api-client";
+import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
 import type { ItemLocation } from "@/lib/types/item";
+import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 import { LocationPreview } from "./location-preview";
 
 const log = createLogger("dashboard/location-override-dialog");
@@ -60,7 +61,11 @@ export function LocationOverrideDialog({
       onOpenChange(false);
     } catch (error) {
       log.error({ error }, "Failed to update location");
-      toast.error("Failed to update location");
+      toast.error(
+        isDailyLimitError(error)
+          ? DAILY_LIMIT_REACHED_MESSAGE
+          : "Failed to update location",
+      );
     } finally {
       setIsSubmitting(false);
     }
