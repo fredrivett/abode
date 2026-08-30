@@ -10,6 +10,8 @@ const row = (over: Partial<ItemRunRow> = {}): ItemRunRow => ({
   finishedAt: new Date("2026-01-01T12:00:04Z"),
   durationMs: 3200,
   costInCents: 2,
+  parentRunId: null,
+  indent: 0,
   href: "https://dash.example/runs/run_abc123",
   ...over,
 });
@@ -29,18 +31,29 @@ export const WithRuns: Story = {
     result: {
       state: "ok",
       runs: [
-        row({ id: "run_1", taskIdentifier: "classify-url" }),
+        // A pipeline nested under its root, plus an earlier retry root
+        row({ id: "run_1", taskIdentifier: "classify-url", indent: 0 }),
         row({
           id: "run_2",
-          taskIdentifier: "analyze-image",
+          taskIdentifier: "analyze-media-cover",
+          indent: 1,
           status: "EXECUTING",
           durationMs: 0,
           costInCents: 0,
           finishedAt: null,
         }),
+        row({ id: "run_3", taskIdentifier: "enrich-item", indent: 2 }),
         row({
-          id: "run_3",
-          taskIdentifier: "enrich-item",
+          id: "run_4",
+          taskIdentifier: "sync-item-to-rooms",
+          indent: 3,
+          durationMs: 416,
+          costInCents: 0,
+        }),
+        row({
+          id: "run_5",
+          taskIdentifier: "classify-url",
+          indent: 0,
           status: "FAILED",
         }),
       ],

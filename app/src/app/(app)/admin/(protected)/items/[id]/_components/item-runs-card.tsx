@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ItemRun } from "@/lib/trigger/item-runs";
 import { cn } from "@/lib/utils";
 
-/** A run plus its (optional) dashboard deep-link, ready to render. */
-export type ItemRunRow = ItemRun & { href: string | null };
+/** A run plus its dashboard deep-link and tree indent, ready to render. */
+export type ItemRunRow = ItemRun & { href: string | null; indent: number };
 
 export type ItemRunsCardProps = {
   result:
@@ -85,7 +85,15 @@ export function ItemRunsCard({ result }: ItemRunsCardProps) {
                 {result.runs.map((run) => (
                   <tr key={run.id} className="border-border/60 border-t">
                     <td className="py-2 pr-4 font-mono text-xs">
-                      {run.taskIdentifier}
+                      <span
+                        className="flex items-center gap-1"
+                        style={{ paddingLeft: `${run.indent * 1.25}rem` }}
+                      >
+                        {run.indent > 0 && (
+                          <span className="text-muted-foreground">└</span>
+                        )}
+                        {run.taskIdentifier}
+                      </span>
                     </td>
                     <td className="py-2 pr-4">
                       <span
