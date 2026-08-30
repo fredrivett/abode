@@ -49,7 +49,6 @@ export type ParsedFilters = {
   location?: FilterValue[];
   dateAfter?: string;
   dateBefore?: string;
-  ocr?: string;
 };
 
 /** Valid ItemKind enum values derived from Prisma schema */
@@ -241,12 +240,6 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
       filters.dateAfter = start;
       filters.dateBefore = end;
     }
-  }
-
-  // Parse OCR filter
-  const ocrValue = params.get("ocr");
-  if (ocrValue) {
-    filters.ocr = ocrValue;
   }
 
   return filters;
@@ -675,8 +668,12 @@ export function buildColorRelevanceCte(
  *
  * Seeds the conditions with the user scope (`$1`) and folds in every filter
  * type (type, tag, object, source, location, date, color), remapping each
- * fragment's placeholders to the running param index and rewriting the bare
- * column/table references onto the `i` alias used by the search queries.
+ * fragment's placeholders to the running param index and qualifying the bare
+ * column/table references onto the query's items alias.
+ *
+ * `alias` is the identifier the caller's query gives the `items` table:
+ * `"i"` (default) for the ranked search queries (`FROM items i`), or `"items"`
+ * for the filters-only query that selects `FROM items` unaliased.
  *
  * Callers append their own trailing params (the query string, the query
  * vector) starting at `nextParamIndex`.
@@ -684,8 +681,9 @@ export function buildColorRelevanceCte(
 export function buildFilterConditions(
   userId: string,
   filters: ParsedFilters,
+  { alias = "i" }: { alias?: string } = {},
 ): { conditions: string[]; params: unknown[]; nextParamIndex: number } {
-  const conditions: string[] = ["i.user_id = $1::uuid"];
+  const conditions: string[] = [`${alias}.user_id = $1::uuid`];
   const params: unknown[] = [userId];
   let paramIndex = 2;
 
@@ -698,8 +696,8 @@ export function buildFilterConditions(
         typeCondition.params.length,
         paramIndex,
       );
-      // Replace "kind" with "i.kind" for table alias
-      conditions.push(remapped.replace(/\bkind\b/g, "i.kind"));
+      // Qualify "kind" onto the items alias
+      conditions.push(remapped.replace(/\bkind\b/g, `${alias}.kind`));
       params.push(...typeCondition.params);
       paramIndex += typeCondition.params.length;
     }
@@ -709,8 +707,8 @@ export function buildFilterConditions(
   if (filters.tag && filters.tag.length > 0) {
     const tagCondition = buildTagCondition(filters.tag, paramIndex);
     if (tagCondition.sql) {
-      // Replace "tags" with "i.tags" for table alias
-      conditions.push(tagCondition.sql.replace(/\btags\b/g, "i.tags"));
+      // Qualify "tags" onto the items alias
+      conditions.push(tagCondition.sql.replace(/\btags\b/g, `${alias}.tags`));
       params.push(...tagCondition.params);
       paramIndex += tagCondition.params.length;
     }
@@ -720,8 +718,10 @@ export function buildFilterConditions(
   if (filters.object && filters.object.length > 0) {
     const objectCondition = buildObjectCondition(filters.object, paramIndex);
     if (objectCondition.sql) {
-      // Replace "items.id" with "i.id" for table alias
-      conditions.push(objectCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      // Qualify "items.id" onto the items alias
+      conditions.push(
+        objectCondition.sql.replace(/\bitems\.id\b/g, `${alias}.id`),
+      );
       params.push(...objectCondition.params);
       paramIndex += objectCondition.params.length;
     }
@@ -732,7 +732,7 @@ export function buildFilterConditions(
     const sourceCondition = buildSourceCondition(filters.source, paramIndex);
     if (sourceCondition.sql) {
       conditions.push(
-        sourceCondition.sql.replace(/\bsource_type\b/g, "i.source_type"),
+        sourceCondition.sql.replace(/\bsource_type\b/g, `${alias}.source_type`),
       );
       params.push(...sourceCondition.params);
       paramIndex += sourceCondition.params.length;
@@ -746,7 +746,9 @@ export function buildFilterConditions(
       paramIndex,
     );
     if (locationCondition.sql) {
-      conditions.push(locationCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      conditions.push(
+        locationCondition.sql.replace(/\bitems\.id\b/g, `${alias}.id`),
+      );
       params.push(...locationCondition.params);
       paramIndex += locationCondition.params.length;
     }
@@ -760,7 +762,7 @@ export function buildFilterConditions(
       paramIndex,
     );
     if (dateCondition.sql) {
-      conditions.push(dateCondition.sql.replace(/\bitems\./g, "i."));
+      conditions.push(dateCondition.sql.replace(/\bitems\./g, `${alias}.`));
       params.push(...dateCondition.params);
       paramIndex += dateCondition.params.length;
     }
@@ -770,7 +772,9 @@ export function buildFilterConditions(
   if (filters.color && filters.color.length > 0) {
     const colorCondition = buildColorCondition(filters.color, paramIndex);
     if (colorCondition.sql) {
-      conditions.push(colorCondition.sql.replace(/\bitems\.id\b/g, "i.id"));
+      conditions.push(
+        colorCondition.sql.replace(/\bitems\.id\b/g, `${alias}.id`),
+      );
       params.push(...colorCondition.params);
       paramIndex += colorCondition.params.length;
     }
@@ -791,8 +795,7 @@ export function hasFilters(filters: ParsedFilters): boolean {
     (filters.source && filters.source.length > 0) ||
     (filters.location && filters.location.length > 0) ||
     filters.dateAfter !== undefined ||
-    filters.dateBefore !== undefined ||
-    filters.ocr !== undefined
+    filters.dateBefore !== undefined
   );
 }
 

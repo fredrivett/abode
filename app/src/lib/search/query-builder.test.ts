@@ -162,14 +162,6 @@ describe("parseFiltersFromParams", () => {
     });
   });
 
-  describe("OCR filter", () => {
-    it("parses OCR filter", () => {
-      const params = new URLSearchParams("ocr=receipt");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.ocr).toBe("receipt");
-    });
-  });
-
   describe("empty params", () => {
     it("returns empty object for no params", () => {
       const params = new URLSearchParams();
@@ -667,6 +659,26 @@ describe("buildFilterConditions", () => {
     expect(result.params).toEqual(["user-1", "image", "vacation"]);
     expect(result.nextParamIndex).toBe(4);
   });
+
+  it("qualifies onto a custom alias for the unaliased filters-only query", () => {
+    const result = buildFilterConditions(
+      "user-1",
+      {
+        type: [{ value: "image", negated: false }],
+        tag: [{ value: "vacation", negated: false }],
+      },
+      { alias: "items" },
+    );
+
+    expect(result.conditions[0]).toBe("items.user_id = $1::uuid");
+    const joined = result.conditions.join(" ");
+    expect(joined).toContain("items.kind");
+    expect(joined).toContain("items.tags");
+    // The `i` alias never leaks in when a different alias is requested
+    expect(joined).not.toMatch(/\bi\.kind\b/);
+    expect(result.params).toEqual(["user-1", "image", "vacation"]);
+    expect(result.nextParamIndex).toBe(4);
+  });
 });
 
 describe("hasFilters", () => {
@@ -691,10 +703,6 @@ describe("hasFilters", () => {
   it("returns true for date filters", () => {
     expect(hasFilters({ dateAfter: "2024-01-01" })).toBe(true);
     expect(hasFilters({ dateBefore: "2024-06-01" })).toBe(true);
-  });
-
-  it("returns true for ocr filter", () => {
-    expect(hasFilters({ ocr: "receipt" })).toBe(true);
   });
 
   it("returns false for empty arrays", () => {
