@@ -34,6 +34,17 @@ function getReplicateClient(): Replicate {
   return replicateClient;
 }
 
+/**
+ * Whether OpenAI (enrichment, vision/OCR, text embeddings) is configured.
+ *
+ * OpenAI is an optional enhancement — see the graceful degradation principle
+ * in AGENTS.md. Callers should skip OpenAI-dependent work when this returns
+ * false rather than letting `getOpenAiClient()` throw mid-pipeline.
+ */
+export function isOpenAiConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
+
 let openaiClient: OpenAI | null = null;
 export function getOpenAiClient(): OpenAI {
   if (openaiClient) return openaiClient;

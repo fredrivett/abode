@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import {
   extractClipEmbedding,
+  isOpenAiConfigured,
   isReplicateConfigured,
   normalizeVector,
 } from "./embeddings";
@@ -61,5 +62,28 @@ describe("isReplicateConfigured", () => {
   test("false when the token is an empty string", () => {
     process.env.REPLICATE_API_TOKEN = "";
     expect(isReplicateConfigured()).toBe(false);
+  });
+});
+
+describe("isOpenAiConfigured", () => {
+  const original = process.env.OPENAI_API_KEY;
+  afterEach(() => {
+    if (original === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = original;
+  });
+
+  test("true when a key is set", () => {
+    process.env.OPENAI_API_KEY = "sk-test";
+    expect(isOpenAiConfigured()).toBe(true);
+  });
+
+  test("false when the key is absent", () => {
+    delete process.env.OPENAI_API_KEY;
+    expect(isOpenAiConfigured()).toBe(false);
+  });
+
+  test("false when the key is an empty string", () => {
+    process.env.OPENAI_API_KEY = "";
+    expect(isOpenAiConfigured()).toBe(false);
   });
 });
