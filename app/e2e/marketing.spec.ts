@@ -12,10 +12,12 @@ test.describe("Marketing page", () => {
       page.getByText("save everything. sort nothing. own it all."),
     ).toBeVisible();
 
-    // Waitlist form
-    await expect(page.getByPlaceholder("enter your email")).toBeVisible();
+    // Waitlist form (in the hero — a second one lives in the closing CTA, so
+    // scope to <main> to keep the locators unambiguous)
+    const hero = page.getByRole("main");
+    await expect(hero.getByPlaceholder("enter your email")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /join waitlist/i }),
+      hero.getByRole("button", { name: /join waitlist/i }),
     ).toBeVisible();
 
     // Theme toggle is present

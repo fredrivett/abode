@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { GITHUB_URL } from "@/lib/github";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
+import { ClosingCta } from "./_components/closing-cta";
 import { Highlight } from "./_components/highlight";
 import { LivingGallery } from "./_components/living-gallery";
 import { OwnershipCallout } from "./_components/ownership-callout";
@@ -64,6 +65,7 @@ export default function Home() {
 
       <LivingGallery />
       <OwnershipSection />
+      <ClosingCta />
     </div>
   );
 }
