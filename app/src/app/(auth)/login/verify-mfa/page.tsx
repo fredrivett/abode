@@ -57,7 +57,7 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
 
         <VerifyMFAForm factorId={factor.id} next={safeNext} />
 
-        <p className="text-center text-gray-500 text-sm dark:text-gray-400">
+        <div className="text-center text-gray-500 text-sm dark:text-gray-400">
           <form action={signOut} className="inline">
             <button
               type="submit"
@@ -66,7 +66,7 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
               Back to login
             </button>
           </form>
-        </p>
+        </div>
       </div>
     </div>
   );
