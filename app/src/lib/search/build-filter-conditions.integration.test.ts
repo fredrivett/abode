@@ -9,6 +9,11 @@ import { buildFilterConditions, type ParsedFilters } from "./query-builder";
  * queries, `FROM items i`) and `"items"` (the filters-only query, unaliased
  * `FROM items`). This is the path that had no integration coverage before the
  * two builders were unified.
+ *
+ * Every filter type is exercised under both aliases. The object/location/date/
+ * color fragments embed `items.id`/`items.` table references that the builder
+ * remaps onto the alias, so a broken remap would produce SQL that fails to
+ * execute under one alias — which these cases catch.
  */
 describe("buildFilterConditions integration", () => {
   beforeEach(async () => {
@@ -28,6 +33,7 @@ describe("buildFilterConditions integration", () => {
       kind?: "image" | "article";
       tags?: string[];
       sourceType?: "upload" | "url";
+      createdAt?: Date;
     },
   ): Promise<string> => {
     const { write } = await import("@/lib/db");
@@ -35,6 +41,29 @@ describe("buildFilterConditions integration", () => {
       data: { id: crypto.randomUUID(), userId, ...data },
     });
     return item.id;
+  };
+
+  const addImageDetails = async (
+    itemId: string,
+    data: {
+      objects?: string[];
+      colors?: Array<{ name: string; hex: string; score: number }>;
+      captureDate?: Date;
+    },
+  ): Promise<void> => {
+    const { write } = await import("@/lib/db");
+    await write.itemImageDetails.create({ data: { itemId, ...data } });
+  };
+
+  const addLocation = async (
+    itemId: string,
+    userId: string,
+    city: string,
+  ): Promise<void> => {
+    const { write } = await import("@/lib/db");
+    await write.itemLocation.create({
+      data: { itemId, userId, source: "manual", city },
+    });
   };
 
   /** Run the composed WHERE against a real query for the given alias. */
@@ -58,7 +87,7 @@ describe("buildFilterConditions integration", () => {
   };
 
   test.each(["i", "items"] as const)(
-    "filters by type/tag/source under the %s alias",
+    "filters every type under the %s alias",
     async (alias) => {
       const user = await createUser(`${alias}@example.com`);
       const redImage = await createItem(user.id, {
@@ -66,28 +95,70 @@ describe("buildFilterConditions integration", () => {
         tags: ["red"],
         sourceType: "upload",
       });
+      await addImageDetails(redImage, {
+        objects: ["car"],
+        colors: [{ name: "red", hex: "#ff0000", score: 0.9 }],
+      });
+      await addLocation(redImage, user.id, "paris");
+
       const blueArticle = await createItem(user.id, {
         kind: "article",
         tags: ["blue"],
         sourceType: "url",
       });
+      await addImageDetails(blueArticle, {
+        objects: ["tree"],
+        colors: [{ name: "blue", hex: "#0000ff", score: 0.9 }],
+      });
+      await addLocation(blueArticle, user.id, "london");
 
-      // Type filter
+      // Bare-column fragments (kind / tags / source_type)
       expect(await runQuery(user.id, { type: [t("image")] }, alias)).toEqual([
         redImage,
       ]);
-      // Tag filter
       expect(await runQuery(user.id, { tag: [t("blue")] }, alias)).toEqual([
         blueArticle,
       ]);
-      // Source filter
       expect(await runQuery(user.id, { source: [t("upload")] }, alias)).toEqual(
         [redImage],
       );
+
+      // Fragments that embed items.id / items. table references — the ones the
+      // alias remap actually rewrites
+      expect(await runQuery(user.id, { object: [t("car")] }, alias)).toEqual([
+        redImage,
+      ]);
+      expect(
+        await runQuery(user.id, { location: [t("london")] }, alias),
+      ).toEqual([blueArticle]);
+      expect(await runQuery(user.id, { color: [t("red")] }, alias)).toEqual([
+        redImage,
+      ]);
+
       // No filters → both items, scoped to the user
       expect((await runQuery(user.id, {}, alias)).sort()).toEqual(
         [redImage, blueArticle].sort(),
       );
+    },
+  );
+
+  test.each(["i", "items"] as const)(
+    "filters by date (COALESCE capture_date, created_at) under the %s alias",
+    async (alias) => {
+      const user = await createUser(`date-${alias}@example.com`);
+
+      // Effective date comes from capture_date when present
+      const past = await createItem(user.id, { kind: "image" });
+      await addImageDetails(past, { captureDate: new Date("2020-01-01") });
+      // Effective date falls back to created_at (now)
+      const recent = await createItem(user.id, { kind: "image" });
+
+      expect(
+        await runQuery(user.id, { dateBefore: "2021-01-01" }, alias),
+      ).toEqual([past]);
+      expect(
+        await runQuery(user.id, { dateAfter: "2021-01-01" }, alias),
+      ).toEqual([recent]);
     },
   );
 
