@@ -6,7 +6,11 @@ import {
 } from "../src/lib/ai/generate-tags-from-content";
 import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import db from "../src/lib/db";
-import { generateTextEmbedding, upsertTextVector } from "../src/lib/embeddings";
+import {
+  generateTextEmbedding,
+  isOpenAiConfigured,
+  upsertTextVector,
+} from "../src/lib/embeddings";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { captureServerException } from "../src/lib/posthog-server";
@@ -39,13 +43,17 @@ export const enrichItemTask = task({
       if (precomputedTags) {
         tags = precomputedTags;
         logger.log("Using precomputed tags", { itemId, tagCount: tags.length });
-      } else if (sourceText) {
+      } else if (sourceText && isOpenAiConfigured()) {
         logger.log("Generating tags from source text", {
           itemId,
           sourceTextLength: sourceText.length,
         });
         tags = await generateTagsFromText(sourceText);
         logger.log("Tags generated", { itemId, tagCount: tags.length });
+      } else if (sourceText) {
+        logger.log("OpenAI not configured — skipping tag generation", {
+          itemId,
+        });
       } else {
         logger.log("No tags or source text provided, skipping tag generation", {
           itemId,
@@ -69,7 +77,7 @@ export const enrichItemTask = task({
       // Build embedding text from tags + source text
       const rawEmbeddingText = buildEmbeddingText(tags, sourceText);
 
-      if (rawEmbeddingText) {
+      if (rawEmbeddingText && isOpenAiConfigured()) {
         const embeddingInput = truncateToTokenLimit(
           rawEmbeddingText,
           EMBEDDING_TOKEN_LIMIT,
@@ -103,6 +111,11 @@ export const enrichItemTask = task({
         });
 
         logger.log("Text embedding stored", { itemId, textVectorId });
+      } else if (rawEmbeddingText) {
+        logger.log(
+          "OpenAI not configured — skipping text embedding (semantic search disabled for this item)",
+          { itemId },
+        );
       } else {
         logger.log("No content for embedding, skipping", { itemId });
       }

@@ -269,9 +269,18 @@ export const analyzeImageTask = task({
         },
       });
 
-      // Update Item and ImageDetails in a transaction for consistency
+      if (!analysis.openaiConfigured) {
+        logger.log(
+          "OpenAI not configured — item captured without AI title/description/tags",
+          { itemId },
+        );
+      }
+
+      // Update Item and ImageDetails in a transaction for consistency. Skip the
+      // vision-derived title/description write when OpenAI was unconfigured —
+      // the analysis fields are empty and would otherwise clobber the item.
       const ops: Prisma.PrismaPromise<unknown>[] = [];
-      if (visionMayWriteTitle(item)) {
+      if (analysis.openaiConfigured && visionMayWriteTitle(item)) {
         ops.push(
           db.item.update({
             where: {

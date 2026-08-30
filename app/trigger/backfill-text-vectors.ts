@@ -23,7 +23,11 @@ import {
 } from "@/lib/ai/generate-tags-from-content";
 import { recordAiUsage } from "@/lib/ai-costs/record-ai-usage";
 import db from "@/lib/db";
-import { generateTextEmbedding, upsertTextVector } from "@/lib/embeddings";
+import {
+  generateTextEmbedding,
+  isOpenAiConfigured,
+  upsertTextVector,
+} from "@/lib/embeddings";
 import { captureServerException } from "@/lib/posthog-server";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -56,6 +60,13 @@ export type BackfillTextVectorsResult = {
 export async function backfillTextVectors(
   itemIds?: string[],
 ): Promise<BackfillTextVectorsResult> {
+  // Text embeddings need OpenAI — skip the whole sweep cleanly when it's
+  // unconfigured rather than failing every row.
+  if (!isOpenAiConfigured()) {
+    logger.info("OpenAI not configured — skipping text-vector backfill");
+    return { total: 0, updated: 0, skipped: 0, failed: 0 };
+  }
+
   // Completed items with embeddable content (non-empty tags) but no text vector
   // — the same predicate as the missing-text-vector issue group.
   const rows = await db.item.findMany({
