@@ -795,8 +795,14 @@ export function CommandPalette() {
                       <span>Log in</span>
                     </CommandItem>
                     <CommandItem
-                      value="/signup"
-                      keywords={["sign up", "signup", "register"]}
+                      value="/join"
+                      keywords={[
+                        "sign up",
+                        "signup",
+                        "register",
+                        "join",
+                        "invite",
+                      ]}
                       onSelect={handleSelect}
                     >
                       <UserPlus className="size-4" />
