@@ -63,10 +63,10 @@ describe("ItemRunsCard", () => {
         }}
       />,
     );
-    // The child row carries the tree marker; the root row doesn't
-    const rootCell = screen.getByText("classify-url").closest("span");
-    const childCell = screen.getByText("enrich-item").closest("span");
-    expect(rootCell?.textContent).not.toContain("└");
-    expect(childCell?.textContent).toContain("└");
+    // The child row carries a tree connector (icon); the root row doesn't
+    const rootCell = screen.getByText("classify-url").closest("td");
+    const childCell = screen.getByText("enrich-item").closest("td");
+    expect(rootCell?.querySelector("svg")).toBeNull();
+    expect(childCell?.querySelector("svg")).not.toBeNull();
   });
 });
