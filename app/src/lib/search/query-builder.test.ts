@@ -659,6 +659,26 @@ describe("buildFilterConditions", () => {
     expect(result.params).toEqual(["user-1", "image", "vacation"]);
     expect(result.nextParamIndex).toBe(4);
   });
+
+  it("qualifies onto a custom alias for the unaliased filters-only query", () => {
+    const result = buildFilterConditions(
+      "user-1",
+      {
+        type: [{ value: "image", negated: false }],
+        tag: [{ value: "vacation", negated: false }],
+      },
+      { alias: "items" },
+    );
+
+    expect(result.conditions[0]).toBe("items.user_id = $1::uuid");
+    const joined = result.conditions.join(" ");
+    expect(joined).toContain("items.kind");
+    expect(joined).toContain("items.tags");
+    // The `i` alias never leaks in when a different alias is requested
+    expect(joined).not.toMatch(/\bi\.kind\b/);
+    expect(result.params).toEqual(["user-1", "image", "vacation"]);
+    expect(result.nextParamIndex).toBe(4);
+  });
 });
 
 describe("hasFilters", () => {

@@ -12,20 +12,13 @@ import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import {
-  buildColorCondition,
   buildColorRelevanceCte,
-  buildDateCondition,
-  buildLocationCondition,
-  buildObjectCondition,
-  buildSourceCondition,
-  buildTagCondition,
-  buildTypeCondition,
+  buildFilterConditions,
   hasFilters,
   type InvalidFilterValue,
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
-  remapParamIndices,
   validateSourceFilters,
   validateTypeFilters,
 } from "@/lib/search/query-builder";
@@ -505,97 +498,20 @@ async function executeFiltersOnlySearch(
   filters: ParsedFilters,
   cursor: string | null,
 ): Promise<{ items: SearchItem[]; total: number; cursor?: string }> {
-  // Build WHERE conditions
-  const conditions: string[] = ["user_id = $1::uuid"];
-  const params: unknown[] = [userId];
-  let paramIndex = 2;
+  // Build WHERE conditions (shared with the ranked search paths). This query
+  // selects `FROM items` unaliased, so qualify the fragments onto `items`.
+  const { conditions, params, nextParamIndex } = buildFilterConditions(
+    userId,
+    filters,
+    { alias: "items" },
+  );
+  let paramIndex = nextParamIndex;
 
-  // Type filter (already validated in route handler)
-  if (filters.type && filters.type.length > 0) {
-    const typeCondition = buildTypeCondition(filters.type);
-    if (typeCondition.sql) {
-      // Remap parameter indices
-      const remapped = remapParamIndices(
-        typeCondition.sql,
-        typeCondition.params.length,
-        paramIndex,
-      );
-      conditions.push(remapped);
-      params.push(...typeCondition.params);
-      paramIndex += typeCondition.params.length;
-    }
-  }
-
-  // Tag filter
-  if (filters.tag && filters.tag.length > 0) {
-    const tagCondition = buildTagCondition(filters.tag, paramIndex);
-    if (tagCondition.sql) {
-      conditions.push(tagCondition.sql);
-      params.push(...tagCondition.params);
-      paramIndex += tagCondition.params.length;
-    }
-  }
-
-  // Object filter
-  if (filters.object && filters.object.length > 0) {
-    const objectCondition = buildObjectCondition(filters.object, paramIndex);
-    if (objectCondition.sql) {
-      conditions.push(objectCondition.sql);
-      params.push(...objectCondition.params);
-      paramIndex += objectCondition.params.length;
-    }
-  }
-
-  // Source filter
-  if (filters.source && filters.source.length > 0) {
-    const sourceCondition = buildSourceCondition(filters.source, paramIndex);
-    if (sourceCondition.sql) {
-      conditions.push(sourceCondition.sql);
-      params.push(...sourceCondition.params);
-      paramIndex += sourceCondition.params.length;
-    }
-  }
-
-  // Location filter
-  if (filters.location && filters.location.length > 0) {
-    const locationCondition = buildLocationCondition(
-      filters.location,
-      paramIndex,
-    );
-    if (locationCondition.sql) {
-      conditions.push(locationCondition.sql);
-      params.push(...locationCondition.params);
-      paramIndex += locationCondition.params.length;
-    }
-  }
-
-  // Date filter
-  if (filters.dateAfter || filters.dateBefore) {
-    const dateCondition = buildDateCondition(
-      filters.dateAfter,
-      filters.dateBefore,
-      paramIndex,
-    );
-    if (dateCondition.sql) {
-      conditions.push(dateCondition.sql);
-      params.push(...dateCondition.params);
-      paramIndex += dateCondition.params.length;
-    }
-  }
-
-  // Color filter - now uses SQL filtering by color name
-  // Also build colour relevance CTE for hex-based ranking
+  // Colour relevance CTE for hex-based ranking — separate ranking params, not
+  // a WHERE condition, so it's built here rather than in buildFilterConditions.
   let colorRelevanceCte = "";
   let hasColorRelevanceRanking: boolean = false;
   if (filters.color && filters.color.length > 0) {
-    const colorCondition = buildColorCondition(filters.color, paramIndex);
-    if (colorCondition.sql) {
-      conditions.push(colorCondition.sql);
-      params.push(...colorCondition.params);
-      paramIndex += colorCondition.params.length;
-    }
-
-    // Build colour relevance CTE for ranking (uses separate params)
     const relevanceCte = buildColorRelevanceCte(filters.color, paramIndex);
     if (relevanceCte.hasHexFilters) {
       colorRelevanceCte = relevanceCte.cte;
