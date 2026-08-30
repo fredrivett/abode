@@ -4,6 +4,21 @@ import type { ImageColor } from "./types/item";
 
 export type { ImageColor } from "./types/item";
 
+/**
+ * Whether Google Cloud Vision (dominant-colour extraction) is configured.
+ *
+ * Google Vision is an optional enhancement — see the graceful degradation
+ * principle in AGENTS.md. Callers should skip colour analysis when this returns
+ * false rather than letting `getVisionClient()` throw at call time (the client
+ * otherwise falls through to ambient ADC and errors on a minimal deploy).
+ */
+export function isGoogleVisionConfigured(): boolean {
+  return Boolean(
+    process.env.GOOGLE_CLOUD_CREDENTIALS ||
+      process.env.GOOGLE_CLOUD_CREDENTIALS_PATH,
+  );
+}
+
 function parseCredentials(raw: string) {
   try {
     return JSON.parse(raw);

@@ -3,11 +3,15 @@
 import { resetTestDatabase } from "@app/vitest.setup.db";
 
 // Stub only the paid embedding call — keep upsertTextVector real so the test
-// exercises the actual vector write against the container DB.
+// exercises the actual vector write against the container DB. isOpenAiConfigured
+// is mocked (default configured) so the guard is exercised deterministically,
+// independent of whether OPENAI_API_KEY is present in the test env.
 const generateTextEmbedding = vi.hoisted(() => vi.fn());
+const isOpenAiConfigured = vi.hoisted(() => vi.fn(() => true));
 vi.mock("@/lib/embeddings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/embeddings")>()),
   generateTextEmbedding,
+  isOpenAiConfigured,
 }));
 
 const captureServerException = vi.hoisted(() => vi.fn());
@@ -34,6 +38,7 @@ describe("backfillTextVectors", () => {
     generateTextEmbedding.mockReset();
     captureServerException.mockReset();
     recordAiUsage.mockReset();
+    isOpenAiConfigured.mockReturnValue(true);
   });
 
   const seed = async (
@@ -98,6 +103,18 @@ describe("backfillTextVectors", () => {
       }),
     );
     // No vector written → the item stays in the missing-text-vector group.
+    expect(await vectorCount(a.id)).toBe(0);
+  });
+
+  test("skips the whole sweep cleanly when OpenAI is unconfigured", async () => {
+    isOpenAiConfigured.mockReturnValue(false);
+    const a = await seed(["design"]);
+
+    const result = await backfillTextVectors();
+
+    // Clean no-op — no embedding call, no failure, item stays as-is (not stuck)
+    expect(result).toEqual({ total: 0, updated: 0, skipped: 0, failed: 0 });
+    expect(generateTextEmbedding).not.toHaveBeenCalled();
     expect(await vectorCount(a.id)).toBe(0);
   });
 

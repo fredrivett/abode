@@ -11,6 +11,7 @@ import {
 } from "../src/lib/embeddings";
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
+import { buildImageDetailsUpdate } from "../src/lib/image-analysis/image-details-write";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
@@ -259,19 +260,21 @@ export const analyzeImageTask = task({
           blurDataUrl: analysis.blurDataUrl,
           captureDate,
         },
-        update: {
-          objects: analysis.objects,
-          ocrText: analysis.ocrText,
-          colors: analysis.colors,
-          visionData: analysis.visionData,
-          blurDataUrl: analysis.blurDataUrl,
-          captureDate,
-        },
+        update: buildImageDetailsUpdate(analysis, captureDate),
       });
 
-      // Update Item and ImageDetails in a transaction for consistency
+      if (!analysis.openaiConfigured) {
+        logger.log(
+          "OpenAI not configured — item captured without AI title/description/tags (existing enrichment preserved on reprocess)",
+          { itemId },
+        );
+      }
+
+      // Update Item and ImageDetails in a transaction for consistency. Skip the
+      // vision-derived title/description write when OpenAI was unconfigured —
+      // the analysis fields are empty and would otherwise clobber the item.
       const ops: Prisma.PrismaPromise<unknown>[] = [];
-      if (visionMayWriteTitle(item)) {
+      if (analysis.openaiConfigured && visionMayWriteTitle(item)) {
         ops.push(
           db.item.update({
             where: {

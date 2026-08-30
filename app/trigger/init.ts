@@ -1,6 +1,18 @@
 import { tags, tasks } from "@trigger.dev/sdk";
+import { isOpenAiConfigured } from "../src/lib/embeddings";
 import { itemRunTags } from "../src/lib/items/run-tags";
+import { createLogger } from "../src/lib/logger.server";
 import { captureServerException } from "../src/lib/posthog-server";
+
+// Operator signal: enrichment runs in this worker, so surface a one-time boot
+// warning when OpenAI is unconfigured. Items are still captured and full-text
+// searchable, but stay bare (no AI titles/descriptions/tags/OCR/semantic
+// search) — this makes it an obvious deployment choice, not a silent footgun.
+if (!isOpenAiConfigured()) {
+  createLogger("trigger/init").warn(
+    "OPENAI_API_KEY is not set — AI enrichment (titles, descriptions, tags, OCR, semantic search) is disabled. Items will be captured and full-text searchable, but stay bare. Set OPENAI_API_KEY to enable enrichment.",
+  );
+}
 
 /**
  * Item-processing task payloads all carry the item and its owner. Narrow to

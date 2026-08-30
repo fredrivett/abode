@@ -6,7 +6,7 @@
  */
 
 import db from "@/lib/db";
-import { toVectorLiteral } from "@/lib/embeddings";
+import { isOpenAiConfigured, toVectorLiteral } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
 import { getQueryEmbedding } from "./embedding-cache";
 import { buildFilterConditions, type ParsedFilters } from "./query-builder";
@@ -43,6 +43,17 @@ export async function vectorSearch(
   query: string,
   limit = 100,
 ): Promise<VectorSearchResult[]> {
+  // Semantic search needs OpenAI to embed the query. When it's unconfigured,
+  // skip cleanly — rankedSearch falls back to full-text + OCR. Returning early
+  // here (rather than letting getQueryEmbedding throw and be caught) keeps it an
+  // intentional skip instead of an error logged on every query.
+  if (!isOpenAiConfigured()) {
+    log.debug(
+      "OpenAI not configured — skipping vector search (text + OCR only)",
+    );
+    return [];
+  }
+
   // Get query embedding (uses cache)
   const queryEmbedding = await getQueryEmbedding(query);
 
