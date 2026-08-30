@@ -254,7 +254,8 @@ export type EmbeddingInsert = {
   embedding: number[];
 };
 
-function toVectorLiteral(embedding: number[]) {
+/** Format a number array as a pgvector literal (`[1,2,3]`) for raw SQL. */
+export function toVectorLiteral(embedding: number[]) {
   return `[${embedding.join(",")}]`;
 }
 

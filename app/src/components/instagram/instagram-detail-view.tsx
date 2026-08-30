@@ -1,9 +1,7 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { InstagramIcon } from "@/components/icons/platform-icons";
-import { Button } from "@/components/ui/button";
-import { DateTime } from "@/components/ui/date-time";
+import { PostedDateFooter } from "@/components/ui/posted-date-footer";
 import { instagramImageSrc } from "@/lib/instagram/image-src";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
@@ -124,22 +122,11 @@ export function InstagramDetailView({
         )}
 
         {/* Posted date and View on Instagram */}
-        <div className="flex items-center justify-between pt-4">
-          {postedAt ? (
-            <DateTime
-              date={postedAt}
-              className="text-gray-500 text-sm dark:text-gray-400"
-            />
-          ) : (
-            <div />
-          )}
-          <Button variant="outline" size="sm" asChild>
-            <a href={postUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              View on Instagram
-            </a>
-          </Button>
-        </div>
+        <PostedDateFooter
+          postedAt={postedAt}
+          viewOnHref={postUrl}
+          viewOnLabel="Instagram"
+        />
       </article>
     </div>
   );

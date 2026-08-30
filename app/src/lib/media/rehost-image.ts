@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import { safeFetch } from "@/lib/http/safe-fetch";
+import { parseMimeType } from "@/lib/url-utils";
 
 // Only re-host raster formats the renderers actually support. Notably excludes
 // SVG: the image proxy serves stored bytes same-origin as image/svg+xml, so a
@@ -21,8 +22,7 @@ const IMAGE_EXT_BY_CONTENT_TYPE: Record<string, string> = {
  * (unsupported or unsafe, e.g. SVG). Exported for testing.
  */
 export function imageExtForContentType(contentType: string): string | null {
-  const baseType = contentType.split(";")[0].trim().toLowerCase();
-  return IMAGE_EXT_BY_CONTENT_TYPE[baseType] ?? null;
+  return IMAGE_EXT_BY_CONTENT_TYPE[parseMimeType(contentType)] ?? null;
 }
 
 /**

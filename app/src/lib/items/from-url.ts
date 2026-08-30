@@ -2,6 +2,7 @@ import type { classifyUrlTask } from "@app/trigger/classify-url";
 import db from "@/lib/db";
 import { type ItemSource, isItemSource } from "@/lib/items/capture-source";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
+import { markItemEnqueueFailed } from "@/lib/items/mark-enqueue-failed";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -137,19 +138,7 @@ export async function createItemFromUrl({
       stage: "trigger:classify-url",
       itemId: item.id,
     });
-    try {
-      await db.item.update({
-        where: { id: item.id },
-        // Record a concrete reason so the failure reports as `enqueue_failed`
-        // rather than a null the admin UI has to paper over.
-        data: { processingStatus: "failed", processingError: "enqueue_failed" },
-      });
-    } catch (updateError) {
-      log.error(
-        { updateError, itemId: item.id },
-        "Failed to mark item failed after classify-url enqueue error",
-      );
-    }
+    await markItemEnqueueFailed({ itemId: item.id, context: "classify-url" });
   }
 
   getPostHogClient()?.capture({

@@ -1,16 +1,15 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
-import { DateTime } from "@/components/ui/date-time";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { PostedDateFooter } from "@/components/ui/posted-date-footer";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
-import { getHostname } from "@/lib/url-utils";
+import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails, TwitterMedia } from "./types";
 
@@ -44,8 +43,12 @@ export function TwitterDetailView({
     card,
   } = twitterDetails;
 
+  // Only trust a stored sourceUrl if it's a real http(s) URL; otherwise fall
+  // back to the derived tweet URL so the link can't navigate somewhere unsafe.
   const tweetUrl =
-    sourceUrl ?? `https://x.com/${authorUsername}/status/${tweetId}`;
+    sourceUrl && isValidUrl(sourceUrl)
+      ? sourceUrl
+      : `https://x.com/${authorUsername}/status/${tweetId}`;
   const profileUrl = `https://x.com/${authorUsername}`;
 
   return (
@@ -175,22 +178,11 @@ export function TwitterDetailView({
         )}
 
         {/* Posted date and View on X */}
-        <div className="flex items-center justify-between pt-4">
-          {postedAt ? (
-            <DateTime
-              date={postedAt}
-              className="text-gray-500 text-sm dark:text-gray-400"
-            />
-          ) : (
-            <div />
-          )}
-          <Button variant="outline" size="sm" asChild>
-            <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              View on X
-            </a>
-          </Button>
-        </div>
+        <PostedDateFooter
+          postedAt={postedAt}
+          viewOnHref={tweetUrl}
+          viewOnLabel="X"
+        />
       </article>
     </div>
   );
