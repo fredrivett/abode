@@ -162,14 +162,6 @@ describe("parseFiltersFromParams", () => {
     });
   });
 
-  describe("OCR filter", () => {
-    it("parses OCR filter", () => {
-      const params = new URLSearchParams("ocr=receipt");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.ocr).toBe("receipt");
-    });
-  });
-
   describe("empty params", () => {
     it("returns empty object for no params", () => {
       const params = new URLSearchParams();
@@ -691,10 +683,6 @@ describe("hasFilters", () => {
   it("returns true for date filters", () => {
     expect(hasFilters({ dateAfter: "2024-01-01" })).toBe(true);
     expect(hasFilters({ dateBefore: "2024-06-01" })).toBe(true);
-  });
-
-  it("returns true for ocr filter", () => {
-    expect(hasFilters({ ocr: "receipt" })).toBe(true);
   });
 
   it("returns false for empty arrays", () => {

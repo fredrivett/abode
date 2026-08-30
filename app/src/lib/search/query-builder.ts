@@ -49,7 +49,6 @@ export type ParsedFilters = {
   location?: FilterValue[];
   dateAfter?: string;
   dateBefore?: string;
-  ocr?: string;
 };
 
 /** Valid ItemKind enum values derived from Prisma schema */
@@ -241,12 +240,6 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
       filters.dateAfter = start;
       filters.dateBefore = end;
     }
-  }
-
-  // Parse OCR filter
-  const ocrValue = params.get("ocr");
-  if (ocrValue) {
-    filters.ocr = ocrValue;
   }
 
   return filters;
@@ -791,8 +784,7 @@ export function hasFilters(filters: ParsedFilters): boolean {
     (filters.source && filters.source.length > 0) ||
     (filters.location && filters.location.length > 0) ||
     filters.dateAfter !== undefined ||
-    filters.dateBefore !== undefined ||
-    filters.ocr !== undefined
+    filters.dateBefore !== undefined
   );
 }
 

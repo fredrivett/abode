@@ -583,17 +583,6 @@ async function executeFiltersOnlySearch(
     }
   }
 
-  // OCR filter - use full-text search on ocr_text
-  if (filters.ocr) {
-    conditions.push(`EXISTS (
-      SELECT 1 FROM item_image_details iid
-      WHERE iid.item_id = items.id
-      AND to_tsvector('english', COALESCE(iid.ocr_text, '')) @@ plainto_tsquery('english', $${paramIndex})
-    )`);
-    params.push(filters.ocr);
-    paramIndex++;
-  }
-
   // Color filter - now uses SQL filtering by color name
   // Also build colour relevance CTE for hex-based ranking
   let colorRelevanceCte = "";
