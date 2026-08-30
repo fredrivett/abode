@@ -12,6 +12,7 @@ function analysis(
     ocrText: "hello",
     tags: ["furniture"],
     colors: [{ name: "red", hex: "#ff0000" }],
+    colorsAnalyzed: true,
     visionData: {
       source: "hybrid",
       openai: {
@@ -64,8 +65,22 @@ describe("buildImageDetailsUpdate", () => {
     expect(update.blurDataUrl).toBe("data:image/webp;base64,AA==");
   });
 
-  it("omits colours when none were produced (Google Vision skipped/empty)", () => {
-    const update = buildImageDetailsUpdate(analysis({ colors: [] }), null);
+  it("writes an empty palette when colour analysis ran but found none (clears stale colours)", () => {
+    const update = buildImageDetailsUpdate(
+      analysis({ colors: [], colorsAnalyzed: true }),
+      null,
+    );
+
+    // Present and empty — a reprocess must clear a prior image's colours
+    expect(update).toHaveProperty("colors");
+    expect(update.colors).toEqual([]);
+  });
+
+  it("omits colours when analysis was skipped/failed (preserves prior palette)", () => {
+    const update = buildImageDetailsUpdate(
+      analysis({ colors: [], colorsAnalyzed: false }),
+      null,
+    );
 
     expect(update).not.toHaveProperty("colors");
     // OpenAI fields still written (configured)

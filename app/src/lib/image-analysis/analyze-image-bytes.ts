@@ -26,6 +26,13 @@ export type ImageVisionAnalysis = {
   ocrText: string | null;
   tags: string[];
   colors: ImageColor[];
+  /**
+   * Whether Google Vision colour analysis ran to completion. False when it was
+   * skipped (unconfigured) or errored — in which case `colors` is empty because
+   * we have no data, NOT because the image has none. Lets a reprocess clear a
+   * genuinely-empty palette while preserving a prior one on degradation.
+   */
+  colorsAnalyzed: boolean;
   visionData: {
     source: "hybrid";
     /** null when OpenAI is unconfigured — the vision pass was skipped. */
@@ -77,11 +84,11 @@ export async function analyzeImageBytes(params: {
   // enhancements: skip cleanly when unconfigured, and never let one failing fail
   // the analysis. A minimal deploy (no OpenAI, no Google key) still returns a
   // usable result — bare image details plus the local blur placeholder.
-  const [colors, openaiResult, blurDataUrl] = await Promise.all([
-    (async (): Promise<ImageColor[]> => {
-      if (!isGoogleVisionConfigured()) return [];
+  const [colorsResult, openaiResult, blurDataUrl] = await Promise.all([
+    (async (): Promise<{ colors: ImageColor[]; analyzed: boolean }> => {
+      if (!isGoogleVisionConfigured()) return { colors: [], analyzed: false };
       try {
-        const result = await analyzeImageColorsOnly(buffer);
+        const colors = await analyzeImageColorsOnly(buffer);
         recordAiUsage({
           userId,
           itemId,
@@ -91,13 +98,15 @@ export async function analyzeImageBytes(params: {
           images: 1,
           source: "ingestion",
         });
-        return result;
+        // analyzed: true even when colours is empty — a successful "no palette"
+        // result, distinct from a skipped/failed one.
+        return { colors, analyzed: true };
       } catch (error) {
         captureServerException(error, userId, {
           source: "analyze-image-bytes:colors",
           itemId,
         });
-        return [];
+        return { colors: [], analyzed: false };
       }
     })(),
     (async (): Promise<OpenAiVisionResult | null> => {
@@ -127,13 +136,14 @@ export async function analyzeImageBytes(params: {
   }
 
   const analysis = openaiResult?.analysis ?? null;
+  const { colors, analyzed: colorsAnalyzed } = colorsResult;
 
   const visionData = {
     source: "hybrid" as const,
     openai: openaiResult
       ? { model: openaiResult.model, usage: openaiResult.usage }
       : null,
-    visionApiFeatures: colors.length > 0 ? ["IMAGE_PROPERTIES"] : [],
+    visionApiFeatures: colorsAnalyzed ? ["IMAGE_PROPERTIES"] : [],
   };
 
   // CLIP visual embedding — optional. Skip cleanly when Replicate isn't
@@ -172,6 +182,7 @@ export async function analyzeImageBytes(params: {
     ocrText: analysis?.ocrText ?? null,
     tags: analysis?.tags ?? [],
     colors,
+    colorsAnalyzed,
     visionData,
     embedding,
     embeddingModel,

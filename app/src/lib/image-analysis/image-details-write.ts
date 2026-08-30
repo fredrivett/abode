@@ -8,11 +8,21 @@ import type { ImageVisionAnalysis } from "./analyze-image-bytes";
  * OpenAI key removed after items were enriched) would silently wipe a prior
  * enrichment. objects/ocrText/visionData ← OpenAI; colors ← Google Vision.
  * blurDataUrl + captureDate are deterministic (local/EXIF) so always refresh.
+ *
+ * Colours are gated on `colorsAnalyzed`, not emptiness: a successful "no
+ * palette" result still writes `[]` (clearing stale colours from a prior
+ * enrichment of a different image), while a skipped/failed analysis preserves
+ * whatever's there.
  */
 export function buildImageDetailsUpdate(
   analysis: Pick<
     ImageVisionAnalysis,
-    "openaiConfigured" | "objects" | "ocrText" | "visionData" | "colors"
+    | "openaiConfigured"
+    | "objects"
+    | "ocrText"
+    | "visionData"
+    | "colors"
+    | "colorsAnalyzed"
   > & { blurDataUrl: string | null },
   captureDate: Date | null,
 ): Prisma.ItemImageDetailsUpdateInput {
@@ -25,7 +35,7 @@ export function buildImageDetailsUpdate(
     update.ocrText = analysis.ocrText;
     update.visionData = analysis.visionData as unknown as Prisma.InputJsonValue;
   }
-  if (analysis.colors.length > 0) {
+  if (analysis.colorsAnalyzed) {
     update.colors = analysis.colors as unknown as Prisma.InputJsonValue;
   }
   return update;

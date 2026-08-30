@@ -26,6 +26,7 @@ function analysis(
     ocrText: "hello world",
     tags: ["furniture"],
     colors: [],
+    colorsAnalyzed: true,
     visionData: {
       source: "hybrid",
       openai: {

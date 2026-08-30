@@ -148,6 +148,7 @@ describe("analyzeImageBytes", () => {
     const result = await analyzeImageBytes(baseParams());
 
     expect(result.colors).toEqual([]);
+    expect(result.colorsAnalyzed).toBe(false);
     expect(result.visionData.visionApiFeatures).toEqual([]);
     expect(colors).not.toHaveBeenCalled();
     // OpenAI vision still ran
@@ -161,8 +162,24 @@ describe("analyzeImageBytes", () => {
     const result = await analyzeImageBytes(baseParams());
 
     expect(result.colors).toEqual([]);
+    // analyzed=false so a reprocess preserves any prior palette rather than wiping
+    expect(result.colorsAnalyzed).toBe(false);
     // The rest of the analysis is unaffected — one optional service isn't fatal
     expect(result.objects).toEqual(["chair"]);
     expect(captureServerException).toHaveBeenCalled();
+  });
+
+  it("marks colours analyzed even when Google Vision returns an empty palette", async () => {
+    replicateConfigured.mockReturnValue(false);
+    colors.mockResolvedValue(
+      [] as Awaited<ReturnType<typeof analyzeImageColorsOnly>>,
+    );
+
+    const result = await analyzeImageBytes(baseParams());
+
+    // Successful-empty: distinct from skipped/failed, so a reprocess clears stale
+    expect(result.colors).toEqual([]);
+    expect(result.colorsAnalyzed).toBe(true);
+    expect(result.visionData.visionApiFeatures).toEqual(["IMAGE_PROPERTIES"]);
   });
 });
