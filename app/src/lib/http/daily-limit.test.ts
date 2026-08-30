@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { DAILY_LIMIT_REACHED_CODE } from "@/lib/usage-limits.shared";
+import {
+  DAILY_LIMIT_REACHED_CODE,
+  DAILY_LIMIT_REACHED_MESSAGE,
+} from "@/lib/usage-limits.shared";
 import { dailyLimitResponse } from "./daily-limit";
 
 describe("dailyLimitResponse", () => {
-  it("returns a 429 carrying the daily-limit code the client keys off", async () => {
+  it("returns a 429 carrying the daily-limit code and canonical message", async () => {
     const res = dailyLimitResponse(3600);
 
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({
-      message: "Daily limit reached",
+      message: DAILY_LIMIT_REACHED_MESSAGE,
       code: DAILY_LIMIT_REACHED_CODE,
     });
   });
