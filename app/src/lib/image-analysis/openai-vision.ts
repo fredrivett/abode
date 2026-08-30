@@ -1,19 +1,10 @@
-import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { retryTransient } from "../ai/retry-transient";
+import { getOpenAiClient } from "../embeddings";
 import { createLogger } from "../logger.server";
 
 const log = createLogger("lib/openai-vision");
-
-let openaiClient: OpenAI | null = null;
-function getOpenAiClient(): OpenAI {
-  if (openaiClient) return openaiClient;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
-  openaiClient = new OpenAI({ apiKey });
-  return openaiClient;
-}
 
 const ImageAnalysisSchema = z.object({
   title: z.string().describe("A concise 2-6 word title for the image"),

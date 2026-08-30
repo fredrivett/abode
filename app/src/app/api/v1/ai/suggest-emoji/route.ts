@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { getOpenAiClient, isOpenAiConfigured } from "@/lib/embeddings";
 import { isValidEmoji } from "@/lib/emoji";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -7,15 +7,6 @@ import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/ai/suggest-emoji");
-
-let openaiClient: OpenAI | null = null;
-function getOpenAiClient(): OpenAI {
-  if (openaiClient) return openaiClient;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
-  openaiClient = new OpenAI({ apiKey });
-  return openaiClient;
-}
 
 /**
  * POST /api/v1/ai/suggest-emoji - Suggest an emoji for a room name
@@ -31,6 +22,14 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Optional service: without an OpenAI key, degrade cleanly instead of 500ing
+    if (!isOpenAiConfigured()) {
+      return NextResponse.json(
+        { message: "AI emoji suggestions are not available" },
+        { status: 503 },
+      );
     }
 
     // Check per-minute rate limit

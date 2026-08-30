@@ -1,17 +1,9 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import { z } from "zod";
+import { getOpenAiClient } from "../embeddings";
 import { createLogger } from "../logger.server";
 
 const log = createLogger("lib/openai-product-image-filter");
-
-let openaiClient: OpenAI | null = null;
-function getOpenAiClient(): OpenAI {
-  if (openaiClient) return openaiClient;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
-  openaiClient = new OpenAI({ apiKey });
-  return openaiClient;
-}
 
 const FilterResponseSchema = z.object({
   productImageIndices: z.array(z.number().int().nonnegative()),
