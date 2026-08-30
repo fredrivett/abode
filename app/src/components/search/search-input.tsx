@@ -6,13 +6,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import {
+  getModifierKeySymbol,
+  isEditableTarget,
+  matchesShortcut,
+} from "@/lib/keyboard";
 import type { FiltersResponse } from "@/lib/search/api";
 import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { getFilterTriggerQuery } from "@/lib/search/get-filter-trigger-query";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
 import {
   createFilterId,
+  emptySearchState,
   FILTER_TYPES,
   type Filter,
   type FilterType,
@@ -119,6 +124,32 @@ export function SearchInput({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [focusShortcut]);
+
+  // Global Escape clears the search even when the input isn't focused. It's the
+  // lowest-priority Escape handler: overlays (modals, menus, popovers) and our
+  // own input call preventDefault in a capture-phase handler that runs first, so
+  // `defaultPrevented` is our "already handled" signal. Bare editable fields
+  // don't preventDefault, so guard those explicitly to avoid wiping the search
+  // while the user is typing elsewhere.
+  useEffect(() => {
+    if (!focusShortcut) return;
+
+    const handleGlobalEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+
+      // Don't wipe the search while the user is typing in another field
+      if (isEditableTarget(document.activeElement)) return;
+
+      // Nothing to clear
+      if (value.query.length === 0 && value.filters.length === 0) return;
+
+      e.preventDefault();
+      onChange(emptySearchState());
+    };
+
+    document.addEventListener("keydown", handleGlobalEscape);
+    return () => document.removeEventListener("keydown", handleGlobalEscape);
+  }, [focusShortcut, value.query, value.filters, onChange]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...value, query: e.target.value });
@@ -271,7 +302,7 @@ export function SearchInput({
       }
       // Clear the search when there's anything to clear
       if (value.query.length > 0 || value.filters.length > 0) {
-        onChange({ query: "", filters: [] });
+        onChange(emptySearchState());
         return;
       }
       // Nothing to clear — blur the input

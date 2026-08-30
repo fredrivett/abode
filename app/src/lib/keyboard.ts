@@ -146,3 +146,19 @@ export function matchesShortcut(
 
   return true;
 }
+
+/**
+ * Whether an event target (or focused element) is an editable field the user
+ * might be typing in — an input, textarea, select, or contenteditable element.
+ *
+ * Use it to skip global key/paste handlers so they don't fire mid-edit.
+ */
+export function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  );
+}

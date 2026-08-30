@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Filter, SearchState } from "@/lib/search/types";
 import { SearchInput } from "./search-input";
@@ -49,5 +50,53 @@ describe("SearchInput escape key", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     // Strips the incomplete `@date:` but keeps the query text and filters
     expect(onChange).toHaveBeenCalledWith({ query: "beach", filters });
+  });
+});
+
+function renderGlobal(value: SearchState, extra?: ReactNode) {
+  const onChange = vi.fn();
+  render(
+    <>
+      {extra}
+      <SearchInput value={value} onChange={onChange} focusShortcut />
+    </>,
+  );
+  return { onChange };
+}
+
+describe("SearchInput global escape (focusShortcut)", () => {
+  it("clears the search when the input is not focused", () => {
+    const { onChange } = renderGlobal({ query: "beach", filters });
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onChange).toHaveBeenCalledWith({ query: "", filters: [] });
+  });
+
+  it("does nothing when there's nothing to clear", () => {
+    const { onChange } = renderGlobal({ query: "", filters: [] });
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not clear when a higher-priority handler consumes Escape", () => {
+    const { onChange } = renderGlobal({ query: "beach", filters });
+    // Mimics Radix's DismissableLayer: a capture-phase listener that runs
+    // before ours and preventDefaults when it closes the topmost overlay
+    const consume = (e: KeyboardEvent) => {
+      if (e.key === "Escape") e.preventDefault();
+    };
+    document.addEventListener("keydown", consume, { capture: true });
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    document.removeEventListener("keydown", consume, { capture: true });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not clear while another editable field is focused", () => {
+    const { onChange } = renderGlobal(
+      { query: "beach", filters },
+      <input aria-label="other field" />,
+    );
+    screen.getByLabelText("other field").focus();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

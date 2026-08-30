@@ -44,7 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getModifierKeySymbol } from "@/lib/keyboard";
-import { useFilterOptions, useSearch } from "@/lib/search";
+import { emptySearchState, useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -92,7 +92,7 @@ function HeaderSearchSection() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSearchState({ query: "", filters: [] })}
+            onClick={() => setSearchState(emptySearchState())}
             className="gap-1.5"
           >
             <X className="size-4" />

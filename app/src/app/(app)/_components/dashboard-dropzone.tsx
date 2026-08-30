@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useUpload } from "@/hooks/use-upload";
+import { isEditableTarget } from "@/lib/keyboard";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
 
@@ -53,14 +54,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
       // Don't intercept paste if user is typing in an input
-      const target = event.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+      if (isEditableTarget(event.target)) return;
 
       const text = event.clipboardData?.getData("text/plain")?.trim();
       if (!text || !isValidUrl(text)) {
