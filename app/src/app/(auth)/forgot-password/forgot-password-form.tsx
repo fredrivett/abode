@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
-import { toast } from "sonner";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useActionErrorToast } from "@/hooks/use-action-error-toast";
 import { requestPasswordReset } from "./actions";
 
 export function ForgotPasswordForm() {
@@ -12,11 +12,7 @@ export function ForgotPasswordForm() {
     {},
   );
 
-  useEffect(() => {
-    if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
+  useActionErrorToast(state);
 
   if (state.success) {
     return (

@@ -2,7 +2,6 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
 import { UserDeletionStats } from "@/components/user-deletion-stats";
+import { useActionErrorToast } from "@/hooks/use-action-error-toast";
 import { deleteAccount } from "../actions";
 
 type UserStats = {
@@ -49,12 +49,7 @@ export function DeleteAccountSettings() {
     }
   }, [isOpen, stats]);
 
-  // Handle errors
-  useEffect(() => {
-    if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
+  useActionErrorToast(state);
 
   // Reset password when dialog closes
   useEffect(() => {

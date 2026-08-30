@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
+import { useActionErrorToast } from "@/hooks/use-action-error-toast";
 import { parseEmailToUsername } from "@/lib/username/generate-from-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { completeProfile } from "./actions";
@@ -33,11 +33,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
     }
   }, [email, handleChange]);
 
-  useEffect(() => {
-    if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state.error]);
+  useActionErrorToast(state);
 
   const isUsernameValid =
     usernameStatus.type === "available" ||

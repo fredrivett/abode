@@ -1,19 +1,15 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
-import { toast } from "sonner";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useActionErrorToast } from "@/hooks/use-action-error-toast";
 import { updatePassword } from "./actions";
 
 export function ResetPasswordForm() {
   const [state, formAction, isPending] = useActionState(updatePassword, {});
 
-  useEffect(() => {
-    if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
+  useActionErrorToast(state);
 
   return (
     <form action={formAction} className="space-y-6">
