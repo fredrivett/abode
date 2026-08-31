@@ -38,12 +38,27 @@ const envSchema = z.object({
   NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),
 
-  // Usage limits — when "true", per-user daily AI limits actually block (429).
-  // Optional; absent/anything-else = shadow mode (count + log, don't block).
-  // The boolean coercion lives in `isUsageLimitsEnforced()` (usage-limits.ts),
-  // which reads process.env directly for Trigger.dev import safety; this entry
-  // just validates/documents the flag at build time.
+  // Usage limits enforcement. Secure-by-default: "true" always enforces (429s),
+  // "false" always opts out; when UNSET, enforcement is on for any built/deployed
+  // env (NODE_ENV=production — prod, preview, staging) and off for local dev +
+  // tests. So a deployed instance is capped without configuration; set "false" to
+  // deliberately run a shadow window. The logic lives in `isUsageLimitsEnforced()`
+  // (usage-limits.ts), which reads process.env directly for Trigger.dev import
+  // safety; this entry just validates/documents the flag at build time.
   USAGE_LIMITS_ENFORCED: z.string().optional(),
+
+  // Dollar-denominated daily backstops. Both optional and env-overridable so prod
+  // can raise a cap without a deploy; absent/blank/≤0 falls back to the compiled
+  // default (see `perUserDailyUsdLimit()` / `systemDailyUsdLimit()` in
+  // usage-limits.ts, which read process.env directly for Trigger.dev import safety).
+  // PER_USER_DAILY_USD: per-account daily $ cap (spike limiter).
+  // PER_USER_MONTHLY_USD: per-account monthly $ cap (binding economic ceiling).
+  // SYSTEM_DAILY_USD: global circuit-breaker across all users. Kept as strings
+  // (validated as positive numbers at use), matching the USAGE_LIMITS_ENFORCED
+  // handling above.
+  PER_USER_DAILY_USD: z.string().optional(),
+  PER_USER_MONTHLY_USD: z.string().optional(),
+  SYSTEM_DAILY_USD: z.string().optional(),
 
   // Base URL of this env's Trigger.dev runs dashboard (Project > Runs), used to
   // build "Monitor" links from the admin reprocess UI. Optional — absent = no

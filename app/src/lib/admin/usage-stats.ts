@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import {
   DAILY_LIMITS,
-  PER_USER_DAILY_USD,
+  perUserDailyUsdLimit,
   type UsageBucket,
 } from "@/lib/usage-limits";
 
@@ -11,8 +11,8 @@ import {
  * plan-user-daily-limits.md, "surface it in the admin interface").
  *
  * Enforcement lives in `usage-limits.ts`; this module only reads, reusing
- * `DAILY_LIMITS` / `PER_USER_DAILY_USD` as the single source of truth for the
- * thresholds so the admin view can't drift from what actually gates requests.
+ * `DAILY_LIMITS` / `perUserDailyUsdLimit()` as the single source of truth for
+ * the thresholds so the admin view can't drift from what actually gates requests.
  *
  * Cost attribution is coarse by design: `count` is tracked per bucket, but
  * `cost_usd` is only accrued to the `ingestion`/`search` buckets (re-analysis
@@ -70,7 +70,7 @@ export type UserUsageToday = {
 /**
  * Reduce a user's rows for the day into display totals + the over-cap verdict.
  * "Over cap" mirrors the enforcement rules: any bucket at/over its
- * `DAILY_LIMITS` count, or today's total spend at/over `PER_USER_DAILY_USD`.
+ * `DAILY_LIMITS` count, or today's total spend at/over the per-user $ cap.
  */
 function evaluateUser(rows: UsageRow[]): UserUsageToday {
   let actionCount = 0;
@@ -85,7 +85,7 @@ function evaluateUser(rows: UsageRow[]): UserUsageToday {
     }
   }
 
-  if (costUsd >= PER_USER_DAILY_USD) overCap = true;
+  if (costUsd >= perUserDailyUsdLimit()) overCap = true;
 
   return { actionCount, costUsd, overCap };
 }
