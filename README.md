@@ -47,6 +47,12 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
 
+### Usage & cost limits
+
+To stop a single account (or an abuser) running up your AI bill, abode has durable daily/monthly per-user **$ caps** plus a system-wide daily **circuit-breaker**. They're **enforced by default on any deployed instance** (production, preview, or staging) — so a fresh deploy is capped without configuration and can't silently run uncapped. Local dev and tests run in **shadow mode** (every action counted and logged, nothing blocked); when shadow mode is active the server logs a one-time warning at first use.
+
+Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MONTHLY_USD`, and `SYSTEM_DAILY_USD` (all optional; sensible defaults apply if unset). To force a specific behaviour, set `USAGE_LIMITS_ENFORCED=true` (always enforce) or `=false` (deliberately opt a deploy out, e.g. to run a shadow window). Defaults are intentionally conservative — the right numbers depend on your pricing, so set your own before relying on them.
+
 ## Features
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
