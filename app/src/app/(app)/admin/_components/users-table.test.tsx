@@ -30,7 +30,8 @@ const baseUser: UserRow = {
     actionCount: 5,
     costUsd: 0.12,
     monthCostUsd: 0.5,
-    overCap: false,
+    overDailyCap: false,
+    overMonthlyCap: false,
   },
 };
 
@@ -98,7 +99,8 @@ describe("UsersTable", () => {
         actionCount: 7,
         costUsd: 1.5,
         monthCostUsd: 4.25,
-        overCap: false,
+        overDailyCap: false,
+        overMonthlyCap: false,
       },
     });
     expect(screen.getByText(/\$1\.50/)).toBeInTheDocument();
@@ -110,7 +112,8 @@ describe("UsersTable", () => {
         actionCount: 7,
         costUsd: 1.5,
         monthCostUsd: 4.25,
-        overCap: false,
+        overDailyCap: false,
+        overMonthlyCap: false,
       },
     });
     expect(screen.getByText(/\$4\.25/)).toBeInTheDocument();
@@ -122,24 +125,42 @@ describe("UsersTable", () => {
         actionCount: 0,
         costUsd: 0,
         monthCostUsd: 0,
-        overCap: false,
+        overDailyCap: false,
+        overMonthlyCap: false,
       },
     });
     // Both the usage-today and month cells fall back to a dash.
     expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("highlights users over their daily or monthly cap", () => {
+  it("reddens only the today cell for a daily over-cap", () => {
     renderTable({
       usageToday: {
         actionCount: 40,
         costUsd: 3,
-        monthCostUsd: 5,
-        overCap: true,
+        monthCostUsd: 3, // under the monthly cap
+        overDailyCap: true,
+        overMonthlyCap: false,
       },
     });
-    expect(screen.getByTitle("Over daily or monthly cap")).toHaveClass(
+    expect(screen.getByTitle("Over daily cap")).toHaveClass("text-destructive");
+    expect(screen.queryByTitle("Over monthly cap")).not.toBeInTheDocument();
+  });
+
+  it("reddens only the month cell for a month-only over-cap", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 1,
+        costUsd: 0.05, // today is fine
+        monthCostUsd: 6,
+        overDailyCap: false,
+        overMonthlyCap: true,
+      },
+    });
+    expect(screen.getByTitle("Over monthly cap")).toHaveClass(
       "text-destructive",
     );
+    // The "usage today" cell must NOT be reddened when only the month is over.
+    expect(screen.queryByTitle("Over daily cap")).not.toBeInTheDocument();
   });
 });

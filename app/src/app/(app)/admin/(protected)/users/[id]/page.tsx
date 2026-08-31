@@ -238,9 +238,9 @@ function UsageCard({ usage }: { usage: UserUsageBreakdown }) {
           ))}
         </div>
         <p className="text-muted-foreground text-xs">
-          Counts reset at UTC midnight, monthly spend on the 1st. Spend is the
-          total across all AI operations (per-bucket spend isn't tracked
-          separately).
+          Counts reset at UTC midnight; monthly spend resets on the 1st (UTC).
+          Spend is the total across all AI operations (per-bucket spend isn't
+          tracked separately).
         </p>
       </CardContent>
     </Card>

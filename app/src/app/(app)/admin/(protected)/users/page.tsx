@@ -146,7 +146,8 @@ export default async function AdminUsersPage(props: {
       actionCount: 0,
       costUsd: 0,
       monthCostUsd: 0,
-      overCap: false,
+      overDailyCap: false,
+      overMonthlyCap: false,
     },
   }));
 

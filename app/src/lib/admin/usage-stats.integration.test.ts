@@ -71,12 +71,16 @@ describe("admin usage-stats integration", () => {
     expect(row?.overCap).toBe(true);
   });
 
-  test("over-cap trips on the per-user $ cap even with low counts", async () => {
+  test("over-cap trips on the per-user daily $ cap even with low counts", async () => {
     const user = await createUser("d@example.com");
+    // Today's spend over the daily cap but under the monthly cap.
     await seed(user.id, "ingestion", 1, PER_USER_DAILY_USD + 0.5);
 
     const row = (await getUsersUsageToday([user.id])).get(user.id);
     expect(row?.overCap).toBe(true);
+    // Daily-only breach: today's flag trips, the monthly one stays clean.
+    expect(row?.overDailyCap).toBe(true);
+    expect(row?.overMonthlyCap).toBe(false);
   });
 
   test("getGlobalUsageToday totals spend and counts users over cap", async () => {
@@ -129,6 +133,10 @@ describe("admin usage-stats integration", () => {
     const row = (await getUsersUsageToday([user.id])).get(user.id);
     expect(row?.monthCostUsd).toBeCloseTo(PER_USER_MONTHLY_USD + 1, 4);
     expect(row?.overCap).toBe(true); // over the monthly $ cap
+    expect(row?.overMonthlyCap).toBe(true);
+    // (overDailyCap isn't asserted here: the first-of-month seed *is* today on
+    // the 1st, so today's spend — and the daily flag — is date-dependent. The
+    // daily/monthly split is covered deterministically by the today-seeded tests.)
 
     const global = await getGlobalUsageToday();
     expect(global.totalMonthCostUsd).toBeCloseTo(PER_USER_MONTHLY_USD + 1, 4);

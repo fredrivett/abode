@@ -70,33 +70,47 @@ export type UserUsageToday = {
   costUsd: number;
   /** Total paid AI spend this UTC calendar month, across all buckets. */
   monthCostUsd: number;
-  /** Over any bucket's daily count, the per-user daily $ cap, or monthly $ cap. */
+  /** Over a bucket's daily count or the per-user daily $ cap (a *today* breach). */
+  overDailyCap: boolean;
+  /** Over the per-user monthly $ cap (a *month-to-date* breach). */
+  overMonthlyCap: boolean;
+  /** Over any cap — `overDailyCap || overMonthlyCap`. */
   overCap: boolean;
 };
 
 /**
  * Reduce a user's today rows + month-to-date spend into display totals + the
- * over-cap verdict. "Over cap" mirrors the enforcement rules: any bucket at/over
- * its `DAILY_LIMITS` count, today's spend at/over the per-user daily $ cap, or
- * this month's spend at/over the per-user monthly $ cap.
+ * over-cap verdicts. Split by window so the UI can attribute the breach to the
+ * right figure: `overDailyCap` = any bucket at/over its `DAILY_LIMITS` count or
+ * today's spend at/over the daily $ cap; `overMonthlyCap` = this month's spend
+ * at/over the monthly $ cap.
  */
 function evaluateUser(rows: UsageRow[], monthCostUsd: number): UserUsageToday {
   let actionCount = 0;
   let costUsd = 0;
-  let overCap = false;
+  // Explicit boolean (not the `false` literal) so it's reassignable to true
+  // without the flow analysis narrowing it away.
+  let overDailyCap: boolean = false;
 
   for (const row of rows) {
     actionCount += row.count;
     costUsd += Number(row.cost_usd);
     if (isUsageBucket(row.bucket) && row.count >= DAILY_LIMITS[row.bucket]) {
-      overCap = true;
+      overDailyCap = true;
     }
   }
 
-  if (costUsd >= perUserDailyUsdLimit()) overCap = true;
-  if (monthCostUsd >= perUserMonthlyUsdLimit()) overCap = true;
+  if (costUsd >= perUserDailyUsdLimit()) overDailyCap = true;
+  const overMonthlyCap = monthCostUsd >= perUserMonthlyUsdLimit();
 
-  return { actionCount, costUsd, monthCostUsd, overCap };
+  return {
+    actionCount,
+    costUsd,
+    monthCostUsd,
+    overDailyCap,
+    overMonthlyCap,
+    overCap: overDailyCap || overMonthlyCap,
+  };
 }
 
 /** Today's per-bucket rows (counts + today's $) for the given scope. */

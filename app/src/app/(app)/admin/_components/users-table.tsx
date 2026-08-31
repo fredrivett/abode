@@ -49,7 +49,8 @@ type User = {
     actionCount: number;
     costUsd: number;
     monthCostUsd: number;
-    overCap: boolean;
+    overDailyCap: boolean;
+    overMonthlyCap: boolean;
   };
 };
 
@@ -187,12 +188,12 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
                     <span
                       className={cn(
                         "tabular-nums",
-                        user.usageToday.overCap &&
+                        user.usageToday.overDailyCap &&
                           "font-medium text-destructive",
                       )}
                       title={
-                        user.usageToday.overCap
-                          ? "Over daily or monthly cap"
+                        user.usageToday.overDailyCap
+                          ? "Over daily cap"
                           : undefined
                       }
                     >
@@ -205,7 +206,18 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
                   {user.usageToday.monthCostUsd === 0 ? (
                     <span className="text-muted-foreground">-</span>
                   ) : (
-                    <span className="tabular-nums">
+                    <span
+                      className={cn(
+                        "tabular-nums",
+                        user.usageToday.overMonthlyCap &&
+                          "font-medium text-destructive",
+                      )}
+                      title={
+                        user.usageToday.overMonthlyCap
+                          ? "Over monthly cap"
+                          : undefined
+                      }
+                    >
                       {formatUsd(user.usageToday.monthCostUsd)}
                     </span>
                   )}
