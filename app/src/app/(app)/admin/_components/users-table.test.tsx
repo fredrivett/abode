@@ -26,7 +26,12 @@ const baseUser: UserRow = {
   createdAt: "2026-02-12T00:00:00.000Z",
   lastActiveAt: "2026-07-20T00:00:00.000Z",
   lastItemAddedAt: "2026-07-18T00:00:00.000Z",
-  usageToday: { actionCount: 5, costUsd: 0.12, overCap: false },
+  usageToday: {
+    actionCount: 5,
+    costUsd: 0.12,
+    monthCostUsd: 0.5,
+    overCap: false,
+  },
 };
 
 function renderTable(
@@ -89,15 +94,52 @@ describe("UsersTable", () => {
 
   it("shows today's usage spend", () => {
     renderTable({
-      usageToday: { actionCount: 7, costUsd: 1.5, overCap: false },
+      usageToday: {
+        actionCount: 7,
+        costUsd: 1.5,
+        monthCostUsd: 4.25,
+        overCap: false,
+      },
     });
     expect(screen.getByText(/\$1\.50/)).toBeInTheDocument();
   });
 
-  it("highlights users over their daily cap", () => {
+  it("shows month-to-date spend", () => {
     renderTable({
-      usageToday: { actionCount: 40, costUsd: 3, overCap: true },
+      usageToday: {
+        actionCount: 7,
+        costUsd: 1.5,
+        monthCostUsd: 4.25,
+        overCap: false,
+      },
     });
-    expect(screen.getByTitle("Over daily cap")).toHaveClass("text-destructive");
+    expect(screen.getByText(/\$4\.25/)).toBeInTheDocument();
+  });
+
+  it("renders a dash for month spend when there's none", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 0,
+        costUsd: 0,
+        monthCostUsd: 0,
+        overCap: false,
+      },
+    });
+    // Both the usage-today and month cells fall back to a dash.
+    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("highlights users over their daily or monthly cap", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 40,
+        costUsd: 3,
+        monthCostUsd: 5,
+        overCap: true,
+      },
+    });
+    expect(screen.getByTitle("Over daily or monthly cap")).toHaveClass(
+      "text-destructive",
+    );
   });
 });

@@ -48,6 +48,7 @@ type User = {
   usageToday: {
     actionCount: number;
     costUsd: number;
+    monthCostUsd: number;
     overCap: boolean;
   };
 };
@@ -96,13 +97,14 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
             <TableHead>Last active</TableHead>
             <TableHead>Last item added</TableHead>
             <TableHead className="text-right">Usage today</TableHead>
+            <TableHead className="text-right">Spend (month)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={9}
+                colSpan={10}
                 className="text-center text-muted-foreground"
               >
                 No users found
@@ -189,11 +191,22 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
                           "font-medium text-destructive",
                       )}
                       title={
-                        user.usageToday.overCap ? "Over daily cap" : undefined
+                        user.usageToday.overCap
+                          ? "Over daily or monthly cap"
+                          : undefined
                       }
                     >
                       {user.usageToday.actionCount} ·{" "}
                       {formatUsd(user.usageToday.costUsd)}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {user.usageToday.monthCostUsd === 0 ? (
+                    <span className="text-muted-foreground">-</span>
+                  ) : (
+                    <span className="tabular-nums">
+                      {formatUsd(user.usageToday.monthCostUsd)}
                     </span>
                   )}
                 </TableCell>
