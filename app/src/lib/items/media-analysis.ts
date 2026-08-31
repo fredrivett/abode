@@ -8,7 +8,7 @@ import {
   setMediaAnalysisEmbedding,
 } from "../embeddings";
 import type { ImageVisionAnalysis } from "../image-analysis/analyze-image-bytes";
-import { captureServerException } from "../posthog-server";
+import { reportImageEmbeddingFailure } from "../image-analysis/embedding-failure";
 
 /** Coerce a Prisma JSON read back into a writable input value (JSON null → DB null). */
 function toJsonInput(
@@ -143,10 +143,15 @@ export async function healMediaAnalysisEmbedding({
     });
     return true;
   } catch (error) {
-    // Optional enhancement failing must not fail the caller — report, leave null
-    captureServerException(error, userId, {
-      source: "heal-media-embedding",
+    // Optional enhancement failing must not fail the caller — report, leave null.
+    // A heal only runs for a tweet's cover; tag the phase so a re-drop here is
+    // distinguishable from the initial analysis in the same queryable event.
+    reportImageEmbeddingFailure({
+      error,
+      userId,
       itemId,
+      source: "tweet-cover",
+      phase: "heal",
       fileKey,
     });
     return false;
