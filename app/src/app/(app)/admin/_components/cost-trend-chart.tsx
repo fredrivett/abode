@@ -26,10 +26,10 @@ export function CostTrendChart({ dailyCost }: CostTrendChartProps) {
           {dailyCost.map((day) => {
             // Scale to the busiest day; guard divide-by-zero when all are zero.
             const height = maxCost > 0 ? (day.costUsd / maxCost) * 100 : 0;
-            const date = new Date(day.date);
-            const dayLabel = date.toLocaleDateString("en-US", {
-              day: "numeric",
-            });
+            // `day.date` is a UTC YYYY-MM-DD; read the day-of-month in UTC so the
+            // label matches the UTC header + tooltip (toLocaleDateString would
+            // render it in the viewer's local zone and drift a day west of UTC).
+            const dayLabel = String(new Date(day.date).getUTCDate());
 
             return (
               <div
