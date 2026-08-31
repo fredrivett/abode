@@ -57,6 +57,26 @@ function httpStatus(error: object): number | undefined {
 }
 
 /**
+ * The HTTP status carried by an AI-provider error, if any (429, 5xx, …).
+ * Returns undefined for status-less errors (network/timeout, parse failures).
+ * Exposed so callers classifying a *swallowed* failure for observability read
+ * the status the same way the retry logic does.
+ */
+export function getAiErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  return httpStatus(error);
+}
+
+/**
+ * Whether an error is a rate-limit (429 "throttle") response — the shape
+ * Replicate returns when its shared prediction pool is saturated. Lets an
+ * observability path label a dropped embedding as throttle-vs-other.
+ */
+export function isRateLimitError(error: unknown): boolean {
+  return getAiErrorStatus(error) === 429;
+}
+
+/**
  * Whether an AI-provider error is worth retrying: rate limits (429), server
  * errors (5xx), and recognised network/timeout errors. Everything else is
  * treated as permanent — a client error (401 bad key, 422 bad input) or a

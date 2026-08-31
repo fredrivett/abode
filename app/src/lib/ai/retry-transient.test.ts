@@ -1,7 +1,28 @@
 import { describe, expect, test, vi } from "vitest";
-import { isTransientAiError, retryTransient } from "./retry-transient";
+import {
+  getAiErrorStatus,
+  isRateLimitError,
+  isTransientAiError,
+  retryTransient,
+} from "./retry-transient";
 
 const noSleep = () => Promise.resolve();
+
+describe("getAiErrorStatus / isRateLimitError", () => {
+  test("reads the status from both .status and .response.status", () => {
+    expect(getAiErrorStatus({ status: 429 })).toBe(429);
+    expect(getAiErrorStatus({ response: { status: 503 } })).toBe(503);
+    expect(getAiErrorStatus(new Error("no status"))).toBeUndefined();
+    expect(getAiErrorStatus(null)).toBeUndefined();
+  });
+
+  test("only a 429 is a rate-limit error", () => {
+    expect(isRateLimitError({ status: 429 })).toBe(true);
+    expect(isRateLimitError({ response: { status: 429 } })).toBe(true);
+    expect(isRateLimitError({ status: 503 })).toBe(false);
+    expect(isRateLimitError(new Error("boom"))).toBe(false);
+  });
+});
 
 describe("isTransientAiError", () => {
   test("429 and 5xx are transient", () => {
