@@ -116,6 +116,7 @@ async function analyseCover(payload: AnalyzeMediaCoverPayload) {
       mimeType: getMimeTypeFromFileKey(fileKey),
       itemId,
       userId,
+      source: "tweet-cover",
       getSignedUrl,
     });
 

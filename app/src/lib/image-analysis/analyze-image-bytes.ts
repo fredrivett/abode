@@ -13,6 +13,10 @@ import {
   isGoogleVisionConfigured,
 } from "../vision";
 import { generateBlurDataUrl } from "./blur-placeholder";
+import {
+  type ImageEmbeddingSource,
+  reportImageEmbeddingFailure,
+} from "./embedding-failure";
 import { analyzeImageWithOpenAI } from "./openai-vision";
 
 const log = createLogger("lib/analyze-image-bytes");
@@ -69,9 +73,11 @@ export async function analyzeImageBytes(params: {
   mimeType: string;
   itemId: string;
   userId: string;
+  /** Origin of the image, so a dropped CLIP embedding is attributable. */
+  source: ImageEmbeddingSource;
   getSignedUrl: () => Promise<string>;
 }): Promise<ImageVisionAnalysis> {
-  const { buffer, mimeType, itemId, userId, getSignedUrl } = params;
+  const { buffer, mimeType, itemId, userId, source, getSignedUrl } = params;
 
   const openaiConfigured = isOpenAiConfigured();
 
@@ -165,10 +171,15 @@ export async function analyzeImageBytes(params: {
         source: "ingestion",
       });
     } catch (error) {
-      // Optional enhancement failing must not fail the analysis — report, continue
-      captureServerException(error, userId, {
-        source: "analyze-image-bytes:visual-embedding",
+      // Optional enhancement failing must not fail the analysis — report, continue.
+      // Emit a queryable event (source + throttle-vs-error) so the drop, which
+      // was previously invisible, is measurable — not just an exception capture.
+      reportImageEmbeddingFailure({
+        error,
+        userId,
         itemId,
+        source,
+        phase: "initial",
       });
       embedding = null;
       embeddingModel = null;

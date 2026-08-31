@@ -13,6 +13,9 @@ vi.mock("../embeddings", () => ({
 }));
 vi.mock("../ai-costs/record-ai-usage", () => ({ recordAiUsage: vi.fn() }));
 vi.mock("../posthog-server", () => ({ captureServerException: vi.fn() }));
+vi.mock("./embedding-failure", () => ({
+  reportImageEmbeddingFailure: vi.fn(),
+}));
 
 import { recordAiUsage } from "../ai-costs/record-ai-usage";
 import {
@@ -23,6 +26,7 @@ import {
 import { captureServerException } from "../posthog-server";
 import { analyzeImageColorsOnly, isGoogleVisionConfigured } from "../vision";
 import { analyzeImageBytes } from "./analyze-image-bytes";
+import { reportImageEmbeddingFailure } from "./embedding-failure";
 import { analyzeImageWithOpenAI } from "./openai-vision";
 
 const openai = vi.mocked(analyzeImageWithOpenAI);
@@ -40,6 +44,7 @@ function baseParams(
     mimeType: "image/jpeg",
     itemId: "item-1",
     userId: "user-1",
+    source: "upload" as const,
     getSignedUrl,
   };
 }
@@ -104,7 +109,14 @@ describe("analyzeImageBytes", () => {
     expect(result.embeddingModel).toBeNull();
     // Vision output is still returned — one optional service failing isn't fatal
     expect(result.objects).toEqual(["chair"]);
-    expect(captureServerException).toHaveBeenCalled();
+    // Failure is reported (queryable event + exception) with attributable source
+    expect(reportImageEmbeddingFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: "item-1",
+        source: "upload",
+        phase: "initial",
+      }),
+    );
   });
 
   it("skips OpenAI vision cleanly when unconfigured", async () => {

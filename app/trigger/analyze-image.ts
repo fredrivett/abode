@@ -225,6 +225,7 @@ export const analyzeImageTask = task({
         mimeType,
         itemId,
         userId,
+        source: "upload",
         getSignedUrl: async () => {
           // Signed URL for the image (valid for 1 hour) — CLIP needs a URL
           const { data: urlData, error: urlError } = await supabase.storage
