@@ -145,7 +145,9 @@ export default async function AdminUsersPage(props: {
     usageToday: usageToday.get(user.id) ?? {
       actionCount: 0,
       costUsd: 0,
-      overCap: false,
+      monthCostUsd: 0,
+      overDailyCap: false,
+      overMonthlyCap: false,
     },
   }));
 

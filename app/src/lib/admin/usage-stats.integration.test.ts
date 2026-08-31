@@ -6,7 +6,12 @@ import {
   getUsersUsageToday,
   getUserUsageBreakdown,
 } from "@/lib/admin/usage-stats";
-import { DAILY_LIMITS, PER_USER_DAILY_USD } from "@/lib/usage-limits";
+import {
+  DAILY_LIMITS,
+  PER_USER_DAILY_USD,
+  PER_USER_MONTHLY_USD,
+  SYSTEM_DAILY_USD,
+} from "@/lib/usage-limits";
 
 describe("admin usage-stats integration", () => {
   beforeEach(async () => {
@@ -66,12 +71,16 @@ describe("admin usage-stats integration", () => {
     expect(row?.overCap).toBe(true);
   });
 
-  test("over-cap trips on the per-user $ cap even with low counts", async () => {
+  test("over-cap trips on the per-user daily $ cap even with low counts", async () => {
     const user = await createUser("d@example.com");
+    // Today's spend over the daily cap but under the monthly cap.
     await seed(user.id, "ingestion", 1, PER_USER_DAILY_USD + 0.5);
 
     const row = (await getUsersUsageToday([user.id])).get(user.id);
     expect(row?.overCap).toBe(true);
+    // Daily-only breach: today's flag trips, the monthly one stays clean.
+    expect(row?.overDailyCap).toBe(true);
+    expect(row?.overMonthlyCap).toBe(false);
   });
 
   test("getGlobalUsageToday totals spend and counts users over cap", async () => {
@@ -82,20 +91,56 @@ describe("admin usage-stats integration", () => {
 
     const global = await getGlobalUsageToday();
     expect(global.totalCostUsd).toBeCloseTo(1.25, 4);
+    expect(global.totalMonthCostUsd).toBeCloseTo(1.25, 4);
     expect(global.activeUsers).toBe(2);
     expect(global.usersOverCap).toBe(1);
+    // Thresholds/state come straight from usage-limits (single source of truth).
+    expect(global.systemDailyLimitUsd).toBe(SYSTEM_DAILY_USD);
+    expect(global.enforced).toBe(false); // unset + NODE_ENV=test → shadow
   });
 
-  test("yesterday's rows are excluded from today's aggregates", async () => {
+  test("earlier-day rows are excluded from today but count toward the month", async () => {
     const user = await createUser("e@example.com");
-    await seed(user.id, "ingestion", 99, 5.0, -1); // yesterday, huge
+    await seed(user.id, "ingestion", 99, 4.0, -1); // an earlier day, large
 
-    const map = await getUsersUsageToday([user.id]);
-    expect(map.has(user.id)).toBe(false);
+    // Today window excludes earlier days.
+    const global = await getGlobalUsageToday();
+    expect(global.totalCostUsd).toBe(0); // no spend *today*
+    expect(global.activeUsers).toBe(0); // no usage *today*
+
+    const row = (await getUsersUsageToday([user.id])).get(user.id);
+    expect(row?.costUsd ?? 0).toBe(0); // today's spend is zero
+    expect(row?.actionCount ?? 0).toBe(0);
+  });
+
+  test("month-to-date spend counts earlier days and trips the monthly cap", async () => {
+    const user = await createUser("mtd@example.com");
+    const { write } = await import("@/lib/db");
+    // A row on the 1st of this month — deterministically within the month window,
+    // regardless of today's date. Over the monthly cap.
+    await write.$executeRaw`
+      INSERT INTO usage_daily (user_id, day, bucket, count, cost_usd, updated_at)
+      VALUES (
+        ${user.id}::uuid,
+        date_trunc('month', (now() AT TIME ZONE 'utc'))::date,
+        'ingestion',
+        1,
+        ${PER_USER_MONTHLY_USD + 1}::numeric,
+        now()
+      )
+    `;
+
+    const row = (await getUsersUsageToday([user.id])).get(user.id);
+    expect(row?.monthCostUsd).toBeCloseTo(PER_USER_MONTHLY_USD + 1, 4);
+    expect(row?.overCap).toBe(true); // over the monthly $ cap
+    expect(row?.overMonthlyCap).toBe(true);
+    // (overDailyCap isn't asserted here: the first-of-month seed *is* today on
+    // the 1st, so today's spend — and the daily flag — is date-dependent. The
+    // daily/monthly split is covered deterministically by the today-seeded tests.)
 
     const global = await getGlobalUsageToday();
-    expect(global.totalCostUsd).toBe(0);
-    expect(global.usersOverCap).toBe(0);
+    expect(global.totalMonthCostUsd).toBeCloseTo(PER_USER_MONTHLY_USD + 1, 4);
+    expect(global.usersOverCap).toBe(1);
   });
 
   test("getUserUsageBreakdown reports each gated bucket vs its limit", async () => {
@@ -116,6 +161,9 @@ describe("admin usage-stats integration", () => {
     const reanalysis = breakdown.buckets.find((b) => b.bucket === "reanalysis");
     expect(reanalysis?.count).toBe(0); // no row → zero, not missing
     expect(breakdown.totalCostUsd).toBeCloseTo(0.6, 4);
+    expect(breakdown.monthCostUsd).toBeCloseTo(0.6, 4);
+    expect(breakdown.dailyLimitUsd).toBe(PER_USER_DAILY_USD);
+    expect(breakdown.monthlyLimitUsd).toBe(PER_USER_MONTHLY_USD);
     expect(breakdown.overCap).toBe(false);
   });
 });

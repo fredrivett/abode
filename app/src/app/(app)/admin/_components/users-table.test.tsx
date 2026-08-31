@@ -26,7 +26,13 @@ const baseUser: UserRow = {
   createdAt: "2026-02-12T00:00:00.000Z",
   lastActiveAt: "2026-07-20T00:00:00.000Z",
   lastItemAddedAt: "2026-07-18T00:00:00.000Z",
-  usageToday: { actionCount: 5, costUsd: 0.12, overCap: false },
+  usageToday: {
+    actionCount: 5,
+    costUsd: 0.12,
+    monthCostUsd: 0.5,
+    overDailyCap: false,
+    overMonthlyCap: false,
+  },
 };
 
 function renderTable(
@@ -89,15 +95,72 @@ describe("UsersTable", () => {
 
   it("shows today's usage spend", () => {
     renderTable({
-      usageToday: { actionCount: 7, costUsd: 1.5, overCap: false },
+      usageToday: {
+        actionCount: 7,
+        costUsd: 1.5,
+        monthCostUsd: 4.25,
+        overDailyCap: false,
+        overMonthlyCap: false,
+      },
     });
     expect(screen.getByText(/\$1\.50/)).toBeInTheDocument();
   });
 
-  it("highlights users over their daily cap", () => {
+  it("shows month-to-date spend", () => {
     renderTable({
-      usageToday: { actionCount: 40, costUsd: 3, overCap: true },
+      usageToday: {
+        actionCount: 7,
+        costUsd: 1.5,
+        monthCostUsd: 4.25,
+        overDailyCap: false,
+        overMonthlyCap: false,
+      },
+    });
+    expect(screen.getByText(/\$4\.25/)).toBeInTheDocument();
+  });
+
+  it("renders a dash for month spend when there's none", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 0,
+        costUsd: 0,
+        monthCostUsd: 0,
+        overDailyCap: false,
+        overMonthlyCap: false,
+      },
+    });
+    // Both the usage-today and month cells fall back to a dash.
+    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("reddens only the today cell for a daily over-cap", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 40,
+        costUsd: 3,
+        monthCostUsd: 3, // under the monthly cap
+        overDailyCap: true,
+        overMonthlyCap: false,
+      },
     });
     expect(screen.getByTitle("Over daily cap")).toHaveClass("text-destructive");
+    expect(screen.queryByTitle("Over monthly cap")).not.toBeInTheDocument();
+  });
+
+  it("reddens only the month cell for a month-only over-cap", () => {
+    renderTable({
+      usageToday: {
+        actionCount: 1,
+        costUsd: 0.05, // today is fine
+        monthCostUsd: 6,
+        overDailyCap: false,
+        overMonthlyCap: true,
+      },
+    });
+    expect(screen.getByTitle("Over monthly cap")).toHaveClass(
+      "text-destructive",
+    );
+    // The "usage today" cell must NOT be reddened when only the month is over.
+    expect(screen.queryByTitle("Over daily cap")).not.toBeInTheDocument();
   });
 });

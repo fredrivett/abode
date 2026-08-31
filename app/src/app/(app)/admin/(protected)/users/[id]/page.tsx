@@ -179,21 +179,43 @@ function ActivityBreakdown({ activity }: { activity: DailyActivityStats[] }) {
   );
 }
 
-function UsageTodayCard({ usage }: { usage: UserUsageBreakdown }) {
+function UsageCard({ usage }: { usage: UserUsageBreakdown }) {
+  const overDaily = usage.totalCostUsd >= usage.dailyLimitUsd;
+  const overMonthly = usage.monthCostUsd >= usage.monthlyLimitUsd;
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">AI Usage (Today)</CardTitle>
+        <CardTitle className="text-base">AI Usage</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">Spend today</span>
-          <span className="font-medium text-sm">
-            {formatUsd(usage.totalCostUsd)}
+          <span
+            className={cn(
+              "font-medium text-sm tabular-nums",
+              overDaily && "text-destructive",
+            )}
+          >
+            {formatUsd(usage.totalCostUsd)} / {formatUsd(usage.dailyLimitUsd)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground text-sm">
+            Spend this month
+          </span>
+          <span
+            className={cn(
+              "font-medium text-sm tabular-nums",
+              overMonthly && "text-destructive",
+            )}
+          >
+            {formatUsd(usage.monthCostUsd)} / {formatUsd(usage.monthlyLimitUsd)}
           </span>
         </div>
         {usage.overCap && (
-          <p className="font-medium text-destructive text-xs">Over daily cap</p>
+          <p className="font-medium text-destructive text-xs">
+            Over cap (daily or monthly)
+          </p>
         )}
         <hr />
         <div className="space-y-1">
@@ -216,8 +238,9 @@ function UsageTodayCard({ usage }: { usage: UserUsageBreakdown }) {
           ))}
         </div>
         <p className="text-muted-foreground text-xs">
-          Counts reset at UTC midnight. Spend is the total across all AI
-          operations (per-bucket spend isn't tracked separately).
+          Counts reset at UTC midnight; monthly spend resets on the 1st (UTC).
+          Spend is the total across all AI operations (per-bucket spend isn't
+          tracked separately).
         </p>
       </CardContent>
     </Card>
@@ -398,8 +421,8 @@ export default async function AdminUserDetailPage({
             <ActivityBreakdown activity={dailyActivity} />
           </div>
 
-          {/* AI usage today */}
-          <UsageTodayCard usage={usageBreakdown} />
+          {/* AI usage (today + month-to-date) */}
+          <UsageCard usage={usageBreakdown} />
         </div>
       </div>
     </div>
