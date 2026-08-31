@@ -90,6 +90,25 @@ describe("reportImageEmbeddingFailure", () => {
     );
   });
 
+  it("never throws when a telemetry sink throws, and still tries the other", () => {
+    capture.mockImplementation(() => {
+      throw new Error("posthog down");
+    });
+
+    // Must not propagate — it runs inside a degraded-embedding catch
+    expect(() =>
+      reportImageEmbeddingFailure({
+        error: new Error("boom"),
+        userId: "user-1",
+        itemId: "item-1",
+        source: "upload",
+        phase: "initial",
+      }),
+    ).not.toThrow();
+    // A throwing event capture must not skip the exception capture
+    expect(captureServerException).toHaveBeenCalled();
+  });
+
   it("still captures the exception when PostHog is unavailable", () => {
     client.mockReturnValue(null);
 

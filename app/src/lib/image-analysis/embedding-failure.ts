@@ -47,23 +47,35 @@ export function reportImageEmbeddingFailure({
   const status = getAiErrorStatus(error);
   const failureKind = isRateLimitError(error) ? "throttle" : "error";
 
-  getPostHogClient()?.capture({
-    distinctId: userId,
-    event: IMAGE_EMBEDDING_FAILED_EVENT,
-    properties: {
-      item_id: itemId,
-      source,
+  // Each telemetry sink is wrapped independently so a throwing PostHog client
+  // can't escape this reporter (it runs inside a degraded-embedding catch, where
+  // a propagated error would fail the whole analysis) — and so one sink failing
+  // doesn't skip the other.
+  try {
+    getPostHogClient()?.capture({
+      distinctId: userId,
+      event: IMAGE_EMBEDDING_FAILED_EVENT,
+      properties: {
+        item_id: itemId,
+        source,
+        phase,
+        failure_kind: failureKind,
+        status: status ?? null,
+      },
+    });
+  } catch {
+    // Observability must never affect the degraded analysis.
+  }
+
+  try {
+    captureServerException(error, userId, {
+      source: `image-embedding:${source}`,
+      itemId,
       phase,
       failure_kind: failureKind,
-      status: status ?? null,
-    },
-  });
-
-  captureServerException(error, userId, {
-    source: `image-embedding:${source}`,
-    itemId,
-    phase,
-    failure_kind: failureKind,
-    ...(fileKey ? { fileKey } : {}),
-  });
+      ...(fileKey ? { fileKey } : {}),
+    });
+  } catch {
+    // Observability must never affect the degraded analysis.
+  }
 }
