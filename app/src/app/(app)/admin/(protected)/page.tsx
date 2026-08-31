@@ -81,6 +81,12 @@ export default async function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href="/admin/costs"
+              className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
+            >
+              Costs
+            </Link>
+            <Link
               href="/admin/processing"
               className="rounded-md border px-4 py-2 font-medium text-sm hover:bg-muted"
             >
