@@ -4,10 +4,14 @@ import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { reverseGeocode } from "@/lib/reverse-geocode";
+import {
+  isMapboxConfigured,
+  MAPBOX_GEOCODE_COST_USD,
+  reverseGeocode,
+} from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
-import { guardDailyLimit } from "@/lib/usage-limits";
+import { accrueUsageCost, guardDailyLimit } from "@/lib/usage-limits";
 import type { syncRoomItemsTask } from "../../../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/items/[id]/location");
@@ -71,6 +75,14 @@ export async function POST(
 
     // Reverse geocode to get place details
     const place = await reverseGeocode({ latitude, longitude });
+
+    // Reverse-geocoding is a paid Mapbox call — accrue its cost to the `location`
+    // bucket so the per-user/system $ backstops see location spend. Only when
+    // Mapbox is configured (else no billable call was made). Awaited so the write
+    // lands before the serverless response; `accrueUsageCost` never throws.
+    if (isMapboxConfigured()) {
+      await accrueUsageCost(user.id, "location", MAPBOX_GEOCODE_COST_USD);
+    }
 
     // Upsert manual location (keeps any existing exif location, but only one manual override)
     const location = await db.itemLocation.upsert({

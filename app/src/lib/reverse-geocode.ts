@@ -11,6 +11,19 @@ export type ReverseGeocodedPlace = {
 export type LatLon = { latitude: number; longitude: number };
 
 /**
+ * Cost of one Mapbox reverse-geocoding request, so location spend is visible to
+ * the usage $ backstops. Mapbox temporary geocoding is ~$0.75 per 1,000 requests
+ * (after the free tier) → $0.00075/call. A rough per-call figure is enough for a
+ * cost cap; update if the plan/rate changes.
+ */
+export const MAPBOX_GEOCODE_COST_USD = 0.00075;
+
+/** Whether Mapbox is configured — i.e. a reverse-geocode will make a billable call. */
+export function isMapboxConfigured(): boolean {
+  return Boolean(process.env.MAPBOX_ACCESS_TOKEN);
+}
+
+/**
  * Converts latitude/longitude coordinates into a structured place description
  * using the Mapbox Geocoding API.
  *
