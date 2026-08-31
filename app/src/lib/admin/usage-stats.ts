@@ -274,3 +274,91 @@ export async function getUserUsageBreakdown(
     overCap,
   };
 }
+
+export type DailyCost = {
+  /** UTC day, `YYYY-MM-DD`. */
+  date: string;
+  /** System-wide paid AI spend that day, across all users. */
+  costUsd: number;
+};
+
+/**
+ * System-wide paid AI spend per UTC day for the last `days` days, oldest→newest
+ * and DENSE (zero-filled) so the trend chart has a bar per day. Bounded by the
+ * `usage_daily(day)` index.
+ */
+export async function getDailyCostTrend(days = 14): Promise<DailyCost[]> {
+  const rows = await db.$queryRaw<{ day: string; cost_usd: string }[]>`
+    SELECT day::text AS day, COALESCE(SUM(cost_usd), 0)::text AS cost_usd
+    FROM usage_daily
+    WHERE day >= (now() AT TIME ZONE 'utc')::date - ${days - 1}::int
+    GROUP BY day
+  `;
+  const byDay = new Map(rows.map((r) => [r.day, Number(r.cost_usd)]));
+
+  const now = new Date();
+  const result: DailyCost[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i),
+    );
+    const date = d.toISOString().slice(0, 10);
+    result.push({ date, costUsd: byDay.get(date) ?? 0 });
+  }
+  return result;
+}
+
+export type TopSpender = {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  /** Paid AI spend this UTC calendar month. */
+  monthCostUsd: number;
+};
+
+/**
+ * Users with the most month-to-date paid AI spend (descending), for the admin
+ * costs page. Two queries (sum, then user lookup) — no N+1. Zero-spend users
+ * are excluded.
+ */
+export async function getTopSpendersThisMonth(
+  limit = 10,
+): Promise<TopSpender[]> {
+  const rows = await db.$queryRaw<{ user_id: string; cost_usd: string }[]>`
+    SELECT user_id, SUM(cost_usd)::text AS cost_usd
+    FROM usage_daily
+    WHERE day >= date_trunc('month', (now() AT TIME ZONE 'utc'))::date
+    GROUP BY user_id
+    HAVING SUM(cost_usd) > 0
+    ORDER BY SUM(cost_usd) DESC
+    LIMIT ${limit}
+  `;
+  if (rows.length === 0) return [];
+
+  const users = await db.user.findMany({
+    where: { id: { in: rows.map((r) => r.user_id) } },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+    },
+  });
+  const byId = new Map(users.map((u) => [u.id, u]));
+
+  // Preserve the SQL spend-descending order.
+  return rows.map((r) => {
+    const u = byId.get(r.user_id);
+    return {
+      userId: r.user_id,
+      email: u?.email ?? "(unknown)",
+      firstName: u?.firstName ?? null,
+      lastName: u?.lastName ?? null,
+      username: u?.username ?? null,
+      monthCostUsd: Number(r.cost_usd),
+    };
+  });
+}

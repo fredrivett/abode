@@ -2,7 +2,9 @@
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import {
+  getDailyCostTrend,
   getGlobalUsageToday,
+  getTopSpendersThisMonth,
   getUsersUsageToday,
   getUserUsageBreakdown,
 } from "@/lib/admin/usage-stats";
@@ -165,5 +167,51 @@ describe("admin usage-stats integration", () => {
     expect(breakdown.dailyLimitUsd).toBe(PER_USER_DAILY_USD);
     expect(breakdown.monthlyLimitUsd).toBe(PER_USER_MONTHLY_USD);
     expect(breakdown.overCap).toBe(false);
+  });
+
+  test("getDailyCostTrend returns a dense, oldest→newest system spend series", async () => {
+    const a = await createUser("t1@example.com");
+    const b = await createUser("t2@example.com");
+    await seed(a.id, "ingestion", 1, 0.5); // today
+    await seed(b.id, "ingestion", 1, 0.2); // today (same day, different user)
+    await seed(a.id, "ingestion", 1, 0.3, -2); // two days ago
+
+    const trend = await getDailyCostTrend(3);
+
+    expect(trend).toHaveLength(3); // dense: one entry per day
+    // Oldest→newest, chronological.
+    expect(trend[0].date < trend[1].date && trend[1].date < trend[2].date).toBe(
+      true,
+    );
+    expect(trend[0].costUsd).toBeCloseTo(0.3, 4); // two days ago
+    expect(trend[1].costUsd).toBe(0); // yesterday: zero-filled
+    expect(trend[2].costUsd).toBeCloseTo(0.7, 4); // today: summed across users
+  });
+
+  test("getTopSpendersThisMonth ranks by month spend, excludes zero", async () => {
+    const big = await createUser("big@example.com");
+    const small = await createUser("small@example.com");
+    const none = await createUser("none@example.com");
+    await seed(big.id, "ingestion", 1, 3.0);
+    await seed(small.id, "ingestion", 1, 1.0);
+    await seed(none.id, "ingestion", 5, 0); // usage but no spend → excluded
+
+    const spenders = await getTopSpendersThisMonth(10);
+
+    expect(spenders.map((s) => s.userId)).toEqual([big.id, small.id]);
+    expect(spenders[0].monthCostUsd).toBeCloseTo(3.0, 4);
+    expect(spenders[0].email).toBe("big@example.com");
+  });
+
+  test("getTopSpendersThisMonth respects the limit", async () => {
+    for (let i = 0; i < 3; i++) {
+      const u = await createUser(`spender${i}@example.com`);
+      await seed(u.id, "ingestion", 1, i + 1);
+    }
+    const spenders = await getTopSpendersThisMonth(2);
+    expect(spenders).toHaveLength(2);
+    // Highest spend first ($3 then $2).
+    expect(spenders[0].monthCostUsd).toBeCloseTo(3, 4);
+    expect(spenders[1].monthCostUsd).toBeCloseTo(2, 4);
   });
 });
