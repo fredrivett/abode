@@ -19,6 +19,7 @@ import {
 import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 import { Highlight } from "./highlight";
 import { PasteKeys } from "./paste-keys";
+import { StepRail } from "./step-rail";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -737,25 +738,7 @@ export function LivingGallery() {
                   const StepIcon = step.icon;
                   return (
                     <li key={step.id} className="flex items-stretch gap-3">
-                      {/* Scroll-position rail: a dot per step, the active one
-                          an elongated pill that fills as you scroll through it. */}
-                      <div
-                        aria-hidden="true"
-                        className="flex w-1.5 shrink-0 items-stretch justify-center py-1.5"
-                      >
-                        {active ? (
-                          <div className="relative w-full flex-1 overflow-hidden rounded-full bg-foreground/15">
-                            <div
-                              className="absolute inset-x-0 top-0 rounded-full bg-gradient-to-b from-foreground/50 to-foreground"
-                              style={{
-                                height: `${Math.max(10, stepProgress * 100)}%`,
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="my-auto size-1.5 rounded-full bg-foreground/25" />
-                        )}
-                      </div>
+                      <StepRail active={active} progress={stepProgress} />
                       <button
                         type="button"
                         onClick={() => scrollToStep(i)}
