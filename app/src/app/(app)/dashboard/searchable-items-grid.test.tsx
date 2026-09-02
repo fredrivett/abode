@@ -103,6 +103,7 @@ describe("SearchableItemsGrid", () => {
   beforeEach(() => {
     captured = { items: [] };
     nav.params = new URLSearchParams();
+    document.title = "abode";
     mockUseSearchResults.mockReset();
   });
 
@@ -207,5 +208,23 @@ describe("SearchableItemsGrid", () => {
     );
     renderGrid(item("deep-linked"));
     expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+  });
+
+  it("sets the tab title to the open item (whether from the list or a deep link)", () => {
+    nav.params = new URLSearchParams("item=deep");
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: false }),
+    );
+    renderGrid({ id: "deep", title: "My Item" } as unknown as Item);
+    expect(document.title).toBe("My Item | abode");
+  });
+
+  it("leaves the tab title alone when no item is open", () => {
+    nav.params = new URLSearchParams();
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: false }),
+    );
+    renderGrid();
+    expect(document.title).toBe("abode");
   });
 });

@@ -1259,9 +1259,11 @@ function ItemDetailDialog({
     }
   }, [open, dragY, closingOpacity]);
 
-  // Reflect the open item in the tab title (and thus the history entry). The
-  // dialog only mounts while open, so the hook restores the prior title on close.
-  useDocumentTitle(`${decodeHtmlEntities(name)} | abode`);
+  // Off-dashboard (rooms, no ItemDialogProvider) the dialog owns the tab title
+  // while open. On the dashboard the grid drives it from the URL open-item
+  // instead — see SearchableItemsGrid — so opening by click and by refresh set
+  // it identically; setting it here too would double-manage and flicker.
+  useDocumentTitle(itemDialog ? null : `${decodeHtmlEntities(name)} | abode`);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
