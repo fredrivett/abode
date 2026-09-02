@@ -4,6 +4,17 @@ import type { Item } from "@/lib/types/item";
 
 const mockUseSearchResults = vi.fn();
 
+// Controllable next/navigation mock — a stable instance per value.
+const nav = vi.hoisted(() => ({ params: new URLSearchParams() }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => nav.params,
+}));
+
+// The provider only needs to render its children in these prop-capture tests.
+vi.mock("./item-dialog-context", () => ({
+  ItemDialogProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 vi.mock("@/lib/search", () => ({
   useSearch: () => ({ state: { query: "", filters: [] }, clearAll: vi.fn() }),
   useSearchResults: () => mockUseSearchResults(),
@@ -62,7 +73,7 @@ function makeSearchResults(overrides: Partial<SearchResults>): SearchResults {
 
 const FULL_LIST = [item("full-1"), item("full-2")];
 
-function renderGrid() {
+function renderGrid(initialOpenItem: Item | null = null) {
   return render(
     <SearchableItemsGrid
       initialItems={FULL_LIST}
@@ -70,6 +81,7 @@ function renderGrid() {
       initialHasMore={false}
       initialTotal={FULL_LIST.length}
       initialNoteDraft={null}
+      initialOpenItem={initialOpenItem}
     />,
   );
 }
@@ -82,6 +94,7 @@ function rerenderGrid(rerender: (ui: React.ReactElement) => void) {
       initialHasMore={false}
       initialTotal={FULL_LIST.length}
       initialNoteDraft={null}
+      initialOpenItem={null}
     />,
   );
 }
@@ -89,6 +102,7 @@ function rerenderGrid(rerender: (ui: React.ReactElement) => void) {
 describe("SearchableItemsGrid", () => {
   beforeEach(() => {
     captured = { items: [] };
+    nav.params = new URLSearchParams();
     mockUseSearchResults.mockReset();
   });
 
@@ -161,5 +175,37 @@ describe("SearchableItemsGrid", () => {
     expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
     expect(captured.showComposer).toBe(false);
     expect(captured.isSearchPending).toBe(true);
+  });
+
+  it("injects the open item at the front when it isn't already in the list", () => {
+    nav.params = new URLSearchParams("item=deep-linked");
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: false }),
+    );
+    renderGrid(item("deep-linked"));
+    expect(captured.items.map((i) => i.id)).toEqual([
+      "deep-linked",
+      "full-1",
+      "full-2",
+    ]);
+  });
+
+  it("doesn't duplicate the open item when it's already in the list", () => {
+    nav.params = new URLSearchParams("item=full-1");
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: false }),
+    );
+    renderGrid(item("full-1"));
+    expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
+  });
+
+  it("doesn't inject the open item once the URL no longer addresses it", () => {
+    // Dialog closed: item param gone, so the injected card shouldn't linger
+    nav.params = new URLSearchParams();
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: false }),
+    );
+    renderGrid(item("deep-linked"));
+    expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
   });
 });

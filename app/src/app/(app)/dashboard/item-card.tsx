@@ -67,6 +67,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -122,6 +123,7 @@ import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
+import { useItemDetailDialog, useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
@@ -243,7 +245,8 @@ export function ItemCard({
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const { isOpen: showDetailDialog, setOpen: setShowDetailDialog } =
+    useItemDetailDialog(item.id);
   const [isAnimating, setIsAnimating] = useState(false);
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -1160,6 +1163,7 @@ function ItemDetailDialog({
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
   const { setState: setSearchState } = useSearch();
+  const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
   const toggleId = useId();
   const [isSavingName, setIsSavingName] = useState(false);
@@ -1254,6 +1258,10 @@ function ItemDetailDialog({
       void animate(closingOpacity, 0, { duration: 0.3, ease: "easeOut" });
     }
   }, [open, dragY, closingOpacity]);
+
+  // Reflect the open item in the tab title (and thus the history entry). The
+  // dialog only mounts while open, so the hook restores the prior title on close.
+  useDocumentTitle(`${decodeHtmlEntities(name)} | abode`);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
@@ -1618,7 +1626,10 @@ function ItemDetailDialog({
       "item_detail_chip_searched",
       chipSearchAnalytics({ itemId: item.id, ...chip }),
     );
-    onOpenChange(false);
+    // In URL mode the search write drops ?item and closes the dialog on its own.
+    // Calling onOpenChange here would pop the pushed history entry and undo the
+    // filter the search write just applied — so only close manually off-URL.
+    if (!itemDialog) onOpenChange(false);
   };
 
   const handleDownload = async () => {
