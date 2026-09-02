@@ -143,6 +143,19 @@ describe("ItemDialogProvider", () => {
     expect(document.title).toBe("abode");
   });
 
+  it("keeps the open item's title when a later mismatched report arrives", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    renderProvider();
+
+    act(() => ctx?.reportItemTitle({ id: "abc", title: "My Item" }));
+    expect(document.title).toBe("My Item | abode");
+
+    // A stale report (e.g. a dialog mid-exit) must not overwrite/blank it
+    act(() => ctx?.reportItemTitle({ id: "other", title: "Stale" }));
+    expect(document.title).toBe("My Item | abode");
+  });
+
   it("clears the reported title when the open item goes away", () => {
     nav.params = new URLSearchParams("item=abc");
     document.title = "abode";

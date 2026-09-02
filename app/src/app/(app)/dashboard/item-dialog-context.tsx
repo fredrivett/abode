@@ -31,7 +31,7 @@ type ItemDialogContextValue = {
    * report whose id matches the current open item, so a stale report can't win
    * and a transient dialog remount can't blank the title.
    */
-  reportItemTitle: (report: { id: string; title: string } | null) => void;
+  reportItemTitle: (report: { id: string; title: string }) => void;
 };
 
 const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
@@ -52,6 +52,10 @@ const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
 export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
+
+  // Fresh open item id for the (stable) reportItemTitle callback to read.
+  const openItemIdRef = useRef(openItemId);
+  openItemIdRef.current = openItemId;
 
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
@@ -91,19 +95,25 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
     title: string;
   } | null>(null);
 
+  // Ignore a report for an item that isn't the one currently open (e.g. a dialog
+  // mid-exit) so a stale report can't overwrite — and thus blank — the open
+  // item's title.
+  const reportItemTitle = useCallback(
+    (report: { id: string; title: string }) => {
+      if (report.id !== openItemIdRef.current) return;
+      setReported(report);
+    },
+    [],
+  );
+
   const openItemTitle =
     openItemId && reported?.id === openItemId ? reported.title : null;
 
   useDocumentTitle(openItemTitle ? `${openItemTitle} | abode` : null);
 
   const value = useMemo(
-    () => ({
-      openItemId,
-      openItem,
-      closeItem,
-      reportItemTitle: setReported,
-    }),
-    [openItemId, openItem, closeItem],
+    () => ({ openItemId, openItem, closeItem, reportItemTitle }),
+    [openItemId, openItem, closeItem, reportItemTitle],
   );
 
   return (
