@@ -3,11 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useItemsInfinite } from "@/lib/api-hooks";
-import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { readItemParam } from "@/lib/items/item-dialog-url";
-import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
@@ -136,18 +133,6 @@ export function SearchableItemsGrid({
     return [initialOpenItem, ...displayItems];
   }, [displayItems, initialOpenItem, openItemId]);
 
-  // Drive the tab title from the open item here, at the stable grid level,
-  // rather than inside the dialog: opening (by click or a refreshed/deep-linked
-  // URL) and closing are both just an openItemId change, so the title is set and
-  // cleared identically and can't be clobbered by the dialog's mount lifecycle.
-  const openItem = openItemId
-    ? (gridItems.find((item) => item.id === openItemId) ?? null)
-    : null;
-  useDocumentTitle(
-    openItem
-      ? `${decodeHtmlEntities(getItemDisplayName(openItem))} | abode`
-      : null,
-  );
   // Composer shows on the full-list view (searchItems null); once we're
   // displaying search results it's hidden. While the first search is in flight
   // we're still on the full list, so keep it mounted but disabled.

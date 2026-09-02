@@ -6,10 +6,12 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   readItemParam,
   withOpenItem,
@@ -23,6 +25,13 @@ type ItemDialogContextValue = {
   openItem: (itemId: string) => void;
   /** Close the open dialog: pop history if we pushed, else strip the param. */
   closeItem: () => void;
+  /**
+   * Report the open item's live display name so the provider owns the tab
+   * title. The open dialog reports it (fresh for any list it came from, and
+   * updated on rename); the provider clears it when the open item changes, so a
+   * transient dialog remount can't blank the title.
+   */
+  setOpenItemTitle: (title: string | null) => void;
 };
 
 const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
@@ -70,8 +79,24 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  // The open item's display name, reported by the open dialog. Owned here (a
+  // stable component) rather than in the dialog so the tab title survives the
+  // dialog's mount churn on cold load and stays fresh after a rename.
+  const [openItemTitle, setOpenItemTitle] = useState<string | null>(null);
+
+  // Drop the reported title when the open item changes (including close), so a
+  // stale name never lingers before/after a dialog reports its own.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset keyed on the open item, not the title
+  useEffect(() => {
+    setOpenItemTitle(null);
+  }, [openItemId]);
+
+  useDocumentTitle(
+    openItemId && openItemTitle ? `${openItemTitle} | abode` : null,
+  );
+
   const value = useMemo(
-    () => ({ openItemId, openItem, closeItem }),
+    () => ({ openItemId, openItem, closeItem, setOpenItemTitle }),
     [openItemId, openItem, closeItem],
   );
 

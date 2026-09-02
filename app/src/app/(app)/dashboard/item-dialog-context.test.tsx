@@ -120,6 +120,33 @@ describe("ItemDialogProvider", () => {
     );
     expect(getByTestId("open").textContent).toBe("none");
   });
+
+  it("sets the tab title from the reported open-item name", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    renderProvider();
+
+    act(() => ctx?.setOpenItemTitle("My Item"));
+
+    expect(document.title).toBe("My Item | abode");
+  });
+
+  it("clears the reported title when the open item goes away", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    const { rerender } = renderProvider();
+    act(() => ctx?.setOpenItemTitle("My Item"));
+    expect(document.title).toBe("My Item | abode");
+
+    // Dialog closed: URL open-item gone → the provider drops the stale title
+    nav.params = new URLSearchParams();
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    expect(document.title).toBe("abode");
+  });
 });
 
 describe("useItemDetailDialog", () => {

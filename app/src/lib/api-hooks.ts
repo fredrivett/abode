@@ -111,35 +111,6 @@ export function useUpdateCachedNoteContent() {
   );
 }
 
-/**
- * Returns a stable callback that patches a single item's title directly in the
- * items cache — no refetch. Use after a rename so the grid card and the
- * URL-driven tab title reflect the new name immediately.
- */
-export function useUpdateCachedItemTitle() {
-  const queryClient = useQueryClient();
-  return useCallback(
-    ({ itemId, title }: { itemId: string; title: string }) => {
-      queryClient.setQueryData<InfiniteData<ItemsPageResponse>>(
-        ITEMS_QUERY_KEY,
-        (old) =>
-          old
-            ? {
-                ...old,
-                pages: old.pages.map((page) => ({
-                  ...page,
-                  items: page.items.map((item) =>
-                    item.id === itemId ? { ...item, title } : item,
-                  ),
-                })),
-              }
-            : old,
-      );
-    },
-    [queryClient],
-  );
-}
-
 // Example usage patterns for your API routes
 
 /**
