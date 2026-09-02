@@ -1265,10 +1265,10 @@ function ItemDetailDialog({
   // set on open (by click or refresh), updated on rename, and cleared when the
   // URL open-item changes, regardless of which list the card came from.
   useDocumentTitle(itemDialog ? null : `${decodeHtmlEntities(name)} | abode`);
-  const reportOpenItemTitle = itemDialog?.setOpenItemTitle;
+  const reportItemTitle = itemDialog?.reportItemTitle;
   useEffect(() => {
-    reportOpenItemTitle?.(decodeHtmlEntities(name));
-  }, [reportOpenItemTitle, name]);
+    reportItemTitle?.({ id: item.id, title: decodeHtmlEntities(name) });
+  }, [reportItemTitle, item.id, name]);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
