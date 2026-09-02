@@ -60,7 +60,7 @@ describe("ItemDialogProvider", () => {
 
   it("opens an item by pushing the item param onto history", () => {
     window.history.replaceState(null, "", "/?q=cat");
-    renderProvider();
+    const { getByTestId, rerender } = renderProvider();
 
     act(() => ctx?.openItem("abc"));
 
@@ -68,6 +68,16 @@ describe("ItemDialogProvider", () => {
     const url = String(pushSpy.mock.calls[0][2]);
     expect(url).toContain("q=cat");
     expect(url).toContain("item=abc");
+
+    // Simulate the router reflecting the pushed URL, then confirm the provider
+    // publishes the new open item (not just that it wrote history).
+    nav.params = new URLSearchParams("q=cat&item=abc");
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    expect(getByTestId("open").textContent).toBe("abc");
   });
 
   it("closes via history.back() when it opened the dialog itself", () => {
@@ -93,6 +103,22 @@ describe("ItemDialogProvider", () => {
     expect(replaceSpy).toHaveBeenCalledTimes(1);
     const url = String(replaceSpy.mock.calls[0][2]);
     expect(url).not.toContain("item=abc");
+  });
+
+  it("publishes no open item once the URL param is gone", () => {
+    // The router reflects a closed dialog (param stripped) — the provider must
+    // stop reporting the item as open, not just have written history.
+    nav.params = new URLSearchParams("item=abc");
+    const { getByTestId, rerender } = renderProvider();
+    expect(getByTestId("open").textContent).toBe("abc");
+
+    nav.params = new URLSearchParams();
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    expect(getByTestId("open").textContent).toBe("none");
   });
 });
 
