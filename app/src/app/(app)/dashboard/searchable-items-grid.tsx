@@ -1,11 +1,14 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useItemsInfinite } from "@/lib/api-hooks";
+import { readItemParam } from "@/lib/items/item-dialog-url";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
+import { ItemDialogProvider } from "./item-dialog-context";
 import { ItemsGrid } from "./items-grid";
 
 type SearchableItemsGridProps = {
@@ -15,6 +18,11 @@ type SearchableItemsGridProps = {
   initialTotal: number;
   /** Server-rendered composer draft, avoiding a client fetch on load */
   initialNoteDraft: string | null;
+  /**
+   * The item addressed by `?item=<id>` on load (refresh / deep link), fetched
+   * server-side so its dialog reopens even when it isn't on the first page.
+   */
+  initialOpenItem: Item | null;
 };
 
 /**
@@ -29,7 +37,9 @@ export function SearchableItemsGrid({
   initialHasMore,
   initialTotal,
   initialNoteDraft,
+  initialOpenItem,
 }: SearchableItemsGridProps) {
+  const searchParams = useSearchParams();
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
 
@@ -107,6 +117,21 @@ export function SearchableItemsGrid({
 
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
+
+  // Ensure the deep-linked/refreshed open item has a card to host its dialog,
+  // even if it isn't in the current list (older than page one, or not a search
+  // match). Only inject while the URL still addresses it, so it disappears once
+  // the dialog closes rather than lingering out of order.
+  const openItemId = readItemParam(searchParams);
+  const gridItems = useMemo(() => {
+    if (!initialOpenItem || openItemId !== initialOpenItem.id) {
+      return displayItems;
+    }
+    if (displayItems.some((item) => item.id === initialOpenItem.id)) {
+      return displayItems;
+    }
+    return [initialOpenItem, ...displayItems];
+  }, [displayItems, initialOpenItem, openItemId]);
   // Composer shows on the full-list view (searchItems null); once we're
   // displaying search results it's hidden. While the first search is in flight
   // we're still on the full list, so keep it mounted but disabled.
@@ -117,17 +142,19 @@ export function SearchableItemsGrid({
     : total;
 
   return (
-    <ItemsGrid
-      items={displayItems}
-      hasActiveSearch={searchResults.hasActiveSearch}
-      showComposer={showComposer}
-      isSearchPending={isSearchPending}
-      onClearSearch={clearAll}
-      hasMore={showLoadMore}
-      isLoadingMore={isFetchingNextPage}
-      onLoadMore={loadMore}
-      total={displayTotal}
-      initialNoteDraft={initialNoteDraft}
-    />
+    <ItemDialogProvider>
+      <ItemsGrid
+        items={gridItems}
+        hasActiveSearch={searchResults.hasActiveSearch}
+        showComposer={showComposer}
+        isSearchPending={isSearchPending}
+        onClearSearch={clearAll}
+        hasMore={showLoadMore}
+        isLoadingMore={isFetchingNextPage}
+        onLoadMore={loadMore}
+        total={displayTotal}
+        initialNoteDraft={initialNoteDraft}
+      />
+    </ItemDialogProvider>
   );
 }
