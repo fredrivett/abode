@@ -643,8 +643,15 @@ export function LivingGallery() {
           </div>
 
           {/* The wall — raised above the capture column so the grid overlaps it
-              where they meet during the scoot (the column paints behind). */}
-          <div className="relative z-10" style={wallStyle}>
+              where they meet during the scoot (the column paints behind). Once
+              scooting it goes click-through, so any overlap falls through to the
+              capture steps and they stay interactive (z-index alone raises the
+              paint order, not the hit-target). Pointer events stay on while
+              settled so the cards keep their hover. */}
+          <div
+            className={cn("relative z-10", scoot > 0 && "pointer-events-none")}
+            style={wallStyle}
+          >
             <BrowserChrome
               show={showChrome}
               activeTab={activeTab}
