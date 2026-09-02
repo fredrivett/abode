@@ -132,6 +132,7 @@ export function SearchableItemsGrid({
     }
     return [initialOpenItem, ...displayItems];
   }, [displayItems, initialOpenItem, openItemId]);
+
   // Composer shows on the full-list view (searchItems null); once we're
   // displaying search results it's hidden. While the first search is in flight
   // we're still on the full list, so keep it mounted but disabled.

@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   readItemParam,
   withOpenItem,
@@ -23,6 +24,14 @@ type ItemDialogContextValue = {
   openItem: (itemId: string) => void;
   /** Close the open dialog: pop history if we pushed, else strip the param. */
   closeItem: () => void;
+  /**
+   * Report the open item's live display name so the provider owns the tab
+   * title. The open dialog reports it (fresh for any list it came from, and
+   * updated on rename), tagged with the item id; the provider only applies a
+   * report whose id matches the current open item, so a stale report can't win
+   * and a transient dialog remount can't blank the title.
+   */
+  reportItemTitle: (report: { id: string; title: string }) => void;
 };
 
 const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
@@ -43,6 +52,10 @@ const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
 export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
+
+  // Fresh open item id for the (stable) reportItemTitle callback to read.
+  const openItemIdRef = useRef(openItemId);
+  openItemIdRef.current = openItemId;
 
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
@@ -70,9 +83,37 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  // The open item's display name, reported by the open dialog and tagged with
+  // its id. Owned here (a stable component) rather than in the dialog so the tab
+  // title survives the dialog's mount churn on cold load and stays fresh after a
+  // rename. We derive the effective title during render and only apply a report
+  // whose id matches the current open item — so there's no reset effect that
+  // could race the dialog's (child-first) report, and a stale report is ignored
+  // rather than blanking the title.
+  const [reported, setReported] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
+  // Ignore a report for an item that isn't the one currently open (e.g. a dialog
+  // mid-exit) so a stale report can't overwrite — and thus blank — the open
+  // item's title.
+  const reportItemTitle = useCallback(
+    (report: { id: string; title: string }) => {
+      if (report.id !== openItemIdRef.current) return;
+      setReported(report);
+    },
+    [],
+  );
+
+  const openItemTitle =
+    openItemId && reported?.id === openItemId ? reported.title : null;
+
+  useDocumentTitle(openItemTitle ? `${openItemTitle} | abode` : null);
+
   const value = useMemo(
-    () => ({ openItemId, openItem, closeItem }),
-    [openItemId, openItem, closeItem],
+    () => ({ openItemId, openItem, closeItem, reportItemTitle }),
+    [openItemId, openItem, closeItem, reportItemTitle],
   );
 
   return (

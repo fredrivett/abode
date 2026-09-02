@@ -1259,9 +1259,16 @@ function ItemDetailDialog({
     }
   }, [open, dragY, closingOpacity]);
 
-  // Reflect the open item in the tab title (and thus the history entry). The
-  // dialog only mounts while open, so the hook restores the prior title on close.
-  useDocumentTitle(`${decodeHtmlEntities(name)} | abode`);
+  // Tab title for the open item. Off-dashboard (rooms, no provider) the dialog
+  // owns it directly. On the dashboard the dialog instead reports its live name
+  // to the provider, which owns the title from a single stable spot — so it's
+  // set on open (by click or refresh), updated on rename, and cleared when the
+  // URL open-item changes, regardless of which list the card came from.
+  useDocumentTitle(itemDialog ? null : `${decodeHtmlEntities(name)} | abode`);
+  const reportItemTitle = itemDialog?.reportItemTitle;
+  useEffect(() => {
+    reportItemTitle?.({ id: item.id, title: decodeHtmlEntities(name) });
+  }, [reportItemTitle, item.id, name]);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {

@@ -23,6 +23,21 @@ describe("useDocumentTitle", () => {
     expect(document.title).toBe("Original");
   });
 
+  it("leaves the title untouched when given null", () => {
+    renderHook(() => useDocumentTitle(null));
+    expect(document.title).toBe("Original");
+  });
+
+  it("restores the original when the title becomes null", () => {
+    const { rerender } = renderHook(
+      ({ title }: { title: string | null }) => useDocumentTitle(title),
+      { initialProps: { title: "Set" as string | null } },
+    );
+    expect(document.title).toBe("Set");
+    rerender({ title: null });
+    expect(document.title).toBe("Original");
+  });
+
   it("updates when the title changes and still restores the original", () => {
     const { rerender, unmount } = renderHook(
       ({ title }) => useDocumentTitle(title),

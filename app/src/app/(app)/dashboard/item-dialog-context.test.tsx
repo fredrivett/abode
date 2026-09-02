@@ -120,6 +120,58 @@ describe("ItemDialogProvider", () => {
     );
     expect(getByTestId("open").textContent).toBe("none");
   });
+
+  it("sets the tab title from a report matching the open item", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    renderProvider();
+
+    act(() => ctx?.reportItemTitle({ id: "abc", title: "My Item" }));
+
+    expect(document.title).toBe("My Item | abode");
+  });
+
+  it("ignores a report tagged with a different item id", () => {
+    // Guards the effect-ordering hazard: a stale report (e.g. a closing dialog)
+    // must not blank or hijack the current open item's title.
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    renderProvider();
+
+    act(() => ctx?.reportItemTitle({ id: "other", title: "Stale" }));
+
+    expect(document.title).toBe("abode");
+  });
+
+  it("keeps the open item's title when a later mismatched report arrives", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    renderProvider();
+
+    act(() => ctx?.reportItemTitle({ id: "abc", title: "My Item" }));
+    expect(document.title).toBe("My Item | abode");
+
+    // A stale report (e.g. a dialog mid-exit) must not overwrite/blank it
+    act(() => ctx?.reportItemTitle({ id: "other", title: "Stale" }));
+    expect(document.title).toBe("My Item | abode");
+  });
+
+  it("clears the reported title when the open item goes away", () => {
+    nav.params = new URLSearchParams("item=abc");
+    document.title = "abode";
+    const { rerender } = renderProvider();
+    act(() => ctx?.reportItemTitle({ id: "abc", title: "My Item" }));
+    expect(document.title).toBe("My Item | abode");
+
+    // Dialog closed: URL open-item gone → the provider drops the stale title
+    nav.params = new URLSearchParams();
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    expect(document.title).toBe("abode");
+  });
 });
 
 describe("useItemDetailDialog", () => {

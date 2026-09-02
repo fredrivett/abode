@@ -23,7 +23,7 @@ import {
 } from "@/lib/items/card-aspect";
 import { measureCardText } from "@/lib/items/card-text-measurer";
 import { isFreshlyAdded } from "@/lib/items/grow-in";
-import { noteDisplayName } from "@/lib/items/note-title";
+import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { readAspectHint } from "@/lib/items/provisional-aspect";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
@@ -261,33 +261,13 @@ export function ItemsGrid({
               const isProduct = item.kind === "product";
               const isBook = item.kind === "book";
               const isNote = item.kind === "note";
-              const isProcessingUrl =
-                item.sourceType === "url" &&
-                item.processingStatus === "processing";
               // A URL whose kind hasn't resolved yet — still processing or
               // failed. Both render the icon placeholder card and should share
               // the provisional aspect so it doesn't snap between states.
               const isUnresolvedUrl =
                 item.sourceType === "url" && item.kind === null;
 
-              // Derive display name - item.title is the single source of truth
-              let name: string;
-              if (isProcessingUrl && !item.title && item.sourceUrl) {
-                // For processing URLs without a title yet, show the domain
-                try {
-                  name = new URL(item.sourceUrl).hostname;
-                } catch {
-                  name = "Processing URL";
-                }
-              } else if (isNote && !item.title) {
-                // Title-less notes (body doesn't open with a heading) fall back
-                // to their first line rather than showing "Untitled"
-                name =
-                  noteDisplayName(item.noteDetails?.content ?? "") ??
-                  "Untitled";
-              } else {
-                name = item.title ?? "Untitled";
-              }
+              const name = getItemDisplayName(item);
 
               const size = formatBytes(meta.size as number | undefined);
               const mimeType = meta.type as string | undefined;
