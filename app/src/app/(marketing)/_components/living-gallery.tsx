@@ -619,7 +619,10 @@ export function LivingGallery() {
             : "py-24",
         )}
       >
-        <div className="relative mx-auto w-full max-w-6xl px-4">
+        {/* `isolate` scopes the wall/column z-ordering to this container, so the
+            wall's z-10 can't escape to compete with the top-section content or
+            the sticky header — it only ranks the wall above the capture column. */}
+        <div className="relative isolate mx-auto w-full max-w-6xl px-4">
           {/* Intro heading — collapses + fades as the capture column takes
               over, so the wall alone centres. */}
           <div
@@ -639,8 +642,16 @@ export function LivingGallery() {
             </h2>
           </div>
 
-          {/* The wall */}
-          <div style={wallStyle}>
+          {/* The wall — raised above the capture column so the grid overlaps it
+              where they meet during the scoot (the column paints behind). Once
+              scooting it goes click-through, so any overlap falls through to the
+              capture steps and they stay interactive (z-index alone raises the
+              paint order, not the hit-target). Pointer events stay on while
+              settled so the cards keep their hover. */}
+          <div
+            className={cn("relative z-10", scoot > 0 && "pointer-events-none")}
+            style={wallStyle}
+          >
             <BrowserChrome
               show={showChrome}
               activeTab={activeTab}
@@ -717,7 +728,10 @@ export function LivingGallery() {
             </BrowserChrome>
           </div>
 
-          {/* Capture column — fades/slides in from the right during the scoot. */}
+          {/* Capture column — fades/slides in from the right during the scoot.
+              The wall (raised above it, see the wall wrapper's z-10) overlaps it
+              where they meet; the column stays above its parent so the steps are
+              still the top hit-target and remain clickable. */}
           {effectOn && (
             <div
               className="pointer-events-auto absolute top-1/2 right-0 w-80"
