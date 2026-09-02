@@ -69,7 +69,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useInvalidateItems, useUpdateCachedItemTitle } from "@/lib/api-hooks";
 import {
   BOOK_TILE_PADDING_X,
   BOOK_TILE_PADDING_Y,
@@ -1162,6 +1162,7 @@ function ItemDetailDialog({
   canEdit,
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
+  const updateCachedItemTitle = useUpdateCachedItemTitle();
   const { setState: setSearchState } = useSearch();
   const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
@@ -1363,6 +1364,10 @@ function ItemDetailDialog({
       // Update item.title directly - it's the single source of truth for display name
       await api.patch(`/api/v1/items/${item.id}`, { title: trimmed });
       onNameChange(trimmed);
+      // Patch the cached item so the grid card and the URL-driven tab title
+      // (which reads the cache) reflect the new name immediately, not just the
+      // dialog's local state.
+      updateCachedItemTitle({ itemId: item.id, title: trimmed });
 
       // Track item title update
       posthog.capture("item_title_updated", {
