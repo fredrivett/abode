@@ -12,11 +12,17 @@ export const ITEM_DIALOG_PARAM = "item";
 
 type ReadableParams = { get(name: string): string | null };
 
-/** Read the open item id from a query string or (Readonly)URLSearchParams. */
+/**
+ * Read the open item id from a query string or (Readonly)URLSearchParams.
+ *
+ * Normalized to lowercase: item ids are UUIDs stored canonically (lowercase) in
+ * Postgres, so an uppercase value in a hand-edited/shared URL must be lowered to
+ * match the id the client compares against, or the dialog would never open.
+ */
 export function readItemParam(search: string | ReadableParams): string | null {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
-  return params.get(ITEM_DIALOG_PARAM);
+  return params.get(ITEM_DIALOG_PARAM)?.toLowerCase() ?? null;
 }
 
 /**

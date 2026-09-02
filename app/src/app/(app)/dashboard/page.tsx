@@ -23,10 +23,11 @@ export default async function DashboardPage({
   const { share, item: openItemParam } = await searchParams;
   // The open-item deep link must be a single canonical UUID before it reaches
   // the UUID-typed id filter — a malformed or repeated ?item would otherwise
-  // 500 the dashboard. Anything else is treated as no open item.
+  // 500 the dashboard. Lowercase it so an uppercase URL matches the canonical
+  // (lowercase) id the client compares against. Anything else is no open item.
   const openItemId =
     typeof openItemParam === "string" && isCanonicalUuid(openItemParam)
-      ? openItemParam
+      ? openItemParam.toLowerCase()
       : null;
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([

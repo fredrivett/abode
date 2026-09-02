@@ -21,6 +21,12 @@ describe("item-dialog-url", () => {
     it("accepts a URLSearchParams instance", () => {
       expect(readItemParam(new URLSearchParams("item=xyz"))).toBe("xyz");
     });
+
+    it("normalizes an uppercase UUID to lowercase (canonical) form", () => {
+      expect(readItemParam("?item=2C4A9F0E-1B23-4D56-8E90-ABCDEF012345")).toBe(
+        "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+      );
+    });
   });
 
   describe("withOpenItem", () => {
