@@ -1,6 +1,11 @@
-import { act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ItemDialogProvider, useItemDialog } from "./item-dialog-context";
+import {
+  ItemDialogProvider,
+  useItemDetailDialog,
+  useItemDialog,
+} from "./item-dialog-context";
 
 // Controllable next/navigation mock — a stable instance per value.
 const nav = vi.hoisted(() => ({ params: new URLSearchParams() }));
@@ -88,5 +93,50 @@ describe("ItemDialogProvider", () => {
     expect(replaceSpy).toHaveBeenCalledTimes(1);
     const url = String(replaceSpy.mock.calls[0][2]);
     expect(url).not.toContain("item=abc");
+  });
+});
+
+describe("useItemDetailDialog", () => {
+  let backSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    nav.params = new URLSearchParams();
+    window.history.replaceState(null, "", "/");
+    backSpy = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    backSpy.mockRestore();
+  });
+
+  const withProvider = ({ children }: { children: ReactNode }) => (
+    <ItemDialogProvider>{children}</ItemDialogProvider>
+  );
+
+  it("derives open state from the URL when inside a provider", () => {
+    nav.params = new URLSearchParams("item=abc");
+    const { result } = renderHook(() => useItemDetailDialog("abc"), {
+      wrapper: withProvider,
+    });
+    expect(result.current.isOpen).toBe(true);
+  });
+
+  it("is closed for a different item than the one in the URL", () => {
+    nav.params = new URLSearchParams("item=abc");
+    const { result } = renderHook(() => useItemDetailDialog("other"), {
+      wrapper: withProvider,
+    });
+    expect(result.current.isOpen).toBe(false);
+  });
+
+  it("falls back to local state with no provider", () => {
+    const { result } = renderHook(() => useItemDetailDialog("abc"));
+    expect(result.current.isOpen).toBe(false);
+
+    act(() => result.current.setOpen(true));
+    expect(result.current.isOpen).toBe(true);
+
+    act(() => result.current.setOpen(false));
+    expect(result.current.isOpen).toBe(false);
   });
 });

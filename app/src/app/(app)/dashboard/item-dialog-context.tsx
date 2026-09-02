@@ -8,6 +8,7 @@ import {
   useContext,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
   readItemParam,
@@ -87,4 +88,35 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
  */
 export function useItemDialog(): ItemDialogContextValue | null {
   return useContext(ItemDialogContext);
+}
+
+/**
+ * Open/close state for a single item's detail dialog.
+ *
+ * On the dashboard the dialog is URL-addressable via {@link ItemDialogProvider}
+ * (so refresh and the Back button work); everywhere else (e.g. room views)
+ * there's no provider and it falls back to local component state.
+ */
+export function useItemDetailDialog(itemId: string): {
+  isOpen: boolean;
+  setOpen: (open: boolean) => void;
+} {
+  const itemDialog = useItemDialog();
+  const [localOpen, setLocalOpen] = useState(false);
+
+  const isOpen = itemDialog ? itemDialog.openItemId === itemId : localOpen;
+
+  const setOpen = useCallback(
+    (open: boolean) => {
+      if (!itemDialog) {
+        setLocalOpen(open);
+        return;
+      }
+      if (open) itemDialog.openItem(itemId);
+      else itemDialog.closeItem();
+    },
+    [itemDialog, itemId],
+  );
+
+  return { isOpen, setOpen };
 }

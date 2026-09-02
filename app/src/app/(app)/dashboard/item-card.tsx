@@ -67,6 +67,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import {
@@ -122,7 +123,7 @@ import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
-import { useItemDialog } from "./item-dialog-context";
+import { useItemDetailDialog, useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
@@ -244,21 +245,8 @@ export function ItemCard({
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  // On the dashboard the dialog is URL-addressable via context (so a refresh or
-  // Back button works); other surfaces (e.g. rooms) fall back to local state.
-  const itemDialog = useItemDialog();
-  const [localDetailOpen, setLocalDetailOpen] = useState(false);
-  const showDetailDialog = itemDialog
-    ? itemDialog.openItemId === item.id
-    : localDetailOpen;
-  const setShowDetailDialog = (next: boolean) => {
-    if (!itemDialog) {
-      setLocalDetailOpen(next);
-      return;
-    }
-    if (next) itemDialog.openItem(item.id);
-    else itemDialog.closeItem();
-  };
+  const { isOpen: showDetailDialog, setOpen: setShowDetailDialog } =
+    useItemDetailDialog(item.id);
   const [isAnimating, setIsAnimating] = useState(false);
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -1271,15 +1259,9 @@ function ItemDetailDialog({
     }
   }, [open, dragY, closingOpacity]);
 
-  // Reflect the open item in the document title so the browser tab and history
-  // entry read meaningfully, restoring the previous title when the dialog closes
-  useEffect(() => {
-    const previous = document.title;
-    document.title = `${decodeHtmlEntities(name)} | abode`;
-    return () => {
-      document.title = previous;
-    };
-  }, [name]);
+  // Reflect the open item in the tab title (and thus the history entry). The
+  // dialog only mounts while open, so the hook restores the prior title on close.
+  useDocumentTitle(`${decodeHtmlEntities(name)} | abode`);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
