@@ -122,6 +122,7 @@ import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
 import { LocationDropzone } from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
+import { useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
@@ -243,7 +244,21 @@ export function ItemCard({
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  // On the dashboard the dialog is URL-addressable via context (so a refresh or
+  // Back button works); other surfaces (e.g. rooms) fall back to local state.
+  const itemDialog = useItemDialog();
+  const [localDetailOpen, setLocalDetailOpen] = useState(false);
+  const showDetailDialog = itemDialog
+    ? itemDialog.openItemId === item.id
+    : localDetailOpen;
+  const setShowDetailDialog = (next: boolean) => {
+    if (!itemDialog) {
+      setLocalDetailOpen(next);
+      return;
+    }
+    if (next) itemDialog.openItem(item.id);
+    else itemDialog.closeItem();
+  };
   const [isAnimating, setIsAnimating] = useState(false);
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -1160,6 +1175,7 @@ function ItemDetailDialog({
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
   const { setState: setSearchState } = useSearch();
+  const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
   const toggleId = useId();
   const [isSavingName, setIsSavingName] = useState(false);
@@ -1254,6 +1270,16 @@ function ItemDetailDialog({
       void animate(closingOpacity, 0, { duration: 0.3, ease: "easeOut" });
     }
   }, [open, dragY, closingOpacity]);
+
+  // Reflect the open item in the document title so the browser tab and history
+  // entry read meaningfully, restoring the previous title when the dialog closes
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${decodeHtmlEntities(name)} | abode`;
+    return () => {
+      document.title = previous;
+    };
+  }, [name]);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
@@ -1618,7 +1644,10 @@ function ItemDetailDialog({
       "item_detail_chip_searched",
       chipSearchAnalytics({ itemId: item.id, ...chip }),
     );
-    onOpenChange(false);
+    // In URL mode the search write drops ?item and closes the dialog on its own.
+    // Calling onOpenChange here would pop the pushed history entry and undo the
+    // filter the search write just applied — so only close manually off-URL.
+    if (!itemDialog) onOpenChange(false);
   };
 
   const handleDownload = async () => {
