@@ -19,6 +19,7 @@ import {
 import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
 import { Highlight } from "./highlight";
 import { PasteKeys } from "./paste-keys";
+import { StepRail } from "./step-rail";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -51,6 +52,18 @@ const STEPS = [
 // scooting the wall left before the steps begin.
 const CAPTURE_VH = 2.2;
 const SCOOT_FRAC = 0.22;
+
+// Width of a single step's scroll band, as a fraction of the capture budget.
+const STEP_BAND = (1 - SCOOT_FRAC) / STEPS.length;
+
+// Map overall capture progress (`cap`, 0→1) to the active step index and how far
+// through that step's band we've scrolled (`progress`, 0→1). Both the scroll
+// handler (active step + indicator fill) and scrollToStep derive from this.
+export function stepFromCap(cap: number): { index: number; progress: number } {
+  const raw = (cap - SCOOT_FRAC) / STEP_BAND;
+  const index = Math.min(STEPS.length - 1, Math.max(0, Math.floor(raw)));
+  return { index, progress: clamp01(raw - index) };
+}
 
 // The "save from anywhere" (browser extension) step — its demo frames the wall.
 const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
@@ -253,6 +266,8 @@ export function LivingGallery() {
   const [scoot, setScoot] = useState(0);
   // Which capture step is active — driven purely by scroll position.
   const [activeStep, setActiveStep] = useState(0);
+  // 0→1 scroll progress through the active step's band (feeds the indicator rail).
+  const [stepProgress, setStepProgress] = useState(0);
   // Platform-correct modifier symbol (⌘ on Apple, Ctrl elsewhere). Resolved
   // after mount to avoid an SSR/client mismatch; defaults to the Mac form.
   const [modSym, setModSym] = useState("⌘");
@@ -284,8 +299,7 @@ export function LivingGallery() {
     const wrap = wrapperRef.current;
     if (!wrap) return;
     const sectionTop = wrap.getBoundingClientRect().top + window.scrollY;
-    const band = (1 - SCOOT_FRAC) / STEPS.length;
-    const targetCap = SCOOT_FRAC + (i + 0.5) * band;
+    const targetCap = SCOOT_FRAC + (i + 0.5) * STEP_BAND;
     window.scrollTo({
       top: sectionTop + targetCap * window.innerHeight * CAPTURE_VH,
       behavior: "smooth",
@@ -315,6 +329,7 @@ export function LivingGallery() {
       settledRef.current = false;
       setScoot(0);
       setActiveStep(0);
+      setStepProgress(0);
       return;
     }
     let raf = 0;
@@ -336,13 +351,9 @@ export function LivingGallery() {
       // Capture progress runs from where the stage pins (secTop = 0).
       const cap = clamp01(-secTop / (vh * CAPTURE_VH));
       setScoot(clamp01(cap / SCOOT_FRAC));
-      const band = (1 - SCOOT_FRAC) / STEPS.length;
-      setActiveStep(
-        Math.min(
-          STEPS.length - 1,
-          Math.max(0, Math.floor((cap - SCOOT_FRAC) / band)),
-        ),
-      );
+      const { index, progress } = stepFromCap(cap);
+      setActiveStep(index);
+      setStepProgress(progress);
       // Track the viewport + grid's natural height so the wall can scale to fit
       // (measured off the transform, so scale doesn't feed back into it).
       if (vh !== vhRef.current) {
@@ -726,12 +737,13 @@ export function LivingGallery() {
                   const active = i === activeStep;
                   const StepIcon = step.icon;
                   return (
-                    <li key={step.id}>
+                    <li key={step.id} className="flex items-stretch gap-3">
+                      <StepRail active={active} progress={stepProgress} />
                       <button
                         type="button"
                         onClick={() => scrollToStep(i)}
                         className={cn(
-                          "w-full cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
+                          "min-w-0 flex-1 cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
                           active
                             ? "border-border bg-muted/50"
                             : "border-transparent opacity-50 hover:opacity-80",
