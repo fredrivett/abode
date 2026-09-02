@@ -1,7 +1,11 @@
 import db from "@/lib/db";
 import { getNoteDraft } from "@/lib/items/note-draft";
 import { itemSelect, transformItem } from "@/lib/items/query";
-import { DEFAULT_PAGE_SIZE, encodeCursor } from "@/lib/pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  encodeCursor,
+  isCanonicalUuid,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
@@ -14,9 +18,16 @@ import { ShareToast } from "./share-toast";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ share?: string; item?: string }>;
+  searchParams: Promise<{ share?: string; item?: string | string[] }>;
 }) {
-  const { share, item: openItemId } = await searchParams;
+  const { share, item: openItemParam } = await searchParams;
+  // The open-item deep link must be a single canonical UUID before it reaches
+  // the UUID-typed id filter — a malformed or repeated ?item would otherwise
+  // 500 the dashboard. Anything else is treated as no open item.
+  const openItemId =
+    typeof openItemParam === "string" && isCanonicalUuid(openItemParam)
+      ? openItemParam
+      : null;
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
     supabase.auth.getClaims(),
