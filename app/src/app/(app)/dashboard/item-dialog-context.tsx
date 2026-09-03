@@ -10,12 +10,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   readItemParam,
   withOpenItem,
   withoutOpenItem,
 } from "@/lib/items/item-dialog-url";
+import { useOpenItemTabTitle } from "./use-open-item-tab-title";
 
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
@@ -53,10 +53,6 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
 
-  // Fresh open item id for the (stable) reportItemTitle callback to read.
-  const openItemIdRef = useRef(openItemId);
-  openItemIdRef.current = openItemId;
-
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
   const openedViaPushRef = useRef(false);
@@ -83,33 +79,9 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  // The open item's display name, reported by the open dialog and tagged with
-  // its id. Owned here (a stable component) rather than in the dialog so the tab
-  // title survives the dialog's mount churn on cold load and stays fresh after a
-  // rename. We derive the effective title during render and only apply a report
-  // whose id matches the current open item — so there's no reset effect that
-  // could race the dialog's (child-first) report, and a stale report is ignored
-  // rather than blanking the title.
-  const [reported, setReported] = useState<{
-    id: string;
-    title: string;
-  } | null>(null);
-
-  // Ignore a report for an item that isn't the one currently open (e.g. a dialog
-  // mid-exit) so a stale report can't overwrite — and thus blank — the open
-  // item's title.
-  const reportItemTitle = useCallback(
-    (report: { id: string; title: string }) => {
-      if (report.id !== openItemIdRef.current) return;
-      setReported(report);
-    },
-    [],
-  );
-
-  const openItemTitle =
-    openItemId && reported?.id === openItemId ? reported.title : null;
-
-  useDocumentTitle(openItemTitle ? `${openItemTitle} | abode` : null);
+  // The tab title for the open item is owned by a dedicated hook — the dialog
+  // reports its live name through the returned callback.
+  const reportItemTitle = useOpenItemTabTitle(openItemId);
 
   const value = useMemo(
     () => ({ openItemId, openItem, closeItem, reportItemTitle }),

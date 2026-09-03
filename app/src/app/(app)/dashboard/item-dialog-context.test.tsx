@@ -172,6 +172,38 @@ describe("ItemDialogProvider", () => {
     );
     expect(document.title).toBe("abode");
   });
+
+  it("leaves the tab title untouched before any item is opened", () => {
+    nav.params = new URLSearchParams();
+    document.title = "[branch] abode";
+    renderProvider();
+    expect(document.title).toBe("[branch] abode");
+  });
+
+  it("restores the exact captured base title on close", () => {
+    // Loaded without an item open → the provider captures the base title
+    // (including the dev branch prefix) to restore verbatim later.
+    nav.params = new URLSearchParams();
+    document.title = "[branch] abode";
+    const { rerender } = renderProvider();
+
+    nav.params = new URLSearchParams("item=abc");
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    act(() => ctx?.reportItemTitle({ id: "abc", title: "My Item" }));
+    expect(document.title).toBe("My Item | abode");
+
+    nav.params = new URLSearchParams();
+    rerender(
+      <ItemDialogProvider>
+        <Consumer />
+      </ItemDialogProvider>,
+    );
+    expect(document.title).toBe("[branch] abode");
+  });
 });
 
 describe("useItemDetailDialog", () => {
