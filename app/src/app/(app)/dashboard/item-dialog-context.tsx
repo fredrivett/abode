@@ -6,6 +6,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -16,6 +17,9 @@ import {
   withOpenItem,
   withoutOpenItem,
 } from "@/lib/items/item-dialog-url";
+import { createLogger } from "@/lib/logger.client";
+
+const log = createLogger("title-debug");
 
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
@@ -100,7 +104,14 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   // item's title.
   const reportItemTitle = useCallback(
     (report: { id: string; title: string }) => {
-      if (report.id !== openItemIdRef.current) return;
+      if (report.id !== openItemIdRef.current) {
+        log.info(
+          { report, openItemId: openItemIdRef.current },
+          "reportItemTitle: REJECT (id mismatch)",
+        );
+        return;
+      }
+      log.info({ report }, "reportItemTitle: ACCEPT");
       setReported(report);
     },
     [],
@@ -108,6 +119,28 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
 
   const openItemTitle =
     openItemId && reported?.id === openItemId ? reported.title : null;
+
+  log.info({ openItemId, reported, openItemTitle }, "provider render");
+
+  // Diagnostic: log EVERY change to <title>, whoever makes it (our hook, Next
+  // metadata, etc.), so we can see the flick-back in order.
+  useEffect(() => {
+    const titleEl = document.querySelector("title");
+    if (!titleEl) {
+      log.info("no <title> element to observe");
+      return;
+    }
+    log.info({ initial: document.title }, "title observer: attached");
+    const observer = new MutationObserver(() => {
+      log.info({ title: document.title }, "title observer: CHANGED");
+    });
+    observer.observe(titleEl, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
 
   useDocumentTitle(openItemTitle ? `${openItemTitle} | abode` : null);
 

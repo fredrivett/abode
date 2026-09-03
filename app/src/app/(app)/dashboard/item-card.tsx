@@ -1267,6 +1267,14 @@ function ItemDetailDialog({
   useDocumentTitle(itemDialog ? null : `${decodeHtmlEntities(name)} | abode`);
   const reportItemTitle = itemDialog?.reportItemTitle;
   useEffect(() => {
+    log.info(
+      {
+        id: item.id,
+        title: decodeHtmlEntities(name),
+        hasProvider: !!reportItemTitle,
+      },
+      "[title-debug] dialog report effect",
+    );
     reportItemTitle?.({ id: item.id, title: decodeHtmlEntities(name) });
   }, [reportItemTitle, item.id, name]);
 

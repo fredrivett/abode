@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { createLogger } from "@/lib/logger.client";
+
+const log = createLogger("title-debug");
 
 /**
  * Set `document.title` while the calling component is mounted, restoring the
@@ -12,10 +15,18 @@ import { useEffect } from "react";
  */
 export function useDocumentTitle(title: string | null): void {
   useEffect(() => {
-    if (title === null) return;
+    if (title === null) {
+      log.info("useDocumentTitle: null (no-op)");
+      return;
+    }
     const previous = document.title;
+    log.info({ from: previous, to: title }, "useDocumentTitle: SET");
     document.title = title;
     return () => {
+      log.info(
+        { restoringTo: previous, current: document.title },
+        "useDocumentTitle: RESTORE (cleanup)",
+      );
       document.title = previous;
     };
   }, [title]);
