@@ -6,6 +6,7 @@ import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
 import { GIT_BRANCH } from "@/env";
+import { APP_NAME } from "@/lib/app";
 import { shortBranchName } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
@@ -43,11 +44,11 @@ const branchPrefix = branchName ? `[${branchName}] ` : "";
 
 export const metadata: Metadata = {
   title: {
-    default: `${branchPrefix}abode`,
+    default: `${branchPrefix}${APP_NAME}`,
     template: `${branchPrefix}%s`,
   },
   description: "the home for your info",
-  applicationName: "abode",
+  applicationName: APP_NAME,
   icons: {
     icon: [
       {
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "abode",
+    title: APP_NAME,
   },
   formatDetection: {
     telephone: false,

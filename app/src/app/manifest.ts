@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { APP_NAME } from "@/lib/app";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "abode",
-    short_name: "abode",
+    name: APP_NAME,
+    short_name: APP_NAME,
     description: "Your digital home",
     start_url: "/",
     display: "standalone",

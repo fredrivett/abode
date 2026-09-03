@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/app";
 import db from "@/lib/db";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
@@ -64,7 +65,7 @@ export async function generateMetadata({
   const name = decodeHtmlEntities(
     getItemDisplayName(transformItem(openItemRaw)),
   );
-  return { title: { absolute: `${name} | abode` } };
+  return { title: { absolute: `${name} | ${APP_NAME}` } };
 }
 
 /**

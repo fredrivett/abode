@@ -70,6 +70,7 @@ import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { APP_NAME } from "@/lib/app";
 import {
   BOOK_TILE_PADDING_X,
   BOOK_TILE_PADDING_Y,
@@ -1264,7 +1265,9 @@ function ItemDetailDialog({
   // to the provider, which owns the title from a single stable spot — so it's
   // set on open (by click or refresh), updated on rename, and cleared when the
   // URL open-item changes, regardless of which list the card came from.
-  useDocumentTitle(itemDialog ? null : `${decodeHtmlEntities(name)} | abode`);
+  useDocumentTitle(
+    itemDialog ? null : `${decodeHtmlEntities(name)} | ${APP_NAME}`,
+  );
   const reportItemTitle = itemDialog?.reportItemTitle;
   useEffect(() => {
     reportItemTitle?.({ id: item.id, title: decodeHtmlEntities(name) });
