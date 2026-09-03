@@ -6,16 +6,19 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   readItemParam,
   withOpenItem,
   withoutOpenItem,
 } from "@/lib/items/item-dialog-url";
+
+/** Fallback tab title when nothing was captured (e.g. refreshed with an item open). */
+const APP_TITLE = "abode";
 
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
@@ -109,7 +112,31 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const openItemTitle =
     openItemId && reported?.id === openItemId ? reported.title : null;
 
-  useDocumentTitle(openItemTitle ? `${openItemTitle} | abode` : null);
+  // Remember the base tab title (as server-rendered, including any dev branch
+  // prefix) the first time we load without an item open, so closing restores it
+  // exactly. A refresh with an item already open never sees the base, so it
+  // falls back to the app name.
+  const baseTitleRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (baseTitleRef.current === null && !openItemIdRef.current) {
+      baseTitleRef.current = document.title;
+    }
+  }, []);
+
+  // Own the tab title once an item has been opened: set the item title on
+  // open/rename, restore the base on close. We don't touch it before the first
+  // open, leaving the server-rendered title intact. On a refresh the server
+  // already renders the item title (see the page's generateMetadata), so setting
+  // the same value here causes no flicker.
+  const hasManagedTitleRef = useRef(false);
+  useEffect(() => {
+    if (openItemTitle) {
+      hasManagedTitleRef.current = true;
+      document.title = `${openItemTitle} | ${APP_TITLE}`;
+    } else if (hasManagedTitleRef.current) {
+      document.title = baseTitleRef.current ?? APP_TITLE;
+    }
+  }, [openItemTitle]);
 
   const value = useMemo(
     () => ({ openItemId, openItem, closeItem, reportItemTitle }),
