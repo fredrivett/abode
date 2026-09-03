@@ -1,34 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-
-/** Fallback tab title when nothing was captured (e.g. refreshed with an item open). */
-const APP_TITLE = "abode";
+import { APP_NAME } from "@/lib/app";
 
 /**
  * Owns the browser tab title for the open item-detail dialog.
  *
- * The open dialog reports its live display name (fresh for any list it came
- * from, and updated on rename) via the returned callback, tagged with its id.
- * We keep the report keyed by id and derive the effective title during render —
- * applying only a report whose id matches the current open item — so there's no
- * reset effect to race the dialog's (child-first) report, and a stale report is
- * ignored rather than blanking the title.
- *
- * The title is set on open/rename and the base is restored on close. We capture
- * the base (as server-rendered, including any dev branch prefix) when the app
- * loads without an item open, and leave the server-rendered title untouched
- * until the first open — so the plain dashboard title is preserved, and on a
- * refresh the server already renders the item title (see the page's
- * generateMetadata) so setting the same value causes no flicker.
+ * The open dialog reports its live name (via the returned callback) tagged with
+ * its id; we key the report by id and derive the title during render, so a stale
+ * report can't blank it and no reset effect races the report. The title is set
+ * on open/rename and the captured base restored on close; before the first open
+ * the server title is left untouched (the page's generateMetadata already
+ * renders the item title, so a refresh doesn't flicker).
  */
 export function useOpenItemTabTitle(
   openItemId: string | null,
 ): (report: { id: string; title: string }) => void {
-  // Fresh open item id for the (stable) reportItemTitle callback to read.
-  const openItemIdRef = useRef(openItemId);
-  openItemIdRef.current = openItemId;
-
   const [reported, setReported] = useState<{
     id: string;
     title: string;
@@ -36,12 +23,14 @@ export function useOpenItemTabTitle(
 
   // Ignore a report for an item that isn't the one currently open (e.g. a dialog
   // mid-exit) so a stale report can't overwrite — and thus blank — the title.
+  // Keyed on openItemId (not a ref) so the callback identity changes when the
+  // open item does, letting a card's report effect re-run as the URL opens it.
   const reportItemTitle = useCallback(
     (report: { id: string; title: string }) => {
-      if (report.id !== openItemIdRef.current) return;
+      if (report.id !== openItemId) return;
       setReported(report);
     },
-    [],
+    [openItemId],
   );
 
   const openItemTitle =
@@ -49,10 +38,11 @@ export function useOpenItemTabTitle(
 
   // Remember the base title to restore verbatim on close. Only meaningful when
   // we loaded without an item open; a refresh with an item open never sees the
-  // base, so it falls back to the app name.
+  // base, so it falls back to the app name. Captured from the mount-time id.
+  const loadedWithItemOpenRef = useRef(openItemId !== null);
   const baseTitleRef = useRef<string | null>(null);
   useEffect(() => {
-    if (baseTitleRef.current === null && !openItemIdRef.current) {
+    if (baseTitleRef.current === null && !loadedWithItemOpenRef.current) {
       baseTitleRef.current = document.title;
     }
   }, []);
@@ -62,9 +52,9 @@ export function useOpenItemTabTitle(
   useEffect(() => {
     if (openItemTitle) {
       hasManagedTitleRef.current = true;
-      document.title = `${openItemTitle} | ${APP_TITLE}`;
+      document.title = `${openItemTitle} | ${APP_NAME}`;
     } else if (hasManagedTitleRef.current) {
-      document.title = baseTitleRef.current ?? APP_TITLE;
+      document.title = baseTitleRef.current ?? APP_NAME;
     }
   }, [openItemTitle]);
 
