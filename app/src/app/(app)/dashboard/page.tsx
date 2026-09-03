@@ -38,8 +38,9 @@ function fetchOpenItem({ itemId, userId }: { itemId: string; userId: string }) {
  * shows the right tab title with no flicker. The client (ItemDialogProvider)
  * keeps the title in sync for in-page open/close/rename; here we only need the
  * initial SSR value to match what the client sets, so a full-page load doesn't
- * briefly show the base title. `absolute` bypasses the root title template so
- * the value matches the client's exactly (no `[branch] ` dev prefix).
+ * briefly show the base title. Returned as a plain string so the root title
+ * template applies the dev `[branch] ` prefix — the client mirrors it via
+ * branchTitlePrefix(), so the two still match.
  */
 export async function generateMetadata({
   searchParams,
@@ -65,7 +66,7 @@ export async function generateMetadata({
   const name = decodeHtmlEntities(
     getItemDisplayName(transformItem(openItemRaw)),
   );
-  return { title: { absolute: `${name} | ${APP_NAME}` } };
+  return { title: `${name} | ${APP_NAME}` };
 }
 
 /**

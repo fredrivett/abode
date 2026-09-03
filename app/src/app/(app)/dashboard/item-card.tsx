@@ -77,6 +77,7 @@ import {
   getBookCoverRatio,
   getDominantCoverColor,
 } from "@/lib/book-cover";
+import { branchTitlePrefix } from "@/lib/branch-title";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { gridCardStyle } from "@/lib/grid-styles";
@@ -1266,7 +1267,9 @@ function ItemDetailDialog({
   // set on open (by click or refresh), updated on rename, and cleared when the
   // URL open-item changes, regardless of which list the card came from.
   useDocumentTitle(
-    itemDialog ? null : `${decodeHtmlEntities(name)} | ${APP_NAME}`,
+    itemDialog
+      ? null
+      : `${branchTitlePrefix()}${decodeHtmlEntities(name)} | ${APP_NAME}`,
   );
   const reportItemTitle = itemDialog?.reportItemTitle;
   useEffect(() => {

@@ -5,9 +5,8 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { Footer } from "@/components/footer";
-import { GIT_BRANCH } from "@/env";
 import { APP_NAME } from "@/lib/app";
-import { shortBranchName } from "@/lib/branch-title";
+import { branchTitlePrefix } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 
@@ -39,8 +38,7 @@ export const viewport: Viewport = {
 // checkouts are easy to tell apart. GIT_BRANCH is only injected in development,
 // so production is unaffected. Using a template also prefixes pages that set
 // their own title (e.g. "Help | abode").
-const branchName = shortBranchName(GIT_BRANCH);
-const branchPrefix = branchName ? `[${branchName}] ` : "";
+const branchPrefix = branchTitlePrefix();
 
 export const metadata: Metadata = {
   title: {

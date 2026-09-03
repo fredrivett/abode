@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { APP_NAME } from "@/lib/app";
+import { branchTitlePrefix } from "@/lib/branch-title";
 
 /**
  * Owns the browser tab title for the open item-detail dialog.
@@ -52,9 +53,12 @@ export function useOpenItemTabTitle(
   useEffect(() => {
     if (openItemTitle) {
       hasManagedTitleRef.current = true;
-      document.title = `${openItemTitle} | ${APP_NAME}`;
+      // Mirror the root metadata template so a client-set title matches the
+      // server-rendered one (dev branch prefix included).
+      document.title = `${branchTitlePrefix()}${openItemTitle} | ${APP_NAME}`;
     } else if (hasManagedTitleRef.current) {
-      document.title = baseTitleRef.current ?? APP_NAME;
+      document.title =
+        baseTitleRef.current ?? `${branchTitlePrefix()}${APP_NAME}`;
     }
   }, [openItemTitle]);
 
