@@ -47,6 +47,7 @@ export type ParsedFilters = {
   color?: FilterValue[];
   source?: FilterValue[];
   location?: FilterValue[];
+  read?: FilterValue[];
   dateAfter?: string;
   dateBefore?: string;
 };
@@ -56,6 +57,16 @@ export const VALID_ITEM_KINDS = Object.values(ItemKind) as ItemKindType[];
 
 /** Valid SourceType enum values derived from Prisma schema */
 export const VALID_SOURCE_TYPES = Object.values(SourceType) as SourceTypeType[];
+
+/**
+ * Valid read-status filter values. Cross-kind: `unread`/`reading`/`read` apply
+ * to both articles and books; `dnf` (did not finish) is book-only. Articles
+ * only ever match unread/reading/read. Kept as its own list (not the Prisma
+ * enums) because it's the union of the article + book vocabularies as the user
+ * filters on them.
+ */
+export const VALID_READ_STATES = ["unread", "reading", "read", "dnf"] as const;
+export type ReadState = (typeof VALID_READ_STATES)[number];
 
 /** Represents an invalid filter value that was rejected during validation */
 export type InvalidFilterValue = {
@@ -188,6 +199,7 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
     "color",
     "source",
     "location",
+    "read",
   ] as const;
 
   let orGroupCounter = 0;
@@ -395,6 +407,61 @@ export function buildSourceCondition(
       ctx.params.push(filter.value);
       ctx.paramIndex++;
       return condition;
+    },
+  );
+
+  return { sql, params, invalid };
+}
+
+/**
+ * Validate read-status filter values against the cross-kind read vocabulary.
+ */
+export function validateReadFilters(filters: FilterValue[]): {
+  valid: FilterValue[];
+  invalid: InvalidFilterValue[];
+} {
+  return validateEnumFilters(filters, [...VALID_READ_STATES], "read");
+}
+
+/**
+ * SQL predicate (against the `items` table) that matches items in a given
+ * cross-kind read state. Values are hardcoded per validated ReadState — no user
+ * input reaches the SQL — so no bound params are needed.
+ *   - read / reading: an article OR a book in that state.
+ *   - dnf: a book that was marked did-not-finish (articles never qualify).
+ *   - unread: a readable item (article or book) not yet in a later state —
+ *     articles with no reading_status, books with null/want_to_read status.
+ */
+function readStateMatchSql(state: ReadState): string {
+  switch (state) {
+    case "read":
+      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status = 'read') OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'read'))`;
+    case "reading":
+      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status = 'reading') OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'reading'))`;
+    case "dnf":
+      return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'dnf')`;
+    case "unread":
+      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IN ('reading', 'read', 'dnf'))))`;
+  }
+}
+
+/**
+ * Build SQL WHERE conditions for the read-status filter.
+ * Validates values against the read vocabulary; handles OR groups (pipe) and
+ * negation. Cross-kind (articles + books) — see readStateMatchSql.
+ */
+export function buildReadCondition(
+  filters: FilterValue[],
+  startParamIndex: number,
+): { sql: string; params: unknown[]; invalid: InvalidFilterValue[] } {
+  const { valid: validFilters, invalid } = validateReadFilters(filters);
+
+  const { sql, params } = buildGroupedConditions(
+    validFilters,
+    startParamIndex,
+    (filter) => {
+      const match = readStateMatchSql(filter.value as ReadState);
+      return filter.negated ? `NOT ${match}` : match;
     },
   );
 
@@ -754,6 +821,21 @@ export function buildFilterConditions(
     }
   }
 
+  // Read-status filter (cross-kind: articles + books). The fragments reference
+  // items.id and items.kind, so qualify both onto the alias.
+  if (filters.read && filters.read.length > 0) {
+    const readCondition = buildReadCondition(filters.read, paramIndex);
+    if (readCondition.sql) {
+      conditions.push(
+        readCondition.sql
+          .replace(/\bitems\.id\b/g, `${alias}.id`)
+          .replace(/\bitems\.kind\b/g, `${alias}.kind`),
+      );
+      params.push(...readCondition.params);
+      paramIndex += readCondition.params.length;
+    }
+  }
+
   // Date filter
   if (filters.dateAfter || filters.dateBefore) {
     const dateCondition = buildDateCondition(
@@ -794,6 +876,7 @@ export function hasFilters(filters: ParsedFilters): boolean {
     (filters.color && filters.color.length > 0) ||
     (filters.source && filters.source.length > 0) ||
     (filters.location && filters.location.length > 0) ||
+    (filters.read && filters.read.length > 0) ||
     filters.dateAfter !== undefined ||
     filters.dateBefore !== undefined
   );

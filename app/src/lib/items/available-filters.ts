@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { VALID_READ_STATES } from "@/lib/search/query-builder";
 
 export type AvailableFilterType =
   | "tag"
@@ -6,7 +7,8 @@ export type AvailableFilterType =
   | "color"
   | "source"
   | "location"
-  | "type";
+  | "type"
+  | "read";
 
 export type AvailableFilters = {
   tag?: string[];
@@ -15,6 +17,7 @@ export type AvailableFilters = {
   source?: string[];
   location?: string[];
   type?: string[];
+  read?: string[];
 };
 
 // Auto-generated tags + manual user tags, combined and deduplicated
@@ -112,6 +115,12 @@ async function fetchTypes(userId: string): Promise<string[]> {
   return result.map((r) => r.kind);
 }
 
+// Read states are a fixed vocabulary (not user-derived), so the full ordered
+// list is always offered for autocomplete.
+async function fetchReadStates(): Promise<string[]> {
+  return [...VALID_READ_STATES];
+}
+
 const FETCHERS: Record<
   AvailableFilterType,
   (userId: string) => Promise<string[]>
@@ -122,6 +131,7 @@ const FETCHERS: Record<
   source: fetchSources,
   location: fetchLocations,
   type: fetchTypes,
+  read: fetchReadStates,
 };
 
 /**
@@ -138,14 +148,16 @@ export async function getAvailableFilters(
     return { [type]: await FETCHERS[type](userId) };
   }
 
-  const [tag, object, color, source, location, typeValues] = await Promise.all([
-    fetchTags(userId),
-    fetchObjects(userId),
-    fetchColors(userId),
-    fetchSources(userId),
-    fetchLocations(userId),
-    fetchTypes(userId),
-  ]);
+  const [tag, object, color, source, location, typeValues, read] =
+    await Promise.all([
+      fetchTags(userId),
+      fetchObjects(userId),
+      fetchColors(userId),
+      fetchSources(userId),
+      fetchLocations(userId),
+      fetchTypes(userId),
+      fetchReadStates(),
+    ]);
 
-  return { tag, object, color, source, location, type: typeValues };
+  return { tag, object, color, source, location, type: typeValues, read };
 }

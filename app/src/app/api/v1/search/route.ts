@@ -6,6 +6,7 @@ import type {
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { EMPTY_ARTICLE_READ_STATE } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -19,6 +20,7 @@ import {
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
+  validateReadFilters,
   validateSourceFilters,
   validateTypeFilters,
 } from "@/lib/search/query-builder";
@@ -218,6 +220,8 @@ function transformRawItemToItem(
             publishedAt: row.article_published_at?.toISOString() ?? null,
             readingTime: row.article_reading_time,
             content: row.article_content,
+            // Read state isn't projected in search rows or shown on cards.
+            ...EMPTY_ARTICLE_READ_STATE,
           }
         : null,
     twitterDetails:
@@ -410,6 +414,11 @@ export async function GET(request: NextRequest) {
     if (filters.source && filters.source.length > 0) {
       const { valid, invalid } = validateSourceFilters(filters.source);
       filters.source = valid.length > 0 ? valid : undefined;
+      invalidFilters.push(...invalid);
+    }
+    if (filters.read && filters.read.length > 0) {
+      const { valid, invalid } = validateReadFilters(filters.read);
+      filters.read = valid.length > 0 ? valid : undefined;
       invalidFilters.push(...invalid);
     }
 

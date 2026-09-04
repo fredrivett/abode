@@ -46,6 +46,7 @@ export type FiltersResponse = {
   source?: string[];
   location?: string[];
   type?: string[];
+  read?: string[];
 };
 
 export type SearchParams = {
@@ -56,6 +57,7 @@ export type SearchParams = {
   color?: string[];
   source?: string[];
   location?: string[];
+  read?: string[];
   dateAfter?: string;
   dateBefore?: string;
   cursor?: string;
@@ -79,6 +81,7 @@ function buildSearchParams(params: SearchParams): URLSearchParams {
     "color",
     "source",
     "location",
+    "read",
   ] as const;
   for (const key of arrayParams) {
     const values = params[key];

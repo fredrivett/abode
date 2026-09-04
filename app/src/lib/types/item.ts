@@ -6,6 +6,7 @@
  */
 
 import type {
+  ArticleReadingStatus,
   BookProgressUnit,
   BookReadingStatus,
   CaptureSource,
@@ -57,6 +58,14 @@ export type ArticleDetails = {
   publishedAt: string | null;
   readingTime: number | null;
   content: string | null;
+  // Per-user reading lifecycle. status null = unread. `reading` is inferred
+  // from sustained engagement; `read` is always a manual confirmation.
+  readingStatus: ArticleReadingStatus | null;
+  startedAt: string | null;
+  readAt: string | null;
+  // Scroll position for resume only (0..1 fraction). Private — never public.
+  scrollProgress: number | null;
+  progressUpdatedAt: string | null;
 };
 
 /**

@@ -68,6 +68,7 @@ function buildSearchParams(state: SearchState): {
   color?: string[];
   source?: string[];
   location?: string[];
+  read?: string[];
   dateAfter?: string;
   dateBefore?: string;
 } {
@@ -112,6 +113,9 @@ function buildSearchParams(state: SearchState): {
         break;
       case "location":
         params.location = values;
+        break;
+      case "read":
+        params.read = values;
         break;
       case "date":
         // Date filters are handled specially

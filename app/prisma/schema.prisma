@@ -397,6 +397,14 @@ model ItemMediaAnalysis {
   @@map("item_media_analysis")
 }
 
+// Per-user reading lifecycle for a saved article. Vocabulary is article-specific
+// (no `want_to_read`/`dnf` — an article is untracked, being read, or read).
+// Null status = unread: capturing or briefly opening an article isn't reading.
+enum ArticleReadingStatus {
+  reading
+  read
+}
+
 model ItemArticleDetails {
   itemId      String    @id @map("item_id") @db.Uuid
   item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -406,6 +414,19 @@ model ItemArticleDetails {
   publishedAt DateTime? @map("published_at")
   readingTime Int?      @map("reading_time") // minutes
   content     String?   // Extracted article text content
+
+  // Reading status (per-user; the item is already owned by one user). Null =
+  // unread. `reading` is inferred client-side after sustained engagement (in
+  // view past a dwell threshold AND scrolled), never from a quick open/close.
+  // `read` always requires manual confirmation (nudge or toggle).
+  readingStatus     ArticleReadingStatus? @map("reading_status")
+  startedAt         DateTime?             @map("started_at") // stamped on -> reading
+  readAt            DateTime?             @map("read_at")    // stamped on -> read
+
+  // Scroll position for resume only (0..1 fraction of the article), never a
+  // status signal — decoupled from readingStatus to keep the read state clean.
+  scrollProgress    Float?    @map("scroll_progress")
+  progressUpdatedAt DateTime? @map("progress_updated_at")
 
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
