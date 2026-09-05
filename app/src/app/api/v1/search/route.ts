@@ -215,7 +215,10 @@ function transformRawItemToItem(
       row.article_author ||
       row.article_domain ||
       row.article_published_at ||
-      row.article_content
+      row.article_content ||
+      row.article_read_at ||
+      row.article_scroll_progress != null ||
+      row.article_progress_updated_at
         ? {
             author: row.article_author,
             domain: row.article_domain,
