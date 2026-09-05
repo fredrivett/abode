@@ -366,14 +366,13 @@ export async function PATCH(
       updatedItem.bookDetails = upsertedBook;
     }
 
-    // Update per-user article read status + scroll progress. The lifecycle rules
-    // (stamping readAt/startedAt, never downgrading a read article) live in
-    // computeArticleReadingUpdate; we read the current row so those transitions
-    // are relative to stored state.
+    // Update per-user article read status + scroll progress. The rules (stamping
+    // readAt once, clearing it on unread) live in computeArticleReadingUpdate; we
+    // read the current row so re-confirming read preserves the original readAt.
     if (articleReading !== undefined) {
       const currentArticle = await db.itemArticleDetails.findUnique({
         where: { itemId: id },
-        select: { readingStatus: true, startedAt: true, readAt: true },
+        select: { readAt: true },
       });
       const articleData = computeArticleReadingUpdate({
         patch: articleReading,

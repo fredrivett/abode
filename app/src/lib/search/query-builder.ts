@@ -59,11 +59,10 @@ export const VALID_ITEM_KINDS = Object.values(ItemKind) as ItemKindType[];
 export const VALID_SOURCE_TYPES = Object.values(SourceType) as SourceTypeType[];
 
 /**
- * Valid read-status filter values. Cross-kind: `unread`/`reading`/`read` apply
- * to both articles and books; `dnf` (did not finish) is book-only. Articles
- * only ever match unread/reading/read. Kept as its own list (not the Prisma
- * enums) because it's the union of the article + book vocabularies as the user
- * filters on them.
+ * Valid read-status filter values. Cross-kind: `unread`/`read` apply to both
+ * articles and books; `reading` and `dnf` are book-only (articles use a binary
+ * read/unread model). Kept as its own list (not the Prisma enums) because it's
+ * the union of the article + book vocabularies as the user filters on them.
  */
 export const VALID_READ_STATES = ["unread", "reading", "read", "dnf"] as const;
 export type ReadState = (typeof VALID_READ_STATES)[number];
@@ -427,21 +426,23 @@ export function validateReadFilters(filters: FilterValue[]): {
  * SQL predicate (against the `items` table) that matches items in a given
  * cross-kind read state. Values are hardcoded per validated ReadState — no user
  * input reaches the SQL — so no bound params are needed.
- *   - read / reading: an article OR a book in that state.
+ *   - read: an article marked read OR a book with status read.
+ *   - reading: a book currently being read (articles are binary read/unread, so
+ *     they never qualify).
  *   - dnf: a book that was marked did-not-finish (articles never qualify).
- *   - unread: a readable item (article or book) not yet in a later state —
- *     articles with no reading_status, books with null/want_to_read status.
+ *   - unread: a readable item (article or book) not yet read — articles with no
+ *     read_at, books with null/want_to_read status.
  */
 function readStateMatchSql(state: ReadState): string {
   switch (state) {
     case "read":
-      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status = 'read') OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'read'))`;
+      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL) OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'read'))`;
     case "reading":
-      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status = 'reading') OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'reading'))`;
+      return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'reading')`;
     case "dnf":
       return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'dnf')`;
     case "unread":
-      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.reading_status IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IN ('reading', 'read', 'dnf'))))`;
+      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IN ('reading', 'read', 'dnf'))))`;
   }
 }
 

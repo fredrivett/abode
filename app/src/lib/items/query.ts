@@ -76,8 +76,6 @@ export const itemSelect = {
       publishedAt: true,
       readingTime: true,
       content: true,
-      readingStatus: true,
-      startedAt: true,
       readAt: true,
       scrollProgress: true,
       progressUpdatedAt: true,
@@ -282,18 +280,12 @@ export function transformItem(item: RawItem) {
  * (the raw SQL projection doesn't select it; cards don't display it).
  */
 export const EMPTY_ARTICLE_READ_STATE = {
-  readingStatus: null,
-  startedAt: null,
   readAt: null,
   scrollProgress: null,
   progressUpdatedAt: null,
 } satisfies Pick<
   ArticleDetails,
-  | "readingStatus"
-  | "startedAt"
-  | "readAt"
-  | "scrollProgress"
-  | "progressUpdatedAt"
+  "readAt" | "scrollProgress" | "progressUpdatedAt"
 >;
 
 /**
@@ -311,8 +303,6 @@ export function mapArticleDetails(
     publishedAt: article.publishedAt?.toISOString() ?? null,
     readingTime: article.readingTime,
     content: article.content,
-    readingStatus: article.readingStatus,
-    startedAt: article.startedAt?.toISOString() ?? null,
     readAt: article.readAt?.toISOString() ?? null,
     scrollProgress: article.scrollProgress,
     progressUpdatedAt: article.progressUpdatedAt?.toISOString() ?? null,
