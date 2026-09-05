@@ -6,7 +6,6 @@ import type {
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { EMPTY_ARTICLE_READ_STATE } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -97,6 +96,9 @@ type RawItemRow = {
   article_published_at: Date | null;
   article_reading_time: number | null;
   article_content: string | null;
+  article_read_at: Date | null;
+  article_scroll_progress: number | null;
+  article_progress_updated_at: Date | null;
   twitter_tweet_id: string | null;
   twitter_author_name: string | null;
   twitter_author_username: string | null;
@@ -220,8 +222,12 @@ function transformRawItemToItem(
             publishedAt: row.article_published_at?.toISOString() ?? null,
             readingTime: row.article_reading_time,
             content: row.article_content,
-            // Read state isn't projected in search rows or shown on cards.
-            ...EMPTY_ARTICLE_READ_STATE,
+            // Projected so opening an article from search shows the real read
+            // state and resumes at the saved position.
+            readAt: row.article_read_at?.toISOString() ?? null,
+            scrollProgress: row.article_scroll_progress,
+            progressUpdatedAt:
+              row.article_progress_updated_at?.toISOString() ?? null,
           }
         : null,
     twitterDetails:
@@ -620,6 +626,9 @@ async function executeFiltersOnlySearch(
       ad.published_at as article_published_at,
       ad.reading_time as article_reading_time,
       ad.content as article_content,
+      ad.read_at as article_read_at,
+      ad.scroll_progress as article_scroll_progress,
+      ad.progress_updated_at as article_progress_updated_at,
       td.tweet_id as twitter_tweet_id,
       td.author_name as twitter_author_name,
       td.author_username as twitter_author_username,
@@ -876,6 +885,9 @@ async function executeRankedSearch(
       ad.published_at as article_published_at,
       ad.reading_time as article_reading_time,
       ad.content as article_content,
+      ad.read_at as article_read_at,
+      ad.scroll_progress as article_scroll_progress,
+      ad.progress_updated_at as article_progress_updated_at,
       td.tweet_id as twitter_tweet_id,
       td.author_name as twitter_author_name,
       td.author_username as twitter_author_username,

@@ -96,12 +96,18 @@ export function ArticleDetailView({
       saveScrollProgress(fraction);
     };
     scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", onScroll);
+    return () => {
+      scroller.removeEventListener("scroll", onScroll);
+      // Flush any pending debounced write so a scroll-then-close (within the
+      // debounce window) still persists the final resume position.
+      saveScrollProgress.flush();
+    };
   }, [initialScrollProgress, enableTracking, saveScrollProgress]);
 
-  const handleMarkRead = () => {
+  const handleMarkRead = async () => {
     setIsRead(true);
-    setRead(true);
+    const ok = await setRead(true);
+    if (!ok) setIsRead(false);
   };
 
   return (
@@ -126,7 +132,7 @@ export function ArticleDetailView({
             <p className="text-muted-foreground text-sm">
               You've reached the end. Mark this article as read?
             </p>
-            <Button size="sm" onClick={handleMarkRead}>
+            <Button size="sm" onClick={() => void handleMarkRead()}>
               <Check />
               Mark as read
             </Button>

@@ -26,15 +26,21 @@ export function ArticleReadingControls({
 }: ArticleReadingControlsProps) {
   const { setRead } = useArticleReading(itemId);
   const [isRead, setIsRead] = useState(readAt != null);
+  const [pending, setPending] = useState(false);
 
   // Re-sync from the server after a save invalidates the items query (mirrors
   // the book reading controls / notes pattern in the detail modal).
   useEffect(() => setIsRead(readAt != null), [readAt]);
 
-  const toggle = () => {
+  // Disabled while in-flight so a double-click can't send opposite values
+  // concurrently; reverts the optimistic flip if the save fails.
+  const toggle = async () => {
     const next = !isRead;
     setIsRead(next);
-    setRead(next);
+    setPending(true);
+    const ok = await setRead(next);
+    if (!ok) setIsRead(!next);
+    setPending(false);
   };
 
   return (
@@ -46,7 +52,8 @@ export function ArticleReadingControls({
         variant={isRead ? "outline" : "default"}
         size="sm"
         className="w-full"
-        onClick={toggle}
+        disabled={pending}
+        onClick={() => void toggle()}
       >
         {isRead ? <RotateCcw /> : <Check />}
         {isRead ? "Mark as unread" : "Mark as read"}

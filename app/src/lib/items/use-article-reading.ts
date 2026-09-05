@@ -12,7 +12,8 @@ import { useInvalidateItems } from "@/lib/api-hooks";
  *
  * - `setRead` toggles read/unread with an immediate PATCH + items-query
  *   invalidation (so the sidebar toggle and the end-of-article nudge reconcile),
- *   and emits the read/unread analytics event.
+ *   and emits the read/unread analytics event. Resolves `true` on success and
+ *   `false` on failure so callers can revert optimistic UI.
  * - `saveScrollProgress` persists the reader's scroll position, debounced and
  *   coalesced so a scroll gesture writes once (the trailing value) per ~500ms
  *   pause rather than on every frame. Last-write-wins and fire-and-forget: it
@@ -24,23 +25,23 @@ export function useArticleReading(itemId: string) {
   const invalidateItems = useInvalidateItems();
 
   const setRead = useCallback(
-    (read: boolean) => {
-      void (async () => {
-        try {
-          await api.patch(`/api/v1/items/${itemId}`, {
-            articleReading: { read },
-          });
-          invalidateItems();
-          posthog.capture(
-            read ? "article_marked_read" : "article_marked_unread",
-            { item_id: itemId },
-          );
-        } catch {
-          toast.error(
-            read ? "Failed to mark as read" : "Failed to mark as unread",
-          );
-        }
-      })();
+    async (read: boolean): Promise<boolean> => {
+      try {
+        await api.patch(`/api/v1/items/${itemId}`, {
+          articleReading: { read },
+        });
+        invalidateItems();
+        posthog.capture(
+          read ? "article_marked_read" : "article_marked_unread",
+          { item_id: itemId },
+        );
+        return true;
+      } catch {
+        toast.error(
+          read ? "Failed to mark as read" : "Failed to mark as unread",
+        );
+        return false;
+      }
     },
     [itemId, invalidateItems],
   );
