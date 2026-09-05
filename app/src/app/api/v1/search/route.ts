@@ -20,8 +20,8 @@ import {
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
-  validateReadFilters,
   validateSourceFilters,
+  validateStatusFilters,
   validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { rankedSearch } from "@/lib/search/ranked-search";
@@ -416,9 +416,9 @@ export async function GET(request: NextRequest) {
       filters.source = valid.length > 0 ? valid : undefined;
       invalidFilters.push(...invalid);
     }
-    if (filters.read && filters.read.length > 0) {
-      const { valid, invalid } = validateReadFilters(filters.read);
-      filters.read = valid.length > 0 ? valid : undefined;
+    if (filters.status && filters.status.length > 0) {
+      const { valid, invalid } = validateStatusFilters(filters.status);
+      filters.status = valid.length > 0 ? valid : undefined;
       invalidFilters.push(...invalid);
     }
 

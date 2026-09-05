@@ -6,8 +6,8 @@ import {
   buildFilterConditions,
   buildLocationCondition,
   buildObjectCondition,
-  buildReadCondition,
   buildSourceCondition,
+  buildStatusCondition,
   buildTagCondition,
   buildTypeCondition,
   hasFilters,
@@ -16,10 +16,10 @@ import {
   parseFiltersFromParams,
   remapParamIndices,
   VALID_ITEM_KINDS,
-  VALID_READ_STATES,
   VALID_SOURCE_TYPES,
-  validateReadFilters,
+  VALID_STATUS_VALUES,
   validateSourceFilters,
+  validateStatusFilters,
   validateTypeFilters,
 } from "./query-builder";
 
@@ -57,7 +57,7 @@ describe("parseFiltersFromParams", () => {
 
     it("parses all array filter types", () => {
       const params = new URLSearchParams(
-        "type=image&tag=vacation&object=person&color=red&source=camera&location=paris&read=unread",
+        "type=image&tag=vacation&object=person&color=red&source=camera&location=paris&status=unread",
       );
       const filters = parseFiltersFromParams(params);
       expect(filters.type).toHaveLength(1);
@@ -66,7 +66,7 @@ describe("parseFiltersFromParams", () => {
       expect(filters.color).toHaveLength(1);
       expect(filters.source).toHaveLength(1);
       expect(filters.location).toHaveLength(1);
-      expect(filters.read).toEqual([{ value: "unread", negated: false }]);
+      expect(filters.status).toEqual([{ value: "unread", negated: false }]);
     });
   });
 
@@ -638,51 +638,54 @@ describe("buildColorCondition", () => {
   });
 });
 
-describe("validateReadFilters", () => {
+describe("validateStatusFilters", () => {
   it("accepts every valid read state (case-insensitively)", () => {
-    const { valid, invalid } = validateReadFilters(
-      VALID_READ_STATES.map((value) => ({
+    const { valid, invalid } = validateStatusFilters(
+      VALID_STATUS_VALUES.map((value) => ({
         value: value.toUpperCase(),
         negated: false,
       })),
     );
     expect(invalid).toEqual([]);
-    expect(valid.map((f) => f.value)).toEqual([...VALID_READ_STATES]);
+    expect(valid.map((f) => f.value)).toEqual([...VALID_STATUS_VALUES]);
   });
 
   it("rejects an unknown read state", () => {
-    const { valid, invalid } = validateReadFilters([
+    const { valid, invalid } = validateStatusFilters([
       { value: "skimmed", negated: false },
     ]);
     expect(valid).toEqual([]);
     expect(invalid).toHaveLength(1);
-    expect(invalid[0]?.filterType).toBe("read");
+    expect(invalid[0]?.filterType).toBe("status");
   });
 });
 
-describe("buildReadCondition", () => {
+describe("buildStatusCondition", () => {
   it("matches read across articles (read_at) and books (status)", () => {
-    const { sql } = buildReadCondition([{ value: "read", negated: false }], 1);
+    const { sql } = buildStatusCondition(
+      [{ value: "read", negated: false }],
+      1,
+    );
     expect(sql).toContain("item_article_details");
     expect(sql).toContain("ad.read_at IS NOT NULL");
     expect(sql).toContain("bd.status = 'read'");
   });
 
   it("scopes reading and dnf to books only (articles are binary)", () => {
-    const reading = buildReadCondition(
+    const reading = buildStatusCondition(
       [{ value: "reading", negated: false }],
       1,
     );
     expect(reading.sql).toContain("bd.status = 'reading'");
     expect(reading.sql).not.toContain("item_article_details");
 
-    const dnf = buildReadCondition([{ value: "dnf", negated: false }], 1);
+    const dnf = buildStatusCondition([{ value: "dnf", negated: false }], 1);
     expect(dnf.sql).toContain("bd.status = 'dnf'");
     expect(dnf.sql).not.toContain("item_article_details");
   });
 
   it("matches unread readable items via read_at IS NULL / not-yet-read books", () => {
-    const { sql } = buildReadCondition(
+    const { sql } = buildStatusCondition(
       [{ value: "unread", negated: false }],
       1,
     );
@@ -693,7 +696,7 @@ describe("buildReadCondition", () => {
   });
 
   it("negates with NOT and never binds params (values are hardcoded)", () => {
-    const { sql, params } = buildReadCondition(
+    const { sql, params } = buildStatusCondition(
       [{ value: "read", negated: true }],
       1,
     );
@@ -702,7 +705,7 @@ describe("buildReadCondition", () => {
   });
 
   it("ORs pipe-separated values in one group", () => {
-    const { sql } = buildReadCondition(
+    const { sql } = buildStatusCondition(
       [
         { value: "read", negated: false, orGroup: 0 },
         { value: "reading", negated: false, orGroup: 0 },
@@ -713,7 +716,7 @@ describe("buildReadCondition", () => {
   });
 
   it("reports invalid values", () => {
-    const { invalid } = buildReadCondition(
+    const { invalid } = buildStatusCondition(
       [{ value: "nope", negated: false }],
       1,
     );
@@ -767,11 +770,11 @@ describe("buildFilterConditions", () => {
     expect(result.nextParamIndex).toBe(4);
   });
 
-  it("qualifies the read filter's items.id and items.kind onto the alias", () => {
+  it("qualifies the status filter's items.id and items.kind onto the alias", () => {
     // Default alias `i` proves the remap actually rewrites the bare `items.*`
     // references the read fragment emits.
     const result = buildFilterConditions("user-1", {
-      read: [{ value: "unread", negated: false }],
+      status: [{ value: "unread", negated: false }],
     });
     const joined = result.conditions.join(" ");
     expect(joined).toContain("ad.item_id = i.id");
@@ -807,8 +810,8 @@ describe("hasFilters", () => {
     expect(hasFilters({ dateBefore: "2024-06-01" })).toBe(true);
   });
 
-  it("returns true for read filter", () => {
-    expect(hasFilters({ read: [{ value: "unread", negated: false }] })).toBe(
+  it("returns true for status filter", () => {
+    expect(hasFilters({ status: [{ value: "unread", negated: false }] })).toBe(
       true,
     );
   });

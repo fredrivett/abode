@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { VALID_READ_STATES } from "@/lib/search/query-builder";
+import { VALID_STATUS_VALUES } from "@/lib/search/query-builder";
 
 export type AvailableFilterType =
   | "tag"
@@ -8,7 +8,7 @@ export type AvailableFilterType =
   | "source"
   | "location"
   | "type"
-  | "read";
+  | "status";
 
 export type AvailableFilters = {
   tag?: string[];
@@ -17,7 +17,7 @@ export type AvailableFilters = {
   source?: string[];
   location?: string[];
   type?: string[];
-  read?: string[];
+  status?: string[];
 };
 
 // Auto-generated tags + manual user tags, combined and deduplicated
@@ -115,10 +115,10 @@ async function fetchTypes(userId: string): Promise<string[]> {
   return result.map((r) => r.kind);
 }
 
-// Read states are a fixed vocabulary (not user-derived), so the full ordered
+// Status values are a fixed vocabulary (not user-derived), so the full ordered
 // list is always offered for autocomplete.
-async function fetchReadStates(): Promise<string[]> {
-  return [...VALID_READ_STATES];
+async function fetchStatusValues(): Promise<string[]> {
+  return [...VALID_STATUS_VALUES];
 }
 
 const FETCHERS: Record<
@@ -131,7 +131,7 @@ const FETCHERS: Record<
   source: fetchSources,
   location: fetchLocations,
   type: fetchTypes,
-  read: fetchReadStates,
+  status: fetchStatusValues,
 };
 
 /**
@@ -148,7 +148,7 @@ export async function getAvailableFilters(
     return { [type]: await FETCHERS[type](userId) };
   }
 
-  const [tag, object, color, source, location, typeValues, read] =
+  const [tag, object, color, source, location, typeValues, status] =
     await Promise.all([
       fetchTags(userId),
       fetchObjects(userId),
@@ -156,8 +156,8 @@ export async function getAvailableFilters(
       fetchSources(userId),
       fetchLocations(userId),
       fetchTypes(userId),
-      fetchReadStates(),
+      fetchStatusValues(),
     ]);
 
-  return { tag, object, color, source, location, type: typeValues, read };
+  return { tag, object, color, source, location, type: typeValues, status };
 }

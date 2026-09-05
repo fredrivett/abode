@@ -31,7 +31,7 @@
   --color-filter-source: var(--filter-source);
   --color-filter-date: var(--filter-date);
   --color-filter-location: var(--filter-location);
-  --color-filter-read: var(--filter-read);
+  --color-filter-status: var(--filter-status);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -98,7 +98,7 @@
   --filter-source: oklch(0.55 0.22 125); /* Lime */
   --filter-date: oklch(0.5 0.18 195); /* Teal */
   --filter-location: oklch(0.5 0.22 295); /* Violet */
-  --filter-read: oklch(0.55 0.18 70); /* Amber */
+  --filter-status: oklch(0.55 0.18 70); /* Amber */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -142,7 +142,7 @@
   --filter-source: oklch(0.75 0.2 125); /* Lime - brighter in dark mode */
   --filter-date: oklch(0.7 0.16 195); /* Teal - brighter in dark mode */
   --filter-location: oklch(0.72 0.2 295); /* Violet - brighter in dark mode */
-  --filter-read: oklch(0.74 0.16 70); /* Amber - brighter in dark mode */
+  --filter-status: oklch(0.74 0.16 70); /* Amber - brighter in dark mode */
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
