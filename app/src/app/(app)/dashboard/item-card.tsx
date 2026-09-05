@@ -161,6 +161,14 @@ const BookDetailView = dynamic(
   { ssr: false, loading: detailViewLoading },
 );
 
+const ArticleReadingControls = dynamic(
+  () =>
+    import("@/components/article/article-reading-controls").then(
+      (m) => m.ArticleReadingControls,
+    ),
+  { ssr: false },
+);
+
 const BookReadingControls = dynamic(
   () =>
     import("@/components/book/book-reading-controls").then(
@@ -1842,6 +1850,9 @@ function ItemDetailDialog({
                     content={item.articleDetails.content}
                     originalName={meta.originalName as string | undefined}
                     scrollToHighlightId={scrollToHighlightId}
+                    initialScrollProgress={item.articleDetails.scrollProgress}
+                    readAt={item.articleDetails.readAt}
+                    enableTracking={canEdit}
                   />
                 </motion.div>
               ) : isInstagram && item.instagramDetails ? (
@@ -2333,6 +2344,14 @@ function ItemDetailDialog({
                     <BookReadingControls
                       itemId={item.id}
                       bookDetails={item.bookDetails}
+                    />
+                  )}
+
+                  {/* Article read toggle (editable) */}
+                  {isArticle && item.articleDetails && canEdit && (
+                    <ArticleReadingControls
+                      itemId={item.id}
+                      readAt={item.articleDetails.readAt}
                     />
                   )}
 

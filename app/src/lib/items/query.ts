@@ -4,6 +4,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type {
+  ArticleDetails,
   BookDetails,
   ExternalLink,
   ImageColor,
@@ -75,6 +76,9 @@ export const itemSelect = {
       publishedAt: true,
       readingTime: true,
       content: true,
+      readAt: true,
+      scrollProgress: true,
+      progressUpdatedAt: true,
     },
   },
   twitterDetails: {
@@ -209,10 +213,7 @@ export function transformItem(item: RawItem) {
     imageDetails: undefined,
     roomItems: undefined,
     articleDetails: item.articleDetails
-      ? {
-          ...item.articleDetails,
-          publishedAt: item.articleDetails.publishedAt?.toISOString() ?? null,
-        }
+      ? mapArticleDetails(item.articleDetails)
       : null,
     twitterDetails: item.twitterDetails
       ? ({
@@ -269,6 +270,42 @@ export function transformItem(item: RawItem) {
     noteDetails: item.noteDetails
       ? ({ content: item.noteDetails.content } satisfies NoteDetails)
       : null,
+  };
+}
+
+/**
+ * Article read-state fields in their empty (unread, no-progress) shape. Spread
+ * into ArticleDetails DTOs that deliberately don't carry per-user read state:
+ * public pages (privacy — read state never leaves the owner) and search rows
+ * (the raw SQL projection doesn't select it; cards don't display it).
+ */
+export const EMPTY_ARTICLE_READ_STATE = {
+  readAt: null,
+  scrollProgress: null,
+  progressUpdatedAt: null,
+} satisfies Pick<
+  ArticleDetails,
+  "readAt" | "scrollProgress" | "progressUpdatedAt"
+>;
+
+/**
+ * Map a raw article-details row to the client ArticleDetails DTO (dates → ISO
+ * strings). Shared by transformItem and the item PATCH handler so the reading
+ * fields stay in sync in one place. Read state is private — never selected on
+ * public paths (they use their own bibliographic-only article select).
+ */
+export function mapArticleDetails(
+  article: NonNullable<RawItem["articleDetails"]>,
+): ArticleDetails {
+  return {
+    author: article.author,
+    domain: article.domain,
+    publishedAt: article.publishedAt?.toISOString() ?? null,
+    readingTime: article.readingTime,
+    content: article.content,
+    readAt: article.readAt?.toISOString() ?? null,
+    scrollProgress: article.scrollProgress,
+    progressUpdatedAt: article.progressUpdatedAt?.toISOString() ?? null,
   };
 }
 

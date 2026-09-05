@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { VALID_STATUS_VALUES } from "@/lib/search/query-builder";
 
 export type AvailableFilterType =
   | "tag"
@@ -6,7 +7,8 @@ export type AvailableFilterType =
   | "color"
   | "source"
   | "location"
-  | "type";
+  | "type"
+  | "status";
 
 export type AvailableFilters = {
   tag?: string[];
@@ -15,6 +17,7 @@ export type AvailableFilters = {
   source?: string[];
   location?: string[];
   type?: string[];
+  status?: string[];
 };
 
 // Auto-generated tags + manual user tags, combined and deduplicated
@@ -112,6 +115,12 @@ async function fetchTypes(userId: string): Promise<string[]> {
   return result.map((r) => r.kind);
 }
 
+// Status values are a fixed vocabulary (not user-derived), so the full ordered
+// list is always offered for autocomplete.
+async function fetchStatusValues(): Promise<string[]> {
+  return [...VALID_STATUS_VALUES];
+}
+
 const FETCHERS: Record<
   AvailableFilterType,
   (userId: string) => Promise<string[]>
@@ -122,13 +131,16 @@ const FETCHERS: Record<
   source: fetchSources,
   location: fetchLocations,
   type: fetchTypes,
+  status: fetchStatusValues,
 };
 
 /**
  * A user's distinct filterable values for autocomplete and discovery. With a
- * `type`, returns just that group; otherwise all six run in parallel. All values
- * are sorted alphabetically and scoped to the user. Shared by the filters API
- * and the MCP server.
+ * `type`, returns just that group; otherwise all seven groups run in parallel.
+ * The six user-derived groups (tag/object/color/source/location/type) are
+ * scoped to the user and sorted alphabetically; `status` is a fixed vocabulary
+ * returned in lifecycle order (unread → reading → read → dnf). Shared by the
+ * filters API and the MCP server.
  */
 export async function getAvailableFilters(
   userId: string,
@@ -138,14 +150,16 @@ export async function getAvailableFilters(
     return { [type]: await FETCHERS[type](userId) };
   }
 
-  const [tag, object, color, source, location, typeValues] = await Promise.all([
-    fetchTags(userId),
-    fetchObjects(userId),
-    fetchColors(userId),
-    fetchSources(userId),
-    fetchLocations(userId),
-    fetchTypes(userId),
-  ]);
+  const [tag, object, color, source, location, typeValues, status] =
+    await Promise.all([
+      fetchTags(userId),
+      fetchObjects(userId),
+      fetchColors(userId),
+      fetchSources(userId),
+      fetchLocations(userId),
+      fetchTypes(userId),
+      fetchStatusValues(),
+    ]);
 
-  return { tag, object, color, source, location, type: typeValues };
+  return { tag, object, color, source, location, type: typeValues, status };
 }

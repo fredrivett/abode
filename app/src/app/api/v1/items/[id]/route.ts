@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { zodErrorResponse } from "@/lib/http/zod-error";
+import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
@@ -113,6 +114,7 @@ export async function PATCH(
       productCoverImageIndex,
       userTags,
       bookReading,
+      articleReading,
     } = parsed.data;
     // Fields without dedicated validation pass through unchanged from the raw
     // body, preserving prior behavior (they were never validated here).
@@ -145,6 +147,15 @@ export async function PATCH(
     if (bookReading !== undefined && existingItem.kind !== "book") {
       return NextResponse.json(
         { message: "Reading status can only be set on books" },
+        { status: 400 },
+      );
+    }
+
+    // Article read state only applies to articles — reject rather than silently
+    // create a stray ItemArticleDetails row for another kind.
+    if (articleReading !== undefined && existingItem.kind !== "article") {
+      return NextResponse.json(
+        { message: "Read status can only be set on articles" },
         { status: 400 },
       );
     }
@@ -353,6 +364,29 @@ export async function PATCH(
       // updatedItem holds the pre-write raw row; swap in the fresh one so the
       // transformed response reflects the new reading state without a refetch.
       updatedItem.bookDetails = upsertedBook;
+    }
+
+    // Update per-user article read status + scroll progress. The rules (stamping
+    // readAt once, clearing it on unread) live in computeArticleReadingUpdate; we
+    // read the current row so re-confirming read preserves the original readAt.
+    if (articleReading !== undefined) {
+      const currentArticle = await db.itemArticleDetails.findUnique({
+        where: { itemId: id },
+        select: { readAt: true },
+      });
+      const articleData = computeArticleReadingUpdate({
+        patch: articleReading,
+        current: currentArticle,
+      });
+
+      const upsertedArticle = await db.itemArticleDetails.upsert({
+        where: { itemId: id },
+        create: { itemId: id, ...articleData },
+        update: articleData,
+      });
+
+      // Swap the fresh row into the pre-write response (mirrors the book path).
+      updatedItem.articleDetails = upsertedArticle;
     }
 
     // Trigger room sync if filter-relevant fields changed

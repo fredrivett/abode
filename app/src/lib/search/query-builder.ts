@@ -47,6 +47,7 @@ export type ParsedFilters = {
   color?: FilterValue[];
   source?: FilterValue[];
   location?: FilterValue[];
+  status?: FilterValue[];
   dateAfter?: string;
   dateBefore?: string;
 };
@@ -56,6 +57,23 @@ export const VALID_ITEM_KINDS = Object.values(ItemKind) as ItemKindType[];
 
 /** Valid SourceType enum values derived from Prisma schema */
 export const VALID_SOURCE_TYPES = Object.values(SourceType) as SourceTypeType[];
+
+/**
+ * Valid `@status:` filter values — an item's consumption lifecycle. Generic
+ * across media so it can grow with the app: today `unread`/`read` apply to both
+ * articles and books and `reading`/`dnf` are book-only (articles use a binary
+ * read/unread model); future kinds add their own verbs (e.g. `watched` for
+ * videos, `listened` for podcasts) as new values + SQL cases, no token rename.
+ * Kept as its own list (not the Prisma enums) because it's the union of each
+ * kind's vocabulary as the user filters on it.
+ */
+export const VALID_STATUS_VALUES = [
+  "unread",
+  "reading",
+  "read",
+  "dnf",
+] as const;
+export type StatusValue = (typeof VALID_STATUS_VALUES)[number];
 
 /** Represents an invalid filter value that was rejected during validation */
 export type InvalidFilterValue = {
@@ -188,6 +206,7 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
     "color",
     "source",
     "location",
+    "status",
   ] as const;
 
   let orGroupCounter = 0;
@@ -395,6 +414,63 @@ export function buildSourceCondition(
       ctx.params.push(filter.value);
       ctx.paramIndex++;
       return condition;
+    },
+  );
+
+  return { sql, params, invalid };
+}
+
+/**
+ * Validate `@status:` filter values against the cross-kind status vocabulary.
+ */
+export function validateStatusFilters(filters: FilterValue[]): {
+  valid: FilterValue[];
+  invalid: InvalidFilterValue[];
+} {
+  return validateEnumFilters(filters, [...VALID_STATUS_VALUES], "status");
+}
+
+/**
+ * SQL predicate (against the `items` table) that matches items in a given
+ * cross-kind status. Values are hardcoded per validated StatusValue — no user
+ * input reaches the SQL — so no bound params are needed.
+ *   - read: an article marked read OR a book with status read.
+ *   - reading: a book currently being read (articles are binary read/unread, so
+ *     they never qualify).
+ *   - dnf: a book that was marked did-not-finish (articles never qualify).
+ *   - unread: a readable item (article or book) not yet read — articles with no
+ *     read_at, books with null/want_to_read status.
+ */
+function statusMatchSql(state: StatusValue): string {
+  switch (state) {
+    case "read":
+      return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL) OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'read'))`;
+    case "reading":
+      return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'reading')`;
+    case "dnf":
+      return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'dnf')`;
+    case "unread":
+      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IN ('reading', 'read', 'dnf'))))`;
+  }
+}
+
+/**
+ * Build SQL WHERE conditions for the `@status:` filter.
+ * Validates values against the status vocabulary; handles OR groups (pipe) and
+ * negation. Cross-kind (articles + books today) — see statusMatchSql.
+ */
+export function buildStatusCondition(
+  filters: FilterValue[],
+  startParamIndex: number,
+): { sql: string; params: unknown[]; invalid: InvalidFilterValue[] } {
+  const { valid: validFilters, invalid } = validateStatusFilters(filters);
+
+  const { sql, params } = buildGroupedConditions(
+    validFilters,
+    startParamIndex,
+    (filter) => {
+      const match = statusMatchSql(filter.value as StatusValue);
+      return filter.negated ? `NOT ${match}` : match;
     },
   );
 
@@ -754,6 +830,21 @@ export function buildFilterConditions(
     }
   }
 
+  // Status filter (consumption lifecycle; cross-kind: articles + books today).
+  // The fragments reference items.id and items.kind, so qualify both onto alias.
+  if (filters.status && filters.status.length > 0) {
+    const statusCondition = buildStatusCondition(filters.status, paramIndex);
+    if (statusCondition.sql) {
+      conditions.push(
+        statusCondition.sql
+          .replace(/\bitems\.id\b/g, `${alias}.id`)
+          .replace(/\bitems\.kind\b/g, `${alias}.kind`),
+      );
+      params.push(...statusCondition.params);
+      paramIndex += statusCondition.params.length;
+    }
+  }
+
   // Date filter
   if (filters.dateAfter || filters.dateBefore) {
     const dateCondition = buildDateCondition(
@@ -794,6 +885,7 @@ export function hasFilters(filters: ParsedFilters): boolean {
     (filters.color && filters.color.length > 0) ||
     (filters.source && filters.source.length > 0) ||
     (filters.location && filters.location.length > 0) ||
+    (filters.status && filters.status.length > 0) ||
     filters.dateAfter !== undefined ||
     filters.dateBefore !== undefined
   );

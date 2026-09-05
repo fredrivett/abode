@@ -22,7 +22,8 @@ export type FilterType =
   | "color"
   | "source"
   | "date"
-  | "location";
+  | "location"
+  | "status";
 
 /** Special filter value for items with no value set */
 export const NONE_FILTER_VALUE = "(none)";
@@ -119,6 +120,13 @@ export const FILTER_TYPES: Record<
     multiple: true, // ItemLocation is a separate table, items can have multiple
     nullable: true, // May have no associated locations
   },
+  status: {
+    label: "Status",
+    placeholder: "e.g. unread",
+    icon: "🔖",
+    multiple: false, // one consumption status per item
+    nullable: false, // unread is a first-class value, not an absence
+  },
 };
 
 /**
@@ -134,6 +142,7 @@ export function getFilterTextColorClass(type: FilterType): string {
     source: "text-filter-source",
     date: "text-filter-date",
     location: "text-filter-location",
+    status: "text-filter-status",
   };
   return textColors[type];
 }
@@ -152,6 +161,7 @@ export function getFilterColorClass(type: FilterType): string {
     date: "bg-filter-date/15 text-filter-date border-filter-date/30",
     location:
       "bg-filter-location/15 text-filter-location border-filter-location/30",
+    status: "bg-filter-status/15 text-filter-status border-filter-status/30",
   };
   return colorClasses[type];
 }

@@ -450,6 +450,111 @@ async function seed() {
       },
     });
 
+    // Article with full extracted content — exercises the reader (read status,
+    // scroll resume, end-of-article nudge).
+    await prisma.item.create({
+      data: {
+        userId,
+        kind: "article",
+        processingStatus: "completed",
+        sourceType: "url",
+        sourceUrl:
+          "https://www.fredrivett.com/2025/09/10/becoming-the-person-who-does-the-thing/",
+        title: "Becoming the person who does the thing",
+        description:
+          "How shifting your self-identity — one small daily action at a time — lets you become the person who does the thing, drawn from a decade of showing up at the gym.",
+        tags: ["identity", "habits", "self-improvement", "essay", "mindset"],
+        meta: { originalName: "Becoming the person who does the thing" },
+        externalLinks: [
+          {
+            url: "https://www.fredrivett.com/2025/09/10/becoming-the-person-who-does-the-thing/",
+            platform: "web",
+          },
+        ],
+        articleDetails: {
+          create: {
+            author: "Fred Rivett",
+            domain: "fredrivett.com",
+            publishedAt: new Date("2025-09-10"),
+            readingTime: 4,
+            content: `It can be disorienting when our beliefs shift. The world we helped create no longer exists, and our role in it transforms too.
+
+It can be unsettling, naturally. But that's kind of the point.
+
+Looking back at times when I held certain beliefs—about how the world works, and what my role in this story is—it can feel less like a mod was installed and more like an entirely new operating system was swapped in.
+
+Up until my late twenties, I could count the number of times I had been to the gym on one hand.
+
+And worse, as a nerd, I was quietly proud of it. Why waste hours a week on something that hardly mattered? I have better things to do. I pitied the jocks who slaved away in the gym chasing vanity. What for? I don't need that. Who cares?
+
+Like all childish thinking, it contained some truth. Physical fitness is less important than spiritual, emotional, and mental fitness; but it's still important.
+
+Even Paul, one of history's most influential figures, with a worldview shaped by the utter centrality of spiritual health, [said as much](https://www.bible.com/bible/111/1TI.4.8.NIV).
+
+Your beliefs—and therefore approach to what a healthy life looks like—are foundational. It might sound obvious, but what you believe a "life well lived" looks like has a pretty transformative impact on both what life you end up building and how well lived it looks.
+
+So if we're a product of our beliefs and our most formative preconceptions are imposed by others, then where's the hope?
+
+We build, layer upon layer, and the layers laid first—now deeply buried within—are the ones we had the least say in.
+
+We didn't pick them, but they shape everything we are and do. Bad luck, I guess.
+
+Thankfully, we are dynamic beings. Old beliefs can peel off, and new ones take their place. Later layers can somehow seep deeper. Some recent beliefs can even become cornerstones.
+
+For me, something shifted in my late twenties. Growing up I guess you could call it. I don't remember the exact straw that broke the camel's back, but a desire for change grew. I started working out.
+
+It began slowly, but I began. Knee press-ups to start, later adding assisted pull-ups.
+
+If anyone was watching, it would have looked stupid. A grown man barely able to push himself off the floor. But I showed up and put in my reps, day by day, week by week, in the privacy of my bedroom.
+
+As the weeks and months passed, my strength grew.
+
+Eventually, I graduated to full press-ups and pull-ups, no mods required.
+
+Every small win reinforced the last and led me further away from who I used to be.
+
+Fast forward almost a decade and I feel a lot more friction *not* going to the gym than I do *going*. Cognitive dissonance is wonderful when it's on your side, and it pops up whenever my healthy-Fred self-identity and actions diverge.
+
+I'm far from a gym junkie—it hasn't become my life—but I go every weekday, 20 minutes a day. I arrive, do my workout, and leave, while most people are just getting started.
+
+Our self-identity dictates everything, but it is not set in stone.
+
+Changing our beliefs isn't easy. Both those about the world around us and the world within. We can't simply will our way there and snap our fingers. We must journey. As with all great things, it's a process.
+
+But it is possible. A well-trodden path is ahead for those who wish to walk it.
+
+So how do you? How do you *become the person who does the thing*?
+
+Earlier this week I spent a couple hours crafting my digital [/shelf](https://www.fredrivett.com/shelf), a place where I can put the things that have impacted me the most up for all to see, so others can take them for themselves should they wish.
+
+On it are these two quotes that have been living rent-free in my head from the beginning. Together, they create a twin-cog flywheel that cannot be stopped:
+
+> "People like us do things like this" — Seth Godin
+
+> "Every action you take is a vote for the type of person you wish to become" — James Clear
+
+Your actions follow your self-beliefs.
+
+If you identity as a failure, incapable of achievement, unfit, unlovable, destined to play a bit-part role in your own story, then by heck no matter how much willpower you put in to push that boulder up the hill, it will return to its place.
+
+But there's a way through: every action you take is a vote for who you wish to become. Every day you wake up, look your old identity in the eye and say "thanks for your service, but you're not needed around here anymore," step forward and lean in, is a day your new identity is built.
+
+It takes time. You have to actually want it. You have to choose to adopt a new mindset. Rome wasn't built in a day. But it comes, a little like how [Hazel Grace Lancaster describes falling in love in The Fault In Our Stars](https://quoteinvestigator.com/2018/08/08/all-at-once/): *"slowly, and then all at once."*
+
+The path is there, should you choose.
+
+Identify where your identity needs to shift. Then take a step. Cast today's vote. Find your way through.
+
+Do that day by day, then soon enough, your inner world will shift and recalibrate around the new reality you're co-creating.
+
+Then one day you'll see it.
+
+People like us really do things like this.`,
+          },
+        },
+      },
+    });
+
     // --- TWEET ITEMS ---
 
     // Tweet — maps themed (goes in the Maps & Geography room)
@@ -851,7 +956,7 @@ async function seed() {
 
     // --- USER STATS ---
 
-    const totalItems = 17;
+    const totalItems = 18;
     const totalStorage =
       BigInt(redArchUpload.size) +
       BigInt(atriumUpload.size) +
@@ -958,7 +1063,7 @@ async function seed() {
     console.log("Preview seed complete!");
     console.log(`  Email: ${SEED_USER.email}`);
     console.log(
-      `  Items: ${totalItems} (4 images, 2 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
+      `  Items: ${totalItems} (4 images, 3 articles, 4 tweets, 2 videos, 1 product, 2 books, 2 notes)`,
     );
     console.log(
       `  Rooms: ${photographyRoom.name}, ${mapsRoom.name}, ${musicRoom.name}, ${videosRoom.name}, ${bookshelfRoom.name}`,
