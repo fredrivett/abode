@@ -1,7 +1,7 @@
 "use client";
 
 import posthog from "posthog-js";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { api } from "@/lib/api-client";
@@ -14,10 +14,11 @@ import { useInvalidateItems } from "@/lib/api-hooks";
  *   invalidation (so the sidebar toggle and the end-of-article nudge reconcile),
  *   and emits the read/unread analytics event.
  * - `saveScrollProgress` persists the reader's scroll position, debounced and
- *   coalesced so a scroll gesture writes once (the latest value) rather than on
- *   every frame. It deliberately does NOT invalidate the items query — scroll
- *   position isn't shown in the grid, so refetching the list on every scroll
- *   settle would be wasteful. Best-effort: a failed position write is silent.
+ *   coalesced so a scroll gesture writes once (the trailing value) per ~500ms
+ *   pause rather than on every frame. Last-write-wins and fire-and-forget: it
+ *   doesn't invalidate the items query (scroll position isn't shown in the grid)
+ *   and doesn't guard write ordering across debounce windows — it's a resume
+ *   hint, so a lost or out-of-order write is harmless and never surfaced.
  */
 export function useArticleReading(itemId: string) {
   const invalidateItems = useInvalidateItems();
@@ -44,10 +45,7 @@ export function useArticleReading(itemId: string) {
     [itemId, invalidateItems],
   );
 
-  // Guards against out-of-order writes: bumped on every scroll save so a slow
-  // in-flight request can tell it's been superseded (it just no-ops on failure).
-  const progressVersion = useRef(0);
-  const commitProgress = useDebouncedCallback((scrollProgress: number) => {
+  const saveScrollProgress = useDebouncedCallback((scrollProgress: number) => {
     void api
       .patch(`/api/v1/items/${itemId}`, { articleReading: { scrollProgress } })
       .then(() => {
@@ -60,14 +58,6 @@ export function useArticleReading(itemId: string) {
         // Best-effort resume position — never surface an error for this.
       });
   }, 500);
-
-  const saveScrollProgress = useCallback(
-    (scrollProgress: number) => {
-      progressVersion.current += 1;
-      commitProgress(scrollProgress);
-    },
-    [commitProgress],
-  );
 
   return { setRead, saveScrollProgress };
 }
