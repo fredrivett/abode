@@ -80,6 +80,22 @@ describe("detectSuggestions", () => {
     expect(out.map((s) => s.facet)).toEqual(["type", "date"]);
   });
 
+  it("suggests the status facet for a status word", () => {
+    const status = ["unread", "reading", "read", "dnf"];
+    expect(detect("unread", { status })[0]).toMatchObject({
+      facet: "status",
+      value: "unread",
+    });
+    expect(detect("dnf", { status })[0]).toMatchObject({ facet: "status" });
+    // Whole-word only: "already" contains "read" but must not match.
+    expect(detect("already", { status })).toEqual([]);
+  });
+
+  it("ranks status above a same-named tag", () => {
+    const out = detect("read", { tag: ["read"], status: ["read"] });
+    expect(out.map((s) => s.facet)).toEqual(["status", "tag"]);
+  });
+
   it("drops a match that partially overlaps a longer one", () => {
     // "york" sits inside "new york" — keep only the longer location
     const out = detect("new york", { location: ["new york", "york"] });
