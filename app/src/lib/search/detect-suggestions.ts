@@ -31,6 +31,7 @@ const GROUNDED_FACETS: (keyof FiltersResponse)[] = [
   "tag",
   "object",
   "color",
+  "status",
 ];
 
 // Ranking when several facets match the same word (lower index = shown first /
@@ -43,6 +44,11 @@ const FACET_PRIORITY: FilterType[] = [
   "source",
   "color",
   "object",
+  // Status is a fixed vocab (unread/reading/read/dnf); ranked above tag so a
+  // status word wins over a same-named free-text tag, but below the grounded
+  // image/source facets. `read`/`reading` are common words, so this is the
+  // collision-prone end of the list.
+  "status",
   "tag",
 ];
 
