@@ -17,6 +17,7 @@ const VALID_FILTER_TYPES: AvailableFilterType[] = [
   "source",
   "location",
   "type",
+  "status",
 ];
 
 function isValidFilterType(value: string | null): value is AvailableFilterType {

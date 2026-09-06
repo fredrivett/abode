@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { EMPTY_ARTICLE_READ_STATE } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -125,6 +126,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       colors: roomItem.item.imageDetails?.colors ?? [],
       ocrText: roomItem.item.imageDetails?.ocrText ?? null,
       captureDate: roomItem.item.imageDetails?.captureDate ?? null,
+      // Read state is private and not needed on room cards — surface it as
+      // explicit nulls rather than undefined (never leaked to non-owners).
+      articleDetails: roomItem.item.articleDetails
+        ? { ...roomItem.item.articleDetails, ...EMPTY_ARTICLE_READ_STATE }
+        : null,
       imageDetails: undefined,
     }));
 

@@ -8,6 +8,7 @@ import {
   itemAccessSelect,
 } from "@/lib/items/access";
 import {
+  EMPTY_ARTICLE_READ_STATE,
   mapPublicBookDetails,
   publicBookDetailsSelect,
 } from "@/lib/items/query";
@@ -346,6 +347,8 @@ export default async function ItemPage({ params, searchParams }: Props) {
       ? {
           ...item.articleDetails,
           publishedAt: item.articleDetails.publishedAt?.toISOString() ?? null,
+          // Read state stays private — never exposed on public pages.
+          ...EMPTY_ARTICLE_READ_STATE,
         }
       : null,
     twitterDetails: item.twitterDetails

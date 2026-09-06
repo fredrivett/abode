@@ -10,6 +10,7 @@ const filterTypeDescriptions: Record<FilterType, string> = {
   source: "Where the item came from",
   date: "When the item was created",
   location: "Where the item was taken",
+  status: "Reading status of articles and books",
 };
 
 /**
