@@ -5,6 +5,8 @@
  * Grounded facets (location/tag/object/color/source/type) are matched only
  * against values that exist in THIS user's data, so we suggest "paris" as a
  * location because they have Paris items — not because we guessed it's a city.
+ * `status` is the one fixed-vocabulary facet (unread/reading/read/dnf), always
+ * offered rather than grounded in the user's data.
  * Dates go through a small hand-rolled scanner. Pure and deterministic (`now`
  * is injected); the caller decides when to run it and never mutates the query
  * until a suggestion is accepted.
@@ -44,10 +46,6 @@ const FACET_PRIORITY: FilterType[] = [
   "source",
   "color",
   "object",
-  // Status is a fixed vocab (unread/reading/read/dnf); ranked above tag so a
-  // status word wins over a same-named free-text tag, but below the grounded
-  // image/source facets. `read`/`reading` are common words, so this is the
-  // collision-prone end of the list.
   "status",
   "tag",
 ];
