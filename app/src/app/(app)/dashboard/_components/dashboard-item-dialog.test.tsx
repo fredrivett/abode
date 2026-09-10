@@ -78,13 +78,13 @@ beforeEach(() => {
 
 describe("DashboardItemDialog", () => {
   it("renders nothing when no item is open", () => {
-    render(<DashboardItemDialog items={items} />);
+    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
   });
 
   it("renders the open item's dialog, resolved by id from the list", () => {
     dialogState = { openItemId: "b" };
-    render(<DashboardItemDialog items={items} />);
+    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "b");
     expect(host).toHaveAttribute("data-open", "true");
@@ -92,7 +92,7 @@ describe("DashboardItemDialog", () => {
 
   it("closes via the provider when the dialog requests it", () => {
     dialogState = { openItemId: "a" };
-    render(<DashboardItemDialog items={items} />);
+    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     fireEvent.click(screen.getByText("close"));
     expect(closeItem).toHaveBeenCalledOnce();
   });
@@ -103,7 +103,7 @@ describe("DashboardItemDialog", () => {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
-    render(<DashboardItemDialog items={items} />);
+    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
   });
@@ -114,7 +114,9 @@ describe("DashboardItemDialog", () => {
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
     // First render: off-grid item, fetch not resolved → skeleton.
-    const { rerender } = render(<DashboardItemDialog items={items} />);
+    const { rerender } = render(
+      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+    );
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
 
@@ -128,7 +130,7 @@ describe("DashboardItemDialog", () => {
         coverFileKey: null,
       } as unknown as Item,
     };
-    rerender(<DashboardItemDialog items={items} />);
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
@@ -139,7 +141,7 @@ describe("DashboardItemDialog", () => {
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
     useItemReturn = { data: undefined, isError: true };
-    render(<DashboardItemDialog items={items} />);
+    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     expect(closeItem).toHaveBeenCalled();
   });
 
@@ -152,19 +154,27 @@ describe("DashboardItemDialog", () => {
       fileKey: "fz",
       coverFileKey: null,
     } as unknown as Item;
-    render(<DashboardItemDialog items={items} initialItem={initialItem} />);
+    render(
+      <DashboardItemDialog
+        onItemRenamed={() => {}}
+        items={items}
+        initialItem={initialItem}
+      />,
+    );
     expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
   it("keeps the item mounted (open=false) after close, then clears on exit", () => {
     dialogState = { openItemId: "a" };
-    const { rerender } = render(<DashboardItemDialog items={items} />);
+    const { rerender } = render(
+      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+    );
     expect(screen.getByTestId("host")).toHaveAttribute("data-open", "true");
 
     // URL clears the open item — dialog should animate out, not vanish.
     dialogState = { openItemId: null };
-    rerender(<DashboardItemDialog items={items} />);
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "a");
     expect(host).toHaveAttribute("data-open", "false");

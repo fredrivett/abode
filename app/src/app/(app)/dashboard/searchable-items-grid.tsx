@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { useItemsInfinite } from "@/lib/api-hooks";
+import { useItemsInfinite, useUpdateCachedItemTitle } from "@/lib/api-hooks";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
@@ -40,6 +40,19 @@ export function SearchableItemsGrid({
 }: SearchableItemsGridProps) {
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
+
+  // An optimistic rename in the central dialog has to reach whichever list the
+  // visible card came from: the React Query items cache (list) and the local
+  // search-results state both hold their own copy of the item.
+  const updateCachedTitle = useUpdateCachedItemTitle();
+  const patchSearchTitle = searchResults.patchItemTitle;
+  const handleItemRenamed = useCallback(
+    (itemId: string, title: string) => {
+      updateCachedTitle(itemId, title);
+      patchSearchTitle(itemId, title);
+    },
+    [updateCachedTitle, patchSearchTitle],
+  );
 
   // Use React Query for items with SSR hydration
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, error } =
@@ -139,7 +152,11 @@ export function SearchableItemsGrid({
         total={displayTotal}
         initialNoteDraft={initialNoteDraft}
       />
-      <DashboardItemDialog items={displayItems} initialItem={initialOpenItem} />
+      <DashboardItemDialog
+        items={displayItems}
+        initialItem={initialOpenItem}
+        onItemRenamed={handleItemRenamed}
+      />
     </ItemDialogProvider>
   );
 }

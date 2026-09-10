@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useUpdateCachedItemTitle } from "@/lib/api-hooks";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useItem } from "@/lib/items/use-item";
@@ -32,11 +31,15 @@ function detailImageFileKey(item: Item): string | null {
 export function DashboardItemDialog({
   items,
   initialItem,
+  onItemRenamed,
 }: {
   items: Item[];
   /** Full item for the URL's open item at initial load (deep link / refresh),
    *  so a deep-linked off-grid item renders instantly without a fetch. */
   initialItem?: Item | null;
+  /** Propagate a rename to every list holding the item (React Query caches +
+   *  local search-results state), so the grid card updates instantly. */
+  onItemRenamed: (itemId: string, title: string) => void;
 }) {
   const itemDialog = useItemDialog();
   const openItemId = itemDialog?.openItemId ?? null;
@@ -86,6 +89,7 @@ export function DashboardItemDialog({
         open={openItemId === rendered.id}
         onClose={() => itemDialog?.closeItem()}
         onExitComplete={() => setRendered(null)}
+        onItemRenamed={onItemRenamed}
       />
     );
   }
@@ -105,16 +109,17 @@ function DashboardItemDialogContents({
   open,
   onClose,
   onExitComplete,
+  onItemRenamed,
 }: {
   item: Item;
   open: boolean;
   onClose: () => void;
   onExitComplete: () => void;
+  onItemRenamed: (itemId: string, title: string) => void;
 }) {
-  const updateCachedTitle = useUpdateCachedItemTitle();
   const displayName = getItemDisplayName(item);
-  // Local mirror so a rename shows in the dialog immediately; the cache patch
-  // below keeps the grid tile in sync, and re-derives displayName on the next render.
+  // Local mirror so a rename shows in the dialog immediately; onItemRenamed
+  // keeps the grid card in sync, and displayName re-derives on the next render.
   const [name, setName] = useState(displayName);
   useEffect(() => setName(displayName), [displayName]);
 
@@ -136,7 +141,7 @@ function DashboardItemDialogContents({
       name={name}
       onNameChange={(next) => {
         setName(next);
-        updateCachedTitle(item.id, next);
+        onItemRenamed(item.id, next);
       }}
       canEdit
       onExitComplete={onExitComplete}
