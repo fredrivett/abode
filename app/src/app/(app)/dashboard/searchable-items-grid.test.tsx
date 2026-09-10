@@ -28,6 +28,7 @@ vi.mock("@/lib/api-hooks", () => ({
     isFetchingNextPage: false,
     error: null,
   }),
+  useUpdateCachedItemTitle: () => vi.fn(),
 }));
 
 vi.mock("@/lib/use-processing-poll", () => ({
@@ -72,6 +73,7 @@ function makeSearchResults(overrides: Partial<SearchResults>): SearchResults {
     error: null,
     warnings: undefined,
     loadMore: vi.fn(),
+    patchItemTitle: vi.fn(),
     hasActiveSearch: false,
     ...overrides,
   };

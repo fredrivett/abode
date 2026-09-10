@@ -329,11 +329,24 @@ export function useSearchResults(searchState: SearchState) {
     }
   }, [state.cursor, state.isLoading, searchState]);
 
+  // Patch a single result's title in place — search results live in local
+  // state (not the React Query items cache), so an optimistic rename in the
+  // detail dialog has to reach them here to update the visible card.
+  const patchItemTitle = useCallback((itemId: string, title: string) => {
+    setState((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === itemId ? { ...item, title } : item,
+      ),
+    }));
+  }, []);
+
   const hasActiveSearch = hasSearchCriteria(searchState);
 
   return {
     ...state,
     loadMore,
+    patchItemTitle,
     hasActiveSearch,
     // isSearching should be true whenever we have search criteria but haven't received results yet
     // This covers the gap between searchState changing and the effect setting isSearching
