@@ -10,7 +10,9 @@ import { z } from "zod";
 
 // Server environment validation schema
 // Includes both server-only secrets and public vars (to ensure they're set at build time)
-const envSchema = z.object({
+// Exported so env.server.test.ts can introspect the required/optional split and
+// enforce the graceful-degradation contract (only core-tier keys may be required).
+export const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
   READ_REPLICA_DATABASE_URL: z.string().optional(),

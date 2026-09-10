@@ -5,6 +5,7 @@ import {
   isReplicateConfigured,
   VISUAL_EMBEDDING_MODEL,
 } from "../embeddings";
+import { withExternalService } from "../external-service";
 import { createLogger } from "../logger.server";
 import { captureServerException } from "../posthog-server";
 import {
@@ -91,9 +92,9 @@ export async function analyzeImageBytes(params: {
   // the analysis. A minimal deploy (no OpenAI, no Google key) still returns a
   // usable result — bare image details plus the local blur placeholder.
   const [colorsResult, openaiResult, blurDataUrl] = await Promise.all([
-    (async (): Promise<{ colors: ImageColor[]; analyzed: boolean }> => {
-      if (!isGoogleVisionConfigured()) return { colors: [], analyzed: false };
-      try {
+    withExternalService<{ colors: ImageColor[]; analyzed: boolean }>({
+      isConfigured: isGoogleVisionConfigured,
+      run: async () => {
         const colors = await analyzeImageColorsOnly(buffer);
         recordAiUsage({
           userId,
@@ -107,14 +108,16 @@ export async function analyzeImageBytes(params: {
         // analyzed: true even when colours is empty — a successful "no palette"
         // result, distinct from a skipped/failed one.
         return { colors, analyzed: true };
-      } catch (error) {
+      },
+      onSkip: () => ({ colors: [], analyzed: false }),
+      onError: (error) => {
         captureServerException(error, userId, {
           source: "analyze-image-bytes:colors",
           itemId,
         });
         return { colors: [], analyzed: false };
-      }
-    })(),
+      },
+    }),
     (async (): Promise<OpenAiVisionResult | null> => {
       if (!openaiConfigured) return null;
       const result = await analyzeImageWithOpenAI(buffer, mimeType);
@@ -154,13 +157,16 @@ export async function analyzeImageBytes(params: {
 
   // CLIP visual embedding — optional. Skip cleanly when Replicate isn't
   // configured, and never let a Replicate failure fail the analysis.
-  let embedding: number[] | null = null;
-  let embeddingModel: string | null = null;
-  if (isReplicateConfigured()) {
-    try {
+  const { embedding, embeddingModel } = await withExternalService<{
+    embedding: number[] | null;
+    embeddingModel: string | null;
+  }>({
+    isConfigured: isReplicateConfigured,
+    run: async () => {
+      // Signed URL is only fetched here — inside the configured branch — so no
+      // setup work happens when Replicate is skipped.
       const signedUrl = await getSignedUrl();
-      embedding = await generateImageEmbedding(signedUrl);
-      embeddingModel = VISUAL_EMBEDDING_MODEL;
+      const embedding = await generateImageEmbedding(signedUrl);
       recordAiUsage({
         userId,
         itemId,
@@ -170,7 +176,10 @@ export async function analyzeImageBytes(params: {
         images: 1,
         source: "ingestion",
       });
-    } catch (error) {
+      return { embedding, embeddingModel: VISUAL_EMBEDDING_MODEL };
+    },
+    onSkip: () => ({ embedding: null, embeddingModel: null }),
+    onError: (error) => {
       // Optional enhancement failing must not fail the analysis — report, continue.
       // Emit a queryable event (source + throttle-vs-error) so the drop, which
       // was previously invisible, is measurable — not just an exception capture.
@@ -181,10 +190,9 @@ export async function analyzeImageBytes(params: {
         source,
         phase: "initial",
       });
-      embedding = null;
-      embeddingModel = null;
-    }
-  }
+      return { embedding: null, embeddingModel: null };
+    },
+  });
 
   return {
     title: analysis?.title ?? "",
