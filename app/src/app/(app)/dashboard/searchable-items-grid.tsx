@@ -8,6 +8,7 @@ import { readItemParam } from "@/lib/items/item-dialog-url";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
+import { DashboardItemDialog } from "./_components/dashboard-item-dialog";
 import { ItemDialogProvider } from "./item-dialog-context";
 import { ItemsGrid } from "./items-grid";
 
@@ -156,6 +157,7 @@ export function SearchableItemsGrid({
         total={displayTotal}
         initialNoteDraft={initialNoteDraft}
       />
+      <DashboardItemDialog items={gridItems} />
     </ItemDialogProvider>
   );
 }

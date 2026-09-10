@@ -257,6 +257,10 @@ export function ItemCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { isOpen: showDetailDialog, setOpen: setShowDetailDialog } =
     useItemDetailDialog(item.id);
+  // On the dashboard a single provider-scoped host renders the detail dialog
+  // (so it works for items outside the grid too); the card only renders its own
+  // dialog where there's no provider (e.g. room views), keyed off this.
+  const itemDialog = useItemDialog();
   const [isAnimating, setIsAnimating] = useState(false);
   // Tiny blurred placeholder (LQIP). Prefer the server-generated one stored in
   // imageDetails; fall back to the meta copy captured client-side at upload time
@@ -432,18 +436,20 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -491,18 +497,20 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -542,18 +550,20 @@ export function ItemCard({
 
         {/* Pass the real previewUrl even in text mode so a hidden cover still
             shows the Cover Image section (and its toggle) in the detail dialog */}
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={previewUrl}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={previewUrl}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -592,18 +602,20 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -647,18 +659,20 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -676,18 +690,20 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -706,18 +722,20 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -735,18 +753,20 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -765,18 +785,20 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={null}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={null}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -806,18 +828,20 @@ export function ItemCard({
           />
         </button>
 
-        <ItemDetailDialogHost
-          item={item}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          size={size}
-          previewUrl={previewUrl}
-          imageFileKey={imageFileKey}
-          name={itemName}
-          onNameChange={setItemName}
-          canEdit={canEdit}
-          onDeleted={onDeleted}
-        />
+        {!itemDialog && (
+          <ItemDetailDialogHost
+            item={item}
+            open={showDetailDialog}
+            onOpenChange={setShowDetailDialog}
+            size={size}
+            previewUrl={previewUrl}
+            imageFileKey={imageFileKey}
+            name={itemName}
+            onNameChange={setItemName}
+            canEdit={canEdit}
+            onDeleted={onDeleted}
+          />
+        )}
       </>
     );
   }
@@ -934,18 +958,20 @@ export function ItemCard({
         </motion.div>
       </div>
 
-      <ItemDetailDialogHost
-        item={item}
-        open={showDetailDialog}
-        onOpenChange={setShowDetailDialog}
-        size={size}
-        previewUrl={previewUrl}
-        imageFileKey={imageFileKey}
-        name={itemName}
-        onNameChange={setItemName}
-        canEdit={canEdit}
-        onDeleted={onDeleted}
-      />
+      {!itemDialog && (
+        <ItemDetailDialogHost
+          item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
+          size={size}
+          previewUrl={previewUrl}
+          imageFileKey={imageFileKey}
+          name={itemName}
+          onNameChange={setItemName}
+          canEdit={canEdit}
+          onDeleted={onDeleted}
+        />
+      )}
     </>
   );
 }
@@ -1106,6 +1132,7 @@ export function ItemDetailDialogHost({
   onNameChange,
   canEdit,
   onDeleted,
+  onExitComplete,
 }: {
   item: Item;
   open: boolean;
@@ -1117,6 +1144,9 @@ export function ItemDetailDialogHost({
   onNameChange: (value: string) => void;
   canEdit: boolean;
   onDeleted?: () => void;
+  /** Fired once the close animation completes (lets a central host that keeps
+   *  the last item mounted for the exit animation clear it afterwards). */
+  onExitComplete?: () => void;
 }) {
   const invalidateItems = useInvalidateItems();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -1166,6 +1196,7 @@ export function ItemDetailDialogHost({
       onDeleteConfirm={handleDelete}
       isDeleting={isDeleting}
       canEdit={canEdit}
+      onExitComplete={onExitComplete}
     />
   );
 }

@@ -48,6 +48,12 @@ vi.mock("./items-grid", () => ({
   },
 }));
 
+// The central detail dialog is exercised in its own test; stub it here so this
+// list-logic test doesn't pull in the heavy item-card tree.
+vi.mock("./_components/dashboard-item-dialog", () => ({
+  DashboardItemDialog: () => null,
+}));
+
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 const item = (id: string): Item => ({ id }) as unknown as Item;
