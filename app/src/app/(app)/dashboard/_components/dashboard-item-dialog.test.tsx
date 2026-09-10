@@ -9,15 +9,22 @@ vi.mock("../item-card", () => ({
   ItemDetailDialogHost: ({
     item,
     open,
+    animateEntrance,
     onOpenChange,
     onExitComplete,
   }: {
     item: { id: string };
     open: boolean;
+    animateEntrance?: boolean;
     onOpenChange: (open: boolean) => void;
     onExitComplete?: () => void;
   }) => (
-    <div data-testid="host" data-item={item.id} data-open={String(open)}>
+    <div
+      data-testid="host"
+      data-item={item.id}
+      data-open={String(open)}
+      data-animate={String(animateEntrance)}
+    >
       <button type="button" onClick={() => onOpenChange(false)}>
         close
       </button>
@@ -95,6 +102,25 @@ describe("DashboardItemDialog", () => {
     render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
     fireEvent.click(screen.getByText("close"));
     expect(closeItem).toHaveBeenCalledOnce();
+  });
+
+  it("animates the entrance on a fresh open but not on an in-place swap", () => {
+    const { rerender } = render(
+      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+    );
+    // Fresh open (was closed) → animate in.
+    dialogState = { openItemId: "a" };
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    expect(screen.getByTestId("host")).toHaveAttribute("data-animate", "true");
+
+    // Swap straight to another open item → instant, still open, no skeleton.
+    dialogState = { openItemId: "b" };
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    const host = screen.getByTestId("host");
+    expect(host).toHaveAttribute("data-item", "b");
+    expect(host).toHaveAttribute("data-open", "true");
+    expect(host).toHaveAttribute("data-animate", "false");
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
   it("shows the seed skeleton while an off-grid item is still loading", () => {
