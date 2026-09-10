@@ -206,6 +206,20 @@ export function getAdminNotificationEmail(data: AdminNotificationData): {
         ? `\nreferral source: ${data.referralSource}`
         : "";
 
+      // pre-filled mailto so we can reply to the signup in one click
+      const inviteMailtoSubject = "just sent you abode access";
+      const inviteMailtoBody = `hey [name],
+
+thanks for signing up for early access to abode! i just sent you an invite to try it out.
+
+it's still got a lot of rough edges but would love any raw feedback especially on the areas that suck and need improving.
+
+any questions feel free to email me anytime.
+
+cheers!
+fred.`;
+      const inviteMailto = `mailto:${data.email}?subject=${encodeURIComponent(inviteMailtoSubject)}&body=${encodeURIComponent(inviteMailtoBody)}`;
+
       const text = `new waitlist signup
 
 email: ${data.email}
@@ -217,7 +231,7 @@ ${EMAIL_FOOTER}
       const html = `<p><strong>new waitlist signup</strong></p>
 
 <p>
-<strong>email:</strong> ${data.email}<br>
+<strong>email:</strong> ${htmlLink(data.email, inviteMailto)}<br>
 <strong>position:</strong> #${data.position}${data.referralSource ? `<br><strong>referral source:</strong> ${data.referralSource}` : ""}
 </p>
 
