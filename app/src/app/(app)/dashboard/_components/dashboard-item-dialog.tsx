@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useUpdateCachedItemTitle } from "@/lib/api-hooks";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
+import { useItem } from "@/lib/items/use-item";
 import type { Item } from "@/lib/types/item";
 import { formatBytes, getFileSizeFromMeta } from "@/lib/utils";
 import { ItemDetailDialogHost } from "../item-card";
 import { useItemDialog } from "../item-dialog-context";
+import { ItemDialogSkeleton } from "./item-dialog-skeleton";
 
 /** For articles/webpages/products/books the cover is the display image; images use their own file. */
 function detailImageFileKey(item: Item): string | null {
@@ -26,13 +28,33 @@ function detailImageFileKey(item: Item): string | null {
  * (e.g. a "similar images" click to a filtered-out item). The grid cards on
  * the dashboard no longer render their own dialog; they just set the open item.
  */
-export function DashboardItemDialog({ items }: { items: Item[] }) {
+export function DashboardItemDialog({
+  items,
+  initialItem,
+}: {
+  items: Item[];
+  /** Full item for the URL's open item at initial load (deep link / refresh),
+   *  so a deep-linked off-grid item renders instantly without a fetch. */
+  initialItem?: Item | null;
+}) {
   const itemDialog = useItemDialog();
   const openItemId = itemDialog?.openItemId ?? null;
+  const seed = itemDialog?.openItemSeed ?? null;
 
-  const resolved = openItemId
+  // Resolve the open item: from the loaded list, the SSR deep-link item, or —
+  // for an item outside all of those (a "similar images" click to a filtered-
+  // out item) — a by-id fetch.
+  const inList = openItemId
     ? (items.find((item) => item.id === openItemId) ?? null)
     : null;
+  const fromInitial =
+    initialItem && initialItem.id === openItemId ? initialItem : null;
+  const needsFetch = openItemId !== null && !inList && !fromInitial;
+  const { data: fetched } = useItem(openItemId, needsFetch);
+  const resolved =
+    inList ??
+    fromInitial ??
+    (fetched && fetched.id === openItemId ? fetched : null);
 
   // Keep the last opened item mounted through the close animation, then clear
   // it on exit — otherwise closing would unmount instantly with no animation.
@@ -41,16 +63,25 @@ export function DashboardItemDialog({ items }: { items: Item[] }) {
     if (resolved) setRendered(resolved);
   }, [resolved]);
 
-  if (!rendered) return null;
+  if (rendered) {
+    return (
+      <DashboardItemDialogContents
+        item={rendered}
+        open={openItemId === rendered.id}
+        onClose={() => itemDialog?.closeItem()}
+        onExitComplete={() => setRendered(null)}
+      />
+    );
+  }
 
-  return (
-    <DashboardItemDialogContents
-      item={rendered}
-      open={openItemId === rendered.id}
-      onClose={() => itemDialog?.closeItem()}
-      onExitComplete={() => setRendered(null)}
-    />
-  );
+  // Still fetching an off-grid item — show the seed image/title while it loads.
+  if (openItemId && seed && seed.id === openItemId) {
+    return (
+      <ItemDialogSkeleton seed={seed} onClose={() => itemDialog?.closeItem()} />
+    );
+  }
+
+  return null;
 }
 
 function DashboardItemDialogContents({

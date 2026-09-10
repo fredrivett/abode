@@ -1,10 +1,8 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useItemsInfinite } from "@/lib/api-hooks";
-import { readItemParam } from "@/lib/items/item-dialog-url";
 import { useSearch, useSearchResults } from "@/lib/search";
 import type { Item } from "@/lib/types/item";
 import { useProcessingPoll } from "@/lib/use-processing-poll";
@@ -40,7 +38,6 @@ export function SearchableItemsGrid({
   initialNoteDraft,
   initialOpenItem,
 }: SearchableItemsGridProps) {
-  const searchParams = useSearchParams();
   const { state: searchState, clearAll } = useSearch();
   const searchResults = useSearchResults(searchState);
 
@@ -119,21 +116,6 @@ export function SearchableItemsGrid({
   // Use search results when actively searching, otherwise show paginated items
   const displayItems = searchItems ?? items;
 
-  // Ensure the deep-linked/refreshed open item has a card to host its dialog,
-  // even if it isn't in the current list (older than page one, or not a search
-  // match). Only inject while the URL still addresses it, so it disappears once
-  // the dialog closes rather than lingering out of order.
-  const openItemId = readItemParam(searchParams);
-  const gridItems = useMemo(() => {
-    if (!initialOpenItem || openItemId !== initialOpenItem.id) {
-      return displayItems;
-    }
-    if (displayItems.some((item) => item.id === initialOpenItem.id)) {
-      return displayItems;
-    }
-    return [initialOpenItem, ...displayItems];
-  }, [displayItems, initialOpenItem, openItemId]);
-
   // Composer shows on the full-list view (searchItems null); once we're
   // displaying search results it's hidden. While the first search is in flight
   // we're still on the full list, so keep it mounted but disabled.
@@ -146,7 +128,7 @@ export function SearchableItemsGrid({
   return (
     <ItemDialogProvider>
       <ItemsGrid
-        items={gridItems}
+        items={displayItems}
         hasActiveSearch={searchResults.hasActiveSearch}
         showComposer={showComposer}
         isSearchPending={isSearchPending}
@@ -157,7 +139,7 @@ export function SearchableItemsGrid({
         total={displayTotal}
         initialNoteDraft={initialNoteDraft}
       />
-      <DashboardItemDialog items={gridItems} />
+      <DashboardItemDialog items={displayItems} initialItem={initialOpenItem} />
     </ItemDialogProvider>
   );
 }

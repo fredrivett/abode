@@ -2893,7 +2893,6 @@ function ItemDetailDialog({
                 <SimilarImages
                   itemId={item.id}
                   enabled={open && supportsSimilarImages(item.kind)}
-                  onNavigate={() => onOpenChange(false)}
                 />
 
                 {/* Rooms - only shown to users who can edit */}

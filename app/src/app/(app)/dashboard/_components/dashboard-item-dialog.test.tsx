@@ -28,10 +28,25 @@ vi.mock("../item-card", () => ({
   ),
 }));
 
+type Seed = { id: string; imageFileKey: string | null } | null;
 const closeItem = vi.fn();
-let dialogState: { openItemId: string | null } = { openItemId: null };
+let dialogState: { openItemId: string | null; openItemSeed?: Seed } = {
+  openItemId: null,
+  openItemSeed: null,
+};
 vi.mock("../item-dialog-context", () => ({
   useItemDialog: () => ({ ...dialogState, closeItem }),
+}));
+
+let useItemReturn: { data: Item | undefined } = { data: undefined };
+vi.mock("@/lib/items/use-item", () => ({
+  useItem: () => useItemReturn,
+}));
+
+vi.mock("./item-dialog-skeleton", () => ({
+  ItemDialogSkeleton: ({ seed }: { seed: { id: string } }) => (
+    <div data-testid="skeleton" data-item={seed.id} />
+  ),
 }));
 
 vi.mock("@/lib/api-hooks", () => ({
@@ -53,7 +68,8 @@ const items = [
 
 beforeEach(() => {
   closeItem.mockClear();
-  dialogState = { openItemId: null };
+  dialogState = { openItemId: null, openItemSeed: null };
+  useItemReturn = { data: undefined };
 });
 
 describe("DashboardItemDialog", () => {
@@ -75,6 +91,50 @@ describe("DashboardItemDialog", () => {
     render(<DashboardItemDialog items={items} />);
     fireEvent.click(screen.getByText("close"));
     expect(closeItem).toHaveBeenCalledOnce();
+  });
+
+  it("shows the seed skeleton while an off-grid item is still loading", () => {
+    // Open id isn't in the list and no fetched data yet.
+    dialogState = {
+      openItemId: "z",
+      openItemSeed: { id: "z", imageFileKey: "fz" },
+    };
+    render(<DashboardItemDialog items={items} />);
+    expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
+    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+  });
+
+  it("swaps the skeleton for the real dialog once the fetch resolves", () => {
+    dialogState = {
+      openItemId: "z",
+      openItemSeed: { id: "z", imageFileKey: "fz" },
+    };
+    useItemReturn = {
+      data: {
+        id: "z",
+        title: "Z",
+        kind: "image",
+        fileKey: "fz",
+        coverFileKey: null,
+      } as unknown as Item,
+    };
+    render(<DashboardItemDialog items={items} />);
+    expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+  });
+
+  it("renders the deep-link initialItem without a skeleton", () => {
+    dialogState = { openItemId: "z", openItemSeed: null };
+    const initialItem = {
+      id: "z",
+      title: "Z",
+      kind: "image",
+      fileKey: "fz",
+      coverFileKey: null,
+    } as unknown as Item;
+    render(<DashboardItemDialog items={items} initialItem={initialItem} />);
+    expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
   it("keeps the item mounted (open=false) after close, then clears on exit", () => {

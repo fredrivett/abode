@@ -17,11 +17,26 @@ import {
 } from "@/lib/items/item-dialog-url";
 import { useOpenItemTabTitle } from "./use-open-item-tab-title";
 
+/**
+ * Just-enough item data to paint the detail dialog immediately while the full
+ * item loads — carried from the click that opened an item outside the loaded
+ * grid (e.g. a "similar images" thumbnail), so the dialog shows the image and
+ * title straight away instead of a blank shell.
+ */
+export type OpenItemSeed = {
+  id: string;
+  imageFileKey: string | null;
+  title: string | null;
+  blurDataUrl: string | null;
+};
+
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
   openItemId: string | null;
+  /** Seed data for the open item when it was opened from outside the grid. */
+  openItemSeed: OpenItemSeed | null;
   /** Open an item's dialog, pushing a history entry (Back closes it). */
-  openItem: (itemId: string) => void;
+  openItem: (itemId: string, seed?: OpenItemSeed) => void;
   /** Close the open dialog: pop history if we pushed, else strip the param. */
   closeItem: () => void;
   /**
@@ -53,17 +68,24 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
 
+  // Seed data for an item opened from outside the grid, so the dialog can paint
+  // its image/title before the full item loads. Guarded by id at the point of
+  // use, so a stale seed can't apply to a different open item.
+  const [openItemSeed, setOpenItemSeed] = useState<OpenItemSeed | null>(null);
+
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
   const openedViaPushRef = useRef(false);
 
-  const openItem = useCallback((itemId: string) => {
+  const openItem = useCallback((itemId: string, seed?: OpenItemSeed) => {
     openedViaPushRef.current = true;
+    setOpenItemSeed(seed ?? null);
     const query = withOpenItem(window.location.search, itemId);
     window.history.pushState(null, "", `?${query}`);
   }, []);
 
   const closeItem = useCallback(() => {
+    setOpenItemSeed(null);
     if (openedViaPushRef.current) {
       openedViaPushRef.current = false;
       window.history.back();
@@ -84,8 +106,8 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const reportItemTitle = useOpenItemTabTitle(openItemId);
 
   const value = useMemo(
-    () => ({ openItemId, openItem, closeItem, reportItemTitle }),
-    [openItemId, openItem, closeItem, reportItemTitle],
+    () => ({ openItemId, openItemSeed, openItem, closeItem, reportItemTitle }),
+    [openItemId, openItemSeed, openItem, closeItem, reportItemTitle],
   );
 
   return (
