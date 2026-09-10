@@ -15,8 +15,16 @@ abode — ${ABODE_TAGLINE}`;
 /**
  * HTML helper functions for consistent styling across all emails
  */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function htmlLink(text: string, url: string): string {
-  return `<a href="${url}" style="text-decoration: underline;">${text}</a>`;
+  return `<a href="${escapeHtml(url)}" style="text-decoration: underline;">${escapeHtml(text)}</a>`;
 }
 
 function htmlFooter(): string {
@@ -206,6 +214,26 @@ export function getAdminNotificationEmail(data: AdminNotificationData): {
         ? `\nreferral source: ${data.referralSource}`
         : "";
 
+      // pre-filled mailto so we can reply to the signup in one click
+      const inviteMailtoSubject = "just sent you abode access";
+      const inviteMailtoBody = `hey [name],
+
+thanks for signing up for early access to abode! i just sent you an invite to try it out.
+
+it's still got a lot of rough edges but would love any raw feedback especially on the areas that suck and need improving.
+
+any questions feel free to email me anytime.
+
+cheers!
+fred.`;
+      // keep @ literal (valid in a mailto target) but encode any other
+      // uri-significant chars (e.g. # / %) in the recipient address
+      const encodedRecipient = encodeURIComponent(data.email).replace(
+        /%40/g,
+        "@",
+      );
+      const inviteMailto = `mailto:${encodedRecipient}?subject=${encodeURIComponent(inviteMailtoSubject)}&body=${encodeURIComponent(inviteMailtoBody)}`;
+
       const text = `new waitlist signup
 
 email: ${data.email}
@@ -217,7 +245,7 @@ ${EMAIL_FOOTER}
       const html = `<p><strong>new waitlist signup</strong></p>
 
 <p>
-<strong>email:</strong> ${data.email}<br>
+<strong>email:</strong> ${htmlLink(data.email, inviteMailto)}<br>
 <strong>position:</strong> #${data.position}${data.referralSource ? `<br><strong>referral source:</strong> ${data.referralSource}` : ""}
 </p>
 
