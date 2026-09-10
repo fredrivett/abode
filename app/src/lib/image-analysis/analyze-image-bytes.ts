@@ -5,8 +5,8 @@ import {
   isReplicateConfigured,
   VISUAL_EMBEDDING_MODEL,
 } from "../embeddings";
+import { withExternalService } from "../external-service";
 import { createLogger } from "../logger.server";
-import { withOptionalService } from "../optional-service";
 import { captureServerException } from "../posthog-server";
 import {
   analyzeImageColorsOnly,
@@ -92,7 +92,7 @@ export async function analyzeImageBytes(params: {
   // the analysis. A minimal deploy (no OpenAI, no Google key) still returns a
   // usable result — bare image details plus the local blur placeholder.
   const [colorsResult, openaiResult, blurDataUrl] = await Promise.all([
-    withOptionalService<{ colors: ImageColor[]; analyzed: boolean }>({
+    withExternalService<{ colors: ImageColor[]; analyzed: boolean }>({
       isConfigured: isGoogleVisionConfigured,
       run: async () => {
         const colors = await analyzeImageColorsOnly(buffer);
@@ -157,7 +157,7 @@ export async function analyzeImageBytes(params: {
 
   // CLIP visual embedding — optional. Skip cleanly when Replicate isn't
   // configured, and never let a Replicate failure fail the analysis.
-  const { embedding, embeddingModel } = await withOptionalService<{
+  const { embedding, embeddingModel } = await withExternalService<{
     embedding: number[] | null;
     embeddingModel: string | null;
   }>({

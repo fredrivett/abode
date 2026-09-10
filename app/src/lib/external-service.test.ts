@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { withOptionalService } from "@/lib/optional-service";
+import { withExternalService } from "@/lib/external-service";
 
-describe("withOptionalService", () => {
+describe("withExternalService", () => {
   it("skips cleanly when not configured — never invokes run (no setup work)", async () => {
     const run = vi.fn();
     const onError = vi.fn();
 
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: false,
       run,
       onSkip: () => "skipped",
@@ -21,7 +21,7 @@ describe("withOptionalService", () => {
   it("evaluates a predicate for isConfigured and skips when it returns false", async () => {
     const run = vi.fn();
 
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: () => false,
       run,
       onSkip: () => "skipped",
@@ -36,7 +36,7 @@ describe("withOptionalService", () => {
     const onSkip = vi.fn();
     const onError = vi.fn();
 
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: true,
       run: async () => "ran",
       onSkip,
@@ -49,7 +49,7 @@ describe("withOptionalService", () => {
   });
 
   it("runs when isConfigured is the predicate returning true", async () => {
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: () => true,
       run: () => "ran",
       onSkip: () => "skipped",
@@ -66,7 +66,7 @@ describe("withOptionalService", () => {
       return "recovered";
     });
 
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: true,
       run: () => {
         throw boom;
@@ -82,7 +82,7 @@ describe("withOptionalService", () => {
   it("catches a rejected promise the same way as a synchronous throw", async () => {
     const boom = new Error("async boom");
 
-    const result = await withOptionalService({
+    const result = await withExternalService({
       isConfigured: true,
       run: async () => {
         throw boom;

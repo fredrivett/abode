@@ -1,7 +1,7 @@
 /**
- * Run one optional-service enhancement with the graceful-degradation contract
- * baked into its shape (see "Optional Services & Graceful Degradation" in
- * AGENTS.md / CLAUDE.md). Three outcomes, one each:
+ * Wrap one optional external-service *call that returns a value* with the
+ * graceful-degradation contract baked into its shape (see "Optional Services &
+ * Graceful Degradation" in AGENTS.md / CLAUDE.md). Three outcomes, one each:
  *
  * 1. **Not configured → skip cleanly.** `onSkip()` supplies the fallback; `run`
  *    is never invoked, so no setup work (signed URLs, client init, fetches)
@@ -12,12 +12,17 @@
  *    fail the surrounding work (rule 3). Put `captureServerException` /
  *    `reportImageEmbeddingFailure` and any `warn` log inside `onError`.
  *
- * This is for genuinely-optional enhancements whose failure must be swallowed.
- * It is deliberately NOT for work that should fail-and-retry on error (e.g. a
- * recommended-core vision pass) — those want a bare `if (!configured) skip`
- * with the error left to propagate, not a catch-all.
+ * Scope: this is the idiom for the "call an external service, get a value back,
+ * may fail" shape whose failure must be swallowed. Other optional-service shapes
+ * satisfy the same contract their own way and should NOT be forced through here:
+ * fire-and-forget side effects (PostHog `getPostHogClient()?.capture()`) use a
+ * null-returning client, and self-guarding APIs that return a Result (email
+ * `send()`) own their guard and never throw. It's also deliberately NOT for work
+ * that should fail-and-retry on error (e.g. the recommended-core OpenAI vision
+ * pass) — that wants a bare `if (!configured) skip` with the error left to
+ * propagate, not a catch-all.
  */
-export type OptionalServiceOptions<T> = {
+export type ExternalServiceOptions<T> = {
   /** Whether the service's key/config is present. A boolean or a predicate. */
   isConfigured: boolean | (() => boolean);
   /** Work to run when configured. May throw/reject — routed to `onError`. */
@@ -28,8 +33,8 @@ export type OptionalServiceOptions<T> = {
   onError: (error: unknown) => T;
 };
 
-export async function withOptionalService<T>(
-  options: OptionalServiceOptions<T>,
+export async function withExternalService<T>(
+  options: ExternalServiceOptions<T>,
 ): Promise<T> {
   const { isConfigured, run, onSkip, onError } = options;
 
