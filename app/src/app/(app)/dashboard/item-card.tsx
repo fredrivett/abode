@@ -432,20 +432,17 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -494,20 +491,17 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -548,20 +542,17 @@ export function ItemCard({
 
         {/* Pass the real previewUrl even in text mode so a hidden cover still
             shows the Cover Image section (and its toggle) in the detail dialog */}
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={previewUrl}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -601,20 +592,17 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -659,20 +647,17 @@ export function ItemCard({
           </div>
         </button>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -691,20 +676,17 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
-          imageFileKey={null}
-          onOpenChange={setShowDetailDialog}
+          imageFileKey={imageFileKey}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -724,20 +706,17 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
-          imageFileKey={null}
-          onOpenChange={setShowDetailDialog}
+          imageFileKey={imageFileKey}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -756,20 +735,17 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
-          imageFileKey={null}
-          onOpenChange={setShowDetailDialog}
+          imageFileKey={imageFileKey}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -789,20 +765,17 @@ export function ItemCard({
           />
         </div>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={null}
-          imageFileKey={null}
-          onOpenChange={setShowDetailDialog}
+          imageFileKey={imageFileKey}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -833,20 +806,17 @@ export function ItemCard({
           />
         </button>
 
-        <ItemDetailDialogWrapper
-          show={showDetailDialog}
+        <ItemDetailDialogHost
           item={item}
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
           size={size}
           previewUrl={previewUrl}
           imageFileKey={imageFileKey}
-          onOpenChange={setShowDetailDialog}
           name={itemName}
           onNameChange={setItemName}
-          deleteOpen={showDeleteDialog}
-          onDeleteOpenChange={setShowDeleteDialog}
-          onDeleteConfirm={handleDelete}
-          isDeleting={isDeleting}
           canEdit={canEdit}
+          onDeleted={onDeleted}
         />
       </>
     );
@@ -964,20 +934,17 @@ export function ItemCard({
         </motion.div>
       </div>
 
-      <ItemDetailDialogWrapper
-        show={showDetailDialog}
+      <ItemDetailDialogHost
         item={item}
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
         size={size}
         previewUrl={previewUrl}
         imageFileKey={imageFileKey}
-        onOpenChange={setShowDetailDialog}
         name={itemName}
         onNameChange={setItemName}
-        deleteOpen={showDeleteDialog}
-        onDeleteOpenChange={setShowDeleteDialog}
-        onDeleteConfirm={handleDelete}
-        isDeleting={isDeleting}
         canEdit={canEdit}
+        onDeleted={onDeleted}
       />
     </>
   );
@@ -1118,6 +1085,88 @@ function ItemDetailDialogWrapper({
         />
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * Reusable host for an item's detail dialog: owns the delete flow (confirm +
+ * API call) and renders the dialog. Given a full item plus the derived
+ * display props, it's independent of any grid card — so it serves both the
+ * grid card and the off-grid opener (e.g. a "similar images" click to an item
+ * that isn't in the loaded list).
+ */
+export function ItemDetailDialogHost({
+  item,
+  open,
+  onOpenChange,
+  size,
+  previewUrl,
+  imageFileKey,
+  name,
+  onNameChange,
+  canEdit,
+  onDeleted,
+}: {
+  item: Item;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  size: string;
+  previewUrl: string | null;
+  imageFileKey: string | null;
+  name: string;
+  onNameChange: (value: string) => void;
+  canEdit: boolean;
+  onDeleted?: () => void;
+}) {
+  const invalidateItems = useInvalidateItems();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete("/api/v1/items", {
+        body: JSON.stringify({ id: item.id }),
+      });
+
+      // Track item deletion event
+      posthog.capture("item_deleted", {
+        item_id: item.id,
+        item_kind: item.kind,
+        source_type: item.sourceType,
+      });
+
+      toast.success("Item deleted");
+      setShowDeleteDialog(false);
+      // Close the detail dialog explicitly so it dismisses regardless of whether
+      // the parent list unmounts this card (the room view keeps its own state).
+      onOpenChange(false);
+      invalidateItems();
+      onDeleted?.();
+    } catch (error) {
+      log.error({ error }, "Delete error");
+      posthog.captureException(error);
+      toast.error("Failed to delete item");
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <ItemDetailDialogWrapper
+      show={open}
+      item={item}
+      size={size}
+      previewUrl={previewUrl}
+      imageFileKey={imageFileKey}
+      onOpenChange={onOpenChange}
+      name={name}
+      onNameChange={onNameChange}
+      deleteOpen={showDeleteDialog}
+      onDeleteOpenChange={setShowDeleteDialog}
+      onDeleteConfirm={handleDelete}
+      isDeleting={isDeleting}
+      canEdit={canEdit}
+    />
   );
 }
 
