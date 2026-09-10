@@ -20,6 +20,14 @@ vi.mock("@/lib/search", () => ({
   useSearchResults: () => mockUseSearchResults(),
 }));
 
+// Stable spies for the rename wiring, plus a capture slot for the prop the grid
+// hands the (stubbed) dialog. Hoisted so the vi.mock factories can reference them.
+const renameSpies = vi.hoisted(() => ({
+  updateCachedTitle: vi.fn(),
+  patchItemTitle: vi.fn(),
+  onItemRenamed: null as ((itemId: string, title: string) => void) | null,
+}));
+
 vi.mock("@/lib/api-hooks", () => ({
   useItemsInfinite: () => ({
     data: undefined,
@@ -28,7 +36,7 @@ vi.mock("@/lib/api-hooks", () => ({
     isFetchingNextPage: false,
     error: null,
   }),
-  useUpdateCachedItemTitle: () => vi.fn(),
+  useUpdateCachedItemTitle: () => renameSpies.updateCachedTitle,
 }));
 
 vi.mock("@/lib/use-processing-poll", () => ({
@@ -50,9 +58,17 @@ vi.mock("./items-grid", () => ({
 }));
 
 // The central detail dialog is exercised in its own test; stub it here so this
-// list-logic test doesn't pull in the heavy item-card tree.
+// list-logic test doesn't pull in the heavy item-card tree, but capture the
+// rename handler the grid passes it so we can assert the wiring.
 vi.mock("./_components/dashboard-item-dialog", () => ({
-  DashboardItemDialog: () => null,
+  DashboardItemDialog: ({
+    onItemRenamed,
+  }: {
+    onItemRenamed: (itemId: string, title: string) => void;
+  }) => {
+    renameSpies.onItemRenamed = onItemRenamed;
+    return null;
+  },
 }));
 
 import { SearchableItemsGrid } from "./searchable-items-grid";
@@ -73,7 +89,7 @@ function makeSearchResults(overrides: Partial<SearchResults>): SearchResults {
     error: null,
     warnings: undefined,
     loadMore: vi.fn(),
-    patchItemTitle: vi.fn(),
+    patchItemTitle: renameSpies.patchItemTitle,
     hasActiveSearch: false,
     ...overrides,
   };
@@ -112,6 +128,28 @@ describe("SearchableItemsGrid", () => {
     captured = { items: [] };
     nav.params = new URLSearchParams();
     mockUseSearchResults.mockReset();
+    renameSpies.updateCachedTitle.mockClear();
+    renameSpies.patchItemTitle.mockClear();
+    renameSpies.onItemRenamed = null;
+  });
+
+  it("routes a dialog rename to both the item cache and the search-results state", () => {
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({ hasActiveSearch: true }),
+    );
+    renderGrid();
+
+    // Fire the handler the grid handed the (stubbed) central dialog.
+    renameSpies.onItemRenamed?.("item-9", "New Title");
+
+    expect(renameSpies.updateCachedTitle).toHaveBeenCalledWith(
+      "item-9",
+      "New Title",
+    );
+    expect(renameSpies.patchItemTitle).toHaveBeenCalledWith(
+      "item-9",
+      "New Title",
+    );
   });
 
   it("shows the full list and an enabled composer when there is no active search", () => {
