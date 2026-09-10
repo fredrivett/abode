@@ -123,6 +123,38 @@ describe("DashboardItemDialog", () => {
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
+  it("keeps an off-grid swap instant across its loading gap", () => {
+    dialogState = { openItemId: "a" };
+    const { rerender } = render(
+      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+    );
+
+    // Swap to an off-grid item — its fetch hasn't resolved, so the skeleton
+    // shows and resolved is briefly null.
+    dialogState = {
+      openItemId: "z",
+      openItemSeed: { id: "z", imageFileKey: "fz" },
+    };
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    expect(screen.getByTestId("skeleton")).toBeInTheDocument();
+
+    // Fetch resolves — the replacement must appear instantly, not fade in,
+    // because the dialog never closed (this was a swap, not a fresh open).
+    useItemReturn = {
+      data: {
+        id: "z",
+        title: "Z",
+        kind: "image",
+        fileKey: "fz",
+        coverFileKey: null,
+      } as unknown as Item,
+    };
+    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    const host = screen.getByTestId("host");
+    expect(host).toHaveAttribute("data-item", "z");
+    expect(host).toHaveAttribute("data-animate", "false");
+  });
+
   it("shows the seed skeleton while an off-grid item is still loading", () => {
     // Open id isn't in the list and no fetched data yet.
     dialogState = {

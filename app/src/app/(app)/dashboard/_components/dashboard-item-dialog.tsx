@@ -74,9 +74,10 @@ export function DashboardItemDialog({
 
   // Fresh open (grid → dialog) animates in; swapping straight from one open
   // item to another (a "similar images" click) changes instantly — so the
-  // dialog only fades on open/close, not between items. Frozen per shown item
-  // id so it stays stable across re-renders of the same item.
-  const shownId = open ? (resolved?.id ?? null) : null;
+  // dialog only fades on open/close, not between items. Keyed off openItemId
+  // (not resolved.id) so an off-grid swap's loading gap — where resolved is
+  // briefly null — doesn't read as a close→open and re-trigger the fade.
+  const shownId = open ? openItemId : null;
   const prevShownIdRef = useRef<string | null>(null);
   const animateEntranceRef = useRef(true);
   if (shownId !== prevShownIdRef.current) {
