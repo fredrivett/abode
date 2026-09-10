@@ -8,21 +8,28 @@
  * don't strip each other's state.
  */
 
+import { isCanonicalUuid } from "@/lib/pagination";
+
 export const ITEM_DIALOG_PARAM = "item";
 
-type ReadableParams = { get(name: string): string | null };
+type ReadableParams = { getAll(name: string): string[] };
 
 /**
  * Read the open item id from a query string or (Readonly)URLSearchParams.
  *
- * Normalized to lowercase: item ids are UUIDs stored canonically (lowercase) in
- * Postgres, so an uppercase value in a hand-edited/shared URL must be lowered to
- * match the id the client compares against, or the dialog would never open.
+ * Validated to match how the server resolves the deep link: a repeated param is
+ * ambiguous and treated as no open item, and the value must be a canonical
+ * UUID. Item ids are stored canonically (lowercase) in Postgres, so an uppercase
+ * value in a hand-edited/shared URL is lowered to match; anything that isn't a
+ * UUID returns null, so a malformed link never drives a resolve or by-id fetch.
  */
 export function readItemParam(search: string | ReadableParams): string | null {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
-  return params.get(ITEM_DIALOG_PARAM)?.toLowerCase() ?? null;
+  const all = params.getAll(ITEM_DIALOG_PARAM);
+  if (all.length !== 1) return null;
+  const id = all[0].toLowerCase();
+  return isCanonicalUuid(id) ? id : null;
 }
 
 /**

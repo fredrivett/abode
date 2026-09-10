@@ -68,10 +68,14 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
 
-  // Seed data for an item opened from outside the grid, so the dialog can paint
-  // its image/title before the full item loads. Guarded by id at the point of
-  // use, so a stale seed can't apply to a different open item.
-  const [openItemSeed, setOpenItemSeed] = useState<OpenItemSeed | null>(null);
+  // Seed data (image/title) for items opened from outside the grid, so the
+  // dialog can paint before the full item loads. Kept per id rather than as a
+  // single value so navigating Back to a previously-seeded off-grid item still
+  // has its seed to show while that item re-resolves.
+  const seedsRef = useRef<Map<string, OpenItemSeed>>(new Map());
+  const openItemSeed = openItemId
+    ? (seedsRef.current.get(openItemId) ?? null)
+    : null;
 
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
@@ -79,13 +83,12 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
 
   const openItem = useCallback((itemId: string, seed?: OpenItemSeed) => {
     openedViaPushRef.current = true;
-    setOpenItemSeed(seed ?? null);
+    if (seed !== undefined) seedsRef.current.set(itemId, seed);
     const query = withOpenItem(window.location.search, itemId);
     window.history.pushState(null, "", `?${query}`);
   }, []);
 
   const closeItem = useCallback(() => {
-    setOpenItemSeed(null);
     if (openedViaPushRef.current) {
       openedViaPushRef.current = false;
       window.history.back();

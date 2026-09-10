@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useUpdateCachedItemTitle } from "@/lib/api-hooks";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
@@ -50,11 +51,21 @@ export function DashboardItemDialog({
   const fromInitial =
     initialItem && initialItem.id === openItemId ? initialItem : null;
   const needsFetch = openItemId !== null && !inList && !fromInitial;
-  const { data: fetched } = useItem(openItemId, needsFetch);
+  const { data: fetched, isError } = useItem(openItemId, needsFetch);
   const resolved =
     inList ??
     fromInitial ??
     (fetched && fetched.id === openItemId ? fetched : null);
+
+  // The by-id fetch failed (deleted item, network) — close rather than sit on
+  // the loading skeleton forever.
+  const closeItem = itemDialog?.closeItem;
+  useEffect(() => {
+    if (needsFetch && isError) {
+      toast.error("Couldn't open that item");
+      closeItem?.();
+    }
+  }, [needsFetch, isError, closeItem]);
 
   // Keep the last opened item mounted through the close animation, then clear
   // it on exit — otherwise closing would unmount instantly with no animation.

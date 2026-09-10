@@ -38,10 +38,14 @@ vi.mock("../item-dialog-context", () => ({
   useItemDialog: () => ({ ...dialogState, closeItem }),
 }));
 
-let useItemReturn: { data: Item | undefined } = { data: undefined };
+let useItemReturn: { data: Item | undefined; isError?: boolean } = {
+  data: undefined,
+};
 vi.mock("@/lib/items/use-item", () => ({
   useItem: () => useItemReturn,
 }));
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 vi.mock("./item-dialog-skeleton", () => ({
   ItemDialogSkeleton: ({ seed }: { seed: { id: string } }) => (
@@ -109,6 +113,12 @@ describe("DashboardItemDialog", () => {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
+    // First render: off-grid item, fetch not resolved → skeleton.
+    const { rerender } = render(<DashboardItemDialog items={items} />);
+    expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
+    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+
+    // Fetch resolves → the real dialog replaces the skeleton.
     useItemReturn = {
       data: {
         id: "z",
@@ -118,9 +128,19 @@ describe("DashboardItemDialog", () => {
         coverFileKey: null,
       } as unknown as Item,
     };
-    render(<DashboardItemDialog items={items} />);
+    rerender(<DashboardItemDialog items={items} />);
     expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+  });
+
+  it("closes the dialog when the off-grid fetch errors", () => {
+    dialogState = {
+      openItemId: "z",
+      openItemSeed: { id: "z", imageFileKey: "fz" },
+    };
+    useItemReturn = { data: undefined, isError: true };
+    render(<DashboardItemDialog items={items} />);
+    expect(closeItem).toHaveBeenCalled();
   });
 
   it("renders the deep-link initialItem without a skeleton", () => {
