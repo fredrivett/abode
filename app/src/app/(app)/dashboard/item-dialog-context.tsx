@@ -30,6 +30,9 @@ export type OpenItemSeed = {
   blurDataUrl: string | null;
 };
 
+/** Cap on retained off-grid seeds; realistic back-navigation stays well under this. */
+const MAX_SEEDS = 50;
+
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
   openItemId: string | null;
@@ -71,7 +74,9 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   // Seed data (image/title) for items opened from outside the grid, so the
   // dialog can paint before the full item loads. Kept per id rather than as a
   // single value so navigating Back to a previously-seeded off-grid item still
-  // has its seed to show while that item re-resolves.
+  // has its seed to show while that item re-resolves. Bounded LRU (insertion
+  // order = recency) so a long session opening many items can't grow it without
+  // limit while still covering realistic back-navigation depth.
   const seedsRef = useRef<Map<string, OpenItemSeed>>(new Map());
   const openItemSeed = openItemId
     ? (seedsRef.current.get(openItemId) ?? null)
@@ -83,7 +88,15 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
 
   const openItem = useCallback((itemId: string, seed?: OpenItemSeed) => {
     openedViaPushRef.current = true;
-    if (seed !== undefined) seedsRef.current.set(itemId, seed);
+    if (seed !== undefined) {
+      const seeds = seedsRef.current;
+      // Re-insert so the id moves to newest, then evict oldest past the cap.
+      seeds.delete(itemId);
+      seeds.set(itemId, seed);
+      while (seeds.size > MAX_SEEDS) {
+        seeds.delete(seeds.keys().next().value ?? "");
+      }
+    }
     const query = withOpenItem(window.location.search, itemId);
     window.history.pushState(null, "", `?${query}`);
   }, []);
