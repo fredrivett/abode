@@ -15,8 +15,16 @@ abode — ${ABODE_TAGLINE}`;
 /**
  * HTML helper functions for consistent styling across all emails
  */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function htmlLink(text: string, url: string): string {
-  return `<a href="${url}" style="text-decoration: underline;">${text}</a>`;
+  return `<a href="${escapeHtml(url)}" style="text-decoration: underline;">${escapeHtml(text)}</a>`;
 }
 
 function htmlFooter(): string {
@@ -218,7 +226,13 @@ any questions feel free to email me anytime.
 
 cheers!
 fred.`;
-      const inviteMailto = `mailto:${data.email}?subject=${encodeURIComponent(inviteMailtoSubject)}&body=${encodeURIComponent(inviteMailtoBody)}`;
+      // keep @ literal (valid in a mailto target) but encode any other
+      // uri-significant chars (e.g. # / %) in the recipient address
+      const encodedRecipient = encodeURIComponent(data.email).replace(
+        /%40/g,
+        "@",
+      );
+      const inviteMailto = `mailto:${encodedRecipient}?subject=${encodeURIComponent(inviteMailtoSubject)}&body=${encodeURIComponent(inviteMailtoBody)}`;
 
       const text = `new waitlist signup
 

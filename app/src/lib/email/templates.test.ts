@@ -21,6 +21,20 @@ describe("getAdminNotificationEmail — waitlist_signup", () => {
     );
     // link text is the plain email address
     expect(html).toContain(">person@example.com</a>");
+    // ampersand separators are html-escaped for the href attribute
+    expect(html).toContain("&amp;body=");
+    expect(html).not.toContain("&body=");
+  });
+
+  test("uri-significant chars in the recipient are encoded in the mailto", () => {
+    const { html } = getAdminNotificationEmail({
+      type: "waitlist_signup",
+      email: "od#d%y@example.com",
+      position: 1,
+    });
+
+    // # and % would otherwise break the mailto target / drop the body
+    expect(html).toContain("mailto:od%23d%25y@example.com?");
   });
 
   test("text version still lists the plain email and position", () => {
