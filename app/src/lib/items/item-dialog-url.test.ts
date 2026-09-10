@@ -6,11 +6,13 @@ import {
   withoutOpenItem,
 } from "./item-dialog-url";
 
+const UUID = "2c4a9f0e-1b23-4d56-8e90-abcdef012345";
+
 describe("item-dialog-url", () => {
   describe("readItemParam", () => {
     it("reads the item id from a query string", () => {
-      expect(readItemParam("?item=abc123")).toBe("abc123");
-      expect(readItemParam("item=abc123")).toBe("abc123");
+      expect(readItemParam(`?item=${UUID}`)).toBe(UUID);
+      expect(readItemParam(`item=${UUID}`)).toBe(UUID);
     });
 
     it("returns null when absent", () => {
@@ -19,13 +21,22 @@ describe("item-dialog-url", () => {
     });
 
     it("accepts a URLSearchParams instance", () => {
-      expect(readItemParam(new URLSearchParams("item=xyz"))).toBe("xyz");
+      expect(readItemParam(new URLSearchParams(`item=${UUID}`))).toBe(UUID);
     });
 
     it("normalizes an uppercase UUID to lowercase (canonical) form", () => {
       expect(readItemParam("?item=2C4A9F0E-1B23-4D56-8E90-ABCDEF012345")).toBe(
-        "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+        UUID,
       );
+    });
+
+    it("returns null for a non-UUID value (matches the server)", () => {
+      expect(readItemParam("?item=abc123")).toBeNull();
+      expect(readItemParam("?item=not-a-uuid")).toBeNull();
+    });
+
+    it("returns null for a repeated item param (ambiguous)", () => {
+      expect(readItemParam(`?item=${UUID}&item=${UUID}`)).toBeNull();
     });
   });
 

@@ -19,6 +19,12 @@ vi.mock("posthog-js", () => ({
   default: { capture: (...args: unknown[]) => capture(...args) },
 }));
 
+const openItem = vi.fn();
+let mockDialog: { openItem: typeof openItem } | null = { openItem };
+vi.mock("../item-dialog-context", () => ({
+  useItemDialog: () => mockDialog,
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -28,7 +34,7 @@ vi.mock("next/link", () => ({
   }: {
     children: React.ReactNode;
     href: string;
-    onClick?: () => void;
+    onClick?: (event: React.MouseEvent) => void;
     className?: string;
   }) => (
     <a href={href} onClick={onClick} className={className}>
@@ -54,6 +60,7 @@ const sampleItem = {
 describe("SimilarImages", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDialog = { openItem };
   });
 
   it("renders nothing when there are no matches", () => {
@@ -115,24 +122,52 @@ describe("SimilarImages", () => {
     });
   });
 
-  it("captures a click event and calls onNavigate", () => {
+  it("opens the target in place (no navigation) on a plain click with a provider", () => {
     setResults([sampleItem]);
-    const onNavigate = vi.fn();
-    render(
-      <SimilarImages
-        itemId="source-1"
-        enabled={true}
-        onNavigate={onNavigate}
-      />,
-    );
+    render(<SimilarImages itemId="source-1" enabled={true} />);
 
-    fireEvent.click(screen.getByRole("link"));
+    const notPrevented = fireEvent.click(screen.getByRole("link"));
 
-    expect(onNavigate).toHaveBeenCalledOnce();
+    // Default navigation is prevented — we swap the dialog instead.
+    expect(notPrevented).toBe(false);
+    expect(openItem).toHaveBeenCalledWith("target-1", {
+      id: "target-1",
+      imageFileKey: "user/photo-1.jpg",
+      title: "A beach",
+      blurDataUrl: BLUR,
+    });
     expect(capture).toHaveBeenCalledWith("similar_image_clicked", {
       item_id: "source-1",
       target_item_id: "target-1",
     });
+  });
+
+  it("falls through to navigation on a modifier click (open in new tab)", () => {
+    setResults([sampleItem]);
+    render(<SimilarImages itemId="source-1" enabled={true} />);
+
+    const notPrevented = fireEvent.click(screen.getByRole("link"), {
+      metaKey: true,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(openItem).not.toHaveBeenCalled();
+    // Still tracks the click.
+    expect(capture).toHaveBeenCalledWith(
+      "similar_image_clicked",
+      expect.objectContaining({ target_item_id: "target-1" }),
+    );
+  });
+
+  it("navigates normally when there's no dialog provider (e.g. room views)", () => {
+    mockDialog = null;
+    setResults([sampleItem]);
+    render(<SimilarImages itemId="source-1" enabled={true} />);
+
+    const notPrevented = fireEvent.click(screen.getByRole("link"));
+
+    expect(notPrevented).toBe(true);
+    expect(openItem).not.toHaveBeenCalled();
   });
 
   it("passes enabled through to the data hook", () => {

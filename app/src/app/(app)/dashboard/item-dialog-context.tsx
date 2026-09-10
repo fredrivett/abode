@@ -17,11 +17,29 @@ import {
 } from "@/lib/items/item-dialog-url";
 import { useOpenItemTabTitle } from "./use-open-item-tab-title";
 
+/**
+ * Just-enough item data to paint the detail dialog immediately while the full
+ * item loads — carried from the click that opened an item outside the loaded
+ * grid (e.g. a "similar images" thumbnail), so the dialog shows the image and
+ * title straight away instead of a blank shell.
+ */
+export type OpenItemSeed = {
+  id: string;
+  imageFileKey: string | null;
+  title: string | null;
+  blurDataUrl: string | null;
+};
+
+/** Cap on retained off-grid seeds; realistic back-navigation stays well under this. */
+const MAX_SEEDS = 50;
+
 type ItemDialogContextValue = {
   /** The item whose detail dialog the URL currently addresses, or null. */
   openItemId: string | null;
+  /** Seed data for the open item when it was opened from outside the grid. */
+  openItemSeed: OpenItemSeed | null;
   /** Open an item's dialog, pushing a history entry (Back closes it). */
-  openItem: (itemId: string) => void;
+  openItem: (itemId: string, seed?: OpenItemSeed) => void;
   /** Close the open dialog: pop history if we pushed, else strip the param. */
   closeItem: () => void;
   /**
@@ -53,12 +71,32 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
 
+  // Seed data (image/title) for items opened from outside the grid, so the
+  // dialog can paint before the full item loads. Kept per id rather than as a
+  // single value so navigating Back to a previously-seeded off-grid item still
+  // has its seed to show while that item re-resolves. Bounded LRU (insertion
+  // order = recency) so a long session opening many items can't grow it without
+  // limit while still covering realistic back-navigation depth.
+  const seedsRef = useRef<Map<string, OpenItemSeed>>(new Map());
+  const openItemSeed = openItemId
+    ? (seedsRef.current.get(openItemId) ?? null)
+    : null;
+
   // Whether the current dialog was opened via pushState this session (vs.
   // present in the URL on load). Decides back() vs. in-place strip on close.
   const openedViaPushRef = useRef(false);
 
-  const openItem = useCallback((itemId: string) => {
+  const openItem = useCallback((itemId: string, seed?: OpenItemSeed) => {
     openedViaPushRef.current = true;
+    if (seed !== undefined) {
+      const seeds = seedsRef.current;
+      // Re-insert so the id moves to newest, then evict oldest past the cap.
+      seeds.delete(itemId);
+      seeds.set(itemId, seed);
+      while (seeds.size > MAX_SEEDS) {
+        seeds.delete(seeds.keys().next().value ?? "");
+      }
+    }
     const query = withOpenItem(window.location.search, itemId);
     window.history.pushState(null, "", `?${query}`);
   }, []);
@@ -84,8 +122,8 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const reportItemTitle = useOpenItemTabTitle(openItemId);
 
   const value = useMemo(
-    () => ({ openItemId, openItem, closeItem, reportItemTitle }),
-    [openItemId, openItem, closeItem, reportItemTitle],
+    () => ({ openItemId, openItemSeed, openItem, closeItem, reportItemTitle }),
+    [openItemId, openItemSeed, openItem, closeItem, reportItemTitle],
   );
 
   return (

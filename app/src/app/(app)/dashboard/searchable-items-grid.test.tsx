@@ -48,6 +48,12 @@ vi.mock("./items-grid", () => ({
   },
 }));
 
+// The central detail dialog is exercised in its own test; stub it here so this
+// list-logic test doesn't pull in the heavy item-card tree.
+vi.mock("./_components/dashboard-item-dialog", () => ({
+  DashboardItemDialog: () => null,
+}));
+
 import { SearchableItemsGrid } from "./searchable-items-grid";
 
 const item = (id: string): Item => ({ id }) as unknown as Item;
@@ -177,31 +183,11 @@ describe("SearchableItemsGrid", () => {
     expect(captured.isSearchPending).toBe(true);
   });
 
-  it("injects the open item at the front when it isn't already in the list", () => {
+  it("passes the loaded list straight through, without injecting the open item", () => {
+    // An off-grid open item (deep link, or a similar-images click) is rendered
+    // by the central DashboardItemDialog, not injected as a grid card — so the
+    // grid always shows exactly the loaded list.
     nav.params = new URLSearchParams("item=deep-linked");
-    mockUseSearchResults.mockReturnValue(
-      makeSearchResults({ hasActiveSearch: false }),
-    );
-    renderGrid(item("deep-linked"));
-    expect(captured.items.map((i) => i.id)).toEqual([
-      "deep-linked",
-      "full-1",
-      "full-2",
-    ]);
-  });
-
-  it("doesn't duplicate the open item when it's already in the list", () => {
-    nav.params = new URLSearchParams("item=full-1");
-    mockUseSearchResults.mockReturnValue(
-      makeSearchResults({ hasActiveSearch: false }),
-    );
-    renderGrid(item("full-1"));
-    expect(captured.items.map((i) => i.id)).toEqual(["full-1", "full-2"]);
-  });
-
-  it("doesn't inject the open item once the URL no longer addresses it", () => {
-    // Dialog closed: item param gone, so the injected card shouldn't linger
-    nav.params = new URLSearchParams();
     mockUseSearchResults.mockReturnValue(
       makeSearchResults({ hasActiveSearch: false }),
     );

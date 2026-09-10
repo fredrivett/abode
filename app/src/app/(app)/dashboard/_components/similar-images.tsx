@@ -7,13 +7,12 @@ import { BlurImage } from "@/components/ui/blur-image";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { useSimilarImages } from "@/lib/search/use-similar-images";
 import { useUserStore } from "@/stores/user-store";
+import { useItemDialog } from "../item-dialog-context";
 
 type SimilarImagesProps = {
   itemId: string;
   /** Only fetch/show when the detail view is open and the item is an image. */
   enabled: boolean;
-  /** Called when a similar image is clicked (e.g. to close the current dialog). */
-  onNavigate?: () => void;
 };
 
 /**
@@ -24,12 +23,9 @@ type SimilarImagesProps = {
  * threshold — the section simply doesn't appear when there's nothing alike
  * (or when the item has no visual embedding).
  */
-export function SimilarImages({
-  itemId,
-  enabled,
-  onNavigate,
-}: SimilarImagesProps) {
+export function SimilarImages({ itemId, enabled }: SimilarImagesProps) {
   const username = useUserStore((state) => state.username);
+  const itemDialog = useItemDialog();
   const { data } = useSimilarImages(itemId, enabled);
   const items = data?.items ?? [];
 
@@ -64,12 +60,33 @@ export function SimilarImages({
             <Link
               key={item.id}
               href={href}
-              onClick={() => {
+              onClick={(event) => {
                 posthog.capture("similar_image_clicked", {
                   item_id: itemId,
                   target_item_id: item.id,
                 });
-                onNavigate?.();
+                // On the dashboard, swap the open detail dialog to the clicked
+                // item in place (no full navigation), seeding it with what we
+                // already have so it paints instantly. Modifier / non-left
+                // clicks fall through so "open in new tab" still works, as does
+                // plain navigation where there's no provider (room views, the
+                // public page).
+                if (
+                  itemDialog &&
+                  event.button === 0 &&
+                  !event.metaKey &&
+                  !event.ctrlKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                ) {
+                  event.preventDefault();
+                  itemDialog.openItem(item.id, {
+                    id: item.id,
+                    imageFileKey: item.fileKey,
+                    title: item.title ?? null,
+                    blurDataUrl: item.blurDataUrl ?? null,
+                  });
+                }
               }}
               className="group relative aspect-square overflow-hidden rounded-md border border-border bg-muted"
             >
