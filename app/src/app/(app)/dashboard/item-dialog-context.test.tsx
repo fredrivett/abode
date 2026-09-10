@@ -48,9 +48,13 @@ describe("ItemDialogProvider", () => {
   });
 
   it("exposes the open item id from the URL", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     const { getByTestId } = renderProvider();
-    expect(getByTestId("open").textContent).toBe("2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    expect(getByTestId("open").textContent).toBe(
+      "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
   });
 
   it("reports no open item when the param is absent", () => {
@@ -71,13 +75,17 @@ describe("ItemDialogProvider", () => {
 
     // Simulate the router reflecting the pushed URL, then confirm the provider
     // publishes the new open item (not just that it wrote history).
-    nav.params = new URLSearchParams("q=cat&item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "q=cat&item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     rerender(
       <ItemDialogProvider>
         <Consumer />
       </ItemDialogProvider>,
     );
-    expect(getByTestId("open").textContent).toBe("2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    expect(getByTestId("open").textContent).toBe(
+      "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
   });
 
   it("closes via history.back() when it opened the dialog itself", () => {
@@ -92,8 +100,14 @@ describe("ItemDialogProvider", () => {
 
   it("closes a deep-linked dialog by stripping the param in place", () => {
     // Item present in the URL on load — never opened via pushState this session
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
-    window.history.replaceState(null, "", "/?item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/?item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     renderProvider();
     replaceSpy.mockClear();
 
@@ -108,9 +122,13 @@ describe("ItemDialogProvider", () => {
   it("publishes no open item once the URL param is gone", () => {
     // The router reflects a closed dialog (param stripped) — the provider must
     // stop reporting the item as open, not just have written history.
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     const { getByTestId, rerender } = renderProvider();
-    expect(getByTestId("open").textContent).toBe("2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    expect(getByTestId("open").textContent).toBe(
+      "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
 
     nav.params = new URLSearchParams();
     rerender(
@@ -122,11 +140,18 @@ describe("ItemDialogProvider", () => {
   });
 
   it("sets the tab title from a report matching the open item", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     document.title = "abode";
     renderProvider();
 
-    act(() => ctx?.reportItemTitle({ id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345", title: "My Item" }));
+    act(() =>
+      ctx?.reportItemTitle({
+        id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+        title: "My Item",
+      }),
+    );
 
     expect(document.title).toBe("My Item | abode");
   });
@@ -134,7 +159,9 @@ describe("ItemDialogProvider", () => {
   it("ignores a report tagged with a different item id", () => {
     // Guards the effect-ordering hazard: a stale report (e.g. a closing dialog)
     // must not blank or hijack the current open item's title.
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     document.title = "abode";
     renderProvider();
 
@@ -144,11 +171,18 @@ describe("ItemDialogProvider", () => {
   });
 
   it("keeps the open item's title when a later mismatched report arrives", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     document.title = "abode";
     renderProvider();
 
-    act(() => ctx?.reportItemTitle({ id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345", title: "My Item" }));
+    act(() =>
+      ctx?.reportItemTitle({
+        id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+        title: "My Item",
+      }),
+    );
     expect(document.title).toBe("My Item | abode");
 
     // A stale report (e.g. a dialog mid-exit) must not overwrite/blank it
@@ -157,10 +191,17 @@ describe("ItemDialogProvider", () => {
   });
 
   it("clears the reported title when the open item goes away", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     document.title = "abode";
     const { rerender } = renderProvider();
-    act(() => ctx?.reportItemTitle({ id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345", title: "My Item" }));
+    act(() =>
+      ctx?.reportItemTitle({
+        id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+        title: "My Item",
+      }),
+    );
     expect(document.title).toBe("My Item | abode");
 
     // Dialog closed: URL open-item gone → the provider drops the stale title
@@ -187,13 +228,20 @@ describe("ItemDialogProvider", () => {
     document.title = "[branch] abode";
     const { rerender } = renderProvider();
 
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     rerender(
       <ItemDialogProvider>
         <Consumer />
       </ItemDialogProvider>,
     );
-    act(() => ctx?.reportItemTitle({ id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345", title: "My Item" }));
+    act(() =>
+      ctx?.reportItemTitle({
+        id: "2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+        title: "My Item",
+      }),
+    );
     expect(document.title).toBe("My Item | abode");
 
     nav.params = new URLSearchParams();
@@ -224,15 +272,22 @@ describe("useItemDetailDialog", () => {
   );
 
   it("derives open state from the URL when inside a provider", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
-    const { result } = renderHook(() => useItemDetailDialog("2c4a9f0e-1b23-4d56-8e90-abcdef012345"), {
-      wrapper: withProvider,
-    });
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
+    const { result } = renderHook(
+      () => useItemDetailDialog("2c4a9f0e-1b23-4d56-8e90-abcdef012345"),
+      {
+        wrapper: withProvider,
+      },
+    );
     expect(result.current.isOpen).toBe(true);
   });
 
   it("is closed for a different item than the one in the URL", () => {
-    nav.params = new URLSearchParams("item=2c4a9f0e-1b23-4d56-8e90-abcdef012345");
+    nav.params = new URLSearchParams(
+      "item=2c4a9f0e-1b23-4d56-8e90-abcdef012345",
+    );
     const { result } = renderHook(() => useItemDetailDialog("other"), {
       wrapper: withProvider,
     });
@@ -240,7 +295,9 @@ describe("useItemDetailDialog", () => {
   });
 
   it("falls back to local state with no provider", () => {
-    const { result } = renderHook(() => useItemDetailDialog("2c4a9f0e-1b23-4d56-8e90-abcdef012345"));
+    const { result } = renderHook(() =>
+      useItemDetailDialog("2c4a9f0e-1b23-4d56-8e90-abcdef012345"),
+    );
     expect(result.current.isOpen).toBe(false);
 
     act(() => result.current.setOpen(true));
