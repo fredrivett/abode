@@ -65,7 +65,12 @@ export function DashboardItemDialog({
 
   if (rendered) {
     return (
+      // Key by id so swapping to another item in place (a similar-images click
+      // while open) remounts the dialog — its many item-scoped useState inits
+      // (cover/share/notes/tags…) would otherwise keep the previous item's
+      // values and PATCH the new item with the wrong ones.
       <DashboardItemDialogContents
+        key={rendered.id}
         item={rendered}
         open={openItemId === rendered.id}
         onClose={() => itemDialog?.closeItem()}

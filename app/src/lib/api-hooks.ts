@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { api } from "./api-client";
+import { itemQueryKey } from "./items/use-item";
 import { DEFAULT_PAGE_SIZE } from "./pagination";
 import type { Item } from "./types/item";
 
@@ -115,7 +116,9 @@ export function useUpdateCachedNoteContent() {
  * Returns a stable callback that patches a single item's title directly in the
  * items cache — no refetch. Use after a rename so the grid card (which derives
  * its name from the cached item) updates instantly, the same way the per-card
- * dialog used to update its tile via shared state.
+ * dialog used to update its tile via shared state. Also patches the single-item
+ * detail cache so reopening an off-grid item (resolved via {@link useItem})
+ * shows the new title rather than a stale one.
  */
 export function useUpdateCachedItemTitle() {
   const queryClient = useQueryClient();
@@ -135,6 +138,9 @@ export function useUpdateCachedItemTitle() {
                 })),
               }
             : old,
+      );
+      queryClient.setQueryData<Item>(itemQueryKey(itemId), (old) =>
+        old ? { ...old, title } : old,
       );
     },
     [queryClient],
