@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
@@ -70,34 +70,64 @@ export function DashboardItemDialog({
     }
   }, [needsFetch, isError, closeItem]);
 
-  // Keep the last opened item mounted through the close animation, then clear
-  // it on exit — otherwise closing would unmount instantly with no animation.
-  const [rendered, setRendered] = useState<Item | null>(resolved);
+  const open = openItemId !== null;
+
+  // Fresh open (grid → dialog) animates in; swapping straight from one open
+  // item to another (a "similar images" click) changes instantly — so the
+  // dialog only fades on open/close, not between items. Keyed off openItemId
+  // (not resolved.id) so an off-grid swap's loading gap — where resolved is
+  // briefly null — doesn't read as a close→open and re-trigger the fade.
+  const shownId = open ? openItemId : null;
+  const prevShownIdRef = useRef<string | null>(null);
+  const animateEntranceRef = useRef(true);
+  if (shownId !== prevShownIdRef.current) {
+    animateEntranceRef.current = prevShownIdRef.current === null;
+    prevShownIdRef.current = shownId;
+  }
+  const animateEntrance = animateEntranceRef.current;
+
+  // Keep the last shown item mounted through the close animation, then clear it
+  // on exit — otherwise closing would unmount instantly with no animation.
+  const [lastShown, setLastShown] = useState<Item | null>(null);
   useEffect(() => {
-    if (resolved) setRendered(resolved);
+    if (resolved) setLastShown(resolved);
   }, [resolved]);
 
-  if (rendered) {
-    return (
-      // Key by id so swapping to another item in place (a similar-images click
-      // while open) remounts the dialog — its many item-scoped useState inits
-      // (cover/share/notes/tags…) would otherwise keep the previous item's
-      // values and PATCH the new item with the wrong ones.
-      <DashboardItemDialogContents
-        key={rendered.id}
-        item={rendered}
-        open={openItemId === rendered.id}
-        onClose={() => itemDialog?.closeItem()}
-        onExitComplete={() => setRendered(null)}
-        onItemRenamed={onItemRenamed}
-      />
-    );
+  if (open) {
+    // Key by id so an in-place swap remounts the dialog: its many item-scoped
+    // useState inits (cover/share/notes/tags…) would otherwise carry the
+    // previous item's values and PATCH the new item with the wrong ones.
+    if (resolved) {
+      return (
+        <DashboardItemDialogContents
+          key={resolved.id}
+          item={resolved}
+          open
+          animateEntrance={animateEntrance}
+          onClose={() => closeItem?.()}
+          onItemRenamed={onItemRenamed}
+        />
+      );
+    }
+    // Off-grid item still fetching — show the seed image/title meanwhile.
+    if (seed && seed.id === openItemId) {
+      return <ItemDialogSkeleton seed={seed} onClose={() => closeItem?.()} />;
+    }
+    return null;
   }
 
-  // Still fetching an off-grid item — show the seed image/title while it loads.
-  if (openItemId && seed && seed.id === openItemId) {
+  // Closing: keep the last item mounted so it animates out, then clear it.
+  if (lastShown) {
     return (
-      <ItemDialogSkeleton seed={seed} onClose={() => itemDialog?.closeItem()} />
+      <DashboardItemDialogContents
+        key={lastShown.id}
+        item={lastShown}
+        open={false}
+        animateEntrance={false}
+        onClose={() => closeItem?.()}
+        onExitComplete={() => setLastShown(null)}
+        onItemRenamed={onItemRenamed}
+      />
     );
   }
 
@@ -107,14 +137,16 @@ export function DashboardItemDialog({
 function DashboardItemDialogContents({
   item,
   open,
+  animateEntrance,
   onClose,
   onExitComplete,
   onItemRenamed,
 }: {
   item: Item;
   open: boolean;
+  animateEntrance: boolean;
   onClose: () => void;
-  onExitComplete: () => void;
+  onExitComplete?: () => void;
   onItemRenamed: (itemId: string, title: string) => void;
 }) {
   const displayName = getItemDisplayName(item);
@@ -144,6 +176,7 @@ function DashboardItemDialogContents({
         onItemRenamed(item.id, next);
       }}
       canEdit
+      animateEntrance={animateEntrance}
       onExitComplete={onExitComplete}
     />
   );

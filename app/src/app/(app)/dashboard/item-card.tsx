@@ -995,6 +995,13 @@ type ItemDetailDialogProps = {
    * When false, notes, privacy settings, delete button, and location editing are hidden.
    */
   canEdit: boolean;
+  /**
+   * Whether to play the fade-in when the dialog content mounts. True for a
+   * fresh open (grid → dialog); false when swapping straight from one open item
+   * to another (a "similar images" click) so the content changes instantly
+   * rather than cross-fading. Defaults to true (rooms / per-card path).
+   */
+  animateEntrance?: boolean;
 };
 
 type RemoveFromRoomButtonProps = {
@@ -1075,6 +1082,7 @@ function ItemDetailDialogWrapper({
   isDeleting,
   canEdit,
   onExitComplete,
+  animateEntrance,
 }: {
   show: boolean;
   item: Item;
@@ -1090,6 +1098,7 @@ function ItemDetailDialogWrapper({
   isDeleting: boolean;
   canEdit: boolean;
   onExitComplete?: () => void;
+  animateEntrance?: boolean;
 }) {
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
@@ -1108,6 +1117,7 @@ function ItemDetailDialogWrapper({
           onDeleteConfirm={onDeleteConfirm}
           isDeleting={isDeleting}
           canEdit={canEdit}
+          animateEntrance={animateEntrance}
         />
       )}
     </AnimatePresence>
@@ -1133,6 +1143,7 @@ export function ItemDetailDialogHost({
   canEdit,
   onDeleted,
   onExitComplete,
+  animateEntrance,
 }: {
   item: Item;
   open: boolean;
@@ -1147,6 +1158,8 @@ export function ItemDetailDialogHost({
   /** Fired once the close animation completes (lets a central host that keeps
    *  the last item mounted for the exit animation clear it afterwards). */
   onExitComplete?: () => void;
+  /** Play the mount fade-in (fresh open) vs. swap instantly (dialog→dialog). */
+  animateEntrance?: boolean;
 }) {
   const invalidateItems = useInvalidateItems();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -1197,6 +1210,7 @@ export function ItemDetailDialogHost({
       isDeleting={isDeleting}
       canEdit={canEdit}
       onExitComplete={onExitComplete}
+      animateEntrance={animateEntrance}
     />
   );
 }
@@ -1250,6 +1264,7 @@ function ItemDetailDialog({
   onDeleteConfirm,
   isDeleting,
   canEdit,
+  animateEntrance = true,
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
   const { setState: setSearchState } = useSearch();
@@ -1868,7 +1883,7 @@ function ItemDetailDialog({
       >
         <motion.div
           className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
-          initial={{ opacity: 0 }}
+          initial={animateEntrance ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.1 } }}
           transition={{ duration: 0.2 }}
