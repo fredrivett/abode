@@ -1877,6 +1877,12 @@ function ItemDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
+        // On an in-place swap (no entrance fade) the whole dialog remounts, so
+        // suppress the backdrop's re-fade-in — otherwise the grid behind flashes
+        // through for a frame. The close fade-out (data-[state=closed]) stays.
+        overlayClassName={
+          animateEntrance ? undefined : "data-[state=open]:!animate-none"
+        }
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
