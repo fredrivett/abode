@@ -18,7 +18,9 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CentralItemDialog } from "@/app/(app)/dashboard/_components/central-item-dialog";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
+import { ItemDialogProvider } from "@/app/(app)/dashboard/item-dialog-context";
 import { EmbedStatsDialog } from "@/components/rooms/embed-stats-dialog";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { ShareRoomDialog } from "@/components/rooms/share-room-dialog";
@@ -245,305 +247,336 @@ export function RoomDetail({
     }
   };
 
+  // The room's items live in local state (not a React Query cache), so the
+  // detail dialog's rename/delete have to reach them here to keep the grid in
+  // sync — no invalidation would.
+  const patchRoomItemTitle = (itemId: string, title: string) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, title } : i)),
+    );
+  };
+  const removeRoomItem = (itemId: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+    setItemCount((prev) => Math.max(0, prev - 1));
+  };
+
   if (!hasHydrated) {
     return null;
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="space-y-6"
-      style={
-        {
-          "--grid-border-radius": `${borderRadius}px`,
-          "--grid-font-scale": fontScale,
-        } as CSSProperties
-      }
-    >
-      {/* Header */}
-      <div className="mx-auto max-w-5xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="flex-1 space-y-2">
-            {isOwner && (
-              <Link
-                href="/rooms"
-                className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
-              >
-                <ArrowLeft className="size-4" />
-                Back to rooms
-              </Link>
-            )}
-            <div className="flex items-center gap-3">
-              {roomEmoji && (
-                <span className="text-3xl" aria-hidden>
-                  {roomEmoji}
-                </span>
-              )}
-              {isOwner ? (
-                <EditableTitle
-                  value={roomName}
-                  onSubmit={handleNameSubmit}
-                  size="2xl"
-                  isSaving={isSavingName}
-                />
-              ) : (
-                <h1 className="font-semibold font-serif text-3xl">
-                  {roomName}
-                </h1>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <span>
-                {itemCount} {itemCount === 1 ? "item" : "items"}
-              </span>
-              {room.type === "smart" ? (
-                <>
-                  <span>·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Sparkles className="size-3" />
-                    Dynamic
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Hand className="size-3" />
-                    Static
-                  </span>
-                </>
-              )}
-              {roomVisibility === "public" && (
-                <>
-                  <span>·</span>
-                  <Badge variant="secondary" className="text-xs">
-                    Public
-                  </Badge>
-                </>
-              )}
-            </div>
-          </div>
-
-          {isOwner ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="size-4" />
-                  <span className="sr-only">Room options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
-                  <Share2 className="size-4" />
-                  Share room
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowEmbedStatsDialog(true)}>
-                  <BarChart3 className="size-4" />
-                  View embed stats
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleOpenEditDialog}>
-                  <Pencil className="size-4" />
-                  Edit room
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Delete room
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            roomOwner && <ProfileTag user={roomOwner} />
-          )}
-        </div>
-      </div>
-
-      {/* Items grid */}
-      {items.length === 0 ? (
+    <ItemDialogProvider>
+      <div
+        ref={containerRef}
+        className="space-y-6"
+        style={
+          {
+            "--grid-border-radius": `${borderRadius}px`,
+            "--grid-font-scale": fontScale,
+          } as CSSProperties
+        }
+      >
+        {/* Header */}
         <div className="mx-auto max-w-5xl">
-          <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
-            <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-              <SearchX className="size-14 text-muted-foreground" />
-              <div className="space-y-2">
-                <h2 className="font-semibold font-serif text-3xl">
-                  No items yet
-                </h2>
-                <p className="text-base text-muted-foreground">
-                  {room.type === "smart"
-                    ? "No items currently match this room's filters. Items will appear here automatically when they match."
-                    : "This room is empty. Add items to organize them here."}
-                </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex-1 space-y-2">
+              {isOwner && (
+                <Link
+                  href="/rooms"
+                  className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
+                >
+                  <ArrowLeft className="size-4" />
+                  Back to rooms
+                </Link>
+              )}
+              <div className="flex items-center gap-3">
+                {roomEmoji && (
+                  <span className="text-3xl" aria-hidden>
+                    {roomEmoji}
+                  </span>
+                )}
+                {isOwner ? (
+                  <EditableTitle
+                    value={roomName}
+                    onSubmit={handleNameSubmit}
+                    size="2xl"
+                    isSaving={isSavingName}
+                  />
+                ) : (
+                  <h1 className="font-semibold font-serif text-3xl">
+                    {roomName}
+                  </h1>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <span>
+                  {itemCount} {itemCount === 1 ? "item" : "items"}
+                </span>
+                {room.type === "smart" ? (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Sparkles className="size-3" />
+                      Dynamic
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Hand className="size-3" />
+                      Static
+                    </span>
+                  </>
+                )}
+                {roomVisibility === "public" && (
+                  <>
+                    <span>·</span>
+                    <Badge variant="secondary" className="text-xs">
+                      Public
+                    </Badge>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {isOwner ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreHorizontal className="size-4" />
+                    <span className="sr-only">Room options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                    <Share2 className="size-4" />
+                    Share room
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowEmbedStatsDialog(true)}
+                  >
+                    <BarChart3 className="size-4" />
+                    View embed stats
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleOpenEditDialog}>
+                    <Pencil className="size-4" />
+                    Edit room
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete room
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              roomOwner && <ProfileTag user={roomOwner} />
+            )}
+          </div>
+        </div>
+
+        {/* Items grid */}
+        {items.length === 0 ? (
+          <div className="mx-auto max-w-5xl">
+            <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
+              <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
+                <SearchX className="size-14 text-muted-foreground" />
+                <div className="space-y-2">
+                  <h2 className="font-semibold font-serif text-3xl">
+                    No items yet
+                  </h2>
+                  <p className="text-base text-muted-foreground">
+                    {room.type === "smart"
+                      ? "No items currently match this room's filters. Items will appear here automatically when they match."
+                      : "This room is empty. Add items to organize them here."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <div className={items.length <= 4 ? "flex justify-center" : ""}>
-            <BalancedMasonryGrid
-              frameWidth={frameWidth}
-              gap={gap}
-              style={{ overflow: "visible !important" }}
-            >
-              {items.map((item) => {
-                const meta = item.meta || {};
-                const isArticleOrWebpage =
-                  item.kind === "article" || item.kind === "webpage";
+        ) : (
+          <>
+            <div className={items.length <= 4 ? "flex justify-center" : ""}>
+              <BalancedMasonryGrid
+                frameWidth={frameWidth}
+                gap={gap}
+                style={{ overflow: "visible !important" }}
+              >
+                {items.map((item) => {
+                  const meta = item.meta || {};
+                  const isArticleOrWebpage =
+                    item.kind === "article" || item.kind === "webpage";
 
-                // item.title is the single source of truth for display name
-                const name = item.title ?? "Untitled";
+                  // item.title is the single source of truth for display name
+                  const name = item.title ?? "Untitled";
 
-                const size = formatBytes(meta.size as number | undefined);
-                const mimeType = meta.type as string | undefined;
+                  const size = formatBytes(meta.size as number | undefined);
+                  const mimeType = meta.type as string | undefined;
 
-                // For articles/webpages, use 4:3 aspect ratio; for images use actual dimensions or 3:4
-                const width = isArticleOrWebpage
-                  ? 4
-                  : ((meta.width as number | undefined) ?? 3);
-                const height = isArticleOrWebpage
-                  ? 3
-                  : ((meta.height as number | undefined) ?? 4);
+                  // For articles/webpages, use 4:3 aspect ratio; for images use actual dimensions or 3:4
+                  const width = isArticleOrWebpage
+                    ? 4
+                    : ((meta.width as number | undefined) ?? 3);
+                  const height = isArticleOrWebpage
+                    ? 3
+                    : ((meta.height as number | undefined) ?? 4);
 
-                return (
-                  <Frame key={item.id} width={width} height={height}>
-                    <ItemCard
-                      item={item}
-                      name={name}
-                      size={size}
-                      mimeType={mimeType}
-                      canEdit={isOwner}
-                      onDeleted={() => {
-                        setItems((prev) =>
-                          prev.filter((i) => i.id !== item.id),
-                        );
-                        setItemCount((prev) => Math.max(0, prev - 1));
-                      }}
-                    />
-                  </Frame>
-                );
-              })}
-            </BalancedMasonryGrid>
-          </div>
+                  return (
+                    <Frame key={item.id} width={width} height={height}>
+                      <ItemCard
+                        item={item}
+                        name={name}
+                        size={size}
+                        mimeType={mimeType}
+                        canEdit={isOwner}
+                        onDeleted={() => removeRoomItem(item.id)}
+                      />
+                    </Frame>
+                  );
+                })}
+              </BalancedMasonryGrid>
+            </div>
 
-          {/* Load more button */}
-          {hasMore && (
-            <div className="flex justify-center pt-8">
+            {/* Load more button */}
+            {hasMore && (
+              <div className="flex justify-center pt-8">
+                <Button
+                  variant="outline"
+                  onClick={loadMoreItems}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? <IsLoading label="Loading" /> : "Load more"}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Edit room dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit room</DialogTitle>
+              <DialogDescription>
+                Update your room's name and visibility settings.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="editRoomName" className="font-medium text-sm">
+                  Room name
+                </label>
+                <div className="flex items-center gap-2">
+                  <EmojiPickerPopover
+                    value={editEmoji}
+                    onChange={setEditEmoji}
+                  />
+                  <Input
+                    id="editRoomName"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="My Collection"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="font-medium text-sm">Visibility</span>
+                <VisibilityToggle
+                  value={editVisibility}
+                  onChange={setEditVisibility}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
               <Button
                 variant="outline"
-                onClick={loadMoreItems}
-                disabled={isLoadingMore}
+                onClick={() => setShowEditDialog(false)}
+                disabled={isSavingSettings}
               >
-                {isLoadingMore ? <IsLoading label="Loading" /> : "Load more"}
+                Cancel
               </Button>
-            </div>
-          )}
-        </>
-      )}
+              <Button onClick={handleSaveSettings} disabled={isSavingSettings}>
+                {isSavingSettings ? (
+                  <IsLoading label="Saving" />
+                ) : (
+                  "Save changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Edit room dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit room</DialogTitle>
-            <DialogDescription>
-              Update your room's name and visibility settings.
-            </DialogDescription>
-          </DialogHeader>
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete room?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{roomName}"? This will remove
+                the room but won't delete the items in it.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeleting}
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? <IsLoading label="Deleting" /> : "Delete room"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="editRoomName" className="font-medium text-sm">
-                Room name
-              </label>
-              <div className="flex items-center gap-2">
-                <EmojiPickerPopover value={editEmoji} onChange={setEditEmoji} />
-                <Input
-                  id="editRoomName"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="My Collection"
-                />
-              </div>
-            </div>
+        {/* Share room dialog */}
+        {roomOwner?.username && (
+          <ShareRoomDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            room={{
+              id: room.id,
+              slug: room.slug,
+              name: roomName,
+              emoji: roomEmoji,
+              visibility: roomVisibility,
+              itemCount: room.itemCount,
+              filters: room.filters,
+            }}
+            username={roomOwner.username}
+            items={items}
+          />
+        )}
 
-            <div className="space-y-2">
-              <span className="font-medium text-sm">Visibility</span>
-              <VisibilityToggle
-                value={editVisibility}
-                onChange={setEditVisibility}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditDialog(false)}
-              disabled={isSavingSettings}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveSettings} disabled={isSavingSettings}>
-              {isSavingSettings ? <IsLoading label="Saving" /> : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete room?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{roomName}"? This will remove the
-              room but won't delete the items in it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? <IsLoading label="Deleting" /> : "Delete room"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Share room dialog */}
-      {roomOwner?.username && (
-        <ShareRoomDialog
-          open={showShareDialog}
-          onOpenChange={setShowShareDialog}
-          room={{
-            id: room.id,
-            slug: room.slug,
-            name: roomName,
-            emoji: roomEmoji,
-            visibility: roomVisibility,
-            itemCount: room.itemCount,
-            filters: room.filters,
-          }}
-          username={roomOwner.username}
-          items={items}
+        {/* Embed stats dialog */}
+        <EmbedStatsDialog
+          open={showEmbedStatsDialog}
+          onOpenChange={setShowEmbedStatsDialog}
+          roomId={room.id}
+          roomName={roomName}
+          visibility={roomVisibility}
         />
-      )}
 
-      {/* Embed stats dialog */}
-      <EmbedStatsDialog
-        open={showEmbedStatsDialog}
-        onOpenChange={setShowEmbedStatsDialog}
-        roomId={room.id}
-        roomName={roomName}
-        visibility={roomVisibility}
-      />
-    </div>
+        {/* The single item-detail dialog for this room, driven by ?item=<id>.
+          Cards set the open item; this resolves it from the room's items (or a
+          by-id fetch for an owner's off-grid "similar images" click). */}
+        <CentralItemDialog
+          items={items}
+          canEdit={isOwner}
+          onItemRenamed={patchRoomItemTitle}
+          onItemDeleted={removeRoomItem}
+        />
+      </div>
+    </ItemDialogProvider>
   );
 }

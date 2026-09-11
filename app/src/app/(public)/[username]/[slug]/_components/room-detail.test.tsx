@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Room, RoomItem } from "@/lib/types/room";
 
@@ -43,6 +43,28 @@ vi.mock("@/hooks/use-grid-density", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+// The central item-detail dialog is exercised in its own test and pulls in the
+// heavy item-card tree + React Query; stub it out here, capturing the handlers
+// the room wires it so we can assert rename/delete reach the room's local state.
+const dialogHandlers = vi.hoisted(() => ({
+  onItemRenamed: null as ((id: string, title: string) => void) | null,
+  onItemDeleted: null as ((id: string) => void) | null,
+}));
+vi.mock("@/app/(app)/dashboard/_components/central-item-dialog", () => ({
+  CentralItemDialog: ({
+    onItemRenamed,
+    onItemDeleted,
+  }: {
+    onItemRenamed: (id: string, title: string) => void;
+    onItemDeleted?: (id: string) => void;
+  }) => {
+    dialogHandlers.onItemRenamed = onItemRenamed;
+    dialogHandlers.onItemDeleted = onItemDeleted ?? null;
+    return null;
+  },
 }));
 
 // Always-mounted dialog with its own data deps — stub it out
@@ -98,6 +120,27 @@ describe("RoomDetail", () => {
 
     expect(screen.queryByTestId("item-a")).not.toBeInTheDocument();
     expect(screen.getByTestId("item-b")).toBeInTheDocument();
+    expect(screen.getByText("1 item")).toBeInTheDocument();
+  });
+
+  it("updates a card's title when the detail dialog renames it", () => {
+    renderRoom();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+
+    act(() => dialogHandlers.onItemRenamed?.("a", "Alpha Renamed"));
+
+    expect(screen.getByText("Alpha Renamed")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+  });
+
+  it("removes a card when the detail dialog reports it deleted", () => {
+    renderRoom();
+    expect(screen.getByTestId("item-a")).toBeInTheDocument();
+    expect(screen.getByText("2 items")).toBeInTheDocument();
+
+    act(() => dialogHandlers.onItemDeleted?.("a"));
+
+    expect(screen.queryByTestId("item-a")).not.toBeInTheDocument();
     expect(screen.getByText("1 item")).toBeInTheDocument();
   });
 });
