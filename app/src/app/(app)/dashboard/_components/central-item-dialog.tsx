@@ -64,7 +64,10 @@ export function CentralItemDialog({
     : null;
   const fromInitial =
     initialItem && initialItem.id === openItemId ? initialItem : null;
-  const needsFetch = openItemId !== null && !inList && !fromInitial;
+  // The by-id endpoint is owner-scoped, so only the owner can resolve an item
+  // that isn't already in the list; a non-owner's off-grid open (e.g. a
+  // deep-linked room item beyond page one) can't be fetched, so don't try.
+  const needsFetch = openItemId !== null && !inList && !fromInitial && canEdit;
   const { data: fetched, isError } = useItem(openItemId, needsFetch);
   const resolved =
     inList ??

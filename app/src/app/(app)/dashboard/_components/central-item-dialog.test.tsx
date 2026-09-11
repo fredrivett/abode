@@ -49,7 +49,9 @@ let useItemReturn: { data: Item | undefined; isError?: boolean } = {
   data: undefined,
 };
 vi.mock("@/lib/items/use-item", () => ({
-  useItem: () => useItemReturn,
+  // Respect `enabled` so a gated-off fetch (e.g. a non-owner) returns nothing.
+  useItem: (_id: string | null, enabled: boolean) =>
+    enabled ? useItemReturn : { data: undefined },
 }));
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -167,6 +169,25 @@ describe("CentralItemDialog", () => {
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "z");
     expect(host).toHaveAttribute("data-animate", "false");
+  });
+
+  it("does not fetch an off-grid item for a non-owner (canEdit=false)", () => {
+    // Open id isn't in the list; a fetch would resolve it, but a non-owner
+    // can't hit the owner-scoped endpoint, so it must stay closed (not error).
+    dialogState = { openItemId: "z" };
+    useItemReturn = {
+      data: { id: "z", title: "Z", kind: "image" } as unknown as Item,
+    };
+    render(
+      <CentralItemDialog
+        onItemRenamed={() => {}}
+        canEdit={false}
+        items={items}
+      />,
+    );
+    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+    expect(closeItem).not.toHaveBeenCalled();
   });
 
   it("shows the seed skeleton while an off-grid item is still loading", () => {

@@ -2904,11 +2904,16 @@ function ItemDetailDialog({
                 </div>
 
                 {/* Similar images - visual discovery from the owner's library.
-                    Renders nothing when there are no matches above threshold. */}
-                <SimilarImages
-                  itemId={item.id}
-                  enabled={open && supportsSimilarImages(item.kind)}
-                />
+                    Owner-only: the matches come from the viewer's own library
+                    (and the API is owner-scoped), so it's meaningless for a
+                    non-owner viewing a public room. Renders nothing when there
+                    are no matches above threshold. */}
+                {canEdit && (
+                  <SimilarImages
+                    itemId={item.id}
+                    enabled={open && supportsSimilarImages(item.kind)}
+                  />
+                )}
 
                 {/* Rooms - only shown to users who can edit */}
                 {canEdit && (
