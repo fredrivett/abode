@@ -60,8 +60,8 @@ vi.mock("./items-grid", () => ({
 // The central detail dialog is exercised in its own test; stub it here so this
 // list-logic test doesn't pull in the heavy item-card tree, but capture the
 // rename handler the grid passes it so we can assert the wiring.
-vi.mock("./_components/dashboard-item-dialog", () => ({
-  DashboardItemDialog: ({
+vi.mock("./_components/central-item-dialog", () => ({
+  CentralItemDialog: ({
     onItemRenamed,
   }: {
     onItemRenamed: (itemId: string, title: string) => void;
@@ -225,7 +225,7 @@ describe("SearchableItemsGrid", () => {
 
   it("passes the loaded list straight through, without injecting the open item", () => {
     // An off-grid open item (deep link, or a similar-images click) is rendered
-    // by the central DashboardItemDialog, not injected as a grid card — so the
+    // by the central dialog, not injected as a grid card — so the
     // grid always shows exactly the loaded list.
     nav.params = new URLSearchParams("item=deep-linked");
     mockUseSearchResults.mockReturnValue(

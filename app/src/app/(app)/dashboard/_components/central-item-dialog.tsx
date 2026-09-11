@@ -22,24 +22,35 @@ function detailImageFileKey(item: Item): string | null {
 }
 
 /**
- * The single detail dialog for the dashboard. Driven by the URL-addressable
- * open item (`?item=<id>`) via {@link useItemDialog}, so it renders the dialog
- * for whichever item is open — including one that isn't in the loaded grid
- * (e.g. a "similar images" click to a filtered-out item). The grid cards on
- * the dashboard no longer render their own dialog; they just set the open item.
+ * The single detail dialog for a grid of items (the dashboard or a room),
+ * driven by the URL-addressable open item (`?item=<id>`) via {@link
+ * useItemDialog}. It renders the dialog for whichever item is open — including
+ * one that isn't in the loaded list (e.g. a "similar images" click to a
+ * filtered-out item), which it resolves with a by-id fetch. Cards no longer
+ * render their own dialog inside a provider; they just set the open item.
+ *
+ * Mount this once inside an {@link ItemDialogProvider}, alongside the grid.
  */
-export function DashboardItemDialog({
+export function CentralItemDialog({
   items,
   initialItem,
+  canEdit,
   onItemRenamed,
+  onItemDeleted,
 }: {
   items: Item[];
   /** Full item for the URL's open item at initial load (deep link / refresh),
    *  so a deep-linked off-grid item renders instantly without a fetch. */
   initialItem?: Item | null;
-  /** Propagate a rename to every list holding the item (React Query caches +
-   *  local search-results state), so the grid card updates instantly. */
+  /** Whether the viewer can edit — false in a room viewed by a non-owner. */
+  canEdit: boolean;
+  /** Propagate a rename to whichever list holds the item (React Query caches,
+   *  search-results state, or a room's local items) so the card updates. */
   onItemRenamed: (itemId: string, title: string) => void;
+  /** Remove a deleted item from a caller-owned list. The dashboard omits this
+   *  (its React Query list is invalidated on delete); a room passes it to drop
+   *  the item from its local state, which no invalidation would reach. */
+  onItemDeleted?: (itemId: string) => void;
 }) {
   const itemDialog = useItemDialog();
   const openItemId = itemDialog?.openItemId ?? null;
@@ -53,15 +64,18 @@ export function DashboardItemDialog({
     : null;
   const fromInitial =
     initialItem && initialItem.id === openItemId ? initialItem : null;
-  const needsFetch = openItemId !== null && !inList && !fromInitial;
+  // The by-id endpoint is owner-scoped, so only the owner can resolve an item
+  // that isn't already in the list; a non-owner's off-grid open (e.g. a
+  // deep-linked room item beyond page one) can't be fetched, so don't try.
+  const needsFetch = openItemId !== null && !inList && !fromInitial && canEdit;
   const { data: fetched, isError } = useItem(openItemId, needsFetch);
   const resolved =
     inList ??
     fromInitial ??
     (fetched && fetched.id === openItemId ? fetched : null);
 
-  // The by-id fetch failed (deleted item, network) — close rather than sit on
-  // the loading skeleton forever.
+  // The by-id fetch failed (deleted item, network, or not the viewer's to see)
+  // — close rather than sit on the loading skeleton forever.
   const closeItem = itemDialog?.closeItem;
   useEffect(() => {
     if (needsFetch && isError) {
@@ -99,13 +113,15 @@ export function DashboardItemDialog({
     // previous item's values and PATCH the new item with the wrong ones.
     if (resolved) {
       return (
-        <DashboardItemDialogContents
+        <CentralItemDialogContents
           key={resolved.id}
           item={resolved}
           open
+          canEdit={canEdit}
           animateEntrance={animateEntrance}
           onClose={() => closeItem?.()}
           onItemRenamed={onItemRenamed}
+          onItemDeleted={onItemDeleted}
         />
       );
     }
@@ -119,14 +135,16 @@ export function DashboardItemDialog({
   // Closing: keep the last item mounted so it animates out, then clear it.
   if (lastShown) {
     return (
-      <DashboardItemDialogContents
+      <CentralItemDialogContents
         key={lastShown.id}
         item={lastShown}
         open={false}
+        canEdit={canEdit}
         animateEntrance={false}
         onClose={() => closeItem?.()}
         onExitComplete={() => setLastShown(null)}
         onItemRenamed={onItemRenamed}
+        onItemDeleted={onItemDeleted}
       />
     );
   }
@@ -134,20 +152,24 @@ export function DashboardItemDialog({
   return null;
 }
 
-function DashboardItemDialogContents({
+function CentralItemDialogContents({
   item,
   open,
+  canEdit,
   animateEntrance,
   onClose,
   onExitComplete,
   onItemRenamed,
+  onItemDeleted,
 }: {
   item: Item;
   open: boolean;
+  canEdit: boolean;
   animateEntrance: boolean;
   onClose: () => void;
   onExitComplete?: () => void;
   onItemRenamed: (itemId: string, title: string) => void;
+  onItemDeleted?: (itemId: string) => void;
 }) {
   const displayName = getItemDisplayName(item);
   // Local mirror so a rename shows in the dialog immediately; onItemRenamed
@@ -175,9 +197,10 @@ function DashboardItemDialogContents({
         setName(next);
         onItemRenamed(item.id, next);
       }}
-      canEdit
+      canEdit={canEdit}
       animateEntrance={animateEntrance}
       onExitComplete={onExitComplete}
+      onDeleted={onItemDeleted ? () => onItemDeleted(item.id) : undefined}
     />
   );
 }

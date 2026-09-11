@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Item } from "@/lib/types/item";
-import { DashboardItemDialog } from "./dashboard-item-dialog";
+import { CentralItemDialog } from "./central-item-dialog";
 
 // Render a lightweight stand-in for the heavy detail dialog so the test focuses
-// on DashboardItemDialog's resolve/mount-through-close behavior.
+// on CentralItemDialog's resolve/mount-through-close behavior.
 vi.mock("../item-card", () => ({
   ItemDetailDialogHost: ({
     item,
@@ -49,7 +49,9 @@ let useItemReturn: { data: Item | undefined; isError?: boolean } = {
   data: undefined,
 };
 vi.mock("@/lib/items/use-item", () => ({
-  useItem: () => useItemReturn,
+  // Respect `enabled` so a gated-off fetch (e.g. a non-owner) returns nothing.
+  useItem: (_id: string | null, enabled: boolean) =>
+    enabled ? useItemReturn : { data: undefined },
 }));
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -83,15 +85,19 @@ beforeEach(() => {
   useItemReturn = { data: undefined };
 });
 
-describe("DashboardItemDialog", () => {
+describe("CentralItemDialog", () => {
   it("renders nothing when no item is open", () => {
-    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    render(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
   });
 
   it("renders the open item's dialog, resolved by id from the list", () => {
     dialogState = { openItemId: "b" };
-    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    render(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "b");
     expect(host).toHaveAttribute("data-open", "true");
@@ -99,23 +105,29 @@ describe("DashboardItemDialog", () => {
 
   it("closes via the provider when the dialog requests it", () => {
     dialogState = { openItemId: "a" };
-    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    render(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     fireEvent.click(screen.getByText("close"));
     expect(closeItem).toHaveBeenCalledOnce();
   });
 
   it("animates the entrance on a fresh open but not on an in-place swap", () => {
     const { rerender } = render(
-      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     // Fresh open (was closed) → animate in.
     dialogState = { openItemId: "a" };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(screen.getByTestId("host")).toHaveAttribute("data-animate", "true");
 
     // Swap straight to another open item → instant, still open, no skeleton.
     dialogState = { openItemId: "b" };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "b");
     expect(host).toHaveAttribute("data-open", "true");
@@ -126,7 +138,7 @@ describe("DashboardItemDialog", () => {
   it("keeps an off-grid swap instant across its loading gap", () => {
     dialogState = { openItemId: "a" };
     const { rerender } = render(
-      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
 
     // Swap to an off-grid item — its fetch hasn't resolved, so the skeleton
@@ -135,7 +147,9 @@ describe("DashboardItemDialog", () => {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(screen.getByTestId("skeleton")).toBeInTheDocument();
 
     // Fetch resolves — the replacement must appear instantly, not fade in,
@@ -149,10 +163,31 @@ describe("DashboardItemDialog", () => {
         coverFileKey: null,
       } as unknown as Item,
     };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "z");
     expect(host).toHaveAttribute("data-animate", "false");
+  });
+
+  it("does not fetch an off-grid item for a non-owner (canEdit=false)", () => {
+    // Open id isn't in the list; a fetch would resolve it, but a non-owner
+    // can't hit the owner-scoped endpoint, so it must stay closed (not error).
+    dialogState = { openItemId: "z" };
+    useItemReturn = {
+      data: { id: "z", title: "Z", kind: "image" } as unknown as Item,
+    };
+    render(
+      <CentralItemDialog
+        onItemRenamed={() => {}}
+        canEdit={false}
+        items={items}
+      />,
+    );
+    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+    expect(closeItem).not.toHaveBeenCalled();
   });
 
   it("shows the seed skeleton while an off-grid item is still loading", () => {
@@ -161,7 +196,9 @@ describe("DashboardItemDialog", () => {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
-    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    render(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
   });
@@ -173,7 +210,7 @@ describe("DashboardItemDialog", () => {
     };
     // First render: off-grid item, fetch not resolved → skeleton.
     const { rerender } = render(
-      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("host")).not.toBeInTheDocument();
@@ -188,7 +225,9 @@ describe("DashboardItemDialog", () => {
         coverFileKey: null,
       } as unknown as Item,
     };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
@@ -199,7 +238,9 @@ describe("DashboardItemDialog", () => {
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
     useItemReturn = { data: undefined, isError: true };
-    render(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    render(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     expect(closeItem).toHaveBeenCalled();
   });
 
@@ -213,8 +254,9 @@ describe("DashboardItemDialog", () => {
       coverFileKey: null,
     } as unknown as Item;
     render(
-      <DashboardItemDialog
+      <CentralItemDialog
         onItemRenamed={() => {}}
+        canEdit
         items={items}
         initialItem={initialItem}
       />,
@@ -226,13 +268,15 @@ describe("DashboardItemDialog", () => {
   it("keeps the item mounted (open=false) after close, then clears on exit", () => {
     dialogState = { openItemId: "a" };
     const { rerender } = render(
-      <DashboardItemDialog onItemRenamed={() => {}} items={items} />,
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.getByTestId("host")).toHaveAttribute("data-open", "true");
 
     // URL clears the open item — dialog should animate out, not vanish.
     dialogState = { openItemId: null };
-    rerender(<DashboardItemDialog onItemRenamed={() => {}} items={items} />);
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
     const host = screen.getByTestId("host");
     expect(host).toHaveAttribute("data-item", "a");
     expect(host).toHaveAttribute("data-open", "false");
