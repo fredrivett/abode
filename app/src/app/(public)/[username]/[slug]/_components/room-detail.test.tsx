@@ -143,4 +143,17 @@ describe("RoomDetail", () => {
     expect(screen.queryByTestId("item-a")).not.toBeInTheDocument();
     expect(screen.getByText("1 item")).toBeInTheDocument();
   });
+
+  it("ignores a delete for an item not in the room (off-grid similar result)", () => {
+    renderRoom();
+    expect(screen.getByText("2 items")).toBeInTheDocument();
+
+    // The dialog can delete an off-grid similar-images result not in this room;
+    // the count must not drift.
+    act(() => dialogHandlers.onItemDeleted?.("not-in-room"));
+
+    expect(screen.getByTestId("item-a")).toBeInTheDocument();
+    expect(screen.getByTestId("item-b")).toBeInTheDocument();
+    expect(screen.getByText("2 items")).toBeInTheDocument();
+  });
 });

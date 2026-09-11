@@ -256,6 +256,10 @@ export function RoomDetail({
     );
   };
   const removeRoomItem = (itemId: string) => {
+    // The dialog can delete an item that isn't in this room (an owner deleting
+    // an off-grid "similar images" result), so only touch the room when the
+    // item is actually one of its loaded cards — otherwise the count would drift.
+    if (!items.some((i) => i.id === itemId)) return;
     setItems((prev) => prev.filter((i) => i.id !== itemId));
     setItemCount((prev) => Math.max(0, prev - 1));
   };
