@@ -1,6 +1,5 @@
 "use client";
 
-import { BlurImage } from "@/components/ui/blur-image";
 import { DialogTitle } from "@/components/ui/dialog";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { OpenItemSeed } from "../item-dialog-context";
@@ -21,16 +20,17 @@ export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
       <DialogTitle className="sr-only">
         {seed.title ?? "Loading item"}
       </DialogTitle>
-      {/* Image pane — the one thing we already have, shown straight away.
-          `relative overflow-hidden` so BlurImage's absolute placeholder is
-          contained here rather than escaping to fill the whole dialog. */}
-      <div className="relative flex shrink-0 items-center justify-center overflow-hidden bg-gray-900 md:flex-1">
+      {/* Image pane — the seed image we already have, shown straight away. A
+          plain <img> (no blur-up) so it matches the resolved pane exactly and
+          the seed→item swap is seamless; the blur placeholder's bg-cover would
+          otherwise fill the whole pane behind the object-contain image. */}
+      <div className="flex shrink-0 items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
         {src ? (
-          <BlurImage
+          // biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content
+          <img
             src={src}
             alt={seed.title ?? "Loading image"}
-            blurDataUrl={seed.blurDataUrl}
-            className="max-h-full max-w-full object-contain"
+            className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
           />
         ) : (
           <div className="h-full w-full animate-pulse bg-muted" />
