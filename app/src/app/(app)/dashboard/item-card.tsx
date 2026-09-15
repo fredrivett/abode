@@ -1928,7 +1928,7 @@ function ItemDetailDialog({
               {isNote ? (
                 <motion.div
                   className="flex h-full w-full bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -1942,7 +1942,7 @@ function ItemDetailDialog({
                 // Article content as main view - delayed fade-in after cover image transition
                 <motion.div
                   className="flex h-full w-full bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
@@ -1959,7 +1959,7 @@ function ItemDetailDialog({
               ) : isInstagram && item.instagramDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -1972,7 +1972,7 @@ function ItemDetailDialog({
               ) : isTwitter && item.twitterDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -2000,7 +2000,7 @@ function ItemDetailDialog({
               ) : isProduct && item.productDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -2042,7 +2042,7 @@ function ItemDetailDialog({
               ) : isVideo && item.videoDetails ? (
                 <motion.div
                   className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -2057,7 +2057,7 @@ function ItemDetailDialog({
               ) : isWebpage && previewUrl ? (
                 <motion.div
                   className="flex h-full w-full items-center justify-center bg-background"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -2122,7 +2122,7 @@ function ItemDetailDialog({
                 isValidUrl(item.sourceUrl) ? (
                 <motion.div
                   className="flex h-full w-full items-center justify-center bg-background p-8"
-                  initial={{ opacity: 0 }}
+                  initial={animateEntrance ? { opacity: 0 } : false}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
