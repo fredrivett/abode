@@ -230,16 +230,7 @@ export async function assertWithinDailyLimit(
   bucket: UsageBucket,
 ): Promise<UsageLimitCheck> {
   const limit = DAILY_LIMITS[bucket];
-
-  const rows = await db.$queryRaw<{ count: number }[]>`
-    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
-    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
-    ON CONFLICT (user_id, day, bucket)
-    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
-    RETURNING count
-  `;
-
-  const count = Number(rows[0]?.count ?? 0);
+  const count = await incrementDailyCount(userId, bucket);
 
   return {
     allowed: count <= limit,
@@ -247,6 +238,143 @@ export async function assertWithinDailyLimit(
     limit,
     retryAfterSeconds: secondsUntilUtcMidnight(),
     bucket,
+  };
+}
+
+/**
+ * Atomically +1 the `(user, today, bucket)` action count and return the
+ * post-increment value. The single upsert is race-free — concurrent callers each
+ * get a distinct count. Shared by the route guard ({@link assertWithinDailyLimit})
+ * and the background enqueue path so both draw down the *same* daily allowance.
+ */
+export async function incrementDailyCount(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<number> {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+    ON CONFLICT (user_id, day, bucket)
+    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+    RETURNING count
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Read-only current action count for `(user, today, bucket)` — does NOT
+ * increment. Used by {@link checkBackgroundBudget} so a would-be-deferred action
+ * doesn't inflate the counter (which {@link incrementDailyCount} would).
+ */
+export async function getDailyCount(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<number> {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    SELECT count FROM usage_daily
+    WHERE user_id = ${userId}::uuid
+      AND day = (now() AT TIME ZONE 'utc')::date
+      AND bucket = ${bucket}
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Fraction of each daily action bucket reserved for interactive (user-initiated)
+ * work. Background/bulk work (e.g. book imports) may draw a bucket down only to
+ * `limit × (1 − fraction)`, leaving the top slice always available for live user
+ * actions — so a large import slows to a trickle across days but never locks a
+ * user out of their own saves. Env-overridable (`BACKGROUND_RESERVE_FRACTION`);
+ * read from `process.env` directly for Trigger.dev import safety (see file header).
+ */
+export const BACKGROUND_RESERVE_FRACTION = 0.2;
+
+/** Clamp an env fraction override into `(0, 1)`, else fall back to the default. */
+function readFractionOverride(
+  envValue: string | undefined,
+  fallback: number,
+): number {
+  if (envValue === undefined || envValue === "") return fallback;
+  const parsed = Number(envValue);
+  return Number.isFinite(parsed) && parsed > 0 && parsed < 1
+    ? parsed
+    : fallback;
+}
+
+/** Effective interactive-reserve fraction (env-overridable). */
+export function backgroundReserveFraction(): number {
+  return readFractionOverride(
+    process.env.BACKGROUND_RESERVE_FRACTION,
+    BACKGROUND_RESERVE_FRACTION,
+  );
+}
+
+/**
+ * Highest action count at which background work may still be enqueued in a
+ * bucket — the bucket limit minus the interactive reserve. Background work
+ * defers once its count reaches this.
+ */
+export function backgroundLimitFor(
+  bucket: UsageBucket,
+  fraction = backgroundReserveFraction(),
+): number {
+  return Math.floor(DAILY_LIMITS[bucket] * (1 - fraction));
+}
+
+export type BackgroundBudgetDecision = {
+  /** True → enqueue now. False → defer (park the item; resume via the daily sweep). */
+  allow: boolean;
+  /** Current bucket count (pre-increment). */
+  count: number;
+  /** Count at/above which background work defers. */
+  backgroundLimit: number;
+};
+
+/**
+ * Pure decision: may background work proceed given the current count and reserve?
+ * Separated from IO so the arithmetic is trivially unit-testable.
+ *
+ * `enforced === false` ⇒ always allow. Deferral rides the enforcement switch: in
+ * shadow mode nothing blocks interactive work, so there's no headroom to protect
+ * and background runs immediately (preserving pre-enforcement behaviour). When
+ * enforcement is on, blocking (429s) and deferral activate together.
+ */
+export function resolveBackgroundBudget({
+  count,
+  backgroundLimit,
+  enforced,
+}: {
+  count: number;
+  backgroundLimit: number;
+  enforced: boolean;
+}): boolean {
+  if (!enforced) return true;
+  return count < backgroundLimit;
+}
+
+/**
+ * Whether a background/bulk action in `bucket` may be enqueued now, or should be
+ * deferred to protect the interactive reserve. Does NOT consume the count — the
+ * caller increments (via {@link incrementDailyCount}) only when it actually
+ * enqueues, so deferred attempts never poison the counter.
+ */
+export async function checkBackgroundBudget({
+  userId,
+  bucket,
+}: {
+  userId: string;
+  bucket: UsageBucket;
+}): Promise<BackgroundBudgetDecision> {
+  const enforced = isUsageLimitsEnforced();
+  const backgroundLimit = backgroundLimitFor(bucket);
+  if (!enforced) {
+    return { allow: true, count: 0, backgroundLimit };
+  }
+  const count = await getDailyCount(userId, bucket);
+  return {
+    allow: resolveBackgroundBudget({ count, backgroundLimit, enforced }),
+    count,
+    backgroundLimit,
   };
 }
 
