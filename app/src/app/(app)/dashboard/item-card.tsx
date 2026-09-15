@@ -26,13 +26,14 @@ import {
   animate,
   motion,
   type PanInfo,
+  type Transition,
   useMotionValue,
   useTransform,
 } from "motion/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
@@ -1250,6 +1251,35 @@ function DeleteItemDialog({
   );
 }
 
+/**
+ * The main-content pane for a detail view (tweet/article/note/…), with the
+ * entrance fade centralized. `animateEntrance` is false on an in-place swap, so
+ * the content appears instantly instead of fading in from transparent and
+ * flashing the dark pane behind it.
+ */
+function DetailPaneFade({
+  animateEntrance,
+  className,
+  transition,
+  children,
+}: {
+  animateEntrance: boolean;
+  className?: string;
+  transition?: Transition;
+  children: ReactNode;
+}) {
+  return (
+    <motion.div
+      className={cn("flex h-full w-full bg-background", className)}
+      initial={animateEntrance ? { opacity: 0 } : false}
+      animate={{ opacity: 1 }}
+      transition={transition ?? { duration: 0.3 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function ItemDetailDialog({
   item,
   size,
@@ -1926,24 +1956,17 @@ function ItemDetailDialog({
               )}
             >
               {isNote ? (
-                <motion.div
-                  className="flex h-full w-full bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
+                <DetailPaneFade animateEntrance={animateEntrance}>
                   <NoteDetailView
                     itemId={item.id}
                     content={item.noteDetails?.content ?? ""}
                     canEdit={canEdit}
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isArticle && item.articleDetails?.content ? (
                 // Article content as main view - delayed fade-in after cover image transition
-                <motion.div
-                  className="flex h-full w-full bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
                   <ArticleDetailView
@@ -1955,26 +1978,22 @@ function ItemDetailDialog({
                     readAt={item.articleDetails.readAt}
                     enableTracking={canEdit}
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isInstagram && item.instagramDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="overflow-y-auto"
                 >
                   <InstagramDetailView
                     instagramDetails={item.instagramDetails}
                     sourceUrl={item.sourceUrl}
                     className="py-8"
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isTwitter && item.twitterDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="overflow-y-auto"
                 >
                   <TwitterDetailView
                     twitterDetails={item.twitterDetails}
@@ -1996,13 +2015,11 @@ function ItemDetailDialog({
                         : undefined
                     }
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isProduct && item.productDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="overflow-y-auto"
                 >
                   <ProductDetailView
                     productDetails={item.productDetails}
@@ -2025,7 +2042,7 @@ function ItemDetailDialog({
                         : undefined
                     }
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isBook && item.bookDetails ? (
                 <div className="flex h-full w-full overflow-y-auto bg-background">
                   <BookDetailView
@@ -2040,11 +2057,9 @@ function ItemDetailDialog({
                   />
                 </div>
               ) : isVideo && item.videoDetails ? (
-                <motion.div
-                  className="flex h-full w-full overflow-y-auto bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="overflow-y-auto"
                 >
                   <VideoDetailView
                     videoDetails={item.videoDetails}
@@ -2053,13 +2068,11 @@ function ItemDetailDialog({
                     sourceUrl={item.sourceUrl}
                     className="py-8"
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : isWebpage && previewUrl ? (
-                <motion.div
-                  className="flex h-full w-full items-center justify-center bg-background"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="items-center justify-center"
                 >
                   {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
                   <img
@@ -2067,7 +2080,7 @@ function ItemDetailDialog({
                     alt={name}
                     className="max-h-[calc(100vh-2rem)] w-full object-contain"
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
                 <motion.div
                   layoutId={`item-image-${item.id}`}
@@ -2120,11 +2133,9 @@ function ItemDetailDialog({
               ) : isArticleOrWebpage &&
                 item.sourceUrl &&
                 isValidUrl(item.sourceUrl) ? (
-                <motion.div
-                  className="flex h-full w-full items-center justify-center bg-background p-8"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                <DetailPaneFade
+                  animateEntrance={animateEntrance}
+                  className="items-center justify-center p-8"
                 >
                   <WebpageLinkCard
                     url={item.sourceUrl}
@@ -2136,7 +2147,7 @@ function ItemDetailDialog({
                         : null
                     }
                   />
-                </motion.div>
+                </DetailPaneFade>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
                   <FileText className="size-24 text-gray-600" />
