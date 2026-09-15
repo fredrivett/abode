@@ -1,14 +1,11 @@
-import { Download, Github, Server, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Download, Github, Server, Star } from "lucide-react";
 import { Suspense } from "react";
-import { GitHubStars, StarButton } from "./github-stars";
+import { formatStarCount, GITHUB_URL, getGitHubStars } from "@/lib/github";
 import { Highlight } from "./highlight";
+import { SpotlightCard } from "./spotlight-card";
+import { SpotlightGrid } from "./spotlight-grid";
 
-const PILLARS = [
-  {
-    icon: Github,
-    title: "open source",
-    body: "every line is on github. audit it, fork it, trust it.",
-  },
+const TILES = [
   {
     icon: Server,
     title: "self-hostable",
@@ -19,17 +16,13 @@ const PILLARS = [
     title: "yours to export",
     body: "take everything with you whenever you like. no lock-in, ever.",
   },
-  {
-    icon: ShieldCheck,
-    title: "not the product",
-    body: "no ads, no tracking, no data mining. your mind is never for sale.",
-  },
 ];
 
 /**
  * The ownership half of the pitch, told in full below the capture section —
- * open source, self-hostable, your data stays yours. Text-led; the hero's
- * (xl-only) OwnershipCallout points here for smaller screens.
+ * open source, self-hostable, your data stays yours. A bento grid: "open
+ * source" is the hero tile (carrying the star CTA), the rest flank it. The
+ * hero's (xl-only) OwnershipCallout points here for smaller screens.
  */
 export function OwnershipSection() {
   return (
@@ -38,34 +31,72 @@ export function OwnershipSection() {
         <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
           your data. <Highlight>your rules.</Highlight>
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-balance text-lg text-muted-foreground leading-relaxed">
-          abode is open source and self-hostable — no ads, no lock-in, no one
-          mining your mind.
-        </p>
       </div>
 
-      <ul className="mx-auto mt-16 grid max-w-3xl gap-x-12 gap-y-10 sm:grid-cols-2">
-        {PILLARS.map((pillar) => {
-          const Icon = pillar.icon;
+      <SpotlightGrid className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-3">
+        {/* hero tile — open source, carries the CTA */}
+        <SpotlightCard
+          className="bg-gradient-to-br from-muted/50 to-muted/10 p-8 text-left sm:col-span-2 sm:row-span-2"
+          contentClassName="justify-between"
+        >
+          <div className="flex flex-col gap-4">
+            <Github className="size-7 text-foreground" aria-hidden />
+            <h3 className="font-serif text-3xl leading-tight">open source</h3>
+            <p className="max-w-sm text-muted-foreground leading-relaxed">
+              every line is on github. audit it, fork it, trust it. no ads, no
+              lock-in, no one mining your mind.
+            </p>
+          </div>
+          <div className="mt-8">
+            <Suspense fallback={<HeroStarButton count={null} />}>
+              <HeroStars />
+            </Suspense>
+          </div>
+        </SpotlightCard>
+
+        {TILES.map((tile) => {
+          const Icon = tile.icon;
           return (
-            <li key={pillar.title} className="flex flex-col gap-2 text-left">
-              <div className="flex items-center gap-2.5">
-                <Icon className="size-5 text-foreground" aria-hidden />
-                <h3 className="font-medium text-lg">{pillar.title}</h3>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {pillar.body}
+            <SpotlightCard
+              key={tile.title}
+              className="bg-muted/20 p-6 text-left"
+              contentClassName="gap-2"
+            >
+              <Icon className="size-5 text-foreground" aria-hidden />
+              <h3 className="font-medium">{tile.title}</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {tile.body}
               </p>
-            </li>
+            </SpotlightCard>
           );
         })}
-      </ul>
-
-      <div className="mt-16 flex justify-center">
-        <Suspense fallback={<StarButton count={null} size="xl" />}>
-          <GitHubStars size="xl" />
-        </Suspense>
-      </div>
+      </SpotlightGrid>
     </section>
+  );
+}
+
+async function HeroStars() {
+  const count = await getGitHubStars();
+  return <HeroStarButton count={count} />;
+}
+
+function HeroStarButton({ count }: { count: number | null }) {
+  return (
+    <a
+      href={GITHUB_URL}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2 font-medium text-sm transition-colors hover:bg-background"
+    >
+      <Github className="size-4" aria-hidden />
+      star on github
+      {count !== null && (
+        <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+          <Star className="size-3 fill-current" aria-hidden />
+          {formatStarCount(count)}
+        </span>
+      )}
+      <ArrowUpRight className="size-3.5 text-muted-foreground" aria-hidden />
+    </a>
   );
 }
