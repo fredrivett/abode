@@ -101,9 +101,16 @@ export function CentralItemDialog({
   }
   const animateEntrance = animateEntranceRef.current;
 
+  // Only mount the dialog when there's something to show — the resolved item, or
+  // the seed skeleton while an off-grid item loads. Without this, a still-loading
+  // open with no seed (a non-owner's off-grid deep link, or a seedless one
+  // mid-fetch) would flash a blank, title-less full-screen dialog.
+  const showSeed = !resolved && !!seed && seed.id === openItemId;
+  const hasContent = resolved !== null || showSeed;
+
   return (
     <AnimatePresence>
-      {open && (
+      {open && hasContent && (
         <ItemDialogFrame
           open
           onOpenChange={(next) => {

@@ -136,6 +136,7 @@ describe("CentralItemDialog", () => {
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.getByTestId("body")).toHaveAttribute("data-animate", "true");
+    const frame = screen.getByTestId("frame");
 
     // Swap straight to another open item → instant, still open, no skeleton.
     dialogState = { openItemId: "b" };
@@ -145,13 +146,15 @@ describe("CentralItemDialog", () => {
     const body = screen.getByTestId("body");
     expect(body).toHaveAttribute("data-item", "b");
     expect(body).toHaveAttribute("data-animate", "false");
-    expect(screen.getByTestId("frame")).toHaveAttribute("data-open", "true");
+    // The frame is the same element — it must not remount (that's what flashed).
+    expect(screen.getByTestId("frame")).toBe(frame);
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
   it("keeps an off-grid swap instant across its loading gap", () => {
     dialogState = { openItemId: "a" };
     const { rerender } = renderDialog();
+    const frame = screen.getByTestId("frame");
 
     // Swap to an off-grid item — its fetch hasn't resolved, so the skeleton
     // shows and resolved is briefly null.
@@ -163,6 +166,8 @@ describe("CentralItemDialog", () => {
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.getByTestId("skeleton")).toBeInTheDocument();
+    // Same frame across item → skeleton → item; only the body swaps.
+    expect(screen.getByTestId("frame")).toBe(frame);
 
     // Fetch resolves — the replacement must appear instantly (this was a swap,
     // not a fresh open), inside the same still-mounted frame.
@@ -181,18 +186,19 @@ describe("CentralItemDialog", () => {
     const body = screen.getByTestId("body");
     expect(body).toHaveAttribute("data-item", "z");
     expect(body).toHaveAttribute("data-animate", "false");
+    expect(screen.getByTestId("frame")).toBe(frame);
   });
 
-  it("does not fetch an off-grid item for a non-owner (canEdit=false)", () => {
+  it("does not fetch (or mount a blank dialog) for a non-owner off-grid open", () => {
     // Open id isn't in the list; a fetch would resolve it, but a non-owner
-    // can't hit the owner-scoped endpoint, so no body/skeleton and no error.
+    // can't hit the owner-scoped endpoint. With no seed either, there's nothing
+    // to show — so no frame at all, rather than a blank title-less dialog.
     dialogState = { openItemId: "z" };
     useItemReturn = {
       data: { id: "z", title: "Z", kind: "image" } as unknown as Item,
     };
     renderDialog({ canEdit: false });
-    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
     expect(closeItem).not.toHaveBeenCalled();
   });
 
