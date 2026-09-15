@@ -1,10 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// radial glow painted only on the 1px border (mask excludes the interior)
+// radial glow painted only on the 1px border (mask excludes the interior).
+// Driven by --foreground so it reads in both themes (near-white on dark tiles,
+// near-black on light ones) rather than a hardcoded white that vanishes in
+// light mode.
 const borderGlow: CSSProperties = {
   background:
-    "radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.45), transparent 60%)",
+    "radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklch, var(--foreground) 45%, transparent), transparent 60%)",
   padding: 1,
   WebkitMask:
     "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
@@ -16,7 +19,7 @@ const borderGlow: CSSProperties = {
 // soft highlight across the card surface, behind the content
 const surfaceGlow: CSSProperties = {
   background:
-    "radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.06), transparent 60%)",
+    "radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklch, var(--foreground) 6%, transparent), transparent 60%)",
 };
 
 /**
