@@ -31,7 +31,11 @@ export function ItemDialogSkeleton({
       }}
     >
       <DialogContent
-        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 [&>button]:hidden"
+        // The skeleton only ever appears mid-swap, so it must pop in instantly
+        // — suppress Radix's zoom/fade and the backdrop fade, matching the real
+        // dialog, or the swap flashes through this loading frame.
+        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
+        overlayClassName="data-[state=open]:!animate-none"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogTitle className="sr-only">
