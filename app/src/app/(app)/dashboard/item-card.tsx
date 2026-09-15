@@ -987,10 +987,8 @@ type ItemDetailDialogProps = {
   onOpenChange: (open: boolean) => void;
   name: string;
   onNameChange: (value: string) => void;
-  onDeleteOpenChange: (open: boolean) => void;
-  deleteOpen: boolean;
-  onDeleteConfirm: () => Promise<void>;
-  isDeleting: boolean;
+  /** Called after the item is deleted, so the caller can drop it from its list. */
+  onDeleted?: () => void;
   /**
    * Whether the current user can edit this item.
    * When false, notes, privacy settings, delete button, and location editing are hidden.
@@ -1077,10 +1075,7 @@ function ItemDetailDialogWrapper({
   onOpenChange,
   name,
   onNameChange,
-  deleteOpen,
-  onDeleteOpenChange,
-  onDeleteConfirm,
-  isDeleting,
+  onDeleted,
   canEdit,
   onExitComplete,
   animateEntrance,
@@ -1093,10 +1088,7 @@ function ItemDetailDialogWrapper({
   onOpenChange: (open: boolean) => void;
   name: string;
   onNameChange: (value: string) => void;
-  deleteOpen: boolean;
-  onDeleteOpenChange: (open: boolean) => void;
-  onDeleteConfirm: () => Promise<void>;
-  isDeleting: boolean;
+  onDeleted?: () => void;
   canEdit: boolean;
   onExitComplete?: () => void;
   animateEntrance?: boolean;
@@ -1113,10 +1105,7 @@ function ItemDetailDialogWrapper({
           onOpenChange={onOpenChange}
           name={name}
           onNameChange={onNameChange}
-          deleteOpen={deleteOpen}
-          onDeleteOpenChange={onDeleteOpenChange}
-          onDeleteConfirm={onDeleteConfirm}
-          isDeleting={isDeleting}
+          onDeleted={onDeleted}
           canEdit={canEdit}
           animateEntrance={animateEntrance}
         />
@@ -1126,11 +1115,10 @@ function ItemDetailDialogWrapper({
 }
 
 /**
- * Reusable host for an item's detail dialog: owns the delete flow (confirm +
- * API call) and renders the dialog. Given a full item plus the derived
- * display props, it's independent of any grid card — so it serves both the
- * grid card and the off-grid opener (e.g. a "similar images" click to an item
- * that isn't in the loaded list).
+ * Renders an item's detail dialog (frame + body) for the per-card path, given a
+ * full item plus the derived display props. Used where each card owns its own
+ * dialog (room filter-editor / no-provider fallback); the dashboard/rooms
+ * central dialog composes the frame and body directly so it can swap the body.
  */
 export function ItemDetailDialogHost({
   item,
@@ -1162,39 +1150,6 @@ export function ItemDetailDialogHost({
   /** Play the mount fade-in (fresh open) vs. swap instantly (dialog→dialog). */
   animateEntrance?: boolean;
 }) {
-  const invalidateItems = useInvalidateItems();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await api.delete("/api/v1/items", {
-        body: JSON.stringify({ id: item.id }),
-      });
-
-      // Track item deletion event
-      posthog.capture("item_deleted", {
-        item_id: item.id,
-        item_kind: item.kind,
-        source_type: item.sourceType,
-      });
-
-      toast.success("Item deleted");
-      setShowDeleteDialog(false);
-      // Close the detail dialog explicitly so it dismisses regardless of whether
-      // the parent list unmounts this card (the room view keeps its own state).
-      onOpenChange(false);
-      invalidateItems();
-      onDeleted?.();
-    } catch (error) {
-      log.error({ error }, "Delete error");
-      posthog.captureException(error);
-      toast.error("Failed to delete item");
-      setIsDeleting(false);
-    }
-  };
-
   return (
     <ItemDetailDialogWrapper
       show={open}
@@ -1205,10 +1160,7 @@ export function ItemDetailDialogHost({
       onOpenChange={onOpenChange}
       name={name}
       onNameChange={onNameChange}
-      deleteOpen={showDeleteDialog}
-      onDeleteOpenChange={setShowDeleteDialog}
-      onDeleteConfirm={handleDelete}
-      isDeleting={isDeleting}
+      onDeleted={onDeleted}
       canEdit={canEdit}
       onExitComplete={onExitComplete}
       animateEntrance={animateEntrance}
@@ -1287,15 +1239,13 @@ function DetailPaneFade({
  * mounted while the body swaps between items — or between the loading skeleton
  * and the resolved item — without tearing down and re-animating the dialog.
  */
-function ItemDialogFrame({
+export function ItemDialogFrame({
   open,
   onOpenChange,
-  animateEntrance,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  animateEntrance: boolean;
   children: ReactNode;
 }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1345,19 +1295,16 @@ function ItemDialogFrame({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
-        // On an in-place swap (no entrance fade) the whole dialog still remounts
-        // here, so suppress the backdrop's re-fade-in — otherwise the grid
-        // behind flashes through for a frame. The close fade-out stays.
-        overlayClassName={
-          animateEntrance ? undefined : "data-[state=open]:!animate-none"
-        }
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
       >
+        {/* Fades in on mount (a fresh open) and out on close; an in-place item
+            swap keeps this frame mounted and only swaps the body, so there's no
+            re-fade to suppress. */}
         <motion.div
           className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
-          initial={animateEntrance ? { opacity: 0 } : false}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.1 } }}
           transition={{ duration: 0.2 }}
@@ -1414,7 +1361,7 @@ function ItemDialogFrame({
   );
 }
 
-function ItemDetailDialog({
+export function ItemDetailBody({
   item,
   size,
   previewUrl,
@@ -1423,14 +1370,39 @@ function ItemDetailDialog({
   onOpenChange,
   name,
   onNameChange,
-  deleteOpen,
-  onDeleteOpenChange,
-  onDeleteConfirm,
-  isDeleting,
+  onDeleted,
   canEdit,
   animateEntrance = true,
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete("/api/v1/items", {
+        body: JSON.stringify({ id: item.id }),
+      });
+      posthog.capture("item_deleted", {
+        item_id: item.id,
+        item_kind: item.kind,
+        source_type: item.sourceType,
+      });
+      toast.success("Item deleted");
+      setShowDeleteDialog(false);
+      // Close the detail dialog explicitly so it dismisses regardless of whether
+      // the parent list unmounts this card (the room view keeps its own state).
+      onOpenChange(false);
+      invalidateItems();
+      onDeleted?.();
+    } catch (error) {
+      log.error({ error }, "Delete error");
+      posthog.captureException(error);
+      toast.error("Failed to delete item");
+      setIsDeleting(false);
+    }
+  };
   const { setState: setSearchState } = useSearch();
   const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
@@ -1996,11 +1968,7 @@ function ItemDetailDialog({
   };
 
   return (
-    <ItemDialogFrame
-      open={open}
-      onOpenChange={onOpenChange}
-      animateEntrance={animateEntrance}
-    >
+    <>
       {/* Top (mobile) / Left (desktop) - Main content area */}
       <div
         className={cn(
@@ -3305,7 +3273,7 @@ function ItemDetailDialog({
               {canEdit && (
                 <Button
                   variant="destructive-outline"
-                  onClick={() => onDeleteOpenChange(true)}
+                  onClick={() => setShowDeleteDialog(true)}
                   disabled={isDeleting}
                 >
                   {isDeleting ? (
@@ -3324,12 +3292,26 @@ function ItemDetailDialog({
       </div>
 
       <DeleteItemDialog
-        open={deleteOpen}
-        onOpenChange={onDeleteOpenChange}
-        onConfirm={onDeleteConfirm}
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDelete}
         isDeleting={isDeleting}
         itemName={name}
       />
+    </>
+  );
+}
+
+/**
+ * The item detail dialog for the per-card path (rooms filter-editor / no-provider
+ * fallback): the persistent frame with the body inside. The dashboard/rooms
+ * central dialog composes ItemDialogFrame + ItemDetailBody itself, so it can
+ * keep one frame mounted and swap the body (content ↔ loading skeleton).
+ */
+function ItemDetailDialog(props: ItemDetailDialogProps) {
+  return (
+    <ItemDialogFrame open={props.open} onOpenChange={props.onOpenChange}>
+      <ItemDetailBody {...props} />
     </ItemDialogFrame>
   );
 }

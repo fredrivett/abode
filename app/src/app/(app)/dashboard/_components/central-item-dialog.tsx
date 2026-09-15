@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -7,9 +8,9 @@ import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useItem } from "@/lib/items/use-item";
 import type { Item } from "@/lib/types/item";
 import { formatBytes, getFileSizeFromMeta } from "@/lib/utils";
-import { ItemDetailDialogHost } from "../item-card";
+import { ItemDetailBody, ItemDialogFrame } from "../item-card";
 import { useItemDialog } from "../item-dialog-context";
-import { ItemDialogSkeleton } from "./item-dialog-skeleton";
+import { ItemDialogSkeletonBody } from "./item-dialog-skeleton";
 
 /** For articles/webpages/products/books the cover is the display image; images use their own file. */
 function detailImageFileKey(item: Item): string | null {
@@ -24,10 +25,10 @@ function detailImageFileKey(item: Item): string | null {
 /**
  * The single detail dialog for a grid of items (the dashboard or a room),
  * driven by the URL-addressable open item (`?item=<id>`) via {@link
- * useItemDialog}. It renders the dialog for whichever item is open — including
- * one that isn't in the loaded list (e.g. a "similar images" click to a
- * filtered-out item), which it resolves with a by-id fetch. Cards no longer
- * render their own dialog inside a provider; they just set the open item.
+ * useItemDialog}. One {@link ItemDialogFrame} stays mounted while an item is
+ * open; its body swaps between the resolved item and the loading skeleton (for
+ * an off-grid item still being fetched) without tearing down the dialog. Cards
+ * don't render their own dialog inside a provider; they just set the open item.
  *
  * Mount this once inside an {@link ItemDialogProvider}, alongside the grid.
  */
@@ -86,11 +87,11 @@ export function CentralItemDialog({
 
   const open = openItemId !== null;
 
-  // Fresh open (grid → dialog) animates in; swapping straight from one open
-  // item to another (a "similar images" click) changes instantly — so the
-  // dialog only fades on open/close, not between items. Keyed off openItemId
-  // (not resolved.id) so an off-grid swap's loading gap — where resolved is
-  // briefly null — doesn't read as a close→open and re-trigger the fade.
+  // Fresh open (grid → dialog) animates the frame in; swapping straight from one
+  // open item to another (a "similar images" click) keeps the frame mounted and
+  // just swaps the body, so the dialog only fades on open/close, not between
+  // items. Keyed off openItemId (not resolved.id) so an off-grid swap's loading
+  // gap — where resolved is briefly null — doesn't read as a close→open.
   const shownId = open ? openItemId : null;
   const prevShownIdRef = useRef<string | null>(null);
   const animateEntranceRef = useRef(true);
@@ -100,74 +101,50 @@ export function CentralItemDialog({
   }
   const animateEntrance = animateEntranceRef.current;
 
-  // Keep the last shown item mounted through the close animation, then clear it
-  // on exit — otherwise closing would unmount instantly with no animation.
-  const [lastShown, setLastShown] = useState<Item | null>(null);
-  useEffect(() => {
-    if (resolved) setLastShown(resolved);
-  }, [resolved]);
-
-  if (open) {
-    // Key by id so an in-place swap remounts the dialog: its many item-scoped
-    // useState inits (cover/share/notes/tags…) would otherwise carry the
-    // previous item's values and PATCH the new item with the wrong ones.
-    if (resolved) {
-      return (
-        <CentralItemDialogContents
-          key={resolved.id}
-          item={resolved}
+  return (
+    <AnimatePresence>
+      {open && (
+        <ItemDialogFrame
           open
-          canEdit={canEdit}
-          animateEntrance={animateEntrance}
-          onClose={() => closeItem?.()}
-          onItemRenamed={onItemRenamed}
-          onItemDeleted={onItemDeleted}
-        />
-      );
-    }
-    // Off-grid item still fetching — show the seed image/title meanwhile.
-    if (seed && seed.id === openItemId) {
-      return <ItemDialogSkeleton seed={seed} onClose={() => closeItem?.()} />;
-    }
-    return null;
-  }
-
-  // Closing: keep the last item mounted so it animates out, then clear it.
-  if (lastShown) {
-    return (
-      <CentralItemDialogContents
-        key={lastShown.id}
-        item={lastShown}
-        open={false}
-        canEdit={canEdit}
-        animateEntrance={false}
-        onClose={() => closeItem?.()}
-        onExitComplete={() => setLastShown(null)}
-        onItemRenamed={onItemRenamed}
-        onItemDeleted={onItemDeleted}
-      />
-    );
-  }
-
-  return null;
+          onOpenChange={(next) => {
+            if (!next) closeItem?.();
+          }}
+        >
+          {resolved ? (
+            // Key by id so an in-place swap resets the body's many item-scoped
+            // useState inits (cover/share/notes/tags…), without remounting the
+            // frame around it.
+            <CentralItemBody
+              key={resolved.id}
+              item={resolved}
+              canEdit={canEdit}
+              animateEntrance={animateEntrance}
+              onClose={() => closeItem?.()}
+              onItemRenamed={onItemRenamed}
+              onItemDeleted={onItemDeleted}
+            />
+          ) : seed && seed.id === openItemId ? (
+            // Off-grid item still fetching — show the seed image/title meanwhile.
+            <ItemDialogSkeletonBody seed={seed} />
+          ) : null}
+        </ItemDialogFrame>
+      )}
+    </AnimatePresence>
+  );
 }
 
-function CentralItemDialogContents({
+function CentralItemBody({
   item,
-  open,
   canEdit,
   animateEntrance,
   onClose,
-  onExitComplete,
   onItemRenamed,
   onItemDeleted,
 }: {
   item: Item;
-  open: boolean;
   canEdit: boolean;
   animateEntrance: boolean;
   onClose: () => void;
-  onExitComplete?: () => void;
   onItemRenamed: (itemId: string, title: string) => void;
   onItemDeleted?: (itemId: string) => void;
 }) {
@@ -183,9 +160,9 @@ function CentralItemDialogContents({
     : null;
 
   return (
-    <ItemDetailDialogHost
+    <ItemDetailBody
       item={item}
-      open={open}
+      open
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
@@ -199,7 +176,6 @@ function CentralItemDialogContents({
       }}
       canEdit={canEdit}
       animateEntrance={animateEntrance}
-      onExitComplete={onExitComplete}
       onDeleted={onItemDeleted ? () => onItemDeleted(item.id) : undefined}
     />
   );
