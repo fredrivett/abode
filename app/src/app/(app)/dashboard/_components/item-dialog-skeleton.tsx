@@ -21,8 +21,10 @@ export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
       <DialogTitle className="sr-only">
         {seed.title ?? "Loading item"}
       </DialogTitle>
-      {/* Image pane — the one thing we already have, shown straight away */}
-      <div className="flex shrink-0 items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
+      {/* Image pane — the one thing we already have, shown straight away.
+          `relative overflow-hidden` so BlurImage's absolute placeholder is
+          contained here rather than escaping to fill the whole dialog. */}
+      <div className="relative flex shrink-0 items-center justify-center overflow-hidden bg-gray-900 md:flex-1">
         {src ? (
           <BlurImage
             src={src}

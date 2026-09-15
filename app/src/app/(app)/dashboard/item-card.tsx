@@ -2108,7 +2108,10 @@ export function ItemDetailBody({
           </DetailPaneFade>
         ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
           <motion.div
-            layoutId={`item-image-${item.id}`}
+            // Morph from the grid tile on a fresh open, but not on an in-place
+            // swap — otherwise the incoming image scales up from its tile and
+            // blows out the frame.
+            layoutId={animateEntrance ? `item-image-${item.id}` : undefined}
             className="relative"
             transition={{
               layout: { duration: 0.3 },
@@ -2609,7 +2612,10 @@ export function ItemDetailBody({
                   )}
                 </div>
                 <motion.div
-                  layoutId={`item-image-${item.id}`}
+                  // Morph from the grid tile on a fresh open, not on a swap.
+                  layoutId={
+                    animateEntrance ? `item-image-${item.id}` : undefined
+                  }
                   className="overflow-hidden rounded-md"
                   transition={{
                     layout: { duration: 0.3 },
