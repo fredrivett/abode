@@ -68,7 +68,7 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
   }
   const { itemId } = payload;
 
-  const reserved = await reserveBackgroundSlot(userId, bucket);
+  const { reserved, day } = await reserveBackgroundSlot(userId, bucket);
   if (!reserved) {
     await db.item.update({
       where: { id: itemId, userId },
@@ -76,6 +76,10 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
     });
     return { status: "deferred" };
   }
+  // Release the slot against the exact day it was reserved on (guards a
+  // reservation made just before UTC midnight).
+  const release = () =>
+    day ? releaseBackgroundSlot(userId, bucket, day) : Promise.resolve();
 
   // Atomically claim the item — only if it isn't already being processed — so two
   // workers can't both enqueue paid work for the same item. markProcessingActive
@@ -90,7 +94,7 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
     data: { processingStatus: "processing", processingStartedAt: new Date() },
   });
   if (claim.count === 0) {
-    await releaseBackgroundSlot(userId, bucket);
+    await release();
     return { status: "skipped" };
   }
 
@@ -102,12 +106,12 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
   } catch (error) {
     // Roll back so the slot isn't leaked and the item isn't stranded as
     // `processing` (which the sweep would never revisit): re-park it as deferred
-    // for the next sweep, release the slot, and surface the failure.
+    // for the next sweep, release the slot (best-effort), and surface the failure.
     await db.item.updateMany({
       where: { id: itemId, userId, processingStatus: "processing" },
       data: { processingStatus: "deferred" },
     });
-    await releaseBackgroundSlot(userId, bucket);
+    await release();
     throw error;
   }
 

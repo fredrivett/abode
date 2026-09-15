@@ -337,46 +337,71 @@ export function backgroundLimitFor(
  * `enforced === false` ⇒ always reserve (still counting, never blocking). Deferral
  * rides the enforcement switch: in shadow mode nothing blocks interactive work,
  * so there's no headroom to protect and background runs immediately (preserving
- * pre-enforcement behaviour). Release a reserved slot with
- * {@link releaseBackgroundSlot} if the enqueue it was for then fails.
+ * pre-enforcement behaviour).
+ *
+ * Returns the reserved `day` (the UTC date the count was written to) alongside
+ * whether a slot was taken; pass that day back to {@link releaseBackgroundSlot}
+ * on rollback so a reservation made just before UTC midnight is released against
+ * the day it charged, not "today".
  */
+export type BackgroundReservation = { reserved: boolean; day: string | null };
+
 export async function reserveBackgroundSlot(
   userId: string,
   bucket: UsageBucket,
-): Promise<boolean> {
+): Promise<BackgroundReservation> {
   if (!isUsageLimitsEnforced()) {
-    await incrementDailyCount(userId, bucket);
-    return true;
+    // Shadow: count unconditionally (never blocks), still returning the day so a
+    // rollback targets the right row.
+    const rows = await db.$queryRaw<{ day: string }[]>`
+      INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+      VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+      ON CONFLICT (user_id, day, bucket)
+      DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+      RETURNING (day)::text AS day
+    `;
+    return { reserved: true, day: rows[0]?.day ?? null };
   }
   const backgroundLimit = backgroundLimitFor(bucket);
-  const rows = await db.$queryRaw<{ count: number }[]>`
+  const rows = await db.$queryRaw<{ day: string }[]>`
     INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
     VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
     ON CONFLICT (user_id, day, bucket)
     DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
     WHERE usage_daily.count < ${backgroundLimit}
-    RETURNING count
+    RETURNING (day)::text AS day
   `;
-  return rows.length > 0;
+  return { reserved: rows.length > 0, day: rows[0]?.day ?? null };
 }
 
 /**
  * Release a slot previously taken by {@link reserveBackgroundSlot} — used to roll
  * back when the enqueue the reservation was for fails, so a failed background
- * attempt doesn't permanently consume a user's allowance. Floors at 0 and is
- * best-effort (a lost decrement only under-charges by one, the safe direction).
+ * attempt doesn't permanently consume a user's allowance. Targets the exact
+ * `day` that was reserved (so a midnight-straddling rollback can't decrement an
+ * unrelated day). Floors at 0 and is genuinely best-effort: a decrement failure
+ * is logged, not thrown, so it can never mask the original enqueue error or turn
+ * a rollback into a 500 (a lost decrement only under-charges by one — safe).
  */
 export async function releaseBackgroundSlot(
   userId: string,
   bucket: UsageBucket,
+  day: string,
 ): Promise<void> {
-  await db.$executeRaw`
-    UPDATE usage_daily
-    SET count = GREATEST(count - 1, 0), updated_at = now()
-    WHERE user_id = ${userId}::uuid
-      AND day = (now() AT TIME ZONE 'utc')::date
-      AND bucket = ${bucket}
-  `;
+  try {
+    await db.$executeRaw`
+      UPDATE usage_daily
+      SET count = GREATEST(count - 1, 0), updated_at = now()
+      WHERE user_id = ${userId}::uuid
+        AND day = ${day}::date
+        AND bucket = ${bucket}
+    `;
+  } catch (error) {
+    log.warn(
+      { error, userId, bucket, day },
+      "Failed to release background slot (best-effort)",
+    );
+  }
 }
 
 /** What the guard decided to do about an over-limit action. */
