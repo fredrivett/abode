@@ -70,11 +70,20 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
 
   const { reserved, day } = await reserveBackgroundSlot(userId, bucket);
   if (!reserved) {
-    await db.item.update({
-      where: { id: itemId, userId },
+    // Park it — but only from a pre-terminal state, matching the guarded claim/
+    // rollback writes below, so this can never flip an already-`processing` or
+    // finished item back to `deferred`. Today's callers pass fresh `pending`
+    // items (importer) or already-`deferred` ones (sweep); anything else is a
+    // no-op we report as skipped.
+    const parked = await db.item.updateMany({
+      where: {
+        id: itemId,
+        userId,
+        processingStatus: { in: ["pending", "deferred"] },
+      },
       data: { processingStatus: "deferred" },
     });
-    return { status: "deferred" };
+    return parked.count > 0 ? { status: "deferred" } : { status: "skipped" };
   }
   // Release the slot against the exact day it was reserved on (guards a
   // reservation made just before UTC midnight).
