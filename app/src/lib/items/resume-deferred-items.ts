@@ -3,6 +3,7 @@ import { truncateToTokenLimit } from "@/lib/ai/generate-tags-from-content";
 import db from "@/lib/db";
 import { enqueueBackgroundProcessing } from "@/lib/items/enqueue-background-processing";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
 
 const log = createLogger("lib/items/resume-deferred-items");
 
@@ -63,11 +64,14 @@ export async function resumeDeferredItems(): Promise<{
   enqueued: number;
   stillDeferred: number;
 }> {
-  const users = await db.item.findMany({
+  // Group by user (ordered by each user's oldest deferred item) rather than
+  // `distinct` over a row LIMIT — otherwise one user with more deferred rows than
+  // the cap could fill it and starve everyone else until later sweeps.
+  const users = await db.item.groupBy({
+    by: ["userId"],
     where: { processingStatus: "deferred" },
-    distinct: ["userId"],
-    select: { userId: true },
-    orderBy: { createdAt: "asc" },
+    _min: { createdAt: true },
+    orderBy: { _min: { createdAt: "asc" } },
     take: MAX_USERS_PER_SWEEP,
   });
 
@@ -104,13 +108,20 @@ export async function resumeDeferredItems(): Promise<{
           stillDeferred += items.length - i;
           break;
         }
-        enqueued += 1;
+        // "skipped" = another worker already claimed it; count neither, continue.
+        if (result.status === "enqueued") enqueued += 1;
       } catch (error) {
-        // Leave it deferred; the next sweep retries it.
+        // enqueueBackgroundProcessing already rolled the item back to `deferred`
+        // and released its slot; report so a persistent failure is visible and
+        // leave it for the next sweep.
         log.error(
           { error, itemId: items[i].id },
           "Failed to resume deferred item",
         );
+        captureServerException(error, userId, {
+          task: "resume-deferred-items",
+          itemId: items[i].id,
+        });
         stillDeferred += 1;
       }
     }

@@ -9,7 +9,6 @@ import {
   PER_USER_MONTHLY_USD,
   perUserDailyUsdLimit,
   perUserMonthlyUsdLimit,
-  resolveBackgroundBudget,
   resolveGuardAction,
   SYSTEM_DAILY_USD,
   secondsUntilUtcMidnight,
@@ -235,7 +234,17 @@ describe("isUsageLimitsEnforced", () => {
 });
 
 describe("backgroundLimitFor", () => {
+  // The no-fraction form reads BACKGROUND_RESERVE_FRACTION via
+  // backgroundReserveFraction(), so clear it to assert the compiled default
+  // deterministically even when a dev has the override set locally.
+  const original = process.env.BACKGROUND_RESERVE_FRACTION;
+  afterEach(() => {
+    if (original === undefined) delete process.env.BACKGROUND_RESERVE_FRACTION;
+    else process.env.BACKGROUND_RESERVE_FRACTION = original;
+  });
+
   it("reserves the default fraction of the bucket for interactive work", () => {
+    delete process.env.BACKGROUND_RESERVE_FRACTION;
     // 150 × (1 − 0.2) = 120 background slots, leaving 30 for live saves.
     expect(backgroundLimitFor("ingestion")).toBe(120);
     expect(backgroundLimitFor("reanalysis")).toBe(16); // floor(20 × 0.8)
@@ -245,42 +254,6 @@ describe("backgroundLimitFor", () => {
     expect(backgroundLimitFor("ingestion", 0.5)).toBe(75);
     expect(backgroundLimitFor("reanalysis", 0.5)).toBe(10);
     expect(backgroundLimitFor("reanalysis", 0.33)).toBe(13); // floor(20 × 0.67)
-  });
-});
-
-describe("resolveBackgroundBudget", () => {
-  it("always allows when enforcement is off (nothing blocks interactive)", () => {
-    expect(
-      resolveBackgroundBudget({
-        count: 10_000,
-        backgroundLimit: 120,
-        enforced: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("allows below the background limit and defers at/above it when enforced", () => {
-    expect(
-      resolveBackgroundBudget({
-        count: 119,
-        backgroundLimit: 120,
-        enforced: true,
-      }),
-    ).toBe(true);
-    expect(
-      resolveBackgroundBudget({
-        count: 120,
-        backgroundLimit: 120,
-        enforced: true,
-      }),
-    ).toBe(false);
-    expect(
-      resolveBackgroundBudget({
-        count: 121,
-        backgroundLimit: 120,
-        enforced: true,
-      }),
-    ).toBe(false);
   });
 });
 

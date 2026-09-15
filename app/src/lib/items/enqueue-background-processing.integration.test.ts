@@ -112,4 +112,35 @@ describe("enqueueBackgroundProcessing", () => {
     expect(trigger).toHaveBeenCalledTimes(1);
     expect(await statusOf(itemId)).toBe("processing");
   });
+
+  test("a failed trigger rolls the item back to deferred and releases the slot", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "true";
+    const { userId, itemId } = await createItem();
+    trigger.mockReset().mockRejectedValue(new Error("trigger down"));
+
+    await expect(run(userId, itemId)).rejects.toThrow("trigger down");
+
+    // Not stranded as `processing` (the sweep would never revisit it) and the
+    // reserved slot is returned so a failed enqueue doesn't consume the allowance.
+    expect(await statusOf(itemId)).toBe("deferred");
+    expect(await getDailyCount(userId, "ingestion")).toBe(0);
+  });
+
+  test("skips (and releases the slot) when the item is already being processed", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "true";
+    const { userId, itemId } = await createItem();
+    const { write } = await import("@/lib/db");
+    await write.item.update({
+      where: { id: itemId },
+      data: { processingStatus: "processing" },
+    });
+
+    const result = await run(userId, itemId);
+
+    expect(result).toEqual({ status: "skipped" });
+    expect(trigger).not.toHaveBeenCalled();
+    expect(await statusOf(itemId)).toBe("processing");
+    // Reserved then released → net zero, no allowance leaked.
+    expect(await getDailyCount(userId, "ingestion")).toBe(0);
+  });
 });

@@ -3,8 +3,8 @@ import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
 import { itemTag, userTag } from "@/lib/items/run-tags";
 import {
-  checkBackgroundBudget,
-  incrementDailyCount,
+  releaseBackgroundSlot,
+  reserveBackgroundSlot,
   type UsageBucket,
 } from "@/lib/usage-limits";
 
@@ -20,31 +20,31 @@ function hasItemId(payload: unknown): payload is { itemId: string } {
 
 export type BackgroundEnqueueResult =
   | { status: "enqueued" }
-  | { status: "deferred" };
+  | { status: "deferred" }
+  | { status: "skipped" };
 
 /**
  * Enqueue background/bulk item processing, OR defer it when the user's daily
- * allowance for `bucket` is drawn down to the interactive reserve (see
- * {@link checkBackgroundBudget}). The single choke point for bulk work that must
- * yield to live user actions — currently the book importer's enrichment.
+ * allowance for `bucket` is drawn down to the interactive reserve. The single
+ * choke point for bulk work that must yield to live user actions — currently the
+ * book importer's enrichment.
  *
  * Contrast with {@link enqueueUserProcessing} (live user work): that runs at
  * {@link USER_ACTION_PRIORITY} and is never deferred. This runs at the default
- * background priority `0`, and:
- *   - defer decision → parks the item as `processingStatus = 'deferred'` and does
- *     NOT enqueue or draw down the daily count; the daily deferred-items sweep
- *     ({@link resumeDeferredItems}) picks it up once headroom returns.
- *   - enqueue decision → flips the item to `processing`, triggers the run, and
- *     draws down the shared daily count so background + interactive share the
- *     same allowance.
+ * background priority `0`. The sequence is:
+ *   1. Atomically reserve a background slot ({@link reserveBackgroundSlot}). No
+ *      slot → park the item as `deferred` and return; the daily sweep
+ *      ({@link resumeDeferredItems}) retries it once headroom returns.
+ *   2. Atomically claim the item (`pending`/`deferred` → `processing`). If it's
+ *      already being processed (another worker won the race), release the slot
+ *      and return `skipped` — never a second paid run for the same item.
+ *   3. Trigger the run. If that throws, roll back — restore the item to
+ *      `deferred` and release the slot — then rethrow so the caller can report
+ *      it; the item is left retryable by the next sweep, not stranded.
  *
- * The count check and increment are not one atomic step, so under concurrent
- * bulk enqueues the reserve boundary can be crossed by a few — acceptable, since
- * the reserve is soft headroom, not a hard cap (the interactive gate,
- * {@link assertWithinDailyLimit}, stays atomic).
- *
- * Enqueue failure (Trigger.dev unconfigured/unreachable) propagates — the caller
- * marks the item failed (the reaper is the backstop for a run that dies later).
+ * Reserving before triggering (and releasing on failure) means accepted paid work
+ * is always charged to the shared allowance and a failed enqueue never leaks a
+ * slot.
  *
  * TODO: existing background backfills (reprocess-images, backfill-tweet-*) still
  * trigger directly at priority 0 without this reserve/defer path. They can opt in
@@ -68,9 +68,8 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
   }
   const { itemId } = payload;
 
-  const decision = await checkBackgroundBudget({ userId, bucket });
-
-  if (!decision.allow) {
+  const reserved = await reserveBackgroundSlot(userId, bucket);
+  if (!reserved) {
     await db.item.update({
       where: { id: itemId, userId },
       data: { processingStatus: "deferred" },
@@ -78,21 +77,39 @@ export async function enqueueBackgroundProcessing<TTask extends AnyTask>({
     return { status: "deferred" };
   }
 
-  // Claim the item as processing before enqueuing so the pipeline's
-  // markProcessingActive/reaper (which key off processing/pending) cover it.
-  await db.item.update({
-    where: { id: itemId, userId },
+  // Atomically claim the item — only if it isn't already being processed — so two
+  // workers can't both enqueue paid work for the same item. markProcessingActive
+  // and the reaper key off processing/pending, so this also puts it under their
+  // watch once claimed.
+  const claim = await db.item.updateMany({
+    where: {
+      id: itemId,
+      userId,
+      processingStatus: { in: ["pending", "deferred"] },
+    },
     data: { processingStatus: "processing", processingStartedAt: new Date() },
   });
+  if (claim.count === 0) {
+    await releaseBackgroundSlot(userId, bucket);
+    return { status: "skipped" };
+  }
 
-  await tasks.trigger<TTask>(id, payload, {
-    concurrencyKey: userId,
-    tags: [itemTag(itemId), userTag(userId)],
-  });
-
-  // Draw down the shared daily allowance only for work actually enqueued, so a
-  // deferred attempt never inflates the counter.
-  await incrementDailyCount(userId, bucket);
+  try {
+    await tasks.trigger<TTask>(id, payload, {
+      concurrencyKey: userId,
+      tags: [itemTag(itemId), userTag(userId)],
+    });
+  } catch (error) {
+    // Roll back so the slot isn't leaked and the item isn't stranded as
+    // `processing` (which the sweep would never revisit): re-park it as deferred
+    // for the next sweep, release the slot, and surface the failure.
+    await db.item.updateMany({
+      where: { id: itemId, userId, processingStatus: "processing" },
+      data: { processingStatus: "deferred" },
+    });
+    await releaseBackgroundSlot(userId, bucket);
+    throw error;
+  }
 
   return { status: "enqueued" };
 }

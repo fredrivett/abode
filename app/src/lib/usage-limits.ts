@@ -263,8 +263,9 @@ export async function incrementDailyCount(
 
 /**
  * Read-only current action count for `(user, today, bucket)` — does NOT
- * increment. Used by {@link checkBackgroundBudget} so a would-be-deferred action
- * doesn't inflate the counter (which {@link incrementDailyCount} would).
+ * increment. Exposed for admin rollups and tests; the background enqueue path
+ * reserves atomically via {@link reserveBackgroundSlot} rather than reading then
+ * writing.
  */
 export async function getDailyCount(
   userId: string,
@@ -321,61 +322,61 @@ export function backgroundLimitFor(
   return Math.floor(DAILY_LIMITS[bucket] * (1 - fraction));
 }
 
-export type BackgroundBudgetDecision = {
-  /** True → enqueue now. False → defer (park the item; resume via the daily sweep). */
-  allow: boolean;
-  /** Current bucket count (pre-increment). */
-  count: number;
-  /** Count at/above which background work defers. */
-  backgroundLimit: number;
-};
-
 /**
- * Pure decision: may background work proceed given the current count and reserve?
- * Separated from IO so the arithmetic is trivially unit-testable.
+ * Atomically reserve one background slot in `(user, today, bucket)`: draw the
+ * count down by one iff doing so stays within the interactive reserve. Returns
+ * whether a slot was reserved (`false` → the caller should defer).
  *
- * `enforced === false` ⇒ always allow. Deferral rides the enforcement switch: in
- * shadow mode nothing blocks interactive work, so there's no headroom to protect
- * and background runs immediately (preserving pre-enforcement behaviour). When
- * enforcement is on, blocking (429s) and deferral activate together.
+ * This is a *single* conditional upsert, so concurrent background enqueues can't
+ * each read the same count and collectively overshoot the reserve (the race a
+ * read-then-increment would allow): the `WHERE usage_daily.count < limit` on the
+ * conflicting update means at most `limit` reservations ever succeed in a day.
+ * The count includes interactive draws too, so background always yields the top
+ * `reserve` slots to live user actions.
+ *
+ * `enforced === false` ⇒ always reserve (still counting, never blocking). Deferral
+ * rides the enforcement switch: in shadow mode nothing blocks interactive work,
+ * so there's no headroom to protect and background runs immediately (preserving
+ * pre-enforcement behaviour). Release a reserved slot with
+ * {@link releaseBackgroundSlot} if the enqueue it was for then fails.
  */
-export function resolveBackgroundBudget({
-  count,
-  backgroundLimit,
-  enforced,
-}: {
-  count: number;
-  backgroundLimit: number;
-  enforced: boolean;
-}): boolean {
-  if (!enforced) return true;
-  return count < backgroundLimit;
+export async function reserveBackgroundSlot(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<boolean> {
+  if (!isUsageLimitsEnforced()) {
+    await incrementDailyCount(userId, bucket);
+    return true;
+  }
+  const backgroundLimit = backgroundLimitFor(bucket);
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+    ON CONFLICT (user_id, day, bucket)
+    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+    WHERE usage_daily.count < ${backgroundLimit}
+    RETURNING count
+  `;
+  return rows.length > 0;
 }
 
 /**
- * Whether a background/bulk action in `bucket` may be enqueued now, or should be
- * deferred to protect the interactive reserve. Does NOT consume the count — the
- * caller increments (via {@link incrementDailyCount}) only when it actually
- * enqueues, so deferred attempts never poison the counter.
+ * Release a slot previously taken by {@link reserveBackgroundSlot} — used to roll
+ * back when the enqueue the reservation was for fails, so a failed background
+ * attempt doesn't permanently consume a user's allowance. Floors at 0 and is
+ * best-effort (a lost decrement only under-charges by one, the safe direction).
  */
-export async function checkBackgroundBudget({
-  userId,
-  bucket,
-}: {
-  userId: string;
-  bucket: UsageBucket;
-}): Promise<BackgroundBudgetDecision> {
-  const enforced = isUsageLimitsEnforced();
-  const backgroundLimit = backgroundLimitFor(bucket);
-  if (!enforced) {
-    return { allow: true, count: 0, backgroundLimit };
-  }
-  const count = await getDailyCount(userId, bucket);
-  return {
-    allow: resolveBackgroundBudget({ count, backgroundLimit, enforced }),
-    count,
-    backgroundLimit,
-  };
+export async function releaseBackgroundSlot(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<void> {
+  await db.$executeRaw`
+    UPDATE usage_daily
+    SET count = GREATEST(count - 1, 0), updated_at = now()
+    WHERE user_id = ${userId}::uuid
+      AND day = (now() AT TIME ZONE 'utc')::date
+      AND bucket = ${bucket}
+  `;
 }
 
 /** What the guard decided to do about an over-limit action. */
