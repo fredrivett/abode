@@ -104,6 +104,7 @@ enum ProcessingStatus {
   processing
   completed
   failed
+  deferred
 }
 
 // Safe, closed vocabulary describing why processing failed. Set alongside

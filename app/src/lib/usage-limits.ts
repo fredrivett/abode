@@ -230,16 +230,7 @@ export async function assertWithinDailyLimit(
   bucket: UsageBucket,
 ): Promise<UsageLimitCheck> {
   const limit = DAILY_LIMITS[bucket];
-
-  const rows = await db.$queryRaw<{ count: number }[]>`
-    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
-    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
-    ON CONFLICT (user_id, day, bucket)
-    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
-    RETURNING count
-  `;
-
-  const count = Number(rows[0]?.count ?? 0);
+  const count = await incrementDailyCount(userId, bucket);
 
   return {
     allowed: count <= limit,
@@ -248,6 +239,169 @@ export async function assertWithinDailyLimit(
     retryAfterSeconds: secondsUntilUtcMidnight(),
     bucket,
   };
+}
+
+/**
+ * Atomically +1 the `(user, today, bucket)` action count and return the
+ * post-increment value. The single upsert is race-free — concurrent callers each
+ * get a distinct count. Shared by the route guard ({@link assertWithinDailyLimit})
+ * and the background enqueue path so both draw down the *same* daily allowance.
+ */
+export async function incrementDailyCount(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<number> {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+    ON CONFLICT (user_id, day, bucket)
+    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+    RETURNING count
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Read-only current action count for `(user, today, bucket)` — does NOT
+ * increment. Exposed for admin rollups and tests; the background enqueue path
+ * reserves atomically via {@link reserveBackgroundSlot} rather than reading then
+ * writing.
+ */
+export async function getDailyCount(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<number> {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    SELECT count FROM usage_daily
+    WHERE user_id = ${userId}::uuid
+      AND day = (now() AT TIME ZONE 'utc')::date
+      AND bucket = ${bucket}
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Fraction of each daily action bucket reserved for interactive (user-initiated)
+ * work. Background/bulk work (e.g. book imports) may draw a bucket down only to
+ * `limit × (1 − fraction)`, leaving the top slice always available for live user
+ * actions — so a large import slows to a trickle across days but never locks a
+ * user out of their own saves. Env-overridable (`BACKGROUND_RESERVE_FRACTION`);
+ * read from `process.env` directly for Trigger.dev import safety (see file header).
+ */
+export const BACKGROUND_RESERVE_FRACTION = 0.2;
+
+/** Clamp an env fraction override into `(0, 1)`, else fall back to the default. */
+function readFractionOverride(
+  envValue: string | undefined,
+  fallback: number,
+): number {
+  if (envValue === undefined || envValue === "") return fallback;
+  const parsed = Number(envValue);
+  return Number.isFinite(parsed) && parsed > 0 && parsed < 1
+    ? parsed
+    : fallback;
+}
+
+/** Effective interactive-reserve fraction (env-overridable). */
+export function backgroundReserveFraction(): number {
+  return readFractionOverride(
+    process.env.BACKGROUND_RESERVE_FRACTION,
+    BACKGROUND_RESERVE_FRACTION,
+  );
+}
+
+/**
+ * Highest action count at which background work may still be enqueued in a
+ * bucket — the bucket limit minus the interactive reserve. Background work
+ * defers once its count reaches this.
+ */
+export function backgroundLimitFor(
+  bucket: UsageBucket,
+  fraction = backgroundReserveFraction(),
+): number {
+  return Math.floor(DAILY_LIMITS[bucket] * (1 - fraction));
+}
+
+/**
+ * Atomically reserve one background slot in `(user, today, bucket)`: draw the
+ * count down by one iff doing so stays within the interactive reserve. Returns
+ * whether a slot was reserved (`false` → the caller should defer).
+ *
+ * This is a *single* conditional upsert, so concurrent background enqueues can't
+ * each read the same count and collectively overshoot the reserve (the race a
+ * read-then-increment would allow): the `WHERE usage_daily.count < limit` on the
+ * conflicting update means at most `limit` reservations ever succeed in a day.
+ * The count includes interactive draws too, so background always yields the top
+ * `reserve` slots to live user actions.
+ *
+ * `enforced === false` ⇒ always reserve (still counting, never blocking). Deferral
+ * rides the enforcement switch: in shadow mode nothing blocks interactive work,
+ * so there's no headroom to protect and background runs immediately (preserving
+ * pre-enforcement behaviour).
+ *
+ * Returns the reserved `day` (the UTC date the count was written to) alongside
+ * whether a slot was taken; pass that day back to {@link releaseBackgroundSlot}
+ * on rollback so a reservation made just before UTC midnight is released against
+ * the day it charged, not "today".
+ */
+export type BackgroundReservation = { reserved: boolean; day: string | null };
+
+export async function reserveBackgroundSlot(
+  userId: string,
+  bucket: UsageBucket,
+): Promise<BackgroundReservation> {
+  if (!isUsageLimitsEnforced()) {
+    // Shadow: count unconditionally (never blocks), still returning the day so a
+    // rollback targets the right row.
+    const rows = await db.$queryRaw<{ day: string }[]>`
+      INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+      VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+      ON CONFLICT (user_id, day, bucket)
+      DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+      RETURNING (day)::text AS day
+    `;
+    return { reserved: true, day: rows[0]?.day ?? null };
+  }
+  const backgroundLimit = backgroundLimitFor(bucket);
+  const rows = await db.$queryRaw<{ day: string }[]>`
+    INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+    ON CONFLICT (user_id, day, bucket)
+    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+    WHERE usage_daily.count < ${backgroundLimit}
+    RETURNING (day)::text AS day
+  `;
+  return { reserved: rows.length > 0, day: rows[0]?.day ?? null };
+}
+
+/**
+ * Release a slot previously taken by {@link reserveBackgroundSlot} — used to roll
+ * back when the enqueue the reservation was for fails, so a failed background
+ * attempt doesn't permanently consume a user's allowance. Targets the exact
+ * `day` that was reserved (so a midnight-straddling rollback can't decrement an
+ * unrelated day). Floors at 0 and is genuinely best-effort: a decrement failure
+ * is logged, not thrown, so it can never mask the original enqueue error or turn
+ * a rollback into a 500 (a lost decrement only under-charges by one — safe).
+ */
+export async function releaseBackgroundSlot(
+  userId: string,
+  bucket: UsageBucket,
+  day: string,
+): Promise<void> {
+  try {
+    await db.$executeRaw`
+      UPDATE usage_daily
+      SET count = GREATEST(count - 1, 0), updated_at = now()
+      WHERE user_id = ${userId}::uuid
+        AND day = ${day}::date
+        AND bucket = ${bucket}
+    `;
+  } catch (error) {
+    log.warn(
+      { error, userId, bucket, day },
+      "Failed to release background slot (best-effort)",
+    );
+  }
 }
 
 /** What the guard decided to do about an over-limit action. */

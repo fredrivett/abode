@@ -62,6 +62,14 @@ export const envSchema = z.object({
   PER_USER_MONTHLY_USD: z.string().optional(),
   SYSTEM_DAILY_USD: z.string().optional(),
 
+  // Fraction of each daily action bucket reserved for interactive (user-initiated)
+  // work; background/bulk work (e.g. book imports) defers once a bucket is drawn
+  // down to `limit × (1 − fraction)`, so a large import never starves a user's own
+  // live saves. Optional/env-overridable, clamped to (0,1) with a compiled default
+  // (see `backgroundReserveFraction()` in usage-limits.ts, which reads process.env
+  // directly for Trigger.dev import safety). Only bites when USAGE_LIMITS_ENFORCED.
+  BACKGROUND_RESERVE_FRACTION: z.string().optional(),
+
   // Base URL of this env's Trigger.dev runs dashboard (Project > Runs), used to
   // build "Monitor" links from the admin reprocess UI. Optional — absent = no
   // link. Kept out of the codebase (contains the private org/project/env slugs);

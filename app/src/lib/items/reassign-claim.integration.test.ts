@@ -87,6 +87,15 @@ describe("claimDailyReassign integration", () => {
     expect(await claimDailyReassign(itemId, userId, true)).toBe(false);
   });
 
+  test("does not claim a deferred item (parked background work the sweep owns)", async () => {
+    const { userId, itemId } = await createItem(null, "deferred");
+    // Neither a non-admin nor an admin may hijack it — reassign would race the
+    // daily sweep and drop the parked enrichment.
+    expect(await claimDailyReassign(itemId, userId, false)).toBe(false);
+    expect(await claimDailyReassign(itemId, userId, true)).toBe(false);
+    expect(await processingStatusOf(itemId)).toBe("deferred");
+  });
+
   test("concurrent admin claims: exactly one wins (single in flight)", async () => {
     const { userId, itemId } = await createItem(new Date());
     const results = await Promise.all(

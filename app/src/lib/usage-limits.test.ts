@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  BACKGROUND_RESERVE_FRACTION,
+  backgroundLimitFor,
+  backgroundReserveFraction,
   DAILY_LIMITS,
   isUsageLimitsEnforced,
   PER_USER_DAILY_USD,
@@ -226,6 +229,57 @@ describe("isUsageLimitsEnforced", () => {
     for (const notTrue of ["1", "yes", "TRUE"]) {
       process.env.USAGE_LIMITS_ENFORCED = notTrue;
       expect(isUsageLimitsEnforced()).toBe(false);
+    }
+  });
+});
+
+describe("backgroundLimitFor", () => {
+  // The no-fraction form reads BACKGROUND_RESERVE_FRACTION via
+  // backgroundReserveFraction(), so clear it to assert the compiled default
+  // deterministically even when a dev has the override set locally.
+  const original = process.env.BACKGROUND_RESERVE_FRACTION;
+  afterEach(() => {
+    if (original === undefined) delete process.env.BACKGROUND_RESERVE_FRACTION;
+    else process.env.BACKGROUND_RESERVE_FRACTION = original;
+  });
+
+  it("reserves the default fraction of the bucket for interactive work", () => {
+    delete process.env.BACKGROUND_RESERVE_FRACTION;
+    // 150 × (1 − 0.2) = 120 background slots, leaving 30 for live saves.
+    expect(backgroundLimitFor("ingestion")).toBe(120);
+    expect(backgroundLimitFor("reanalysis")).toBe(16); // floor(20 × 0.8)
+  });
+
+  it("honours an explicit fraction and floors the result", () => {
+    expect(backgroundLimitFor("ingestion", 0.5)).toBe(75);
+    expect(backgroundLimitFor("reanalysis", 0.5)).toBe(10);
+    expect(backgroundLimitFor("reanalysis", 0.33)).toBe(13); // floor(20 × 0.67)
+  });
+});
+
+describe("backgroundReserveFraction", () => {
+  const original = process.env.BACKGROUND_RESERVE_FRACTION;
+  afterEach(() => {
+    if (original === undefined) delete process.env.BACKGROUND_RESERVE_FRACTION;
+    else process.env.BACKGROUND_RESERVE_FRACTION = original;
+  });
+
+  it("falls back to the compiled default when unset", () => {
+    delete process.env.BACKGROUND_RESERVE_FRACTION;
+    expect(backgroundReserveFraction()).toBe(BACKGROUND_RESERVE_FRACTION);
+  });
+
+  it("uses a valid in-range override", () => {
+    process.env.BACKGROUND_RESERVE_FRACTION = "0.3";
+    expect(backgroundReserveFraction()).toBe(0.3);
+  });
+
+  it("ignores out-of-range / non-numeric overrides (keeps the default)", () => {
+    // Must be strictly within (0,1) — 0 or 1 would disable the reserve or the
+    // whole bucket, so both fall back to the safe default.
+    for (const bad of ["", "abc", "0", "1", "-0.1", "1.5", "NaN"]) {
+      process.env.BACKGROUND_RESERVE_FRACTION = bad;
+      expect(backgroundReserveFraction()).toBe(BACKGROUND_RESERVE_FRACTION);
     }
   });
 });

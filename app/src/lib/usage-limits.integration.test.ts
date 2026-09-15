@@ -7,10 +7,14 @@ import {
   assertUserDailyBudget,
   assertUserMonthlyBudget,
   assertWithinDailyLimit,
+  backgroundLimitFor,
   DAILY_LIMITS,
+  getDailyCount,
   guardDailyLimit,
   PER_USER_DAILY_USD,
   PER_USER_MONTHLY_USD,
+  releaseBackgroundSlot,
+  reserveBackgroundSlot,
   resetSystemBudgetStateForTests,
   SYSTEM_DAILY_USD,
   secondsUntilUtcMonthStart,
@@ -512,5 +516,129 @@ describe("usage-limits integration", () => {
         ),
       ).toHaveLength(1);
     });
+  });
+});
+
+describe("reserveBackgroundSlot / releaseBackgroundSlot integration", () => {
+  const originalFlag = process.env.USAGE_LIMITS_ENFORCED;
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+  });
+
+  afterEach(() => {
+    if (originalFlag === undefined) delete process.env.USAGE_LIMITS_ENFORCED;
+    else process.env.USAGE_LIMITS_ENFORCED = originalFlag;
+  });
+
+  const createUser = async () => {
+    const { write } = await import("@/lib/db");
+    const user = await write.user.create({
+      data: {
+        id: crypto.randomUUID(),
+        email: `rsv-${crypto.randomUUID()}@example.com`,
+      },
+    });
+    return user.id;
+  };
+
+  const seedDay = async (
+    userId: string,
+    bucket: string,
+    day: string,
+    count: number,
+  ) => {
+    const { write } = await import("@/lib/db");
+    await write.$executeRaw`
+      INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
+      VALUES (${userId}::uuid, ${day}::date, ${bucket}, ${count}, now())
+    `;
+  };
+
+  const countForDay = async (userId: string, bucket: string, day: string) => {
+    const { read } = await import("@/lib/db");
+    const rows = await read.$queryRaw<{ count: number }[]>`
+      SELECT count FROM usage_daily
+      WHERE user_id = ${userId}::uuid AND day = ${day}::date AND bucket = ${bucket}
+    `;
+    return rows[0] ? Number(rows[0].count) : null;
+  };
+
+  const todayUtc = () => new Date().toISOString().slice(0, 10);
+  const yesterdayUtc = () =>
+    new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+  test("reserves under the limit and returns the charged day", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "true";
+    const userId = await createUser();
+
+    const res = await reserveBackgroundSlot(userId, "reanalysis");
+
+    expect(res.reserved).toBe(true);
+    expect(res.day).toBe(todayUtc());
+    expect(await getDailyCount(userId, "reanalysis")).toBe(1);
+  });
+
+  test("refuses once the count reaches the background limit", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "true";
+    const userId = await createUser();
+    const limit = backgroundLimitFor("reanalysis"); // 16
+    await seedDay(userId, "reanalysis", todayUtc(), limit);
+
+    const res = await reserveBackgroundSlot(userId, "reanalysis");
+
+    expect(res.reserved).toBe(false);
+    expect(await getDailyCount(userId, "reanalysis")).toBe(limit);
+  });
+
+  test("is race-free: at most backgroundLimit reservations succeed under concurrency", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "true";
+    const userId = await createUser();
+    const limit = backgroundLimitFor("reanalysis"); // 16
+
+    // Fire far more concurrent reservations than the limit; the single atomic
+    // conditional upsert must let exactly `limit` through, never more.
+    const results = await Promise.all(
+      Array.from({ length: limit + 24 }, () =>
+        reserveBackgroundSlot(userId, "reanalysis"),
+      ),
+    );
+
+    expect(results.filter((r) => r.reserved).length).toBe(limit);
+    expect(await getDailyCount(userId, "reanalysis")).toBe(limit);
+  });
+
+  test("always reserves in shadow mode, still counting", async () => {
+    process.env.USAGE_LIMITS_ENFORCED = "false";
+    const userId = await createUser();
+    await seedDay(userId, "reanalysis", todayUtc(), 10_000);
+
+    const res = await reserveBackgroundSlot(userId, "reanalysis");
+
+    expect(res.reserved).toBe(true);
+    expect(await getDailyCount(userId, "reanalysis")).toBe(10_001);
+  });
+
+  test("release decrements the reserved day, not today", async () => {
+    const userId = await createUser();
+    const today = todayUtc();
+    const yesterday = yesterdayUtc();
+    await seedDay(userId, "reanalysis", yesterday, 5);
+    await seedDay(userId, "reanalysis", today, 3);
+
+    await releaseBackgroundSlot(userId, "reanalysis", yesterday);
+
+    // The day that was reserved is decremented; today is untouched — a
+    // midnight-straddling rollback can't leak the old slot or hit the wrong day.
+    expect(await countForDay(userId, "reanalysis", yesterday)).toBe(4);
+    expect(await countForDay(userId, "reanalysis", today)).toBe(3);
+  });
+
+  test("release is a best-effort no-op (no throw) when no row matches", async () => {
+    const userId = await createUser();
+    await expect(
+      releaseBackgroundSlot(userId, "reanalysis", todayUtc()),
+    ).resolves.toBeUndefined();
+    expect(await countForDay(userId, "reanalysis", todayUtc())).toBeNull();
   });
 });
