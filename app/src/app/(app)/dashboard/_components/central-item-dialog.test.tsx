@@ -1,37 +1,52 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Item } from "@/lib/types/item";
 import { CentralItemDialog } from "./central-item-dialog";
 
-// Render a lightweight stand-in for the heavy detail dialog so the test focuses
-// on CentralItemDialog's resolve/mount-through-close behavior.
+// AnimatePresence just renders its children in these tests (the real
+// exit-keeping is framer's job, not our logic).
+vi.mock("motion/react", () => ({
+  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+// Lightweight stand-ins for the persistent frame and the (heavy) detail body so
+// the test focuses on CentralItemDialog's resolve + body-swap behavior.
 vi.mock("../item-card", () => ({
-  ItemDetailDialogHost: ({
-    item,
+  ItemDialogFrame: ({
     open,
     animateEntrance,
     onOpenChange,
-    onExitComplete,
+    children,
   }: {
-    item: { id: string };
     open: boolean;
     animateEntrance?: boolean;
     onOpenChange: (open: boolean) => void;
-    onExitComplete?: () => void;
+    children: ReactNode;
   }) => (
     <div
-      data-testid="host"
-      data-item={item.id}
+      data-testid="frame"
       data-open={String(open)}
       data-animate={String(animateEntrance)}
     >
       <button type="button" onClick={() => onOpenChange(false)}>
         close
       </button>
-      <button type="button" onClick={() => onExitComplete?.()}>
-        exit
-      </button>
+      {children}
     </div>
+  ),
+  ItemDetailBody: ({
+    item,
+    animateEntrance,
+  }: {
+    item: { id: string };
+    animateEntrance?: boolean;
+  }) => (
+    <div
+      data-testid="body"
+      data-item={item.id}
+      data-animate={String(animateEntrance)}
+    />
   ),
 }));
 
@@ -57,14 +72,11 @@ vi.mock("@/lib/items/use-item", () => ({
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 vi.mock("./item-dialog-skeleton", () => ({
-  ItemDialogSkeleton: ({ seed }: { seed: { id: string } }) => (
+  ItemDialogSkeletonBody: ({ seed }: { seed: { id: string } }) => (
     <div data-testid="skeleton" data-item={seed.id} />
   ),
 }));
 
-vi.mock("@/lib/api-hooks", () => ({
-  useUpdateCachedItemTitle: () => vi.fn(),
-}));
 vi.mock("@/lib/items/item-display-name", () => ({
   getItemDisplayName: (item: { title: string }) => item.title,
 }));
@@ -79,6 +91,17 @@ const items = [
   { id: "b", title: "B", kind: "image", fileKey: "fb", coverFileKey: null },
 ] as unknown as Item[];
 
+function renderDialog(props?: { canEdit?: boolean; initialItem?: Item }) {
+  return render(
+    <CentralItemDialog
+      onItemRenamed={() => {}}
+      canEdit={props?.canEdit ?? true}
+      items={items}
+      initialItem={props?.initialItem}
+    />,
+  );
+}
+
 beforeEach(() => {
   closeItem.mockClear();
   dialogState = { openItemId: null, openItemSeed: null };
@@ -87,59 +110,51 @@ beforeEach(() => {
 
 describe("CentralItemDialog", () => {
   it("renders nothing when no item is open", () => {
-    render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
-    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    renderDialog();
+    expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
   });
 
-  it("renders the open item's dialog, resolved by id from the list", () => {
+  it("renders the open item's body, resolved by id from the list", () => {
     dialogState = { openItemId: "b" };
-    render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
-    const host = screen.getByTestId("host");
-    expect(host).toHaveAttribute("data-item", "b");
-    expect(host).toHaveAttribute("data-open", "true");
+    renderDialog();
+    expect(screen.getByTestId("frame")).toHaveAttribute("data-open", "true");
+    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "b");
   });
 
-  it("closes via the provider when the dialog requests it", () => {
+  it("closes via the provider when the frame requests it", () => {
     dialogState = { openItemId: "a" };
-    render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    renderDialog();
     fireEvent.click(screen.getByText("close"));
     expect(closeItem).toHaveBeenCalledOnce();
   });
 
   it("animates the entrance on a fresh open but not on an in-place swap", () => {
-    const { rerender } = render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    const { rerender } = renderDialog();
     // Fresh open (was closed) → animate in.
     dialogState = { openItemId: "a" };
     rerender(
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
-    expect(screen.getByTestId("host")).toHaveAttribute("data-animate", "true");
+    expect(screen.getByTestId("body")).toHaveAttribute("data-animate", "true");
+    const frame = screen.getByTestId("frame");
 
     // Swap straight to another open item → instant, still open, no skeleton.
     dialogState = { openItemId: "b" };
     rerender(
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
-    const host = screen.getByTestId("host");
-    expect(host).toHaveAttribute("data-item", "b");
-    expect(host).toHaveAttribute("data-open", "true");
-    expect(host).toHaveAttribute("data-animate", "false");
+    const body = screen.getByTestId("body");
+    expect(body).toHaveAttribute("data-item", "b");
+    expect(body).toHaveAttribute("data-animate", "false");
+    // The frame is the same element — it must not remount (that's what flashed).
+    expect(screen.getByTestId("frame")).toBe(frame);
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
   it("keeps an off-grid swap instant across its loading gap", () => {
     dialogState = { openItemId: "a" };
-    const { rerender } = render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    const { rerender } = renderDialog();
+    const frame = screen.getByTestId("frame");
 
     // Swap to an off-grid item — its fetch hasn't resolved, so the skeleton
     // shows and resolved is briefly null.
@@ -151,9 +166,11 @@ describe("CentralItemDialog", () => {
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.getByTestId("skeleton")).toBeInTheDocument();
+    // Same frame across item → skeleton → item; only the body swaps.
+    expect(screen.getByTestId("frame")).toBe(frame);
 
-    // Fetch resolves — the replacement must appear instantly, not fade in,
-    // because the dialog never closed (this was a swap, not a fresh open).
+    // Fetch resolves — the replacement must appear instantly (this was a swap,
+    // not a fresh open), inside the same still-mounted frame.
     useItemReturn = {
       data: {
         id: "z",
@@ -166,56 +183,44 @@ describe("CentralItemDialog", () => {
     rerender(
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
-    const host = screen.getByTestId("host");
-    expect(host).toHaveAttribute("data-item", "z");
-    expect(host).toHaveAttribute("data-animate", "false");
+    const body = screen.getByTestId("body");
+    expect(body).toHaveAttribute("data-item", "z");
+    expect(body).toHaveAttribute("data-animate", "false");
+    expect(screen.getByTestId("frame")).toBe(frame);
   });
 
-  it("does not fetch an off-grid item for a non-owner (canEdit=false)", () => {
+  it("does not fetch (or mount a blank dialog) for a non-owner off-grid open", () => {
     // Open id isn't in the list; a fetch would resolve it, but a non-owner
-    // can't hit the owner-scoped endpoint, so it must stay closed (not error).
+    // can't hit the owner-scoped endpoint. With no seed either, there's nothing
+    // to show — so no frame at all, rather than a blank title-less dialog.
     dialogState = { openItemId: "z" };
     useItemReturn = {
       data: { id: "z", title: "Z", kind: "image" } as unknown as Item,
     };
-    render(
-      <CentralItemDialog
-        onItemRenamed={() => {}}
-        canEdit={false}
-        items={items}
-      />,
-    );
-    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+    renderDialog({ canEdit: false });
+    expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
     expect(closeItem).not.toHaveBeenCalled();
   });
 
   it("shows the seed skeleton while an off-grid item is still loading", () => {
-    // Open id isn't in the list and no fetched data yet.
     dialogState = {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
-    render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    renderDialog();
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
-    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
   });
 
-  it("swaps the skeleton for the real dialog once the fetch resolves", () => {
+  it("swaps the skeleton for the real body once the fetch resolves", () => {
     dialogState = {
       openItemId: "z",
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
-    // First render: off-grid item, fetch not resolved → skeleton.
-    const { rerender } = render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    const { rerender } = renderDialog();
     expect(screen.getByTestId("skeleton")).toHaveAttribute("data-item", "z");
-    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
 
-    // Fetch resolves → the real dialog replaces the skeleton.
     useItemReturn = {
       data: {
         id: "z",
@@ -228,7 +233,7 @@ describe("CentralItemDialog", () => {
     rerender(
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
-    expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
+    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
@@ -238,9 +243,7 @@ describe("CentralItemDialog", () => {
       openItemSeed: { id: "z", imageFileKey: "fz" },
     };
     useItemReturn = { data: undefined, isError: true };
-    render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
+    renderDialog();
     expect(closeItem).toHaveBeenCalled();
   });
 
@@ -253,36 +256,20 @@ describe("CentralItemDialog", () => {
       fileKey: "fz",
       coverFileKey: null,
     } as unknown as Item;
-    render(
-      <CentralItemDialog
-        onItemRenamed={() => {}}
-        canEdit
-        items={items}
-        initialItem={initialItem}
-      />,
-    );
-    expect(screen.getByTestId("host")).toHaveAttribute("data-item", "z");
+    renderDialog({ initialItem });
+    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "z");
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
-  it("keeps the item mounted (open=false) after close, then clears on exit", () => {
+  it("removes the dialog once the open item clears", () => {
     dialogState = { openItemId: "a" };
-    const { rerender } = render(
-      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
-    );
-    expect(screen.getByTestId("host")).toHaveAttribute("data-open", "true");
+    const { rerender } = renderDialog();
+    expect(screen.getByTestId("frame")).toBeInTheDocument();
 
-    // URL clears the open item — dialog should animate out, not vanish.
     dialogState = { openItemId: null };
     rerender(
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
-    const host = screen.getByTestId("host");
-    expect(host).toHaveAttribute("data-item", "a");
-    expect(host).toHaveAttribute("data-open", "false");
-
-    // Once the exit animation completes, it unmounts.
-    fireEvent.click(screen.getByText("exit"));
-    expect(screen.queryByTestId("host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
   });
 });

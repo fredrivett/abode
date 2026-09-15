@@ -987,10 +987,8 @@ type ItemDetailDialogProps = {
   onOpenChange: (open: boolean) => void;
   name: string;
   onNameChange: (value: string) => void;
-  onDeleteOpenChange: (open: boolean) => void;
-  deleteOpen: boolean;
-  onDeleteConfirm: () => Promise<void>;
-  isDeleting: boolean;
+  /** Called after the item is deleted, so the caller can drop it from its list. */
+  onDeleted?: () => void;
   /**
    * Whether the current user can edit this item.
    * When false, notes, privacy settings, delete button, and location editing are hidden.
@@ -1077,10 +1075,7 @@ function ItemDetailDialogWrapper({
   onOpenChange,
   name,
   onNameChange,
-  deleteOpen,
-  onDeleteOpenChange,
-  onDeleteConfirm,
-  isDeleting,
+  onDeleted,
   canEdit,
   onExitComplete,
   animateEntrance,
@@ -1093,10 +1088,7 @@ function ItemDetailDialogWrapper({
   onOpenChange: (open: boolean) => void;
   name: string;
   onNameChange: (value: string) => void;
-  deleteOpen: boolean;
-  onDeleteOpenChange: (open: boolean) => void;
-  onDeleteConfirm: () => Promise<void>;
-  isDeleting: boolean;
+  onDeleted?: () => void;
   canEdit: boolean;
   onExitComplete?: () => void;
   animateEntrance?: boolean;
@@ -1113,10 +1105,7 @@ function ItemDetailDialogWrapper({
           onOpenChange={onOpenChange}
           name={name}
           onNameChange={onNameChange}
-          deleteOpen={deleteOpen}
-          onDeleteOpenChange={onDeleteOpenChange}
-          onDeleteConfirm={onDeleteConfirm}
-          isDeleting={isDeleting}
+          onDeleted={onDeleted}
           canEdit={canEdit}
           animateEntrance={animateEntrance}
         />
@@ -1126,11 +1115,10 @@ function ItemDetailDialogWrapper({
 }
 
 /**
- * Reusable host for an item's detail dialog: owns the delete flow (confirm +
- * API call) and renders the dialog. Given a full item plus the derived
- * display props, it's independent of any grid card — so it serves both the
- * grid card and the off-grid opener (e.g. a "similar images" click to an item
- * that isn't in the loaded list).
+ * Renders an item's detail dialog (frame + body) for the per-card path, given a
+ * full item plus the derived display props. Used where each card owns its own
+ * dialog (room filter-editor / no-provider fallback); the dashboard/rooms
+ * central dialog composes the frame and body directly so it can swap the body.
  */
 export function ItemDetailDialogHost({
   item,
@@ -1162,39 +1150,6 @@ export function ItemDetailDialogHost({
   /** Play the mount fade-in (fresh open) vs. swap instantly (dialog→dialog). */
   animateEntrance?: boolean;
 }) {
-  const invalidateItems = useInvalidateItems();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await api.delete("/api/v1/items", {
-        body: JSON.stringify({ id: item.id }),
-      });
-
-      // Track item deletion event
-      posthog.capture("item_deleted", {
-        item_id: item.id,
-        item_kind: item.kind,
-        source_type: item.sourceType,
-      });
-
-      toast.success("Item deleted");
-      setShowDeleteDialog(false);
-      // Close the detail dialog explicitly so it dismisses regardless of whether
-      // the parent list unmounts this card (the room view keeps its own state).
-      onOpenChange(false);
-      invalidateItems();
-      onDeleted?.();
-    } catch (error) {
-      log.error({ error }, "Delete error");
-      posthog.captureException(error);
-      toast.error("Failed to delete item");
-      setIsDeleting(false);
-    }
-  };
-
   return (
     <ItemDetailDialogWrapper
       show={open}
@@ -1205,10 +1160,7 @@ export function ItemDetailDialogHost({
       onOpenChange={onOpenChange}
       name={name}
       onNameChange={onNameChange}
-      deleteOpen={showDeleteDialog}
-      onDeleteOpenChange={setShowDeleteDialog}
-      onDeleteConfirm={handleDelete}
-      isDeleting={isDeleting}
+      onDeleted={onDeleted}
       canEdit={canEdit}
       onExitComplete={onExitComplete}
       animateEntrance={animateEntrance}
@@ -1280,7 +1232,136 @@ function DetailPaneFade({
   );
 }
 
-function ItemDetailDialog({
+/**
+ * Persistent shell for the item detail dialog: the Radix dialog + backdrop, the
+ * draggable/fading frame, and the two-column layout. Item-specific content is
+ * passed as `children` (the detail pane + sidebar), so the frame can stay
+ * mounted while the body swaps between items — or between the loading skeleton
+ * and the resolved item — without tearing down and re-animating the dialog.
+ */
+export function ItemDialogFrame({
+  open,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Swipe-to-dismiss on touch devices
+  const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)", {
+    defaultValue: false,
+    initializeWithValue: false,
+  });
+  const dragY = useMotionValue(0);
+  const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
+  const closingOpacity = useMotionValue(1);
+  const combinedOpacity = useTransform(
+    [dragOpacity, closingOpacity],
+    ([drag, closing]) => (drag as number) * (closing as number),
+  );
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    const shouldDismiss = info.offset.y > 100 || info.velocity.y > 500;
+    if (shouldDismiss) {
+      onOpenChange(false);
+    } else {
+      void animate(dragY, 0, { type: "spring", stiffness: 300, damping: 30 });
+    }
+  };
+
+  const handleDragStart = () => {
+    // Check if scrollable content is at top - if not, prevent drag
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer && scrollContainer.scrollTop > 0) {
+      return false;
+    }
+  };
+
+  // Reset drag position when dialog opens, animate opacity when closing
+  useEffect(() => {
+    if (open) {
+      dragY.set(0);
+      closingOpacity.set(1);
+    } else {
+      // Animate dialog fade-out to match the layoutId animation duration
+      void animate(closingOpacity, 0, { duration: 0.3, ease: "easeOut" });
+    }
+  }, [open, dragY, closingOpacity]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+      >
+        {/* Fades in on mount (a fresh open) and out on close; an in-place item
+            swap keeps this frame mounted and only swaps the body, so there's no
+            re-fade to suppress. */}
+        <motion.div
+          className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.1 } }}
+          transition={{ duration: 0.2 }}
+          drag={isTouchDevice ? "y" : false}
+          dragConstraints={{ top: 0 }}
+          dragElastic={{ top: 0 }}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          style={{
+            y: dragY,
+            opacity: combinedOpacity,
+            willChange: "opacity, transform",
+          }}
+        >
+          <div
+            ref={scrollContainerRef}
+            className="relative flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden"
+          >
+            {/* Drag handle indicator on mobile */}
+            {isTouchDevice && (
+              <div className="absolute top-0 right-0 left-0 z-10 flex justify-center pt-2">
+                <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              </div>
+            )}
+            {children}
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="absolute top-4 right-4 z-10 cursor-pointer rounded-sm bg-background/20 p-1.5 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+              <span className="sr-only">Close</span>
+            </button>
+          </div>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ItemDetailBody({
   item,
   size,
   previewUrl,
@@ -1289,14 +1370,39 @@ function ItemDetailDialog({
   onOpenChange,
   name,
   onNameChange,
-  deleteOpen,
-  onDeleteOpenChange,
-  onDeleteConfirm,
-  isDeleting,
+  onDeleted,
   canEdit,
   animateEntrance = true,
 }: ItemDetailDialogProps) {
   const invalidateItems = useInvalidateItems();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete("/api/v1/items", {
+        body: JSON.stringify({ id: item.id }),
+      });
+      posthog.capture("item_deleted", {
+        item_id: item.id,
+        item_kind: item.kind,
+        source_type: item.sourceType,
+      });
+      toast.success("Item deleted");
+      setShowDeleteDialog(false);
+      // Close the detail dialog explicitly so it dismisses regardless of whether
+      // the parent list unmounts this card (the room view keeps its own state).
+      onOpenChange(false);
+      invalidateItems();
+      onDeleted?.();
+    } catch (error) {
+      log.error({ error }, "Delete error");
+      posthog.captureException(error);
+      toast.error("Failed to delete item");
+      setIsDeleting(false);
+    }
+  };
   const { setState: setSearchState } = useSearch();
   const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
@@ -1350,49 +1456,7 @@ function ItemDetailDialog({
   const username = useUserStore((state) => state.username);
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-
-  // Swipe-to-dismiss on touch devices
-  const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)", {
-    defaultValue: false,
-    initializeWithValue: false,
-  });
-  const dragY = useMotionValue(0);
-  const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
-  const closingOpacity = useMotionValue(1);
-  const combinedOpacity = useTransform(
-    [dragOpacity, closingOpacity],
-    ([drag, closing]) => (drag as number) * (closing as number),
-  );
-
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    const shouldDismiss = info.offset.y > 100 || info.velocity.y > 500;
-    if (shouldDismiss) {
-      onOpenChange(false);
-    } else {
-      void animate(dragY, 0, { type: "spring", stiffness: 300, damping: 30 });
-    }
-  };
-
-  const handleDragStart = () => {
-    // Check if scrollable content is at top - if not, prevent drag
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer && scrollContainer.scrollTop > 0) {
-      return false;
-    }
-  };
-
-  // Reset drag position when dialog opens, animate opacity when closing
-  useEffect(() => {
-    if (open) {
-      dragY.set(0);
-      closingOpacity.set(1);
-    } else {
-      // Animate dialog fade-out to match the layoutId animation duration
-      void animate(closingOpacity, 0, { duration: 0.3, ease: "easeOut" });
-    }
-  }, [open, dragY, closingOpacity]);
 
   // Tab title for the open item. Off-dashboard (rooms, no provider) the dialog
   // owns it directly. On the dashboard the dialog instead reports its live name
@@ -1904,187 +1968,649 @@ function ItemDetailDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="!h-[calc(100vh-1rem)] !max-h-[calc(100vh-1rem)] !w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] md:!h-[calc(100vh-2rem)] md:!max-h-[calc(100vh-2rem)] md:!w-[calc(100vw-2rem)] md:!max-w-[calc(100vw-2rem)] !opacity-100 !bg-transparent !border-0 !shadow-none !scale-100 p-0 data-[state=closed]:scale-100 data-[state=open]:scale-100 data-[state=closed]:animate-none data-[state=open]:animate-none [&>button]:hidden"
-        // On an in-place swap (no entrance fade) the whole dialog remounts, so
-        // suppress the backdrop's re-fade-in — otherwise the grid behind flashes
-        // through for a frame. The close fade-out (data-[state=closed]) stays.
-        overlayClassName={
-          animateEntrance ? undefined : "data-[state=open]:!animate-none"
-        }
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-        }}
+    <>
+      {/* Top (mobile) / Left (desktop) - Main content area */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
+          !isArticleOrWebpage &&
+            !isProduct &&
+            !isBook &&
+            !isNote &&
+            "bg-gray-900",
+        )}
       >
-        <motion.div
-          className="h-full w-full overflow-hidden rounded-lg border shadow-lg"
-          initial={animateEntrance ? { opacity: 0 } : false}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.1 } }}
-          transition={{ duration: 0.2 }}
-          drag={isTouchDevice ? "y" : false}
-          dragConstraints={{ top: 0 }}
-          dragElastic={{ top: 0 }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          style={{
-            y: dragY,
-            opacity: combinedOpacity,
-            willChange: "opacity, transform",
-          }}
-        >
-          <div
-            ref={scrollContainerRef}
-            className="relative flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden"
+        {isNote ? (
+          <DetailPaneFade animateEntrance={animateEntrance}>
+            <NoteDetailView
+              itemId={item.id}
+              content={item.noteDetails?.content ?? ""}
+              canEdit={canEdit}
+            />
+          </DetailPaneFade>
+        ) : isArticle && item.articleDetails?.content ? (
+          // Article content as main view - delayed fade-in after cover image transition
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            transition={{ duration: 0.4, delay: 0.3 }}
           >
-            {/* Drag handle indicator on mobile */}
-            {isTouchDevice && (
-              <div className="absolute top-0 right-0 left-0 z-10 flex justify-center pt-2">
-                <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </div>
+            <ArticleDetailView
+              itemId={item.id}
+              content={item.articleDetails.content}
+              originalName={meta.originalName as string | undefined}
+              scrollToHighlightId={scrollToHighlightId}
+              initialScrollProgress={item.articleDetails.scrollProgress}
+              readAt={item.articleDetails.readAt}
+              enableTracking={canEdit}
+            />
+          </DetailPaneFade>
+        ) : isInstagram && item.instagramDetails ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="overflow-y-auto"
+          >
+            <InstagramDetailView
+              instagramDetails={item.instagramDetails}
+              sourceUrl={item.sourceUrl}
+              className="py-8"
+            />
+          </DetailPaneFade>
+        ) : isTwitter && item.twitterDetails ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="overflow-y-auto"
+          >
+            <TwitterDetailView
+              twitterDetails={item.twitterDetails}
+              itemId={item.id}
+              sourceUrl={item.sourceUrl}
+              className="py-8"
+              onCoverImageChange={
+                canEdit
+                  ? async (index) => {
+                      try {
+                        await api.patch(`/api/v1/items/${item.id}`, {
+                          twitterCoverMediaIndex: index,
+                        });
+                        invalidateItems();
+                      } catch {
+                        toast.error("Failed to set cover image");
+                      }
+                    }
+                  : undefined
+              }
+            />
+          </DetailPaneFade>
+        ) : isProduct && item.productDetails ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="overflow-y-auto"
+          >
+            <ProductDetailView
+              productDetails={item.productDetails}
+              title={item.title}
+              sourceUrl={item.sourceUrl}
+              coverFileKey={item.coverFileKey}
+              className="py-8"
+              onCoverImageChange={
+                canEdit
+                  ? async (index) => {
+                      try {
+                        await api.patch(`/api/v1/items/${item.id}`, {
+                          productCoverImageIndex: index,
+                        });
+                        invalidateItems();
+                      } catch {
+                        toast.error("Failed to set cover image");
+                      }
+                    }
+                  : undefined
+              }
+            />
+          </DetailPaneFade>
+        ) : isBook && item.bookDetails ? (
+          <div className="flex h-full w-full overflow-y-auto bg-background">
+            <BookDetailView
+              itemId={item.id}
+              bookDetails={item.bookDetails}
+              title={item.title}
+              sourceUrl={item.sourceUrl}
+              coverFileKey={item.coverFileKey}
+              coverRatio={getBookCoverRatio(item.meta)}
+              coverColor={getDominantCoverColor(item.colors)}
+              className="py-8"
+            />
+          </div>
+        ) : isVideo && item.videoDetails ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="overflow-y-auto"
+          >
+            <VideoDetailView
+              videoDetails={item.videoDetails}
+              coverFileKey={item.coverFileKey}
+              title={item.title}
+              sourceUrl={item.sourceUrl}
+              className="py-8"
+            />
+          </DetailPaneFade>
+        ) : isWebpage && previewUrl ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="items-center justify-center"
+          >
+            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
+            <img
+              src={fullQualityUrl || previewUrl}
+              alt={name}
+              className="max-h-[calc(100vh-2rem)] w-full object-contain"
+            />
+          </DetailPaneFade>
+        ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
+          <motion.div
+            layoutId={`item-image-${item.id}`}
+            className="relative"
+            transition={{
+              layout: { duration: 0.3 },
+              opacity: { duration: 0 },
+            }}
+            initial={false}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 1 }}
+          >
+            {/* Loading progress bar */}
+            {showProgress && (
+              <Progress
+                value={loadingProgress}
+                className="absolute top-0 right-0 left-0 z-10 h-0.5 rounded-none bg-transparent"
+              />
             )}
-            {/* Top (mobile) / Left (desktop) - Main content area */}
-            <div
-              className={cn(
-                "flex shrink-0 items-center justify-center md:flex-1 md:overflow-hidden",
-                !isArticleOrWebpage &&
-                  !isProduct &&
-                  !isBook &&
-                  !isNote &&
-                  "bg-gray-900",
+            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
+            <img
+              src={fullQualityUrl || previewUrl}
+              alt={name}
+              className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
+            />
+            {/* Color highlight overlay */}
+            {currentProcessingStatus === "completed" &&
+              item.colors.length > 0 && (
+                <ColorHighlightOverlay
+                  imageUrl={fullQualityUrl || previewUrl}
+                  hoveredColorHex={hoveredColorHex}
+                />
               )}
-            >
-              {isNote ? (
-                <DetailPaneFade animateEntrance={animateEntrance}>
-                  <NoteDetailView
-                    itemId={item.id}
-                    content={item.noteDetails?.content ?? ""}
-                    canEdit={canEdit}
-                  />
-                </DetailPaneFade>
-              ) : isArticle && item.articleDetails?.content ? (
-                // Article content as main view - delayed fade-in after cover image transition
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <ArticleDetailView
-                    itemId={item.id}
-                    content={item.articleDetails.content}
-                    originalName={meta.originalName as string | undefined}
-                    scrollToHighlightId={scrollToHighlightId}
-                    initialScrollProgress={item.articleDetails.scrollProgress}
-                    readAt={item.articleDetails.readAt}
-                    enableTracking={canEdit}
-                  />
-                </DetailPaneFade>
-              ) : isInstagram && item.instagramDetails ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="overflow-y-auto"
-                >
-                  <InstagramDetailView
-                    instagramDetails={item.instagramDetails}
-                    sourceUrl={item.sourceUrl}
-                    className="py-8"
-                  />
-                </DetailPaneFade>
-              ) : isTwitter && item.twitterDetails ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="overflow-y-auto"
-                >
-                  <TwitterDetailView
-                    twitterDetails={item.twitterDetails}
-                    itemId={item.id}
-                    sourceUrl={item.sourceUrl}
-                    className="py-8"
-                    onCoverImageChange={
-                      canEdit
-                        ? async (index) => {
-                            try {
-                              await api.patch(`/api/v1/items/${item.id}`, {
-                                twitterCoverMediaIndex: index,
-                              });
-                              invalidateItems();
-                            } catch {
-                              toast.error("Failed to set cover image");
-                            }
-                          }
-                        : undefined
+            {/* Color bar overlay at bottom of image */}
+            {currentProcessingStatus === "completed" &&
+              item.colors.length > 0 && (
+                <div className="absolute right-0 bottom-0 left-0">
+                  <ColorsBar
+                    colors={item.colors}
+                    visible={!!fullQualityUrl}
+                    onColorHover={setHoveredColorHex}
+                    onColorHoverEnd={() => setHoveredColorHex(null)}
+                    onColorSearch={(hex) =>
+                      handleChipSearch({ type: "color", value: hex })
                     }
-                  />
-                </DetailPaneFade>
-              ) : isProduct && item.productDetails ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="overflow-y-auto"
-                >
-                  <ProductDetailView
-                    productDetails={item.productDetails}
-                    title={item.title}
-                    sourceUrl={item.sourceUrl}
-                    coverFileKey={item.coverFileKey}
-                    className="py-8"
-                    onCoverImageChange={
-                      canEdit
-                        ? async (index) => {
-                            try {
-                              await api.patch(`/api/v1/items/${item.id}`, {
-                                productCoverImageIndex: index,
-                              });
-                              invalidateItems();
-                            } catch {
-                              toast.error("Failed to set cover image");
-                            }
-                          }
-                        : undefined
-                    }
-                  />
-                </DetailPaneFade>
-              ) : isBook && item.bookDetails ? (
-                <div className="flex h-full w-full overflow-y-auto bg-background">
-                  <BookDetailView
-                    itemId={item.id}
-                    bookDetails={item.bookDetails}
-                    title={item.title}
-                    sourceUrl={item.sourceUrl}
-                    coverFileKey={item.coverFileKey}
-                    coverRatio={getBookCoverRatio(item.meta)}
-                    coverColor={getDominantCoverColor(item.colors)}
-                    className="py-8"
                   />
                 </div>
-              ) : isVideo && item.videoDetails ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="overflow-y-auto"
-                >
-                  <VideoDetailView
-                    videoDetails={item.videoDetails}
-                    coverFileKey={item.coverFileKey}
-                    title={item.title}
-                    sourceUrl={item.sourceUrl}
-                    className="py-8"
+              )}
+          </motion.div>
+        ) : isArticleOrWebpage &&
+          item.sourceUrl &&
+          isValidUrl(item.sourceUrl) ? (
+          <DetailPaneFade
+            animateEntrance={animateEntrance}
+            className="items-center justify-center p-8"
+          >
+            <WebpageLinkCard
+              url={item.sourceUrl}
+              title={name}
+              description={item.description}
+              faviconUrl={
+                item.faviconFileKey
+                  ? getProxyImageUrl(item.faviconFileKey, "full")
+                  : null
+              }
+            />
+          </DetailPaneFade>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+            <FileText className="size-24 text-gray-600" />
+            <p className="font-medium text-gray-400 text-lg">
+              {isArticle
+                ? "No article content"
+                : isProduct
+                  ? "No product images"
+                  : "No preview available"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom (mobile) / Right (desktop) - Details */}
+      <div className="flex flex-col border-border border-t bg-background md:w-[400px] md:overflow-hidden md:border-t-0 md:border-l">
+        <DialogHeader className="items-start p-6 pb-4">
+          <DialogTitle className="sr-only">Item details for {name}</DialogTitle>
+          <EditableTitle
+            value={name}
+            onSubmit={handleNameSubmit}
+            size="xl"
+            isSaving={isSavingName}
+            multiline
+            disabled={!canEdit}
+          />
+        </DialogHeader>
+
+        <div className="flex flex-1 flex-col gap-8 px-6 pb-6 md:overflow-y-auto">
+          <div className="flex-1 space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  Details
+                </h3>
+                {isAdmin && (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/admin/items/${item.id}`}
+                      target="_blank"
+                      title="Open in admin item inspector"
+                      className="inline-flex items-center gap-1 rounded text-muted-foreground text-xs hover:text-foreground"
+                    >
+                      <ScanSearch className="size-3" />
+                      Inspect
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleCopyId}
+                      title={`Copy item ID: ${item.id}`}
+                      className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
+                    >
+                      {hasCopiedId ? (
+                        <Check className="size-3" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                      {item.id.split("-")[0]}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Type</span>
+                  <ItemTypeField
+                    itemId={item.id}
+                    kind={item.kind}
+                    sourceType={item.sourceType}
+                    canEdit={canEdit}
+                    onReassigned={(status) => {
+                      setCurrentProcessingStatus(status);
+                      invalidateItems();
+                    }}
                   />
-                </DetailPaneFade>
-              ) : isWebpage && previewUrl ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="items-center justify-center"
-                >
-                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-                  <img
-                    src={fullQualityUrl || previewUrl}
-                    alt={name}
-                    className="max-h-[calc(100vh-2rem)] w-full object-contain"
-                  />
-                </DetailPaneFade>
-              ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
+                </div>
+                {item.sourceType !== "url" && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Size</span>
+                    <span className="font-medium">{size}</span>
+                  </div>
+                )}
+                {item.sourceType !== "url" && width > 0 && height > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Dimensions</span>
+                    <span className="font-medium">
+                      {width} × {height}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Status</span>
+                  <span className="font-medium capitalize">
+                    {currentProcessingStatus}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Saved</span>
+                  <DateTime date={item.createdAt} className="font-medium" />
+                </div>
+                {item.captureSource && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Source</span>
+                    <span className="font-medium">
+                      {captureSourceLabel(item.captureSource)}
+                    </span>
+                  </div>
+                )}
+                {item.captureDate && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Captured</span>
+                    <DateTime date={item.captureDate} className="font-medium" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Article Details */}
+            {isArticle && item.articleDetails && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  Article Info
+                </h3>
+                <div className="space-y-1 text-sm">
+                  {item.articleDetails.domain && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Source</span>
+                      {item.sourceUrl ? (
+                        <a
+                          href={new URL(item.sourceUrl).origin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <ExternalLink className="size-3" />
+                          {item.articleDetails.domain}
+                        </a>
+                      ) : (
+                        <span className="font-medium">
+                          {item.articleDetails.domain}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {item.articleDetails.author && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Author</span>
+                      <span className="font-medium">
+                        {item.articleDetails.author}
+                      </span>
+                    </div>
+                  )}
+                  {item.articleDetails.publishedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Published</span>
+                      <DateTime
+                        date={item.articleDetails.publishedAt}
+                        className="font-medium"
+                      />
+                    </div>
+                  )}
+                  {item.articleDetails.readingTime && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Reading time</span>
+                      <span className="font-medium">
+                        {item.articleDetails.readingTime} min
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {item.sourceUrl && (
+                  <div className="mt-2 flex items-center gap-1">
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        View original article
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => {
+                        if (item.sourceUrl) {
+                          navigator.clipboard.writeText(item.sourceUrl);
+                          setHasCopiedUrl(true);
+                          setTimeout(() => setHasCopiedUrl(false), 2000);
+                        }
+                      }}
+                      aria-label="Copy URL"
+                    >
+                      {hasCopiedUrl ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Product Details */}
+            {isProduct && item.productDetails && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  Product Info
+                </h3>
+                <div className="space-y-1 text-sm">
+                  {item.productDetails.price && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Price</span>
+                      <span className="font-medium">
+                        {item.productDetails.currency
+                          ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
+                          : item.productDetails.price}
+                      </span>
+                    </div>
+                  )}
+                  {item.productDetails.brand && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Brand</span>
+                      <span className="font-medium">
+                        {item.productDetails.brand}
+                      </span>
+                    </div>
+                  )}
+                  {item.productDetails.domain && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Store</span>
+                      {item.sourceUrl ? (
+                        <a
+                          href={new URL(item.sourceUrl).origin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <ExternalLink className="size-3" />
+                          {item.productDetails.domain}
+                        </a>
+                      ) : (
+                        <span className="font-medium">
+                          {item.productDetails.domain}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {item.productDetails.availability && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Availability</span>
+                      <span className="font-medium">
+                        {item.productDetails.availability}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {item.sourceUrl && (
+                  <div className="mt-2 flex items-center gap-1">
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        View product
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => {
+                        if (item.sourceUrl) {
+                          navigator.clipboard.writeText(item.sourceUrl);
+                          setHasCopiedUrl(true);
+                          setTimeout(() => setHasCopiedUrl(false), 2000);
+                        }
+                      }}
+                      aria-label="Copy URL"
+                    >
+                      {hasCopiedUrl ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reading status (editable) */}
+            {isBook && item.bookDetails && canEdit && (
+              <BookReadingControls
+                itemId={item.id}
+                bookDetails={item.bookDetails}
+              />
+            )}
+
+            {/* Article read toggle (editable) */}
+            {isArticle && item.articleDetails && canEdit && (
+              <ArticleReadingControls
+                itemId={item.id}
+                readAt={item.articleDetails.readAt}
+              />
+            )}
+
+            {/* Book Details */}
+            {isBook && item.bookDetails && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  Book Info
+                </h3>
+                <div className="space-y-1 text-sm">
+                  {item.bookDetails.authors.length > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">
+                        {item.bookDetails.authors.length > 1
+                          ? "Authors"
+                          : "Author"}
+                      </span>
+                      <span className="text-right font-medium">
+                        {item.bookDetails.authors.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {item.bookDetails.publisher && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Publisher</span>
+                      <span className="text-right font-medium">
+                        {item.bookDetails.publisher}
+                      </span>
+                    </div>
+                  )}
+                  {item.bookDetails.publishedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Published</span>
+                      <DateTime
+                        date={item.bookDetails.publishedAt}
+                        className="font-medium"
+                      />
+                    </div>
+                  )}
+                  {item.bookDetails.pageCount && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Pages</span>
+                      <span className="font-medium">
+                        {item.bookDetails.pageCount}
+                      </span>
+                    </div>
+                  )}
+                  {item.bookDetails.isbn && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">ISBN</span>
+                      <span className="font-medium">
+                        {item.bookDetails.isbn}
+                      </span>
+                    </div>
+                  )}
+                  {item.bookDetails.domain && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Source</span>
+                      {item.sourceUrl && isValidUrl(item.sourceUrl) ? (
+                        <a
+                          href={new URL(item.sourceUrl).origin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <ExternalLink className="size-3" />
+                          {item.bookDetails.domain}
+                        </a>
+                      ) : (
+                        <span className="font-medium">
+                          {item.bookDetails.domain}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {item.sourceUrl && isValidUrl(item.sourceUrl) && (
+                  <div className="mt-2 flex items-center gap-1">
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        View book
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => {
+                        if (item.sourceUrl) {
+                          navigator.clipboard.writeText(item.sourceUrl);
+                          setHasCopiedUrl(true);
+                          setTimeout(() => setHasCopiedUrl(false), 2000);
+                        }
+                      }}
+                      aria-label="Copy URL"
+                    >
+                      {hasCopiedUrl ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Cover Image (shown in details panel for articles/webpages) */}
+            {isArticleOrWebpage && previewUrl && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                    Cover Image
+                  </h3>
+                  {canEdit && (
+                    <Switch
+                      checked={!coverHidden}
+                      onCheckedChange={handleCoverToggle}
+                      disabled={isSavingCover}
+                      aria-label="Show cover image on card"
+                    />
+                  )}
+                </div>
                 <motion.div
                   layoutId={`item-image-${item.id}`}
-                  className="relative"
+                  className="overflow-hidden rounded-md"
                   transition={{
                     layout: { duration: 0.3 },
                     opacity: { duration: 0 },
@@ -2093,988 +2619,174 @@ function ItemDetailDialog({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 1 }}
                 >
-                  {/* Loading progress bar */}
-                  {showProgress && (
-                    <Progress
-                      value={loadingProgress}
-                      className="absolute top-0 right-0 left-0 z-10 h-0.5 rounded-none bg-transparent"
-                    />
-                  )}
                   {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
                   <img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
-                    className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
+                    className="max-h-[300px] w-full object-contain"
                   />
-                  {/* Color highlight overlay */}
-                  {currentProcessingStatus === "completed" &&
-                    item.colors.length > 0 && (
-                      <ColorHighlightOverlay
-                        imageUrl={fullQualityUrl || previewUrl}
-                        hoveredColorHex={hoveredColorHex}
-                      />
-                    )}
-                  {/* Color bar overlay at bottom of image */}
-                  {currentProcessingStatus === "completed" &&
-                    item.colors.length > 0 && (
-                      <div className="absolute right-0 bottom-0 left-0">
-                        <ColorsBar
-                          colors={item.colors}
-                          visible={!!fullQualityUrl}
-                          onColorHover={setHoveredColorHex}
-                          onColorHoverEnd={() => setHoveredColorHex(null)}
-                          onColorSearch={(hex) =>
-                            handleChipSearch({ type: "color", value: hex })
-                          }
-                        />
-                      </div>
-                    )}
                 </motion.div>
-              ) : isArticleOrWebpage &&
-                item.sourceUrl &&
-                isValidUrl(item.sourceUrl) ? (
-                <DetailPaneFade
-                  animateEntrance={animateEntrance}
-                  className="items-center justify-center p-8"
-                >
-                  <WebpageLinkCard
-                    url={item.sourceUrl}
-                    title={name}
-                    description={item.description}
-                    faviconUrl={
-                      item.faviconFileKey
-                        ? getProxyImageUrl(item.faviconFileKey, "full")
-                        : null
-                    }
-                  />
-                </DetailPaneFade>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-                  <FileText className="size-24 text-gray-600" />
-                  <p className="font-medium text-gray-400 text-lg">
-                    {isArticle
-                      ? "No article content"
-                      : isProduct
-                        ? "No product images"
-                        : "No preview available"}
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Bottom (mobile) / Right (desktop) - Details */}
-            <div className="flex flex-col border-border border-t bg-background md:w-[400px] md:overflow-hidden md:border-t-0 md:border-l">
-              <DialogHeader className="items-start p-6 pb-4">
-                <DialogTitle className="sr-only">
-                  Item details for {name}
-                </DialogTitle>
-                <EditableTitle
-                  value={name}
-                  onSubmit={handleNameSubmit}
-                  size="xl"
-                  isSaving={isSavingName}
-                  multiline
-                  disabled={!canEdit}
-                />
-              </DialogHeader>
-
-              <div className="flex flex-1 flex-col gap-8 px-6 pb-6 md:overflow-y-auto">
-                <div className="flex-1 space-y-6">
-                  {/* Basic Info */}
+            {/* AI Analysis */}
+            {currentProcessingStatus === "completed" ? (
+              <>
+                {/* Description */}
+                {item.description && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Details
-                      </h3>
-                      {isAdmin && (
-                        <div className="flex items-center gap-3">
-                          <Link
-                            href={`/admin/items/${item.id}`}
-                            target="_blank"
-                            title="Open in admin item inspector"
-                            className="inline-flex items-center gap-1 rounded text-muted-foreground text-xs hover:text-foreground"
-                          >
-                            <ScanSearch className="size-3" />
-                            Inspect
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={handleCopyId}
-                            title={`Copy item ID: ${item.id}`}
-                            className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
-                          >
-                            {hasCopiedId ? (
-                              <Check className="size-3" />
-                            ) : (
-                              <Copy className="size-3" />
-                            )}
-                            {item.id.split("-")[0]}
-                          </button>
-                        </div>
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                      Description
+                    </h3>
+                    <p
+                      ref={descriptionRef}
+                      className={cn(
+                        "text-gray-600 text-sm dark:text-gray-400",
+                        !isDescriptionExpanded && "line-clamp-3",
                       )}
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Type</span>
-                        <ItemTypeField
-                          itemId={item.id}
-                          kind={item.kind}
-                          sourceType={item.sourceType}
-                          canEdit={canEdit}
-                          onReassigned={(status) => {
-                            setCurrentProcessingStatus(status);
-                            invalidateItems();
-                          }}
-                        />
-                      </div>
-                      {item.sourceType !== "url" && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Size</span>
-                          <span className="font-medium">{size}</span>
-                        </div>
-                      )}
-                      {item.sourceType !== "url" && width > 0 && height > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Dimensions</span>
-                          <span className="font-medium">
-                            {width} × {height}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Status</span>
-                        <span className="font-medium capitalize">
-                          {currentProcessingStatus}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Saved</span>
-                        <DateTime
-                          date={item.createdAt}
-                          className="font-medium"
-                        />
-                      </div>
-                      {item.captureSource && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Source</span>
-                          <span className="font-medium">
-                            {captureSourceLabel(item.captureSource)}
-                          </span>
-                        </div>
-                      )}
-                      {item.captureDate && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Captured</span>
-                          <DateTime
-                            date={item.captureDate}
-                            className="font-medium"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Article Details */}
-                  {isArticle && item.articleDetails && (
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Article Info
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        {item.articleDetails.domain && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Source</span>
-                            {item.sourceUrl ? (
-                              <a
-                                href={new URL(item.sourceUrl).origin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                              >
-                                <ExternalLink className="size-3" />
-                                {item.articleDetails.domain}
-                              </a>
-                            ) : (
-                              <span className="font-medium">
-                                {item.articleDetails.domain}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {item.articleDetails.author && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Author</span>
-                            <span className="font-medium">
-                              {item.articleDetails.author}
-                            </span>
-                          </div>
-                        )}
-                        {item.articleDetails.publishedAt && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Published</span>
-                            <DateTime
-                              date={item.articleDetails.publishedAt}
-                              className="font-medium"
-                            />
-                          </div>
-                        )}
-                        {item.articleDetails.readingTime && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Reading time</span>
-                            <span className="font-medium">
-                              {item.articleDetails.readingTime} min
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {item.sourceUrl && (
-                        <div className="mt-2 flex items-center gap-1">
-                          <Button variant="outline" size="sm" asChild>
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="size-3.5" />
-                              View original article
-                            </a>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => {
-                              if (item.sourceUrl) {
-                                navigator.clipboard.writeText(item.sourceUrl);
-                                setHasCopiedUrl(true);
-                                setTimeout(() => setHasCopiedUrl(false), 2000);
-                              }
-                            }}
-                            aria-label="Copy URL"
-                          >
-                            {hasCopiedUrl ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Copy className="size-3.5" />
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Product Details */}
-                  {isProduct && item.productDetails && (
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Product Info
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        {item.productDetails.price && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Price</span>
-                            <span className="font-medium">
-                              {item.productDetails.currency
-                                ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
-                                : item.productDetails.price}
-                            </span>
-                          </div>
-                        )}
-                        {item.productDetails.brand && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Brand</span>
-                            <span className="font-medium">
-                              {item.productDetails.brand}
-                            </span>
-                          </div>
-                        )}
-                        {item.productDetails.domain && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Store</span>
-                            {item.sourceUrl ? (
-                              <a
-                                href={new URL(item.sourceUrl).origin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                              >
-                                <ExternalLink className="size-3" />
-                                {item.productDetails.domain}
-                              </a>
-                            ) : (
-                              <span className="font-medium">
-                                {item.productDetails.domain}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {item.productDetails.availability && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Availability</span>
-                            <span className="font-medium">
-                              {item.productDetails.availability}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {item.sourceUrl && (
-                        <div className="mt-2 flex items-center gap-1">
-                          <Button variant="outline" size="sm" asChild>
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="size-3.5" />
-                              View product
-                            </a>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => {
-                              if (item.sourceUrl) {
-                                navigator.clipboard.writeText(item.sourceUrl);
-                                setHasCopiedUrl(true);
-                                setTimeout(() => setHasCopiedUrl(false), 2000);
-                              }
-                            }}
-                            aria-label="Copy URL"
-                          >
-                            {hasCopiedUrl ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Copy className="size-3.5" />
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Reading status (editable) */}
-                  {isBook && item.bookDetails && canEdit && (
-                    <BookReadingControls
-                      itemId={item.id}
-                      bookDetails={item.bookDetails}
-                    />
-                  )}
-
-                  {/* Article read toggle (editable) */}
-                  {isArticle && item.articleDetails && canEdit && (
-                    <ArticleReadingControls
-                      itemId={item.id}
-                      readAt={item.articleDetails.readAt}
-                    />
-                  )}
-
-                  {/* Book Details */}
-                  {isBook && item.bookDetails && (
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Book Info
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        {item.bookDetails.authors.length > 0 && (
-                          <div className="flex justify-between gap-4">
-                            <span className="text-gray-500">
-                              {item.bookDetails.authors.length > 1
-                                ? "Authors"
-                                : "Author"}
-                            </span>
-                            <span className="text-right font-medium">
-                              {item.bookDetails.authors.join(", ")}
-                            </span>
-                          </div>
-                        )}
-                        {item.bookDetails.publisher && (
-                          <div className="flex justify-between gap-4">
-                            <span className="text-gray-500">Publisher</span>
-                            <span className="text-right font-medium">
-                              {item.bookDetails.publisher}
-                            </span>
-                          </div>
-                        )}
-                        {item.bookDetails.publishedAt && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Published</span>
-                            <DateTime
-                              date={item.bookDetails.publishedAt}
-                              className="font-medium"
-                            />
-                          </div>
-                        )}
-                        {item.bookDetails.pageCount && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Pages</span>
-                            <span className="font-medium">
-                              {item.bookDetails.pageCount}
-                            </span>
-                          </div>
-                        )}
-                        {item.bookDetails.isbn && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">ISBN</span>
-                            <span className="font-medium">
-                              {item.bookDetails.isbn}
-                            </span>
-                          </div>
-                        )}
-                        {item.bookDetails.domain && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Source</span>
-                            {item.sourceUrl && isValidUrl(item.sourceUrl) ? (
-                              <a
-                                href={new URL(item.sourceUrl).origin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                              >
-                                <ExternalLink className="size-3" />
-                                {item.bookDetails.domain}
-                              </a>
-                            ) : (
-                              <span className="font-medium">
-                                {item.bookDetails.domain}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {item.sourceUrl && isValidUrl(item.sourceUrl) && (
-                        <div className="mt-2 flex items-center gap-1">
-                          <Button variant="outline" size="sm" asChild>
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="size-3.5" />
-                              View book
-                            </a>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => {
-                              if (item.sourceUrl) {
-                                navigator.clipboard.writeText(item.sourceUrl);
-                                setHasCopiedUrl(true);
-                                setTimeout(() => setHasCopiedUrl(false), 2000);
-                              }
-                            }}
-                            aria-label="Copy URL"
-                          >
-                            {hasCopiedUrl ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Copy className="size-3.5" />
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cover Image (shown in details panel for articles/webpages) */}
-                  {isArticleOrWebpage && previewUrl && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                          Cover Image
-                        </h3>
-                        {canEdit && (
-                          <Switch
-                            checked={!coverHidden}
-                            onCheckedChange={handleCoverToggle}
-                            disabled={isSavingCover}
-                            aria-label="Show cover image on card"
-                          />
-                        )}
-                      </div>
-                      <motion.div
-                        layoutId={`item-image-${item.id}`}
-                        className="overflow-hidden rounded-md"
-                        transition={{
-                          layout: { duration: 0.3 },
-                          opacity: { duration: 0 },
-                        }}
-                        initial={false}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 1 }}
+                    >
+                      {decodeHtmlEntities(item.description)}
+                    </p>
+                    {(isDescriptionClamped || isDescriptionExpanded) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsDescriptionExpanded(!isDescriptionExpanded)
+                        }
+                        className="font-medium text-primary text-sm hover:underline"
                       >
-                        {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-                        <img
-                          src={fullQualityUrl || previewUrl}
-                          alt={name}
-                          className="max-h-[300px] w-full object-contain"
-                        />
-                      </motion.div>
-                    </div>
-                  )}
-
-                  {/* AI Analysis */}
-                  {currentProcessingStatus === "completed" ? (
-                    <>
-                      {/* Description */}
-                      {item.description && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                            Description
-                          </h3>
-                          <p
-                            ref={descriptionRef}
-                            className={cn(
-                              "text-gray-600 text-sm dark:text-gray-400",
-                              !isDescriptionExpanded && "line-clamp-3",
-                            )}
-                          >
-                            {decodeHtmlEntities(item.description)}
-                          </p>
-                          {(isDescriptionClamped || isDescriptionExpanded) && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setIsDescriptionExpanded(!isDescriptionExpanded)
-                              }
-                              className="font-medium text-primary text-sm hover:underline"
-                            >
-                              {isDescriptionExpanded
-                                ? "Show less"
-                                : "Show more"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Objects */}
-                      {item.objects.length > 0 && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                            Objects
-                          </h3>
-                          <div className="flex flex-wrap gap-1.5">
-                            {item.objects.map((obj) => (
-                              <button
-                                type="button"
-                                key={obj}
-                                onClick={() =>
-                                  handleChipSearch({
-                                    type: "object",
-                                    value: obj,
-                                  })
-                                }
-                                className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs transition-colors hover:bg-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
-                                aria-label={`Search for ${obj}`}
-                              >
-                                {obj}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Tags - User Tags + Auto-generated Tags */}
-                      {(userTags.length > 0 ||
-                        item.tags.length > 0 ||
-                        canEdit) && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                              Tags
-                            </h3>
-                            {canEdit && !showAddTagInput && (
-                              <button
-                                type="button"
-                                onClick={() => setShowAddTagInput(true)}
-                                className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                              >
-                                <Plus className="size-3.5" />
-                                Add tag
-                              </button>
-                            )}
-                          </div>
-                          {(userTags.length > 0 || item.tags.length > 0) && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {/* User-added tags (primary styling, removable) */}
-                              {userTags.map((tag) => (
-                                <span
-                                  key={`user-${tag}`}
-                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-medium text-primary text-xs dark:bg-primary/20"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleChipSearch({
-                                        type: "tag",
-                                        value: tag,
-                                        isUserTag: true,
-                                      })
-                                    }
-                                    className="cursor-pointer rounded transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                                    aria-label={`Search for ${tag}`}
-                                  >
-                                    {tag}
-                                  </button>
-                                  {canEdit && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveUserTag(tag)}
-                                      className="ml-0.5 hover:text-primary/70 focus:outline-none"
-                                      aria-label={`Remove tag ${tag}`}
-                                    >
-                                      <X className="size-3" />
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
-                              {/* Auto-generated tags (secondary/gray styling, read-only) */}
-                              {item.tags.map((tag) => (
-                                <button
-                                  type="button"
-                                  key={`auto-${tag}`}
-                                  onClick={() =>
-                                    handleChipSearch({
-                                      type: "tag",
-                                      value: tag,
-                                    })
-                                  }
-                                  className="inline-flex cursor-pointer items-center rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                  aria-label={`Search for ${tag}`}
-                                >
-                                  {tag}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {/* Tag input - only for users who can edit */}
-                          {canEdit && showAddTagInput && (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={newTagInput}
-                                onChange={(e) => setNewTagInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddUserTag();
-                                  } else if (e.key === "Escape") {
-                                    setShowAddTagInput(false);
-                                    setNewTagInput("");
-                                  }
-                                }}
-                                placeholder="Add a tag..."
-                                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
-                                autoFocus
-                                disabled={isSavingUserTags}
-                              />
-                              <Button
-                                size="sm"
-                                onClick={handleAddUserTag}
-                                disabled={
-                                  isSavingUserTags || !newTagInput.trim()
-                                }
-                              >
-                                {isSavingUserTags ? (
-                                  <IsLoading
-                                    label="Adding"
-                                    iconClassName="size-3"
-                                  />
-                                ) : (
-                                  "Add"
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setShowAddTagInput(false);
-                                  setNewTagInput("");
-                                }}
-                                disabled={isSavingUserTags}
-                              >
-                                <X className="size-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* OCR Text */}
-                      {item.ocrText && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                            Detected Text
-                          </h3>
-                          <div className="max-h-32 overflow-y-auto rounded-md bg-gray-50 p-3 dark:bg-gray-800/50">
-                            <p className="whitespace-pre-wrap text-gray-600 text-xs dark:text-gray-400">
-                              {item.ocrText}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Location */}
-                      {(() => {
-                        // Show manual override if exists, otherwise show exif/original location
-                        const manualLocation = item.locations.find(
-                          (l) => l.source === "manual",
-                        );
-                        const exifLocation = item.locations.find(
-                          (l) => l.source === "exif",
-                        );
-                        const displayLocation =
-                          manualLocation ?? exifLocation ?? null;
-                        const isManualOverride = manualLocation !== undefined;
-
-                        // For read-only view (no edit access), only show if there's location data
-                        if (!canEdit) {
-                          if (!displayLocation) return null;
-
-                          return (
-                            <div className="space-y-2">
-                              <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
-                                Location
-                              </h3>
-                              <LocationDisplay
-                                location={displayLocation}
-                                itemId={item.id}
-                              />
-                            </div>
-                          );
-                        }
-
-                        // Editable view with LocationDropzone
-                        return (
-                          <LocationDropzone
-                            itemId={item.id}
-                            displayLocation={displayLocation}
-                            originalExifLocation={exifLocation ?? null}
-                            isManualOverride={isManualOverride}
-                          >
-                            {displayLocation ? (
-                              <LocationDisplay
-                                location={displayLocation}
-                                itemId={item.id}
-                              />
-                            ) : (
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                Drop an image here to set location from EXIF
-                                data
-                              </p>
-                            )}
-                          </LocationDropzone>
-                        );
-                      })()}
-                    </>
-                  ) : currentProcessingStatus === "processing" ? (
-                    <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
-                      <IsLoading
-                        label={
-                          item.sourceType === "url"
-                            ? "Analyzing URL"
-                            : "Analyzing image"
-                        }
-                      />
-                    </div>
-                  ) : currentProcessingStatus === "failed" ? (
-                    (() => {
-                      const errorCopy = getProcessingErrorCopy(
-                        item.processingError,
-                      );
-                      return (
-                        <div className="space-y-3">
-                          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                              <p>{errorCopy.message}</p>
-                            </div>
-                          </div>
-                          {canEdit && errorCopy.retryable && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRetry}
-                              disabled={isRetrying}
-                              className="w-full"
-                            >
-                              {isRetrying ? (
-                                <IsLoading
-                                  label="Retrying"
-                                  iconClassName="size-3"
-                                />
-                              ) : (
-                                <>
-                                  <RefreshCw className="size-3.5" />
-                                  Retry analysis
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
-                      <p>No analysis available.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Similar images - visual discovery from the owner's library.
-                    Owner-only: the matches come from the viewer's own library
-                    (and the API is owner-scoped), so it's meaningless for a
-                    non-owner viewing a public room. Renders nothing when there
-                    are no matches above threshold. */}
-                {canEdit && (
-                  <SimilarImages
-                    itemId={item.id}
-                    enabled={open && supportsSimilarImages(item.kind)}
-                  />
-                )}
-
-                {/* Rooms - only shown to users who can edit */}
-                {canEdit && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        <DoorOpen className="size-4" />
-                        Rooms
-                        <span className="font-normal text-muted-foreground text-xs">
-                          (private)
-                        </span>
-                      </h3>
-                      <AddToRoomPopover
-                        itemId={item.id}
-                        currentRooms={itemRooms}
-                        onRoomsChange={setItemRooms}
-                      />
-                    </div>
-                    {itemRooms.length > 0 ? (
-                      <ul className="space-y-1">
-                        {itemRooms.map((room) => (
-                          <li
-                            key={room.id}
-                            className="group flex items-center gap-1"
-                          >
-                            {room.emoji && (
-                              <span className="text-sm">{room.emoji}</span>
-                            )}
-                            {room.username && room.slug ? (
-                              <Link
-                                href={`/@${room.username}/${room.slug}`}
-                                className="text-blue-600 text-sm hover:underline dark:text-blue-400"
-                              >
-                                {room.name}
-                              </Link>
-                            ) : (
-                              <span className="text-sm">{room.name}</span>
-                            )}
-                            {room.type === "smart" ? (
-                              <Sparkles className="size-3 text-muted-foreground" />
-                            ) : (
-                              <Hand className="size-3 text-muted-foreground" />
-                            )}
-                            {room.type === "manual" && (
-                              <RemoveFromRoomButton
-                                itemId={item.id}
-                                room={room}
-                                onRemoved={() => {
-                                  setItemRooms(
-                                    itemRooms.filter((r) => r.id !== room.id),
-                                  );
-                                }}
-                              />
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">
-                        This item isn't in any rooms yet.
-                      </p>
+                        {isDescriptionExpanded ? "Show less" : "Show more"}
+                      </button>
                     )}
                   </div>
                 )}
 
-                {/* External Links - only shown to users who can edit */}
-                {canEdit && (
+                {/* Objects */}
+                {item.objects.length > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        <Link2 className="size-4" />
-                        Links
-                        <span className="font-normal text-muted-foreground text-xs">
-                          (private)
-                        </span>
-                      </h3>
-                      {!showAddLinkInput && (
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                      Objects
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.objects.map((obj) => (
                         <button
                           type="button"
-                          onClick={() => setShowAddLinkInput(true)}
+                          key={obj}
+                          onClick={() =>
+                            handleChipSearch({
+                              type: "object",
+                              value: obj,
+                            })
+                          }
+                          className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs transition-colors hover:bg-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                          aria-label={`Search for ${obj}`}
+                        >
+                          {obj}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags - User Tags + Auto-generated Tags */}
+                {(userTags.length > 0 || item.tags.length > 0 || canEdit) && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                        Tags
+                      </h3>
+                      {canEdit && !showAddTagInput && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddTagInput(true)}
                           className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
                         >
                           <Plus className="size-3.5" />
-                          Add link
+                          Add tag
                         </button>
                       )}
                     </div>
-                    {externalLinks.length > 0 && (
-                      <ul className="space-y-1">
-                        {externalLinks.map((link) => (
-                          <li
-                            key={link.url}
-                            className="group flex items-center gap-2"
+                    {(userTags.length > 0 || item.tags.length > 0) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {/* User-added tags (primary styling, removable) */}
+                        {userTags.map((tag) => (
+                          <span
+                            key={`user-${tag}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-medium text-primary text-xs dark:bg-primary/20"
                           >
-                            <PlatformIcon
-                              platform={link.platform}
-                              className="size-4 shrink-0 text-muted-foreground"
-                            />
-                            <a
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 truncate text-blue-600 text-sm hover:underline dark:text-blue-400"
-                            >
-                              {getPlatformName(link.platform, link.url)}
-                            </a>
                             <button
                               type="button"
-                              onClick={() => handleRemoveLink(link.url)}
-                              className="p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                              aria-label="Remove link"
+                              onClick={() =>
+                                handleChipSearch({
+                                  type: "tag",
+                                  value: tag,
+                                  isUserTag: true,
+                                })
+                              }
+                              className="cursor-pointer rounded transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                              aria-label={`Search for ${tag}`}
                             >
-                              <X className="size-3.5" />
+                              {tag}
                             </button>
-                          </li>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveUserTag(tag)}
+                                className="ml-0.5 hover:text-primary/70 focus:outline-none"
+                                aria-label={`Remove tag ${tag}`}
+                              >
+                                <X className="size-3" />
+                              </button>
+                            )}
+                          </span>
                         ))}
-                      </ul>
+                        {/* Auto-generated tags (secondary/gray styling, read-only) */}
+                        {item.tags.map((tag) => (
+                          <button
+                            type="button"
+                            key={`auto-${tag}`}
+                            onClick={() =>
+                              handleChipSearch({
+                                type: "tag",
+                                value: tag,
+                              })
+                            }
+                            className="inline-flex cursor-pointer items-center rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                            aria-label={`Search for ${tag}`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                    {showAddLinkInput && (
+                    {/* Tag input - only for users who can edit */}
+                    {canEdit && showAddTagInput && (
                       <div className="flex items-center gap-2">
                         <input
-                          type="url"
-                          value={newLinkUrl}
-                          onChange={(e) => setNewLinkUrl(e.target.value)}
+                          type="text"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              void handleAddLink();
+                              handleAddUserTag();
                             } else if (e.key === "Escape") {
-                              setShowAddLinkInput(false);
-                              setNewLinkUrl("");
+                              setShowAddTagInput(false);
+                              setNewTagInput("");
                             }
                           }}
-                          placeholder="Paste URL..."
+                          placeholder="Add a tag..."
                           className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
+                          // biome-ignore lint/a11y/noAutofocus: focus the input the user just revealed inside the modal dialog
                           autoFocus
-                          disabled={isAddingLink}
+                          disabled={isSavingUserTags}
                         />
                         <Button
                           size="sm"
-                          onClick={handleAddLink}
-                          disabled={isAddingLink || !newLinkUrl.trim()}
+                          onClick={handleAddUserTag}
+                          disabled={isSavingUserTags || !newTagInput.trim()}
                         >
-                          {isAddingLink ? (
+                          {isSavingUserTags ? (
                             <IsLoading label="Adding" iconClassName="size-3" />
                           ) : (
                             "Add"
@@ -3084,10 +2796,10 @@ function ItemDetailDialog({
                           size="sm"
                           variant="ghost"
                           onClick={() => {
-                            setShowAddLinkInput(false);
-                            setNewLinkUrl("");
+                            setShowAddTagInput(false);
+                            setNewTagInput("");
                           }}
-                          disabled={isAddingLink}
+                          disabled={isSavingUserTags}
                         >
                           <X className="size-4" />
                         </Button>
@@ -3096,236 +2808,510 @@ function ItemDetailDialog({
                   </div>
                 )}
 
-                {/* Notes - only shown to users who can edit */}
-                {canEdit && (
+                {/* OCR Text */}
+                {item.ocrText && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                        Notes
-                        <span className="ml-2 font-normal text-muted-foreground text-xs">
-                          (private)
-                        </span>
-                      </h3>
-                      {isSavingNotes && (
-                        <IsLoading
-                          label="Saving"
-                          className="text-muted-foreground text-xs"
-                          iconClassName="size-3"
-                        />
-                      )}
+                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                      Detected Text
+                    </h3>
+                    <div className="max-h-32 overflow-y-auto rounded-md bg-gray-50 p-3 dark:bg-gray-800/50">
+                      <p className="whitespace-pre-wrap text-gray-600 text-xs dark:text-gray-400">
+                        {item.ocrText}
+                      </p>
                     </div>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => handleNotesChange(e.target.value)}
-                      placeholder="Add your notes..."
-                      className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-gray-800"
-                    />
                   </div>
                 )}
 
-                {/* Highlights - articles only */}
-                {isArticle && (
-                  <div className="border-gray-200 border-t pt-8 dark:border-gray-800">
-                    <HighlightsPanel
-                      itemId={item.id}
-                      onHighlightClick={(highlight) =>
-                        setScrollToHighlightId(highlight.id)
-                      }
-                      canEdit={canEdit}
-                    />
-                  </div>
-                )}
+                {/* Location */}
+                {(() => {
+                  // Show manual override if exists, otherwise show exif/original location
+                  const manualLocation = item.locations.find(
+                    (l) => l.source === "manual",
+                  );
+                  const exifLocation = item.locations.find(
+                    (l) => l.source === "exif",
+                  );
+                  const displayLocation =
+                    manualLocation ?? exifLocation ?? null;
+                  const isManualOverride = manualLocation !== undefined;
 
-                {/* Share Setting - only shown to users who can edit */}
-                {canEdit && (
-                  <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
-                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                      Share
-                    </h3>
-                    <label
-                      htmlFor={`${toggleId}-share`}
-                      className="flex items-center justify-between gap-3 text-sm"
-                    >
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Share via link
-                      </span>
-                      <Switch
-                        id={`${toggleId}-share`}
-                        checked={isShared}
-                        onCheckedChange={handleShareToggle}
-                        disabled={isSavingShare}
-                      />
-                    </label>
-                    <p className="text-muted-foreground text-xs">
-                      When enabled, anyone with the link can view this item,
-                      even if it isn't in a public room.
-                    </p>
+                  // For read-only view (no edit access), only show if there's location data
+                  if (!canEdit) {
+                    if (!displayLocation) return null;
 
-                    {isShared && (
-                      <div className="space-y-3 pt-1">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={shareUrl ?? ""}
-                            onFocus={(e) => e.currentTarget.select()}
-                            className="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-600 text-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCopyShareLink}
-                            disabled={isSavingShare || !shareUrl}
-                          >
-                            {hasCopiedShareLink ? (
-                              <Check className="size-4" />
-                            ) : (
-                              <Copy className="size-4" />
-                            )}
-                            <span className="ml-1.5">Copy</span>
-                          </Button>
-                        </div>
-
-                        {isArticle && (
-                          <label
-                            htmlFor={`${toggleId}-highlights`}
-                            className="flex items-center justify-between gap-3 text-sm"
-                          >
-                            <span className="text-gray-600 dark:text-gray-400">
-                              Include my highlights
-                            </span>
-                            <Switch
-                              id={`${toggleId}-highlights`}
-                              checked={sharedHighlights}
-                              onCheckedChange={handleSharedHighlightsToggle}
-                              disabled={isSavingSharedHighlights}
-                            />
-                          </label>
-                        )}
+                    return (
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
+                          Location
+                        </h3>
+                        <LocationDisplay
+                          location={displayLocation}
+                          itemId={item.id}
+                        />
                       </div>
-                    )}
-                  </div>
-                )}
+                    );
+                  }
 
-                {/* Privacy Setting - only shown to users who can edit */}
-                {canEdit && (
-                  <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
-                    <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-                      Privacy
-                    </h3>
-                    <label
-                      htmlFor={`${toggleId}-exclude`}
-                      className="flex items-center justify-between gap-3 text-sm"
+                  // Editable view with LocationDropzone
+                  return (
+                    <LocationDropzone
+                      itemId={item.id}
+                      displayLocation={displayLocation}
+                      originalExifLocation={exifLocation ?? null}
+                      isManualOverride={isManualOverride}
                     >
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Exclude from public rooms
-                      </span>
-                      <Switch
-                        id={`${toggleId}-exclude`}
-                        checked={excludeFromPublicRooms}
-                        onCheckedChange={handleExcludeToggle}
-                        disabled={isSavingExclude}
-                      />
-                    </label>
-                    <p className="text-muted-foreground text-xs">
-                      When enabled, this item won't appear in public dynamic
-                      rooms
-                    </p>
-                  </div>
-                )}
-
-                {/* Action buttons - reanalyse is admin-only; download/delete require edit access */}
-                {(canEdit || isAdmin) && (
-                  <div className="mt-auto flex justify-end gap-2">
-                    {isAdmin && (
+                      {displayLocation ? (
+                        <LocationDisplay
+                          location={displayLocation}
+                          itemId={item.id}
+                        />
+                      ) : (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          Drop an image here to set location from EXIF data
+                        </p>
+                      )}
+                    </LocationDropzone>
+                  );
+                })()}
+              </>
+            ) : currentProcessingStatus === "processing" ? (
+              <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
+                <IsLoading
+                  label={
+                    item.sourceType === "url"
+                      ? "Analyzing URL"
+                      : "Analyzing image"
+                  }
+                />
+              </div>
+            ) : currentProcessingStatus === "failed" ? (
+              (() => {
+                const errorCopy = getProcessingErrorCopy(item.processingError);
+                return (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                        <p>{errorCopy.message}</p>
+                      </div>
+                    </div>
+                    {canEdit && errorCopy.retryable && (
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={handleRetry}
                         disabled={isRetrying}
+                        className="w-full"
                       >
                         {isRetrying ? (
-                          <IsLoading label="Reanalysing" />
+                          <IsLoading label="Retrying" iconClassName="size-3" />
                         ) : (
                           <>
-                            <RefreshCw className="size-4" />
-                            Reanalyse
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {canEdit && item.fileKey && (
-                      <Button
-                        variant="outline"
-                        onClick={handleDownload}
-                        disabled={isDownloading}
-                      >
-                        {isDownloading ? (
-                          <IsLoading label="Downloading" />
-                        ) : (
-                          <>
-                            <Download className="size-4" />
-                            Download
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {canEdit && (
-                      <Button
-                        variant="destructive-outline"
-                        onClick={() => onDeleteOpenChange(true)}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting ? (
-                          <IsLoading label="Deleting" />
-                        ) : (
-                          <>
-                            <Trash2 className="size-4" />
-                            Delete
+                            <RefreshCw className="size-3.5" />
+                            Retry analysis
                           </>
                         )}
                       </Button>
                     )}
                   </div>
+                );
+              })()
+            ) : (
+              <div className="rounded-lg border border-gray-200 p-4 text-gray-500 text-sm dark:border-gray-800">
+                <p>No analysis available.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Similar images - visual discovery from the owner's library.
+                    Owner-only: the matches come from the viewer's own library
+                    (and the API is owner-scoped), so it's meaningless for a
+                    non-owner viewing a public room. Renders nothing when there
+                    are no matches above threshold. */}
+          {canEdit && (
+            <SimilarImages
+              itemId={item.id}
+              enabled={open && supportsSimilarImages(item.kind)}
+            />
+          )}
+
+          {/* Rooms - only shown to users who can edit */}
+          {canEdit && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  <DoorOpen className="size-4" />
+                  Rooms
+                  <span className="font-normal text-muted-foreground text-xs">
+                    (private)
+                  </span>
+                </h3>
+                <AddToRoomPopover
+                  itemId={item.id}
+                  currentRooms={itemRooms}
+                  onRoomsChange={setItemRooms}
+                />
+              </div>
+              {itemRooms.length > 0 ? (
+                <ul className="space-y-1">
+                  {itemRooms.map((room) => (
+                    <li key={room.id} className="group flex items-center gap-1">
+                      {room.emoji && (
+                        <span className="text-sm">{room.emoji}</span>
+                      )}
+                      {room.username && room.slug ? (
+                        <Link
+                          href={`/@${room.username}/${room.slug}`}
+                          className="text-blue-600 text-sm hover:underline dark:text-blue-400"
+                        >
+                          {room.name}
+                        </Link>
+                      ) : (
+                        <span className="text-sm">{room.name}</span>
+                      )}
+                      {room.type === "smart" ? (
+                        <Sparkles className="size-3 text-muted-foreground" />
+                      ) : (
+                        <Hand className="size-3 text-muted-foreground" />
+                      )}
+                      {room.type === "manual" && (
+                        <RemoveFromRoomButton
+                          itemId={item.id}
+                          room={room}
+                          onRemoved={() => {
+                            setItemRooms(
+                              itemRooms.filter((r) => r.id !== room.id),
+                            );
+                          }}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  This item isn't in any rooms yet.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* External Links - only shown to users who can edit */}
+          {canEdit && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  <Link2 className="size-4" />
+                  Links
+                  <span className="font-normal text-muted-foreground text-xs">
+                    (private)
+                  </span>
+                </h3>
+                {!showAddLinkInput && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLinkInput(true)}
+                    className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                  >
+                    <Plus className="size-3.5" />
+                    Add link
+                  </button>
                 )}
               </div>
+              {externalLinks.length > 0 && (
+                <ul className="space-y-1">
+                  {externalLinks.map((link) => (
+                    <li
+                      key={link.url}
+                      className="group flex items-center gap-2"
+                    >
+                      <PlatformIcon
+                        platform={link.platform}
+                        className="size-4 shrink-0 text-muted-foreground"
+                      />
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 truncate text-blue-600 text-sm hover:underline dark:text-blue-400"
+                      >
+                        {getPlatformName(link.platform, link.url)}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLink(link.url)}
+                        className="p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                        aria-label="Remove link"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {showAddLinkInput && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleAddLink();
+                      } else if (e.key === "Escape") {
+                        setShowAddLinkInput(false);
+                        setNewLinkUrl("");
+                      }
+                    }}
+                    placeholder="Paste URL..."
+                    className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
+                    // biome-ignore lint/a11y/noAutofocus: focus the input the user just revealed inside the modal dialog
+                    autoFocus
+                    disabled={isAddingLink}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddLink}
+                    disabled={isAddingLink || !newLinkUrl.trim()}
+                  >
+                    {isAddingLink ? (
+                      <IsLoading label="Adding" iconClassName="size-3" />
+                    ) : (
+                      "Add"
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowAddLinkInput(false);
+                      setNewLinkUrl("");
+                    }}
+                    disabled={isAddingLink}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 z-10 cursor-pointer rounded-sm bg-background/20 p-1.5 ring-offset-background transition-opacity hover:bg-background/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-                aria-hidden="true"
+          {/* Notes - only shown to users who can edit */}
+          {canEdit && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                  Notes
+                  <span className="ml-2 font-normal text-muted-foreground text-xs">
+                    (private)
+                  </span>
+                </h3>
+                {isSavingNotes && (
+                  <IsLoading
+                    label="Saving"
+                    className="text-muted-foreground text-xs"
+                    iconClassName="size-3"
+                  />
+                )}
+              </div>
+              <textarea
+                value={notes}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                placeholder="Add your notes..."
+                className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-gray-800"
+              />
+            </div>
+          )}
+
+          {/* Highlights - articles only */}
+          {isArticle && (
+            <div className="border-gray-200 border-t pt-8 dark:border-gray-800">
+              <HighlightsPanel
+                itemId={item.id}
+                onHighlightClick={(highlight) =>
+                  setScrollToHighlightId(highlight.id)
+                }
+                canEdit={canEdit}
+              />
+            </div>
+          )}
+
+          {/* Share Setting - only shown to users who can edit */}
+          {canEdit && (
+            <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
+              <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                Share
+              </h3>
+              <label
+                htmlFor={`${toggleId}-share`}
+                className="flex items-center justify-between gap-3 text-sm"
               >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-              <span className="sr-only">Close</span>
-            </button>
-          </div>
-        </motion.div>
-      </DialogContent>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Share via link
+                </span>
+                <Switch
+                  id={`${toggleId}-share`}
+                  checked={isShared}
+                  onCheckedChange={handleShareToggle}
+                  disabled={isSavingShare}
+                />
+              </label>
+              <p className="text-muted-foreground text-xs">
+                When enabled, anyone with the link can view this item, even if
+                it isn't in a public room.
+              </p>
+
+              {isShared && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={shareUrl ?? ""}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-600 text-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopyShareLink}
+                      disabled={isSavingShare || !shareUrl}
+                    >
+                      {hasCopiedShareLink ? (
+                        <Check className="size-4" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                      <span className="ml-1.5">Copy</span>
+                    </Button>
+                  </div>
+
+                  {isArticle && (
+                    <label
+                      htmlFor={`${toggleId}-highlights`}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Include my highlights
+                      </span>
+                      <Switch
+                        id={`${toggleId}-highlights`}
+                        checked={sharedHighlights}
+                        onCheckedChange={handleSharedHighlightsToggle}
+                        disabled={isSavingSharedHighlights}
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Privacy Setting - only shown to users who can edit */}
+          {canEdit && (
+            <div className="space-y-2 border-gray-200 border-t pt-6 dark:border-gray-800">
+              <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+                Privacy
+              </h3>
+              <label
+                htmlFor={`${toggleId}-exclude`}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="text-gray-600 dark:text-gray-400">
+                  Exclude from public rooms
+                </span>
+                <Switch
+                  id={`${toggleId}-exclude`}
+                  checked={excludeFromPublicRooms}
+                  onCheckedChange={handleExcludeToggle}
+                  disabled={isSavingExclude}
+                />
+              </label>
+              <p className="text-muted-foreground text-xs">
+                When enabled, this item won't appear in public dynamic rooms
+              </p>
+            </div>
+          )}
+
+          {/* Action buttons - reanalyse is admin-only; download/delete require edit access */}
+          {(canEdit || isAdmin) && (
+            <div className="mt-auto flex justify-end gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                >
+                  {isRetrying ? (
+                    <IsLoading label="Reanalysing" />
+                  ) : (
+                    <>
+                      <RefreshCw className="size-4" />
+                      Reanalyse
+                    </>
+                  )}
+                </Button>
+              )}
+              {canEdit && item.fileKey && (
+                <Button
+                  variant="outline"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <IsLoading label="Downloading" />
+                  ) : (
+                    <>
+                      <Download className="size-4" />
+                      Download
+                    </>
+                  )}
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  variant="destructive-outline"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <IsLoading label="Deleting" />
+                  ) : (
+                    <>
+                      <Trash2 className="size-4" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <DeleteItemDialog
-        open={deleteOpen}
-        onOpenChange={onDeleteOpenChange}
-        onConfirm={onDeleteConfirm}
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDelete}
         isDeleting={isDeleting}
         itemName={name}
       />
-    </Dialog>
+    </>
+  );
+}
+
+/**
+ * The item detail dialog for the per-card path (rooms filter-editor / no-provider
+ * fallback): the persistent frame with the body inside. The dashboard/rooms
+ * central dialog composes ItemDialogFrame + ItemDetailBody itself, so it can
+ * keep one frame mounted and swap the body (content ↔ loading skeleton).
+ */
+function ItemDetailDialog(props: ItemDetailDialogProps) {
+  return (
+    <ItemDialogFrame open={props.open} onOpenChange={props.onOpenChange}>
+      <ItemDetailBody {...props} />
+    </ItemDialogFrame>
   );
 }
