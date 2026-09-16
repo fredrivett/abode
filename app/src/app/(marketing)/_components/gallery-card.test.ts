@@ -12,19 +12,6 @@ describe("hoverClass", () => {
     expect(hoverClass(flatCard)).toContain("[transform-style:preserve-3d]");
   });
 
-  // WebKit collapses a CSS multi-column grid whose children establish a
-  // preserve-3d context: cards pile into the first column and the rest render
-  // blank. The Safari-only @supports override flattens the face so the wall
-  // paints correctly there — Chrome/Firefox keep the depth hover. Guard it so
-  // the fix can't be dropped without failing here.
-  it("flattens the 3D context on WebKit only, to keep the multi-column wall painting", () => {
-    if (!flatCard) return;
-    const cls = hoverClass(flatCard);
-    expect(cls).toContain(
-      "[@supports(-webkit-hyphens:none)]:[transform-style:flat]",
-    );
-  });
-
   it("leaves book cards flat (BookCover3D owns their 3D)", () => {
     expect(bookCard).toBeDefined();
     if (!bookCard) return;

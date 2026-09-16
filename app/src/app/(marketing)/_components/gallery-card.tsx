@@ -62,12 +62,6 @@ export function hoverClass(card: GalleryCard) {
   return cn(
     HOVER_BASE,
     "[transform-style:preserve-3d] group-hover:-translate-y-1 group-hover:shadow-2xl group-hover:[transform:rotateX(5deg)]",
-    // WebKit only: a preserve-3d context inside a CSS multi-column container
-    // (the gallery wall) breaks column painting — cards collapse into the first
-    // column and the rest render blank. Flatten there; the child overlay's
-    // translateZ pop flattens with it. Chrome/Firefox keep the depth hover.
-    // `-webkit-hyphens` is a proxy that matches Safari/WebKit only.
-    "[@supports(-webkit-hyphens:none)]:[transform-style:flat]!",
   );
 }
 
