@@ -27,8 +27,13 @@ export function ImportSettings({
   );
 
   const status = useImportPoll(importId, initialImport);
+  // In progress from the moment an import id is set until a terminal status
+  // arrives — including the gap before the first poll — so the form can't be
+  // resubmitted during an active run.
   const inProgress =
-    status?.status === "importing" || status?.status === "pending";
+    importId != null &&
+    status?.status !== "completed" &&
+    status?.status !== "failed";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

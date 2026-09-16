@@ -98,8 +98,11 @@ describe("ImportSettings", () => {
   });
 
   it("disables the form while an import is in progress", () => {
-    useImportPoll.mockReturnValue(snapshot({ status: "importing" }));
-    render(<ImportSettings initialImport={null} />);
+    // The page seeds an active import (with its id), which is what drives the
+    // in-progress/disabled state.
+    const active = snapshot({ status: "importing" });
+    useImportPoll.mockReturnValue(active);
+    render(<ImportSettings initialImport={active} />);
 
     expect(
       screen.getByRole("button", { name: /import in progress/i }),

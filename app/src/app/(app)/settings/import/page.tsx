@@ -10,10 +10,11 @@ export default async function ImportSettingsPage() {
     redirect("/login");
   }
 
-  // Seed the UI only with an in-flight import, so progress survives navigation;
-  // a finished one leaves a clean form rather than a stale result box.
-  const latest = await db.itemImport.findFirst({
-    where: { userId: user.id },
+  // Seed the UI only with an in-flight import (query the active row directly, so a
+  // newer completed/failed row can't hide a still-running one), so progress
+  // survives navigation; nothing active leaves a clean form.
+  const active = await db.itemImport.findFirst({
+    where: { userId: user.id, status: { in: ["pending", "importing"] } },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -29,18 +30,17 @@ export default async function ImportSettingsPage() {
     },
   });
 
-  const active =
-    latest && (latest.status === "importing" || latest.status === "pending")
-      ? ({
-          ...latest,
-          createdAt: latest.createdAt.toISOString(),
-          completedAt: latest.completedAt?.toISOString() ?? null,
-        } satisfies ImportSnapshot)
-      : null;
+  const initialImport = active
+    ? ({
+        ...active,
+        createdAt: active.createdAt.toISOString(),
+        completedAt: active.completedAt?.toISOString() ?? null,
+      } satisfies ImportSnapshot)
+    : null;
 
   return (
     <div className="space-y-6">
-      <ImportSettings initialImport={active} />
+      <ImportSettings initialImport={initialImport} />
     </div>
   );
 }

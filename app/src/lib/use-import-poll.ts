@@ -40,9 +40,19 @@ export function useImportPoll(
       return;
     }
     let active = true;
+    // Explicit boolean: it's mutated inside the async closure below, which flow
+    // analysis can't see (it would otherwise treat the guard as always-false).
+    let inFlight: boolean = false;
     let timer: ReturnType<typeof setInterval> | undefined;
 
+    // Drop a stale snapshot from a previous import id so a new run doesn't briefly
+    // read the old (possibly terminal) status — which would leave the form enabled
+    // mid-import. Keep the seed when it already matches this id (no flicker).
+    setStatus((prev) => (prev?.id === importId ? prev : null));
+
     const check = async () => {
+      if (inFlight) return; // no overlapping requests, so a slow poll can't be
+      inFlight = true; //     overtaken and its stale result overwrite a newer one
       try {
         const data = await api.get<ImportSnapshot>(
           `/api/v1/imports/${importId}`,
@@ -52,6 +62,8 @@ export function useImportPoll(
         if (isTerminal(data.status) && timer) clearInterval(timer);
       } catch {
         // transient — keep polling
+      } finally {
+        inFlight = false;
       }
     };
 
