@@ -1,4 +1,4 @@
-import { Link2, Package, Play } from "lucide-react";
+import { Calendar, Link2, MapPin, Package, Play } from "lucide-react";
 import type { CSSProperties } from "react";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { TwitterIcon } from "@/components/icons/platform-icons";
@@ -68,7 +68,7 @@ export function hoverClass(card: GalleryCard) {
 // --- the "understood" overlay — lifts forward off the card on hover ---
 
 export function Intelligence({ card }: { card: GalleryCard }) {
-  const { kindLabel, tags, colors, objects } = card.insight;
+  const { kindLabel, tags, colors, objects, location, date } = card.insight;
   return (
     <div
       className={cn(
@@ -100,6 +100,22 @@ export function Intelligence({ card }: { card: GalleryCard }) {
       {objects && (
         <p className="mb-2 text-muted-foreground text-xs">
           {objects.slice(0, 3).join(" · ")}
+        </p>
+      )}
+      {(location || date) && (
+        <p className="mb-2 flex items-center gap-2 text-muted-foreground text-xs">
+          {location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="size-3 shrink-0" />
+              {location}
+            </span>
+          )}
+          {date && (
+            <span className="flex items-center gap-1">
+              <Calendar className="size-3 shrink-0" />
+              {date}
+            </span>
+          )}
         </p>
       )}
       <div className="flex flex-wrap gap-1">

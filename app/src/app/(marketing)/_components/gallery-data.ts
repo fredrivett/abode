@@ -13,6 +13,10 @@ export type Insight = {
   tags: string[];
   colors?: GalleryColor[];
   objects?: string[];
+  /** Detected place, lowercased to match a location facet (e.g. "london"). */
+  location?: string;
+  /** Human capture date shown on hover (e.g. "2024"); grounds a date search. */
+  date?: string;
 };
 
 /**
@@ -114,6 +118,8 @@ export const GALLERY_CARDS: GalleryCard[] = [
         { hex: "#1A1A1A", name: "black" },
       ],
       tags: ["architecture", "sculpture", "city", "bridge"],
+      location: "london",
+      date: "2024",
     },
   },
   {
@@ -217,6 +223,8 @@ export const GALLERY_CARDS: GalleryCard[] = [
         { hex: "#14161F", name: "black" },
       ],
       tags: ["sunset", "skyline", "river", "silhouette"],
+      location: "london",
+      date: "2024",
     },
   },
   {
@@ -324,6 +332,39 @@ export const GALLERY_CARDS: GalleryCard[] = [
     insight: {
       kindLabel: "product",
       tags: ["turntable", "vinyl", "audio", "music"],
+    },
+  },
+  {
+    kind: "product",
+    id: "imac-g3",
+    image: "/gallery/imac-g3.png",
+    title: "iMac G3 (Bondi Blue)",
+    brand: "Apple",
+    price: "£399",
+    domain: "ebay.co.uk",
+    // near, upper-left — in the open space below the sunset photo, clear of the
+    // centre column; a prominent match for [blue] [computer]
+    scatter: {
+      x: 0.12,
+      y: 0.16,
+      scale: 0.6,
+      blur: 0,
+      opacity: 0.95,
+      rot: -5,
+      z: 40,
+      amp: 8,
+      period: 7200,
+      phase: 3.7,
+    },
+    insight: {
+      kindLabel: "product",
+      objects: ["computer", "monitor", "screen"],
+      colors: [
+        { hex: "#1E9AC0", name: "blue" },
+        { hex: "#E9E7E2", name: "white" },
+        { hex: "#2A2A2A", name: "black" },
+      ],
+      tags: ["apple", "retro", "design", "computer"],
     },
   },
 ];
