@@ -42,4 +42,4 @@ export type NormalizedReadingState = {
 };
 
 /** Import sources we can pull from. Only `literal` is implemented today. */
-export type ImportSource = "literal";
+export type { ImportSource } from "@prisma/client";
