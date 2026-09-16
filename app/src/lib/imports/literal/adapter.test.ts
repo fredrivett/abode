@@ -143,6 +143,31 @@ describe("toNormalizedBook", () => {
     );
   });
 
+  it("does not set finishedAt on a non-terminal shelf, even with a review", () => {
+    // Reviewing mid-read must not mark a book finished.
+    const review: LiteralReview = {
+      rating: 4,
+      text: "so far so good",
+      createdAt: "2025-02-02T09:00:30.888Z",
+    };
+    const nb = toNormalizedBook(state({ status: "IS_READING" }), review);
+    expect(nb.reading.status).toBe("reading");
+    expect(nb.reading.rating).toBe(8); // rating still carries
+    expect(nb.reading.finishedAt).toBeNull();
+    expect(nb.reading.finishedAtPrecision).toBeNull();
+  });
+
+  it("sets finishedAt for a DROPPED (dnf) shelf", () => {
+    const nb = toNormalizedBook(
+      state({ status: "DROPPED", createdAt: "2024-08-25T17:27:39.707Z" }),
+      null,
+    );
+    expect(nb.reading.status).toBe("dnf");
+    expect(nb.reading.finishedAt?.toISOString()).toBe(
+      "2024-08-25T17:27:39.707Z",
+    );
+  });
+
   it("NONE shelf → null status but still a valid book", () => {
     const nb = toNormalizedBook(state({ status: "NONE" }), null);
     expect(nb.reading.status).toBeNull();

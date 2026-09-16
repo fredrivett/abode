@@ -1,6 +1,7 @@
 /// <reference types="vitest/globals" />
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
+import type { BookReadingStatus } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NormalizedBook } from "@/lib/imports/types";
 
@@ -137,5 +138,39 @@ describe("importBookChunk", () => {
     const row = await importRow(importId);
     expect(row?.status).toBe("completed");
     expect(row?.importedCount).toBe(4);
+  });
+
+  test("tallies a per-book failure without aborting the chunk or import", async () => {
+    const userId = await createUser();
+    const importId = await createImport(userId, 3);
+    // A deliberately-invalid reading status makes this one book's write throw
+    // (Prisma rejects the enum) — exercising the catch/tally path.
+    const bad = makeBook({
+      reading: {
+        status: "not_a_status" as BookReadingStatus,
+        rating: null,
+        review: null,
+        finishedAt: null,
+        finishedAtPrecision: null,
+      },
+    });
+
+    const result = await importBookChunk({
+      userId,
+      importId,
+      books: [makeBook(), bad, makeBook()],
+      supabase,
+    });
+
+    expect(result).toMatchObject({ imported: 2, failed: 1, completed: true });
+    expect(trigger).toHaveBeenCalledTimes(2); // only the 2 good books enqueue
+
+    const { read } = await import("@/lib/db");
+    // The bad book's transaction rolled back — only the good ones persisted.
+    expect(await read.item.count({ where: { userId, kind: "book" } })).toBe(2);
+    const row = await importRow(importId);
+    expect(row?.importedCount).toBe(2);
+    expect(row?.failedCount).toBe(1);
+    expect(row?.status).toBe("completed"); // failures still count toward total
   });
 });

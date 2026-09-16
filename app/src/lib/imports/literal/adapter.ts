@@ -73,9 +73,13 @@ export function toNormalizedBook(
   review: LiteralReview | null,
 ): NormalizedBook {
   const book = state.book;
-  const isFinished = state.status === "FINISHED";
-  const finishedRaw =
-    review?.createdAt ?? (isFinished ? state.createdAt : null);
+  // Only terminal shelves have a "finished" date. A review can exist on an active
+  // shelf (rated mid-read), so don't let its date mark a reading/unshelved book as
+  // finished — gate the proxy on FINISHED/DROPPED.
+  const isTerminal = state.status === "FINISHED" || state.status === "DROPPED";
+  const finishedRaw = isTerminal
+    ? (review?.createdAt ?? state.createdAt)
+    : null;
   const finishedAt = finishedRaw ? new Date(finishedRaw) : null;
 
   return {

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { imageSize } from "image-size";
 import { safeFetch } from "@/lib/http/safe-fetch";
 import { generateBlurDataUrl } from "@/lib/image-analysis/blur-placeholder";
-import { getExtensionFromContentType } from "@/lib/url-utils";
+import { imageExtForContentType } from "@/lib/media/rehost-image";
 
 export type StoredCover = {
   fileKey: string;
@@ -43,8 +43,11 @@ export async function downloadAndStoreCover({
     });
     if (!response.ok) return null;
 
+    // Raster allowlist (rejects SVG etc.) — the image proxy serves stored bytes
+    // same-origin, so an SVG cover would become active content. Real boundary.
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().startsWith("image/")) return null;
+    const ext = imageExtForContentType(contentType);
+    if (!ext) return null;
 
     const buffer = Buffer.from(await response.arrayBuffer());
 
@@ -58,7 +61,7 @@ export async function downloadAndStoreCover({
       return null; // bytes aren't a real image despite the content-type
     }
 
-    const fileKey = `${userId}/${randomUUID()}${getExtensionFromContentType(contentType)}`;
+    const fileKey = `${userId}/${randomUUID()}${ext}`;
     const { error } = await supabase.storage
       .from("items")
       .upload(fileKey, buffer, { contentType, upsert: false });

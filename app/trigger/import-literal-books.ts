@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
+import db from "../src/lib/db";
 import { importBookChunk } from "../src/lib/imports/import-book-chunk";
 import {
   hydrateBook,
@@ -52,6 +53,15 @@ export const importLiteralBooksTask = task({
         task: "import-literal-books",
         importId,
       });
+      // Don't leave the import stuck `importing` on an unrecoverable chunk error
+      // (maxAttempts is 1). Mark it failed so it reaches a terminal state and the
+      // user can re-import (best-effort; must not mask the original error).
+      await db.itemImport
+        .updateMany({
+          where: { id: importId, status: "importing" },
+          data: { status: "failed", error: "Import could not be completed" },
+        })
+        .catch(() => {});
       throw error;
     }
   },

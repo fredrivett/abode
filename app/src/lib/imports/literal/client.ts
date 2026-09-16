@@ -80,7 +80,15 @@ async function literalGraphql<T>(
     throw new LiteralApiError(`Literal API returned HTTP ${response.status}`);
   }
 
-  const json = (await response.json()) as GraphqlResponse<T>;
+  let json: GraphqlResponse<T>;
+  try {
+    json = (await response.json()) as GraphqlResponse<T>;
+  } catch {
+    throw new LiteralApiError("Literal API returned a non-JSON response");
+  }
+  if (typeof json !== "object" || json === null) {
+    throw new LiteralApiError("Literal API returned an unexpected response");
+  }
   if (json.errors?.length) {
     throw new LiteralApiError(
       json.errors.map((e) => e.message).join("; ") || "Literal API error",

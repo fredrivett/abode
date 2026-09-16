@@ -90,6 +90,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
         select: { id: true },
       });
+      // Keep the empty import in the funnel: it starts and immediately completes.
+      const posthog = getPostHogClient();
+      posthog?.capture({
+        distinctId: userId,
+        event: "book_import_started",
+        properties: { source: "literal", total: 0 },
+      });
+      posthog?.capture({
+        distinctId: userId,
+        event: "book_import_completed",
+        properties: {
+          source: "literal",
+          total: 0,
+          imported: 0,
+          skipped: 0,
+          failed: 0,
+        },
+      });
       return NextResponse.json(
         { importId: empty.id, total: 0 },
         { status: 200 },
@@ -116,10 +134,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       });
     }
-    await tasks.batchTrigger<typeof importLiteralBooksTask>(
-      "import-literal-books",
-      runs,
-    );
+    try {
+      await tasks.batchTrigger<typeof importLiteralBooksTask>(
+        "import-literal-books",
+        runs,
+      );
+    } catch (error) {
+      // Enqueue failed — don't leave the row stuck `importing` (it would 409
+      // every future attempt). Mark it failed so the user can retry.
+      await db.itemImport
+        .update({
+          where: { id: itemImport.id },
+          data: { status: "failed", error: "Couldn't start the import" },
+        })
+        .catch(() => {});
+      throw error;
+    }
 
     getPostHogClient()?.capture({
       distinctId: userId,
