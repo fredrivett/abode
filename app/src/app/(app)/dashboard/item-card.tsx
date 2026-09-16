@@ -131,6 +131,12 @@ import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
 
+// Sizing for the detail dialog's main image. Shared with the loading skeleton
+// (ItemDialogSkeletonBody) so the seed image and the resolved image occupy the
+// exact same box — keep them identical or the seed→item swap will jump.
+export const DETAIL_IMAGE_CLASSNAME =
+  "max-h-[calc(100vh-2rem)] w-full object-contain md:h-full";
+
 // Detail views render only inside the click-to-expand modal, never in the
 // collapsed grid card. Load them lazily so they stay out of the dashboard
 // grid's initial JS. ssr:false is safe because the modal is client-only.
@@ -2132,7 +2138,7 @@ export function ItemDetailBody({
             <img
               src={fullQualityUrl || previewUrl}
               alt={name}
-              className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
+              className={DETAIL_IMAGE_CLASSNAME}
             />
             {/* Color highlight overlay */}
             {currentProcessingStatus === "completed" &&
