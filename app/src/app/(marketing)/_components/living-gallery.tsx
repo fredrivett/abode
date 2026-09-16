@@ -729,197 +729,214 @@ export function LivingGallery() {
 
       {/* Pinned stage — the wall settles here (vertically centred), then scoots
           left for capture. */}
-      <div
-        className={cn(
-          effectOn
-            ? "sticky top-0 flex h-screen items-center overflow-hidden"
-            : "py-24",
-        )}
-      >
-        {/* `isolate` scopes the wall/column z-ordering to this container, so the
+      <div className={cn(effectOn ? "sticky top-0 h-screen" : "py-24")}>
+        {/* Intro heading — lifted out of the clipped wall stage so it survives
+            any orientation. With the effect on it's an absolute overlay pinned
+            below the sticky header, fading as the capture takes over: the
+            centred wall runs taller than a landscape viewport, so keeping the
+            heading inside that centred, clipped flow pushed it off the top.
+            Off the effect it's a normal heading in flow above the wall. */}
+        <div
+          className={cn(
+            "text-center",
+            effectOn
+              ? "absolute inset-x-0 top-[4.5rem] z-20 mx-auto max-w-xl px-4 [text-shadow:0_1px_3px_var(--background),0_4px_28px_var(--background),0_4px_28px_var(--background)]"
+              : "mx-auto max-w-xl overflow-hidden",
+          )}
+          style={
+            effectOn
+              ? { opacity: clamp01(1 - scoot * 1.7) }
+              : { marginBottom: "3.5rem" }
+          }
+        >
+          <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
+            this is <Highlight>your</Highlight> abode.
+          </h2>
+        </div>
+
+        {/* Wall stage — centres the wall in the viewport and clips it to the
+            frame (the wall runs taller than the viewport), then scoots it left
+            for capture. `isolate` scopes the wall/column z-ordering so the
             wall's z-10 can't escape to compete with the top-section content or
             the sticky header — it only ranks the wall above the capture column. */}
-        <div className="relative isolate mx-auto w-full max-w-6xl px-4">
-          {/* Intro heading — collapses + fades as the capture column takes
-              over, so the wall alone centres. */}
-          <div
-            className="mx-auto max-w-xl overflow-hidden text-center"
-            style={
-              effectOn
-                ? {
-                    opacity: clamp01(1 - scoot * 1.7),
-                    maxHeight: `${(1 - clamp01(scoot * 1.5)) * 8}rem`,
-                    marginBottom: `${(1 - clamp01(scoot * 1.5)) * 3.5}rem`,
-                  }
-                : { marginBottom: "3.5rem" }
-            }
-          >
-            <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
-              this is <Highlight>your</Highlight> abode.
-            </h2>
-          </div>
-
-          {/* The wall — raised above the capture column so the grid overlaps it
+        <div
+          className={cn(effectOn && "flex h-full items-center overflow-hidden")}
+        >
+          <div className="relative isolate mx-auto w-full max-w-6xl px-4">
+            {/* The wall — raised above the capture column so the grid overlaps it
               where they meet during the scoot (the column paints behind). Once
               scooting it goes click-through, so any overlap falls through to the
               capture steps and they stay interactive (z-index alone raises the
               paint order, not the hit-target). Pointer events stay on while
               settled so the cards keep their hover. */}
-          <div
-            className={cn("relative z-10", scoot > 0 && "pointer-events-none")}
-            style={wallStyle}
-          >
-            <BrowserChrome
-              show={showChrome}
-              activeTab={activeTab}
-              extensionActive={showExtensionChrome && popupOpen}
+            <div
+              className={cn(
+                "relative z-10",
+                scoot > 0 && "pointer-events-none",
+              )}
+              style={wallStyle}
             >
-              {effectOn && (
-                <EssayPage show={showExtensionChrome && onEssayTab} />
-              )}
-              {effectOn && (
-                <ExtensionPopup
-                  show={showExtensionChrome && popupOpen}
-                  state={saveState}
-                />
-              )}
-              {effectOn && (
-                <DragDropDemo
-                  show={showDropDemo}
-                  dropping={drop === "dropped"}
-                />
-              )}
-              {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
-              {/* Fixed-height window: once a demo card lands, hold the wall's
-                  height and clip the overflow rather than growing the window. */}
-              <div
-                style={
-                  effectOn && anyCardPresent && gridNatH > 0
-                    ? { height: gridNatH, overflow: "hidden" }
-                    : undefined
-                }
+              <BrowserChrome
+                show={showChrome}
+                activeTab={activeTab}
+                extensionActive={showExtensionChrome && popupOpen}
               >
+                {effectOn && (
+                  <EssayPage show={showExtensionChrome && onEssayTab} />
+                )}
+                {effectOn && (
+                  <ExtensionPopup
+                    show={showExtensionChrome && popupOpen}
+                    state={saveState}
+                  />
+                )}
+                {effectOn && (
+                  <DragDropDemo
+                    show={showDropDemo}
+                    dropping={drop === "dropped"}
+                  />
+                )}
+                {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
+                {/* Fixed-height window: once a demo card lands, hold the wall's
+                  height and clip the overflow rather than growing the window. */}
                 <div
-                  ref={gridRef}
-                  className={cn(
-                    "relative z-10 flex gap-4",
-                    // Chrome gutter only when the effect is on; without it the
-                    // static fallback grid keeps its original edge-to-edge layout.
-                    effectOn && "p-6",
-                    flying && "invisible",
-                  )}
+                  style={
+                    effectOn && anyCardPresent && gridNatH > 0
+                      ? { height: gridNatH, overflow: "hidden" }
+                      : undefined
+                  }
                 >
-                  {columns.map((cardIndices, col) => (
-                    <ul
-                      // biome-ignore lint/suspicious/noArrayIndexKey: fixed column slots
-                      key={col}
-                      className="flex min-w-0 flex-1 flex-col gap-4"
-                    >
-                      {/* Freshly-captured items land at the top of the first
+                  <div
+                    ref={gridRef}
+                    className={cn(
+                      "relative z-10 flex gap-4",
+                      // Chrome gutter only when the effect is on; without it the
+                      // static fallback grid keeps its original edge-to-edge layout.
+                      effectOn && "p-6",
+                      flying && "invisible",
+                    )}
+                  >
+                    {columns.map((cardIndices, col) => (
+                      <ul
+                        // biome-ignore lint/suspicious/noArrayIndexKey: fixed column slots
+                        key={col}
+                        className="flex min-w-0 flex-1 flex-col gap-4"
+                      >
+                        {/* Freshly-captured items land at the top of the first
                           column, newest first, growing in as they arrive (paste,
                           drop, save) and growing out again when scrolled back. */}
-                      {col === 0 && effectOn && pasteCardRendered && (
-                        <GrowInCard card={PASTE_CARD} grown={pasteCardGrown} />
-                      )}
-                      {col === 0 && effectOn && dropCardRendered && (
-                        <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
-                      )}
-                      {col === 0 && effectOn && savedCardRendered && (
-                        <GrowInCard card={SAVED_CARD} grown={savedCardGrown} />
-                      )}
-                      {cardIndices.map((i) => {
-                        const card = GALLERY_CARDS[i];
-                        return (
-                          <li
-                            key={card.id}
-                            ref={(el) => {
-                              liRefs.current[i] = el;
-                            }}
-                            className="group relative"
-                          >
-                            <div
-                              className={cn(faceClass(card), hoverClass(card))}
-                              style={faceStyle(card)}
+                        {col === 0 && effectOn && pasteCardRendered && (
+                          <GrowInCard
+                            card={PASTE_CARD}
+                            grown={pasteCardGrown}
+                          />
+                        )}
+                        {col === 0 && effectOn && dropCardRendered && (
+                          <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
+                        )}
+                        {col === 0 && effectOn && savedCardRendered && (
+                          <GrowInCard
+                            card={SAVED_CARD}
+                            grown={savedCardGrown}
+                          />
+                        )}
+                        {cardIndices.map((i) => {
+                          const card = GALLERY_CARDS[i];
+                          return (
+                            <li
+                              key={card.id}
+                              ref={(el) => {
+                                liRefs.current[i] = el;
+                              }}
+                              className="group relative"
                             >
-                              <CardBody card={card} />
-                              <Intelligence card={card} />
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ))}
+                              <div
+                                className={cn(
+                                  faceClass(card),
+                                  hoverClass(card),
+                                )}
+                                style={faceStyle(card)}
+                              >
+                                <CardBody card={card} />
+                                <Intelligence card={card} />
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </BrowserChrome>
-          </div>
+              </BrowserChrome>
+            </div>
 
-          {/* Capture column — fades/slides in from the right during the scoot.
+            {/* Capture column — fades/slides in from the right during the scoot.
               The wall (raised above it, see the wall wrapper's z-10) overlaps it
               where they meet; the column stays above its parent so the steps are
               still the top hit-target and remain clickable. */}
-          {effectOn && (
-            <div
-              className="pointer-events-auto absolute top-1/2 right-0 w-80"
-              style={{
-                opacity: scoot,
-                transform: `translate(${(1 - scoot) * 32}px, -50%)`,
-              }}
-            >
-              <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
-                save <Highlight>it all.</Highlight>
-              </h3>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                no folders, no filing — just paste, drop, or save.
-              </p>
-              <ol className="mt-8 flex flex-col gap-2">
-                {STEPS.map((step, i) => {
-                  const active = i === activeStep;
-                  const StepIcon = step.icon;
-                  return (
-                    <li key={step.id} className="flex items-stretch gap-3">
-                      <StepRail active={active} progress={stepProgress} />
-                      <button
-                        type="button"
-                        onClick={() => scrollToStep(i)}
-                        className={cn(
-                          "min-w-0 flex-1 cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
-                          active
-                            ? "border-border bg-muted/50"
-                            : "border-transparent opacity-50 hover:opacity-80",
-                        )}
-                      >
-                        <span className="flex items-center gap-2 font-medium text-foreground">
-                          <StepIcon className="size-4 shrink-0 text-muted-foreground" />
-                          {step.label}
-                        </span>
-                        <span
+            {effectOn && (
+              <div
+                className="pointer-events-auto absolute top-1/2 right-0 w-80"
+                style={{
+                  opacity: scoot,
+                  transform: `translate(${(1 - scoot) * 32}px, -50%)`,
+                }}
+              >
+                <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
+                  save <Highlight>it all.</Highlight>
+                </h3>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  no folders, no filing — just paste, drop, or save.
+                </p>
+                <ol className="mt-8 flex flex-col gap-2">
+                  {STEPS.map((step, i) => {
+                    const active = i === activeStep;
+                    const StepIcon = step.icon;
+                    return (
+                      <li key={step.id} className="flex items-stretch gap-3">
+                        <StepRail active={active} progress={stepProgress} />
+                        <button
+                          type="button"
+                          onClick={() => scrollToStep(i)}
                           className={cn(
-                            "mt-1 block text-muted-foreground text-sm leading-snug transition-[max-height,opacity] duration-300",
+                            "min-w-0 flex-1 cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
                             active
-                              ? "max-h-24 opacity-100"
-                              : "max-h-0 overflow-hidden opacity-0",
+                              ? "border-border bg-muted/50"
+                              : "border-transparent opacity-50 hover:opacity-80",
                           )}
                         >
-                          {step.body.includes("{paste}") ? (
-                            <>
-                              <KbdGroup className="align-middle">
-                                <Kbd>{modSym}</Kbd>
-                                <Kbd>V</Kbd>
-                              </KbdGroup>{" "}
-                              {step.body.replace("{paste} ", "")}
-                            </>
-                          ) : (
-                            step.body
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          )}
+                          <span className="flex items-center gap-2 font-medium text-foreground">
+                            <StepIcon className="size-4 shrink-0 text-muted-foreground" />
+                            {step.label}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-1 block text-muted-foreground text-sm leading-snug transition-[max-height,opacity] duration-300",
+                              active
+                                ? "max-h-24 opacity-100"
+                                : "max-h-0 overflow-hidden opacity-0",
+                            )}
+                          >
+                            {step.body.includes("{paste}") ? (
+                              <>
+                                <KbdGroup className="align-middle">
+                                  <Kbd>{modSym}</Kbd>
+                                  <Kbd>V</Kbd>
+                                </KbdGroup>{" "}
+                                {step.body.replace("{paste} ", "")}
+                              </>
+                            ) : (
+                              step.body
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
