@@ -434,6 +434,10 @@ export function validateStatusFilters(filters: FilterValue[]): {
  * SQL predicate (against the `items` table) that matches items in a given
  * cross-kind status. Values are hardcoded per validated StatusValue — no user
  * input reaches the SQL — so no bound params are needed.
+ *
+ * Mirrored in-memory by `matchesStatus` in rooms/room-matcher.ts (room
+ * membership can't run this SQL); the two must agree — a parity test in
+ * room-service.integration.test.ts guards against drift.
  *   - read: an article marked read OR a book with status read.
  *   - reading: a book currently being read (articles are binary read/unread, so
  *     they never qualify).
