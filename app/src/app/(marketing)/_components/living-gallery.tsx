@@ -6,6 +6,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
+import { useDemoSearch } from "./demo-search-context";
 import { DragDropDemo } from "./drag-drop-demo";
 import { EssayPage } from "./essay-page";
 import { ExtensionPopup, type SaveState } from "./extension-popup";
@@ -25,6 +26,11 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeInOut = (t: number) =>
   t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+
+// Highlight ease time constant (ms). Smoothing is derived from the frame delta
+// so the brighten/dim settles at the same speed regardless of refresh rate,
+// matching the time-based drift term rather than easing per frame.
+const HL_EASE_TAU_MS = 130;
 
 // The three ways things get into abode.
 const STEPS = [
@@ -282,6 +288,18 @@ export function LivingGallery() {
   // Current phase of the auto-playing paste vignette.
   const [paste, setPaste] = useState<PastePhase>("idle");
 
+  // Which cards the live demo search is surfacing (from the hero's SearchDemo),
+  // and a per-card eased highlight amount in [-1, 1] the fly loop animates
+  // toward: +1 = a match (brighten + lift), -1 = dimmed while a query is active.
+  const { activeMatchIds } = useDemoSearch();
+  const matchIdsRef = useRef<string[] | null>(null);
+  const hlRef = useRef<number[]>([]);
+  // Timestamp of the previous highlight tick, for a frame-rate-independent ease.
+  const hlTickRef = useRef(0);
+  useEffect(() => {
+    matchIdsRef.current = activeMatchIds;
+  }, [activeMatchIds]);
+
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
   const liRefs = useRef<(HTMLLIElement | null)[]>([]);
@@ -390,6 +408,7 @@ export function LivingGallery() {
   useEffect(() => {
     if (!effectOn || settled) return;
     let raf = 0;
+    hlTickRef.current = 0;
     const tick = (now: number) => {
       const grid = gridRef.current;
       const wrap = wrapperRef.current;
@@ -400,23 +419,47 @@ export function LivingGallery() {
         // does — it rests ~a heading below the viewport top once pinned.
         const secTop = wrap.getBoundingClientRect().top;
         const p = easeInOut(clamp01((vh - secTop) / (vh * 0.85)));
+        // Highlight only reads while the search box is in view (near the hero).
+        const focus = clamp01(1 - p);
+        const matchIds = matchIdsRef.current;
+        const hasQuery = !!matchIds && matchIds.length > 0;
+        // Frame-delta-based ease factor (falls back to ~60fps on the first tick).
+        const dt = hlTickRef.current
+          ? Math.min(100, now - hlTickRef.current)
+          : 16.7;
+        hlTickRef.current = now;
+        const hlK = 1 - Math.exp(-dt / HL_EASE_TAU_MS);
         for (let i = 0; i < GALLERY_CARDS.length; i++) {
           const node = flyRefs.current[i];
           const li = liRefs.current[i];
-          const s = GALLERY_CARDS[i].scatter;
+          const card = GALLERY_CARDS[i];
+          const s = card.scatter;
           if (!node || !li) continue;
           const t = li.getBoundingClientRect();
+          // Ease this card's highlight toward its target (match / dim / neutral).
+          const isMatch = hasQuery && matchIds.includes(card.id);
+          const target = hasQuery ? (isMatch ? 1 : -1) : 0;
+          const prev = hlRef.current[i] ?? 0;
+          const hl = prev + (target - prev) * hlK;
+          hlRef.current[i] = hl;
+          const pos = Math.max(0, hl) * focus; // brighten + lift strength
+          const neg = Math.max(0, -hl) * focus; // dim strength
           const drift = (1 - p) * s.amp * Math.sin(now / s.period + s.phase);
           const x = lerp(s.x * vw, t.left, p);
-          const y = lerp(s.y * vh, t.top, p) + drift;
-          const scale = lerp(s.scale, 1, p);
+          const y = lerp(s.y * vh, t.top, p) + drift - 14 * pos;
+          const scale = lerp(s.scale, 1, p) + 0.08 * pos;
           const rot = lerp(s.rot, 0, p);
-          const blur = lerp(s.blur, 0, p);
+          const blur = lerp(lerp(s.blur, 0, p), 0, pos);
+          let opacity = lerp(s.opacity, 1, p);
+          opacity = lerp(opacity, 1, pos) * lerp(1, 0.3, neg);
+          const filters: string[] = [];
+          if (blur > 0.05) filters.push(`blur(${blur}px)`);
+          if (pos > 0.02) filters.push(`brightness(${1 + 0.12 * pos})`);
           node.style.width = `${t.width}px`;
           node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rot}deg)`;
-          node.style.opacity = `${lerp(s.opacity, 1, p)}`;
-          node.style.filter = blur > 0.05 ? `blur(${blur}px)` : "none";
-          node.style.zIndex = `${s.z}`;
+          node.style.opacity = `${opacity}`;
+          node.style.filter = filters.length ? filters.join(" ") : "none";
+          node.style.zIndex = `${isMatch ? 60 : s.z}`;
         }
       }
       raf = requestAnimationFrame(tick);
