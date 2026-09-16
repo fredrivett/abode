@@ -56,6 +56,7 @@ model User {
   rooms             Room[]
   articleHighlights ArticleHighlight[]
   activityLogs      ActivityLog[]
+  itemImports       ItemImport[]
   milestones        UserMilestone[]
   noteDraft         NoteDraft?
   usageDaily        UsageDaily[]
@@ -824,4 +825,43 @@ model PersonalAccessToken {
 
   @@index([userId])
   @@map("personal_access_tokens")
+}
+
+// Progress/status for a bulk item import (books from literal.club today; future:
+// articles from Pocket, etc.). One row per import run: the background task
+// increments the counters and flips `status` so the UI can show "X of Y" and
+// history. Generic across item kinds — the per-source adapter/writer decides what
+// gets created. RLS-enabled (default-deny) in migration.
+enum ImportStatus {
+  pending
+  importing
+  completed
+  failed
+}
+
+// Where an import pulled from. Only `literal` today; add a value (+ migration)
+// per new source (goodreads, pocket, letterboxd, …).
+enum ImportSource {
+  literal
+}
+
+model ItemImport {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  source        ImportSource
+  status        ImportStatus @default(pending)
+  totalCount    Int          @default(0) @map("total_count")
+  importedCount Int          @default(0) @map("imported_count")
+  skippedCount  Int          @default(0) @map("skipped_count")
+  failedCount   Int          @default(0) @map("failed_count")
+  // Safe, user-facing failure summary (never raw errors/credentials); null unless failed.
+  error         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  completedAt   DateTime?    @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("item_imports")
 }
