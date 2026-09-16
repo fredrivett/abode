@@ -478,6 +478,8 @@ export default async function AdminItemInspectorPage({
                   (item.processingStatus === "processing" ||
                     item.processingStatus === "pending") &&
                     "bg-amber-500/10 text-amber-600",
+                  item.processingStatus === "deferred" &&
+                    "bg-sky-500/10 text-sky-600",
                 )}
               >
                 {item.processingStatus}
