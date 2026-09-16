@@ -755,7 +755,7 @@ export function LivingGallery() {
             className={cn(
               "text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl",
               effectOn &&
-                "inline-block rounded-2xl border border-border/50 bg-background/70 px-6 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
+                "inline-block rounded-2xl border border-border/50 bg-background/90 px-6 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
             )}
           >
             this is <Highlight>your</Highlight> abode.
