@@ -2,6 +2,7 @@
 
 import { DialogTitle } from "@/components/ui/dialog";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { DETAIL_IMAGE_CLASSNAME } from "../item-card";
 import type { OpenItemSeed } from "../item-dialog-context";
 
 /**
@@ -30,7 +31,7 @@ export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
           <img
             src={src}
             alt={seed.title ?? "Loading image"}
-            className="max-h-[calc(100vh-2rem)] w-full object-contain md:h-full"
+            className={DETAIL_IMAGE_CLASSNAME}
           />
         ) : (
           <div className="h-full w-full animate-pulse bg-muted" />
