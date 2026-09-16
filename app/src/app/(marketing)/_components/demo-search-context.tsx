@@ -9,7 +9,11 @@ import {
 } from "react";
 
 type DemoSearchValue = {
-  /** Card ids the currently-held demo query surfaces, or null between queries. */
+  /**
+   * Cards the demo query is surfacing: null = no active query (gallery neutral);
+   * [] = a value is being typed but nothing matches yet (fade everything);
+   * [ids] = these cards match (brighten), the rest fade.
+   */
   activeMatchIds: string[] | null;
   setActiveMatchIds: (ids: string[] | null) => void;
 };

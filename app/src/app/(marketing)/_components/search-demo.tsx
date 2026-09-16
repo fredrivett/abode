@@ -16,9 +16,9 @@ import {
 // visually identical. Queries + which cards they surface live in demo-searches.
 type Token = DemoToken;
 
-// Each frame carries the cards surfaced by the tokens committed so far, so the
-// gallery filters live as the query is built (see matchesForTokens).
-type Frame = {
+// Each frame carries the cards surfaced by the query so far, so the gallery
+// filters live as it's typed (see matchesForTokens / buildFrames).
+export type Frame = {
   committed: Token[];
   typing: string;
   duration: number;
@@ -35,12 +35,12 @@ const EMPTY_PAUSE_MS = 320;
 
 // Precompute the whole cycle as timed frames: type each token char by char,
 // commit it (chips pop), hold the full query, then backspace it away.
-function buildFrames(search: DemoSearch): Frame[] {
+export function buildFrames(search: DemoSearch): Frame[] {
   const frames: Frame[] = [];
   const committed: Token[] = [];
-  // Recomputed only when `committed` changes (a chip pops or is deleted) and the
-  // same reference is reused for every frame in between, so the gallery re-reads
-  // matches on commit boundaries rather than on every typed character.
+  // The same reference is reused for every frame with the same match set, so the
+  // gallery (a context consumer) re-reads matches only when the set actually
+  // changes — once per token as typing starts, not on every typed character.
   let matches = matchesForTokens(committed) ?? undefined;
   const snap = (typing: string, duration: number) =>
     frames.push({
@@ -52,10 +52,18 @@ function buildFrames(search: DemoSearch): Frame[] {
 
   for (const token of search.tokens) {
     const full = token.kind === "chip" ? token.value : token.text;
-    for (let i = 1; i <= full.length; i++) snap(full.slice(0, i), TYPE_MS);
+    // A half-typed value doesn't match yet, so while it's being typed we hold
+    // the matches from the already-committed tokens — or [] (fade everything) if
+    // none — so items fade out as unmatched the moment a value appears. The
+    // match resolves once the word is complete.
+    const partial = matchesForTokens(committed) ?? [];
+    const resolved = matchesForTokens([...committed, token]) ?? undefined;
+    matches = partial;
+    for (let i = 1; i < full.length; i++) snap(full.slice(0, i), TYPE_MS);
+    matches = resolved;
+    snap(full, TYPE_MS); // the last character — the word is now complete
     snap(full, WORD_PAUSE_MS);
     committed.push(token);
-    matches = matchesForTokens(committed) ?? undefined;
     snap("", token.kind === "chip" ? CHIP_POP_MS : COMMIT_MS);
   }
 
