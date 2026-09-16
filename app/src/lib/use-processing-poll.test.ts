@@ -72,6 +72,14 @@ describe("detectProcessingChanges", () => {
     expect(result.finished.map((i) => i.id)).toEqual(["a"]);
   });
 
+  it("does not treat deferred items as finished (parked, resumed by the sweep)", () => {
+    const result = detectProcessingChanges(
+      [item("a", "deferred", "t1")],
+      new Map(),
+    );
+    expect(result.finished).toEqual([]);
+  });
+
   it("flags a change when a URL is classified mid-processing (new kind persisted)", () => {
     // Item was still processing when the grid loaded it (baseline recorded),
     // then classify-url writes `kind: book` and bumps updatedAt — this is the

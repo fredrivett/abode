@@ -338,6 +338,11 @@ export const Failed: Story = {
   render: () => <StateGrid status="failed" />,
 };
 
+/** Parked for budget headroom (e.g. a bulk import) — the "Queued" pill. */
+export const Deferred: Story = {
+  render: () => <StateGrid status="deferred" />,
+};
+
 /** Auto-cycling: watch each kind's Analyzing pill settle as it loads in. */
 export const LoadIn: Story = {
   render: () => <LoadInDemo />,
