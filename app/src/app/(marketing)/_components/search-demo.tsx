@@ -4,34 +4,25 @@ import { Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { FilterChip } from "@/components/search/filter-chip";
 import type { Filter, FilterType } from "@/lib/search/types";
+import { useDemoSearch } from "./demo-search-context";
+import {
+  DEMO_SEARCHES,
+  type DemoSearch,
+  type DemoToken,
+} from "./demo-searches";
 
-// A token is either plain typed text or a value that maps to a real facet
-// (and so pops into a chip on "space"). Only genuine facet values tag-ify —
-// connective words stay as text. Chips render via the app's real FilterChip,
-// so the homepage and product stay visually identical.
-type Token =
-  | { kind: "text"; text: string }
-  | { kind: "chip"; facet: FilterType; value: string };
+// Chips render via the app's real FilterChip so the homepage and product stay
+// visually identical. Queries + which cards they surface live in demo-searches.
+type Token = DemoToken;
 
-const QUERIES: Token[][] = [
-  [
-    { kind: "chip", facet: "color", value: "orange" },
-    { kind: "text", text: "armchair" },
-  ],
-  [
-    { kind: "chip", facet: "location", value: "paris" },
-    { kind: "text", text: "trip" },
-    { kind: "chip", facet: "date", value: "june 2026" },
-  ],
-  [
-    // real ItemKind is "article"; shown plural (label-less) so it reads naturally
-    { kind: "chip", facet: "type", value: "articles" },
-    { kind: "text", text: "on" },
-    { kind: "chip", facet: "tag", value: "typography" },
-  ],
-];
-
-type Frame = { committed: Token[]; typing: string; duration: number };
+// A held query also carries the card ids it surfaces, so the gallery can
+// brighten the matches while the query rests on screen.
+type Frame = {
+  committed: Token[];
+  typing: string;
+  duration: number;
+  activeMatchIds?: string[];
+};
 
 const TYPE_MS = 55;
 const DELETE_MS = 30;
@@ -43,13 +34,18 @@ const EMPTY_PAUSE_MS = 320;
 
 // Precompute the whole cycle as timed frames: type each token char by char,
 // commit it (chips pop), hold the full query, then backspace it away.
-function buildFrames(query: Token[]): Frame[] {
+function buildFrames(search: DemoSearch): Frame[] {
   const frames: Frame[] = [];
   const committed: Token[] = [];
-  const snap = (typing: string, duration: number) =>
-    frames.push({ committed: [...committed], typing, duration });
+  const snap = (typing: string, duration: number, activeMatchIds?: string[]) =>
+    frames.push({
+      committed: [...committed],
+      typing,
+      duration,
+      activeMatchIds,
+    });
 
-  for (const token of query) {
+  for (const token of search.tokens) {
     const full = token.kind === "chip" ? token.value : token.text;
     for (let i = 1; i <= full.length; i++) snap(full.slice(0, i), TYPE_MS);
     snap(full, WORD_PAUSE_MS);
@@ -57,7 +53,8 @@ function buildFrames(query: Token[]): Frame[] {
     snap("", token.kind === "chip" ? CHIP_POP_MS : COMMIT_MS);
   }
 
-  snap("", QUERY_HOLD_MS);
+  // Hold the fully-typed query — the moment the gallery lights up its matches.
+  snap("", QUERY_HOLD_MS, search.matchIds);
 
   while (committed.length > 0) {
     const last = committed[committed.length - 1];
@@ -87,13 +84,20 @@ const tokenKey = (token: Token) =>
     ? `${token.facet}:${token.value}`
     : `text:${token.text}`;
 
-// static state shown when the visitor prefers reduced motion
-const STATIC_FRAME: Frame = { committed: QUERIES[0], typing: "", duration: 0 };
+// static state shown when the visitor prefers reduced motion — the first query,
+// fully typed, with its matches already surfaced
+const STATIC_FRAME: Frame = {
+  committed: DEMO_SEARCHES[0].tokens,
+  typing: "",
+  duration: 0,
+  activeMatchIds: DEMO_SEARCHES[0].matchIds,
+};
 
 export function SearchDemo() {
-  const frames = useMemo(() => QUERIES.flatMap(buildFrames), []);
+  const frames = useMemo(() => DEMO_SEARCHES.flatMap(buildFrames), []);
   const [index, setIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const { setActiveMatchIds } = useDemoSearch();
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -113,6 +117,12 @@ export function SearchDemo() {
   }, [index, frames, reducedMotion]);
 
   const frame = reducedMotion ? STATIC_FRAME : frames[index];
+
+  // Surface the held query's matches to the gallery (null between queries).
+  const activeMatchIds = frame.activeMatchIds ?? null;
+  useEffect(() => {
+    setActiveMatchIds(activeMatchIds);
+  }, [activeMatchIds, setActiveMatchIds]);
 
   return (
     <div className="mx-auto w-full max-w-md">
@@ -143,8 +153,8 @@ export function SearchDemo() {
         </span>
       </div>
       <span className="sr-only">
-        Search abode in plain language — for example: orange armchair; paris
-        trip june 2026; articles on typography.
+        Search abode in plain language — for example: blue computer; vinyl;
+        articles on startups; london 2024.
       </span>
     </div>
   );

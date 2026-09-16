@@ -6,6 +6,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
+import { useDemoSearch } from "./demo-search-context";
 import { DragDropDemo } from "./drag-drop-demo";
 import { EssayPage } from "./essay-page";
 import { ExtensionPopup, type SaveState } from "./extension-popup";
@@ -282,6 +283,16 @@ export function LivingGallery() {
   // Current phase of the auto-playing paste vignette.
   const [paste, setPaste] = useState<PastePhase>("idle");
 
+  // Which cards the live demo search is surfacing (from the hero's SearchDemo),
+  // and a per-card eased highlight amount in [-1, 1] the fly loop animates
+  // toward: +1 = a match (brighten + lift), -1 = dimmed while a query is active.
+  const { activeMatchIds } = useDemoSearch();
+  const matchIdsRef = useRef<string[] | null>(null);
+  const hlRef = useRef<number[]>([]);
+  useEffect(() => {
+    matchIdsRef.current = activeMatchIds;
+  }, [activeMatchIds]);
+
   const wrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLUListElement>(null);
   const liRefs = useRef<(HTMLLIElement | null)[]>([]);
@@ -400,23 +411,41 @@ export function LivingGallery() {
         // does — it rests ~a heading below the viewport top once pinned.
         const secTop = wrap.getBoundingClientRect().top;
         const p = easeInOut(clamp01((vh - secTop) / (vh * 0.85)));
+        // Highlight only reads while the search box is in view (near the hero).
+        const focus = clamp01(1 - p);
+        const matchIds = matchIdsRef.current;
+        const hasQuery = !!matchIds && matchIds.length > 0;
         for (let i = 0; i < GALLERY_CARDS.length; i++) {
           const node = flyRefs.current[i];
           const li = liRefs.current[i];
-          const s = GALLERY_CARDS[i].scatter;
+          const card = GALLERY_CARDS[i];
+          const s = card.scatter;
           if (!node || !li) continue;
           const t = li.getBoundingClientRect();
+          // Ease this card's highlight toward its target (match / dim / neutral).
+          const isMatch = hasQuery && matchIds.includes(card.id);
+          const target = hasQuery ? (isMatch ? 1 : -1) : 0;
+          const hl =
+            (hlRef.current[i] ?? 0) + (target - (hlRef.current[i] ?? 0)) * 0.12;
+          hlRef.current[i] = hl;
+          const pos = Math.max(0, hl) * focus; // brighten + lift strength
+          const neg = Math.max(0, -hl) * focus; // dim strength
           const drift = (1 - p) * s.amp * Math.sin(now / s.period + s.phase);
           const x = lerp(s.x * vw, t.left, p);
-          const y = lerp(s.y * vh, t.top, p) + drift;
-          const scale = lerp(s.scale, 1, p);
+          const y = lerp(s.y * vh, t.top, p) + drift - 14 * pos;
+          const scale = lerp(s.scale, 1, p) + 0.08 * pos;
           const rot = lerp(s.rot, 0, p);
-          const blur = lerp(s.blur, 0, p);
+          const blur = lerp(lerp(s.blur, 0, p), 0, pos);
+          let opacity = lerp(s.opacity, 1, p);
+          opacity = lerp(opacity, 1, pos) * lerp(1, 0.3, neg);
+          const filters: string[] = [];
+          if (blur > 0.05) filters.push(`blur(${blur}px)`);
+          if (pos > 0.02) filters.push(`brightness(${1 + 0.12 * pos})`);
           node.style.width = `${t.width}px`;
           node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rot}deg)`;
-          node.style.opacity = `${lerp(s.opacity, 1, p)}`;
-          node.style.filter = blur > 0.05 ? `blur(${blur}px)` : "none";
-          node.style.zIndex = `${s.z}`;
+          node.style.opacity = `${opacity}`;
+          node.style.filter = filters.length ? filters.join(" ") : "none";
+          node.style.zIndex = `${isMatch ? 60 : s.z}`;
         }
       }
       raf = requestAnimationFrame(tick);
