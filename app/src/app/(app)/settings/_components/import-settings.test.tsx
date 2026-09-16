@@ -42,7 +42,7 @@ const snapshot = (over: Partial<ImportSnapshot> = {}): ImportSnapshot => ({
 describe("ImportSettings", () => {
   beforeEach(() => {
     post.mockReset();
-    useImportPoll.mockReset().mockReturnValue(null);
+    useImportPoll.mockReset().mockReturnValue({ status: null, error: false });
     toastError.mockReset();
   });
 
@@ -86,9 +86,14 @@ describe("ImportSettings", () => {
   });
 
   it("shows a completion summary from the poll", () => {
-    useImportPoll.mockReturnValue(
-      snapshot({ status: "completed", importedCount: 4, skippedCount: 1 }),
-    );
+    useImportPoll.mockReturnValue({
+      status: snapshot({
+        status: "completed",
+        importedCount: 4,
+        skippedCount: 1,
+      }),
+      error: false,
+    });
     render(<ImportSettings initialImport={null} />);
 
     expect(screen.getByText("Import complete")).toBeInTheDocument();
@@ -101,7 +106,7 @@ describe("ImportSettings", () => {
     // The page seeds an active import (with its id), which is what drives the
     // in-progress/disabled state.
     const active = snapshot({ status: "importing" });
-    useImportPoll.mockReturnValue(active);
+    useImportPoll.mockReturnValue({ status: active, error: false });
     render(<ImportSettings initialImport={active} />);
 
     expect(
@@ -111,14 +116,41 @@ describe("ImportSettings", () => {
   });
 
   it("shows the failure reason when the import failed", () => {
-    useImportPoll.mockReturnValue(
-      snapshot({ status: "failed", error: "Import could not be completed" }),
-    );
+    useImportPoll.mockReturnValue({
+      status: snapshot({
+        status: "failed",
+        error: "Import could not be completed",
+      }),
+      error: false,
+    });
     render(<ImportSettings initialImport={null} />);
 
     expect(screen.getByText("Import failed")).toBeInTheDocument();
     expect(
       screen.getByText("Import could not be completed"),
     ).toBeInTheDocument();
+  });
+
+  it("re-enables the form (with a note) when polling can't confirm status", () => {
+    // Repeated poll failures on an active import must not lock the form forever.
+    const active = snapshot({ status: "importing" });
+    useImportPoll.mockReturnValue({ status: active, error: true });
+    render(<ImportSettings initialImport={active} />);
+
+    // Fields are re-enabled (not locked by an unconfirmable in-progress state)...
+    const emailInput = screen.getByLabelText("Literal email");
+    expect(emailInput).not.toBeDisabled();
+    expect(
+      screen.getByText(/couldn't check the import's status/i),
+    ).toBeInTheDocument();
+
+    // ...and once filled, the user can retry (button only gated by field content).
+    fireEvent.change(emailInput, { target: { value: "a@b.c" } });
+    fireEvent.change(screen.getByLabelText("Literal password"), {
+      target: { value: "pw" },
+    });
+    expect(
+      screen.getByRole("button", { name: /import my books/i }),
+    ).not.toBeDisabled();
   });
 });

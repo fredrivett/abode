@@ -26,12 +26,14 @@ export function ImportSettings({
     initialImport?.id ?? null,
   );
 
-  const status = useImportPoll(importId, initialImport);
+  const { status, error: pollError } = useImportPoll(importId, initialImport);
   // In progress from the moment an import id is set until a terminal status
   // arrives — including the gap before the first poll — so the form can't be
-  // resubmitted during an active run.
+  // resubmitted during an active run. If polling can't confirm the status
+  // (repeated failures), re-enable the form so the user isn't stuck.
   const inProgress =
     importId != null &&
+    !pollError &&
     status?.status !== "completed" &&
     status?.status !== "failed";
 
@@ -75,6 +77,13 @@ export function ImportSettings({
       </p>
 
       {status && <ImportProgress status={status} />}
+
+      {pollError && (
+        <p className="mt-4 text-destructive text-sm">
+          Couldn't check the import's status. It may still be running — refresh
+          the page to see the latest.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div className="space-y-2">
