@@ -57,6 +57,31 @@ describe("literalGraphql error handling (via fetchReadingStates)", () => {
     await expect(fetchReadingStates("t")).rejects.toThrow(/no data/i);
   });
 
+  it("throws when the body isn't valid JSON", async () => {
+    safeFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      },
+    });
+    await expect(fetchReadingStates("t")).rejects.toBeInstanceOf(
+      LiteralApiError,
+    );
+    await expect(fetchReadingStates("t")).rejects.toThrow(/non-JSON/i);
+  });
+
+  it("throws when the body is null / not an object", async () => {
+    safeFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => null,
+    });
+    await expect(fetchReadingStates("t")).rejects.toBeInstanceOf(
+      LiteralApiError,
+    );
+  });
+
   it("sends the bearer token", async () => {
     safeFetch.mockResolvedValue(gql({ data: { myReadingStates: [] } }));
     await fetchReadingStates("my-token");
