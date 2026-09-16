@@ -730,33 +730,19 @@ export function LivingGallery() {
       {/* Pinned stage — the wall settles here (vertically centred), then scoots
           left for capture. */}
       <div className={cn(effectOn ? "sticky top-0 h-screen" : "py-24")}>
-        {/* Heading backdrop — a background→transparent band that masks the top
-            strip of the wall behind the heading, so the heading reads over a
-            clean surface instead of overlapping cards (the wall runs taller than
-            a landscape viewport, so it fills up to the top). Fades out with the
-            heading as the capture takes over. */}
-        {effectOn && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-72"
-            style={{
-              opacity: clamp01(1 - scoot * 1.7),
-              background:
-                "linear-gradient(to bottom, var(--background) 0%, var(--background) 62%, transparent 100%)",
-            }}
-          />
-        )}
         {/* Intro heading — lifted out of the clipped wall stage so it survives
             any orientation. With the effect on it's an absolute overlay pinned
             below the sticky header, fading as the capture takes over: the
             centred wall runs taller than a landscape viewport, so keeping the
-            heading inside that centred, clipped flow pushed it off the top.
-            Off the effect it's a normal heading in flow above the wall. */}
+            heading inside that centred, clipped flow pushed it off the top. It
+            sits on its own frosted chip (a rounded backdrop hugging the text,
+            with a shadow for depth) so it reads cleanly over the wall cards it
+            overlaps. Off the effect it's a normal heading in flow above the wall. */}
         <div
           className={cn(
             "text-center",
             effectOn
-              ? "absolute inset-x-0 top-[4.5rem] z-20 mx-auto max-w-xl px-4 [text-shadow:0_1px_3px_var(--background)]"
+              ? "absolute inset-x-0 top-[4.5rem] z-20 px-4"
               : "mx-auto max-w-xl overflow-hidden",
           )}
           style={
@@ -765,7 +751,13 @@ export function LivingGallery() {
               : { marginBottom: "3.5rem" }
           }
         >
-          <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
+          <h2
+            className={cn(
+              "text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl",
+              effectOn &&
+                "inline-block rounded-2xl border border-border/50 bg-background/70 px-6 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
+            )}
+          >
             this is <Highlight>your</Highlight> abode.
           </h2>
         </div>
