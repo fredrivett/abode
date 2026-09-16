@@ -52,67 +52,79 @@ export async function writeImportedBook({
         )
       : book.reading.finishedAt;
 
-  const itemId = await db.$transaction(async (tx) => {
-    const item = await tx.item.create({
-      data: {
-        userId,
-        kind: "book",
-        title: book.title,
-        description: book.description,
-        coverFileKey: cover?.fileKey ?? null,
-        captureSource: "web",
-        processingStatus: "pending",
-        meta: {
-          originalName: book.title,
-          importSource: source,
-          importSourceId: book.sourceId,
-          ...(cover && { coverSize: cover.size }),
+  try {
+    const itemId = await db.$transaction(async (tx) => {
+      const item = await tx.item.create({
+        data: {
+          userId,
+          kind: "book",
+          title: book.title,
+          description: book.description,
+          coverFileKey: cover?.fileKey ?? null,
+          captureSource: "web",
+          processingStatus: "pending",
+          meta: {
+            originalName: book.title,
+            importSource: source,
+            importSourceId: book.sourceId,
+            ...(cover && { coverSize: cover.size }),
+            ...(cover &&
+              cover.width > 0 &&
+              cover.height > 0 && {
+                coverWidth: cover.width,
+                coverHeight: cover.height,
+              }),
+          },
+        },
+        select: { id: true },
+      });
+
+      await tx.itemBookDetails.create({
+        data: {
+          itemId: item.id,
+          authors: book.authors,
+          publisher: book.publisher,
+          publishedAt: book.publishedAt,
+          isbn: book.isbn,
+          pageCount: book.pageCount,
+          status: book.reading.status,
+          rating: book.reading.rating,
+          review: book.reading.review,
+          finishedAt,
+          finishedAtPrecision: book.reading.finishedAtPrecision,
+        },
+      });
+
+      if (cover?.blurDataUrl) {
+        await tx.itemImageDetails.create({
+          data: { itemId: item.id, blurDataUrl: cover.blurDataUrl },
+        });
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          itemCount: { increment: 1 },
           ...(cover &&
-            cover.width > 0 &&
-            cover.height > 0 && {
-              coverWidth: cover.width,
-              coverHeight: cover.height,
+            cover.size > 0 && {
+              storageUsedBytes: { increment: cover.size },
             }),
         },
-      },
-      select: { id: true },
-    });
-
-    await tx.itemBookDetails.create({
-      data: {
-        itemId: item.id,
-        authors: book.authors,
-        publisher: book.publisher,
-        publishedAt: book.publishedAt,
-        isbn: book.isbn,
-        pageCount: book.pageCount,
-        status: book.reading.status,
-        rating: book.reading.rating,
-        review: book.reading.review,
-        finishedAt,
-        finishedAtPrecision: book.reading.finishedAtPrecision,
-      },
-    });
-
-    if (cover?.blurDataUrl) {
-      await tx.itemImageDetails.create({
-        data: { itemId: item.id, blurDataUrl: cover.blurDataUrl },
       });
-    }
 
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        itemCount: { increment: 1 },
-        ...(cover &&
-          cover.size > 0 && {
-            storageUsedBytes: { increment: cover.size },
-          }),
-      },
+      return item.id;
     });
 
-    return item.id;
-  });
-
-  return { status: "created", itemId };
+    return { status: "created", itemId };
+  } catch (error) {
+    // The cover was uploaded before the transaction; if the write fails, remove
+    // the now-orphaned blob (best-effort) before rethrowing so it isn't leaked.
+    if (cover) {
+      await supabase.storage
+        .from("items")
+        .remove([cover.fileKey])
+        .catch(() => {});
+    }
+    throw error;
+  }
 }
