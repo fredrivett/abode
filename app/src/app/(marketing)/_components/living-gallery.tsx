@@ -422,7 +422,8 @@ export function LivingGallery() {
         // Highlight only reads while the search box is in view (near the hero).
         const focus = clamp01(1 - p);
         const matchIds = matchIdsRef.current;
-        const hasQuery = !!matchIds && matchIds.length > 0;
+        // null = no active query (neutral); [] = a value is being typed but
+        // nothing has matched yet (fade everything); [ids] = these match, rest fade.
         // Frame-delta-based ease factor (falls back to ~60fps on the first tick).
         const dt = hlTickRef.current
           ? Math.min(100, now - hlTickRef.current)
@@ -437,8 +438,8 @@ export function LivingGallery() {
           if (!node || !li) continue;
           const t = li.getBoundingClientRect();
           // Ease this card's highlight toward its target (match / dim / neutral).
-          const isMatch = hasQuery && matchIds.includes(card.id);
-          const target = hasQuery ? (isMatch ? 1 : -1) : 0;
+          const isMatch = matchIds?.includes(card.id) ?? false;
+          const target = matchIds === null ? 0 : isMatch ? 1 : -1;
           const prev = hlRef.current[i] ?? 0;
           const hl = prev + (target - prev) * hlK;
           hlRef.current[i] = hl;

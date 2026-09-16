@@ -52,10 +52,16 @@ export function buildFrames(search: DemoSearch): Frame[] {
 
   for (const token of search.tokens) {
     const full = token.kind === "chip" ? token.value : token.text;
-    // The in-progress token filters from its first keypress — results narrow as
-    // you type, not only once the chip commits (its value is known up front).
-    matches = matchesForTokens([...committed, token]) ?? undefined;
-    for (let i = 1; i <= full.length; i++) snap(full.slice(0, i), TYPE_MS);
+    // A half-typed value doesn't match yet, so while it's being typed we hold
+    // the matches from the already-committed tokens — or [] (fade everything) if
+    // none — so items fade out as unmatched the moment a value appears. The
+    // match resolves once the word is complete.
+    const partial = matchesForTokens(committed) ?? [];
+    const resolved = matchesForTokens([...committed, token]) ?? undefined;
+    matches = partial;
+    for (let i = 1; i < full.length; i++) snap(full.slice(0, i), TYPE_MS);
+    matches = resolved;
+    snap(full, TYPE_MS); // the last character — the word is now complete
     snap(full, WORD_PAUSE_MS);
     committed.push(token);
     snap("", token.kind === "chip" ? CHIP_POP_MS : COMMIT_MS);
