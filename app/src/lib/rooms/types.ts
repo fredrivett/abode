@@ -7,6 +7,8 @@
 
 import type {
   Item,
+  ItemArticleDetails,
+  ItemBookDetails,
   ItemImageDetails,
   ItemLocation,
   Room,
@@ -19,6 +21,8 @@ import type { Filter } from "@/lib/search/types";
  */
 export type ItemWithDetails = Item & {
   imageDetails: ItemImageDetails | null;
+  bookDetails: ItemBookDetails | null;
+  articleDetails: ItemArticleDetails | null;
   locations: ItemLocation[];
 };
 
