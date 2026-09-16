@@ -9,14 +9,15 @@ import {
   DEMO_SEARCHES,
   type DemoSearch,
   type DemoToken,
+  matchesForTokens,
 } from "./demo-searches";
 
 // Chips render via the app's real FilterChip so the homepage and product stay
 // visually identical. Queries + which cards they surface live in demo-searches.
 type Token = DemoToken;
 
-// A held query also carries the card ids it surfaces, so the gallery can
-// brighten the matches while the query rests on screen.
+// Each frame carries the cards surfaced by the tokens committed so far, so the
+// gallery filters live as the query is built (see matchesForTokens).
 type Frame = {
   committed: Token[];
   typing: string;
@@ -37,12 +38,16 @@ const EMPTY_PAUSE_MS = 320;
 function buildFrames(search: DemoSearch): Frame[] {
   const frames: Frame[] = [];
   const committed: Token[] = [];
-  const snap = (typing: string, duration: number, activeMatchIds?: string[]) =>
+  // Recomputed only when `committed` changes (a chip pops or is deleted) and the
+  // same reference is reused for every frame in between, so the gallery re-reads
+  // matches on commit boundaries rather than on every typed character.
+  let matches = matchesForTokens(committed) ?? undefined;
+  const snap = (typing: string, duration: number) =>
     frames.push({
       committed: [...committed],
       typing,
       duration,
-      activeMatchIds,
+      activeMatchIds: matches,
     });
 
   for (const token of search.tokens) {
@@ -50,15 +55,17 @@ function buildFrames(search: DemoSearch): Frame[] {
     for (let i = 1; i <= full.length; i++) snap(full.slice(0, i), TYPE_MS);
     snap(full, WORD_PAUSE_MS);
     committed.push(token);
+    matches = matchesForTokens(committed) ?? undefined;
     snap("", token.kind === "chip" ? CHIP_POP_MS : COMMIT_MS);
   }
 
-  // Hold the fully-typed query — the moment the gallery lights up its matches.
-  snap("", QUERY_HOLD_MS, search.matchIds);
+  // Hold the fully-typed query — the narrowed-down matches rest on screen.
+  snap("", QUERY_HOLD_MS);
 
   while (committed.length > 0) {
     const last = committed[committed.length - 1];
     committed.pop();
+    matches = matchesForTokens(committed) ?? undefined;
     if (last.kind === "text") {
       for (let i = last.text.length - 1; i >= 0; i--) {
         snap(last.text.slice(0, i), DELETE_MS);
@@ -90,7 +97,7 @@ const STATIC_FRAME: Frame = {
   committed: DEMO_SEARCHES[0].tokens,
   typing: "",
   duration: 0,
-  activeMatchIds: DEMO_SEARCHES[0].matchIds,
+  activeMatchIds: matchesForTokens(DEMO_SEARCHES[0].tokens) ?? undefined,
 };
 
 export function SearchDemo() {

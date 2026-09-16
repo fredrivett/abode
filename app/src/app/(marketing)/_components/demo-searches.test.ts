@@ -1,62 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_SEARCHES } from "./demo-searches";
-import { GALLERY_CARDS, type GalleryCard } from "./gallery-data";
+import { DEMO_SEARCHES, matchesForTokens } from "./demo-searches";
+import { GALLERY_CARDS } from "./gallery-data";
 
-const byId = new Map<string, GalleryCard>(GALLERY_CARDS.map((c) => [c.id, c]));
+const ids = new Set(GALLERY_CARDS.map((c) => c.id));
 
-// Does a card's auto-derived insight genuinely contain this grounded facet
-// value? Grounded (chip) facets must be truthful — the same contract the real
-// search bar holds; free text is semantic and intentionally not checked here.
-function cardGrounds(card: GalleryCard, facet: string, value: string): boolean {
-  const { kindLabel, tags, colors, objects, location, date } = card.insight;
-  switch (facet) {
-    case "type":
-      // demo shows the plural, label-less form ("articles"); kind is singular
-      return kindLabel === value.replace(/s$/, "");
-    case "tag":
-      return tags.includes(value);
-    case "color":
-      return !!colors?.some((c) => c.name === value);
-    case "object":
-      return !!objects?.includes(value);
-    case "location":
-      return location === value;
-    case "date":
-      return !!date?.includes(value);
-    default:
-      return false;
-  }
-}
+// The set surfaced when the whole query is typed.
+const finalMatches = (i: number) =>
+  matchesForTokens(DEMO_SEARCHES[i].tokens) ?? [];
 
 describe("DEMO_SEARCHES", () => {
-  it("every search surfaces at least one card", () => {
-    for (const search of DEMO_SEARCHES) {
-      expect(search.matchIds.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("every matched id refers to a real gallery card", () => {
-    for (const search of DEMO_SEARCHES) {
-      for (const id of search.matchIds) {
-        expect(byId.has(id), `unknown card id: ${id}`).toBe(true);
+  it("every search surfaces at least one real card when fully typed", () => {
+    DEMO_SEARCHES.forEach((_, i) => {
+      const match = finalMatches(i);
+      expect(match.length, `search ${i} surfaces nothing`).toBeGreaterThan(0);
+      for (const id of match) {
+        expect(ids.has(id), `search ${i}: unknown card ${id}`).toBe(true);
       }
-    }
+    });
   });
 
-  it("chip (grounded) values are truthful to the cards they surface", () => {
-    for (const search of DEMO_SEARCHES) {
-      for (const token of search.tokens) {
-        if (token.kind !== "chip") continue;
-        for (const id of search.matchIds) {
-          const card = byId.get(id);
-          expect(card).toBeDefined();
-          if (!card) continue;
+  it("never narrows to zero mid-query (each committed prefix stays non-empty)", () => {
+    for (const [i, search] of DEMO_SEARCHES.entries()) {
+      for (let n = 1; n <= search.tokens.length; n++) {
+        const match = matchesForTokens(search.tokens.slice(0, n));
+        // null = nothing filtering committed yet (fine); a set must be non-empty
+        if (match !== null) {
           expect(
-            cardGrounds(card, token.facet, token.value),
-            `card "${id}" should ground ${token.facet}:${token.value}`,
-          ).toBe(true);
+            match.length,
+            `search ${i} dims to zero after ${n} token(s)`,
+          ).toBeGreaterThan(0);
         }
       }
     }
+  });
+
+  it("filters progressively as chips commit", () => {
+    // [blue] lights the iMac and the blue-glass building shot; [computer] narrows
+    const blue = matchesForTokens([DEMO_SEARCHES[0].tokens[0]]) ?? [];
+    expect(blue).toEqual(expect.arrayContaining(["imac-g3", "red-arch"]));
+    expect(finalMatches(0)).toEqual(["imac-g3"]);
+
+    // [london] lights both photos; [2024] narrows to the 2024 one
+    const london = matchesForTokens([DEMO_SEARCHES[3].tokens[0]]) ?? [];
+    expect(london).toEqual(expect.arrayContaining(["red-arch", "city-sunset"]));
+    expect(finalMatches(3)).toEqual(["red-arch"]);
+  });
+
+  it("surfaces the curated set for the semantic (free-text) query", () => {
+    expect(finalMatches(1)).toEqual(["tiny-desk", "turntable"]);
   });
 });
