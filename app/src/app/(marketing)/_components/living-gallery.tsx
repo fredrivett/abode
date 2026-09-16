@@ -27,6 +27,11 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeInOut = (t: number) =>
   t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
 
+// Highlight ease time constant (ms). Smoothing is derived from the frame delta
+// so the brighten/dim settles at the same speed regardless of refresh rate,
+// matching the time-based drift term rather than easing per frame.
+const HL_EASE_TAU_MS = 130;
+
 // The three ways things get into abode.
 const STEPS = [
   {
@@ -289,6 +294,8 @@ export function LivingGallery() {
   const { activeMatchIds } = useDemoSearch();
   const matchIdsRef = useRef<string[] | null>(null);
   const hlRef = useRef<number[]>([]);
+  // Timestamp of the previous highlight tick, for a frame-rate-independent ease.
+  const hlTickRef = useRef(0);
   useEffect(() => {
     matchIdsRef.current = activeMatchIds;
   }, [activeMatchIds]);
@@ -401,6 +408,7 @@ export function LivingGallery() {
   useEffect(() => {
     if (!effectOn || settled) return;
     let raf = 0;
+    hlTickRef.current = 0;
     const tick = (now: number) => {
       const grid = gridRef.current;
       const wrap = wrapperRef.current;
@@ -415,6 +423,12 @@ export function LivingGallery() {
         const focus = clamp01(1 - p);
         const matchIds = matchIdsRef.current;
         const hasQuery = !!matchIds && matchIds.length > 0;
+        // Frame-delta-based ease factor (falls back to ~60fps on the first tick).
+        const dt = hlTickRef.current
+          ? Math.min(100, now - hlTickRef.current)
+          : 16.7;
+        hlTickRef.current = now;
+        const hlK = 1 - Math.exp(-dt / HL_EASE_TAU_MS);
         for (let i = 0; i < GALLERY_CARDS.length; i++) {
           const node = flyRefs.current[i];
           const li = liRefs.current[i];
@@ -425,8 +439,8 @@ export function LivingGallery() {
           // Ease this card's highlight toward its target (match / dim / neutral).
           const isMatch = hasQuery && matchIds.includes(card.id);
           const target = hasQuery ? (isMatch ? 1 : -1) : 0;
-          const hl =
-            (hlRef.current[i] ?? 0) + (target - (hlRef.current[i] ?? 0)) * 0.12;
+          const prev = hlRef.current[i] ?? 0;
+          const hl = prev + (target - prev) * hlK;
           hlRef.current[i] = hl;
           const pos = Math.max(0, hl) * focus; // brighten + lift strength
           const neg = Math.max(0, -hl) * focus; // dim strength
