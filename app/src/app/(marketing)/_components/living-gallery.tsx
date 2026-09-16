@@ -71,6 +71,15 @@ export function stepFromCap(cap: number): { index: number; progress: number } {
   return { index, progress: clamp01(raw - index) };
 }
 
+// Media query gating the fly-in + capture choreography. It lays the wall and a
+// 320px capture column out side by side, so it needs real horizontal room —
+// below this width they collide into a cramped, overlapping mess (what a phone
+// showed). Width is gated directly rather than via orientation: it measures the
+// available room, so a wide viewport qualifies in any orientation and a narrow
+// one never does. The cursor-driven touches (hover spotlights, per-card
+// highlight) simply stay dormant on touch, so roomy tablets still get the wall.
+export const CHOREOGRAPHY_MEDIA_QUERY = "(min-width: 1024px)";
+
 // The "save from anywhere" (browser extension) step — its demo frames the wall.
 const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
 
@@ -327,14 +336,14 @@ export function LivingGallery() {
   useEffect(() => {
     setModSym(getModifierKeySymbol());
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const wide = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setEffectOn(wide.matches && !reduce.matches);
+    const desktop = window.matchMedia(CHOREOGRAPHY_MEDIA_QUERY);
+    const sync = () => setEffectOn(desktop.matches && !reduce.matches);
     sync();
     reduce.addEventListener("change", sync);
-    wide.addEventListener("change", sync);
+    desktop.addEventListener("change", sync);
     return () => {
       reduce.removeEventListener("change", sync);
-      wide.removeEventListener("change", sync);
+      desktop.removeEventListener("change", sync);
     };
   }, []);
 

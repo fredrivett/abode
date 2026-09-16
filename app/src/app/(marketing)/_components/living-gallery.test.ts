@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stepFromCap } from "./living-gallery";
+import { CHOREOGRAPHY_MEDIA_QUERY, stepFromCap } from "./living-gallery";
 
 // Capture-phase constants mirrored from the component under test.
 const SCOOT_FRAC = 0.22;
@@ -28,5 +28,19 @@ describe("stepFromCap", () => {
     const end = stepFromCap(1);
     expect(end.index).toBe(STEP_COUNT - 1);
     expect(end.progress).toBeCloseTo(1, 5);
+  });
+});
+
+describe("CHOREOGRAPHY_MEDIA_QUERY", () => {
+  // The wall + capture column only fit side by side above this width; below it
+  // they collide, so narrow viewports must fall back to the static grid.
+  it("requires a wide viewport", () => {
+    expect(CHOREOGRAPHY_MEDIA_QUERY).toContain("(min-width: 1024px)");
+  });
+
+  // Width measures the available room directly, so the gate stays orientation-
+  // agnostic — a roomy tablet qualifies whichever way it's held.
+  it("does not gate on orientation", () => {
+    expect(CHOREOGRAPHY_MEDIA_QUERY).not.toContain("orientation");
   });
 });
