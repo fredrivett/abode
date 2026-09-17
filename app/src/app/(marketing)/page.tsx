@@ -27,7 +27,7 @@ export default function Home() {
             </h1>
             <OwnershipCallout />
           </div>
-          <p className="mt-6 font-medium text-foreground text-xl sm:text-2xl">
+          <p className="mt-6 text-balance font-medium text-foreground text-xl sm:text-2xl">
             save everything. sort nothing. own it all.
           </p>
           <p className="mt-5 max-w-xl text-balance text-lg text-muted-foreground leading-relaxed">
