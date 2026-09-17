@@ -1,3 +1,4 @@
+import type { ItemKind } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
@@ -13,6 +14,8 @@ export type SimilarImageItem = {
   id: string;
   fileKey: string | null;
   title: string | null;
+  /** Item kind, so the detail dialog knows whether the cover is the full view. */
+  kind: ItemKind | null;
   /** Tiny LQIP data URL for the cover, for the blur-up load treatment. */
   blurDataUrl: string | null;
   similarity: number;
@@ -78,6 +81,7 @@ export async function GET(
         fileKey: true,
         coverFileKey: true,
         title: true,
+        kind: true,
         imageDetails: { select: { blurDataUrl: true } },
         mediaAnalyses: { select: { fileKey: true, blurDataUrl: true } },
       },
@@ -98,6 +102,7 @@ export async function GET(
           id: row.id,
           fileKey,
           title: row.title,
+          kind: row.kind,
           blurDataUrl,
           similarity: match.similarity,
         },

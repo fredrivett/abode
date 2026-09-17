@@ -1,5 +1,6 @@
 "use client";
 
+import type { ItemKind } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
 import {
   createContext,
@@ -20,13 +21,21 @@ import { useOpenItemTabTitle } from "./use-open-item-tab-title";
 /**
  * Just-enough item data to paint the detail dialog immediately while the full
  * item loads — carried from the click that opened an item outside the loaded
- * grid (e.g. a "similar images" thumbnail), so the dialog shows the image and
- * title straight away instead of a blank shell.
+ * grid (e.g. a "similar images" thumbnail), so the dialog shows the title (and,
+ * for image-like kinds, the cover) straight away instead of a blank shell.
  */
 export type OpenItemSeed = {
   id: string;
   imageFileKey: string | null;
   title: string | null;
+  /**
+   * Target kind, so the loading body only shows the seed cover full-width when
+   * it *is* the final view (image/webpage). For other kinds the cover is just a
+   * thumbnail of something that renders differently (e.g. a tweet), so painting
+   * it full-width then swapping to the real view is jarring — show a neutral
+   * loading pane instead.
+   */
+  kind: ItemKind | null;
   blurDataUrl: string | null;
 };
 
