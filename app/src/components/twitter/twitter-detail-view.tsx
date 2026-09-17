@@ -43,13 +43,20 @@ export function TwitterDetailView({
     card,
   } = twitterDetails;
 
+  // Prefer our re-hosted avatar copy, falling back to the original twimg URL
+  const authorAvatarSrc = twitterImageSrc(
+    twitterDetails.authorAvatarFileKey,
+    authorAvatarUrl,
+    "thumb",
+  );
+
+  const profileUrl = `https://x.com/${authorUsername}`;
   // Only trust a stored sourceUrl if it's a real http(s) URL; otherwise fall
   // back to the derived tweet URL so the link can't navigate somewhere unsafe.
   const tweetUrl =
     sourceUrl && isValidUrl(sourceUrl)
       ? sourceUrl
-      : `https://x.com/${authorUsername}/status/${tweetId}`;
-  const profileUrl = `https://x.com/${authorUsername}`;
+      : `${profileUrl}/status/${tweetId}`;
 
   return (
     <div
@@ -67,11 +74,11 @@ export function TwitterDetailView({
             rel="noopener noreferrer"
             className="flex items-center gap-3 transition-opacity hover:opacity-80"
           >
-            {authorAvatarUrl ? (
+            {authorAvatarSrc ? (
               // Decorative: the author name renders as visible text alongside
               // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
               <img
-                src={authorAvatarUrl}
+                src={authorAvatarSrc}
                 alt=""
                 className="size-12 rounded-full"
                 loading="lazy"
