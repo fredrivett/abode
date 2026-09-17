@@ -84,6 +84,7 @@ export function SimilarImages({ itemId, enabled }: SimilarImagesProps) {
                     id: item.id,
                     imageFileKey: item.fileKey,
                     title: item.title ?? null,
+                    kind: item.kind,
                     blurDataUrl: item.blurDataUrl ?? null,
                   });
                 }
