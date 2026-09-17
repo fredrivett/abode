@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { stepFromCap } from "./living-gallery";
+import { GALLERY_CARDS } from "./gallery-data";
+import {
+  CHOREOGRAPHY_MEDIA_QUERY,
+  distributeToColumns,
+  stepFromCap,
+} from "./living-gallery";
 
 // Capture-phase constants mirrored from the component under test.
 const SCOOT_FRAC = 0.22;
@@ -28,5 +33,43 @@ describe("stepFromCap", () => {
     const end = stepFromCap(1);
     expect(end.index).toBe(STEP_COUNT - 1);
     expect(end.progress).toBeCloseTo(1, 5);
+  });
+});
+
+describe("CHOREOGRAPHY_MEDIA_QUERY", () => {
+  // The wall + capture column only fit side by side above this width; below it
+  // they collide, so narrow viewports must fall back to the static grid.
+  it("requires a wide viewport", () => {
+    expect(CHOREOGRAPHY_MEDIA_QUERY).toContain("(min-width: 1024px)");
+  });
+
+  // Width measures the available room directly, so the gate stays orientation-
+  // agnostic — a roomy tablet qualifies whichever way it's held.
+  it("does not gate on orientation", () => {
+    expect(CHOREOGRAPHY_MEDIA_QUERY).not.toContain("orientation");
+  });
+});
+
+describe("distributeToColumns", () => {
+  // Replaces CSS `columns` (which WebKit mis-paints) with a deterministic split,
+  // so every card must land in exactly one column and the counts must be stable.
+  for (const count of [2, 3]) {
+    it(`splits every card across ${count} columns exactly once`, () => {
+      const columns = distributeToColumns(GALLERY_CARDS, count);
+      expect(columns).toHaveLength(count);
+      const indices = columns.flat().sort((a, b) => a - b);
+      expect(indices).toEqual(GALLERY_CARDS.map((_, i) => i));
+    });
+  }
+
+  it("is deterministic — server and client render the same split", () => {
+    expect(distributeToColumns(GALLERY_CARDS, 3)).toEqual(
+      distributeToColumns(GALLERY_CARDS, 3),
+    );
+  });
+
+  it("fills columns before the last is empty (no wasted column)", () => {
+    const columns = distributeToColumns(GALLERY_CARDS, 3);
+    expect(columns.every((c) => c.length > 0)).toBe(true);
   });
 });

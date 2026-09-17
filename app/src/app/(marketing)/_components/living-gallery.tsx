@@ -71,6 +71,15 @@ export function stepFromCap(cap: number): { index: number; progress: number } {
   return { index, progress: clamp01(raw - index) };
 }
 
+// Media query gating the fly-in + capture choreography. It lays the wall and a
+// 320px capture column out side by side, so it needs real horizontal room —
+// below this width they collide into a cramped, overlapping mess (what a phone
+// showed). Width is gated directly rather than via orientation: it measures the
+// available room, so a wide viewport qualifies in any orientation and a narrow
+// one never does. The cursor-driven touches (hover spotlights, per-card
+// highlight) simply stay dormant on touch, so roomy tablets still get the wall.
+export const CHOREOGRAPHY_MEDIA_QUERY = "(min-width: 1024px)";
+
 // The "save from anywhere" (browser extension) step — its demo frames the wall.
 const EXTENSION_STEP = STEPS.findIndex((s) => s.id === "clip");
 
@@ -240,7 +249,7 @@ function useLandedLatch(landed: boolean, active: boolean) {
 // box is pinned so it lays out once instead of reflowing on every frame.
 function GrowInCard({ card, grown }: { card: GalleryCard; grown: boolean }) {
   return (
-    <li className="group relative break-inside-avoid">
+    <li className="group relative">
       <div
         className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
         style={{
@@ -260,6 +269,52 @@ function GrowInCard({ card, grown }: { card: GalleryCard; grown: boolean }) {
       </div>
     </li>
   );
+}
+
+// Rough relative height of a card at a column's width, in arbitrary units
+// proportional to how tall it renders. Media cards derive from their aspect
+// ratio; text cards from their content length. Only used to balance the masonry
+// columns, so exactness doesn't matter — it just keeps the columns roughly even.
+function estimateCardHeight(card: GalleryCard): number {
+  switch (card.kind) {
+    case "image":
+      return card.height / card.width;
+    case "book":
+      return 1.46; // BOOK_TILE_ASPECT (1 / 1.46)
+    case "video":
+      return 0.9; // 16:9 thumbnail + caption
+    case "product":
+      return 1.6; // square image + brand/title/price footer
+    case "article":
+      return 0.9; // 1.91:1 header + link footer
+    case "tweet":
+      return 0.6 + card.text.length / 120;
+    case "note":
+      return 0.4 + card.body.length / 90;
+  }
+}
+
+// Deterministic masonry: walk the cards in order, dropping each into the
+// currently-shortest column (running height from estimateCardHeight). Returns
+// the card indices per column. Being a pure function of the card list + column
+// count, server and client agree, and it renders identically across engines —
+// unlike CSS `columns`, which WebKit mis-paints (collapses/seams) when card
+// faces establish a 3D context.
+export function distributeToColumns(
+  cards: GalleryCard[],
+  columnCount: number,
+): number[][] {
+  const columns: number[][] = Array.from({ length: columnCount }, () => []);
+  const heights = new Array<number>(columnCount).fill(0);
+  cards.forEach((card, i) => {
+    let shortest = 0;
+    for (let c = 1; c < columnCount; c++) {
+      if (heights[c] < heights[shortest]) shortest = c;
+    }
+    columns[shortest].push(i);
+    heights[shortest] += estimateCardHeight(card);
+  });
+  return columns;
 }
 
 export function LivingGallery() {
@@ -287,6 +342,9 @@ export function LivingGallery() {
   const [drop, setDrop] = useState<DropPhase>("idle");
   // Current phase of the auto-playing paste vignette.
   const [paste, setPaste] = useState<PastePhase>("idle");
+  // Masonry column count: 2 on mobile, 3 from `sm` up (mirrors the old
+  // `columns-2 sm:columns-3`). Default 2 so SSR matches the mobile-first render.
+  const [columnCount, setColumnCount] = useState(2);
 
   // Which cards the live demo search is surfacing (from the hero's SearchDemo),
   // and a per-card eased highlight amount in [-1, 1] the fly loop animates
@@ -301,7 +359,7 @@ export function LivingGallery() {
   }, [activeMatchIds]);
 
   const wrapperRef = useRef<HTMLElement>(null);
-  const gridRef = useRef<HTMLUListElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const liRefs = useRef<(HTMLLIElement | null)[]>([]);
   const flyRefs = useRef<(HTMLDivElement | null)[]>([]);
   const settledRef = useRef(false);
@@ -327,15 +385,25 @@ export function LivingGallery() {
   useEffect(() => {
     setModSym(getModifierKeySymbol());
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const wide = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setEffectOn(wide.matches && !reduce.matches);
+    const desktop = window.matchMedia(CHOREOGRAPHY_MEDIA_QUERY);
+    const sync = () => setEffectOn(desktop.matches && !reduce.matches);
     sync();
     reduce.addEventListener("change", sync);
-    wide.addEventListener("change", sync);
+    desktop.addEventListener("change", sync);
     return () => {
       reduce.removeEventListener("change", sync);
-      wide.removeEventListener("change", sync);
+      desktop.removeEventListener("change", sync);
     };
+  }, []);
+
+  // Track the masonry column count off the `sm` breakpoint (mirrors the old
+  // `columns-2 sm:columns-3`), so distributeToColumns packs the right number.
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 640px)");
+    const sync = () => setColumnCount(wide.matches ? 3 : 2);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
   }, []);
 
   // Scroll handler: drives the capture phase (scoot + active step) once the wall
@@ -626,6 +694,11 @@ export function LivingGallery() {
       }
     : undefined;
 
+  // Deterministic masonry columns (replaces CSS `columns`, which WebKit
+  // mis-paints). Demo cards land at the top of the first column; gallery cards
+  // are balanced across the rest.
+  const columns = distributeToColumns(GALLERY_CARDS, columnCount);
+
   return (
     <section ref={wrapperRef} className="relative w-full">
       {/* Flying overlay — mirrors each grid card while it drifts in from the
@@ -656,188 +729,222 @@ export function LivingGallery() {
 
       {/* Pinned stage — the wall settles here (vertically centred), then scoots
           left for capture. */}
-      <div
-        className={cn(
-          effectOn
-            ? "sticky top-0 flex h-screen items-center overflow-hidden"
-            : "py-24",
-        )}
-      >
-        {/* `isolate` scopes the wall/column z-ordering to this container, so the
+      <div className={cn(effectOn ? "sticky top-0 h-screen" : "py-24")}>
+        {/* Intro heading — lifted out of the clipped wall stage so it survives
+            any orientation. With the effect on it's an absolute overlay pinned
+            below the sticky header, fading as the capture takes over: the
+            centred wall runs taller than a landscape viewport, so keeping the
+            heading inside that centred, clipped flow pushed it off the top. It
+            sits on its own frosted chip (a rounded backdrop hugging the text,
+            with a shadow for depth) so it reads cleanly over the wall cards it
+            overlaps. Off the effect it's a normal heading in flow above the wall. */}
+        <div
+          className={cn(
+            "text-center",
+            effectOn
+              ? "absolute inset-x-0 top-[4.5rem] z-20 px-4"
+              : "mx-auto max-w-xl overflow-hidden",
+          )}
+          style={
+            effectOn
+              ? { opacity: clamp01(1 - scoot * 1.7) }
+              : { marginBottom: "3.5rem" }
+          }
+        >
+          <h2
+            className={cn(
+              "text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl",
+              effectOn &&
+                "inline-block rounded-2xl border border-border/50 bg-background/90 px-6 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
+            )}
+          >
+            this is <Highlight>your</Highlight> abode.
+          </h2>
+        </div>
+
+        {/* Wall stage — centres the wall in the viewport and clips it to the
+            frame (the wall runs taller than the viewport), then scoots it left
+            for capture. `isolate` scopes the wall/column z-ordering so the
             wall's z-10 can't escape to compete with the top-section content or
             the sticky header — it only ranks the wall above the capture column. */}
-        <div className="relative isolate mx-auto w-full max-w-6xl px-4">
-          {/* Intro heading — collapses + fades as the capture column takes
-              over, so the wall alone centres. */}
-          <div
-            className="mx-auto max-w-xl overflow-hidden text-center"
-            style={
-              effectOn
-                ? {
-                    opacity: clamp01(1 - scoot * 1.7),
-                    maxHeight: `${(1 - clamp01(scoot * 1.5)) * 8}rem`,
-                    marginBottom: `${(1 - clamp01(scoot * 1.5)) * 3.5}rem`,
-                  }
-                : { marginBottom: "3.5rem" }
-            }
-          >
-            <h2 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight sm:text-5xl">
-              this is <Highlight>your</Highlight> abode.
-            </h2>
-          </div>
-
-          {/* The wall — raised above the capture column so the grid overlaps it
+        <div
+          className={cn(effectOn && "flex h-full items-center overflow-hidden")}
+        >
+          <div className="relative isolate mx-auto w-full max-w-6xl px-4">
+            {/* The wall — raised above the capture column so the grid overlaps it
               where they meet during the scoot (the column paints behind). Once
               scooting it goes click-through, so any overlap falls through to the
               capture steps and they stay interactive (z-index alone raises the
               paint order, not the hit-target). Pointer events stay on while
               settled so the cards keep their hover. */}
-          <div
-            className={cn("relative z-10", scoot > 0 && "pointer-events-none")}
-            style={wallStyle}
-          >
-            <BrowserChrome
-              show={showChrome}
-              activeTab={activeTab}
-              extensionActive={showExtensionChrome && popupOpen}
+            <div
+              className={cn(
+                "relative z-10",
+                scoot > 0 && "pointer-events-none",
+              )}
+              style={wallStyle}
             >
-              {effectOn && (
-                <EssayPage show={showExtensionChrome && onEssayTab} />
-              )}
-              {effectOn && (
-                <ExtensionPopup
-                  show={showExtensionChrome && popupOpen}
-                  state={saveState}
-                />
-              )}
-              {effectOn && (
-                <DragDropDemo
-                  show={showDropDemo}
-                  dropping={drop === "dropped"}
-                />
-              )}
-              {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
-              {/* Fixed-height window: once a demo card lands, hold the wall's
-                  height and clip the overflow rather than growing the window. */}
-              <div
-                style={
-                  effectOn && anyCardPresent && gridNatH > 0
-                    ? { height: gridNatH, overflow: "hidden" }
-                    : undefined
-                }
+              <BrowserChrome
+                show={showChrome}
+                activeTab={activeTab}
+                extensionActive={showExtensionChrome && popupOpen}
               >
-                <ul
-                  ref={gridRef}
-                  className={cn(
-                    "relative z-10 columns-2 gap-4 sm:columns-3 [&>li]:mb-4",
-                    // Chrome gutter only when the effect is on; without it the
-                    // static fallback grid keeps its original edge-to-edge layout.
-                    // pb absorbs each column's trailing mb-4 so the bottom gutter
-                    // matches the other three sides (8 + 16 = 24).
-                    effectOn && "p-6 pb-2",
-                    flying && "invisible",
-                  )}
+                {effectOn && (
+                  <EssayPage show={showExtensionChrome && onEssayTab} />
+                )}
+                {effectOn && (
+                  <ExtensionPopup
+                    show={showExtensionChrome && popupOpen}
+                    state={saveState}
+                  />
+                )}
+                {effectOn && (
+                  <DragDropDemo
+                    show={showDropDemo}
+                    dropping={drop === "dropped"}
+                  />
+                )}
+                {effectOn && <PasteKeys show={showPasteKeys} modSym={modSym} />}
+                {/* Fixed-height window: once a demo card lands, hold the wall's
+                  height and clip the overflow rather than growing the window. */}
+                <div
+                  style={
+                    effectOn && anyCardPresent && gridNatH > 0
+                      ? { height: gridNatH, overflow: "hidden" }
+                      : undefined
+                  }
                 >
-                  {/* Freshly-captured items land at the top of the wall, newest
-                      first, growing in as they arrive (paste, drop, save) and
-                      growing out again when scrolled back before their step. */}
-                  {effectOn && pasteCardRendered && (
-                    <GrowInCard card={PASTE_CARD} grown={pasteCardGrown} />
-                  )}
-                  {effectOn && dropCardRendered && (
-                    <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
-                  )}
-                  {effectOn && savedCardRendered && (
-                    <GrowInCard card={SAVED_CARD} grown={savedCardGrown} />
-                  )}
-                  {GALLERY_CARDS.map((card, i) => (
-                    <li
-                      key={card.id}
-                      ref={(el) => {
-                        liRefs.current[i] = el;
-                      }}
-                      className="group relative break-inside-avoid"
-                    >
-                      <div
-                        className={cn(faceClass(card), hoverClass(card))}
-                        style={faceStyle(card)}
+                  <div
+                    ref={gridRef}
+                    className={cn(
+                      "relative z-10 flex gap-4",
+                      // Chrome gutter only when the effect is on; without it the
+                      // static fallback grid keeps its original edge-to-edge layout.
+                      effectOn && "p-6",
+                      flying && "invisible",
+                    )}
+                  >
+                    {columns.map((cardIndices, col) => (
+                      <ul
+                        // biome-ignore lint/suspicious/noArrayIndexKey: fixed column slots
+                        key={col}
+                        className="flex min-w-0 flex-1 flex-col gap-4"
                       >
-                        <CardBody card={card} />
-                        <Intelligence card={card} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </BrowserChrome>
-          </div>
+                        {/* Freshly-captured items land at the top of the first
+                          column, newest first, growing in as they arrive (paste,
+                          drop, save) and growing out again when scrolled back. */}
+                        {col === 0 && effectOn && pasteCardRendered && (
+                          <GrowInCard
+                            card={PASTE_CARD}
+                            grown={pasteCardGrown}
+                          />
+                        )}
+                        {col === 0 && effectOn && dropCardRendered && (
+                          <GrowInCard card={DROP_CARD} grown={dropCardGrown} />
+                        )}
+                        {col === 0 && effectOn && savedCardRendered && (
+                          <GrowInCard
+                            card={SAVED_CARD}
+                            grown={savedCardGrown}
+                          />
+                        )}
+                        {cardIndices.map((i) => {
+                          const card = GALLERY_CARDS[i];
+                          return (
+                            <li
+                              key={card.id}
+                              ref={(el) => {
+                                liRefs.current[i] = el;
+                              }}
+                              className="group relative"
+                            >
+                              <div
+                                className={cn(
+                                  faceClass(card),
+                                  hoverClass(card),
+                                )}
+                                style={faceStyle(card)}
+                              >
+                                <CardBody card={card} />
+                                <Intelligence card={card} />
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ))}
+                  </div>
+                </div>
+              </BrowserChrome>
+            </div>
 
-          {/* Capture column — fades/slides in from the right during the scoot.
+            {/* Capture column — fades/slides in from the right during the scoot.
               The wall (raised above it, see the wall wrapper's z-10) overlaps it
               where they meet; the column stays above its parent so the steps are
               still the top hit-target and remain clickable. */}
-          {effectOn && (
-            <div
-              className="pointer-events-auto absolute top-1/2 right-0 w-80"
-              style={{
-                opacity: scoot,
-                transform: `translate(${(1 - scoot) * 32}px, -50%)`,
-              }}
-            >
-              <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
-                save <Highlight>it all.</Highlight>
-              </h3>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                no folders, no filing — just paste, drop, or save.
-              </p>
-              <ol className="mt-8 flex flex-col gap-2">
-                {STEPS.map((step, i) => {
-                  const active = i === activeStep;
-                  const StepIcon = step.icon;
-                  return (
-                    <li key={step.id} className="flex items-stretch gap-3">
-                      <StepRail active={active} progress={stepProgress} />
-                      <button
-                        type="button"
-                        onClick={() => scrollToStep(i)}
-                        className={cn(
-                          "min-w-0 flex-1 cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
-                          active
-                            ? "border-border bg-muted/50"
-                            : "border-transparent opacity-50 hover:opacity-80",
-                        )}
-                      >
-                        <span className="flex items-center gap-2 font-medium text-foreground">
-                          <StepIcon className="size-4 shrink-0 text-muted-foreground" />
-                          {step.label}
-                        </span>
-                        <span
+            {effectOn && (
+              <div
+                className="pointer-events-auto absolute top-1/2 right-0 w-80"
+                style={{
+                  opacity: scoot,
+                  transform: `translate(${(1 - scoot) * 32}px, -50%)`,
+                }}
+              >
+                <h3 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight">
+                  save <Highlight>it all.</Highlight>
+                </h3>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  no folders, no filing — just paste, drop, or save.
+                </p>
+                <ol className="mt-8 flex flex-col gap-2">
+                  {STEPS.map((step, i) => {
+                    const active = i === activeStep;
+                    const StepIcon = step.icon;
+                    return (
+                      <li key={step.id} className="flex items-stretch gap-3">
+                        <StepRail active={active} progress={stepProgress} />
+                        <button
+                          type="button"
+                          onClick={() => scrollToStep(i)}
                           className={cn(
-                            "mt-1 block text-muted-foreground text-sm leading-snug transition-[max-height,opacity] duration-300",
+                            "min-w-0 flex-1 cursor-pointer rounded-xl border p-4 text-left transition-[opacity,background-color,border-color] duration-300",
                             active
-                              ? "max-h-24 opacity-100"
-                              : "max-h-0 overflow-hidden opacity-0",
+                              ? "border-border bg-muted/50"
+                              : "border-transparent opacity-50 hover:opacity-80",
                           )}
                         >
-                          {step.body.includes("{paste}") ? (
-                            <>
-                              <KbdGroup className="align-middle">
-                                <Kbd>{modSym}</Kbd>
-                                <Kbd>V</Kbd>
-                              </KbdGroup>{" "}
-                              {step.body.replace("{paste} ", "")}
-                            </>
-                          ) : (
-                            step.body
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          )}
+                          <span className="flex items-center gap-2 font-medium text-foreground">
+                            <StepIcon className="size-4 shrink-0 text-muted-foreground" />
+                            {step.label}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-1 block text-muted-foreground text-sm leading-snug transition-[max-height,opacity] duration-300",
+                              active
+                                ? "max-h-24 opacity-100"
+                                : "max-h-0 overflow-hidden opacity-0",
+                            )}
+                          >
+                            {step.body.includes("{paste}") ? (
+                              <>
+                                <KbdGroup className="align-middle">
+                                  <Kbd>{modSym}</Kbd>
+                                  <Kbd>V</Kbd>
+                                </KbdGroup>{" "}
+                                {step.body.replace("{paste} ", "")}
+                              </>
+                            ) : (
+                              step.body
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
