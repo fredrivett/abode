@@ -137,6 +137,8 @@ type TweetImageDownloader = (
 type RehostResult = {
   media: TwitterMedia[] | null;
   card: TwitterDetails["card"];
+  /** Re-hosted key of the author avatar (never a cover, so untracked in size). */
+  authorAvatarFileKey: string | null;
   /** Re-hosted key of the cover image (grid preview), for item.coverFileKey. */
   coverFileKey: string | null;
   /** Byte size of the cover image, for meta.coverSize accounting. */
@@ -146,16 +148,29 @@ type RehostResult = {
 };
 
 /**
- * Re-host a tweet's images (media stills + link-card image) into our storage so
- * the saved tweet survives deletion or twimg URL rotation. Each download is
- * best-effort: a failure leaves that image pointing at its original twimg URL.
+ * Re-host a tweet's images (media stills + link-card image + author avatar) into
+ * our storage so the saved tweet survives deletion or twimg URL rotation. Each
+ * download is best-effort: a failure leaves that image pointing at its original
+ * twimg URL.
+ *
+ * Incremental: an image that already carries a re-hosted key is kept as-is and
+ * not re-downloaded, so calling this over already-hosted details upserts only
+ * the missing pieces (e.g. an avatar) instead of churning storage.
  *
  * Accounting mirrors products — only the cover counts toward `coverSize`; the
- * other stored keys are tracked so reanalysis can reclaim them.
+ * other stored keys (extra media, card, avatar) are tracked so reanalysis can
+ * reclaim them.
  * Exported for testing (with an injected downloader).
  */
 export async function rehostTwitterImages(
-  details: Pick<TwitterDetails, "media" | "card" | "coverMediaIndex">,
+  details: Pick<
+    TwitterDetails,
+    | "media"
+    | "card"
+    | "coverMediaIndex"
+    | "authorAvatarUrl"
+    | "authorAvatarFileKey"
+  >,
   download: TweetImageDownloader,
 ): Promise<RehostResult> {
   const sizeByKey = new Map<string, number>();
@@ -164,6 +179,7 @@ export async function rehostTwitterImages(
   if (details.media && details.media.length > 0) {
     media = await Promise.all(
       details.media.map(async (item): Promise<TwitterMedia> => {
+        if (item.fileKey) return item; // already re-hosted — keep it
         const stillUrl = mediaStillUrl(item);
         if (!stillUrl) return item;
         const stored = await download(stillUrl);
@@ -175,11 +191,22 @@ export async function rehostTwitterImages(
   }
 
   let card = details.card;
-  if (card?.imageUrl) {
+  if (card?.imageUrl && !card.imageFileKey) {
     const stored = await download(card.imageUrl);
     if (stored) {
       sizeByKey.set(stored.fileKey, stored.size);
       card = { ...card, imageFileKey: stored.fileKey };
+    }
+  }
+
+  // The author avatar is re-hosted like content, but never a cover — so it
+  // stays out of coverSize accounting.
+  let authorAvatarFileKey = details.authorAvatarFileKey ?? null;
+  if (details.authorAvatarUrl && !authorAvatarFileKey) {
+    const stored = await download(details.authorAvatarUrl);
+    if (stored) {
+      sizeByKey.set(stored.fileKey, stored.size);
+      authorAvatarFileKey = stored.fileKey;
     }
   }
 
@@ -198,6 +225,7 @@ export async function rehostTwitterImages(
   return {
     media,
     card,
+    authorAvatarFileKey,
     coverFileKey,
     coverSize: coverFileKey ? (sizeByKey.get(coverFileKey) ?? 0) : 0,
     storedFileKeys: [...sizeByKey.keys()],
@@ -254,6 +282,7 @@ export async function handleTwitterUrl(
     ...twitterDetails,
     media: rehosted.media,
     card: rehosted.card,
+    authorAvatarFileKey: rehosted.authorAvatarFileKey,
   };
   logger.log("Tweet images re-hosted", {
     itemId,
@@ -338,6 +367,7 @@ export async function handleTwitterUrl(
         authorName: details.authorName,
         authorUsername: details.authorUsername,
         authorAvatarUrl: details.authorAvatarUrl,
+        authorAvatarFileKey: details.authorAvatarFileKey ?? null,
         text: details.text,
         postedAt: details.postedAt ? new Date(details.postedAt) : null,
         media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,

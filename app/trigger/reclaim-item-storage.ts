@@ -37,7 +37,9 @@ export async function reclaimReplacedStorage(
       coverFileKey: true,
       faviconFileKey: true,
       productDetails: { select: { images: true } },
-      twitterDetails: { select: { media: true, card: true } },
+      twitterDetails: {
+        select: { media: true, card: true, authorAvatarFileKey: true },
+      },
       instagramDetails: { select: { media: true } },
     },
   });
@@ -61,6 +63,7 @@ export async function reclaimReplacedStorage(
       existing.twitterDetails?.media,
       existing.twitterDetails?.card,
     ),
+    existing.twitterDetails?.authorAvatarFileKey,
     ...extractInstagramImageKeys(existing.instagramDetails?.media),
   ].filter((key): key is string => typeof key === "string" && key.length > 0);
 }

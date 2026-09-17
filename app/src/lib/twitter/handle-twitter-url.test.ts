@@ -488,8 +488,96 @@ describe("rehostTwitterImages", () => {
 
     expect(download).not.toHaveBeenCalled();
     expect(result.media).toBeNull();
+    expect(result.authorAvatarFileKey).toBeNull();
     expect(result.coverFileKey).toBeNull();
     expect(result.coverSize).toBe(0);
     expect(result.storedFileKeys).toEqual([]);
+  });
+
+  it("re-hosts the author avatar (never counted as a cover)", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      authorAvatarUrl: "https://pbs.twimg.com/avatar.jpg",
+    };
+
+    const result = await rehostTwitterImages(details, fakeDownload);
+
+    expect(result.authorAvatarFileKey).toBe("key/avatar.jpg");
+    // The avatar is never a cover
+    expect(result.coverFileKey).toBeNull();
+    expect(result.coverSize).toBe(0);
+    // ...but it is tracked so cleanup keeps it
+    expect(result.storedFileKeys).toEqual(["key/avatar.jpg"]);
+  });
+
+  it("is best-effort: a failed avatar download leaves it hotlinked", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      authorAvatarUrl: "https://pbs.twimg.com/avatar.jpg",
+    };
+
+    const result = await rehostTwitterImages(details, () =>
+      Promise.resolve(null),
+    );
+
+    expect(result.authorAvatarFileKey).toBeNull();
+    expect(result.storedFileKeys).toEqual([]);
+  });
+
+  it("is incremental: already-hosted media, card and avatar are not re-downloaded", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      media: [
+        {
+          type: "photo",
+          url: "https://pbs.twimg.com/a.jpg",
+          fileKey: "existing/a.jpg",
+        },
+      ],
+      card: {
+        title: "t",
+        description: "d",
+        url: "https://ex.com",
+        imageUrl: "https://ex.com/card.jpg",
+        imageFileKey: "existing/card.jpg",
+      },
+      authorAvatarUrl: "https://pbs.twimg.com/avatar.jpg",
+      authorAvatarFileKey: "existing/avatar.jpg",
+    };
+
+    const download = vi.fn(fakeDownload);
+    const result = await rehostTwitterImages(details, download);
+
+    expect(download).not.toHaveBeenCalled();
+    expect(result.media?.[0].fileKey).toBe("existing/a.jpg");
+    expect(result.card?.imageFileKey).toBe("existing/card.jpg");
+    expect(result.authorAvatarFileKey).toBe("existing/avatar.jpg");
+    // Nothing newly stored, so nothing to keep on cleanup
+    expect(result.storedFileKeys).toEqual([]);
+  });
+
+  it("upserts only the missing avatar, keeping existing media keys intact", async () => {
+    const details: TwitterDetails = {
+      ...baseDetails,
+      media: [
+        {
+          type: "photo",
+          url: "https://pbs.twimg.com/a.jpg",
+          fileKey: "existing/a.jpg",
+        },
+      ],
+      authorAvatarUrl: "https://pbs.twimg.com/avatar.jpg",
+    };
+
+    const download = vi.fn(fakeDownload);
+    const result = await rehostTwitterImages(details, download);
+
+    // Only the avatar is downloaded — the hosted photo is left alone
+    expect(download).toHaveBeenCalledExactlyOnceWith(
+      "https://pbs.twimg.com/avatar.jpg",
+    );
+    expect(result.media?.[0].fileKey).toBe("existing/a.jpg");
+    expect(result.authorAvatarFileKey).toBe("key/avatar.jpg");
+    expect(result.storedFileKeys).toEqual(["key/avatar.jpg"]);
   });
 });
