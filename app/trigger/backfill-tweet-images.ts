@@ -177,10 +177,13 @@ export const backfillTweetImageItemTask = task({
       throw error;
     }
 
+    // Keep every key the new row references, not just this run's uploads: an
+    // avatar re-hosted by a prior avatar-backfill is preserved (not in
+    // storedFileKeys) yet still referenced, so it must not be reclaimed here.
     await deleteReplacedFiles(
       supabase,
       replacedFileKeys,
-      rehosted.storedFileKeys,
+      rehosted.keepFileKeys,
     );
 
     logger.info("Backfilled tweet images", {

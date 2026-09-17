@@ -143,8 +143,14 @@ type RehostResult = {
   coverFileKey: string | null;
   /** Byte size of the cover image, for meta.coverSize accounting. */
   coverSize: number;
-  /** Every key we stored this run, so the caller can keep them on cleanup. */
+  /** Keys newly uploaded THIS run — delete these to undo orphans on failure. */
   storedFileKeys: string[];
+  /**
+   * Every key the returned details reference (newly stored *and* pre-existing
+   * ones we kept). This is the keep-set for post-commit cleanup: a preserved key
+   * is a reclaim "old key" yet still referenced, so it must not be deleted.
+   */
+  keepFileKeys: string[];
 };
 
 /**
@@ -222,6 +228,12 @@ export async function rehostTwitterImages(
     card?.imageFileKey ??
     null;
 
+  const keepFileKeys = [
+    ...(media?.map((m) => m.fileKey) ?? []),
+    card?.imageFileKey,
+    authorAvatarFileKey,
+  ].filter((key): key is string => typeof key === "string" && key.length > 0);
+
   return {
     media,
     card,
@@ -229,6 +241,7 @@ export async function rehostTwitterImages(
     coverFileKey,
     coverSize: coverFileKey ? (sizeByKey.get(coverFileKey) ?? 0) : 0,
     storedFileKeys: [...sizeByKey.keys()],
+    keepFileKeys,
   };
 }
 
@@ -278,12 +291,27 @@ export async function handleTwitterUrl(
   const rehosted = await rehostTwitterImages(twitterDetails, (imageUrl) =>
     downloadAndStoreImage(imageUrl, userId, supabase),
   );
+  // Preserve the previously re-hosted avatar if this run's download failed, so a
+  // transient twimg blip on reanalysis doesn't drop the durable copy (and delete
+  // its blob) in favour of a hotlink. A successful download still supersedes it.
+  const existingAvatar = await db.itemTwitterDetails.findUnique({
+    where: { itemId },
+    select: { authorAvatarFileKey: true },
+  });
+  const authorAvatarFileKey =
+    rehosted.authorAvatarFileKey ?? existingAvatar?.authorAvatarFileKey ?? null;
   const details: TwitterDetails = {
     ...twitterDetails,
     media: rehosted.media,
     card: rehosted.card,
-    authorAvatarFileKey: rehosted.authorAvatarFileKey,
+    authorAvatarFileKey,
   };
+  // Keep every key the new row references; a preserved avatar isn't in
+  // rehosted.keepFileKeys, so add it or reclaim would delete its live blob.
+  const keepFileKeys =
+    authorAvatarFileKey && !rehosted.keepFileKeys.includes(authorAvatarFileKey)
+      ? [...rehosted.keepFileKeys, authorAvatarFileKey]
+      : rehosted.keepFileKeys;
   logger.log("Tweet images re-hosted", {
     itemId,
     stored: rehosted.storedFileKeys.length,
@@ -392,12 +420,10 @@ export async function handleTwitterUrl(
     throw error;
   }
 
-  // Delete the previous blobs now the new images are committed
-  await deleteReplacedFiles(
-    supabase,
-    replacedFileKeys,
-    rehosted.storedFileKeys,
-  );
+  // Delete the previous blobs now the new images are committed. Keep every key
+  // the new row still references (incl. a preserved avatar), not just this run's
+  // uploads, or reclaim would delete a live blob.
+  await deleteReplacedFiles(supabase, replacedFileKeys, keepFileKeys);
 
   logger.log("Twitter item saved", { itemId, tweetId });
 

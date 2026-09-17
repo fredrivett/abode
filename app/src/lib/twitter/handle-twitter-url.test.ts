@@ -508,6 +508,7 @@ describe("rehostTwitterImages", () => {
     expect(result.coverSize).toBe(0);
     // ...but it is tracked so cleanup keeps it
     expect(result.storedFileKeys).toEqual(["key/avatar.jpg"]);
+    expect(result.keepFileKeys).toEqual(["key/avatar.jpg"]);
   });
 
   it("is best-effort: a failed avatar download leaves it hotlinked", async () => {
@@ -552,8 +553,14 @@ describe("rehostTwitterImages", () => {
     expect(result.media?.[0].fileKey).toBe("existing/a.jpg");
     expect(result.card?.imageFileKey).toBe("existing/card.jpg");
     expect(result.authorAvatarFileKey).toBe("existing/avatar.jpg");
-    // Nothing newly stored, so nothing to keep on cleanup
+    // Nothing newly stored this run...
     expect(result.storedFileKeys).toEqual([]);
+    // ...but the preserved keys are still referenced, so cleanup must keep them
+    expect(result.keepFileKeys).toEqual([
+      "existing/a.jpg",
+      "existing/card.jpg",
+      "existing/avatar.jpg",
+    ]);
   });
 
   it("upserts only the missing avatar, keeping existing media keys intact", async () => {

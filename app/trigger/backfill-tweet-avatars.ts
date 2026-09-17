@@ -116,16 +116,35 @@ export const backfillTweetAvatarItemTask = task({
       return { success: true, hosted: false, skipped: "download-failed" };
     }
 
+    let claimed: number;
     try {
-      await db.itemTwitterDetails.update({
-        where: { itemId },
+      // Compare-and-set: only claim if the row still wants exactly this avatar
+      // and has no key yet. A concurrent capture/reanalysis (or overlapping
+      // backfill) that set a newer key — or changed the avatar URL — wins, and
+      // our now-stale upload is dropped rather than clobbering theirs.
+      const result = await db.itemTwitterDetails.updateMany({
+        where: {
+          itemId,
+          authorAvatarUrl: details.authorAvatarUrl,
+          authorAvatarFileKey: null,
+        },
         data: { authorAvatarFileKey: stored.fileKey },
       });
+      claimed = result.count;
     } catch (error) {
       // The avatar was uploaded before this update; a failed write orphans it.
       // Delete it so retries don't accumulate orphans. Best-effort.
       await supabase.storage.from("items").remove([stored.fileKey]);
       throw error;
+    }
+
+    if (claimed === 0) {
+      // Another writer got there first; our upload is unreferenced — drop it.
+      await supabase.storage.from("items").remove([stored.fileKey]);
+      logger.info("Tweet avatar superseded by a concurrent write, skipping", {
+        itemId,
+      });
+      return { success: true, hosted: false, skipped: "superseded" };
     }
 
     logger.info("Backfilled tweet avatar", { itemId });
