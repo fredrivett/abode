@@ -32,9 +32,12 @@ describe("ItemDialogSkeletonBody", () => {
     expect(screen.queryByText("Loading")).not.toBeInTheDocument();
   });
 
-  it("shows the seed cover for webpage kinds too (cover is the resolved view)", () => {
+  it("shows a neutral loading pane for a webpage (its detail keys off coverFileKey, not the seed's fileKey fallback)", () => {
     render(<ItemDialogSkeletonBody seed={{ ...baseSeed, kind: "webpage" }} />);
-    expect(screen.getByRole("img", { name: "A beach" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "A beach" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Loading")).toBeInTheDocument();
   });
 
   it("shows a neutral loading pane (not the cover) for a tweet", () => {

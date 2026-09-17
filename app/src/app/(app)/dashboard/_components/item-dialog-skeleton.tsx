@@ -1,6 +1,5 @@
 "use client";
 
-import type { ItemKind } from "@prisma/client";
 import { DialogTitle } from "@/components/ui/dialog";
 import { IsLoading } from "@/components/ui/is-loading";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -8,29 +7,21 @@ import { DETAIL_IMAGE_CLASSNAME } from "../item-card";
 import type { OpenItemSeed } from "../item-dialog-context";
 
 /**
- * Kinds whose resolved detail view *is* the cover shown full-width — so painting
- * the seed cover straight away is seamless. Every other kind renders the cover
- * as a thumbnail of something else (a tweet, a product card, …), so showing it
- * full-width then swapping is jarring; those get a neutral loading pane instead.
- */
-const COVER_IS_FULL_VIEW_KINDS: ReadonlySet<ItemKind> = new Set([
-  "image",
-  "webpage",
-]);
-
-/**
  * Loading body for the detail dialog, shown inside the shared ItemDialogFrame
  * while an item opened from outside the grid (a "similar images" click) is still
  * being fetched. Just the panes — the main area + skeleton sidebar rows — so it
  * swaps in and out of the one mounted dialog without remounting it.
+ *
+ * The seed cover is only painted full-width for `image` items, where it *is* the
+ * resolved view (the seed key and the resolved detail key are both `fileKey`).
+ * Every other kind renders the cover differently — a tweet embed, a product
+ * card, or (for a cover-less webpage, whose detail view keys off `coverFileKey`
+ * while the seed falls back to `fileKey`) a link card — so painting it full-
+ * width then swapping is jarring; those get a neutral loading pane instead.
  */
 export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
-  const showSeedImage =
-    seed.imageFileKey !== null &&
-    seed.kind !== null &&
-    COVER_IS_FULL_VIEW_KINDS.has(seed.kind);
   const src =
-    showSeedImage && seed.imageFileKey
+    seed.kind === "image" && seed.imageFileKey
       ? getProxyImageUrl(seed.imageFileKey, "grid")
       : null;
 
@@ -55,7 +46,7 @@ export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
           />
         </div>
       ) : (
-        <div className="flex shrink-0 items-center justify-center bg-background md:flex-1 md:overflow-hidden">
+        <div className="flex min-h-[50vh] shrink-0 items-center justify-center bg-background md:min-h-0 md:flex-1 md:overflow-hidden">
           <IsLoading label="Loading" />
         </div>
       )}
