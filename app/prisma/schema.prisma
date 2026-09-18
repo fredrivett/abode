@@ -451,6 +451,7 @@ model ItemTwitterDetails {
   authorName      String?   @map("author_name")        // Display name
   authorUsername  String    @map("author_username")    // @handle
   authorAvatarUrl String?   @map("author_avatar_url")
+  authorAvatarFileKey String? @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
   text            String?                               // Tweet text content
   postedAt        DateTime? @map("posted_at")          // When tweet was posted
   media           Json?     @map("media")              // Array of media objects with type, url, dimensions
