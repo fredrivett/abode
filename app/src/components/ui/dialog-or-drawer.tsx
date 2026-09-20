@@ -1,6 +1,7 @@
 "use client";
 
 import type * as React from "react";
+import { createContext, useContext } from "react";
 import { useMediaQuery } from "usehooks-ts";
 
 import {
@@ -32,17 +33,40 @@ interface DialogOrDrawerProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+/**
+ * Shares the root's `isDesktop` decision with all sub-components so every part
+ * of one dialog tree renders the same variant. Without this, each sub-component
+ * runs its own `useMediaQuery` and their effects can commit in different passes
+ * — momentarily rendering a `DialogContent` inside a `Drawer` root (or vice
+ * versa), which throws "DialogPortal must be used within Dialog".
+ */
+const DialogOrDrawerContext = createContext<boolean | null>(null);
+
+/** Returns the root's shared decision, falling back to a local query if unwrapped */
+function useIsDesktop() {
+  const contextValue = useContext(DialogOrDrawerContext);
+  const localValue = useMediaQuery("(min-width: 768px)", {
+    defaultValue: true,
+    initializeWithValue: false,
+  });
+  return contextValue ?? localValue;
+}
+
 function DialogOrDrawer({ children, ...props }: DialogOrDrawerProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)", {
     defaultValue: true,
     initializeWithValue: false,
   });
 
-  if (isDesktop) {
-    return <Dialog {...props}>{children}</Dialog>;
-  }
-
-  return <Drawer {...props}>{children}</Drawer>;
+  return (
+    <DialogOrDrawerContext.Provider value={isDesktop}>
+      {isDesktop ? (
+        <Dialog {...props}>{children}</Dialog>
+      ) : (
+        <Drawer {...props}>{children}</Drawer>
+      )}
+    </DialogOrDrawerContext.Provider>
+  );
 }
 
 function DialogOrDrawerTrigger({
@@ -50,10 +74,7 @@ function DialogOrDrawerTrigger({
   children,
   ...props
 }: React.ComponentProps<typeof DialogTrigger>) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return (
@@ -75,10 +96,7 @@ function DialogOrDrawerContent({
   children,
   ...props
 }: React.ComponentProps<typeof DialogContent>) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return (
@@ -99,10 +117,7 @@ function DialogOrDrawerHeader({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogHeader className={className} {...props} />;
@@ -115,10 +130,7 @@ function DialogOrDrawerBody({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogBody className={className} {...props} />;
@@ -131,10 +143,7 @@ function DialogOrDrawerFooter({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogFooter className={className} {...props} />;
@@ -147,10 +156,7 @@ function DialogOrDrawerTitle({
   className,
   ...props
 }: React.ComponentProps<typeof DialogTitle>) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogTitle className={className} {...props} />;
@@ -163,10 +169,7 @@ function DialogOrDrawerDescription({
   className,
   ...props
 }: React.ComponentProps<typeof DialogDescription>) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogDescription className={className} {...props} />;
@@ -179,10 +182,7 @@ function DialogOrDrawerClose({
   className,
   ...props
 }: React.ComponentProps<typeof DialogClose>) {
-  const isDesktop = useMediaQuery("(min-width: 768px)", {
-    defaultValue: true,
-    initializeWithValue: false,
-  });
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return <DialogClose className={className} {...props} />;
