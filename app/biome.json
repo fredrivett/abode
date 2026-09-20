@@ -1,6 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
-  "plugins": ["./biome/no-hardcoded-ellipsis.grit", "./biome/no-stub.grit"],
+  "plugins": [
+    "./biome/no-hardcoded-ellipsis.grit",
+    "./biome/no-stub.grit",
+    "./biome/no-mouse-down-tap.grit"
+  ],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
