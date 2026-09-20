@@ -47,6 +47,10 @@ type CapturedProps = {
   items: Item[];
   showComposer?: boolean;
   isSearchPending?: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+  total?: number;
 };
 
 let captured: CapturedProps = { items: [] };
@@ -221,6 +225,50 @@ describe("SearchableItemsGrid", () => {
     expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
     expect(captured.showComposer).toBe(false);
     expect(captured.isSearchPending).toBe(true);
+  });
+
+  it("wires the search's own pagination when a filter is active", () => {
+    // A tag filter returns page 1 (below its full total) plus a cursor: the grid
+    // must paginate through the search's loadMore, not the full-list handlers,
+    // and report the search total so it can keep loading past the first page.
+    const searchLoadMore = vi.fn();
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        hasReceivedResults: true,
+        items: [item("match-a")],
+        total: 170,
+        cursor: "next-page",
+        hasMore: true,
+        loadMore: searchLoadMore,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.total).toBe(170);
+    expect(captured.hasMore).toBe(true);
+    captured.onLoadMore?.();
+    expect(searchLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dim the grid while a search's next page is loading", () => {
+    // Loading more search results appends rather than replacing, so the grid
+    // shows skeletons (isLoadingMore) without being marked pending/dimmed.
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        hasReceivedResults: true,
+        isLoading: true,
+        items: [item("match-a")],
+        total: 170,
+        cursor: "next-page",
+        hasMore: true,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.isSearchPending).toBe(false);
+    expect(captured.isLoadingMore).toBe(true);
   });
 
   it("passes the loaded list straight through, without injecting the open item", () => {
