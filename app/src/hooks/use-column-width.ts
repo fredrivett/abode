@@ -1,6 +1,7 @@
 "use client";
 
 import { type RefObject, useLayoutEffect, useState } from "react";
+import { coalesceFrame } from "@/lib/raf-coalesce";
 
 // Layout effect on the client so the measured width is available before the
 // first paint (no reflow flash); plain effect on the server where it's a no-op.
@@ -40,9 +41,15 @@ export function useColumnWidth({
     const measure = () => setContainerWidth(element.clientWidth);
     measure();
 
-    const observer = new ResizeObserver(measure);
+    // rAF-defer the measure so a resulting reflow can't retrigger the observer
+    // mid-delivery (the "ResizeObserver loop … undelivered notifications" error).
+    const scheduler = coalesceFrame(measure);
+    const observer = new ResizeObserver(scheduler.schedule);
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      scheduler.cancel();
+      observer.disconnect();
+    };
     // `enabled` re-runs the effect once the container mounts; frameWidth/gap
     // don't change the container width but keep the derived value below fresh.
   }, [ref, enabled]);
