@@ -1,0 +1,16 @@
+language js
+
+// onMouseDown-only tap handlers silently drop taps on touch devices. On mobile
+// a tap can blur the input / unmount a focus-gated overlay before the
+// synthesized mouse event fires, so the tap either does nothing or lands on
+// whatever is now underneath. Use onPointerDown (fires for mouse AND touch, and
+// before blur — preventDefault still keeps input focus), or onClick for a plain
+// button. See suggestion-dropdown.tsx / filter-dropdown.tsx.
+$handler where {
+  $handler <: `onMouseDown`,
+  register_diagnostic(
+    span=$handler,
+    message="Avoid onMouseDown for tap handlers — it drops taps on touch devices. Use onPointerDown (preventDefault still keeps input focus) or onClick.",
+    severity="error"
+  )
+}
