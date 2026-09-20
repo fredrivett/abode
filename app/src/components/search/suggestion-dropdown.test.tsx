@@ -27,14 +27,16 @@ function renderDropdown() {
 }
 
 describe("SuggestionDropdown", () => {
-  it("applies a suggestion on pointerdown (works on touch, not just mouse)", () => {
+  it("applies a suggestion on pointerdown, and prevents default to keep focus", () => {
     const { onApply } = renderDropdown();
-    // pointerdown fires for both mouse and touch and runs before the input
-    // blurs — mousedown alone dropped taps on mobile once the dropdown
-    // unmounted on blur
     const [first] = screen.getAllByRole("button");
-    fireEvent.pointerDown(first);
+    // pointerdown (not mousedown) so the tap registers on touch. fireEvent
+    // returns false when a handler called preventDefault — asserting that
+    // locks in the focus-retention that keeps the input focused and the
+    // dropdown mounted on a real tap (without it, the mobile drop regresses)
+    const notCancelled = fireEvent.pointerDown(first);
     expect(onApply).toHaveBeenCalledWith(suggestions[0]);
+    expect(notCancelled).toBe(false);
   });
 
   it("applies the specific suggestion that was tapped", () => {
