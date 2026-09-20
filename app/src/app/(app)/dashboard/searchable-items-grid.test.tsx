@@ -251,6 +251,27 @@ describe("SearchableItemsGrid", () => {
     expect(searchLoadMore).toHaveBeenCalledTimes(1);
   });
 
+  it("stops paginating the stale cursor while a refined query is pending", () => {
+    // Refining an already-paginated search leaves the previous cursor exposed
+    // (hasMore true) until the new results land. hasMore must be gated off while
+    // pending so the infinite-scroll observer can't fire loadMore on the stale
+    // cursor and supersede the first-page request.
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        isSearching: true,
+        items: [item("stale-a")],
+        total: 170,
+        cursor: "stale-cursor",
+        hasMore: true,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.isSearchPending).toBe(true);
+    expect(captured.hasMore).toBe(false);
+  });
+
   it("does not dim the grid while a search's next page is loading", () => {
     // Loading more search results appends rather than replacing, so the grid
     // shows skeletons (isLoadingMore) without being marked pending/dimmed.

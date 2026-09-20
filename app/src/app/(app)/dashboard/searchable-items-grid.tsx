@@ -151,7 +151,11 @@ export function SearchableItemsGrid({
   // stuck on page 1 under a footer claiming the full total.
   const pagination: GridPagination = searchResults.hasActiveSearch
     ? {
-        hasMore: searchResults.hasMore,
+        // While a new query is pending, searchResults still holds the previous
+        // search's cursor. Gating on !isSearchPending stops the infinite-scroll
+        // observer from paginating that stale cursor and superseding the
+        // first-page request (which would strand the grid pending).
+        hasMore: !isSearchPending && searchResults.hasMore,
         isLoadingMore: searchResults.isLoading,
         onLoadMore: searchResults.loadMore,
         total: searchResults.total,
