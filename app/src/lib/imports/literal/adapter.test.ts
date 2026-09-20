@@ -168,9 +168,45 @@ describe("toNormalizedBook", () => {
     );
   });
 
-  it("NONE shelf → null status but still a valid book", () => {
+  it("NONE shelf with no review → null status but still a valid book", () => {
     const nb = toNormalizedBook(state({ status: "NONE" }), null);
     expect(nb.reading.status).toBeNull();
     expect(nb.title).toBe("Why Greatness Cannot Be Planned");
+  });
+
+  it("infers read for an unshelved (NONE) book that has a review or rating", () => {
+    // Literal keeps a review/rating on books it reports as NONE (unshelved); a
+    // review means it was read, so it shouldn't import as untracked.
+    const review: LiteralReview = {
+      rating: 4.5,
+      text: "loved it",
+      createdAt: "2025-02-02T09:00:30.888Z",
+    };
+    const nb = toNormalizedBook(state({ status: "NONE" }), review);
+    expect(nb.reading.status).toBe("read");
+    expect(nb.reading.rating).toBe(9); // 4.5 × 2
+    expect(nb.reading.review).toBe("loved it");
+    // an inferred-read book gets its finish date from the review
+    expect(nb.reading.finishedAt?.toISOString()).toBe(
+      "2025-02-02T09:00:30.888Z",
+    );
+  });
+
+  it("infers read from a rating alone (no review text)", () => {
+    const nb = toNormalizedBook(state({ status: "NONE" }), {
+      rating: 5,
+      text: null,
+      createdAt: "2024-01-01T00:00:00.000Z",
+    });
+    expect(nb.reading.status).toBe("read");
+    expect(nb.reading.rating).toBe(10);
+  });
+
+  it("carries the Literal added date as addedAt", () => {
+    const nb = toNormalizedBook(
+      state({ createdAt: "2021-06-15T12:00:00.000Z" }),
+      null,
+    );
+    expect(nb.addedAt?.toISOString()).toBe("2021-06-15T12:00:00.000Z");
   });
 });

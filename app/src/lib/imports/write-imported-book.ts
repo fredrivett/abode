@@ -63,6 +63,11 @@ export async function writeImportedBook({
           coverFileKey: cover?.fileKey ?? null,
           captureSource: "web",
           processingStatus: "pending",
+          // Back-date to the source's added date so imported books sit at their
+          // real place in the timeline (createdAt drives the dashboard sort). No
+          // account-scoped logic reads item.createdAt, so this is display/sort
+          // only. Falls back to now() when the source didn't provide a date.
+          ...(book.addedAt && { createdAt: book.addedAt }),
           meta: {
             originalName: book.title,
             importSource: source,

@@ -22,6 +22,12 @@ export type NormalizedBook = {
   language: string | null;
   /** Remote cover image URL; the writer downloads + stores it. */
   coverUrl: string | null;
+  /**
+   * When the book was added to the source library (Literal shelf-entry date).
+   * Used as the item's `createdAt` so imported books sit at their real place in
+   * the timeline rather than all at import time. null → falls back to now.
+   */
+  addedAt: Date | null;
   reading: NormalizedReadingState;
 };
 

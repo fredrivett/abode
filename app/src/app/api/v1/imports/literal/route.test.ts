@@ -48,6 +48,7 @@ const book = (): NormalizedBook => ({
   pageCount: null,
   language: null,
   coverUrl: null,
+  addedAt: null,
   reading: {
     status: "read",
     rating: null,

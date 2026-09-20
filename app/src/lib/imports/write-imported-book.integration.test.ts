@@ -37,6 +37,7 @@ describe("writeImportedBook", () => {
     pageCount: 200,
     language: "en",
     coverUrl: null,
+    addedAt: new Date("2021-06-15T12:00:00.000Z"),
     reading: {
       status: "read",
       rating: 8,
@@ -86,6 +87,8 @@ describe("writeImportedBook", () => {
     expect(item?.bookDetails?.finishedAt?.toISOString()).toBe(
       "2025-02-02T09:00:30.000Z",
     );
+    // createdAt is back-dated to the source's added date (drives the timeline).
+    expect(item?.createdAt?.toISOString()).toBe("2021-06-15T12:00:00.000Z");
 
     const { read } = await import("@/lib/db");
     const user = await read.user.findUnique({

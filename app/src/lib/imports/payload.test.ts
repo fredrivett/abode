@@ -14,6 +14,7 @@ const book: NormalizedBook = {
   pageCount: 200,
   language: "en",
   coverUrl: "https://x/y.jpg",
+  addedAt: new Date("2021-06-15T12:00:00.000Z"),
   reading: {
     status: "read",
     rating: 8,
@@ -34,6 +35,7 @@ describe("serializeBook / hydrateBook", () => {
   it("serializes dates to ISO strings", () => {
     const s = serializeBook(book);
     expect(s.publishedAt).toBe("2015-03-10T00:00:00.000Z");
+    expect(s.addedAt).toBe("2021-06-15T12:00:00.000Z");
     expect(s.reading.finishedAt).toBe("2025-02-02T09:00:30.000Z");
   });
 
