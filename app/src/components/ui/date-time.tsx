@@ -16,6 +16,11 @@ type DateTimeProps = {
 export function DateTime({ date, className }: DateTimeProps) {
   const dateObj = date instanceof Date ? date : new Date(date);
 
+  // Relative to the viewer's clock, so the server's value (render time) and the
+  // client's (a moment later, at hydration) can legitimately differ when they
+  // straddle a "minute ago" boundary. There's no server value that stays
+  // correct on the client, so we suppress the hydration mismatch (React #418)
+  // on this node rather than trying to reconcile it.
   const relativeTime = formatDistanceToNow(dateObj, { addSuffix: true });
 
   const time = format(dateObj, "HH:mm");
@@ -28,7 +33,12 @@ export function DateTime({ date, className }: DateTimeProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={cn("cursor-default", className)}>{relativeTime}</span>
+        <span
+          suppressHydrationWarning
+          className={cn("cursor-default", className)}
+        >
+          {relativeTime}
+        </span>
       </TooltipTrigger>
       <TooltipContent side="left">
         <span>
