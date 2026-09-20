@@ -47,6 +47,10 @@ type CapturedProps = {
   items: Item[];
   showComposer?: boolean;
   isSearchPending?: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+  total?: number;
 };
 
 let captured: CapturedProps = { items: [] };
@@ -221,6 +225,71 @@ describe("SearchableItemsGrid", () => {
     expect(captured.items.map((i) => i.id)).toEqual(["match-a"]);
     expect(captured.showComposer).toBe(false);
     expect(captured.isSearchPending).toBe(true);
+  });
+
+  it("wires the search's own pagination when a filter is active", () => {
+    // A tag filter returns page 1 (below its full total) plus a cursor: the grid
+    // must paginate through the search's loadMore, not the full-list handlers,
+    // and report the search total so it can keep loading past the first page.
+    const searchLoadMore = vi.fn();
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        hasReceivedResults: true,
+        items: [item("match-a")],
+        total: 170,
+        cursor: "next-page",
+        hasMore: true,
+        loadMore: searchLoadMore,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.total).toBe(170);
+    expect(captured.hasMore).toBe(true);
+    captured.onLoadMore?.();
+    expect(searchLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops paginating the stale cursor while a refined query is pending", () => {
+    // Refining an already-paginated search leaves the previous cursor exposed
+    // (hasMore true) until the new results land. hasMore must be gated off while
+    // pending so the infinite-scroll observer can't fire loadMore on the stale
+    // cursor and supersede the first-page request.
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        isSearching: true,
+        items: [item("stale-a")],
+        total: 170,
+        cursor: "stale-cursor",
+        hasMore: true,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.isSearchPending).toBe(true);
+    expect(captured.hasMore).toBe(false);
+  });
+
+  it("does not dim the grid while a search's next page is loading", () => {
+    // Loading more search results appends rather than replacing, so the grid
+    // shows skeletons (isLoadingMore) without being marked pending/dimmed.
+    mockUseSearchResults.mockReturnValue(
+      makeSearchResults({
+        hasActiveSearch: true,
+        hasReceivedResults: true,
+        isLoading: true,
+        items: [item("match-a")],
+        total: 170,
+        cursor: "next-page",
+        hasMore: true,
+      }),
+    );
+    renderGrid();
+
+    expect(captured.isSearchPending).toBe(false);
+    expect(captured.isLoadingMore).toBe(true);
   });
 
   it("passes the loaded list straight through, without injecting the open item", () => {
