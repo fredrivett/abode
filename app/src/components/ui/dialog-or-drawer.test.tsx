@@ -50,20 +50,23 @@ describe("DialogOrDrawer", () => {
     expect(screen.getByText("Save as Room")).toBeInTheDocument();
   });
 
-  // Regression: the root shares its variant with every sub-component via context, so
-  // the tree is always coherent — exactly one root primitive and no mismatched content.
-  // If sub-components read their own media query instead, a transient disagreement
-  // renders a DialogContent inside a Drawer root and throws
-  // "DialogPortal must be used within Dialog". Each mode must yield a single, coherent
-  // primitive tree with no crash.
-  it("renders a coherent tree with no stray primitive from the other variant", () => {
-    useMediaQuery.mockReturnValue(false);
+  // Regression: the root shares its variant with every sub-component via context.
+  // Here the root reads desktop while every sub-component's own query would read
+  // mobile — the disagreement that caused the original crash. React renders the
+  // root first (consuming the `once`) and never re-renders it, so the root stays
+  // dialog. The context fix keeps sub-components in sync (a coherent dialog tree);
+  // the buggy per-component queries would render DrawerContent inside a Dialog
+  // root and throw.
+  it("renders a coherent tree when root and sub-components disagree on the query", () => {
+    useMediaQuery
+      .mockReturnValueOnce(true) // root decides dialog
+      .mockReturnValue(false); // sub-components' own query would say drawer
     expect(() => render(<Fixture />)).not.toThrow();
 
-    // Mobile: only drawer primitives, never a dialog root/content/portal
-    expect(document.querySelectorAll('[data-slot^="dialog"]')).toHaveLength(0);
+    // Coherent desktop dialog tree — no drawer primitive leaks in
+    expect(document.querySelectorAll('[data-slot^="drawer"]')).toHaveLength(0);
     expect(
-      document.querySelector('[data-slot="drawer-content"]'),
+      document.querySelector('[data-slot="dialog-content"]'),
     ).not.toBeNull();
   });
 });
