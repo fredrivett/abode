@@ -104,8 +104,10 @@ export function SuggestionDropdown({
             type="button"
             key={`${suggestion.facet}:${suggestion.value}`}
             onMouseEnter={() => setSelectedIndex(index)}
-            onMouseDown={(e) => {
-              // keep focus in the input
+            onPointerDown={(e) => {
+              // pointerdown fires before the input blurs (for both mouse and
+              // touch), and preventDefault keeps focus in the input so the
+              // dropdown stays mounted — mousedown alone drops taps on mobile
               e.preventDefault();
               e.stopPropagation();
               onApply(suggestion);
