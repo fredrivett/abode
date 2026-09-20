@@ -192,7 +192,7 @@ describe("toNormalizedBook", () => {
     );
   });
 
-  it("infers read from a rating alone (no review text)", () => {
+  it("infers read from a rating alone (no review text), dated from the review", () => {
     const nb = toNormalizedBook(state({ status: "NONE" }), {
       rating: 5,
       text: null,
@@ -200,6 +200,10 @@ describe("toNormalizedBook", () => {
     });
     expect(nb.reading.status).toBe("read");
     expect(nb.reading.rating).toBe(10);
+    // finish date comes from the review, not the shelf's createdAt default
+    expect(nb.reading.finishedAt?.toISOString()).toBe(
+      "2024-01-01T00:00:00.000Z",
+    );
   });
 
   it("carries the Literal added date as addedAt", () => {
