@@ -188,6 +188,10 @@ agent-browser screenshot /tmp/check.png   # then Read the image to inspect it
 
 Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive. If `agent-browser` isn't installed: `npm install -g agent-browser && agent-browser install`.
 
+### Debug trace (UX jank)
+
+For jank (grid jumping, dialogs remounting, layout shifts), use the admin debug trace instead of guessing: open any page with `?debug=1` (admins; anyone in local dev) or toggle "Debug trace" in the admin account menu. A panel records a timeline of URL writes (with call stacks), React Query fetches/invalidations, masonry reflows (which frames moved, flashed blue), layout shifts (flashed red), slow frames, and dialog/grid mount/unmount/prop changes; "Copy" exports it as JSON. Code lives in `src/lib/debug/` + `src/components/debug/`. Instrument new suspect components with `useDebugLifecycle` / `debugTrace` (no-ops when tracing is off).
+
 For automated tests, run from the `./app` directory:
 
 ```bash
