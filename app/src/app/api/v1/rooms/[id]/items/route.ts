@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { EMPTY_ARTICLE_READ_STATE } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
+import { roomItemSelect, toClientRoomItem } from "@/lib/rooms/room-item-query";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/items");
@@ -57,59 +57,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         skip: 1,
       }),
       orderBy: { addedAt: "desc" },
-      select: {
-        id: true,
-        addedAt: true,
-        item: {
-          select: {
-            id: true,
-            userId: true,
-            kind: true,
-            processingStatus: true,
-            fileKey: true,
-            meta: true,
-            sourceType: true,
-            sourceUrl: true,
-            coverFileKey: true,
-            createdAt: true,
-            updatedAt: true,
-            title: true,
-            description: true,
-            tags: true,
-            userTags: true,
-            locations: {
-              select: {
-                id: true,
-                source: true,
-                latitude: true,
-                longitude: true,
-                neighborhood: true,
-                city: true,
-                region: true,
-                country: true,
-                countryCode: true,
-                formatted: true,
-              },
-            },
-            imageDetails: {
-              select: {
-                objects: true,
-                colors: true,
-                ocrText: true,
-                captureDate: true,
-              },
-            },
-            articleDetails: {
-              select: {
-                author: true,
-                domain: true,
-                publishedAt: true,
-                readingTime: true,
-              },
-            },
-          },
-        },
-      },
+      // Same shape as the room page's first page, so loaded-more cards render
+      // (and size) with all their details
+      select: roomItemSelect,
     });
 
     // Check if there are more results
@@ -117,25 +67,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const items = hasMore ? roomItems.slice(0, limit) : roomItems;
     const nextCursor = hasMore ? items[items.length - 1]?.id : null;
 
-    // Flatten item details for frontend compatibility
-    const flattenedItems = items.map((roomItem) => ({
-      roomItemId: roomItem.id,
-      addedAt: roomItem.addedAt,
-      ...roomItem.item,
-      objects: roomItem.item.imageDetails?.objects ?? [],
-      colors: roomItem.item.imageDetails?.colors ?? [],
-      ocrText: roomItem.item.imageDetails?.ocrText ?? null,
-      captureDate: roomItem.item.imageDetails?.captureDate ?? null,
-      // Read state is private and not needed on room cards — surface it as
-      // explicit nulls rather than undefined (never leaked to non-owners).
-      articleDetails: roomItem.item.articleDetails
-        ? { ...roomItem.item.articleDetails, ...EMPTY_ARTICLE_READ_STATE }
-        : null,
-      imageDetails: undefined,
-    }));
-
     return NextResponse.json({
-      items: flattenedItems,
+      items: items.map(toClientRoomItem),
       nextCursor,
       hasMore,
     });
