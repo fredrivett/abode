@@ -71,6 +71,7 @@ import {
   getDensityIndex,
   useGridDensityStore,
 } from "@/stores/grid-density-store";
+import { useUserStore } from "@/stores/user-store";
 
 type UserProfile = {
   id: string;
@@ -425,6 +426,8 @@ export function CommandPalette() {
   // Sign out handler
   const handleSignOut = useCallback(async () => {
     setOpen(false);
+    // Drop the signed-in user's client state first (see SignOutForm)
+    useUserStore.getState().clearUser();
     await signOut();
   }, [setOpen]);
 

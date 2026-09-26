@@ -9,7 +9,7 @@ type UserHydrationData = Partial<Omit<AuthenticatedUser, "id">> & {
   userId: string;
 };
 
-type UserProfile = {
+export type UserProfile = {
   /** Whose profile this is; undefined = nobody hydrated (or signed out) */
   userId: string | undefined;
   // User profile fields
@@ -111,3 +111,25 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 }));
+
+/**
+ * The store's value for a profile field, but only while the store holds the
+ * signed-in user (`userId`): after a soft switch to another account it still
+ * has the previous user's profile until the header re-hydrates it. Returns
+ * undefined when the store can't answer (not hydrated, or someone else's), so
+ * callers fall back to the server-rendered value; `null` (explicitly empty)
+ * is returned as-is.
+ */
+export function currentUserValue<K extends keyof UserProfile>({
+  state,
+  userId,
+  key,
+}: {
+  state: UserProfile;
+  userId: string | undefined;
+  key: K;
+}): UserProfile[K] | undefined {
+  return userId !== undefined && state.userId === userId
+    ? state[key]
+    : undefined;
+}

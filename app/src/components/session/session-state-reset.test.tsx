@@ -63,11 +63,18 @@ describe("SessionStateReset", () => {
     expect(getTraceEvents()).toEqual([]);
   });
 
-  it("keeps them when the same user re-hydrates", () => {
+  it("keeps them when the same user's store updates", () => {
     renderReset();
     hydrate("user-a");
     seedUserState();
-    hydrate("user-a");
+    // A real store update (a newly hydrated field) with the same user
+    act(() =>
+      useUserStore
+        .getState()
+        .hydrateUser({ userId: "user-a", firstName: "Ada" }),
+    );
+    expect(useUserStore.getState().firstName).toBe("Ada");
     expect(queryClient.getQueryData(["items"])).toBeDefined();
+    expect(getTraceEvents()).toHaveLength(1);
   });
 });

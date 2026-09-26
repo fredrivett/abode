@@ -25,6 +25,7 @@ import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { ChecklistPopover } from "@/components/checklist";
 import { SearchInput } from "@/components/search";
@@ -50,7 +51,11 @@ import { emptySearchState, useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
-import { useUserStore } from "@/stores/user-store";
+import {
+  currentUserValue,
+  type UserProfile,
+  useUserStore,
+} from "@/stores/user-store";
 
 type NavItem = {
   href: string;
@@ -203,16 +208,8 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     centerSlot,
   } = props;
 
-  const {
-    firstName: storeFirstName,
-    lastName: storeLastName,
-    username: storeUsername,
-    email: storeEmail,
-    avatarUrl: storeAvatarUrl,
-    availableInvites: storeAvailableInvites,
-    hydrateUser,
-    clearUser,
-  } = useUserStore();
+  const userStore = useUserStore();
+  const { hydrateUser } = userStore;
 
   const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
   const {
@@ -258,24 +255,25 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   // Use store value if hydrated, otherwise fall back to prop.
   // Props are used during SSR and initial client render (before useEffect hydrates the store).
   // After hydration, store values take over so mutations (e.g., name changes) reflect immediately.
-  const firstName =
-    storeFirstName !== undefined
-      ? storeFirstName
-      : (authProps?.firstName ?? null);
-  const lastName =
-    storeLastName !== undefined ? storeLastName : (authProps?.lastName ?? null);
-  const username =
-    storeUsername !== undefined ? storeUsername : (authProps?.username ?? null);
-  const email =
-    storeEmail !== undefined ? storeEmail : (authProps?.email ?? null);
-  const avatarUrl =
-    storeAvatarUrl !== undefined
-      ? storeAvatarUrl
-      : (authProps?.avatarUrl ?? null);
+  // Only the signed-in user's values count — see currentUserValue.
+  const fromStore = <K extends keyof UserProfile>(
+    key: K,
+    fallback: NonNullable<UserProfile[K]> | null,
+  ) => {
+    const value = currentUserValue({
+      state: userStore,
+      userId: authProps?.userId,
+      key,
+    });
+    return value !== undefined ? value : fallback;
+  };
+  const firstName = fromStore("firstName", authProps?.firstName ?? null);
+  const lastName = fromStore("lastName", authProps?.lastName ?? null);
+  const username = fromStore("username", authProps?.username ?? null);
+  const email = fromStore("email", authProps?.email ?? null);
+  const avatarUrl = fromStore("avatarUrl", authProps?.avatarUrl ?? null);
   const availableInvites =
-    storeAvailableInvites !== undefined
-      ? storeAvailableInvites
-      : (authProps?.availableInvites ?? 0);
+    fromStore("availableInvites", authProps?.availableInvites ?? 0) ?? 0;
 
   // Compute display values for the user dropdown
   // If user has a name (first and/or last), show name on line 1 and @username on line 2
@@ -518,13 +516,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <form
-                    action={props.signOutAction}
-                    // Sign-out is a soft navigation, so drop the signed-in
-                    // user's client state (admin flag, cached queries, debug
-                    // trace) rather than letting it outlive the session
-                    onSubmit={clearUser}
-                  >
+                  <SignOutForm action={props.signOutAction}>
                     <button
                       type="submit"
                       className="flex w-full items-center gap-2"
@@ -532,7 +524,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                       <LogOut className="size-4" />
                       Sign out
                     </button>
-                  </form>
+                  </SignOutForm>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
