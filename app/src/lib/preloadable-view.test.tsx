@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { preloadableView } from "./preloadable-view";
 
@@ -10,6 +10,8 @@ function Greeting({ name }: { name: string }) {
 const loading = () => <p>loading…</p>;
 
 describe("preloadableView", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("shows the fallback until a not-yet-loaded view arrives", async () => {
     const View = preloadableView(async () => Greeting, { loading });
     render(<View name="ada" />);
@@ -52,10 +54,8 @@ describe("preloadableView", () => {
       .mockRejectedValueOnce(new Error("chunk failed"))
       .mockResolvedValue(Greeting);
     const View = preloadableView(loader, { loading });
-    // React logs the caught render error
-    const silenceErrors = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    // React logs the caught render error (restored in afterEach)
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     const first = render(
       <ErrorBoundary fallback={<p>failed</p>}>
@@ -72,6 +72,5 @@ describe("preloadableView", () => {
       </ErrorBoundary>,
     );
     expect(await screen.findByText("hello ada")).toBeInTheDocument();
-    silenceErrors.mockRestore();
   });
 });
