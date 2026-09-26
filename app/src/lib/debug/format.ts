@@ -1,4 +1,9 @@
-import type { TraceData, TraceEvent, TraceValue } from "./trace";
+import {
+  getTraceEvents,
+  type TraceData,
+  type TraceEvent,
+  type TraceValue,
+} from "./trace";
 
 /** Events closer together than this are likely one causal chain */
 export const CHAIN_GAP_MS = 50;
@@ -44,7 +49,9 @@ export type TraceExport = {
 };
 
 /** Self-describing JSON blob to paste into an issue or an agent. */
-export function buildTraceExport(events: readonly TraceEvent[]): TraceExport {
+export function buildTraceExport(
+  events: readonly TraceEvent[] = getTraceEvents(),
+): TraceExport {
   return {
     capturedAt: new Date().toISOString(),
     url: `${window.location.pathname}${window.location.search}`,
