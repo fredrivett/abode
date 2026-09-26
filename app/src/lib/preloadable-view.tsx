@@ -35,6 +35,13 @@ export function preloadableView<P extends object>(
   let loaded: ComponentType<P> | null = null;
   let pending: Promise<ComponentType<P>> | null = null;
 
+  // React.lazy caches its promise for good — including a rejection — so a
+  // failed load (e.g. a transient chunk error) gets a fresh wrapper, letting a
+  // later render retry instead of rethrowing forever
+  const createLazy = () =>
+    lazy(() => preload().then((component) => ({ default: component })));
+  let Lazy = createLazy();
+
   const preload = () => {
     pending ??= loader().then(
       (component) => {
@@ -42,17 +49,13 @@ export function preloadableView<P extends object>(
         return component;
       },
       (error: unknown) => {
-        // Let a later render/preload retry
         pending = null;
+        Lazy = createLazy();
         throw error;
       },
     );
     return pending;
   };
-
-  const Lazy = lazy(() =>
-    preload().then((component) => ({ default: component })),
-  );
 
   function View(props: P) {
     // Client-only: the server (and the hydration render) show the fallback

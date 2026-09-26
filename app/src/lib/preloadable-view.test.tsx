@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { preloadableView } from "./preloadable-view";
 
 function Greeting({ name }: { name: string }) {
@@ -43,5 +44,34 @@ describe("preloadableView", () => {
     await act(() => View.preload());
     render(<View name="ada" />);
     expect(screen.getByText("hello ada")).toBeInTheDocument();
+  });
+
+  it("retries on a later render after the first render's load failed", async () => {
+    const loader = vi
+      .fn<() => Promise<typeof Greeting>>()
+      .mockRejectedValueOnce(new Error("chunk failed"))
+      .mockResolvedValue(Greeting);
+    const View = preloadableView(loader, { loading });
+    // React logs the caught render error
+    const silenceErrors = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const first = render(
+      <ErrorBoundary fallback={<p>failed</p>}>
+        <View name="ada" />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByText("failed")).toBeInTheDocument();
+    first.unmount();
+
+    // e.g. closing and reopening the dialog
+    render(
+      <ErrorBoundary fallback={<p>failed</p>}>
+        <View name="ada" />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByText("hello ada")).toBeInTheDocument();
+    silenceErrors.mockRestore();
   });
 });
