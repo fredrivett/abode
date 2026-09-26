@@ -144,4 +144,37 @@ describe("useSearch URL reads", () => {
       { type: "type", value: "video" },
     ]);
   });
+
+  it("doesn't mistake its own write for an external change when filter order differs", () => {
+    vi.useFakeTimers();
+    const replaceSpy = vi
+      .spyOn(window.history, "replaceState")
+      .mockImplementation(() => {});
+    nav.params = new URLSearchParams();
+    const { result, rerender } = renderHook(() => useSearch());
+
+    // Added tag before type — FILTER_TYPES orders type first when parsing
+    const state = {
+      query: "",
+      filters: [
+        { id: "1", type: "tag" as const, value: "x", negated: false },
+        { id: "2", type: "type" as const, value: "image", negated: false },
+      ],
+    };
+    act(() => {
+      result.current.setState(state, { immediate: true });
+    });
+    const written = String(replaceSpy.mock.calls[0][2]).slice(1);
+
+    // Next reflects our own write back through useSearchParams
+    act(() => {
+      nav.params = new URLSearchParams(written);
+      rerender();
+    });
+
+    // Still our state object: not re-parsed (which would re-run the search)
+    expect(result.current.state).toBe(state);
+    replaceSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });

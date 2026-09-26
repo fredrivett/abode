@@ -13,6 +13,15 @@ import {
 const DEBOUNCE_MS = 300;
 
 /**
+ * The search-owned slice of a query string (query + filters), canonicalized:
+ * parsing orders filters by type, so the same search written in a different
+ * filter order still yields the same key.
+ */
+function searchKey(params: URLSearchParams): string {
+  return serializeSearchParams(parseSearchParams(params)).toString();
+}
+
+/**
  * Hook for managing search state with URL synchronization.
  *
  * - Local state is the source of truth for the UI
@@ -22,15 +31,12 @@ const DEBOUNCE_MS = 300;
 export function useSearch() {
   const searchParams = useSearchParams();
 
-  // The search-owned slice of the URL (query + filters), normalized the same
-  // way writeUrl serializes it. Other params (`?item=` for the open dialog,
+  // The search-owned slice of the URL. Other params (`?item=` for the open dialog,
   // `?debug=`) aren't search state: reacting to them would re-parse the URL
   // into a "new" state (fresh filter ids), re-run the search and reset its
   // pagination — e.g. opening an item from page 3 of a filtered view dropped
   // it from the results, unmounting and remounting its dialog.
-  const urlSearchKey = serializeSearchParams(
-    parseSearchParams(searchParams),
-  ).toString();
+  const urlSearchKey = searchKey(searchParams);
 
   // Parse initial URL state on mount only
   const [state, setLocalState] = useState<SearchState>(() =>
@@ -69,8 +75,9 @@ export function useSearch() {
     const queryString = params.toString();
     const url = queryString ? `?${queryString}` : window.location.pathname;
 
-    // Track this URL so we ignore the popstate event
-    lastUrlRef.current = queryString;
+    // Track this URL so we ignore it when it comes back via useSearchParams
+    // (canonical key: our filter order may differ from the parsed order)
+    lastUrlRef.current = searchKey(params);
 
     // Use history.replaceState to update URL without triggering navigation
     window.history.replaceState(null, "", url);
