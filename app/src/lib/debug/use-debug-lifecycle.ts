@@ -1,0 +1,82 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { debugTrace, type TraceChannel, type TraceData } from "./trace";
+
+type WatchedValue = string | number | boolean | null | undefined;
+
+/** Keys whose value differs between two watched-value maps. */
+export function changedKeys(
+  prev: Record<string, WatchedValue>,
+  next: Record<string, WatchedValue>,
+): string[] {
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  return [...keys].filter((key) => !Object.is(prev[key], next[key]));
+}
+
+function toTraceData(values: Record<string, WatchedValue>): TraceData {
+  const data: TraceData = {};
+  for (const [key, value] of Object.entries(values)) {
+    data[key] = value === undefined ? null : value;
+  }
+  return data;
+}
+
+/**
+ * Put a component's mount, unmount, and changes to `watch` on the debug
+ * timeline — for catching remounts (mount→unmount→mount of the same thing) and
+ * seeing which input flipped right before one. Watched values must be
+ * primitives; derive them (ids, booleans) rather than passing objects.
+ */
+export function useDebugLifecycle({
+  name,
+  channel,
+  watch = {},
+}: {
+  name: string;
+  channel: TraceChannel;
+  watch?: Record<string, WatchedValue>;
+}): void {
+  const prevRef = useRef<Record<string, WatchedValue> | null>(null);
+  const watchRef = useRef(watch);
+  watchRef.current = watch;
+  const pendingUnmountRef = useRef(false);
+
+  // Mount/unmount only (name/channel are constant per call site). Dev Strict
+  // Mode re-runs effects on the same instance within the same task, which
+  // would read as exactly the mount→unmount→mount we're hunting — so defer the
+  // unmount a microtask and drop the pair if the effect re-runs first. A real
+  // remount is a new instance (fresh refs) and still logs both.
+  useEffect(() => {
+    if (pendingUnmountRef.current) {
+      pendingUnmountRef.current = false;
+      return scheduleUnmount;
+    }
+    debugTrace(channel, `${name}:mount`, toTraceData(watchRef.current));
+    return scheduleUnmount;
+
+    function scheduleUnmount() {
+      pendingUnmountRef.current = true;
+      const at = performance.now();
+      queueMicrotask(() => {
+        if (!pendingUnmountRef.current) return;
+        pendingUnmountRef.current = false;
+        // Backdated so it sorts before a replacement instance's mount
+        debugTrace(channel, `${name}:unmount`, undefined, { at });
+      });
+    }
+  }, [channel, name]);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    prevRef.current = watch;
+    if (prev === null) return;
+    const changed = changedKeys(prev, watch);
+    if (changed.length === 0) return;
+    const data: TraceData = {};
+    for (const key of changed) {
+      data[key] = `${String(prev[key])} → ${String(watch[key])}`;
+    }
+    debugTrace(channel, `${name}:change`, data);
+  });
+}
