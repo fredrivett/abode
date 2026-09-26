@@ -1,6 +1,7 @@
 "use client";
 
 import { type RefObject, useLayoutEffect, useState } from "react";
+import { gridColumnCount } from "@/lib/items/complete-rows";
 import { coalesceFrame } from "@/lib/raf-coalesce";
 
 // Layout effect on the client so the measured width is available before the
@@ -18,20 +19,23 @@ type UseColumnWidthOptions = {
 };
 
 /**
- * Measured width of a single masonry column.
+ * Measured width of a single masonry column, and how many columns there are.
  *
  * The grid lays columns out as `repeat(auto-fill, minmax(frameWidth, 1fr))`, so
  * the real column width is the container width divided across however many
  * columns fit — stretched by `1fr` above the `frameWidth` floor. The content
  * estimators need this actual width (not the floor) to count line wraps
- * correctly. Returns `null` until measured.
+ * correctly. Both are `null` until measured.
  */
 export function useColumnWidth({
   ref,
   frameWidth,
   gap,
   enabled,
-}: UseColumnWidthOptions): number | null {
+}: UseColumnWidthOptions): {
+  columnWidth: number | null;
+  columnCount: number | null;
+} {
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
 
   useIsomorphicLayoutEffect(() => {
@@ -54,11 +58,11 @@ export function useColumnWidth({
     // don't change the container width but keep the derived value below fresh.
   }, [ref, enabled]);
 
-  if (containerWidth === null) return null;
+  if (containerWidth === null) return { columnWidth: null, columnCount: null };
 
-  const columns = Math.max(
-    1,
-    Math.floor((containerWidth + gap) / (frameWidth + gap)),
-  );
-  return (containerWidth - (columns - 1) * gap) / columns;
+  const columnCount = gridColumnCount({ containerWidth, frameWidth, gap });
+  return {
+    columnWidth: (containerWidth - (columnCount - 1) * gap) / columnCount,
+    columnCount,
+  };
 }

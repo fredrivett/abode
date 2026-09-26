@@ -17,11 +17,16 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { useRootFontSize } from "@/hooks/use-root-font-size";
 import { getBookTileFrame } from "@/lib/book-cover";
+import { diffItemIds } from "@/lib/debug/grid-layout-diff";
+import { debugTrace, isTracing } from "@/lib/debug/trace";
+import { useDebugGridObserver } from "@/lib/debug/use-debug-grid-observer";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import {
   estimateNoteAspect,
   estimateTweetAspect,
 } from "@/lib/items/card-aspect";
 import { measureCardText } from "@/lib/items/card-text-measurer";
+import { completeRowFrameCount } from "@/lib/items/complete-rows";
 import { isFreshlyAdded } from "@/lib/items/grow-in";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { readAspectHint } from "@/lib/items/provisional-aspect";
@@ -29,7 +34,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
-import { ItemCard } from "./item-card";
+import { ItemCard, preloadDetailView } from "./item-card";
 import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
 import { ItemFrame } from "./item-frame";
 import { NoteComposer } from "./note-composer";
@@ -88,7 +93,7 @@ export function ItemsGrid({
   } = useGridDensity();
   // Actual rendered column width — coverless text cards (notes, text tweets)
   // size their height from their content against this width.
-  const columnWidth = useColumnWidth({
+  const { columnWidth, columnCount } = useColumnWidth({
     ref: containerRef,
     frameWidth,
     gap,
@@ -104,6 +109,39 @@ export function ItemsGrid({
     isLoading: isLoadingMore ?? false,
     onLoadMore: onLoadMore ?? (() => {}),
   });
+
+  const itemKindById = useMemo(
+    () => new Map(items.map((item) => [item.id, item.kind])),
+    [items],
+  );
+
+  // Debug trace (no-ops unless an admin has tracing on): masonry reflows, list
+  // changes, and the geometry/loading inputs that drive them
+  const gridDebugRef = useDebugGridObserver();
+  useDebugLifecycle({
+    name: "ItemsGrid",
+    channel: "grid",
+    watch: {
+      itemCount: items.length,
+      frameWidth,
+      columnWidth,
+      isLoadingMore,
+      isSearchPending,
+      hasMore,
+    },
+  });
+  // null until the first render's ids are recorded (an empty list is a real state)
+  const prevItemIdsRef = useRef<string[] | null>(null);
+  useEffect(() => {
+    const ids = items.map((item) => item.id);
+    const prev = prevItemIdsRef.current;
+    prevItemIdsRef.current = ids;
+    if (!isTracing() || prev === null) return;
+    const diff = diffItemIds({ prev, next: ids });
+    if (diff.added || diff.removed || diff.reordered) {
+      debugTrace("grid", "items", { count: ids.length, ...diff });
+    }
+  }, [items]);
 
   // Fresh random order per load; stable across re-renders while loading so the
   // placeholders don't reshuffle mid-fetch.
@@ -144,9 +182,32 @@ export function ItemsGrid({
     if (seen) for (const item of items) seen.add(item.id);
   }, [items]);
 
+  // One delegated handler: pointing at a card starts loading its detail view
+  // (a touch fires pointerover just before the tap), so the dialog opens
+  // straight into it
+  const handleGridPointerOver = (event: React.PointerEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const id = event.target
+      .closest("[data-grid-item]")
+      ?.getAttribute("data-grid-item");
+    if (id) preloadDetailView(itemKindById.get(id) ?? null);
+  };
+
   if (!hasHydrated) {
     return null;
   }
+
+  // Only complete rows while more pages are coming (the composer takes the
+  // first slot), so appending a page never rebalances a row already on screen
+  const composerFrames = showComposer ? 1 : 0;
+  const renderedItems = items.slice(
+    0,
+    completeRowFrameCount({
+      frameCount: items.length + composerFrames,
+      columnCount,
+      hasMore: hasMore ?? false,
+    }) - composerFrames,
+  );
 
   // While a search is in flight, dim the shown state and block interaction so
   // both the grid and a retained empty ("No results") state read as loading.
@@ -229,6 +290,8 @@ export function ItemsGrid({
         )
       ) : (
         <div
+          ref={gridDebugRef}
+          onPointerOver={handleGridPointerOver}
           className={cn(items.length <= 4 && "flex justify-center", busyClass)}
           aria-busy={isSearchPending}
         >
@@ -242,7 +305,12 @@ export function ItemsGrid({
                 in flight, just disabled) and is hidden once results are shown,
                 so it doesn't reflow the grid the instant the user types. */}
             {showComposer && (
-              <Frame key="note-composer" width={1} height={1}>
+              <Frame
+                key="note-composer"
+                width={1}
+                height={1}
+                data-grid-item="note-composer"
+              >
                 <div className="h-full">
                   <NoteComposer
                     initialDraft={initialNoteDraft}
@@ -251,7 +319,7 @@ export function ItemsGrid({
                 </div>
               </Frame>
             )}
-            {items.map((item) => {
+            {renderedItems.map((item) => {
               const meta = item.meta || {};
               const isArticleOrWebpage =
                 item.kind === "article" || item.kind === "webpage";
@@ -388,6 +456,7 @@ export function ItemsGrid({
                   columnWidth={columnWidth}
                   frameTransition={frameTransition}
                   animateIn={animateIn}
+                  itemId={item.id}
                 >
                   <ItemCard
                     item={item}
@@ -401,7 +470,7 @@ export function ItemsGrid({
             {/* While the next page loads, tease it with skeleton cards so the
                 grid grows in place rather than showing a spinner below it. */}
             {skeletonFrames.map(({ id, width, height }) => (
-              <Frame key={id} width={width} height={height}>
+              <Frame key={id} width={width} height={height} data-grid-item={id}>
                 <div className="h-full">
                   <ItemCardSkeleton />
                 </div>

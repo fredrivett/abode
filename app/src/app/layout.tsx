@@ -4,7 +4,9 @@ import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
+import { DebugTools } from "@/components/debug/debug-tools";
 import { Footer } from "@/components/footer";
+import { SessionStateReset } from "@/components/session/session-state-reset";
 import { APP_NAME } from "@/lib/app";
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
@@ -99,6 +101,8 @@ export default function RootLayout({
             <CommandPalette />
           </Suspense>
           <Footer />
+          <SessionStateReset />
+          <DebugTools />
         </QueryProvider>
         <Toaster richColors theme="system" />
       </body>

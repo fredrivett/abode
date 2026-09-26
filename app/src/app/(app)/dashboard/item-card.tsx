@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProcessingStatus } from "@prisma/client";
+import type { ItemKind, ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
   BookOpen,
@@ -30,7 +30,6 @@ import {
   useMotionValue,
   useTransform,
 } from "motion/react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -81,6 +80,8 @@ import {
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
+import { debugTrace } from "@/lib/debug/trace";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -101,6 +102,7 @@ import {
   shouldCompleteSeeAiAnalysis,
 } from "@/lib/milestones/conditions";
 import { getPlatformName } from "@/lib/platforms";
+import { preloadableView } from "@/lib/preloadable-view";
 import { useSearch } from "@/lib/search";
 import {
   type ChipSearch,
@@ -139,88 +141,99 @@ export const DETAIL_IMAGE_CLASSNAME =
 
 // Detail views render only inside the click-to-expand modal, never in the
 // collapsed grid card. Load them lazily so they stay out of the dashboard
-// grid's initial JS. ssr:false is safe because the modal is client-only.
+// grid's initial JS; client-only is safe because the modal is client-only.
 const detailViewLoading = () => (
   <div className="flex h-full w-full items-center justify-center">
     <IsLoading label="Loading" />
   </div>
 );
 
-const ArticleDetailView = dynamic(
+const ArticleDetailView = preloadableView(
   () =>
     import("@/components/article/article-detail-view").then(
       (m) => m.ArticleDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const HighlightsPanel = dynamic(
+const HighlightsPanel = preloadableView(
   () =>
     import("@/components/article/highlights-panel").then(
       (m) => m.HighlightsPanel,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const BookDetailView = dynamic(
+const ArticleReadingControls = preloadableView(() =>
+  import("@/components/article/article-reading-controls").then(
+    (m) => m.ArticleReadingControls,
+  ),
+);
+const BookDetailView = preloadableView(
   () =>
     import("@/components/book/book-detail-view").then((m) => m.BookDetailView),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const ArticleReadingControls = dynamic(
-  () =>
-    import("@/components/article/article-reading-controls").then(
-      (m) => m.ArticleReadingControls,
-    ),
-  { ssr: false },
+const BookReadingControls = preloadableView(() =>
+  import("@/components/book/book-reading-controls").then(
+    (m) => m.BookReadingControls,
+  ),
 );
-
-const BookReadingControls = dynamic(
-  () =>
-    import("@/components/book/book-reading-controls").then(
-      (m) => m.BookReadingControls,
-    ),
-  { ssr: false },
-);
-
-const NoteDetailView = dynamic(
+const NoteDetailView = preloadableView(
   () =>
     import("@/components/note/note-detail-view").then((m) => m.NoteDetailView),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const ProductDetailView = dynamic(
+const ProductDetailView = preloadableView(
   () =>
     import("@/components/product/product-detail-view").then(
       (m) => m.ProductDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const InstagramDetailView = dynamic(
+const InstagramDetailView = preloadableView(
   () =>
     import("@/components/instagram/instagram-detail-view").then(
       (m) => m.InstagramDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const TwitterDetailView = dynamic(
+const TwitterDetailView = preloadableView(
   () =>
     import("@/components/twitter/twitter-detail-view").then(
       (m) => m.TwitterDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
-
-const VideoDetailView = dynamic(
+const VideoDetailView = preloadableView(
   () =>
     import("@/components/video/video-detail-view").then(
       (m) => m.VideoDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { loading: detailViewLoading },
 );
+
+const DETAIL_VIEWS: Partial<
+  Record<ItemKind, ReadonlyArray<{ preload: () => Promise<unknown> }>>
+> = {
+  article: [ArticleDetailView, HighlightsPanel, ArticleReadingControls],
+  book: [BookDetailView, BookReadingControls],
+  note: [NoteDetailView],
+  product: [ProductDetailView],
+  instagram: [InstagramDetailView],
+  twitter: [TwitterDetailView],
+  video: [VideoDetailView],
+};
+
+/**
+ * Start loading a kind's lazy detail view on intent (pointer over a card), so
+ * it's usually loaded by the click and the dialog opens straight into the real
+ * view instead of flashing a "Loading" placeholder first.
+ */
+export function preloadDetailView(kind: ItemKind | null): void {
+  for (const view of (kind && DETAIL_VIEWS[kind]) || []) {
+    // A failed preload just means the dialog loads it on open as before
+    view.preload().catch(() => {});
+  }
+}
 
 type ItemCardProps = {
   item: Item;
@@ -371,6 +384,7 @@ export function ItemCard({
   };
 
   const handleOpenDetail = () => {
+    debugTrace("dialog", "card:click", { itemId: item.id });
     setIsAnimating(true);
     setShowDetailDialog(true);
 
@@ -1260,6 +1274,11 @@ export function ItemDialogFrame({
   const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)", {
     defaultValue: false,
     initializeWithValue: false,
+  });
+  useDebugLifecycle({
+    name: "ItemDialogFrame",
+    channel: "dialog",
+    watch: { open, isTouchDevice },
   });
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
