@@ -2,14 +2,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Room, RoomItem } from "@/lib/types/room";
 
-// Masonry grid just lays out children in jsdom — render them straight through
-vi.mock("@masonry-grid/react", () => ({
-  BalancedMasonryGrid: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  Frame: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
 // ItemCard is animation-heavy; stub it to a delete button that fires onDeleted
 vi.mock("@/app/(app)/dashboard/item-card", () => ({
   ItemCard: ({

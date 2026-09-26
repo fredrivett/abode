@@ -13,6 +13,7 @@ import {
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import {
   layoutMasonry,
+  type MasonryGeometry,
   type MasonryLayout,
   type MasonryPlacement,
   masonryColumns,
@@ -29,7 +30,7 @@ const TRANSITION = ["transform", "width", "height", "opacity"]
   .map((property) => `${property} ${MASONRY_TRANSITION_MS}ms ease`)
   .join(", ");
 
-export type MasonryGeometry = { columnWidth: number };
+export type { MasonryGeometry };
 
 export type MasonryGridProps<T> = {
   items: readonly T[];

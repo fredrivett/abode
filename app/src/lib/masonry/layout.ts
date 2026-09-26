@@ -13,6 +13,9 @@
  * in its own column instead of reshuffling everything after it.
  */
 
+/** What a frame's aspect can depend on: the rendered column width (px). */
+export type MasonryGeometry = { columnWidth: number };
+
 /** A frame's aspect — only the ratio of `width` to `height` matters. */
 export type MasonryFrame = { key: string; width: number; height: number };
 
