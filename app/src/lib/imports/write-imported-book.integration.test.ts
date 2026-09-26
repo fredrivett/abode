@@ -87,8 +87,12 @@ describe("writeImportedBook", () => {
     expect(item?.bookDetails?.finishedAt?.toISOString()).toBe(
       "2025-02-02T09:00:30.000Z",
     );
-    // createdAt is back-dated to the source's added date (drives the timeline).
-    expect(item?.createdAt?.toISOString()).toBe("2021-06-15T12:00:00.000Z");
+    // addedAt is back-dated to the source's added date (drives the timeline);
+    // createdAt stays the truthful row-creation time (≈ now, not back-dated).
+    expect(item?.addedAt?.toISOString()).toBe("2021-06-15T12:00:00.000Z");
+    expect(item?.createdAt?.getTime()).toBeGreaterThan(
+      new Date("2022-01-01T00:00:00.000Z").getTime(),
+    );
 
     const { read } = await import("@/lib/db");
     const user = await read.user.findUnique({
@@ -96,6 +100,18 @@ describe("writeImportedBook", () => {
       select: { itemCount: true },
     });
     expect(user?.itemCount).toBe(1);
+  });
+
+  test("defaults addedAt to now when the source has no added date", async () => {
+    const before = Date.now();
+    const userId = await createUser();
+    const res = await write_(userId, makeBook({ addedAt: null }));
+    expect(res.status).toBe("created");
+    if (res.status !== "created") return;
+
+    const item = await itemWithDetails(res.itemId);
+    // No source date → addedAt falls back to the column default (≈ now).
+    expect(item?.addedAt?.getTime()).toBeGreaterThanOrEqual(before);
   });
 
   test("skips a duplicate ISBN for the same user", async () => {
