@@ -108,3 +108,40 @@ describe("useSearch URL writes", () => {
     expect(replaceSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("useSearch URL reads", () => {
+  beforeEach(() => {
+    nav.params = new URLSearchParams("type=image");
+  });
+
+  it("ignores URL changes outside the search params (e.g. opening an item)", () => {
+    const { result, rerender } = renderHook(() => useSearch());
+    const before = result.current.state;
+
+    // Opening/closing the item dialog toggles ?item= — not a search change
+    act(() => {
+      nav.params = new URLSearchParams("type=image&item=abc");
+      rerender();
+    });
+    act(() => {
+      nav.params = new URLSearchParams("type=image");
+      rerender();
+    });
+
+    // Same object: no re-parse, so no re-run search / reset pagination
+    expect(result.current.state).toBe(before);
+  });
+
+  it("syncs when the search params change externally (back/forward)", () => {
+    const { result, rerender } = renderHook(() => useSearch());
+
+    act(() => {
+      nav.params = new URLSearchParams("type=video&item=abc");
+      rerender();
+    });
+
+    expect(result.current.state.filters).toMatchObject([
+      { type: "type", value: "video" },
+    ]);
+  });
+});
