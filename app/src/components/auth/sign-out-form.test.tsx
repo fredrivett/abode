@@ -24,7 +24,8 @@ describe("SignOutForm", () => {
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
   });
 
-  it("still calls a caller's onSubmit", () => {
+  it("leaves client state alone when a caller cancels the submit", () => {
+    useUserStore.getState().hydrateUser({ userId: "user-a", isAdmin: true });
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
     render(
       <SignOutForm onSubmit={onSubmit}>
@@ -33,5 +34,6 @@ describe("SignOutForm", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(onSubmit).toHaveBeenCalledOnce();
+    expect(useUserStore.getState().userId).toBe("user-a");
   });
 });

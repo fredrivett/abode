@@ -17,7 +17,8 @@ export function SignOutForm({ onSubmit, ...props }: ComponentProps<"form">) {
       {...props}
       onSubmit={(event) => {
         onSubmit?.(event);
-        clearUser();
+        // A caller cancelled: no sign-out happens, so keep the session's state
+        if (!event.defaultPrevented) clearUser();
       }}
     />
   );
