@@ -20,6 +20,13 @@ import {
 } from "@/lib/debug/trace";
 import { DebugPanel } from "./debug-panel";
 
+declare global {
+  interface Window {
+    /** Present during a debug session — lets agents/automation read the trace */
+    __abodeDebugTrace?: { export: typeof buildTraceExport; clear: () => void };
+  }
+}
+
 /**
  * A live debug session: turns tracing on, installs the global instrumentation
  * (URL writes, React Query, layout shifts, slow frames) and renders the panel.
@@ -47,7 +54,9 @@ export default function DebugSession() {
       instrumentQueryCache(queryClient),
       instrumentPerformance(),
     ];
+    window.__abodeDebugTrace = { export: buildTraceExport, clear: clearTrace };
     return () => {
+      delete window.__abodeDebugTrace;
       for (const stop of uninstall) stop();
       setTracingEnabled(false);
       removeHighlightLayer();
