@@ -16,6 +16,8 @@ type ItemFrameProps = {
   frameTransition?: string;
   /** True when this is a freshly-added item that should grow into the grid. */
   animateIn: boolean;
+  /** Item id, exposed as `data-grid-item` for the debug grid observer */
+  itemId?: string;
   children: ReactNode;
 };
 
@@ -35,6 +37,7 @@ export function ItemFrame({
   columnWidth,
   frameTransition,
   animateIn,
+  itemId,
   children,
 }: ItemFrameProps) {
   const targetPx =
@@ -77,7 +80,12 @@ export function ItemFrame({
   }
 
   return (
-    <Frame width={width} height={height} style={frameStyle}>
+    <Frame
+      width={width}
+      height={height}
+      style={frameStyle}
+      data-grid-item={itemId}
+    >
       <div
         className="h-full"
         // Pin the content to its full height while the frame clips it, so it
