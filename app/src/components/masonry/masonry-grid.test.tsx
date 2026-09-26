@@ -122,6 +122,32 @@ describe("MasonryGrid", () => {
     expect(cell("a").style.transition).toContain("transform 300ms");
   });
 
+  it("doesn't animate a relayout when the column count changes", () => {
+    const { rerender } = render(
+      <Grid items={[square("a"), square("b"), square("c")]} animate />,
+    );
+    // Narrower minimum → more columns: every card moves, so snap, don't slide
+    rerender(
+      <Grid
+        items={[square("a"), square("b"), square("c")]}
+        animate
+        minColumnWidth={60}
+      />,
+    );
+    for (const id of ["a", "b", "c"]) {
+      expect(cell(id).style.transition).toBe("");
+    }
+  });
+
+  it("passes a callback ref's cleanup through", () => {
+    const cleanup = vi.fn();
+    const { unmount } = render(
+      <Grid items={[square("a")]} ref={() => cleanup} />,
+    );
+    unmount();
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
   it("doesn't animate unless asked", () => {
     const { rerender } = render(<Grid items={[square("a")]} />);
     rerender(<Grid items={[square("a", { height: 2 })]} />);

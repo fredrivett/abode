@@ -102,8 +102,9 @@ export function MasonryGrid<T>({
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
       containerRef.current = node;
-      if (typeof ref === "function") ref(node);
-      else if (ref) ref.current = node;
+      // Pass through a React 19 callback ref's cleanup
+      if (typeof ref === "function") return ref(node);
+      if (ref) ref.current = node;
     },
     [ref],
   );

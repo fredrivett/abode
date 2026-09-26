@@ -183,4 +183,30 @@ function GrowingGrid() {
 // A new card at the top grows in and only pushes its own column down
 export const GrowIn: Story = {
   render: () => <GrowingGrid />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const columnOf = (transform: string | undefined) =>
+      transform?.match(/translate3d\(([\d.]+)px/)?.[1];
+    const before = transforms(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Add to top" }));
+
+    const cell = await waitFor(() => {
+      const added = canvasElement.querySelector<HTMLElement>(
+        '[data-grid-item="card-9"]',
+      );
+      if (!added) throw new Error("not added yet");
+      return added;
+    });
+    // Starts collapsed, then grows to its full height
+    await waitFor(() =>
+      expect(cell.getBoundingClientRect().height).toBeGreaterThan(50),
+    );
+    const newColumn = columnOf(cell.style.transform);
+    const after = transforms(canvasElement);
+    for (const [key, transform] of before) {
+      if (columnOf(transform) !== newColumn) {
+        expect(after.get(key)).toBe(transform);
+      }
+    }
+  },
 };

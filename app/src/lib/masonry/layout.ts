@@ -29,7 +29,7 @@ export type MasonryLayout = {
   placements: MasonryPlacement[];
   /** Total height of the tallest column (px) */
   height: number;
-  /** Columns actually used — fewer than fit when there are fewer frames */
+  /** Columns laid out against (all that fit, even if some are empty) */
   columnCount: number;
   /** Each frame's column by key, for keeping columns on the next layout */
   columns: ReadonlyMap<string, number>;
@@ -59,21 +59,12 @@ export function masonryColumns({
   return { columnCount, columnWidth };
 }
 
-function shortestColumn({
-  heights,
-  tieBreak,
-}: {
-  heights: readonly number[];
-  tieBreak?: readonly number[];
-}): number {
+function shortestColumn(heights: readonly number[]): number {
   let best = 0;
   for (let column = 1; column < heights.length; column++) {
-    const diff = heights[column] - heights[best];
-    // Sub-pixel differences are ties, so rounding can't pick a visibly taller column
-    if (diff < -0.5) best = column;
-    else if (Math.abs(diff) <= 0.5 && tieBreak) {
-      if (tieBreak[column] < tieBreak[best]) best = column;
-    }
+    // Sub-pixel differences are ties (leftmost wins), so rounding can't pick
+    // a visibly taller column
+    if (heights[column] < heights[best] - 0.5) best = column;
   }
   return best;
 }
@@ -96,14 +87,7 @@ export function layoutMasonry({
    */
   previous?: Pick<MasonryLayout, "columns" | "columnCount">;
 }): MasonryLayout {
-  // Fewer frames than columns: use only as many columns as frames, centred,
-  // at the normal column width (not stretched to fill the row)
-  const columnCount = Math.max(
-    1,
-    Math.min(availableColumns, frames.length || 1),
-  );
-  const offsetX = ((availableColumns - columnCount) * (columnWidth + gap)) / 2;
-
+  const columnCount = Math.max(1, availableColumns);
   const heightOf = (frame: MasonryFrame) =>
     frame.width > 0 ? (columnWidth * frame.height) / frame.width : 0;
 
@@ -115,27 +99,30 @@ export function layoutMasonry({
     }
   }
 
-  // Where the kept frames end up — breaks ties for new frames so inserts
-  // (e.g. an upload at the top, where every column is at 0) go to the column
-  // that's shortest overall rather than always the first
-  const keptTotals = new Array<number>(columnCount).fill(0);
+  // Each column's height from kept frames not yet walked. A new frame goes to
+  // the column that's shortest once those are counted too, so frames inserted
+  // above kept ones (an upload at the top) balance against where each column
+  // ends up — for appended frames it's zero and this is plain shortest-column
+  const pendingKept = new Array<number>(columnCount).fill(0);
   for (const frame of frames) {
     const column = kept.get(frame.key);
-    if (column !== undefined) keptTotals[column] += heightOf(frame) + gap;
+    if (column !== undefined) pendingKept[column] += heightOf(frame) + gap;
   }
 
   const running = new Array<number>(columnCount).fill(0);
-  const placements: MasonryPlacement[] = [];
+  const placed: Omit<MasonryPlacement, "x">[] = [];
   const columns = new Map<string, number>();
   for (const frame of frames) {
-    const column =
-      kept.get(frame.key) ??
-      shortestColumn({ heights: running, tieBreak: keptTotals });
     const height = heightOf(frame);
-    placements.push({
+    let column = kept.get(frame.key);
+    if (column === undefined) {
+      column = shortestColumn(running.map((h, i) => h + pendingKept[i]));
+    } else {
+      pendingKept[column] -= height + gap;
+    }
+    placed.push({
       key: frame.key,
       column,
-      x: offsetX + column * (columnWidth + gap),
       y: running[column],
       width: columnWidth,
       height,
@@ -143,6 +130,25 @@ export function layoutMasonry({
     columns.set(frame.key, column);
     running[column] += height + gap;
   }
+
+  // Fewer frames than columns: centre the occupied columns at the normal
+  // column width (not stretched to fill the row). Columns keep their indices,
+  // so a frame joining an empty column just slides the group over rather
+  // than relaying out everything
+  let firstUsed = columnCount;
+  let lastUsed = -1;
+  for (const { column } of placed) {
+    firstUsed = Math.min(firstUsed, column);
+    lastUsed = Math.max(lastUsed, column);
+  }
+  const usedSpan =
+    lastUsed >= firstUsed ? lastUsed - firstUsed + 1 : columnCount;
+  const offsetColumns =
+    (columnCount - usedSpan) / 2 - (lastUsed >= 0 ? firstUsed : 0);
+  const placements = placed.map((placement) => ({
+    ...placement,
+    x: (offsetColumns + placement.column) * (columnWidth + gap),
+  }));
 
   const tallest = Math.max(0, ...running);
   return {

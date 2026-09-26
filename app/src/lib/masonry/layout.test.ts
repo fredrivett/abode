@@ -136,6 +136,32 @@ describe("layoutMasonry", () => {
     });
   });
 
+  it("balances several frames inserted at the top against where columns end up", () => {
+    const veryTall = (key: string): MasonryFrame => ({
+      key,
+      width: 1,
+      height: 4,
+    });
+    // Column 0 ends at 110px; columns 1 and 2 at 410px
+    const frames = [square("a"), veryTall("b"), veryTall("c")];
+    const before = layoutMasonry({ frames, ...GEOMETRY });
+
+    const after = layoutMasonry({
+      frames: [square("new1"), square("new2"), ...frames],
+      ...GEOMETRY,
+      previous: before,
+    });
+    // Both belong in the short column (even after new1, it ends at 220px),
+    // not in a tall column just because nothing new sits at its top yet
+    expect(positions(after)).toMatchObject({
+      new1: [0, 0],
+      new2: [0, 110],
+      a: [0, 220],
+      b: [1, 0],
+      c: [2, 0],
+    });
+  });
+
   it("closes up only the removed frame's column", () => {
     const frames = [square("a"), square("b"), square("c"), square("d")];
     const before = layoutMasonry({ frames, ...GEOMETRY });
@@ -172,10 +198,45 @@ describe("layoutMasonry", () => {
       columnWidth: 100,
       gap: 10,
     });
-    expect(layout.columnCount).toBe(2);
     // Two unused columns (2 × 110px) split either side
     expect(layout.placements.map((p) => p.x)).toEqual([110, 220]);
     expect(layout.placements[0].width).toBe(100);
+  });
+
+  it("keeps columns when a sparse grid gains a frame — the group just slides to recentre", () => {
+    const geometry = { columnCount: 4, columnWidth: 100, gap: 10 };
+    const before = layoutMasonry({
+      frames: [square("a"), square("b")],
+      ...geometry,
+    });
+    const after = layoutMasonry({
+      frames: [square("a"), square("b"), square("c")],
+      ...geometry,
+      previous: before,
+    });
+    // Same columns, shifted by the same amount (half a column)
+    expect(after.placements.map((p) => p.column)).toEqual([0, 1, 2]);
+    const shift = after.placements[0].x - before.placements[0].x;
+    expect(shift).toBe(-55);
+    expect(after.placements[1].x - before.placements[1].x).toBe(shift);
+  });
+
+  it("centres the occupied columns even when they don't start at the first", () => {
+    const geometry = { columnCount: 4, columnWidth: 100, gap: 10 };
+    const before = layoutMasonry({
+      frames: [square("a"), square("b"), square("c")],
+      ...geometry,
+    });
+    // Removing a (column 0) leaves b and c in columns 1–2
+    const after = layoutMasonry({
+      frames: [square("b"), square("c")],
+      ...geometry,
+      previous: before,
+    });
+    expect(after.placements.map((p) => [p.column, p.x])).toEqual([
+      [1, 110],
+      [2, 220],
+    ]);
   });
 
   it("handles no frames", () => {
