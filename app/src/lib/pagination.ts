@@ -4,10 +4,11 @@
 
 /**
  * Cursor data for pagination.
- * Uses createdAt + id for stable cursor-based pagination.
+ * Uses addedAt + id for stable cursor-based pagination — addedAt is the
+ * library-timeline date the dashboard orders by (see the Item.addedAt comment).
  */
 export type CursorData = {
-  createdAt: string;
+  addedAt: string;
   id: string;
 };
 
@@ -33,16 +34,16 @@ export function isCanonicalUuid(value: string): boolean {
 
 function isValidCursorData(value: unknown): value is CursorData {
   if (typeof value !== "object" || value === null) return false;
-  const { createdAt, id } = value as Record<string, unknown>;
-  if (typeof createdAt !== "string" || typeof id !== "string") return false;
+  const { addedAt, id } = value as Record<string, unknown>;
+  if (typeof addedAt !== "string" || typeof id !== "string") return false;
   if (!isCanonicalUuid(id)) return false;
-  return !Number.isNaN(new Date(createdAt).getTime());
+  return !Number.isNaN(new Date(addedAt).getTime());
 }
 
 /**
  * Decodes a base64url cursor string back to cursor data.
  * Returns null for any malformed input — bad base64, non-JSON, wrong shape,
- * or an unparseable `createdAt` — so a crafted cursor can't reach the DB layer.
+ * or an unparseable `addedAt` — so a crafted cursor can't reach the DB layer.
  */
 export function decodeCursor(cursor: string): CursorData | null {
   let parsed: unknown;

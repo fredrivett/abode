@@ -73,14 +73,30 @@ export function toNormalizedBook(
   review: LiteralReview | null,
 ): NormalizedBook {
   const book = state.book;
-  // Only terminal shelves have a "finished" date. A review can exist on an active
-  // shelf (rated mid-read), so don't let its date mark a reading/unshelved book as
-  // finished — gate the proxy on FINISHED/DROPPED.
-  const isTerminal = state.status === "FINISHED" || state.status === "DROPPED";
+  const rating = mapRating(review?.rating);
+  const reviewText = normalizeReviewText(review?.text);
+
+  // A rating or review is strong evidence the book was read (you can't really
+  // review an unread book), so an unshelved book (Literal `NONE` → null) that has
+  // one imports as `read` rather than untracked. Shelved books keep their real
+  // status even if reviewed (e.g. a mid-read review stays `reading`).
+  const status =
+    mapReadingStatus(state.status) ??
+    (rating != null || reviewText != null ? "read" : null);
+
+  // finishedAt applies to terminal shelves (read/dnf), keyed off the *effective*
+  // status so an inferred-read book still gets a date — the review date if present,
+  // else the shelf-entry date. Active shelves stay null.
+  const isTerminal = status === "read" || status === "dnf";
   const finishedRaw = isTerminal
     ? (review?.createdAt ?? state.createdAt)
     : null;
   const finishedAt = finishedRaw ? new Date(finishedRaw) : null;
+  const validFinished =
+    finishedAt && !Number.isNaN(finishedAt.getTime()) ? finishedAt : null;
+
+  const added = state.createdAt ? new Date(state.createdAt) : null;
+  const addedAt = added && !Number.isNaN(added.getTime()) ? added : null;
 
   return {
     sourceId: book.id,
@@ -94,14 +110,13 @@ export function toNormalizedBook(
     pageCount: book.pageCount && book.pageCount > 0 ? book.pageCount : null,
     language: book.language ?? null,
     coverUrl: book.cover ?? null,
+    addedAt,
     reading: {
-      status: mapReadingStatus(state.status),
-      rating: mapRating(review?.rating),
-      review: normalizeReviewText(review?.text),
-      finishedAt:
-        finishedAt && !Number.isNaN(finishedAt.getTime()) ? finishedAt : null,
-      finishedAtPrecision:
-        finishedAt && !Number.isNaN(finishedAt.getTime()) ? "day" : null,
+      status,
+      rating,
+      review: reviewText,
+      finishedAt: validFinished,
+      finishedAtPrecision: validFinished ? "day" : null,
     },
   };
 }

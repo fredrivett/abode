@@ -57,6 +57,7 @@ describe("importBookChunk", () => {
     pageCount: 100,
     language: "en",
     coverUrl: null,
+    addedAt: null,
     reading: {
       status: "read",
       rating: 8,

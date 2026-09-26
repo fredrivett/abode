@@ -217,6 +217,9 @@ export type Item = {
   userTags: string[];
   notes: string | null;
   createdAt: string;
+  // Library-timeline date the dashboard sorts and the card's "added" label show
+  // (see Item.addedAt in the schema); equals createdAt except for backdated imports
+  addedAt: string;
   // Flattened from imageDetails
   objects: string[];
   colors: ImageColor[];

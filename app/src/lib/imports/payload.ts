@@ -7,9 +7,10 @@ import type { NormalizedBook } from "@/lib/imports/types";
  */
 export type SerializedNormalizedBook = Omit<
   NormalizedBook,
-  "publishedAt" | "reading"
+  "publishedAt" | "addedAt" | "reading"
 > & {
   publishedAt: string | null;
+  addedAt: string | null;
   reading: Omit<NormalizedBook["reading"], "finishedAt"> & {
     finishedAt: string | null;
   };
@@ -19,6 +20,7 @@ export function serializeBook(book: NormalizedBook): SerializedNormalizedBook {
   return {
     ...book,
     publishedAt: book.publishedAt?.toISOString() ?? null,
+    addedAt: book.addedAt?.toISOString() ?? null,
     reading: {
       ...book.reading,
       finishedAt: book.reading.finishedAt?.toISOString() ?? null,
@@ -30,6 +32,7 @@ export function hydrateBook(book: SerializedNormalizedBook): NormalizedBook {
   return {
     ...book,
     publishedAt: book.publishedAt ? new Date(book.publishedAt) : null,
+    addedAt: book.addedAt ? new Date(book.addedAt) : null,
     reading: {
       ...book.reading,
       finishedAt: book.reading.finishedAt

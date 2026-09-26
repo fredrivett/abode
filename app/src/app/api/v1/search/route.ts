@@ -86,6 +86,7 @@ type RawItemRow = {
   user_tags: string[];
   notes: string | null;
   created_at: Date;
+  added_at: Date;
   objects: string[] | null;
   colors: unknown;
   ocr_text: string | null;
@@ -319,6 +320,7 @@ function transformRawItemToItem(
     noteDetails:
       row.note_content !== null ? { content: row.note_content } : null,
     createdAt: row.created_at.toISOString(),
+    addedAt: row.added_at.toISOString(),
   };
 }
 
@@ -619,6 +621,7 @@ async function executeFiltersOnlySearch(
       items.tags,
       items.user_tags,
       items.created_at,
+      items.added_at,
       iid.objects,
       iid.colors,
       iid.ocr_text,
@@ -878,6 +881,7 @@ async function executeRankedSearch(
       i.user_tags,
       i.notes,
       i.created_at,
+      i.added_at,
       iid.objects,
       iid.colors,
       iid.ocr_text,
