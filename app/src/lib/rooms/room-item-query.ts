@@ -43,6 +43,8 @@ export const roomItemSelect = {
       description: true,
       tags: true,
       userTags: true,
+      // Presentation: a cover hidden on the grid card stays hidden in rooms
+      coverHidden: true,
       locations: {
         select: {
           id: true,
@@ -159,6 +161,7 @@ export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
     description: roomItem.item.description,
     tags: roomItem.item.tags,
     userTags: roomItem.item.userTags,
+    coverHidden: roomItem.item.coverHidden,
     notes: null, // Notes are private, not exposed on public room pages
     objects: roomItem.item.imageDetails?.objects ?? [],
     colors: (roomItem.item.imageDetails?.colors as ImageColor[]) ?? [],
