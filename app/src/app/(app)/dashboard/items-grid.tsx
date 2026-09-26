@@ -26,6 +26,7 @@ import {
   estimateTweetAspect,
 } from "@/lib/items/card-aspect";
 import { measureCardText } from "@/lib/items/card-text-measurer";
+import { completeRowFrameCount } from "@/lib/items/complete-rows";
 import { isFreshlyAdded } from "@/lib/items/grow-in";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { readAspectHint } from "@/lib/items/provisional-aspect";
@@ -92,7 +93,7 @@ export function ItemsGrid({
   } = useGridDensity();
   // Actual rendered column width — coverless text cards (notes, text tweets)
   // size their height from their content against this width.
-  const columnWidth = useColumnWidth({
+  const { columnWidth, columnCount } = useColumnWidth({
     ref: containerRef,
     frameWidth,
     gap,
@@ -179,6 +180,18 @@ export function ItemsGrid({
   if (!hasHydrated) {
     return null;
   }
+
+  // Only complete rows while more pages are coming (the composer takes the
+  // first slot), so appending a page never rebalances a row already on screen
+  const composerFrames = showComposer ? 1 : 0;
+  const renderedItems = items.slice(
+    0,
+    completeRowFrameCount({
+      frameCount: items.length + composerFrames,
+      columnCount,
+      hasMore: hasMore ?? false,
+    }) - composerFrames,
+  );
 
   // While a search is in flight, dim the shown state and block interaction so
   // both the grid and a retained empty ("No results") state read as loading.
@@ -289,7 +302,7 @@ export function ItemsGrid({
                 </div>
               </Frame>
             )}
-            {items.map((item) => {
+            {renderedItems.map((item) => {
               const meta = item.meta || {};
               const isArticleOrWebpage =
                 item.kind === "article" || item.kind === "webpage";
