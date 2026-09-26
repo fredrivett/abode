@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetTrace, traceNames } from "./test-utils";
@@ -84,12 +84,9 @@ describe("useDebugLifecycle", () => {
   it("logs :present (not a mount) when tracing starts after mounting", async () => {
     resetTrace({ enabled: false });
     const { rerender } = render(<Probe value="a" flag />);
-    await act(async () => {
-      setTracingEnabled(true);
-      await flush();
-      // Let the batched store notification reach subscribers
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    act(() => setTracingEnabled(true));
+    // Wait for the (frame-batched) store notification to re-render the probe
+    await waitFor(() => expect(traceNames()).toEqual(["dialog:Probe:present"]));
     rerender(<Probe value="b" flag />);
     expect(traceNames()).toEqual([
       "dialog:Probe:present",
