@@ -96,7 +96,7 @@ export default async function DashboardPage({
     ? await Promise.all([
         db.item.findMany({
           where: { userId: user.id },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: [{ addedAt: "desc" }, { id: "desc" }],
           take: fetchLimit,
           select: itemSelect,
         }),
@@ -119,7 +119,7 @@ export default async function DashboardPage({
   if (hasMore && pageItems.length > 0) {
     const lastItem = pageItems[pageItems.length - 1];
     initialCursor = encodeCursor({
-      createdAt: lastItem.createdAt.toISOString(),
+      addedAt: lastItem.addedAt.toISOString(),
       id: lastItem.id,
     });
   }

@@ -2281,7 +2281,7 @@ export function ItemDetailBody({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Saved</span>
-                  <DateTime date={item.createdAt} className="font-medium" />
+                  <DateTime date={item.addedAt} className="font-medium" />
                 </div>
                 {item.captureSource && (
                   <div className="flex justify-between">

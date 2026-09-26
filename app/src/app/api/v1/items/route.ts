@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
     let whereClause: Prisma.ItemWhereInput;
 
     if (cursorData) {
-      const cursorDate = new Date(cursorData.createdAt);
+      const cursorDate = new Date(cursorData.addedAt);
       whereClause = {
         ...baseWhere,
         OR: [
-          { createdAt: { lt: cursorDate } },
+          { addedAt: { lt: cursorDate } },
           {
-            createdAt: { equals: cursorDate },
+            addedAt: { equals: cursorDate },
             id: { lt: cursorData.id },
           },
         ],
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       db.item.findMany({
         where: whereClause,
         select: itemSelect,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ addedAt: "desc" }, { id: "desc" }],
         take: fetchLimit,
       }),
       cursorData
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     if (hasMore && pageItems.length > 0) {
       const lastItem = pageItems[pageItems.length - 1];
       nextCursor = encodeCursor({
-        createdAt: lastItem.createdAt.toISOString(),
+        addedAt: lastItem.addedAt.toISOString(),
         id: lastItem.id,
       });
     }

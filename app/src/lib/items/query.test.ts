@@ -103,6 +103,7 @@ describe("transformItem", () => {
     sourceUrl: "https://example.com",
     coverFileKey: null,
     createdAt: new Date("2026-07-24T18:43:37.000Z"),
+    addedAt: new Date("2021-06-15T12:00:00.000Z"),
     updatedAt: new Date("2026-07-25T09:15:00.000Z"),
     title: null,
     description: null,
@@ -142,6 +143,8 @@ describe("transformItem", () => {
     const result = transformItem(baseRawItem);
     expect(result.userId).toBe("user-1");
     expect(result.createdAt).toBe("2026-07-24T18:43:37.000Z");
+    // addedAt is a distinct timeline date (back-dated for imports), not createdAt
+    expect(result.addedAt).toBe("2021-06-15T12:00:00.000Z");
     expect(result.updatedAt).toBe("2026-07-25T09:15:00.000Z");
   });
 

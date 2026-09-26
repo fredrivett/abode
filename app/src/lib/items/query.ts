@@ -36,6 +36,7 @@ export const itemSelect = {
   coverFileKey: true,
   faviconFileKey: true,
   createdAt: true,
+  addedAt: true,
   updatedAt: true,
   title: true,
   description: true,
@@ -190,6 +191,7 @@ export function transformItem(item: RawItem) {
   return {
     ...item,
     createdAt: item.createdAt.toISOString(),
+    addedAt: item.addedAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     meta: (item.meta as Record<string, unknown> | null) ?? null,
     objects: item.imageDetails?.objects ?? [],
