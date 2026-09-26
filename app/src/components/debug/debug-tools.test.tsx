@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEBUG_STORAGE_KEY } from "@/lib/debug/debug-flag";
 import { resetTrace } from "@/lib/debug/test-utils";
-import { isTracing } from "@/lib/debug/trace";
+import { debugTrace, getTraceEvents, isTracing } from "@/lib/debug/trace";
 import { useUserStore } from "@/stores/user-store";
 import { DebugTools, debugToolsAccess } from "./debug-tools";
 
@@ -58,10 +58,12 @@ describe("DebugTools", () => {
     resetTrace();
     useUserStore.setState({ isAdmin: undefined });
     const { rerender } = render(<DebugTools />);
+    debugTrace("mark", "recorded before access was known");
     // Still unknown (header not hydrated yet) — keep recording
     expect(isTracing()).toBe(true);
     useUserStore.setState({ isAdmin: false });
     rerender(<DebugTools />);
     expect(isTracing()).toBe(false);
+    expect(getTraceEvents()).toEqual([]);
   });
 });

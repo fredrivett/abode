@@ -71,6 +71,7 @@ import {
   getDensityIndex,
   useGridDensityStore,
 } from "@/stores/grid-density-store";
+import { useUserStore } from "@/stores/user-store";
 
 type UserProfile = {
   id: string;
@@ -225,13 +226,13 @@ export function CommandPalette() {
   );
 
   // Search handler
-  const { setState: setSearchStoreState } = useSearch();
+  const { applySearch } = useSearch();
   const handleSearch = useCallback(() => {
     if (!searchState.query.trim() && searchState.filters.length === 0) return;
 
     if (pathname === "/dashboard") {
-      // Update search state directly
-      setSearchStoreState({
+      // A new search replaces the view (and closes any open item)
+      applySearch({
         query: searchState.query.trim(),
         filters: searchState.filters,
       });
@@ -244,7 +245,7 @@ export function CommandPalette() {
       router.push(`/dashboard?${params.toString()}`);
     }
     setOpen(false);
-  }, [searchState, pathname, setSearchStoreState, router, setOpen]);
+  }, [searchState, pathname, applySearch, router, setOpen]);
 
   // Filter handlers
   const handleSelectFilterType = useCallback(
@@ -425,6 +426,8 @@ export function CommandPalette() {
   // Sign out handler
   const handleSignOut = useCallback(async () => {
     setOpen(false);
+    // Drop the signed-in user's client state first (see SignOutForm)
+    useUserStore.getState().clearUser();
     await signOut();
   }, [setOpen]);
 

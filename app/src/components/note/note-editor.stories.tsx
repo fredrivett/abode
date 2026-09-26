@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { expect, fn, userEvent, waitFor } from "storybook/test";
 
 import { NoteEditor } from "@/components/note/note-editor";
 
@@ -55,5 +56,32 @@ export const Empty: Story = {
     content: "",
     editable: true,
     autoFocus: true,
+  },
+};
+
+// Real-browser check of the change contract (jsdom can't type into
+// ProseMirror): mounting must not report a change — that autosaved every
+// opened note — while an actual edit must
+export const ReportsEdits: Story = {
+  args: {
+    content: "Hello",
+    editable: true,
+    onChange: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const editor = await waitFor(() => {
+      const element = canvasElement.querySelector(".ProseMirror");
+      if (!(element instanceof HTMLElement)) throw new Error("not ready");
+      return element;
+    });
+    expect(args.onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(editor);
+    await userEvent.keyboard("world");
+    await waitFor(() =>
+      expect(args.onChange).toHaveBeenLastCalledWith(
+        expect.stringContaining("world"),
+      ),
+    );
   },
 };

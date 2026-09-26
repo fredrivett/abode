@@ -401,6 +401,7 @@ export default async function RoomPage({ params }: Props) {
       initialHasMore={hasMore}
       isOwner={isOwner}
       isAuthenticated={!!currentUser}
+      userId={currentUser?.id ?? null}
       email={currentUser?.email ?? null}
       firstName={currentUser?.firstName ?? null}
       lastName={currentUser?.lastName ?? null}
