@@ -39,6 +39,8 @@ export default function DebugSession() {
   );
 
   useEffect(() => {
+    // A fresh session always starts recording, even if the last one was paused
+    setTracingPaused(false);
     setTracingEnabled(true);
     const uninstall = [
       instrumentHistory(),

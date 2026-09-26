@@ -1,4 +1,4 @@
-import { isDebugFlagOn } from "./debug-flag";
+import { isInitialDebugFlagOn } from "./debug-flag";
 
 /**
  * In-memory event timeline for the admin debug tools.
@@ -47,7 +47,7 @@ export const MAX_TRACE_EVENTS = 500;
 // Start recording at module load when the flag is set, so events from the very
 // first render (a deep-linked dialog mounting, the grid's initial reflows) are
 // captured before the debug tools have loaded and confirmed admin access
-let enabled = isDebugFlagOn();
+let enabled = isInitialDebugFlagOn();
 let paused = false;
 let nextId = 1;
 let events: readonly TraceEvent[] = [];
@@ -94,10 +94,7 @@ export function debugTrace(
     event,
     ...(data ? { data } : {}),
   };
-  const next =
-    events.length >= MAX_TRACE_EVENTS
-      ? events.slice(events.length - MAX_TRACE_EVENTS + 1)
-      : events.slice();
+  const next = events.slice();
   // Insert in time order. A backdated event also goes before same-timestamp
   // ones: it happened first, it was just logged later
   const backdated = options?.at !== undefined;
@@ -110,7 +107,10 @@ export function debugTrace(
     index--;
   }
   next.splice(index, 0, entry);
-  events = next;
+  // Trim after inserting, so a backdated event older than the whole window is
+  // the one dropped rather than evicting a newer event
+  events =
+    next.length > MAX_TRACE_EVENTS ? next.slice(-MAX_TRACE_EVENTS) : next;
   scheduleNotify();
 }
 

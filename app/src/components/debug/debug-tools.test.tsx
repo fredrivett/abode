@@ -29,6 +29,7 @@ describe("DebugTools", () => {
   afterEach(() => {
     window.localStorage.removeItem(DEBUG_STORAGE_KEY);
     useUserStore.setState({ isAdmin: undefined });
+    vi.unstubAllEnvs();
   });
 
   it("renders the session for an admin with the flag on", () => {
@@ -50,7 +51,6 @@ describe("DebugTools", () => {
     useUserStore.setState({ isAdmin: false });
     const { queryByTestId } = render(<DebugTools />);
     expect(queryByTestId("debug-session")).not.toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it("stops recording once the viewer is known not to be an admin", () => {
@@ -63,6 +63,5 @@ describe("DebugTools", () => {
     useUserStore.setState({ isAdmin: false });
     rerender(<DebugTools />);
     expect(isTracing()).toBe(false);
-    vi.unstubAllEnvs();
   });
 });

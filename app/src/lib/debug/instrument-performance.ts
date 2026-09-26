@@ -1,5 +1,5 @@
 import { flashRects, type HighlightRect } from "./highlight";
-import { debugTrace, type TraceData } from "./trace";
+import { debugTrace, isTracing, type TraceData } from "./trace";
 
 /** Frames longer than this are worth a timeline entry (LoAF's own floor is 50ms). */
 export const SLOW_FRAME_MS = 100;
@@ -115,12 +115,14 @@ function observe(type: string, onEntry: (entry: PerformanceEntry) => void) {
  */
 export function instrumentPerformance(): () => void {
   const stopShifts = observe("layout-shift", (entry) => {
+    if (!isTracing()) return;
     const described = describeLayoutShift(entry);
     if (!described) return;
     debugTrace("layout", "layout-shift", described.data);
     flashRects(described.rects, "shift");
   });
   const stopFrames = observe("long-animation-frame", (entry) => {
+    if (!isTracing()) return;
     const data = describeLongFrame(entry);
     if (data) debugTrace("perf", "slow-frame", data);
   });

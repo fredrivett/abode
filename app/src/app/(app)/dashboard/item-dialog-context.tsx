@@ -114,6 +114,7 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
 
   const closeItem = useCallback(() => {
     debugTrace("dialog", "closeItem", {
+      itemId: readItemParam(window.location.search),
       via: openedViaPushRef.current ? "history.back" : "strip-param",
     });
     if (openedViaPushRef.current) {

@@ -3,6 +3,7 @@ import {
   applyDebugParam,
   DEBUG_STORAGE_KEY,
   isDebugFlagOn,
+  isInitialDebugFlagOn,
   parseDebugParam,
   setDebugFlag,
 } from "./debug-flag";
@@ -43,6 +44,24 @@ describe("debug flag", () => {
     window.history.replaceState(null, "", "/dashboard?debug=0");
     applyDebugParam();
     expect(isDebugFlagOn()).toBe(false);
+  });
+
+  it("strips the applied param from the URL, keeping the rest", () => {
+    window.history.replaceState(null, "", "/dashboard?item=abc&debug=1#x");
+    applyDebugParam();
+    expect(
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    ).toBe("/dashboard?item=abc#x");
+  });
+
+  it("treats a ?debug param as the initial state before it's applied", () => {
+    window.history.replaceState(null, "", "/dashboard?debug=1");
+    expect(isInitialDebugFlagOn()).toBe(true);
+    setDebugFlag(true);
+    window.history.replaceState(null, "", "/dashboard?debug=0");
+    expect(isInitialDebugFlagOn()).toBe(false);
+    window.history.replaceState(null, "", "/dashboard");
+    expect(isInitialDebugFlagOn()).toBe(true);
   });
 
   it("leaves the flag alone when the URL has no debug param", () => {
