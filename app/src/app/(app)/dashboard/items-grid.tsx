@@ -34,7 +34,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
-import { ItemCard } from "./item-card";
+import { ItemCard, preloadDetailView } from "./item-card";
 import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
 import { ItemFrame } from "./item-frame";
 import { NoteComposer } from "./note-composer";
@@ -110,6 +110,11 @@ export function ItemsGrid({
     onLoadMore: onLoadMore ?? (() => {}),
   });
 
+  const itemKindById = useMemo(
+    () => new Map(items.map((item) => [item.id, item.kind])),
+    [items],
+  );
+
   // Debug trace (no-ops unless an admin has tracing on): masonry reflows, list
   // changes, and the geometry/loading inputs that drive them
   const gridDebugRef = useDebugGridObserver();
@@ -176,6 +181,17 @@ export function ItemsGrid({
     const seen = seenItemIdsRef.current;
     if (seen) for (const item of items) seen.add(item.id);
   }, [items]);
+
+  // One delegated handler: pointing at a card starts loading its detail view
+  // (a touch fires pointerover just before the tap), so the dialog opens
+  // straight into it
+  const handleGridPointerOver = (event: React.PointerEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const id = event.target
+      .closest("[data-grid-item]")
+      ?.getAttribute("data-grid-item");
+    if (id) preloadDetailView(itemKindById.get(id) ?? null);
+  };
 
   if (!hasHydrated) {
     return null;
@@ -275,6 +291,7 @@ export function ItemsGrid({
       ) : (
         <div
           ref={gridDebugRef}
+          onPointerOver={handleGridPointerOver}
           className={cn(items.length <= 4 && "flex justify-center", busyClass)}
           aria-busy={isSearchPending}
         >
