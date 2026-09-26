@@ -1417,7 +1417,7 @@ export function ItemDetailBody({
       setIsDeleting(false);
     }
   };
-  const { setState: setSearchState } = useSearch();
+  const { applySearch } = useSearch();
   const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
   const toggleId = useId();
@@ -1843,16 +1843,14 @@ export function ItemDetailBody({
   // Clicking a value chip (color, object, or tag) replaces the current search
   // with that single filter and closes the dialog
   const handleChipSearch = (chip: ChipSearch) => {
-    // Write the URL immediately: closing the dialog unmounts this hook, which
-    // would cancel a debounced URL update before it fires
-    setSearchState(chipSearchState(chip), { immediate: true });
+    // Closes the URL-addressed dialog in place, keeping the new filter (going
+    // Back via onOpenChange would pop the entry and undo it)
+    applySearch(chipSearchState(chip));
     posthog.capture(
       "item_detail_chip_searched",
       chipSearchAnalytics({ itemId: item.id, ...chip }),
     );
-    // In URL mode the search write drops ?item and closes the dialog on its own.
-    // Calling onOpenChange here would pop the pushed history entry and undo the
-    // filter the search write just applied — so only close manually off-URL.
+    // Off-URL (e.g. a room) there's no URL dialog to close: close it here
     if (!itemDialog) onOpenChange(false);
   };
 

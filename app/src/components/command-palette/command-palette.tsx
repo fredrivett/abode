@@ -226,13 +226,13 @@ export function CommandPalette() {
   );
 
   // Search handler
-  const { setState: setSearchStoreState } = useSearch();
+  const { applySearch } = useSearch();
   const handleSearch = useCallback(() => {
     if (!searchState.query.trim() && searchState.filters.length === 0) return;
 
     if (pathname === "/dashboard") {
-      // Update search state directly
-      setSearchStoreState({
+      // A new search replaces the view (and closes any open item)
+      applySearch({
         query: searchState.query.trim(),
         filters: searchState.filters,
       });
@@ -245,7 +245,7 @@ export function CommandPalette() {
       router.push(`/dashboard?${params.toString()}`);
     }
     setOpen(false);
-  }, [searchState, pathname, setSearchStoreState, router, setOpen]);
+  }, [searchState, pathname, applySearch, router, setOpen]);
 
   // Filter handlers
   const handleSelectFilterType = useCallback(

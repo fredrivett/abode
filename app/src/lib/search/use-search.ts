@@ -2,8 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ITEM_DIALOG_PARAM } from "@/lib/items/item-dialog-url";
 import {
   emptySearchState,
+  FILTER_TYPES,
   type Filter,
   parseSearchParams,
   type SearchState,
@@ -11,6 +13,9 @@ import {
 } from "./types";
 
 const DEBOUNCE_MS = 300;
+
+/** Params the search owns in the URL: the free-text query plus one per filter type */
+const SEARCH_PARAM_KEYS = ["q", ...Object.keys(FILTER_TYPES)];
 
 /**
  * The search-owned slice of a query string (query + filters), canonicalized:
@@ -70,40 +75,52 @@ export function useSearch() {
     setLocalState(parseSearchParams(new URLSearchParams(urlSearchKey)));
   }, [urlSearchKey]);
 
-  const writeUrl = useCallback((newState: SearchState) => {
-    const params = serializeSearchParams(newState);
-    const queryString = params.toString();
-    const url = queryString ? `?${queryString}` : window.location.pathname;
+  // Write the search into the URL, replacing only the params search owns —
+  // others (`?debug=`, an open `?item=`) are left alone unless the caller
+  // explicitly closes the item
+  const writeUrl = useCallback(
+    ({
+      state: newState,
+      closeItem,
+    }: {
+      state: SearchState;
+      closeItem: boolean;
+    }) => {
+      const params = new URLSearchParams(window.location.search);
+      for (const key of SEARCH_PARAM_KEYS) params.delete(key);
+      if (closeItem) params.delete(ITEM_DIALOG_PARAM);
+      for (const [key, value] of serializeSearchParams(newState)) {
+        params.append(key, value);
+      }
+      const queryString = params.toString();
+      const url = queryString ? `?${queryString}` : window.location.pathname;
 
-    // Track this URL so we ignore it when it comes back via useSearchParams
-    // (canonical key: our filter order may differ from the parsed order)
-    lastUrlRef.current = searchKey(params);
+      // Track this URL so we ignore it when it comes back via useSearchParams
+      // (canonical key: our filter order may differ from the parsed order)
+      lastUrlRef.current = searchKey(params);
 
-    // Use history.replaceState to update URL without triggering navigation
-    window.history.replaceState(null, "", url);
+      // Use history.replaceState to update URL without triggering navigation
+      window.history.replaceState(null, "", url);
+    },
+    [],
+  );
+
+  const cancelPendingWrite = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   }, []);
 
-  // Update the URL. Debounced by default (write-only during typing); pass
-  // `immediate` for discrete actions (e.g. clicking a chip) that may unmount
-  // this hook right after — a pending debounce would be cancelled on unmount
-  // and the URL never written.
+  // Update the URL, debounced (write-only during typing)
   const updateUrl = useCallback(
-    (newState: SearchState, immediate = false) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-
-      if (immediate) {
-        writeUrl(newState);
-        return;
-      }
-
+    (newState: SearchState) => {
+      cancelPendingWrite();
       timeoutRef.current = setTimeout(() => {
-        writeUrl(newState);
+        writeUrl({ state: newState, closeItem: false });
       }, DEBOUNCE_MS);
     },
-    [writeUrl],
+    [cancelPendingWrite, writeUrl],
   );
 
   // Cleanup on unmount
@@ -115,13 +132,29 @@ export function useSearch() {
     };
   }, []);
 
-  // Update local state immediately, debounce URL update (unless `immediate`)
+  // Update local state immediately, debounce URL update
   const setState = useCallback(
-    (newState: SearchState, options?: { immediate?: boolean }) => {
+    (newState: SearchState) => {
       setLocalState(newState);
-      updateUrl(newState, options?.immediate);
+      updateUrl(newState);
     },
     [updateUrl],
+  );
+
+  /**
+   * Commit a new search that replaces the current view (a chip click, a
+   * command-palette search): written to the URL immediately — the caller may
+   * unmount right after, which would cancel a debounced write — and it closes
+   * any open item dialog, since a new result set supersedes the item it was
+   * opened from.
+   */
+  const applySearch = useCallback(
+    (newState: SearchState) => {
+      setLocalState(newState);
+      cancelPendingWrite();
+      writeUrl({ state: newState, closeItem: true });
+    },
+    [cancelPendingWrite, writeUrl],
   );
 
   // Convenience methods
@@ -175,6 +208,7 @@ export function useSearch() {
   return {
     state,
     setState,
+    applySearch,
     setQuery,
     addFilter,
     removeFilter,
