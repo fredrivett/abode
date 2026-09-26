@@ -92,9 +92,11 @@ export function NoteEditor({
     },
   });
 
-  // Keep editability in sync when the prop changes
+  // Keep editability in sync when the prop changes. `emitUpdate: false` —
+  // TipTap otherwise fires an "update" here, which reads as an edit and made
+  // merely opening a note autosave it
   useEffect(() => {
-    editor?.setEditable(editable);
+    editor?.setEditable(editable, false);
   }, [editor, editable]);
 
   // Sync external content changes that didn't originate from this editor
