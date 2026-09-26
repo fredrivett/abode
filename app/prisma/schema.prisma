@@ -230,6 +230,14 @@ model Item {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
+  // The date this item entered the user's library — its position on the
+  // timeline. Equals createdAt for items captured in abode, but an import
+  // backdates it to the source's own "added" date (e.g. a Literal book added
+  // years before signup) so imported items slot into their historical place.
+  // The dashboard sorts and the item card's "added" display read THIS, not
+  // createdAt (which stays the truthful row-creation time).
+  addedAt          DateTime         @default(now()) @map("added_at")
+
   // Smart rooms
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
@@ -263,6 +271,8 @@ model Item {
   highlights        ArticleHighlight[]
 
   @@index([userId, createdAt(sort: Desc)])
+  // Mirrors the createdAt index for the dashboard's addedAt keyset ordering.
+  @@index([userId, addedAt(sort: Desc)])
   @@index([tags])
   @@index([userTags])
   // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
