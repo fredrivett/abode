@@ -81,6 +81,8 @@ import {
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
+import { debugTrace } from "@/lib/debug/trace";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -371,6 +373,7 @@ export function ItemCard({
   };
 
   const handleOpenDetail = () => {
+    debugTrace("dialog", "card:click", { itemId: item.id });
     setIsAnimating(true);
     setShowDetailDialog(true);
 
@@ -1260,6 +1263,11 @@ export function ItemDialogFrame({
   const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)", {
     defaultValue: false,
     initializeWithValue: false,
+  });
+  useDebugLifecycle({
+    name: "ItemDialogFrame",
+    channel: "dialog",
+    watch: { open, isTouchDevice },
   });
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);

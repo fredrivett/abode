@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { debugTrace } from "@/lib/debug/trace";
 import {
   readItemParam,
   withOpenItem,
@@ -106,11 +107,15 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
         seeds.delete(seeds.keys().next().value ?? "");
       }
     }
+    debugTrace("dialog", "openItem", { itemId, seeded: seed !== undefined });
     const query = withOpenItem(window.location.search, itemId);
     window.history.pushState(null, "", `?${query}`);
   }, []);
 
   const closeItem = useCallback(() => {
+    debugTrace("dialog", "closeItem", {
+      via: openedViaPushRef.current ? "history.back" : "strip-param",
+    });
     if (openedViaPushRef.current) {
       openedViaPushRef.current = false;
       window.history.back();
