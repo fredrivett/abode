@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetTrace } from "@/lib/debug/test-utils";
+import { getTraceEvents } from "@/lib/debug/trace";
 import type { Item } from "@/lib/types/item";
 import { CentralItemDialog } from "./central-item-dialog";
 
@@ -271,5 +273,31 @@ describe("CentralItemDialog", () => {
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
     );
     expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
+  });
+});
+
+describe("CentralItemDialog debug trace", () => {
+  beforeEach(() => resetTrace());
+  afterEach(() => resetTrace({ enabled: false }));
+
+  it("records the resolution source flipping when the open item leaves the list", () => {
+    dialogState = { openItemId: "a" };
+    const { rerender } = renderDialog();
+    // e.g. a refetch/search swap drops the open item from the loaded list
+    rerender(
+      <CentralItemDialog
+        onItemRenamed={() => {}}
+        canEdit
+        items={items.filter((item) => item.id !== "a")}
+      />,
+    );
+    const change = getTraceEvents().find(
+      (event) => event.event === "CentralItemDialog:change",
+    );
+    expect(change?.data).toMatchObject({
+      source: "list → none",
+      hasContent: "true → false",
+      needsFetch: "false → true",
+    });
   });
 });

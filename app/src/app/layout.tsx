@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
+import { DebugTools } from "@/components/debug/debug-tools";
 import { Footer } from "@/components/footer";
 import { APP_NAME } from "@/lib/app";
 import { branchTitlePrefix } from "@/lib/branch-title";
@@ -99,6 +100,7 @@ export default function RootLayout({
             <CommandPalette />
           </Suspense>
           <Footer />
+          <DebugTools />
         </QueryProvider>
         <Toaster richColors theme="system" />
       </body>

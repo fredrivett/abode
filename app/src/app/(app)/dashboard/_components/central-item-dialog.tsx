@@ -3,6 +3,8 @@
 import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { debugTrace } from "@/lib/debug/trace";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useItem } from "@/lib/items/use-item";
@@ -108,12 +110,35 @@ export function CentralItemDialog({
   const showSeed = !resolved && !!seed && seed.id === openItemId;
   const hasContent = resolved !== null || showSeed;
 
+  // Debug trace: which source resolved the open item, so a dialog that exits
+  // and re-enters shows the input that flipped (e.g. list → none mid-refetch)
+  useDebugLifecycle({
+    name: "CentralItemDialog",
+    channel: "dialog",
+    watch: {
+      openItemId,
+      source: inList
+        ? "list"
+        : fromInitial
+          ? "initial"
+          : resolved
+            ? "fetched"
+            : showSeed
+              ? "seed"
+              : "none",
+      hasContent,
+      needsFetch,
+      fetchError: isError,
+    },
+  });
+
   return (
     <AnimatePresence>
       {open && hasContent && (
         <ItemDialogFrame
           open
           onOpenChange={(next) => {
+            debugTrace("dialog", "frame:onOpenChange", { next });
             if (!next) closeItem?.();
           }}
         >
@@ -155,6 +180,11 @@ function CentralItemBody({
   onItemRenamed: (itemId: string, title: string) => void;
   onItemDeleted?: (itemId: string) => void;
 }) {
+  useDebugLifecycle({
+    name: "CentralItemBody",
+    channel: "dialog",
+    watch: { itemId: item.id, animateEntrance },
+  });
   const displayName = getItemDisplayName(item);
   // Local mirror so a rename shows in the dialog immediately; onItemRenamed
   // keeps the grid card in sync, and displayName re-derives on the next render.

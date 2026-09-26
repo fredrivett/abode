@@ -17,6 +17,10 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { useRootFontSize } from "@/hooks/use-root-font-size";
 import { getBookTileFrame } from "@/lib/book-cover";
+import { diffItemIds } from "@/lib/debug/grid-layout-diff";
+import { debugTrace, isTracing } from "@/lib/debug/trace";
+import { useDebugGridObserver } from "@/lib/debug/use-debug-grid-observer";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import {
   estimateNoteAspect,
   estimateTweetAspect,
@@ -104,6 +108,34 @@ export function ItemsGrid({
     isLoading: isLoadingMore ?? false,
     onLoadMore: onLoadMore ?? (() => {}),
   });
+
+  // Debug trace (no-ops unless an admin has tracing on): masonry reflows, list
+  // changes, and the geometry/loading inputs that drive them
+  const gridDebugRef = useDebugGridObserver();
+  useDebugLifecycle({
+    name: "ItemsGrid",
+    channel: "grid",
+    watch: {
+      itemCount: items.length,
+      frameWidth,
+      columnWidth,
+      isLoadingMore,
+      isSearchPending,
+      hasMore,
+    },
+  });
+  // null until the first render's ids are recorded (an empty list is a real state)
+  const prevItemIdsRef = useRef<string[] | null>(null);
+  useEffect(() => {
+    const ids = items.map((item) => item.id);
+    const prev = prevItemIdsRef.current;
+    prevItemIdsRef.current = ids;
+    if (!isTracing() || prev === null) return;
+    const diff = diffItemIds({ prev, next: ids });
+    if (diff.added || diff.removed || diff.reordered) {
+      debugTrace("grid", "items", { count: ids.length, ...diff });
+    }
+  }, [items]);
 
   // Fresh random order per load; stable across re-renders while loading so the
   // placeholders don't reshuffle mid-fetch.
@@ -229,6 +261,7 @@ export function ItemsGrid({
         )
       ) : (
         <div
+          ref={gridDebugRef}
           className={cn(items.length <= 4 && "flex justify-center", busyClass)}
           aria-busy={isSearchPending}
         >
@@ -242,7 +275,12 @@ export function ItemsGrid({
                 in flight, just disabled) and is hidden once results are shown,
                 so it doesn't reflow the grid the instant the user types. */}
             {showComposer && (
-              <Frame key="note-composer" width={1} height={1}>
+              <Frame
+                key="note-composer"
+                width={1}
+                height={1}
+                data-grid-item="note-composer"
+              >
                 <div className="h-full">
                   <NoteComposer
                     initialDraft={initialNoteDraft}
@@ -388,6 +426,7 @@ export function ItemsGrid({
                   columnWidth={columnWidth}
                   frameTransition={frameTransition}
                   animateIn={animateIn}
+                  itemId={item.id}
                 >
                   <ItemCard
                     item={item}
@@ -401,7 +440,7 @@ export function ItemsGrid({
             {/* While the next page loads, tease it with skeleton cards so the
                 grid grows in place rather than showing a spinner below it. */}
             {skeletonFrames.map(({ id, width, height }) => (
-              <Frame key={id} width={width} height={height}>
+              <Frame key={id} width={width} height={height} data-grid-item={id}>
                 <div className="h-full">
                   <ItemCardSkeleton />
                 </div>

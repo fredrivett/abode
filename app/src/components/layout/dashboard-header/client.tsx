@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpLeft,
+  Bug,
   CircleHelp,
   Command,
   DoorOpen,
@@ -43,6 +44,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { setDebugFlag, useDebugFlag } from "@/lib/debug/debug-flag";
 import { getModifierKeySymbol } from "@/lib/keyboard";
 import { emptySearchState, useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
@@ -232,6 +234,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   // Extract authenticated props for hydration (with type narrowing)
   const authProps = isAuthenticated ? props : null;
+  const debugFlag = useDebugFlag();
 
   // Hydrate store with server-fetched values on mount
   useEffect(() => {
@@ -445,6 +448,13 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                         <Shield className="size-4" />
                         Admin
                       </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDebugFlag(!debugFlag)}
+                      className="flex items-center gap-2"
+                    >
+                      <Bug className="size-4" />
+                      <span>Debug trace: {debugFlag ? "On" : "Off"}</span>
                     </DropdownMenuItem>
                   </>
                 )}
