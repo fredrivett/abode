@@ -190,7 +190,7 @@ Add `--full` for the whole page. Check both light and dark mode, and a narrow vi
 
 ### Debug trace (UX jank)
 
-For jank (grid jumping, dialogs remounting, layout shifts), use the admin debug trace instead of guessing: open any page with `?debug=1` (admins; anyone in local dev) or toggle "Debug trace" in the admin account menu. A panel records a timeline of URL writes (with call stacks), React Query fetches/invalidations, masonry reflows (which frames moved, flashed blue), layout shifts (flashed red), slow frames, and dialog/grid mount/unmount/prop changes; "Copy" exports it as JSON. Code lives in `src/lib/debug/` + `src/components/debug/`. Instrument new suspect components with `useDebugLifecycle` / `debugTrace` (no-ops when tracing is off).
+For jank (grid jumping, dialogs remounting, layout shifts), use the admin debug trace instead of guessing: open any page with `?debug=1` (admins; anyone in local dev) or toggle "Debug trace" in the admin account menu. A panel records a timeline of URL writes (with call stacks), React Query fetches/invalidations, masonry reflows (which frames moved, flashed blue), layout shifts (flashed red), slow frames, and dialog/grid mount/unmount/prop changes; "Copy" exports it as JSON. Code lives in `src/lib/debug/` + `src/components/debug/`. Instrument new suspect components with `useDebugLifecycle` / `debugTrace` (no-ops when tracing is off). When driving the app with `agent-browser`, read the trace via `window.__abodeDebugTrace.export().events` (and `.clear()` before reproducing) instead of the clipboard.
 
 For automated tests, run from the `./app` directory:
 
