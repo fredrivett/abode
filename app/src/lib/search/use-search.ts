@@ -22,26 +22,36 @@ const DEBOUNCE_MS = 300;
 export function useSearch() {
   const searchParams = useSearchParams();
 
+  // The search-owned slice of the URL (query + filters), normalized the same
+  // way writeUrl serializes it. Other params (`?item=` for the open dialog,
+  // `?debug=`) aren't search state: reacting to them would re-parse the URL
+  // into a "new" state (fresh filter ids), re-run the search and reset its
+  // pagination — e.g. opening an item from page 3 of a filtered view dropped
+  // it from the results, unmounting and remounting its dialog.
+  const urlSearchKey = serializeSearchParams(
+    parseSearchParams(searchParams),
+  ).toString();
+
   // Parse initial URL state on mount only
   const [state, setLocalState] = useState<SearchState>(() =>
     parseSearchParams(searchParams),
   );
 
-  // Track the last URL we set to avoid reacting to our own changes
-  const lastUrlRef = useRef<string | null>(null);
+  // The search key we last wrote or synced from, so we don't react to our own
+  // changes (seeded with the initial URL, which the initial state came from)
+  const lastUrlRef = useRef<string | null>(urlSearchKey);
 
   // Debounced URL update
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle external URL changes (browser back/forward, or another useSearch
+  // Handle external search changes (browser back/forward, or another useSearch
   // instance writing the URL — e.g. clicking a chip in the item dialog)
   useEffect(() => {
-    const currentUrl = searchParams.toString();
-
     // If this URL matches what we set, ignore it (our own update)
-    if (lastUrlRef.current === currentUrl) {
+    if (lastUrlRef.current === urlSearchKey) {
       return;
     }
+    lastUrlRef.current = urlSearchKey;
 
     // A pending debounced write is now stale — the external change supersedes
     // it. Drop it so it can't clobber the URL after we sync (e.g. a chip's
@@ -51,9 +61,8 @@ export function useSearch() {
       timeoutRef.current = null;
     }
 
-    const urlState = parseSearchParams(searchParams);
-    setLocalState(urlState);
-  }, [searchParams]);
+    setLocalState(parseSearchParams(new URLSearchParams(urlSearchKey)));
+  }, [urlSearchKey]);
 
   const writeUrl = useCallback((newState: SearchState) => {
     const params = serializeSearchParams(newState);
