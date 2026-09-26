@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { applyDebugParam, useDebugFlag } from "@/lib/debug/debug-flag";
-import { setTracingEnabled } from "@/lib/debug/trace";
+import { clearTrace, setTracingEnabled } from "@/lib/debug/trace";
 import { useUserStore } from "@/stores/user-store";
 
 const DebugSession = dynamic(() => import("./debug-session"), { ssr: false });
@@ -46,7 +46,10 @@ export function DebugTools() {
   // once we know the viewer can't use it. (Switching the flag off unmounts the
   // session, whose cleanup stops recording.)
   useEffect(() => {
-    if (access === "denied") setTracingEnabled(false);
+    if (access !== "denied") return;
+    setTracingEnabled(false);
+    // Anything recorded before we knew (tracing starts at load) isn't theirs to see
+    clearTrace();
   }, [access]);
 
   if (!flag || access !== "allowed") return null;

@@ -3,10 +3,15 @@
 import { create } from "zustand";
 import type { AuthenticatedUser } from "@/lib/user";
 
-// Hydration data - all fields optional since we only hydrate what hasn't been set
-type UserHydrationData = Partial<Omit<AuthenticatedUser, "id">>;
+// Hydration data - profile fields optional since we only hydrate what hasn't
+// been set; the id says whose data it is
+type UserHydrationData = Partial<Omit<AuthenticatedUser, "id">> & {
+  userId: string;
+};
 
-type UserState = {
+type UserProfile = {
+  /** Whose profile this is; undefined = nobody hydrated (or signed out) */
+  userId: string | undefined;
   // User profile fields
   // undefined = not yet hydrated, null = explicitly no value
   firstName: string | null | undefined;
@@ -16,7 +21,9 @@ type UserState = {
   avatarUrl: string | null | undefined;
   availableInvites: number | undefined;
   isAdmin: boolean | undefined;
+};
 
+type UserState = UserProfile & {
   // Individual setters for mutations
   setFirstName: (name: string | null) => void;
   setLastName: (name: string | null) => void;
@@ -27,6 +34,19 @@ type UserState = {
 
   // Bulk hydration from server - only hydrates fields that haven't been set yet
   hydrateUser: (data: UserHydrationData) => void;
+  /** Forget the signed-in user (sign-out) */
+  clearUser: () => void;
+};
+
+const EMPTY_PROFILE: UserProfile = {
+  userId: undefined,
+  firstName: undefined,
+  lastName: undefined,
+  username: undefined,
+  email: undefined,
+  avatarUrl: undefined,
+  availableInvites: undefined,
+  isAdmin: undefined,
 };
 
 /**
@@ -35,16 +55,13 @@ type UserState = {
  * Fields use a three-state model: `undefined` means not yet hydrated from the
  * server, `null` means explicitly empty, and a string/number is the actual value.
  * `hydrateUser` only fills in fields that are still `undefined`, so client-side
- * mutations made before hydration are preserved.
+ * mutations made before hydration are preserved — for the same user. The store
+ * outlives sign-out/sign-in (they're soft navigations), so hydrating a
+ * different user replaces the whole profile rather than inheriting the last
+ * user's fields (e.g. `isAdmin`).
  */
 export const useUserStore = create<UserState>((set, get) => ({
-  firstName: undefined,
-  lastName: undefined,
-  username: undefined,
-  email: undefined,
-  avatarUrl: undefined,
-  availableInvites: undefined,
-  isAdmin: undefined,
+  ...EMPTY_PROFILE,
 
   setFirstName: (name) => set({ firstName: name }),
   setLastName: (name) => set({ lastName: name }),
@@ -53,9 +70,15 @@ export const useUserStore = create<UserState>((set, get) => ({
   setAvatarUrl: (url) => set({ avatarUrl: url }),
   setAvailableInvites: (count) => set({ availableInvites: count }),
 
+  clearUser: () => set(EMPTY_PROFILE),
+
   hydrateUser: (data) => {
-    const state = get();
+    // A different user starts from an empty profile
+    const state = get().userId === data.userId ? get() : EMPTY_PROFILE;
     const updates: Partial<UserState> = {};
+    if (state.userId !== data.userId) {
+      Object.assign(updates, EMPTY_PROFILE, { userId: data.userId });
+    }
 
     // Only hydrate fields that haven't been set yet (undefined = not hydrated)
     if (state.firstName === undefined && data.firstName !== undefined) {

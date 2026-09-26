@@ -180,6 +180,8 @@ type AuthenticatedProps = BaseProps & {
   lastName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  /** Signed-in user's id, so the client store can tell users apart */
+  userId: string;
   isAdmin?: boolean;
   availableInvites: number;
   signOutAction: () => Promise<void>;
@@ -209,6 +211,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     avatarUrl: storeAvatarUrl,
     availableInvites: storeAvailableInvites,
     hydrateUser,
+    clearUser,
   } = useUserStore();
 
   const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
@@ -240,6 +243,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   useEffect(() => {
     if (authProps) {
       hydrateUser({
+        userId: authProps.userId,
         firstName: authProps.firstName,
         lastName: authProps.lastName,
         username: authProps.username,
@@ -514,7 +518,13 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <form action={props.signOutAction}>
+                  <form
+                    action={props.signOutAction}
+                    // Sign-out is a soft navigation, so drop the signed-in
+                    // user's client state (admin flag, cached queries, debug
+                    // trace) rather than letting it outlive the session
+                    onSubmit={clearUser}
+                  >
                     <button
                       type="submit"
                       className="flex w-full items-center gap-2"
