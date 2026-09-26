@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { debugTrace, type TraceChannel, type TraceData } from "./trace";
+import {
+  debugTrace,
+  isTracing,
+  type TraceChannel,
+  type TraceData,
+} from "./trace";
+import { useIsTracing } from "./use-tracing";
 
 type WatchedValue = string | number | boolean | null | undefined;
 
@@ -27,6 +33,9 @@ function toTraceData(values: Record<string, WatchedValue>): TraceData {
  * timeline — for catching remounts (mount→unmount→mount of the same thing) and
  * seeing which input flipped right before one. Watched values must be
  * primitives; derive them (ids, booleans) rather than passing objects.
+ *
+ * If tracing starts after the component mounted, it logs `:present` instead,
+ * so the timeline still knows the component was there.
  */
 export function useDebugLifecycle({
   name,
@@ -41,6 +50,9 @@ export function useDebugLifecycle({
   const watchRef = useRef(watch);
   watchRef.current = watch;
   const pendingUnmountRef = useRef(false);
+  const tracing = useIsTracing();
+  // Whether the timeline has this instance's mount/present entry yet
+  const loggedRef = useRef(false);
 
   // Mount/unmount only (name/channel are constant per call site). Dev Strict
   // Mode re-runs effects on the same instance within the same task, which
@@ -52,7 +64,10 @@ export function useDebugLifecycle({
       pendingUnmountRef.current = false;
       return scheduleUnmount;
     }
-    debugTrace(channel, `${name}:mount`, toTraceData(watchRef.current));
+    if (isTracing()) {
+      debugTrace(channel, `${name}:mount`, toTraceData(watchRef.current));
+      loggedRef.current = true;
+    }
     return scheduleUnmount;
 
     function scheduleUnmount() {
@@ -68,9 +83,22 @@ export function useDebugLifecycle({
   }, [channel, name]);
 
   useEffect(() => {
+    if (!tracing) {
+      // The hook reads false during hydration even while recording, so check
+      // the store before forgetting the mount entry
+      if (!isTracing()) loggedRef.current = false;
+      return;
+    }
+    if (loggedRef.current) return;
+    loggedRef.current = true;
+    debugTrace(channel, `${name}:present`, toTraceData(watchRef.current));
+  }, [tracing, channel, name]);
+
+  useEffect(() => {
     const prev = prevRef.current;
     prevRef.current = watch;
-    if (prev === null) return;
+    // Tracing off: just keep the baseline current, skip the diff
+    if (prev === null || !tracing) return;
     const changed = changedKeys(prev, watch);
     if (changed.length === 0) return;
     const data: TraceData = {};

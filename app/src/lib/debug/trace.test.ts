@@ -65,6 +65,16 @@ describe("debug trace store", () => {
     expect(traceNames()).toEqual(["dialog:unmount", "dialog:mount"]);
   });
 
+  it("drops a backdated event older than a full window instead of a newer one", () => {
+    const start = performance.now();
+    for (let i = 0; i < MAX_TRACE_EVENTS; i++) debugTrace("perf", `e${i}`);
+    debugTrace("grid", "ancient", undefined, { at: start - 10_000 });
+    const events = getTraceEvents();
+    expect(events).toHaveLength(MAX_TRACE_EVENTS);
+    expect(events[0].event).toBe("e0");
+    expect(events.some((event) => event.event === "ancient")).toBe(false);
+  });
+
   it("returns a stable snapshot until something changes", () => {
     debugTrace("mark", "mark");
     const snapshot = getTraceEvents();

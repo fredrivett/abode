@@ -1,8 +1,8 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetTrace, traceNames } from "./test-utils";
-import { getTraceEvents } from "./trace";
+import { getTraceEvents, setTracingEnabled } from "./trace";
 import { changedKeys, useDebugLifecycle } from "./use-debug-lifecycle";
 
 function Probe({ value, flag }: { value: string | null; flag: boolean }) {
@@ -70,5 +70,31 @@ describe("useDebugLifecycle", () => {
       "dialog:Probe:unmount",
       "dialog:Probe:mount",
     ]);
+  });
+
+  it("records nothing while tracing is off", async () => {
+    resetTrace({ enabled: false });
+    const { rerender, unmount } = render(<Probe value="a" flag />);
+    rerender(<Probe value={null} flag={false} />);
+    unmount();
+    await flush();
+    expect(getTraceEvents()).toEqual([]);
+  });
+
+  it("logs :present (not a mount) when tracing starts after mounting", async () => {
+    resetTrace({ enabled: false });
+    const { rerender } = render(<Probe value="a" flag />);
+    await act(async () => {
+      setTracingEnabled(true);
+      await flush();
+      // Let the batched store notification reach subscribers
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    rerender(<Probe value="b" flag />);
+    expect(traceNames()).toEqual([
+      "dialog:Probe:present",
+      "dialog:Probe:change",
+    ]);
+    expect(getTraceEvents()[0].data).toEqual({ value: "a", flag: true });
   });
 });

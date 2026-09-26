@@ -40,10 +40,31 @@ export function parseDebugParam(search: string): boolean | null {
   return null;
 }
 
-/** Apply a `?debug=` param from the current URL, if present. */
+/**
+ * Whether tracing should be on at page load: a `?debug=` param wins (it's
+ * applied to storage just after hydration), else the stored flag.
+ */
+export function isInitialDebugFlagOn(): boolean {
+  if (typeof window === "undefined") return false;
+  return parseDebugParam(window.location.search) ?? readStored();
+}
+
+/**
+ * Apply a `?debug=` param from the current URL, if present, then drop it from
+ * the URL so it can't re-apply on a later reload and override a toggle made
+ * from the menu since.
+ */
 export function applyDebugParam(): void {
   const next = parseDebugParam(window.location.search);
-  if (next !== null && next !== readStored()) setDebugFlag(next);
+  if (next === null) return;
+  if (next !== readStored()) setDebugFlag(next);
+  const url = new URL(window.location.href);
+  url.searchParams.delete(DEBUG_URL_PARAM);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
 }
 
 function subscribe(listener: () => void): () => void {

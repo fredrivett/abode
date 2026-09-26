@@ -124,12 +124,13 @@ export function ItemsGrid({
       hasMore,
     },
   });
-  const prevItemIdsRef = useRef<string[]>([]);
+  // null until the first render's ids are recorded (an empty list is a real state)
+  const prevItemIdsRef = useRef<string[] | null>(null);
   useEffect(() => {
     const ids = items.map((item) => item.id);
     const prev = prevItemIdsRef.current;
     prevItemIdsRef.current = ids;
-    if (!isTracing() || prev.length === 0) return;
+    if (!isTracing() || prev === null) return;
     const diff = diffItemIds({ prev, next: ids });
     if (diff.added || diff.removed || diff.reordered) {
       debugTrace("grid", "items", { count: ids.length, ...diff });

@@ -7,7 +7,7 @@ import {
   snapshotGrid,
 } from "./grid-layout-diff";
 import { flashRects } from "./highlight";
-import { debugTrace } from "./trace";
+import { debugTrace, isTracing } from "./trace";
 import { useIsTracing } from "./use-tracing";
 
 /** Wait this long after the last style mutation — past the 300ms reflow transitions — before measuring */
@@ -38,6 +38,14 @@ export function useDebugGridObserver(): (node: HTMLElement | null) => void {
     const settle = () => {
       timer = null;
       const next = snapshotGrid(root);
+      // Paused: keep the baseline current (so resuming doesn't report every
+      // move made meanwhile) but don't log or flash
+      if (!isTracing()) {
+        prev = next;
+        burstStart = null;
+        mutations = 0;
+        return;
+      }
       const viewport = {
         top: window.scrollY,
         bottom: window.scrollY + window.innerHeight,
