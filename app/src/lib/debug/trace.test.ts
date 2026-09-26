@@ -86,6 +86,11 @@ describe("debug trace store", () => {
   it("batches listener notifications for a burst of events", async () => {
     const listener = vi.fn();
     const unsubscribe = subscribeTrace(listener);
+    // Flush any notification already pending (e.g. from resetTrace) first
+    debugTrace("grid", "warmup");
+    await vi.waitFor(() => expect(listener).toHaveBeenCalled());
+    listener.mockClear();
+
     debugTrace("grid", "a");
     debugTrace("grid", "b");
     debugTrace("grid", "c");

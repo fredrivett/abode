@@ -2,7 +2,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetTrace, traceNames } from "./test-utils";
-import { getTraceEvents, setTracingEnabled } from "./trace";
+import { clearTrace, getTraceEvents, setTracingEnabled } from "./trace";
 import { changedKeys, useDebugLifecycle } from "./use-debug-lifecycle";
 
 function Probe({ value, flag }: { value: string | null; flag: boolean }) {
@@ -92,6 +92,15 @@ describe("useDebugLifecycle", () => {
       "dialog:Probe:present",
       "dialog:Probe:change",
     ]);
+    expect(getTraceEvents()[0].data).toEqual({ value: "a", flag: true });
+  });
+
+  it("re-announces a mounted component as :present after the trace is cleared", async () => {
+    render(<Probe value="a" flag />);
+    await act(async () => {
+      clearTrace();
+    });
+    await waitFor(() => expect(traceNames()).toEqual(["dialog:Probe:present"]));
     expect(getTraceEvents()[0].data).toEqual({ value: "a", flag: true });
   });
 });

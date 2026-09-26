@@ -130,9 +130,17 @@ export function isTracingPaused(): boolean {
   return paused;
 }
 
+let generation = 0;
+
 export function clearTrace(): void {
   events = [];
+  generation++;
   scheduleNotify();
+}
+
+/** Bumped on every clear, so mounted components can re-announce themselves. */
+export function getTraceGeneration(): number {
+  return generation;
 }
 
 /** Stable snapshot (a new array only when events change) for useSyncExternalStore. */

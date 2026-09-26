@@ -17,7 +17,9 @@ export function diffSearchParams({ from, to }: { from: string; to: string }): {
   const changed: string[] = [];
   for (const key of new Set(before.keys())) {
     if (!after.has(key)) removed.push(key);
-    else if (before.getAll(key).join() !== after.getAll(key).join()) {
+    else if (
+      JSON.stringify(before.getAll(key)) !== JSON.stringify(after.getAll(key))
+    ) {
       changed.push(key);
     }
   }
@@ -112,7 +114,9 @@ export function instrumentHistory(): () => void {
       traceUrlChange({
         event,
         fromHref,
-        toUrl: url,
+        // Resolve against where we were: after the write, a relative URL
+        // (e.g. "../x") would resolve against the new location instead
+        toUrl: new URL(url ?? fromHref, fromHref),
         stack: new Error().stack,
       });
     };

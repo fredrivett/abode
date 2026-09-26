@@ -7,7 +7,7 @@ import {
   type TraceChannel,
   type TraceData,
 } from "./trace";
-import { useIsTracing } from "./use-tracing";
+import { useIsTracing, useTraceGeneration } from "./use-tracing";
 
 type WatchedValue = string | number | boolean | null | undefined;
 
@@ -34,8 +34,9 @@ function toTraceData(values: Record<string, WatchedValue>): TraceData {
  * seeing which input flipped right before one. Watched values must be
  * primitives; derive them (ids, booleans) rather than passing objects.
  *
- * If tracing starts after the component mounted, it logs `:present` instead,
- * so the timeline still knows the component was there.
+ * If tracing starts after the component mounted, or the trace is cleared
+ * while it's mounted, it logs `:present`, so the timeline still knows the
+ * component is there.
  */
 export function useDebugLifecycle({
   name,
@@ -53,6 +54,8 @@ export function useDebugLifecycle({
   const tracing = useIsTracing();
   // Whether the timeline has this instance's mount/present entry yet
   const loggedRef = useRef(false);
+  const generation = useTraceGeneration();
+  const generationRef = useRef(generation);
 
   // Mount/unmount only (name/channel are constant per call site). Dev Strict
   // Mode re-runs effects on the same instance within the same task, which
@@ -83,6 +86,11 @@ export function useDebugLifecycle({
   }, [channel, name]);
 
   useEffect(() => {
+    // Cleared since we logged: our mount/present entry is gone
+    if (generationRef.current !== generation) {
+      generationRef.current = generation;
+      loggedRef.current = false;
+    }
     if (!tracing) {
       // The hook reads false during hydration even while recording, so check
       // the store before forgetting the mount entry
@@ -92,7 +100,7 @@ export function useDebugLifecycle({
     if (loggedRef.current) return;
     loggedRef.current = true;
     debugTrace(channel, `${name}:present`, toTraceData(watchRef.current));
-  }, [tracing, channel, name]);
+  }, [tracing, generation, channel, name]);
 
   useEffect(() => {
     const prev = prevRef.current;

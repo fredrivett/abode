@@ -3,8 +3,8 @@ import { fn } from "storybook/test";
 import type { TraceEvent } from "@/lib/debug/trace";
 import { DebugPanel } from "./debug-panel";
 
-// A dialog remount chain: search write drops ?item=, the list refetches, the
-// dialog loses its item and exits, then re-enters once the fetch lands
+// A dialog remount chain: a list refetch drops the open item, so the dialog
+// exits, fetches it by id, then re-enters once the fetch lands
 const REMOUNT_CHAIN: TraceEvent[] = [
   {
     id: 1,
@@ -73,7 +73,35 @@ const REMOUNT_CHAIN: TraceEvent[] = [
   { id: 9, t: 6111, channel: "dialog", event: "ItemDialogFrame:unmount" },
   {
     id: 10,
-    t: 6140,
+    t: 6112,
+    channel: "query",
+    event: "fetch",
+    data: { queryKey: '["items","a1","detail"]', observers: 1 },
+  },
+  {
+    id: 11,
+    t: 6180,
+    channel: "query",
+    event: "success",
+    data: { queryKey: '["items","a1","detail"]', id: "a1" },
+  },
+  {
+    id: 12,
+    t: 6181,
+    channel: "dialog",
+    event: "ItemDialogFrame:mount",
+    data: { open: true },
+  },
+  {
+    id: 13,
+    t: 6181,
+    channel: "dialog",
+    event: "CentralItemDialog:change",
+    data: { source: "none → fetched", hasContent: "false → true" },
+  },
+  {
+    id: 14,
+    t: 6190,
     channel: "grid",
     event: "reflow",
     data: {
@@ -87,20 +115,20 @@ const REMOUNT_CHAIN: TraceEvent[] = [
     },
   },
   {
-    id: 11,
+    id: 15,
     t: 6200,
     channel: "layout",
     event: "layout-shift",
     data: { score: 0.0412, nodes: ["grid-item:b7"] },
   },
   {
-    id: 12,
+    id: 16,
     t: 6300,
     channel: "perf",
     event: "slow-frame",
     data: { duration: 142, blocking: 88 },
   },
-  { id: 13, t: 7000, channel: "mark", event: "mark" },
+  { id: 17, t: 7000, channel: "mark", event: "mark" },
 ];
 
 const meta = {

@@ -98,9 +98,17 @@ describe("DebugPanel", () => {
   it("keeps pointer/focus events from reaching document listeners (e.g. a modal's outside-click dismiss)", () => {
     renderPanel();
     const onDocumentPointerDown = vi.fn();
+    const onDocumentFocusIn = vi.fn();
     document.addEventListener("pointerdown", onDocumentPointerDown);
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Clear" }));
+    document.addEventListener("focusin", onDocumentFocusIn);
+    const clear = screen.getByRole("button", { name: "Clear" });
+    fireEvent.pointerDown(clear);
+    clear.focus();
     document.removeEventListener("pointerdown", onDocumentPointerDown);
+    document.removeEventListener("focusin", onDocumentFocusIn);
     expect(onDocumentPointerDown).not.toHaveBeenCalled();
+    // A modal's focus trap listens for focusin on the document
+    expect(clear).toHaveFocus();
+    expect(onDocumentFocusIn).not.toHaveBeenCalled();
   });
 });

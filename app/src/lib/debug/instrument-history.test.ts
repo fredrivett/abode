@@ -17,6 +17,12 @@ describe("diffSearchParams", () => {
     ).toEqual({ added: ["sort"], removed: ["item"], changed: ["q"] });
   });
 
+  it("tells repeated values apart from comma-joined ones", () => {
+    expect(
+      diffSearchParams({ from: "?x=a%2Cb", to: "?x=a&x=b" }).changed,
+    ).toEqual(["x"]);
+  });
+
   it("is empty when nothing changed", () => {
     expect(diffSearchParams({ from: "?a=1", to: "?a=1" })).toEqual({
       added: [],
@@ -75,6 +81,15 @@ describe("instrumentHistory", () => {
       added: ["item"],
     });
     expect(Array.isArray(event.data?.stack)).toBe(true);
+  });
+
+  it("resolves a relative URL against the page it was pushed from", () => {
+    window.history.replaceState(null, "", "/a/b/c");
+    window.history.pushState(null, "", "../x");
+    expect(getTraceEvents().at(-1)?.data).toMatchObject({
+      from: "/a/b/c",
+      to: "/a/x",
+    });
   });
 
   it("flags a replaceState that drops a param", () => {
