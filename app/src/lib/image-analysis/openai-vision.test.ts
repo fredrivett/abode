@@ -1,0 +1,129 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../embeddings", () => ({ getOpenAiClient: vi.fn() }));
+
+import { getOpenAiClient } from "../embeddings";
+import { analyzeImageWithOpenAI } from "./openai-vision";
+
+const create = vi.fn();
+
+const analysis = {
+  title: "Digital Skyline",
+  description: "A skyline with data overlays.",
+  tags: ["digital art"],
+  objects: ["skyline"],
+  ocrText: "ROT",
+  dominantColors: [{ name: "black", hex: "#000000" }],
+};
+
+const completion = ({
+  finishReason = "stop",
+  content = JSON.stringify(analysis),
+  completionTokens,
+}: {
+  finishReason?: "stop" | "length";
+  content?: string;
+  completionTokens: number;
+}) => ({
+  model: "gpt-4o-mini-2024-07-18",
+  choices: [{ finish_reason: finishReason, message: { content } }],
+  usage: {
+    prompt_tokens: 800,
+    completion_tokens: completionTokens,
+    total_tokens: 800 + completionTokens,
+  },
+});
+
+// What a runaway-OCR response looks like: cut off mid-string at max_tokens
+const truncated = completion({
+  finishReason: "length",
+  content: '{"title":"Digital Skyline","ocrText":"ROT\\nC 0.000\\nC 0.000',
+  completionTokens: 1000,
+});
+
+type CreateArgs = {
+  messages: { content: { type: string; text?: string }[] }[];
+};
+
+const promptOfCall = (call: number): string => {
+  const [args] = create.mock.calls[call] as [CreateArgs];
+  return args.messages[0].content.find((c) => c.type === "text")?.text ?? "";
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(getOpenAiClient).mockReturnValue({
+    chat: { completions: { create } },
+  } as unknown as ReturnType<typeof getOpenAiClient>);
+});
+
+describe("analyzeImageWithOpenAI", () => {
+  it("returns the analysis with OCR from a single call", async () => {
+    create.mockResolvedValue(completion({ completionTokens: 250 }));
+
+    const result = await analyzeImageWithOpenAI(Buffer.from("img"));
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(promptOfCall(0)).toContain("Skip decorative, garbled");
+    expect(result.analysis).toEqual(analysis);
+    expect(result.usage).toEqual({
+      promptTokens: 800,
+      completionTokens: 250,
+      totalTokens: 1050,
+    });
+  });
+
+  it("retries without OCR when the response hits the length limit", async () => {
+    create
+      .mockResolvedValueOnce(truncated)
+      .mockResolvedValueOnce(completion({ completionTokens: 200 }));
+
+    const result = await analyzeImageWithOpenAI(Buffer.from("img"));
+
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(promptOfCall(1)).toContain("ocrText: Always null");
+    // Forced null even if the model ignores the instruction
+    expect(result.analysis).toEqual({ ...analysis, ocrText: null });
+  });
+
+  it("reports usage for both calls when falling back, since both are billed", async () => {
+    create
+      .mockResolvedValueOnce(truncated)
+      .mockResolvedValueOnce(completion({ completionTokens: 200 }));
+
+    const result = await analyzeImageWithOpenAI(Buffer.from("img"));
+
+    expect(result.usage).toEqual({
+      promptTokens: 1600,
+      completionTokens: 1200,
+      totalTokens: 2800,
+    });
+  });
+
+  it("throws when the no-OCR retry is also truncated", async () => {
+    create.mockResolvedValue(truncated);
+
+    await expect(analyzeImageWithOpenAI(Buffer.from("img"))).rejects.toThrow(
+      "truncated even without OCR",
+    );
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws on a response that doesn't match the schema", async () => {
+    create.mockResolvedValue(
+      completion({ content: '{"title":"x"}', completionTokens: 5 }),
+    );
+
+    await expect(analyzeImageWithOpenAI(Buffer.from("img"))).rejects.toThrow();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rethrows request errors without the no-OCR retry", async () => {
+    create.mockRejectedValue(new Error("invalid image"));
+
+    await expect(analyzeImageWithOpenAI(Buffer.from("img"))).rejects.toThrow(
+      "invalid image",
+    );
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+});
