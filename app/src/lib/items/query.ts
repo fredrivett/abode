@@ -3,6 +3,7 @@
  */
 
 import type { Prisma } from "@prisma/client";
+import type { CursorData } from "@/lib/pagination";
 import type {
   ArticleDetails,
   BookDetails,
@@ -17,6 +18,44 @@ import type {
   TwitterMedia,
   VideoDetails,
 } from "@/lib/types/item";
+
+/**
+ * Ordering for the library timeline (dashboard grid + items API). Sorts by
+ * `addedAt` — an item's place in the library — NOT `createdAt` (row-creation
+ * time), so back-dated imports slot into their historical position. Every
+ * listing path MUST use this constant (and the cursor helpers below) so the
+ * SSR first page and the paginated API can never silently diverge back to
+ * createdAt. See the `Item.addedAt` comment in schema.prisma.
+ */
+export const ITEM_TIMELINE_ORDER_BY = [
+  { addedAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.ItemOrderByWithRelationInput[];
+
+/**
+ * Keyset predicate matching the rows strictly after `cursor` under
+ * ITEM_TIMELINE_ORDER_BY. Merge into a base where clause (e.g. the userId
+ * scope) — kept beside the order-by so the two stay consistent.
+ */
+export function itemTimelineCursorWhere(
+  cursor: CursorData,
+): Prisma.ItemWhereInput {
+  const addedAt = new Date(cursor.addedAt);
+  return {
+    OR: [
+      { addedAt: { lt: addedAt } },
+      { addedAt: { equals: addedAt }, id: { lt: cursor.id } },
+    ],
+  };
+}
+
+/** Cursor for the last row of a timeline page, for encodeCursor. */
+export function itemTimelineCursor(item: {
+  addedAt: Date;
+  id: string;
+}): CursorData {
+  return { addedAt: item.addedAt.toISOString(), id: item.id };
+}
 
 /**
  * The select clause for fetching items - shared between initial load and pagination.

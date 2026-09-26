@@ -5,7 +5,13 @@ import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { isItemSource } from "@/lib/items/capture-source";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
-import { itemSelect, transformItem } from "@/lib/items/query";
+import {
+  ITEM_TIMELINE_ORDER_BY,
+  itemSelect,
+  itemTimelineCursor,
+  itemTimelineCursorWhere,
+  transformItem,
+} from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
@@ -48,17 +54,7 @@ export async function GET(request: NextRequest) {
     let whereClause: Prisma.ItemWhereInput;
 
     if (cursorData) {
-      const cursorDate = new Date(cursorData.addedAt);
-      whereClause = {
-        ...baseWhere,
-        OR: [
-          { addedAt: { lt: cursorDate } },
-          {
-            addedAt: { equals: cursorDate },
-            id: { lt: cursorData.id },
-          },
-        ],
-      };
+      whereClause = { ...baseWhere, ...itemTimelineCursorWhere(cursorData) };
     } else {
       whereClause = baseWhere;
     }
@@ -71,7 +67,7 @@ export async function GET(request: NextRequest) {
       db.item.findMany({
         where: whereClause,
         select: itemSelect,
-        orderBy: [{ addedAt: "desc" }, { id: "desc" }],
+        orderBy: ITEM_TIMELINE_ORDER_BY,
         take: fetchLimit,
       }),
       cursorData
@@ -87,10 +83,7 @@ export async function GET(request: NextRequest) {
     let nextCursor: string | undefined;
     if (hasMore && pageItems.length > 0) {
       const lastItem = pageItems[pageItems.length - 1];
-      nextCursor = encodeCursor({
-        addedAt: lastItem.addedAt.toISOString(),
-        id: lastItem.id,
-      });
+      nextCursor = encodeCursor(itemTimelineCursor(lastItem));
     }
 
     // Transform items for client

@@ -4,7 +4,12 @@ import db from "@/lib/db";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { getNoteDraft } from "@/lib/items/note-draft";
-import { itemSelect, transformItem } from "@/lib/items/query";
+import {
+  ITEM_TIMELINE_ORDER_BY,
+  itemSelect,
+  itemTimelineCursor,
+  transformItem,
+} from "@/lib/items/query";
 import {
   DEFAULT_PAGE_SIZE,
   encodeCursor,
@@ -96,7 +101,7 @@ export default async function DashboardPage({
     ? await Promise.all([
         db.item.findMany({
           where: { userId: user.id },
-          orderBy: [{ addedAt: "desc" }, { id: "desc" }],
+          orderBy: ITEM_TIMELINE_ORDER_BY,
           take: fetchLimit,
           select: itemSelect,
         }),
@@ -118,10 +123,7 @@ export default async function DashboardPage({
   let initialCursor: string | null = null;
   if (hasMore && pageItems.length > 0) {
     const lastItem = pageItems[pageItems.length - 1];
-    initialCursor = encodeCursor({
-      addedAt: lastItem.addedAt.toISOString(),
-      id: lastItem.id,
-    });
+    initialCursor = encodeCursor(itemTimelineCursor(lastItem));
   }
 
   const itemsForClient = pageItems.map(transformItem);
