@@ -25,6 +25,7 @@ type RoomPageClientProps = {
   isOwner: boolean;
   // User data for header
   isAuthenticated: boolean;
+  userId?: string | null;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -43,6 +44,7 @@ export function RoomPageClient({
   initialHasMore,
   isOwner,
   isAuthenticated,
+  userId,
   email,
   firstName,
   lastName,
@@ -129,9 +131,10 @@ export function RoomPageClient({
 
   return (
     <>
-      {isAuthenticated && signOutAction ? (
+      {isAuthenticated && userId && signOutAction ? (
         <DashboardHeaderClient
           isAuthenticated
+          userId={userId}
           email={email}
           firstName={firstName}
           lastName={lastName}
