@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = { title: "Log in | abode" };
 
 export default async function LoginPage({
   searchParams,

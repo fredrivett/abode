@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SignOutForm } from "@/components/auth/sign-out-form";
 import { signOut } from "@/lib/actions/auth";
@@ -5,6 +6,8 @@ import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 import { VerifyMFAForm } from "./verify-mfa-form";
+
+export const metadata: Metadata = { title: "Verify sign-in | abode" };
 
 type Props = {
   searchParams: Promise<{ next?: string | string[] }>;

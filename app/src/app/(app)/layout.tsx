@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ExtensionDetector } from "@/components/extension/extension-detector";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { ROUTES } from "@/lib/routes";
+import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = { robots: NO_INDEX_ROBOTS };
 
 /**
  * Root layout for authenticated app routes.

@@ -6,3 +6,6 @@
 export function isIndexableDeployment(): boolean {
   return process.env.VERCEL_ENV === "production";
 }
+
+/** `robots` metadata for pages that must never appear in search (app, auth) */
+export const NO_INDEX_ROBOTS = { index: false, follow: false } as const;

@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { CompleteSignupForm } from "./complete-signup-form";
+
+export const metadata: Metadata = { title: "Complete signup | abode" };
 
 export default async function CompleteSignupPage() {
   const supabase = await createClient();
