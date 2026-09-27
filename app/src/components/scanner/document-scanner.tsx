@@ -1,0 +1,353 @@
+"use client";
+
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import posthog from "posthog-js";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
+import { useLocalStorage } from "usehooks-ts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { createLogger } from "@/lib/logger.client";
+import type { ScanFilter } from "@/lib/scanner/filters";
+import type { Quad } from "@/lib/scanner/geometry";
+import { pagesReducer, previewKey, type ScanPage } from "@/lib/scanner/pages";
+import { ScannerClient } from "@/lib/scanner/scanner-client";
+import {
+  type CameraCapture,
+  ScannerCamera,
+  type ScreenRect,
+} from "./scanner-camera";
+import { type PageFlight, ScannerReview } from "./scanner-review";
+import { usePagePreviews } from "./use-page-previews";
+
+const log = createLogger("scanner/document-scanner");
+
+/** Imported photos are downscaled to this long edge before scanning */
+const IMPORT_MAX_DIMENSION = 3000;
+/** Matches the filtered page's fade-in over the colour one after a flight */
+const CROSSFADE_MS = 550;
+
+type CaptureMode = CameraCapture["mode"] | "import";
+
+interface DocumentScannerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Persists the scanned pages; the scanner closes once it resolves */
+  onSave: (pages: ScanPage[]) => Promise<void>;
+}
+
+/** Full-screen multi-page document scanner (camera → review → save) */
+export function DocumentScanner({
+  open,
+  onOpenChange,
+  onSave,
+}: DocumentScannerProps) {
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        {open ? (
+          <ScannerSession onClose={() => onOpenChange(false)} onSave={onSave} />
+        ) : null}
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+async function decodePhoto(file: File): Promise<ImageData> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(
+    1,
+    IMPORT_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height),
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas unavailable");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+/** One open scanner — remounted per open so every scan starts fresh */
+function ScannerSession({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (pages: ScanPage[]) => Promise<void>;
+}) {
+  const [client, setClient] = useState<ScannerClient | null>(null);
+  const [ready, setReady] = useState(false);
+  const [pages, dispatch] = useReducer(pagesReducer, []);
+  const [view, setView] = useState<"camera" | "review">("camera");
+  const [retakeId, setRetakeId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const capturingRef = useRef(false);
+  const [flight, setFlight] = useState<PageFlight | null>(null);
+  const [landedId, setLandedId] = useState<string | null>(null);
+  const [auto, setAuto] = useLocalStorage("abode:scanner-auto", true);
+  const [defaultFilter, setDefaultFilter] = useState<ScanFilter>("bw");
+  const [saving, setSaving] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+
+  useEffect(() => {
+    const scanner = ScannerClient.create();
+    const controller = new AbortController();
+    setClient(scanner);
+    scanner.init().then(
+      (detector) => {
+        if (controller.signal.aborted) return;
+        setReady(true);
+        if (detector === "classical") {
+          log.warn("ML detector failed to load; using classical detection");
+        }
+      },
+      (error: unknown) => {
+        // Closing the scanner (or a StrictMode remount) rejects the pending init
+        if (controller.signal.aborted) return;
+        log.error({ error }, "Scanner failed to load");
+        posthog.captureException(error);
+        toast.error("The scanner failed to load. Please try again.");
+      },
+    );
+    return () => {
+      controller.abort();
+      scanner.terminate();
+    };
+  }, []);
+
+  const previewRequests = useMemo(
+    () => [
+      ...pages.map((page) => ({ page, filter: page.filter })),
+      // The colour preview is what flies in from the camera
+      ...pages
+        .filter((page) => page.id === flight?.pageId)
+        .map((page) => ({ page, filter: "original" as const })),
+    ],
+    [pages, flight?.pageId],
+  );
+  const { previews, seed } = usePagePreviews({
+    client,
+    requests: previewRequests,
+  });
+
+  // After a flight lands, drop the colour layer once the filtered page has faded in
+  useEffect(() => {
+    if (!flight || landedId !== flight.pageId) return;
+    const page = pages.find((p) => p.id === flight.pageId);
+    if (page && !previews.has(previewKey({ page }))) return;
+    const timer = setTimeout(() => setFlight(null), CROSSFADE_MS);
+    return () => clearTimeout(timer);
+  }, [flight, landedId, pages, previews]);
+
+  const addPage = useCallback(
+    async ({
+      frame,
+      hint,
+      fromRect,
+      mode,
+    }: {
+      frame: ImageData;
+      hint: Quad | null;
+      fromRect: ScreenRect | null;
+      mode: CaptureMode;
+    }) => {
+      if (!client || capturingRef.current) return;
+      capturingRef.current = true;
+      setCapturing(true);
+      try {
+        const { source, quad } = await client.capture({ frame, hint });
+        const page: ScanPage = {
+          id: crypto.randomUUID(),
+          source,
+          quad,
+          rotation: 0,
+          filter: defaultFilter,
+        };
+        if (fromRect) {
+          // Render the colour page up front so the flight starts immediately
+          seed({
+            page,
+            filter: "original",
+            rendered: await client.render({ ...page, filter: "original" }),
+          });
+          setFlight({ pageId: page.id, from: fromRect });
+        }
+        dispatch(
+          retakeId
+            ? { type: "replace", id: retakeId, page }
+            : { type: "add", page },
+        );
+        setRetakeId(null);
+        setActiveId(page.id);
+        setView("review");
+        posthog.capture("document_scan_page_captured", {
+          mode,
+          detected: quad !== null,
+          retake: retakeId !== null,
+        });
+      } catch (error) {
+        log.error({ error }, "Failed to capture page");
+        posthog.captureException(error);
+        toast.error("Couldn't capture that page. Please try again.");
+      } finally {
+        capturingRef.current = false;
+        setCapturing(false);
+      }
+    },
+    [client, defaultFilter, retakeId, seed],
+  );
+
+  const importPhoto = async (file: File) => {
+    try {
+      const frame = await decodePhoto(file);
+      await addPage({ frame, hint: null, fromRect: null, mode: "import" });
+    } catch (error) {
+      log.warn({ error }, "Failed to import photo");
+      toast.error("Couldn't open that photo. Try a JPEG or PNG.");
+    }
+  };
+
+  const deletePage = (id: string) => {
+    const index = pages.findIndex((page) => page.id === id);
+    const remaining = pages.filter((page) => page.id !== id);
+    dispatch({ type: "remove", id });
+    if (remaining.length === 0) {
+      setActiveId(null);
+      setView("camera");
+      return;
+    }
+    setActiveId(remaining[Math.min(index, remaining.length - 1)].id);
+  };
+
+  const leaveCamera = () => {
+    if (pages.length === 0) {
+      onClose();
+      return;
+    }
+    setRetakeId(null);
+    setView("review");
+  };
+
+  const cancel = () => {
+    if (view === "camera") {
+      leaveCamera();
+    } else if (pages.length > 0) {
+      setConfirmingDiscard(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(pages);
+      posthog.capture("document_scan_saved", { page_count: pages.length });
+      onClose();
+    } catch (error) {
+      log.error({ error }, "Failed to save scanned document");
+      posthog.captureException(error);
+      toast.error("Couldn't save the document. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogPrimitive.Content
+      className="fixed inset-0 z-50 h-dvh w-screen bg-black outline-none"
+      onEscapeKeyDown={(event) => {
+        event.preventDefault();
+        if (!confirmingDiscard) cancel();
+      }}
+    >
+      <DialogPrimitive.Title className="sr-only">
+        Scan a document
+      </DialogPrimitive.Title>
+      <DialogPrimitive.Description className="sr-only">
+        Point your camera at a document to scan it, one page at a time.
+      </DialogPrimitive.Description>
+
+      <div className={view === "camera" ? "absolute inset-0" : "hidden"}>
+        <ScannerCamera
+          client={client}
+          ready={ready}
+          active={view === "camera"}
+          capturing={capturing}
+          auto={auto}
+          onAutoChange={setAuto}
+          onCapture={addPage}
+          onImport={importPhoto}
+          onClose={leaveCamera}
+          closeLabel={pages.length > 0 ? "Back to pages" : "Close scanner"}
+        />
+      </div>
+
+      {view === "review" ? (
+        <div className="absolute inset-0">
+          <ScannerReview
+            pages={pages}
+            previews={previews}
+            activeId={activeId}
+            onActiveChange={setActiveId}
+            flight={flight}
+            onFlightEnd={() => setLandedId(flight?.pageId ?? null)}
+            onAddPage={() => {
+              setRetakeId(null);
+              setView("camera");
+            }}
+            onRetake={(id) => {
+              setRetakeId(id);
+              setView("camera");
+            }}
+            onDelete={deletePage}
+            onRotate={(id) => dispatch({ type: "rotate", id })}
+            onFilterChange={({ id, filter }) => {
+              dispatch({ type: "set-filter", id, filter });
+              setDefaultFilter(filter);
+            }}
+            onMove={({ id, to }) => dispatch({ type: "move", id, to })}
+            onCancel={cancel}
+            onSave={save}
+            saving={saving}
+          />
+        </div>
+      ) : null}
+
+      <AlertDialog open={confirmingDiscard} onOpenChange={setConfirmingDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this scan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pages.length === 1
+                ? "The page you scanned will be lost."
+                : `The ${pages.length} pages you scanned will be lost.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep scanning</AlertDialogCancel>
+            <AlertDialogAction onClick={onClose}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </DialogPrimitive.Content>
+  );
+}
