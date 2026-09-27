@@ -216,8 +216,9 @@ export function startOfUtcDay(now: Date = new Date()): Date {
 }
 
 /**
- * Atomically record one action in `(user, today, bucket)` and report whether
- * it's within the limit.
+ * Atomically record one action — or `weight` actions, for a request that does
+ * that much work (e.g. one per page of a scanned document) — in
+ * `(user, today, bucket)` and report whether it's within the limit.
  *
  * The increment is UNCONDITIONAL — we always +1 and compare in app code — so
  * the stored `count` reflects true demand (including would-be-blocked attempts)
@@ -228,9 +229,10 @@ export function startOfUtcDay(now: Date = new Date()): Date {
 export async function assertWithinDailyLimit(
   userId: string,
   bucket: UsageBucket,
+  { weight = 1 }: { weight?: number } = {},
 ): Promise<UsageLimitCheck> {
   const limit = DAILY_LIMITS[bucket];
-  const count = await incrementDailyCount(userId, bucket);
+  const count = await incrementDailyCount(userId, bucket, { weight });
 
   return {
     allowed: count <= limit,
@@ -250,12 +252,15 @@ export async function assertWithinDailyLimit(
 export async function incrementDailyCount(
   userId: string,
   bucket: UsageBucket,
+  { weight = 1 }: { weight?: number } = {},
 ): Promise<number> {
+  // Whole actions only, at least one — a weight is a count, never a discount
+  const amount = Math.max(1, Math.ceil(weight));
   const rows = await db.$queryRaw<{ count: number }[]>`
     INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
-    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
+    VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, ${amount}, now())
     ON CONFLICT (user_id, day, bucket)
-    DO UPDATE SET count = usage_daily.count + 1, updated_at = now()
+    DO UPDATE SET count = usage_daily.count + ${amount}, updated_at = now()
     RETURNING count
   `;
   return Number(rows[0]?.count ?? 0);
@@ -498,7 +503,8 @@ async function safeUserMonthlyBudget(
 }
 
 /**
- * Route-facing guard. Always counts the action, then applies four gates in
+ * Route-facing guard. Always counts the action (`weight` of them, default 1 —
+ * e.g. a scanned document counts once per page), then applies four gates in
  * severity order under the shared shadow-vs-enforce policy:
  *   1. per-bucket action count (the hard control),
  *   2. system-wide $ circuit-breaker (caps global blast radius),
@@ -515,9 +521,10 @@ async function safeUserMonthlyBudget(
 export async function guardDailyLimit(
   userId: string,
   bucket: UsageBucket,
+  options: { weight?: number } = {},
 ): Promise<UsageGuardResult> {
   warnIfLimitsNotEnforced();
-  const check = await assertWithinDailyLimit(userId, bucket);
+  const check = await assertWithinDailyLimit(userId, bucket, options);
   const enforced = isUsageLimitsEnforced();
 
   // Gate 1 — per-bucket action count.

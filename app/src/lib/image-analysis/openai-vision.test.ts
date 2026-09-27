@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../embeddings", () => ({ getOpenAiClient: vi.fn() }));
 
 import { getOpenAiClient } from "../embeddings";
-import { analyzeImageWithOpenAI } from "./openai-vision";
+import {
+  analyzeImageWithOpenAI,
+  transcribeDocumentWithOpenAI,
+} from "./openai-vision";
 
 const create = vi.fn();
 
@@ -125,5 +128,48 @@ describe("analyzeImageWithOpenAI", () => {
       "invalid image",
     );
     expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("transcribeDocumentWithOpenAI", () => {
+  const page = (finishReason: "stop" | "length", content: string | null) => ({
+    model: "gpt-4o-mini-2024-07-18",
+    choices: [{ finish_reason: finishReason, message: { content } }],
+    usage: { prompt_tokens: 1100, completion_tokens: 700, total_tokens: 1800 },
+  });
+
+  it("returns the page's transcription with usage", async () => {
+    create.mockResolvedValueOnce(page("stop", "  Dear Sir,\nThank you.  "));
+    const result = await transcribeDocumentWithOpenAI(Buffer.from("x"));
+    expect(result).toEqual({
+      text: "Dear Sir,\nThank you.",
+      truncated: false,
+      usage: { promptTokens: 1100, completionTokens: 700 },
+      model: "gpt-4o-mini-2024-07-18",
+    });
+  });
+
+  it("asks for a verbatim transcription with a page-sized output budget", async () => {
+    create.mockResolvedValueOnce(page("stop", "text"));
+    await transcribeDocumentWithOpenAI(Buffer.from("x"));
+    const [args] = create.mock.calls[0] as [{ max_tokens: number }];
+    expect(args.max_tokens).toBeGreaterThanOrEqual(8000);
+    expect(promptOfCall(0)).toMatch(/Transcribe all the text/);
+  });
+
+  it("keeps the partial text when a dense page overflows", async () => {
+    create.mockResolvedValueOnce(page("length", "First half of the page"));
+    const result = await transcribeDocumentWithOpenAI(Buffer.from("x"));
+    expect(result.text).toBe("First half of the page");
+    expect(result.truncated).toBe(true);
+    // The truncated call is still billed
+    expect(result.usage).toEqual({ promptTokens: 1100, completionTokens: 700 });
+  });
+
+  it("returns empty text for a page with none", async () => {
+    create.mockResolvedValueOnce(page("stop", null));
+    expect((await transcribeDocumentWithOpenAI(Buffer.from("x"))).text).toBe(
+      "",
+    );
   });
 });

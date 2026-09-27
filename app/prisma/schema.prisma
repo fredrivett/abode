@@ -75,6 +75,7 @@ enum ItemKind {
   note
   webpage
   book
+  document
 }
 
 enum SourceType {
@@ -267,6 +268,7 @@ model Item {
   productDetails    ItemProductDetails?
   bookDetails       ItemBookDetails?
   noteDetails       ItemNoteDetails?
+  documentPages     ItemDocumentPage[]
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
@@ -433,6 +435,41 @@ model ItemArticleDetails {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("item_article_details")
+}
+
+// How a scanned page is rendered. `bw` (the default) is the "scanned document"
+// look; `original` is the flattened colour photo.
+enum DocumentPageFilter {
+  bw
+  grey
+  original
+}
+
+// One page of a scanned `document` item, in reading order. Pages are flattened
+// (perspective-corrected) in the browser before upload, so both files are
+// upright page images, never the raw camera photo. The item's own fileKey
+// mirrors page 1 so grid cards, covers and cover-level visual analysis work as
+// for images; every page gets full OCR into its own ocrText.
+model ItemDocumentPage {
+  id              String             @id @default(uuid()) @db.Uuid
+  itemId          String             @map("item_id") @db.Uuid
+  item            Item               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // 0-based reading order. Not unique: reordering rewrites positions in one
+  // transaction, and a unique constraint would reject the intermediate swaps
+  position        Int
+  fileKey         String             @map("file_key") // The page as displayed (filter + rotation applied)
+  originalFileKey String             @map("original_file_key") // Flattened colour page, so the filter can change later
+  filter          DocumentPageFilter @default(bw)
+  width           Int
+  height          Int
+  ocrText         String?            @map("ocr_text")
+
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  @@index([itemId, position])
+  @@map("item_document_pages")
 }
 
 model ItemImageDetails {

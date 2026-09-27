@@ -32,6 +32,7 @@ export type AiOperation =
   | "image_embedding"
   | "vision_analysis"
   | "image_filtering"
+  | "document_ocr"
   | "translation";
 export type AiUsageSource = "ingestion" | "search";
 

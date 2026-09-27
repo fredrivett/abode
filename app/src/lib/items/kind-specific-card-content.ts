@@ -38,6 +38,7 @@ export function hasKindSpecificCardContent(params: {
     case "webpage":
     case "product":
     case "book":
+    case "document":
     case null:
       return false;
     default:

@@ -22,10 +22,11 @@ export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Send the origin (not the full path) on cross-origin navigations
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Disable powerful features we don't use anywhere in the app
+  // Disable powerful features we don't use; the camera is allowed for our own
+  // origin only (document scanner)
   {
     key: "Permissions-Policy",
-    value: "geolocation=(), camera=(), microphone=()",
+    value: "geolocation=(), camera=(self), microphone=()",
   },
   // Allow DNS prefetching for faster cross-origin resource loads
   { key: "X-DNS-Prefetch-Control", value: "on" },

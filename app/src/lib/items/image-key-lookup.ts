@@ -9,8 +9,9 @@ import { itemAccessSelect } from "./access";
  * gallery (`ItemProductDetails.images`), a tweet's media stills
  * (`ItemTwitterDetails.media[].fileKey`), a tweet's link-card image
  * (`ItemTwitterDetails.card.imageFileKey`), and an Instagram post's media
- * (`ItemInstagramDetails.media[].fileKey`). JSONB containment matches these
- * without scanning every row.
+ * (`ItemInstagramDetails.media[].fileKey`), plus a scanned document's pages
+ * (`item_document_pages`, displayed and colour original). JSONB containment
+ * matches the JSON ones without scanning every row.
  *
  * Any new kind that stores keys in JSON must be added here, or the proxy will
  * 404 those images even though they belong to an authorized item.
@@ -27,6 +28,11 @@ export function itemOwningImageKeyWhere(
       { twitterDetails: { media: { array_contains: [{ fileKey }] } } },
       { twitterDetails: { card: { path: ["imageFileKey"], equals: fileKey } } },
       { instagramDetails: { media: { array_contains: [{ fileKey }] } } },
+      {
+        documentPages: {
+          some: { OR: [{ fileKey }, { originalFileKey: fileKey }] },
+        },
+      },
     ],
   };
 }

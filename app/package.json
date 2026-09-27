@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bunx next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
     "build": "next build --webpack",
+    "postinstall": "bun scripts/copy-scanner-assets.ts",
     "start": "next start -p ${CONDUCTOR_PORT:-3300}",
     "lint": "bunx -p @biomejs/biome biome check",
     "lint:suppressions": "bash scripts/check-ts-suppressions.sh",
@@ -99,6 +100,8 @@
     "react-tweet": "^3.3.1",
     "replicate": "^1.4.0",
     "resend": "^6.28.1",
+    "scanic": "1.6.0",
+    "scanic-ml": "0.2.0",
     "sharp": "^0.35.4",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",

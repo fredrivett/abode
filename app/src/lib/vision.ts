@@ -59,6 +59,23 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
+ * Full text of a document page via Google Cloud Vision's DOCUMENT_TEXT_DETECTION
+ * (dense-text OCR, reading order preserved). Returns "" when the page has no
+ * text.
+ */
+export async function detectDocumentText(imageBuffer: Buffer): Promise<string> {
+  const client = getVisionClient();
+  const [result] = await client.annotateImage({
+    image: { content: imageBuffer },
+    features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+  });
+  if (result.error?.message) {
+    throw new Error(`Google Vision OCR failed: ${result.error.message}`);
+  }
+  return result.fullTextAnnotation?.text?.trim() ?? "";
+}
+
+/**
  * Extract only color information from an image using Google Cloud Vision API.
  * Uses only IMAGE_PROPERTIES feature ($1.50/1000 vs $6.75/1000 for all features).
  */

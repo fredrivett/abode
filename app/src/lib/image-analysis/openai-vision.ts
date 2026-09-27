@@ -162,3 +162,71 @@ export async function analyzeImageWithOpenAI(
     throw error;
   }
 }
+
+/** Output budget for transcribing one dense page (~6k words) */
+const DOCUMENT_OCR_MAX_TOKENS = 8192;
+
+const DOCUMENT_OCR_PROMPT = `Transcribe all the text on this scanned document page, top to bottom, in reading order.
+- Output only the transcribed text: no commentary, headings of your own or Markdown fences
+- Keep line and paragraph breaks where they aid reading; transcribe in the original language
+- Skip illegible fragments rather than guessing; if the page has no text, output nothing`;
+
+export type DocumentTranscription = {
+  text: string;
+  /** The page had more text than the output budget allows */
+  truncated: boolean;
+  usage: { promptTokens: number; completionTokens: number };
+  model: string;
+};
+
+/**
+ * Full-page OCR with OpenAI vision — the fallback when Google Vision isn't
+ * configured. Unlike {@link analyzeImageWithOpenAI} (built for text *in photos*,
+ * capped at ~500 characters), this asks for a verbatim transcription with a
+ * page-sized output budget. A page that still overflows keeps the text read so
+ * far rather than dropping it.
+ */
+export async function transcribeDocumentWithOpenAI(
+  imageBuffer: Buffer,
+  mimeType: string = "image/jpeg",
+): Promise<DocumentTranscription> {
+  const client = getOpenAiClient();
+  const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+  const completion = await retryTransient(
+    () =>
+      client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: DOCUMENT_OCR_PROMPT },
+              {
+                type: "image_url",
+                image_url: { url: dataUrl, detail: "high" },
+              },
+            ],
+          },
+        ],
+        max_tokens: DOCUMENT_OCR_MAX_TOKENS,
+        temperature: 0,
+      }),
+    { label: "OpenAI document OCR" },
+  );
+  const choice = completion.choices[0];
+  const truncated = choice?.finish_reason === "length";
+  if (truncated) {
+    log.warn(
+      "OpenAI document OCR hit the output token limit — keeping partial text",
+    );
+  }
+  return {
+    text: choice?.message.content?.trim() ?? "",
+    truncated,
+    usage: {
+      promptTokens: completion.usage?.prompt_tokens ?? 0,
+      completionTokens: completion.usage?.completion_tokens ?? 0,
+    },
+    model: completion.model,
+  };
+}

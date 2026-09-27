@@ -8,7 +8,7 @@ const EXPECTED_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+  "Permissions-Policy": "geolocation=(), camera=(self), microphone=()",
   "X-DNS-Prefetch-Control": "on",
 };
 
