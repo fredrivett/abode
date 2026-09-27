@@ -5,8 +5,7 @@ export function sharedFaqs(comparison: Comparison): ComparisonFaq[] {
   return [
     {
       question: `can I bring my ${comparison.name} library to abode?`,
-      answer:
-        "not yet — importers for mymind, Raindrop, Are.na and Pinterest are next on the roadmap. for now, you save things one by one.",
+      answer: `not yet — a ${comparison.name} importer is next on the roadmap. for now, you save things one by one.`,
     },
     {
       question: "is abode free?",
