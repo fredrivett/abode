@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { needsMFAChallenge } from "@/lib/mfa";
 import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "./reset-password-form";
+
+export const metadata: Metadata = { title: "Reset password | abode" };
 
 export default async function ResetPasswordPage() {
   const supabase = await createClient();

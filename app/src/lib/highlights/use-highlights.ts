@@ -28,7 +28,7 @@ type UpdateHighlightPayload = {
   note?: string;
 };
 
-function highlightsQueryKey(itemId: string) {
+export function highlightsQueryKey(itemId: string) {
   return ["items", itemId, "highlights"] as const;
 }
 

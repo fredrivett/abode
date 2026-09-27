@@ -53,3 +53,15 @@ const NOTE_PROSE_PARTS = [
 ];
 
 export const NOTE_PROSE_CLASS = NOTE_PROSE_PARTS.join(" ");
+
+/**
+ * The detail-view editor root, on top of {@link NOTE_PROSE_CLASS}. Lives here
+ * (not in note-editor) so the detail view's loading placeholder can match it
+ * without pulling in the editor.
+ *
+ * `max-md:text-[1rem]` keeps the editor root at 16px on small screens —
+ * prose-sm would drop it to 14px, which makes iOS Safari auto-zoom the UI on
+ * focus.
+ */
+export const NOTE_EDITOR_CLASS =
+  "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
