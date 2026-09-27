@@ -1,10 +1,10 @@
 import { getInviteUrl } from "@/lib/invites";
+import { X_URL } from "@/lib/social";
 import { getAppBaseUrl } from "@/lib/url";
 
 /**
  * Shared constants for email templates
  */
-export const ABODE_TWITTER_URL = "https://twitter.com/abodefyi";
 export const ABODE_TAGLINE = "your digital home";
 export const ABODE_DESCRIPTION =
   "abode is your digital home — the place to store what matters and share a subset of that with the world.";
@@ -99,7 +99,7 @@ export function getWaitlistConfirmationEmail(options: { position?: number }): {
 ${positionText}we'll email you when it's your turn to join abode.
 
 in the meantime, follow us for updates:
-${ABODE_TWITTER_URL}
+${X_URL}
 
 ${EMAIL_FOOTER}
 `;
@@ -108,7 +108,7 @@ ${EMAIL_FOOTER}
 
 ${positionHtml}<p>we'll email you when it's your turn to join abode.</p>
 
-<p>in the meantime, ${htmlLink("follow us for updates", ABODE_TWITTER_URL)}.</p>
+<p>in the meantime, ${htmlLink("follow us for updates", X_URL)}.</p>
 
 ${htmlFooter()}`;
 

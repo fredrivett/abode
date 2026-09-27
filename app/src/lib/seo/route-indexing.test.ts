@@ -33,16 +33,19 @@ function findPages(dir: string): Page[] {
     });
 }
 
+// Matches the metadata assignment, not a mention in a comment or string
+const SETS_NO_INDEX = /\brobots:\s*NO_INDEX_ROBOTS\b/;
+
 // The page itself or any layout above it (up to src/app) sets NO_INDEX_ROBOTS
 function isNoIndex(pageFile: string): boolean {
-  if (readFileSync(pageFile, "utf8").includes("NO_INDEX_ROBOTS")) return true;
+  if (SETS_NO_INDEX.test(readFileSync(pageFile, "utf8"))) return true;
 
   let dir = dirname(pageFile);
   while (relative(APP_DIR, dir) !== "..") {
     const layout = join(dir, "layout.tsx");
     if (
       existsSync(layout) &&
-      readFileSync(layout, "utf8").includes("NO_INDEX_ROBOTS")
+      SETS_NO_INDEX.test(readFileSync(layout, "utf8"))
     ) {
       return true;
     }
