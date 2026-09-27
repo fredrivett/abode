@@ -124,8 +124,8 @@ export const Overlay: Story = {
     );
     // Body text starts where the first skeleton line does
     const firstLine = layer("placeholder").querySelector(".animate-pulse");
-    expect(rectOf(layer("reader").querySelector("article p")).x).toBe(
-      rectOf(firstLine).x,
+    expect(rectOf(layer("reader").querySelector("article p"))).toEqual(
+      rectOf(firstLine),
     );
   },
 };
