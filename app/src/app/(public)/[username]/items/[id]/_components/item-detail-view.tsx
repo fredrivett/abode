@@ -3,12 +3,14 @@
 import { ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
 import { BookReadingSummary } from "@/components/book/book-reading-summary";
+import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import { DateTime } from "@/components/ui/date-time";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
+import { documentPageCount } from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { Item } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
@@ -93,6 +95,8 @@ export function ItemDetailView({
   const isVideo = item.kind === "video";
   const isProduct = item.kind === "product";
   const isBook = item.kind === "book";
+  const documentPages =
+    item.kind === "document" ? documentPageCount(item.meta) : null;
 
   const meta = item.meta || {};
   const articleTitle = meta.originalName as string | undefined;
@@ -271,6 +275,15 @@ export function ItemDetailView({
                 />
               )}
             </div>
+          </div>
+        ) : documentPages !== null && documentPages > 1 ? (
+          <div className="overflow-hidden rounded-lg border border-border bg-gray-900">
+            <DocumentDetailView
+              itemId={item.id}
+              pageCount={documentPages}
+              coverUrl={imageUrl}
+              title={item.title ?? "Document"}
+            />
           </div>
         ) : imageUrl ? (
           <div className="overflow-hidden rounded-lg border border-border bg-gray-900">

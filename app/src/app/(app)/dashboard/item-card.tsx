@@ -9,6 +9,7 @@ import {
   DoorOpen,
   Download,
   ExternalLink,
+  Files,
   FileText,
   Hand,
   Link2,
@@ -49,6 +50,7 @@ import { ArticleCard } from "@/components/article/article-card";
 import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
+import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
@@ -98,6 +100,7 @@ import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { debugTrace } from "@/lib/debug/trace";
 import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
+import { documentPageCount } from "@/lib/documents/document-pages";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -923,6 +926,8 @@ export function ItemCard({
   const sortedColors = [...item.colors].sort(
     (a, b) => (b.score ?? 0) - (a.score ?? 0),
   );
+  const cardPageCount =
+    item.kind === "document" ? documentPageCount(item.meta) : null;
   const topColor = sortedColors[0] ?? null;
   const secondColor = sortedColors[1] ?? null;
 
@@ -975,6 +980,12 @@ export function ItemCard({
               {item.productDetails.currency
                 ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
                 : item.productDetails.price}
+            </div>
+          )}
+          {cardPageCount !== null && cardPageCount > 1 && (
+            <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
+              <Files className="size-3" aria-hidden="true" />
+              {cardPageCount} pages
             </div>
           )}
         </motion.div>
@@ -1580,6 +1591,8 @@ export function ItemDetailBody({
   const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
+  const documentPages =
+    item.kind === "document" ? documentPageCount(item.meta) : null;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -2128,6 +2141,15 @@ export function ItemDetailBody({
               src={fullQualityUrl || previewUrl}
               alt={name}
               className="max-h-[calc(100vh-2rem)] w-full object-contain"
+            />
+          </DetailPaneFade>
+        ) : documentPages !== null && documentPages > 1 ? (
+          <DetailPaneFade animateEntrance={animateEntrance}>
+            <DocumentDetailView
+              itemId={item.id}
+              pageCount={documentPages}
+              coverUrl={fullQualityUrl || previewUrl}
+              title={name}
             />
           </DetailPaneFade>
         ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
