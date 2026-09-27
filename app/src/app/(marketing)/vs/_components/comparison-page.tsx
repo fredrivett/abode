@@ -5,7 +5,7 @@ import { COMPARISON_ROWS, type Comparison } from "@/lib/comparisons/types";
 import { ClosingCta } from "../../_components/closing-cta";
 import { Highlight } from "../../_components/highlight";
 
-function formatCheckedDate(iso: string): string {
+export function formatCheckedDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",

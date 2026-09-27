@@ -6,7 +6,7 @@ import { ABODE_FACTS } from "@/lib/comparisons/abode";
 // The closing CTA pulls in the waitlist form; not what's under test here
 vi.mock("../../_components/closing-cta", () => ({ ClosingCta: () => null }));
 
-import { ComparisonPage } from "./comparison-page";
+import { ComparisonPage, formatCheckedDate } from "./comparison-page";
 
 const comparison = getComparison("raindrop");
 if (!comparison) throw new Error("raindrop comparison missing");
@@ -29,7 +29,13 @@ describe("ComparisonPage", () => {
         source.url,
       );
     }
-    expect(screen.getByText(/27 September 2026/)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(formatCheckedDate(comparison.lastChecked))),
+    ).toBeInTheDocument();
+  });
+
+  it("formats the check date as a readable UTC date", () => {
+    expect(formatCheckedDate("2026-09-27")).toBe("27 September 2026");
   });
 
   it("links the other comparisons, not this one", () => {
