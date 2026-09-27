@@ -41,12 +41,13 @@ vi.mock("../item-card", () => ({
     item,
     animateEntrance,
   }: {
-    item: { id: string };
+    item: { id: string; title: string };
     animateEntrance?: boolean;
   }) => (
     <div
       data-testid="body"
       data-item={item.id}
+      data-title={item.title}
       data-animate={String(animateEntrance)}
     />
   ),
@@ -284,7 +285,10 @@ describe("CentralItemDialog", () => {
       <CentralItemDialog onItemRenamed={() => {}} canEdit items={withoutA} />,
     );
     expect(screen.getByTestId("frame")).toBe(frame);
-    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "a");
+    expect(screen.getByTestId("body")).toHaveAttribute(
+      "data-title",
+      "A (fresh)",
+    );
   });
 
   it("doesn't carry the last item over to a different open id", () => {

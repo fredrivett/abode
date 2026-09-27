@@ -72,14 +72,28 @@ describe("useSearchResults", () => {
     await waitFor(() => expect(result.current.items).toHaveLength(2));
 
     // The edited item no longer matches the search (e.g. marked read under a
-    // reading filter), so the refetch drops it
-    vi.mocked(search).mockResolvedValueOnce(results([{ id: "b", title: "B" }]));
-    await act(() => queryClient.invalidateQueries({ queryKey: ["items"] }));
+    // reading filter), so the refetch drops it. Held pending so we can check
+    // the in-flight state.
+    let resolveRefetch: (response: SearchResponse) => void = () => {};
+    vi.mocked(search).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    );
+    act(() => {
+      void queryClient.invalidateQueries({ queryKey: ["items"] });
+    });
+    await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 
+    // A background refetch isn't a new search, so the grid doesn't dim and
+    // keeps showing the current results while it's in flight
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.items).toHaveLength(2);
+
+    act(() => resolveRefetch(results([{ id: "b", title: "B" }])));
     await waitFor(() =>
       expect(result.current.items.map((i) => i.id)).toEqual(["b"]),
     );
-    // A background refetch isn't a new search, so the grid doesn't dim
     expect(result.current.isSearching).toBe(false);
   });
 
