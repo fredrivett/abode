@@ -28,12 +28,16 @@ describe("comparisons", () => {
     (_slug, comparison) => {
       expect(comparison.sources.length).toBeGreaterThan(0);
       for (const { url } of comparison.sources) {
-        expect(url).toMatch(/^https:\/\//);
+        const parsed = new URL(url);
+        expect(parsed.protocol).toBe("https:");
+        expect(parsed.hostname).toContain(".");
       }
 
       const checked = new Date(`${comparison.lastChecked}T00:00:00Z`);
       expect(comparison.lastChecked).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(Number.isNaN(checked.getTime())).toBe(false);
+      // Catches impossible dates like 2026-09-31, which Date rolls forward
+      expect(checked.toISOString().slice(0, 10)).toBe(comparison.lastChecked);
       expect(checked.getTime()).toBeLessThanOrEqual(Date.now());
     },
   );
