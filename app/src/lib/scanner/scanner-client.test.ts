@@ -111,6 +111,19 @@ describe("ScannerClient", () => {
     await expect(ready).resolves.toBe("classical");
   });
 
+  it("rejects without leaking when the request can't be posted", async () => {
+    const { worker, client } = setup();
+    worker.postMessage = () => {
+      throw new DOMException("buffer is detached", "DataCloneError");
+    };
+    await expect(client.init()).rejects.toThrow("buffer is detached");
+    // The next failure-free request is unaffected by the dropped one
+    worker.postMessage = FakeWorker.prototype.postMessage;
+    const ready = client.init();
+    worker.reply({ id: lastId(worker), type: "init", detector: "ml" });
+    await expect(ready).resolves.toBe("ml");
+  });
+
   it("fails everything in flight when the worker crashes", async () => {
     const { worker, client } = setup();
     const ready = client.init();

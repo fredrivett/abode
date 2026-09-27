@@ -125,7 +125,13 @@ export class ScannerClient {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ ...request, id }, transfer);
+      try {
+        this.worker.postMessage({ ...request, id }, transfer);
+      } catch (error) {
+        // e.g. an already-transferred (detached) buffer — don't leak the entry
+        this.pending.delete(id);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 

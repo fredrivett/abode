@@ -53,6 +53,10 @@ function hasNumericId(value: object): boolean {
   return typeof Reflect.get(value, "id") === "number";
 }
 
+function isPositiveFinite(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
 export function isScannerResponseMessage(
   value: unknown,
 ): value is ScannerResponseMessage {
@@ -68,7 +72,12 @@ export function isScannerResponseMessage(
       const detection: unknown = Reflect.get(value, "detection");
       if (typeof detection !== "object" || detection === null) return false;
       const quad: unknown = Reflect.get(detection, "quad");
-      return quad === null || isQuad(quad);
+      const score: unknown = Reflect.get(detection, "score");
+      return (
+        (quad === null || isQuad(quad)) &&
+        (score === null ||
+          (typeof score === "number" && Number.isFinite(score)))
+      );
     }
     case "capture": {
       const quad: unknown = Reflect.get(value, "quad");
@@ -80,8 +89,8 @@ export function isScannerResponseMessage(
     case "render":
       return (
         Reflect.get(value, "blob") instanceof Blob &&
-        typeof Reflect.get(value, "width") === "number" &&
-        typeof Reflect.get(value, "height") === "number"
+        isPositiveFinite(Reflect.get(value, "width")) &&
+        isPositiveFinite(Reflect.get(value, "height"))
       );
     case "error":
       return typeof Reflect.get(value, "message") === "string";

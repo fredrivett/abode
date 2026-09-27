@@ -34,6 +34,22 @@ describe("isScannerResponseMessage", () => {
       { id: 4, type: "render", blob: new Blob() },
     ],
     ["an error without a message", { id: 5, type: "error" }],
+    [
+      "a detection without a score",
+      { id: 2, type: "detect", detection: { quad: null } },
+    ],
+    [
+      "a non-finite score",
+      { id: 2, type: "detect", detection: { quad: null, score: Number.NaN } },
+    ],
+    [
+      "non-finite render dimensions",
+      { id: 4, type: "render", blob: new Blob(), width: Number.NaN, height: 1 },
+    ],
+    [
+      "zero-sized render dimensions",
+      { id: 4, type: "render", blob: new Blob(), width: 0, height: 1 },
+    ],
   ])("rejects %s", (_label, message) => {
     expect(isScannerResponseMessage(message)).toBe(false);
   });
