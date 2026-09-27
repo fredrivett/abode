@@ -49,6 +49,24 @@ describe("blackAndWhite", () => {
     expect(valueAt(out, 10, 20)).toBeGreaterThan(245);
   });
 
+  it("keeps thin grey text dark on a page that also has solid black areas", () => {
+    // A flyer: a big black block sets the page's darkest ink, and body text is
+    // a thin, mid-grey stroke. A global threshold washed that text out
+    const pixels = createPixels({ width: SIZE, height: SIZE });
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const isBlock = y >= 150 && x < 80;
+        const isGreyText = y >= 40 && y < 42 && x % 10 < 6;
+        const v = isBlock ? 15 : isGreyText ? 150 : 225;
+        pixels.data.set([v, v, v, 255], (y * SIZE + x) * 4);
+      }
+    }
+    const out = blackAndWhite(pixels);
+    expect(valueAt(out, 102, 41)).toBeLessThan(60); // grey text → dark
+    expect(valueAt(out, 40, 180)).toBeLessThan(10); // block interior stays black
+    expect(valueAt(out, 150, 100)).toBeGreaterThan(245); // paper stays white
+  });
+
   it("keeps a blank page white rather than amplifying grain", () => {
     const pixels = createPixels({ width: SIZE, height: SIZE });
     for (let i = 0; i < pixels.data.length; i += 4) {

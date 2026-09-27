@@ -19,6 +19,9 @@ function luminance(pixels: Pixels): Float32Array {
   return out;
 }
 
+/** Darkest lighting the page is assumed to have, relative to its bright paper */
+const MIN_LIGHTING_FRACTION = 0.5;
+
 /**
  * Estimates the paper brightness under each pixel — the lighting, without the
  * ink. Takes the max over coarse blocks (thin strokes vanish, paper remains),
@@ -66,6 +69,17 @@ function estimateBackground({
       }
       smooth[gy * gw + gx] = sum / count;
     }
+  }
+
+  // A big dark region (a black banner, a photo) isn't paper in shadow: floor
+  // the estimate at a fraction of the page's paper brightness, so it isn't
+  // divided out into white. Real shadows rarely darken paper this much
+  const paperLevel = [...smooth].sort((x, y) => x - y)[
+    Math.floor(smooth.length * 0.9)
+  ];
+  const floor = paperLevel * MIN_LIGHTING_FRACTION;
+  for (let i = 0; i < smooth.length; i++) {
+    if (smooth[i] < floor) smooth[i] = floor;
   }
 
   const background = new Float32Array(width * height);
@@ -149,38 +163,113 @@ export function luminanceQuantile({
 }
 
 /**
- * B&W tuning. The ink level is the darkest `inkQuantile` of the page, so faint
- * pencil is stretched to black just like printed text; `maxInkLevel` stops a
- * blank page's paper grain being stretched into speckle. Between the `ink`
- * and `paper` points (as fractions of the ink→paper range) is a smooth ramp
- * so strokes stay anti-aliased instead of jagged.
+ * The page's ink level: its darkest 0.5%, capped so a blank page's grain isn't
+ * stretched into speckle. Stretching this to black makes faint pencil as dark
+ * as print; on pages that already have solid black it changes nothing.
  */
-export const BW_TUNING = {
-  inkQuantile: 0.005,
-  maxInkLevel: 0.8,
-  ink: 0.3,
-  paper: 0.75,
-};
-
 function inkLevelOf(values: Float32Array): number {
   return Math.min(
-    BW_TUNING.maxInkLevel,
-    luminanceQuantile({ values, quantile: BW_TUNING.inkQuantile }),
+    MAX_INK_LEVEL,
+    luminanceQuantile({ values, quantile: 0.005 }),
   );
+}
+
+const MAX_INK_LEVEL = 0.8;
+
+/** Rescales so the page's ink level becomes 0 and bare paper stays 1 */
+function stretchToInk(values: Float32Array): void {
+  const inkLevel = inkLevelOf(values);
+  const range = 1 - inkLevel;
+  for (let i = 0; i < values.length; i++) {
+    values[i] = (values[i] - inkLevel) / range;
+  }
+}
+
+/**
+ * B&W tuning (on normalised luminance stretched to the page's ink level, so
+ * bare paper ≈ 1 and the darkest ink ≈ 0):
+ * - Each pixel is compared with the mean of its neighbourhood (a window of
+ *   `windowFraction` of the page's long edge), so thin or grey text only has
+ *   to be darker than the paper around it — a global threshold washes it out
+ *   when the page also has big black areas that set the "ink" level
+ * - `sensitivity`: how far below the local mean counts as ink
+ * - `softness`: half-width of the ramp around the threshold, keeping strokes
+ *   anti-aliased rather than jagged
+ * - Outside `[ink, paper]` the answer is absolute: solid black areas (where the
+ *   local mean is itself dark) stay black, and paper grain stays white
+ */
+export const BW_TUNING = {
+  // Small enough that the edges of printed photos only mark a thin band
+  windowFraction: 1 / 60,
+  sensitivity: 0.17,
+  softness: 0.07,
+  ink: 0.35,
+  paper: 0.92,
+};
+
+/** Mean of `values` over a (2r+1)² window around each pixel, via an integral image */
+function localMean({
+  values,
+  width,
+  height,
+  radius,
+}: {
+  values: Float32Array;
+  width: number;
+  height: number;
+  radius: number;
+}): Float32Array {
+  const stride = width + 1;
+  const integral = new Float64Array(stride * (height + 1));
+  for (let y = 0; y < height; y++) {
+    let rowSum = 0;
+    for (let x = 0; x < width; x++) {
+      rowSum += values[y * width + x];
+      integral[(y + 1) * stride + x + 1] =
+        integral[y * stride + x + 1] + rowSum;
+    }
+  }
+  const mean = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    const y0 = Math.max(0, y - radius);
+    const y1 = Math.min(height, y + radius + 1);
+    for (let x = 0; x < width; x++) {
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(width, x + radius + 1);
+      const sum =
+        integral[y1 * stride + x1] -
+        integral[y0 * stride + x1] -
+        integral[y1 * stride + x0] +
+        integral[y0 * stride + x0];
+      mean[y * width + x] = sum / ((x1 - x0) * (y1 - y0));
+    }
+  }
+  return mean;
 }
 
 /** "Scanned document" look: white paper, black ink, no shadows */
 export function blackAndWhite(pixels: Pixels): Pixels {
+  const { width, height } = pixels;
   const values = normalisedLuminance(pixels);
-  const inkLevel = inkLevelOf(values);
-  const range = 1 - inkLevel;
-  const ink = inkLevel + range * BW_TUNING.ink;
-  const paper = inkLevel + range * BW_TUNING.paper;
+  stretchToInk(values);
+  const { windowFraction, sensitivity, softness, ink, paper } = BW_TUNING;
+  const radius = Math.max(
+    4,
+    Math.round(Math.max(width, height) * windowFraction),
+  );
+  const mean = localMean({ values, width, height, radius });
   for (let i = 0; i < values.length; i++) {
-    const t = (values[i] - ink) / (paper - ink);
-    const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
-    // Smoothstep keeps the ramp from looking washed out mid-tone
-    values[i] = clamped * clamped * (3 - 2 * clamped);
+    const v = values[i];
+    if (v <= ink) {
+      values[i] = 0;
+    } else if (v >= paper) {
+      values[i] = 1;
+    } else {
+      const threshold = mean[i] * (1 - sensitivity);
+      const t = (v - (threshold - softness)) / (2 * softness);
+      const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
+      values[i] = clamped * clamped * (3 - 2 * clamped);
+    }
   }
   return writeGrey({ values, size: pixels });
 }
