@@ -30,6 +30,16 @@ describe("comparisons", () => {
     }
   });
 
+  it("gives every comparison at least one question of its own", () => {
+    for (const { slug, faqs } of COMPARISONS) {
+      expect(faqs.length, slug).toBeGreaterThan(0);
+      for (const { question, answer } of faqs) {
+        expect(question.trim(), slug).not.toBe("");
+        expect(answer.trim(), slug).not.toBe("");
+      }
+    }
+  });
+
   // Honest pages: every competitor claim is sourced and dated
   it.each(COMPARISONS.map((c) => [c.slug, c] as const))(
     "%s cites https sources and a valid, past check date",

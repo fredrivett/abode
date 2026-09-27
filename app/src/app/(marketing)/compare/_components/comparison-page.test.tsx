@@ -31,6 +31,18 @@ describe("ComparisonPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("answers its own questions first, then the shared ones", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    const questions = within(screen.getByRole("region", { name: "questions" }))
+      .getAllByRole("term")
+      .map((term) => term.textContent);
+    const own = comparison.faqs.map(({ question }) => question);
+    expect(questions.slice(0, own.length)).toEqual(own);
+    expect(questions).toContain("can I bring my Raindrop library to abode?");
+    expect(questions).toContain("is abode free?");
+  });
+
   it("links every source and dates the check", () => {
     render(<ComparisonPage comparison={comparison} />);
 

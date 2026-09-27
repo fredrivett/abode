@@ -16,6 +16,8 @@ export type ComparisonRowKey = (typeof COMPARISON_ROWS)[number]["key"];
 
 export type ComparisonFacts = Record<ComparisonRowKey, string>;
 
+export type ComparisonFaq = { question: string; answer: string };
+
 export type Comparison = {
   slug: string;
   name: string;
@@ -30,6 +32,8 @@ export type Comparison = {
   /** What the competitor genuinely does better — keep these fair */
   theyShine: string[];
   abodeFits: string[];
+  /** Questions specific to this competitor; shown before the shared ones */
+  faqs: ComparisonFaq[];
   /** Primary sources the facts were checked against */
   sources: { label: string; url: string }[];
   /** ISO date the facts were last checked against the sources */

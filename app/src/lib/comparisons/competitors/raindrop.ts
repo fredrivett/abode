@@ -39,6 +39,13 @@ export const raindrop: Comparison = {
     "you save lots of images and screenshots: abode reads the text in them and finds similar ones",
     "you want to run the whole thing yourself, server included",
   ],
+  faqs: [
+    {
+      question: "can I organise abode with folders?",
+      answer:
+        "not folders as such — rooms do that job. a room can be hand-picked, or a smart room that fills itself from a search, like every tweet tagged design.",
+    },
+  ],
   sources: [
     { label: "Raindrop pricing", url: "https://raindrop.io/pro/buy" },
     { label: "search", url: "https://help.raindrop.io/using-search" },

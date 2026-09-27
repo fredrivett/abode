@@ -40,6 +40,13 @@ export const cosmos: Comparison = {
     "you save more than images: links, tweets, articles and notes are first-class",
     "you want the code open and your data fully under your control",
   ],
+  faqs: [
+    {
+      question: "does abode have a feed?",
+      answer:
+        "no. there's no feed, no algorithm and no shop — just the things you've saved. you can still share a public profile and public rooms.",
+    },
+  ],
   sources: [
     {
       label: "Cosmos FAQ",

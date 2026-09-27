@@ -40,6 +40,13 @@ export const mymind: Comparison = {
     "you want to share — a public profile and public rooms, not links that expire in a day",
     "you want a free option with no card limit — self-hosted abode has none",
   ],
+  faqs: [
+    {
+      question: "does abode have mac or mobile apps?",
+      answer:
+        "not native ones yet. abode runs in the browser and installs as an app on your phone or desktop.",
+    },
+  ],
   sources: [
     { label: "mymind pricing", url: "https://access.mymind.com/pricing" },
     {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { COMPARISONS, comparePath } from "@/lib/comparisons";
 import { ABODE_FACTS } from "@/lib/comparisons/abode";
+import { sharedFaqs } from "@/lib/comparisons/shared-faqs";
 import { COMPARISON_ROWS, type Comparison } from "@/lib/comparisons/types";
 import { ClosingCta } from "../../_components/closing-cta";
 import { Highlight } from "../../_components/highlight";
@@ -17,6 +18,7 @@ export function formatCheckedDate(iso: string): string {
 /** An honest, sourced "abode vs X" page */
 export function ComparisonPage({ comparison }: { comparison: Comparison }) {
   const others = COMPARISONS.filter(({ slug }) => slug !== comparison.slug);
+  const faqs = [...comparison.faqs, ...sharedFaqs(comparison)];
 
   return (
     <div className="flex w-full flex-1 flex-col items-center">
@@ -130,6 +132,22 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
               ))}
             </ul>
           </div>
+        </section>
+
+        <section aria-labelledby="questions" className="mt-16">
+          <h2 id="questions" className="font-serif text-2xl">
+            questions
+          </h2>
+          <dl className="mt-4 divide-y border-y">
+            {faqs.map(({ question, answer }) => (
+              <div key={question} className="py-5">
+                <dt className="font-medium">{question}</dt>
+                <dd className="mt-2 text-muted-foreground leading-relaxed">
+                  {answer}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         <footer className="mt-16 border-t pt-6 text-muted-foreground text-xs leading-relaxed">

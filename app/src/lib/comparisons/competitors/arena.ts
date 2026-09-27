@@ -37,6 +37,13 @@ export const arena: Comparison = {
     "you want to search by what's in an image, or find similar ones",
     "you want the code open and the option to host it yourself",
   ],
+  faqs: [
+    {
+      question: "does abode use AI on what I save?",
+      answer:
+        "yes, when the instance has an OpenAI key: it writes titles, descriptions and tags, reads the text in images, and powers semantic search. self-hosted without a key, you still get full-text search.",
+    },
+  ],
   sources: [
     { label: "Are.na pricing", url: "https://www.are.na/about#pricing" },
     {

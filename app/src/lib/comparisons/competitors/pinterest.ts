@@ -36,6 +36,13 @@ export const pinterest: Comparison = {
     "you save links, tweets, articles and notes too, not just pictures",
     "you'd rather your saves didn't feed an image generator — Pinterest trains its model on public pins unless you opt out",
   ],
+  faqs: [
+    {
+      question: "can I discover new ideas on abode?",
+      answer:
+        "not really — abode is for keeping what you find, not browsing everyone else's. you can visit the public profiles and rooms people share, but there's no discovery feed.",
+    },
+  ],
   sources: [
     {
       label: "privacy policy",
