@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { Size } from "@/lib/scanner/geometry";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,9 @@ interface PageSlideProps {
    */
   flight?: { from: ScreenRect; colour: PagePreview } | null;
   onFlightEnd?: () => void;
+  /** Rendering the preview failed; offer a retry instead of spinning forever */
+  failed?: boolean;
+  onRetry?: () => void;
   alt: string;
 }
 
@@ -38,10 +42,15 @@ export function PageSlide({
   box,
   flight,
   onFlightEnd,
+  failed,
+  onRetry,
   alt,
 }: PageSlideProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const [landed, setLanded] = useState(!flight);
+  // The filtered page can finish rendering after the flight lands; fade it in
+  // once it has actually loaded rather than popping it in
+  const [overlayLoaded, setOverlayLoaded] = useState(false);
   // A flight plays once, from whatever it was when the slide mounted
   const initialFlight = useRef(flight);
   const onFlightEndRef = useRef(onFlightEnd);
@@ -78,6 +87,17 @@ export function PageSlide({
     animation.finished.then(finish, finish);
   }, []);
 
+  if (!base && failed) {
+    return (
+      <div className="space-y-3 text-center text-sm text-white/80">
+        <p>Couldn't prepare this page.</p>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   if (!base || !size) {
     return <IsLoading label="Preparing page" className="text-white/70" />;
   }
@@ -102,9 +122,10 @@ export function PageSlide({
           alt=""
           aria-hidden="true"
           draggable={false}
+          onLoad={() => setOverlayLoaded(true)}
           className={cn(
             "absolute inset-0 size-full transition-opacity duration-500",
-            landed ? "opacity-100" : "opacity-0",
+            landed && overlayLoaded ? "opacity-100" : "opacity-0",
           )}
         />
       ) : null}

@@ -1,16 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { previewKey } from "@/lib/scanner/pages";
 import { ScannerReview } from "./scanner-review";
 import { samplePages } from "./scanner-review.fixtures";
 
 // jsdom has no layout engine: report a fixed carousel size
 class FixedResizeObserver {
+  static observed: Element[] = [];
   constructor(
     private readonly callback: (
       entries: { contentRect: { width: number; height: number } }[],
     ) => void,
   ) {}
-  observe() {
+  observe(element: Element) {
+    FixedResizeObserver.observed.push(element);
     this.callback([{ contentRect: { width: 390, height: 600 } }]);
   }
   disconnect() {}
@@ -18,6 +21,7 @@ class FixedResizeObserver {
 }
 
 beforeEach(() => {
+  FixedResizeObserver.observed = [];
   vi.stubGlobal("ResizeObserver", FixedResizeObserver);
   Element.prototype.scrollTo = vi.fn();
 });
@@ -28,6 +32,7 @@ function renderReview(
 ) {
   const { pages, previews } = samplePages(3);
   const handlers = {
+    onRetryPreview: vi.fn(),
     onActiveChange: vi.fn(),
     onFlightEnd: vi.fn(),
     onAddPage: vi.fn(),
@@ -43,6 +48,7 @@ function renderReview(
     <ScannerReview
       pages={pages}
       previews={previews}
+      failedPreviews={new Set()}
       activeId={pages[1].id}
       flight={null}
       saving={false}
@@ -119,5 +125,30 @@ describe("ScannerReview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open page 3" }));
     expect(handlers.onActiveChange).toHaveBeenCalledWith(pages[2].id);
     expect(screen.getByRole("button", { name: "Rotate" })).toBeInTheDocument();
+  });
+
+  it("offers a retry when a page failed to render", () => {
+    const { pages } = samplePages(3);
+    const onRetryPreview = vi.fn();
+    renderReview({
+      previews: new Map(),
+      failedPreviews: new Set(pages.map((page) => previewKey({ page }))),
+      onRetryPreview,
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Try again" })[1]);
+    expect(onRetryPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pages[1].id }),
+    );
+  });
+
+  it("measures the carousel again after returning from arrange mode", () => {
+    renderReview();
+    const firstCarousel = FixedResizeObserver.observed.at(-1);
+    fireEvent.click(screen.getByRole("button", { name: "Arrange" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const secondCarousel = FixedResizeObserver.observed.at(-1);
+    expect(secondCarousel).toBeDefined();
+    expect(secondCarousel).not.toBe(firstCarousel);
+    expect(secondCarousel?.isConnected).toBe(true);
   });
 });

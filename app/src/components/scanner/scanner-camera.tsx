@@ -73,10 +73,10 @@ export function ScannerCamera({
   closeLabel,
 }: ScannerCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const viewport = useElementSize<HTMLDivElement>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const camera = useCameraStream(videoRef);
-  const viewSize = useElementSize(viewportRef);
+  const viewSize = viewport.size;
   const detecting = active && !capturing && camera.status === "ready";
   const detection = useDocumentDetection({
     videoRef,
@@ -106,7 +106,7 @@ export function ScannerCamera({
   const capture = useCallback(
     (mode: CameraCapture["mode"]) => {
       const video = videoRef.current;
-      const viewport = viewportRef.current;
+      const viewportElement = viewport.element;
       if (!video || !video.videoWidth || capturing) return;
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
@@ -117,9 +117,9 @@ export function ScannerCamera({
       video.pause();
 
       let fromRect: ScreenRect | null = null;
-      if (viewQuad && viewport) {
+      if (viewQuad && viewportElement) {
         const bounds = quadBounds(viewQuad);
-        const origin = viewport.getBoundingClientRect();
+        const origin = viewportElement.getBoundingClientRect();
         fromRect = {
           ...bounds,
           x: bounds.x + origin.x,
@@ -133,7 +133,7 @@ export function ScannerCamera({
         mode,
       });
     },
-    [capturing, detection.quad, onCapture, viewQuad],
+    [capturing, detection.quad, onCapture, viewQuad, viewport.element],
   );
 
   // Auto mode: capture once the page has been held steady long enough
@@ -158,7 +158,7 @@ export function ScannerCamera({
 
   return (
     <div className="relative flex size-full flex-col bg-black text-white">
-      <div ref={viewportRef} className="absolute inset-0 overflow-hidden">
+      <div ref={viewport.ref} className="absolute inset-0 overflow-hidden">
         <video
           ref={videoRef}
           playsInline
@@ -201,6 +201,7 @@ export function ScannerCamera({
             <p className="text-sm">{CAMERA_ERROR_MESSAGES[camera.reason]}</p>
             <Button
               variant="secondary"
+              disabled={capturing}
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon />
@@ -231,6 +232,7 @@ export function ScannerCamera({
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
+            disabled={capturing}
             aria-label="Import a photo"
             className="size-12 text-white hover:bg-white/10 hover:text-white"
           >

@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createLogger } from "@/lib/logger.client";
 import type { ScanFilter } from "@/lib/scanner/filters";
@@ -23,7 +24,8 @@ export interface PreviewRequest {
 /**
  * Renders (and caches as object URLs) the preview image for each requested
  * page + filter. Renders run one at a time in the scanner worker to bound
- * memory; previews no longer requested are revoked.
+ * memory; previews no longer requested are revoked. A render that fails is
+ * reported in `failed` and not retried until `retry` is called.
  */
 export function usePagePreviews({
   client,
@@ -35,6 +37,7 @@ export function usePagePreviews({
   const [previews, setPreviews] = useState<ReadonlyMap<string, PagePreview>>(
     () => new Map(),
   );
+  const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
   const pending = useRef(new Set<string>());
   const queue = useRef<Promise<void>>(Promise.resolve());
   const wanted = useRef(new Set<string>());
@@ -48,6 +51,8 @@ export function usePagePreviews({
   latestRequests.current = keyed;
   const latestPreviews = useRef(previews);
   latestPreviews.current = previews;
+  const latestFailed = useRef(failed);
+  latestFailed.current = failed;
 
   const store = useCallback((key: string, rendered: RenderedPage) => {
     const preview: PagePreview = {
@@ -76,6 +81,53 @@ export function usePagePreviews({
     [store],
   );
 
+  /** Queues a render unless it's already queued, cached or failed */
+  const enqueue = useCallback(
+    ({ page, filter }: PreviewRequest) => {
+      const key = previewKey({ page, filter });
+      if (
+        !client ||
+        pending.current.has(key) ||
+        latestPreviews.current.has(key) ||
+        latestFailed.current.has(key)
+      ) {
+        return;
+      }
+      pending.current.add(key);
+      queue.current = queue.current.then(async () => {
+        try {
+          if (!wanted.current.has(key)) return;
+          const rendered = await client.render({
+            source: page.source,
+            quad: page.quad,
+            rotation: page.rotation,
+            filter,
+          });
+          if (wanted.current.has(key)) store(key, rendered);
+        } catch (error) {
+          log.warn({ error }, "Failed to render page preview");
+          posthog.captureException(error);
+          setFailed((current) => new Set(current).add(key));
+        } finally {
+          pending.current.delete(key);
+        }
+      });
+    },
+    [client, store],
+  );
+
+  const retry = useCallback(
+    (request: PreviewRequest) => {
+      const key = previewKey(request);
+      const next = new Set(latestFailed.current);
+      next.delete(key);
+      latestFailed.current = next;
+      setFailed(next);
+      enqueue(request);
+    },
+    [enqueue],
+  );
+
   // Keyed on the signature so a re-render with the same pages is a no-op
   useEffect(() => {
     wanted.current = new Set(wantedSignature ? wantedSignature.split("|") : []);
@@ -93,28 +145,8 @@ export function usePagePreviews({
       return next;
     });
 
-    if (!client) return;
-    for (const { key, page, filter } of latestRequests.current) {
-      if (pending.current.has(key) || latestPreviews.current.has(key)) continue;
-      pending.current.add(key);
-      queue.current = queue.current.then(async () => {
-        try {
-          if (!wanted.current.has(key)) return;
-          const rendered = await client.render({
-            source: page.source,
-            quad: page.quad,
-            rotation: page.rotation,
-            filter,
-          });
-          if (wanted.current.has(key)) store(key, rendered);
-        } catch (error) {
-          log.warn({ error }, "Failed to render page preview");
-        } finally {
-          pending.current.delete(key);
-        }
-      });
-    }
-  }, [client, wantedSignature, store]);
+    for (const request of latestRequests.current) enqueue(request);
+  }, [wantedSignature, enqueue]);
 
   // Revoke everything on unmount
   useEffect(
@@ -126,5 +158,5 @@ export function usePagePreviews({
     [],
   );
 
-  return { previews, seed };
+  return { previews, failed, retry, seed };
 }

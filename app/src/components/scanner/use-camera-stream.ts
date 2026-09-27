@@ -42,8 +42,15 @@ export function useCameraStream(
           // Autoplay can reject if the element was paused/detached mid-start; the stream is still live
         }
         const [track] = opened.getVideoTracks();
-        if (!controller.signal.aborted && track)
-          setCamera({ status: "ready", track });
+        if (controller.signal.aborted || !track) return;
+        // The camera was unplugged, revoked or grabbed by another app; `ended`
+        // doesn't fire for our own stop() on unmount
+        track.addEventListener(
+          "ended",
+          () => setCamera({ status: "error", reason: "unavailable" }),
+          { signal: controller.signal },
+        );
+        setCamera({ status: "ready", track });
       },
       (error: unknown) => {
         if (!controller.signal.aborted) {

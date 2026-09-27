@@ -42,7 +42,12 @@ const IMPORT_MAX_DIMENSION = 3000;
 /** Matches the filtered page's fade-in over the colour one after a flight */
 const CROSSFADE_MS = 550;
 
-type CaptureMode = CameraCapture["mode"] | "import";
+interface PageCapture {
+  frame: ImageData;
+  hint: Quad | null;
+  fromRect: ScreenRect | null;
+  mode: CameraCapture["mode"] | "import";
+}
 
 interface DocumentScannerProps {
   open: boolean;
@@ -143,7 +148,7 @@ function ScannerSession({
     ],
     [pages, flight?.pageId],
   );
-  const { previews, seed } = usePagePreviews({
+  const { previews, failed, retry, seed } = usePagePreviews({
     client,
     requests: previewRequests,
   });
@@ -157,29 +162,30 @@ function ScannerSession({
     return () => clearTimeout(timer);
   }, [flight, landedId, pages, previews]);
 
+  /**
+   * Adds (or retakes) a page. Takes the capture lock before any async work —
+   * including decoding an imported photo — so a camera auto-capture and an
+   * import can't race and silently drop one of them. `getCapture` resolving
+   * to null aborts quietly (it reported its own error).
+   */
   const addPage = useCallback(
-    async ({
-      frame,
-      hint,
-      fromRect,
-      mode,
-    }: {
-      frame: ImageData;
-      hint: Quad | null;
-      fromRect: ScreenRect | null;
-      mode: CaptureMode;
-    }) => {
+    async (getCapture: () => Promise<PageCapture | null> | PageCapture) => {
       if (!client || capturingRef.current) return;
       capturingRef.current = true;
       setCapturing(true);
       try {
+        const capture = await getCapture();
+        if (!capture) return;
+        const { frame, hint, fromRect, mode } = capture;
         const { source, quad } = await client.capture({ frame, hint });
+        // A retake keeps the page's filter; new pages use the last one chosen
+        const retaken = pages.find((page) => page.id === retakeId);
         const page: ScanPage = {
           id: crypto.randomUUID(),
           source,
           quad,
           rotation: 0,
-          filter: defaultFilter,
+          filter: retaken?.filter ?? defaultFilter,
         };
         if (fromRect) {
           // Render the colour page up front so the flight starts immediately
@@ -212,18 +218,20 @@ function ScannerSession({
         setCapturing(false);
       }
     },
-    [client, defaultFilter, retakeId, seed],
+    [client, defaultFilter, pages, retakeId, seed],
   );
 
-  const importPhoto = async (file: File) => {
-    try {
-      const frame = await decodePhoto(file);
-      await addPage({ frame, hint: null, fromRect: null, mode: "import" });
-    } catch (error) {
-      log.warn({ error }, "Failed to import photo");
-      toast.error("Couldn't open that photo. Try a JPEG or PNG.");
-    }
-  };
+  const importPhoto = (file: File) =>
+    addPage(async () => {
+      try {
+        const frame = await decodePhoto(file);
+        return { frame, hint: null, fromRect: null, mode: "import" };
+      } catch (error) {
+        log.warn({ error }, "Failed to import photo");
+        toast.error("Couldn't open that photo. Try a JPEG or PNG.");
+        return null;
+      }
+    });
 
   const deletePage = (id: string) => {
     const index = pages.findIndex((page) => page.id === id);
@@ -294,7 +302,7 @@ function ScannerSession({
           capturing={capturing}
           auto={auto}
           onAutoChange={setAuto}
-          onCapture={addPage}
+          onCapture={(capture) => addPage(() => capture)}
           onImport={importPhoto}
           onClose={leaveCamera}
           closeLabel={pages.length > 0 ? "Back to pages" : "Close scanner"}
@@ -306,6 +314,8 @@ function ScannerSession({
           <ScannerReview
             pages={pages}
             previews={previews}
+            failedPreviews={failed}
+            onRetryPreview={(page) => retry({ page, filter: page.filter })}
             activeId={activeId}
             onActiveChange={setActiveId}
             flight={flight}

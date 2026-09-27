@@ -8,7 +8,7 @@ import {
   RotateCw,
   Trash2,
 } from "lucide-react";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useLayoutEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import {
@@ -39,6 +39,9 @@ export interface PageFlight {
 interface ScannerReviewProps {
   pages: ScanPage[];
   previews: ReadonlyMap<string, PagePreview>;
+  /** Preview keys whose render failed */
+  failedPreviews: ReadonlySet<string>;
+  onRetryPreview: (page: ScanPage) => void;
   activeId: string | null;
   onActiveChange: (id: string) => void;
   flight: PageFlight | null;
@@ -82,6 +85,8 @@ function ToolbarButton({
 export function ScannerReview({
   pages,
   previews,
+  failedPreviews,
+  onRetryPreview,
   activeId,
   onActiveChange,
   flight,
@@ -97,8 +102,11 @@ export function ScannerReview({
   saving,
 }: ScannerReviewProps) {
   const [mode, setMode] = useState<"edit" | "arrange">("edit");
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const carouselSize = useElementSize(carouselRef);
+  const {
+    ref: carouselRef,
+    element: carousel,
+    size: carouselSize,
+  } = useElementSize<HTMLDivElement>();
   const activeIndex = Math.max(
     0,
     pages.findIndex((page) => page.id === activeId),
@@ -109,17 +117,15 @@ export function ScannerReview({
   // A layout effect, so a just-captured page is scrolled into place before its
   // slide measures where to fly to
   useLayoutEffect(() => {
-    const carousel = carouselRef.current;
     const width = carouselSize?.width;
     if (!carousel || mode !== "edit" || !width) return;
     const scrolledIndex = Math.round(carousel.scrollLeft / width);
     if (scrolledIndex !== activeIndex) {
       carousel.scrollTo({ left: activeIndex * width });
     }
-  }, [activeIndex, mode, carouselSize?.width]);
+  }, [activeIndex, mode, carousel, carouselSize?.width]);
 
   const handleScroll = () => {
-    const carousel = carouselRef.current;
     if (!carousel?.clientWidth) return;
     const index = Math.round(carousel.scrollLeft / carousel.clientWidth);
     const page = pages[index];
@@ -201,6 +207,8 @@ export function ScannerReview({
                           : null
                       }
                       onFlightEnd={onFlightEnd}
+                      failed={failedPreviews.has(previewKey({ page }))}
+                      onRetry={() => onRetryPreview(page)}
                       alt={`Page ${index + 1}`}
                     />
                   ) : null}

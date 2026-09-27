@@ -59,6 +59,10 @@ test.describe("Document scanner", () => {
 
     const scanned = page.getByAltText("Page 1");
     await expect(scanned).toBeVisible({ timeout: 15_000 });
+    // Visible doesn't mean decoded: wait so naturalWidth/Height are real
+    await scanned.evaluate((img) =>
+      img instanceof HTMLImageElement ? img.decode() : undefined,
+    );
     // The fixture's page is portrait inside a larger photo: once detected and
     // flattened, the result is portrait and the surrounding desk is gone
     const { width, height } = await scanned.evaluate((img) => {

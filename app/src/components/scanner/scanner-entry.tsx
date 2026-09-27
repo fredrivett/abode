@@ -3,14 +3,24 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { IsLoading } from "@/components/ui/is-loading";
 import { isCameraSupported } from "@/lib/scanner/camera";
 import type { ScanPage } from "@/lib/scanner/pages";
 import { useUserStore } from "@/stores/user-store";
 
+/** Full-screen placeholder while the scanner chunk downloads on first open */
+function ScannerLoading() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black text-white/80">
+      <IsLoading label="Opening scanner" />
+    </div>
+  );
+}
+
 /** The scanner (worker, camera, review) is code-split — loaded on first open */
 export const LazyDocumentScanner = dynamic(
   () => import("./document-scanner").then((mod) => mod.DocumentScanner),
-  { ssr: false },
+  { ssr: false, loading: ScannerLoading },
 );
 
 /**

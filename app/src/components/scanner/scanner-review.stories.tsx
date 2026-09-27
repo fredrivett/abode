@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
+import { previewKey } from "@/lib/scanner/pages";
 import { ScannerReview } from "./scanner-review";
 import { samplePages } from "./scanner-review.fixtures";
 
@@ -20,6 +21,8 @@ const meta = {
   args: {
     pages: three.pages,
     previews: three.previews,
+    failedPreviews: new Set(),
+    onRetryPreview: noop,
     activeId: three.pages[0].id,
     flight: null,
     saving: false,
@@ -55,5 +58,13 @@ export const SinglePage: Story = {
 
 /** A page whose preview is still rendering */
 export const Rendering: Story = { args: { previews: new Map() } };
+
+/** Rendering the page failed — offers a retry */
+export const RenderFailed: Story = {
+  args: {
+    previews: new Map(),
+    failedPreviews: new Set(three.pages.map((page) => previewKey({ page }))),
+  },
+};
 
 export const Saving: Story = { args: { saving: true } };
