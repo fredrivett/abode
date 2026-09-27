@@ -43,8 +43,9 @@ import {
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { UploadDialog } from "@/components/upload-dialog";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
 import { signOut } from "@/lib/actions/auth";
-import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import { matchesShortcut } from "@/lib/keyboard";
 import { emptySearchState, useSearch } from "@/lib/search";
 import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
@@ -91,6 +92,7 @@ type Room = {
 };
 
 export function CommandPalette() {
+  const modifierKeySymbol = useModifierKeySymbol();
   const router = useRouter();
   const pathname = usePathname();
   const { open, setOpen, targetPage, uploadDialogOpen, setUploadDialogOpen } =
@@ -682,19 +684,19 @@ export function CommandPalette() {
                       <div className="ml-auto flex items-center gap-2">
                         {isNextLarger && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>+</Kbd>
                           </KbdGroup>
                         )}
                         {isNextSmaller && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>-</Kbd>
                           </KbdGroup>
                         )}
                         {isDefault && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>0</Kbd>
                           </KbdGroup>
                         )}

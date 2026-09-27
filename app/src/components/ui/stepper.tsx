@@ -13,7 +13,8 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
+import { matchesShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 type StepperContextValue = {
@@ -267,6 +268,7 @@ function StepperNavigation({
 }) {
   const { currentStep, totalSteps, handleNext, handleBack, handleComplete } =
     useStepper();
+  const modifierKeySymbol = useModifierKeySymbol();
 
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
@@ -309,7 +311,7 @@ function StepperNavigation({
             {completeLabel}
             {showKeyboardHints && (
               <>
-                <Kbd variant="primary">{getModifierKeySymbol()}</Kbd>
+                <Kbd variant="primary">{modifierKeySymbol}</Kbd>
                 <Kbd variant="primary">↵</Kbd>
               </>
             )}

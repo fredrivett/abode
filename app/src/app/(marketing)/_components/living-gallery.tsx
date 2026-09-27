@@ -3,7 +3,7 @@
 import { AppWindow, ClipboardPaste, Upload } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { getModifierKeySymbol } from "@/lib/keyboard";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
 import { cn } from "@/lib/utils";
 import { BrowserChrome } from "./browser-chrome";
 import { useDemoSearch } from "./demo-search-context";
@@ -329,9 +329,8 @@ export function LivingGallery() {
   const [activeStep, setActiveStep] = useState(0);
   // 0→1 scroll progress through the active step's band (feeds the indicator rail).
   const [stepProgress, setStepProgress] = useState(0);
-  // Platform-correct modifier symbol (⌘ on Apple, Ctrl elsewhere). Resolved
-  // after mount to avoid an SSR/client mismatch; defaults to the Mac form.
-  const [modSym, setModSym] = useState("⌘");
+  // Platform-correct modifier symbol (⌘ on Apple, Ctrl elsewhere)
+  const modSym = useModifierKeySymbol();
   // Natural (unscaled) grid height + viewport height, so the wall can scale to
   // fit the space left below the sticky header once scooted.
   const [gridNatH, setGridNatH] = useState(0);
@@ -383,7 +382,6 @@ export function LivingGallery() {
   };
 
   useEffect(() => {
-    setModSym(getModifierKeySymbol());
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const desktop = window.matchMedia(CHOREOGRAPHY_MEDIA_QUERY);
     const sync = () => setEffectOn(desktop.matches && !reduce.matches);

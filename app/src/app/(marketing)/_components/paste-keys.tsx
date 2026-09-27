@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 /**
  * The paste shortcut (⌘ / Ctrl + V), shown large at the bottom of the window
  * during the "paste a link" step — each key its own keycap. The modifier symbol
- * is device-aware (passed in from the shared `getModifierKeySymbol`). Purely
+ * is device-aware (passed in from the shared `useModifierKeySymbol`). Purely
  * decorative; fades in/out with `show`.
  */
 export function PasteKeys({ show, modSym }: { show: boolean; modSym: string }) {

@@ -45,8 +45,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
 import { setDebugFlag, useDebugFlag } from "@/lib/debug/debug-flag";
-import { getModifierKeySymbol } from "@/lib/keyboard";
 import { emptySearchState, useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
 import { cn } from "@/lib/utils";
@@ -208,6 +208,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     centerSlot,
   } = props;
 
+  const modifierKeySymbol = useModifierKeySymbol();
   const userStore = useUserStore();
   const { hydrateUser } = userStore;
 
@@ -469,7 +470,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     <Settings className="size-4" />
                     <span className="flex-1">Settings</span>
                     <KbdGroup>
-                      <Kbd>{getModifierKeySymbol()}</Kbd>
+                      <Kbd>{modifierKeySymbol}</Kbd>
                       <Kbd>,</Kbd>
                     </KbdGroup>
                   </Link>
@@ -504,7 +505,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                   <Command className="size-4" />
                   <span className="flex-1">Commands</span>
                   <KbdGroup>
-                    <Kbd>{getModifierKeySymbol()}</Kbd>
+                    <Kbd>{modifierKeySymbol}</Kbd>
                     <Kbd>K</Kbd>
                   </KbdGroup>
                 </DropdownMenuItem>
