@@ -263,6 +263,42 @@ describe("CentralItemDialog", () => {
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
   });
 
+  it("keeps the open item mounted when an edit drops it out of the list", () => {
+    // e.g. marking a book read while viewing an @status:reading search
+    dialogState = { openItemId: "a" };
+    const { rerender } = renderDialog();
+    const frame = screen.getByTestId("frame");
+    const withoutA = items.filter((item) => item.id !== "a");
+
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={withoutA} />,
+    );
+    expect(screen.getByTestId("frame")).toBe(frame);
+    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "a");
+
+    // The by-id fetch lands with the fresh copy, still in the same frame
+    useItemReturn = {
+      data: { ...items[0], title: "A (fresh)" } as unknown as Item,
+    };
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={withoutA} />,
+    );
+    expect(screen.getByTestId("frame")).toBe(frame);
+    expect(screen.getByTestId("body")).toHaveAttribute("data-item", "a");
+  });
+
+  it("doesn't carry the last item over to a different open id", () => {
+    dialogState = { openItemId: "a" };
+    const { rerender } = renderDialog();
+
+    // Open an off-grid item with no seed and no fetched data yet
+    dialogState = { openItemId: "z" };
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
+  });
+
   it("removes the dialog once the open item clears", () => {
     dialogState = { openItemId: "a" };
     const { rerender } = renderDialog();
@@ -295,9 +331,10 @@ describe("CentralItemDialog debug trace", () => {
       (event) => event.event === "CentralItemDialog:change",
     );
     expect(change?.data).toMatchObject({
-      source: "list → none",
-      hasContent: "true → false",
+      source: "list → last",
       needsFetch: "false → true",
     });
+    // Still showing the last copy, so the dialog doesn't exit
+    expect(change?.data).not.toHaveProperty("hasContent");
   });
 });

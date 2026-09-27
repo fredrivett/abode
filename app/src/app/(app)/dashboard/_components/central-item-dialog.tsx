@@ -72,10 +72,18 @@ export function CentralItemDialog({
   // deep-linked room item beyond page one) can't be fetched, so don't try.
   const needsFetch = openItemId !== null && !inList && !fromInitial && canEdit;
   const { data: fetched, isError } = useItem(openItemId, needsFetch);
+  // An edit can drop the open item out of the list mid-dialog (marking a book
+  // read under a `@status:reading` search). Keep showing the last copy while
+  // the by-id fetch catches up, rather than unmounting the dialog under the user.
+  const lastResolvedRef = useRef<Item | null>(null);
+  const lastResolved =
+    lastResolvedRef.current?.id === openItemId ? lastResolvedRef.current : null;
   const resolved =
     inList ??
     fromInitial ??
-    (fetched && fetched.id === openItemId ? fetched : null);
+    (fetched && fetched.id === openItemId ? fetched : null) ??
+    lastResolved;
+  lastResolvedRef.current = resolved;
 
   // The by-id fetch failed (deleted item, network, or not the viewer's to see)
   // — close rather than sit on the loading skeleton forever.
@@ -121,11 +129,13 @@ export function CentralItemDialog({
         ? "list"
         : fromInitial
           ? "initial"
-          : resolved
+          : fetched && fetched.id === openItemId
             ? "fetched"
-            : showSeed
-              ? "seed"
-              : "none",
+            : resolved
+              ? "last"
+              : showSeed
+                ? "seed"
+                : "none",
       hasContent,
       needsFetch,
       fetchError: isError,
