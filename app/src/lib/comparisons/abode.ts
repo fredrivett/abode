@@ -14,5 +14,6 @@ export const ABODE_FACTS: ComparisonFacts = {
   sharing: "public profile and public rooms, share links for single items",
   ads: "no ads, no feed, no algorithm",
   apps: "web (installable); browser extension coming soon",
-  export: "self-host and the database is yours; API + personal access tokens",
+  export:
+    "one-click export of everything — coming soon. self-hosted, the database is yours; API + personal access tokens",
 };
