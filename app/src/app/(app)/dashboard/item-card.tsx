@@ -48,7 +48,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
 import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
 import { BookCover3D } from "@/components/book/book-cover-3d";
-import { BookDetailPlaceholder } from "@/components/book/book-detail-placeholder";
+import { BookDetailView } from "@/components/book/book-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
@@ -181,23 +181,6 @@ function ArticleDetailLoading() {
   );
 }
 
-function BookDetailLoading() {
-  const item = useContext(DetailViewContext)?.item;
-  if (!item?.bookDetails) return null;
-  return (
-    <BookDetailPlaceholder
-      itemId={item.id}
-      bookDetails={item.bookDetails}
-      title={item.title}
-      sourceUrl={item.sourceUrl}
-      coverFileKey={item.coverFileKey}
-      coverRatio={getBookCoverRatio(item.meta)}
-      coverColor={getDominantCoverColor(item.colors)}
-      className="py-8"
-    />
-  );
-}
-
 function HighlightsPanelLoading() {
   return (
     <div className="space-y-2" aria-busy>
@@ -207,14 +190,14 @@ function HighlightsPanelLoading() {
   );
 }
 
-// The heavy detail views (the note editor, the article reader, the book view
-// and reading controls — hundreds of KB) load lazily so they stay out of the
-// dashboard grid's initial JS. While one loads, a placeholder in its layout
-// shows what's already known (a note's text, an article's title, a book's
-// cover), so it fills in rather than flashing "Loading". The small views
-// (tweet, Instagram, video, product) are imported directly: together they
-// cost ~10 KB and never show a placeholder. ssr:false is safe because the
-// modal is client-only.
+// The heavy detail views (the note editor, the article reader, the reading
+// controls — hundreds of KB) load lazily so they stay out of the dashboard
+// grid's initial JS. While one loads, a placeholder in its layout shows what's
+// already known (a note's text, an article's title), so it fills in rather
+// than flashing "Loading". The light views (book, tweet, Instagram, video,
+// product) are imported directly: their code is almost all shared with the
+// grid, so they add ~2 KB and never show a placeholder. ssr:false is safe
+// because the modal is client-only.
 const ArticleDetailView = dynamic(
   () =>
     import("@/components/article/article-detail-view").then(
@@ -229,12 +212,6 @@ const HighlightsPanel = dynamic(
       (m) => m.HighlightsPanel,
     ),
   { ssr: false, loading: HighlightsPanelLoading },
-);
-
-const BookDetailView = dynamic(
-  () =>
-    import("@/components/book/book-detail-view").then((m) => m.BookDetailView),
-  { ssr: false, loading: BookDetailLoading },
 );
 
 const ArticleReadingControls = dynamic(
