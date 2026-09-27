@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
 import { listDesigns } from "./design-files";
 import { ImageStudio } from "./image-studio";
 
 export const metadata: Metadata = {
   title: "Image studio",
-  robots: { index: false, follow: false },
+  robots: NO_INDEX_ROBOTS,
 };
 
 /** Local-only tool for composing marketing images from the hero gallery */
