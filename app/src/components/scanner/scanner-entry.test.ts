@@ -1,17 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { canUseScanner } from "./scanner-entry";
+import { renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { useScannerAvailable } from "./scanner-entry";
 
-describe("canUseScanner", () => {
-  it.each([
-    { isAdmin: true, isDevelopment: false, expected: true },
-    { isAdmin: false, isDevelopment: true, expected: true },
-    { isAdmin: undefined, isDevelopment: true, expected: true },
-    { isAdmin: false, isDevelopment: false, expected: false },
-    { isAdmin: undefined, isDevelopment: false, expected: false },
-  ])(
-    "isAdmin=$isAdmin dev=$isDevelopment → $expected",
-    ({ isAdmin, isDevelopment, expected }) => {
-      expect(canUseScanner({ isAdmin, isDevelopment })).toBe(expected);
-    },
-  );
+describe("useScannerAvailable", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("offers the scanner when the browser can open a camera", () => {
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: vi.fn() } });
+    const { result } = renderHook(() => useScannerAvailable());
+    expect(result.current).toBe(true);
+  });
+
+  it("hides it without a camera API (e.g. an insecure context)", () => {
+    vi.stubGlobal("navigator", {});
+    const { result } = renderHook(() => useScannerAvailable());
+    expect(result.current).toBe(false);
+  });
 });
