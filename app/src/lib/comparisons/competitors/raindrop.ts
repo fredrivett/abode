@@ -8,6 +8,11 @@ export const raindrop: Comparison = {
     "abode vs Raindrop.io: a folder-first bookmark manager vs a search-first home for everything you save. pricing, AI, self-hosting and export compared.",
   intro:
     "Raindrop is a great bookmark manager: collections, tags, archiving and apps for every platform, with a generous free plan. abode is less about managing links and more about keeping everything you find — images, tweets, notes — and finding it again without filing it first.",
+  verdict: {
+    them: "you mainly manage links and like folders, archives and apps for every platform",
+    abode:
+      "you save a mix of images, tweets and notes, and would rather search than file",
+  },
   facts: {
     pricing: "free with unlimited bookmarks. pro: $3/mo or $28/yr",
     openSource: "the apps are open source; the server isn't",

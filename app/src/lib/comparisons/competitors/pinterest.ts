@@ -8,6 +8,11 @@ export const pinterest: Comparison = {
     "abode vs Pinterest: an ad-supported discovery feed vs a private, ad-free home for what you save. ads, AI training, search and export compared.",
   intro:
     "Pinterest is a vast visual discovery engine — endless ideas for recipes, homes and outfits, paid for by ads. abode is for keeping what you find, not being fed more: no ads, no feed, private by default, and open source.",
+  verdict: {
+    them: "you want endless inspiration to browse and don't mind ads",
+    abode:
+      "you want to keep what you find — privately, with no ads and no feed",
+  },
   facts: {
     pricing: "free, ad-supported",
     openSource: "no",
@@ -29,7 +34,7 @@ export const pinterest: Comparison = {
   abodeFits: [
     "you want a place to keep your own finds, without ads or a feed pulling you elsewhere",
     "you save links, tweets, articles and notes too, not just pictures",
-    "you'd rather your saves didn't train anyone's AI — Pinterest trains its image model on public pins unless you opt out",
+    "you'd rather your saves didn't feed an image generator — Pinterest trains its model on public pins unless you opt out",
   ],
   sources: [
     {

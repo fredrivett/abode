@@ -33,11 +33,50 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
           {comparison.intro}
         </p>
 
+        <section
+          aria-labelledby="verdict"
+          className="mt-10 grid gap-3 rounded-2xl bg-muted/30 p-5 sm:grid-cols-2 sm:gap-6"
+        >
+          <h2 id="verdict" className="sr-only">
+            the short answer
+          </h2>
+          <p className="leading-relaxed">
+            <span className="font-medium">choose {comparison.name}</span>{" "}
+            <span className="text-muted-foreground">
+              if {comparison.verdict.them}.
+            </span>
+          </p>
+          <p className="leading-relaxed">
+            <span className="font-medium">choose abode</span>{" "}
+            <span className="text-muted-foreground">
+              if {comparison.verdict.abode}.
+            </span>
+          </p>
+        </section>
+
         <section aria-labelledby="side-by-side" className="mt-14">
           <h2 id="side-by-side" className="sr-only">
             side by side
           </h2>
-          <table className="w-full border-collapse text-left text-sm">
+          {/* Phones: one card per row, so neither column gets squeezed */}
+          <dl className="divide-y border-y sm:hidden">
+            {COMPARISON_ROWS.map(({ key, label }) => (
+              <div key={key} className="py-4">
+                <dt className="text-muted-foreground text-sm">{label}</dt>
+                <dd className="mt-2 grid gap-2 text-sm leading-relaxed">
+                  <p>
+                    <span className="font-medium">abode</span> ·{" "}
+                    {ABODE_FACTS[key]}
+                  </p>
+                  <p>
+                    <span className="font-medium">{comparison.name}</span> ·{" "}
+                    {comparison.facts[key]}
+                  </p>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <table className="hidden w-full border-collapse text-left text-sm sm:table">
             <thead>
               <tr className="border-b">
                 <th scope="col" className="w-1/4 py-3 pr-4 font-normal">

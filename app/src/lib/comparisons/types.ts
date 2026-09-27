@@ -24,6 +24,8 @@ export type Comparison = {
   description: string;
   /** Honest one-paragraph take shown under the heading */
   intro: string;
+  /** The five-second answer, shown above the table: who should pick which */
+  verdict: { them: string; abode: string };
   facts: ComparisonFacts;
   /** What the competitor genuinely does better — keep these fair */
   theyShine: string[];

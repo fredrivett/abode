@@ -20,6 +20,17 @@ describe("ComparisonPage", () => {
     expect(within(row).getByText(comparison.facts.pricing)).toBeInTheDocument();
   });
 
+  it("leads with who should choose which", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    expect(
+      screen.getByText(`if ${comparison.verdict.them}.`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(`if ${comparison.verdict.abode}.`),
+    ).toBeInTheDocument();
+  });
+
   it("links every source and dates the check", () => {
     render(<ComparisonPage comparison={comparison} />);
 

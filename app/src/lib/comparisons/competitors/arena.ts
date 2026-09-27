@@ -8,6 +8,11 @@ export const arena: Comparison = {
     "abode vs Are.na: channels you connect by hand vs search-first saving with AI. pricing, organisation, search, export and self-hosting compared.",
   intro:
     "Are.na is a thoughtful, member-funded network for connecting ideas: you file blocks into channels by hand, and they gather context from everyone else's channels. abode takes the opposite approach to organising — no filing, AI describes what you save, and search finds it — and it's open source.",
+  verdict: {
+    them: "you like connecting ideas by hand, in channels shared with a community",
+    abode:
+      "you'd rather not file anything, and want AI to describe and find what you save",
+  },
   facts: {
     pricing: "free up to 200 blocks. premium: $7/mo or $70/yr",
     openSource: "no — but it has an open API, SDK and MCP server",

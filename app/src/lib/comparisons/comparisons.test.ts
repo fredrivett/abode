@@ -22,6 +22,13 @@ describe("comparisons", () => {
     }
   });
 
+  it("gives every comparison a two-sided verdict", () => {
+    for (const { slug, verdict } of COMPARISONS) {
+      expect(verdict.them.trim(), slug).not.toBe("");
+      expect(verdict.abode.trim(), slug).not.toBe("");
+    }
+  });
+
   // Honest pages: every competitor claim is sourced and dated
   it.each(COMPARISONS.map((c) => [c.slug, c] as const))(
     "%s cites https sources and a valid, past check date",

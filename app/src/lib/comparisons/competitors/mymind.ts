@@ -8,6 +8,11 @@ export const mymind: Comparison = {
     "abode vs mymind: both skip the folders. mymind is a polished private vault; abode is open source, self-hostable and shareable. pricing, AI and export compared.",
   intro:
     "mymind and abode share a belief: save everything, organise nothing, let search do the work. mymind is the more mature, polished app and deliberately private. abode is open source, runs on your own server if you want, and lets you share what you've collected.",
+  verdict: {
+    them: "you want the most polished private vault, with native apps and no sharing at all",
+    abode:
+      "you want the same no-folders idea, open source and self-hostable, with public rooms to share",
+  },
   facts: {
     pricing:
       "free guest plan up to 100 cards. paid from $4.99/mo (no AI) to $12.99/mo; AI features start at $7.99/mo",

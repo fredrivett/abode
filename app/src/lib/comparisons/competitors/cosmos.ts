@@ -8,6 +8,11 @@ export const cosmos: Comparison = {
     "abode vs Cosmos: a visual discovery community vs a private home for everything you save. feeds, ads, search, export and self-hosting compared.",
   intro:
     "Cosmos is a beautiful place to collect and discover visual inspiration, with a community feed of other people's taste. abode is about your own things — images, but also links, tweets and notes — kept private by default, searchable, and open source.",
+  verdict: {
+    them: "you want visual discovery and a community feed of other people's taste",
+    abode:
+      "you want a calm, private archive of your own finds — no feed, no shop, no ads",
+  },
   facts: {
     pricing: "free. premium is $8/mo or $72/yr in the iOS app",
     openSource: "no",
