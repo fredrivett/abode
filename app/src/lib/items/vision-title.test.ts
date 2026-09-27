@@ -7,6 +7,10 @@ describe("visionOwnsTitle", () => {
     expect(visionOwnsTitle("image")).toBe(true);
   });
 
+  it("lets vision title a scanned document from its first page", () => {
+    expect(visionOwnsTitle("document")).toBe(true);
+  });
+
   it.each<ItemKind>([
     "article",
     "twitter",
