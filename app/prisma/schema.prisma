@@ -42,6 +42,7 @@ model User {
   // Public profile visibility toggles
   showInvitedBy     Boolean        @default(true) @map("show_invited_by") // Show who invited this user
   showInvited       Boolean        @default(true) @map("show_invited") // Show the people this user invited
+  allowSearchIndexing Boolean      @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
 
   // Relations
   referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)

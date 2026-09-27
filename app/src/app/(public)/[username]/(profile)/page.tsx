@@ -13,6 +13,7 @@ import {
   roomThumbnailItemSelect,
   roomThumbnailItemWhere,
 } from "@/lib/rooms/room-thumbnails";
+import { publicContentSeo } from "@/lib/seo/indexing";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -49,6 +50,7 @@ const getUser = cache(async (username: string) => {
       memberNumber: true,
       showInvitedBy: true,
       showInvited: true,
+      allowSearchIndexing: true,
       referredBy: {
         select: {
           id: true,
@@ -118,6 +120,11 @@ export async function generateMetadata({ params }: Props) {
   return {
     title: `${displayName} | abode`,
     description: `${displayName}'s profile on abode`,
+    ...publicContentSeo({
+      ownerAllowsIndexing: user.allowSearchIndexing,
+      isPublic: true,
+      path: `/@${user.username ?? username}`,
+    }),
   };
 }
 
