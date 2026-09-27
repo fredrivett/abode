@@ -88,8 +88,8 @@ export const Swap: Story = {
 };
 
 // The reader laid over the placeholder, tinted and semi-transparent. The
-// play test checks the title lines up and the text starts where the skeleton
-// does.
+// play test checks the title lines up and the first paragraph's lines sit
+// exactly on the skeleton's.
 export const Overlay: Story = {
   render: () => (
     <div className="relative w-full">
@@ -122,10 +122,21 @@ export const Overlay: Story = {
     expect(rectOf(layer("reader").querySelector("h1"))).toEqual(
       rectOf(layer("placeholder").querySelector("h1")),
     );
-    // Body text starts where the first skeleton line does
-    const firstLine = layer("placeholder").querySelector(".animate-pulse");
-    expect(rectOf(layer("reader").querySelector("article p"))).toEqual(
-      rectOf(firstLine),
+    // The first paragraph's lines sit at the same heights in both: same start
+    // and same line pitch (the skeleton is real text in the reader's prose)
+    const lineTops = (element: Element | null | undefined) => {
+      if (!element) throw new Error("missing paragraph");
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+      const tops = [...new Set(rects.map((r) => Math.round(r.top)))];
+      return { left: Math.round(rects[0].left), tops: tops.slice(0, 2) };
+    };
+    const readerLines = lineTops(layer("reader").querySelector("article p"));
+    const skeletonLines = lineTops(
+      layer("placeholder").querySelector("article p"),
     );
+    expect(readerLines.tops).toHaveLength(2);
+    expect(readerLines).toEqual(skeletonLines);
   },
 };

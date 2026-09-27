@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { useArticleReading } from "@/lib/items/use-article-reading";
+import { ARTICLE_PROSE_CLASS } from "./article-prose";
 import { HighlightableArticle } from "./highlightable-article";
 
 type ArticleDetailViewProps = {
@@ -124,7 +125,7 @@ export function ArticleDetailView({
         <HighlightableArticle
           itemId={itemId}
           content={content}
-          className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif"
+          className={ARTICLE_PROSE_CLASS}
           scrollToHighlightId={scrollToHighlightId}
         />
         {enableTracking && !isRead && (
