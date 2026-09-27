@@ -97,7 +97,7 @@ export function defaultDesign({
     textWidth: Math.max(1, Math.min(Math.round(640 * textScale), width - 80)),
     textX: 0,
     textY: 0,
-    cardWidth: Math.round(REFERENCE_CARD_WIDTH * fit),
+    cardWidth: Math.max(1, Math.round(REFERENCE_CARD_WIDTH * fit)),
     bookTile: false,
     showGuide: true,
     cards: GALLERY_CARDS.map((card) =>

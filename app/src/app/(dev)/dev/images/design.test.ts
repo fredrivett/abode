@@ -60,6 +60,18 @@ describe("defaultDesign", () => {
     expect(design.textWidth).toBeLessThanOrEqual(600);
   });
 
+  it("produces a valid design for the smallest possible canvas", () => {
+    const design = defaultDesign({
+      name: "Pixel",
+      format: "custom",
+      width: 1,
+      height: 1,
+    });
+    expect(design.cardWidth).toBeGreaterThan(0);
+    expect(design.textWidth).toBeGreaterThan(0);
+    expect(parseDesign(JSON.stringify(design))).not.toBeNull();
+  });
+
   it("keeps a positive text width on canvases narrower than its margin", () => {
     const design = defaultDesign({
       name: "Sliver",
