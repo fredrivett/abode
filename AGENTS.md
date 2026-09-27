@@ -81,7 +81,7 @@ Other rules:
 
 - Only the hosted abode.fyi production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances (including ones on Vercel) disallow all in `robots.txt`.
 - Structured data renders through `<JsonLd>` (`@/components/seo/json-ld`), never a raw `<script type="application/ld+json">` — enforced by `app/biome/no-raw-json-ld.grit`.
-- Public user content (profiles, rooms, items) is shareable but noindex by default — only a per-user opt-in may make it searchable, never a blanket change.
+- Public user content (profiles, rooms, items) is shareable but noindex by default. A profile and its public rooms become indexable (and enter the sitemap) only via the owner's `allowSearchIndexing` opt-in, through `publicContentSeo` / `getIndexablePublicContentPaths` — keep the two in sync. Items are never indexed (mostly third-party content).
 
 ## Development Server Management
 
