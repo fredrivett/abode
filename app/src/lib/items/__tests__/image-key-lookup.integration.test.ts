@@ -64,6 +64,49 @@ describe("findItemOwningImageKey integration", () => {
     }
   });
 
+  test("resolves a document by any page's displayed or original key", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    const item = await write.item.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId: user.id,
+        kind: "document",
+        fileKey: `${user.id}/page-1.jpg`,
+        processingStatus: "completed",
+        documentPages: {
+          create: [
+            {
+              position: 0,
+              fileKey: `${user.id}/page-1.jpg`,
+              originalFileKey: `${user.id}/page-1-colour.jpg`,
+              width: 100,
+              height: 140,
+            },
+            {
+              position: 1,
+              fileKey: `${user.id}/page-2.jpg`,
+              originalFileKey: `${user.id}/page-2-colour.jpg`,
+              width: 100,
+              height: 140,
+            },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    for (const key of [
+      "page-1-colour.jpg",
+      "page-2.jpg",
+      "page-2-colour.jpg",
+    ]) {
+      const found = await findItemOwningImageKey(`${user.id}/${key}`);
+      expect(found?.id).toBe(item.id);
+    }
+    expect(await findItemOwningImageKey(`${user.id}/page-3.jpg`)).toBeNull();
+  });
+
   test("resolves a webpage item by its re-hosted favicon key", async () => {
     const { write } = await import("@/lib/db");
     const user = await createUser();

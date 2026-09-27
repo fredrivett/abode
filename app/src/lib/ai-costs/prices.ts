@@ -39,6 +39,7 @@ const REPLICATE_PRICES = {
 // slightly OVER-estimates while under it — fine for spend monitoring.
 const GOOGLE_VISION_PRICES = {
   IMAGE_PROPERTIES: { per1000Units: 1.5 },
+  DOCUMENT_TEXT_DETECTION: { per1000Units: 1.5 },
 } as const;
 
 type OpenAiEmbeddingModel = keyof typeof OPENAI_EMBEDDING_PRICES;
@@ -55,7 +56,7 @@ export const KNOWN_AI_MODELS = {
   openAiEmbedding: ["text-embedding-3-small"],
   openAiChat: ["gpt-4o-mini", "gpt-4.1-nano"],
   replicate: ["clip-vit-base-patch32"],
-  googleVision: ["IMAGE_PROPERTIES"],
+  googleVision: ["IMAGE_PROPERTIES", "DOCUMENT_TEXT_DETECTION"],
 } as const;
 
 function isOpenAiEmbeddingModel(model: string): model is OpenAiEmbeddingModel {

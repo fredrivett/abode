@@ -1,6 +1,7 @@
 "use client";
 
-import { Info, Upload } from "lucide-react";
+import { Info, ScanLine, Upload } from "lucide-react";
+import posthog from "posthog-js";
 import {
   type FormEvent,
   useCallback,
@@ -9,6 +10,11 @@ import {
   useState,
 } from "react";
 import { useMediaQuery } from "usehooks-ts";
+import {
+  LazyDocumentScanner,
+  useScannerAvailable,
+} from "@/components/scanner/scanner-entry";
+import { useSaveScannedDocument } from "@/hooks/use-save-scanned-document";
 import { useUpload } from "@/hooks/use-upload";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -40,6 +46,9 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  const scannerAvailable = useScannerAvailable();
+  const saveScannedDocument = useSaveScannedDocument();
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const handleClose = useCallback(() => {
     setUrl("");
@@ -125,109 +134,139 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     "You can also paste URLs or drag and drop images directly onto the dashboard";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md"
-        onOpenAutoFocus={(e) => {
-          // Prevent default autofocus - we handle it manually
-          e.preventDefault();
-        }}
-      >
-        <DialogHeader className="text-left">
-          <DialogTitle className="flex items-center gap-1.5">
-            Add Item
-            <Popover open={infoPopoverOpen} onOpenChange={setInfoPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex"
-                  aria-label="More info"
-                >
-                  <Info className="size-4 text-muted-foreground" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" className="max-w-[200px] text-sm">
-                {infoContent}
-              </PopoverContent>
-            </Popover>
-          </DialogTitle>
-          <DialogDescription className="text-left">
-            Paste a URL or upload an image
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="sm:max-w-md"
+          onOpenAutoFocus={(e) => {
+            // Prevent default autofocus - we handle it manually
+            e.preventDefault();
+          }}
+        >
+          <DialogHeader className="text-left">
+            <DialogTitle className="flex items-center gap-1.5">
+              Add Item
+              <Popover open={infoPopoverOpen} onOpenChange={setInfoPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex"
+                    aria-label="More info"
+                  >
+                    <Info className="size-4 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="max-w-[200px] text-sm">
+                  {infoContent}
+                </PopoverContent>
+              </Popover>
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              Paste a URL or upload an image
+            </DialogDescription>
+          </DialogHeader>
 
-        <DialogBody className="space-y-4">
-          <form onSubmit={onUrlSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              placeholder="Paste URL..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isLoading || !url.trim()}>
-              {isUrlLoading ? <IsLoading label="Adding" /> : "Add"}
-            </Button>
-          </form>
+          <DialogBody className="space-y-4">
+            <form onSubmit={onUrlSubmit} className="flex gap-2">
+              <Input
+                ref={inputRef}
+                placeholder="Paste URL..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isLoading}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={isLoading || !url.trim()}>
+                {isUrlLoading ? <IsLoading label="Adding" /> : "Add"}
+              </Button>
+            </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  or
+                </span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                or
-              </span>
-            </div>
-          </div>
 
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
-          <div
-            className={cn(
-              "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed bg-gray-100 p-6 transition-colors dark:bg-gray-900/50",
-              isDragging
-                ? "border-primary/50 bg-primary/5"
-                : "border-muted-foreground/25",
-              isLoading && "pointer-events-none opacity-50",
-            )}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragEnter={onDragOver}
-            onDragLeave={onDragLeave}
-          >
-            <p className="text-muted-foreground text-sm">Drop image here or</p>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
-              onChange={onFileChange}
-              className="hidden"
-            />
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-            >
-              {isFileLoading ? (
-                <IsLoading label="Uploading" />
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  Choose Image
-                </>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
+            <div
+              className={cn(
+                "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed bg-gray-100 p-6 transition-colors dark:bg-gray-900/50",
+                isDragging
+                  ? "border-primary/50 bg-primary/5"
+                  : "border-muted-foreground/25",
+                isLoading && "pointer-events-none opacity-50",
               )}
-            </Button>
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragEnter={onDragOver}
+              onDragLeave={onDragLeave}
+            >
+              <p className="text-muted-foreground text-sm">
+                Drop image here or
+              </p>
 
-            <p className="text-muted-foreground text-xs">
-              JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
-            </p>
-          </div>
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
+                onChange={onFileChange}
+                className="hidden"
+              />
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                {isFileLoading ? (
+                  <IsLoading label="Uploading" />
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Choose Image
+                  </>
+                )}
+              </Button>
+
+              <p className="text-muted-foreground text-xs">
+                JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
+              </p>
+            </div>
+
+            {scannerAvailable ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isLoading}
+                onClick={() => {
+                  handleClose();
+                  setScannerOpen(true);
+                  posthog.capture("document_scan_opened", {
+                    source: "upload_dialog",
+                  });
+                }}
+              >
+                <ScanLine />
+                Scan a document
+              </Button>
+            ) : null}
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+      {scannerOpen ? (
+        <LazyDocumentScanner
+          open={scannerOpen}
+          onOpenChange={setScannerOpen}
+          onSave={saveScannedDocument}
+        />
+      ) : null}
+    </>
   );
 }

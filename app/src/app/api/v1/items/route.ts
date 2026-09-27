@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { isItemSource } from "@/lib/items/capture-source";
+import { deleteOwnedItem } from "@/lib/items/delete-item";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
 import {
   ITEM_TIMELINE_ORDER_BY,
@@ -235,53 +236,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Find the item to ensure it exists and belongs to the user
-    const item = await db.item.findUnique({
-      where: { id },
-      select: { id: true, userId: true, fileKey: true, meta: true },
+    const result = await deleteOwnedItem({
+      supabase,
+      itemId: id,
+      userId: user.id,
     });
-
-    if (!item) {
+    if (result === "not_found") {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
-
-    if (item.userId !== user.id) {
+    if (result === "forbidden") {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
-
-    // Delete from storage if there's a file
-    if (item.fileKey) {
-      const { error: storageError } = await supabase.storage
-        .from("items")
-        .remove([item.fileKey]);
-
-      if (storageError) {
-        log.error(
-          { itemId: id, error: storageError },
-          "Storage deletion error",
-        );
-        // Continue with DB deletion even if storage deletion fails
-      }
-    }
-
-    // Get file size for storage tracking
-    const fileSize = getFileSizeFromMeta(item.meta);
-
-    // Delete from database and update storage in a transaction
-    await db.$transaction(async (tx) => {
-      await tx.item.delete({
-        where: { id },
-      });
-
-      // Decrement user's storage usage and item count
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          itemCount: { decrement: 1 },
-          ...(fileSize > 0 && { storageUsedBytes: { decrement: fileSize } }),
-        },
-      });
-    });
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_delete", { itemId: id });
