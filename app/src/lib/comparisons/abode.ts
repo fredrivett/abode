@@ -13,6 +13,6 @@ export const ABODE_FACTS: ComparisonFacts = {
     "links, images, articles, tweets, instagram posts, videos, products, books, notes",
   sharing: "public profile and public rooms, share links for single items",
   ads: "no ads, no feed, no algorithm",
-  apps: "web (installable), chrome/edge extension",
+  apps: "web (installable); browser extension coming soon",
   export: "self-host and the database is yours; API + personal access tokens",
 };
