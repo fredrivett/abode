@@ -3,6 +3,12 @@ import { HOSTED_APP_URL } from "@/lib/url";
 import robots from "./robots";
 import sitemap from "./sitemap";
 
+const getIndexablePublicContentPaths = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/seo/public-content-sitemap", () => ({
+  MAX_SITEMAP_URLS: 50_000,
+  getIndexablePublicContentPaths,
+}));
+
 function stubDeployment({
   vercelEnv,
   siteUrl = "",
@@ -18,6 +24,7 @@ function stubDeployment({
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  getIndexablePublicContentPaths.mockReset();
 });
 
 describe("robots", () => {
@@ -51,18 +58,32 @@ describe("robots", () => {
 });
 
 describe("sitemap", () => {
-  it("lists the homepage on the hosted production deployment", () => {
+  it("lists static pages and opted-in public content on the hosted production deployment", async () => {
     stubDeployment({ vercelEnv: "production" });
+    const lastModified = new Date("2026-09-01");
+    getIndexablePublicContentPaths.mockResolvedValue([
+      { path: "/@fred", lastModified },
+      { path: "/@fred/books", lastModified },
+    ]);
 
-    expect(sitemap()).toEqual([{ url: `${HOSTED_APP_URL}/` }]);
+    expect(await sitemap()).toEqual([
+      { url: `${HOSTED_APP_URL}/` },
+      { url: `${HOSTED_APP_URL}/@fred`, lastModified },
+      { url: `${HOSTED_APP_URL}/@fred/books`, lastModified },
+    ]);
+    // Leaves room for the static pages under the 50k-per-file limit
+    expect(getIndexablePublicContentPaths).toHaveBeenCalledWith({
+      limit: 49_999,
+    });
   });
 
-  it("is empty when the deployment isn't indexable", () => {
+  it("is empty, without querying, when the deployment isn't indexable", async () => {
     stubDeployment({
       vercelEnv: "production",
       siteUrl: "https://abode.example.com",
     });
 
-    expect(sitemap()).toEqual([]);
+    expect(await sitemap()).toEqual([]);
+    expect(getIndexablePublicContentPaths).not.toHaveBeenCalled();
   });
 });
