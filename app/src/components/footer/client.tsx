@@ -112,7 +112,7 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
               href={comparePath()}
               className="transition-colors hover:text-foreground"
             >
-              compare
+              /compare
             </Link>
             <a
               href={GITHUB_URL}
