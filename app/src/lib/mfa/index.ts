@@ -7,11 +7,41 @@ export type MFAEnrollmentResult = {
   uri: string;
 };
 
+const KNOWN_AALS = ["aal1", "aal2"] as const;
+type KnownAal = (typeof KNOWN_AALS)[number];
+
 export type AALInfo = {
-  currentLevel: "aal1" | "aal2" | null;
-  nextLevel: "aal1" | "aal2" | null;
+  currentLevel: KnownAal | null;
+  nextLevel: KnownAal | null;
   hasVerifiedFactor: boolean;
 };
+
+function isKnownAal(value: string | null): value is KnownAal {
+  return value !== null && KNOWN_AALS.includes(value as KnownAal);
+}
+
+/**
+ * Supabase types AAL as open-ended (`string & {}`) and passes the JWT claim
+ * through unchecked, so anything other than aal1/aal2 is normalised to null
+ */
+function toKnownAal(value: string | null): KnownAal | null {
+  return isKnownAal(value) ? value : null;
+}
+
+/**
+ * Whether a session still owes an MFA challenge. Fails closed: with a verified
+ * factor, only an explicit aal2 counts as satisfied — aal1, null, or an
+ * unrecognised level all require the challenge
+ */
+export function isMfaChallengePending({
+  currentLevel,
+  hasVerifiedFactor,
+}: {
+  currentLevel: string | null;
+  hasVerifiedFactor: boolean;
+}): boolean {
+  return hasVerifiedFactor && currentLevel !== "aal2";
+}
 
 export type MFAFactor = {
   id: string;
@@ -189,20 +219,19 @@ export async function getAAL(supabase: SupabaseClient): Promise<AALInfo> {
   );
 
   return {
-    currentLevel: aalResult.data.currentLevel,
-    nextLevel: aalResult.data.nextLevel,
+    currentLevel: toKnownAal(aalResult.data.currentLevel),
+    nextLevel: toKnownAal(aalResult.data.nextLevel),
     hasVerifiedFactor,
   };
 }
 
 /**
- * Check if user needs to complete MFA challenge (has factor but current AAL is aal1)
+ * Check if user needs to complete MFA challenge (has factor but session isn't aal2)
  */
 export async function needsMFAChallenge(
   supabase: SupabaseClient,
 ): Promise<boolean> {
-  const aal = await getAAL(supabase);
-  return aal.hasVerifiedFactor && aal.currentLevel === "aal1";
+  return isMfaChallengePending(await getAAL(supabase));
 }
 
 /**
