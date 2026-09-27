@@ -15,27 +15,36 @@ export async function getIndexablePublicContentPaths({
 }: {
   limit: number;
 }): Promise<SitemapPath[]> {
-  const users = await read.user.findMany({
-    where: { allowSearchIndexing: true, username: { not: null } },
-    select: {
-      username: true,
-      updatedAt: true,
-      rooms: {
-        where: { visibility: "public", slug: { not: null } },
-        select: { slug: true, updatedAt: true },
-        orderBy: { createdAt: "asc" },
-      },
-    },
+  const optedIn = { allowSearchIndexing: true, username: { not: null } };
+
+  // Both queries are capped in the database, so the sitemap's cost stays
+  // bounded however much content is opted in. Profiles fill first
+  const profiles = await read.user.findMany({
+    where: optedIn,
+    select: { username: true, updatedAt: true },
     orderBy: { createdAt: "asc" },
+    take: limit,
   });
 
-  return users
-    .flatMap(({ username, updatedAt, rooms }) => [
-      { path: `/@${username}`, lastModified: updatedAt },
-      ...rooms.map((room) => ({
-        path: `/@${username}/${room.slug}`,
-        lastModified: room.updatedAt,
-      })),
-    ])
-    .slice(0, limit);
+  const rooms = await read.room.findMany({
+    where: { visibility: "public", slug: { not: null }, user: optedIn },
+    select: {
+      slug: true,
+      updatedAt: true,
+      user: { select: { username: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: Math.max(limit - profiles.length, 0),
+  });
+
+  return [
+    ...profiles.map(({ username, updatedAt }) => ({
+      path: `/@${username}`,
+      lastModified: updatedAt,
+    })),
+    ...rooms.map(({ slug, updatedAt, user }) => ({
+      path: `/@${user.username}/${slug}`,
+      lastModified: updatedAt,
+    })),
+  ];
 }

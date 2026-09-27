@@ -85,6 +85,27 @@ describe("getIndexablePublicContentPaths", () => {
     ).toBe(true);
   });
 
+  it("caps rooms by what's left after profiles", async () => {
+    const fred = await createUser({
+      username: "fred",
+      allowSearchIndexing: true,
+    });
+    const sam = await createUser({
+      username: "sam",
+      allowSearchIndexing: true,
+    });
+    await createRoom({ userId: fred.id, slug: "books", visibility: "public" });
+    await createRoom({ userId: sam.id, slug: "films", visibility: "public" });
+
+    const paths = await getIndexablePublicContentPaths({ limit: 3 });
+
+    expect(paths.map(({ path }) => path)).toEqual([
+      "/@fred",
+      "/@sam",
+      "/@fred/books",
+    ]);
+  });
+
   it("caps the number of paths", async () => {
     const user = await createUser({
       username: "fred",
