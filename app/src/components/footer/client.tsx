@@ -86,6 +86,16 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
           />
         </Link>
       </div>
+      {!isAuthenticated && (
+        <nav aria-label="more" className="mt-3 flex justify-center text-xs">
+          <Link
+            href="/vs"
+            className="text-muted-foreground opacity-60 transition-opacity hover:opacity-100"
+          >
+            compare abode
+          </Link>
+        </nav>
+      )}
     </footer>
   );
 }
