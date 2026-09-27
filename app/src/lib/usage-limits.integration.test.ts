@@ -143,6 +143,38 @@ describe("usage-limits integration", () => {
     expect(Number(yesterday[0]?.count)).toBe(DAILY_LIMITS.reanalysis);
   });
 
+  test("a weighted action counts as that many actions", async () => {
+    const user = await createUser();
+    const first = await assertWithinDailyLimit(user.id, "ingestion", {
+      weight: 12,
+    });
+    expect(first.count).toBe(12);
+    const second = await assertWithinDailyLimit(user.id, "ingestion");
+    expect(second.count).toBe(13);
+  });
+
+  test("a weighted action past the remaining allowance is blocked", async () => {
+    const user = await createUser();
+    await assertWithinDailyLimit(user.id, "ingestion", {
+      weight: DAILY_LIMITS.ingestion - 5,
+    });
+    const over = await assertWithinDailyLimit(user.id, "ingestion", {
+      weight: 10,
+    });
+    expect(over.allowed).toBe(false);
+  });
+
+  test("weights are whole actions, never less than one", async () => {
+    const user = await createUser();
+    expect(
+      (await assertWithinDailyLimit(user.id, "ingestion", { weight: 0 })).count,
+    ).toBe(1);
+    expect(
+      (await assertWithinDailyLimit(user.id, "ingestion", { weight: 1.2 }))
+        .count,
+    ).toBe(3);
+  });
+
   test("buckets are counted independently", async () => {
     const user = await createUser();
     await assertWithinDailyLimit(user.id, "ingestion");
