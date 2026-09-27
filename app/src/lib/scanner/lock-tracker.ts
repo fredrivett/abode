@@ -68,6 +68,9 @@ export function createLockTracker({
       return lastState;
     }
 
+    // Detections paused longer than the grace period (e.g. a stalled worker):
+    // the old hold no longer proves the page stayed steady, so start afresh
+    if (anchor && now - lastSeenAt > graceMs) anchor = null;
     lastSeenAt = now;
     const frameArea = frame.width * frame.height;
     if (quadArea(quad) / frameArea < minCoverage) {

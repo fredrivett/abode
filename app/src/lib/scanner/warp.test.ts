@@ -129,6 +129,23 @@ describe("warpPerspective", () => {
   });
 });
 
+describe("warpPerspective at the minimum size", () => {
+  it("flattens into a 2x2 output", () => {
+    const source = fill(createPixels({ width: 4, height: 4 }), () => [9, 9, 9]);
+    const out = warpPerspective({
+      source,
+      quad: {
+        topLeft: { x: 0, y: 0 },
+        topRight: { x: 3, y: 0 },
+        bottomRight: { x: 3, y: 3 },
+        bottomLeft: { x: 0, y: 3 },
+      },
+      size: { width: 2, height: 2 },
+    });
+    expect(pixelAt(out, 1, 1)).toEqual([9, 9, 9, 255]);
+  });
+});
+
 describe("rotatePixels", () => {
   // 2x1 image: red then blue
   const source = () => {

@@ -138,7 +138,8 @@ export function luminanceQuantile({
     const v = values[i];
     histogram[v >= 1 ? bins - 1 : v <= 0 ? 0 : (v * bins) | 0]++;
   }
-  const target = quantile * values.length;
+  // At least one sample, so quantile 0 returns the minimum rather than 0
+  const target = Math.max(1, quantile * values.length);
   let seen = 0;
   for (let bin = 0; bin < bins; bin++) {
     seen += histogram[bin];

@@ -1,6 +1,8 @@
 /**
- * Rear camera at up to ~5MP (4:3, the sensor's native shape). Enough for a
- * page to land at ~200dpi, without the memory cost of a 12MP frame per capture.
+ * Rear camera, preferring ~5MP (4:3, the sensor's native shape): enough for a
+ * page to land at ~200dpi without the memory cost of a 12MP frame per capture.
+ * Deliberately `ideal`, not `max` — the browser picks the closest mode, and a
+ * hard cap risks OverconstrainedError on cameras without a matching mode.
  */
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,

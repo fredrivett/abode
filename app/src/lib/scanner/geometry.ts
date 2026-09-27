@@ -77,7 +77,7 @@ export function quadBounds(quad: Quad): {
 /**
  * Output size for flattening a quad: the longer of each pair of opposite
  * sides (so no axis loses resolution), capped so the long edge is at most
- * `maxDimension`.
+ * `maxDimension`, and never under 2px per side.
  */
 export function flattenedSize({
   quad,
@@ -96,8 +96,10 @@ export function flattenedSize({
   );
   const scale = Math.min(1, maxDimension / Math.max(width, height));
   return {
-    width: Math.max(1, Math.round(width * scale)),
-    height: Math.max(1, Math.round(height * scale)),
+    // At least 2px per side: a 1px edge collapses two target corners into one,
+    // which makes the flattening homography unsolvable
+    width: Math.max(2, Math.round(width * scale)),
+    height: Math.max(2, Math.round(height * scale)),
   };
 }
 

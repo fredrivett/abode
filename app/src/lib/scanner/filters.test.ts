@@ -82,6 +82,25 @@ describe("greyscale", () => {
   });
 });
 
+describe("greyscale tones", () => {
+  it("keeps mid-tones grey instead of clipping them to black or white", () => {
+    // Dark ink sets the black point; a lighter band stays in between
+    const pixels = createPixels({ width: SIZE, height: SIZE });
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const v = y >= 95 && y < 100 ? 40 : y >= 150 && y < 155 ? 140 : 220;
+        pixels.data.set([v, v, v, 255], (y * SIZE + x) * 4);
+      }
+    }
+    const out = greyscale(pixels);
+    const midTone = valueAt(out, 100, 152);
+    expect(midTone).toBeGreaterThan(60);
+    expect(midTone).toBeLessThan(200);
+    // …and a hard clip at the B&W thresholds would have lost it
+    expect(valueAt(blackAndWhite(pixels), 100, 152)).not.toBe(midTone);
+  });
+});
+
 describe("applyScanFilter", () => {
   it("returns the original pixels untouched", () => {
     const pixels = photographedPage({ inkContrast: 0.5 });
@@ -100,6 +119,11 @@ describe("luminanceQuantile", () => {
   it("finds the value at the requested quantile", () => {
     const values = new Float32Array(100).map((_, i) => i / 100);
     expect(luminanceQuantile({ values, quantile: 0.1 })).toBeCloseTo(0.09, 2);
+  });
+
+  it("returns the minimum for quantile 0", () => {
+    const values = new Float32Array([0.5, 0.7, 0.9]);
+    expect(luminanceQuantile({ values, quantile: 0 })).toBeCloseTo(0.5, 1);
   });
 
   it("treats values brighter than paper as paper", () => {

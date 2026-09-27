@@ -28,7 +28,7 @@ describe("createLockTracker", () => {
   });
 
   it("counts up while the document is held steady, then locks", () => {
-    const tracker = createLockTracker({ holdMs: 1000 });
+    const tracker = createLockTracker({ holdMs: 1000, graceMs: 600 });
     expect(tracker.update({ quad: page(), frame, now: 0 })).toEqual({
       status: "steady",
       progress: 0,
@@ -67,6 +67,7 @@ describe("createLockTracker", () => {
   it("ignores brief detection dropouts within the grace period", () => {
     const tracker = createLockTracker({ holdMs: 1000, graceMs: 300 });
     tracker.update({ quad: page(), frame, now: 0 });
+    tracker.update({ quad: page(), frame, now: 200 });
     tracker.update({ quad: page(), frame, now: 400 });
     expect(tracker.update({ quad: null, frame, now: 600 })).toEqual({
       status: "steady",
@@ -84,6 +85,17 @@ describe("createLockTracker", () => {
       "searching",
     );
     expect(tracker.update({ quad: page(), frame, now: 600 }).progress).toBe(0);
+  });
+
+  it("restarts the hold when detections resume after a long gap", () => {
+    const tracker = createLockTracker({ holdMs: 1000, graceMs: 300 });
+    tracker.update({ quad: page(), frame, now: 0 });
+    tracker.update({ quad: page(), frame, now: 200 });
+    // No updates at all (not even nulls) for longer than the grace period
+    expect(tracker.update({ quad: page(), frame, now: 1500 })).toEqual({
+      status: "steady",
+      progress: 0,
+    });
   });
 
   it("flags documents too small to scan and doesn't count them", () => {

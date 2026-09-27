@@ -4,6 +4,7 @@ import type { Rotation } from "./warp";
 
 /** A captured page: the original photo plus how to turn it into the scan */
 export interface ScanPage {
+  /** Fresh for every capture (retakes included) — previews are cached by id */
   id: string;
   /** Full-resolution camera frame (JPEG) */
   source: Blob;

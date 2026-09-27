@@ -82,6 +82,13 @@ describe("flattenedSize", () => {
   });
 });
 
+describe("flattenedSize minimum", () => {
+  it("never returns a side under 2px, so the result can always be warped", () => {
+    const sliver: Quad = rect({ x: 0, y: 0, width: 0.2, height: 50 });
+    expect(flattenedSize({ quad: sliver, maxDimension: 100 }).width).toBe(2);
+  });
+});
+
 describe("coverTransform", () => {
   it("scales to fill and centre-crops the overflowing axis", () => {
     // 4:3 landscape source shown in a 1:1 view — width overflows
