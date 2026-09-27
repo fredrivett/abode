@@ -7,5 +7,12 @@ export function isIndexableDeployment(): boolean {
   return process.env.VERCEL_ENV === "production";
 }
 
+/**
+ * Static pages listed in sitemap.xml. A new public marketing page goes here —
+ * `route-indexing.test.ts` fails until every page is either listed here,
+ * noindex, or an explicit exception.
+ */
+export const SITEMAP_PATHS = ["/"] as const;
+
 /** `robots` metadata for pages that must never appear in search (app, auth) */
 export const NO_INDEX_ROBOTS = { index: false, follow: false } as const;
