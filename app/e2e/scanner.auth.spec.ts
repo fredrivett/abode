@@ -91,4 +91,49 @@ test.describe("Document scanner", () => {
       page.getByRole("dialog", { name: "Scan a document" }),
     ).toBeHidden();
   });
+
+  test("saves a scanned document", async ({ page }) => {
+    // The E2E Supabase runs without storage (excluded in supabase-setup), so
+    // stand in for the browser's page uploads; the save API, database and
+    // listing below are real
+    const uploads: string[] = [];
+    await page.route("**/storage/v1/object/items/**", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      const key = new URL(route.request().url()).pathname.split("/items/")[1];
+      uploads.push(key);
+      await route.fulfill({ json: { Key: `items/${key}`, Id: key } });
+    });
+
+    await openScanner(page);
+    await page
+      .locator("input[type=file][accept='image/*']")
+      .setInputFiles(FIXTURE);
+    await expect(page.getByText("1 of 1")).toBeVisible({ timeout: 15_000 });
+
+    const saved = page.waitForResponse(
+      (r) =>
+        r.request().method() === "POST" &&
+        new URL(r.url()).pathname === "/api/v1/items/documents",
+    );
+    await page.getByRole("button", { name: "Save" }).click();
+    expect((await saved).status()).toBe(201);
+    await expect(page.getByText("Document saved")).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Scan a document" }),
+    ).toBeHidden();
+    // B&W page + its colour original
+    expect(uploads).toHaveLength(2);
+
+    const { items } = await (await page.request.get("/api/v1/items")).json();
+    const document = items.find(
+      (item: { kind: string }) => item.kind === "document",
+    );
+    expect(document.meta).toMatchObject({ pageCount: 1, type: "image/jpeg" });
+    expect(uploads).toContain(document.fileKey);
+
+    const deleted = await page.request.delete("/api/v1/items", {
+      data: { id: document.id },
+    });
+    expect(deleted.status()).toBe(200);
+  });
 });
