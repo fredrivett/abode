@@ -1,10 +1,16 @@
+import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
+
 /**
- * Whether search engines may index this deployment. Only the hosted
+ * Whether search engines may index this deployment. Only the hosted abode.fyi
  * production site opts in — previews, local dev and self-hosted instances
- * (someone's personal library) stay out of search by default.
+ * (someone's personal library, even when deployed to Vercel) stay out of
+ * search.
  */
 export function isIndexableDeployment(): boolean {
-  return process.env.VERCEL_ENV === "production";
+  return (
+    process.env.VERCEL_ENV === "production" &&
+    getAppBaseUrl() === HOSTED_APP_URL
+  );
 }
 
 /**
