@@ -207,44 +207,31 @@ export const BW_TUNING = {
   paper: 0.92,
 };
 
-/** Mean of `values` over a (2r+1)² window around each pixel, via an integral image */
-function localMean({
+/**
+ * Summed-area table of `values` ((width+1)×(height+1), zero first row/column),
+ * so any window's sum is four lookups. Float32 keeps it to one page-sized
+ * buffer: sums stay under ~5M for a capped page, where float32 error is well
+ * below what a threshold notices.
+ */
+function summedArea({
   values,
   width,
   height,
-  radius,
 }: {
   values: Float32Array;
   width: number;
   height: number;
-  radius: number;
 }): Float32Array {
   const stride = width + 1;
-  const integral = new Float64Array(stride * (height + 1));
+  const table = new Float32Array(stride * (height + 1));
   for (let y = 0; y < height; y++) {
     let rowSum = 0;
     for (let x = 0; x < width; x++) {
       rowSum += values[y * width + x];
-      integral[(y + 1) * stride + x + 1] =
-        integral[y * stride + x + 1] + rowSum;
+      table[(y + 1) * stride + x + 1] = table[y * stride + x + 1] + rowSum;
     }
   }
-  const mean = new Float32Array(width * height);
-  for (let y = 0; y < height; y++) {
-    const y0 = Math.max(0, y - radius);
-    const y1 = Math.min(height, y + radius + 1);
-    for (let x = 0; x < width; x++) {
-      const x0 = Math.max(0, x - radius);
-      const x1 = Math.min(width, x + radius + 1);
-      const sum =
-        integral[y1 * stride + x1] -
-        integral[y0 * stride + x1] -
-        integral[y1 * stride + x0] +
-        integral[y0 * stride + x0];
-      mean[y * width + x] = sum / ((x1 - x0) * (y1 - y0));
-    }
-  }
-  return mean;
+  return table;
 }
 
 /** "Scanned document" look: white paper, black ink, no shadows */
@@ -257,15 +244,34 @@ export function blackAndWhite(pixels: Pixels): Pixels {
     4,
     Math.round(Math.max(width, height) * windowFraction),
   );
-  const mean = localMean({ values, width, height, radius });
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (v <= ink) {
-      values[i] = 0;
-    } else if (v >= paper) {
-      values[i] = 1;
-    } else {
-      const threshold = mean[i] * (1 - sensitivity);
+  const table = summedArea({ values, width, height });
+  const stride = width + 1;
+  // The neighbourhood mean is read from the table per pixel rather than kept
+  // in another page-sized buffer; the table was built before any pixel
+  // changes, so `values` can be rewritten in place
+  for (let y = 0; y < height; y++) {
+    const y0 = Math.max(0, y - radius);
+    const y1 = Math.min(height, y + radius + 1);
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      const v = values[i];
+      if (v <= ink) {
+        values[i] = 0;
+        continue;
+      }
+      if (v >= paper) {
+        values[i] = 1;
+        continue;
+      }
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(width, x + radius + 1);
+      const mean =
+        (table[y1 * stride + x1] -
+          table[y0 * stride + x1] -
+          table[y1 * stride + x0] +
+          table[y0 * stride + x0]) /
+        ((x1 - x0) * (y1 - y0));
+      const threshold = mean * (1 - sensitivity);
       const t = (v - (threshold - softness)) / (2 * softness);
       const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
       values[i] = clamped * clamped * (3 - 2 * clamped);
