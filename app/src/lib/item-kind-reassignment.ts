@@ -52,6 +52,7 @@ export const REASSIGNABLE_TARGETS: Record<ItemKind, readonly ForcibleKind[]> = {
   instagram: [],
   video: [],
   note: [],
+  document: [],
 };
 
 /** The kinds a user may switch `kind` to (excludes the current kind). */
@@ -77,4 +78,5 @@ export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
   instagram: "Instagram post",
   video: "Video",
   note: "Note",
+  document: "Document",
 };

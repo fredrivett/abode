@@ -47,6 +47,9 @@ const OWNED_DETAIL_MODELS: Record<ItemKind, readonly ItemDetailModel[]> = {
   book: ["itemBookDetails", "itemImageDetails"],
   note: ["itemNoteDetails"],
   webpage: [],
+  // Pages live in item_document_pages (not a Details table); page 1 is
+  // visually analysed like an image upload
+  document: ["itemImageDetails"],
 };
 
 export type PruneItemDetailsOptions = {
