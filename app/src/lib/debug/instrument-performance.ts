@@ -38,7 +38,7 @@ export function describeNode(node: unknown): string {
 
 /**
  * Layout-shift entry → timeline payload. Note CLS only counts shifts of the
- * layout box: transform-driven motion (the masonry engine's translateY) is
+ * layout box: transform-driven motion (how the masonry grid positions cards) is
  * invisible here, which is why the grid has its own observer.
  */
 export function describeLayoutShift(entry: unknown): {

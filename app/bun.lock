@@ -6,7 +6,6 @@
       "dependencies": {
         "@google-cloud/vision": "^5.3.7",
         "@hookform/resolvers": "^5.4.0",
-        "@masonry-grid/react": "^1.1.1",
         "@mozilla/readability": "^0.6.0",
         "@posthog/nextjs-config": "^1.9.68",
         "@prisma/client": "^6.19.0",
@@ -595,10 +594,6 @@
     "@jsonhero/path": ["@jsonhero/path@1.0.21", "", {}, "sha512-gVUDj/92acpVoJwsVJ/RuWOaHyG4oFzn898WNGQItLCTQ+hOaVlEaImhwE1WqOTf+l3dGOUkbSiVKlb3q1hd1Q=="],
 
     "@kwsites/file-exists": ["@kwsites/file-exists@1.1.1", "", { "dependencies": { "debug": "^4.1.1" } }, "sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw=="],
-
-    "@masonry-grid/react": ["@masonry-grid/react@1.1.1", "", { "dependencies": { "@masonry-grid/vanilla": "^1.1.0" }, "peerDependencies": { "react": "^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-IKHd8fLgL7kjPIz4lL6cIgPXv31goVvrQK03nK0zBqBLDelPDPRaYtpqqTzpb4EGNXepoj5Z157/F2Vijeqfsw=="],
-
-    "@masonry-grid/vanilla": ["@masonry-grid/vanilla@1.1.0", "", {}, "sha512-bHpdnA3xBzBey0PpHvrBYs9IZ8vn5VevP75+Vdg5Dqlsez/hufJZ7oRh5rrDK1aAaggoN+FM5fXPdaXOuEvf4Q=="],
 
     "@mdx-js/react": ["@mdx-js/react@3.1.1", "", { "dependencies": { "@types/mdx": "^2.0.0" }, "peerDependencies": { "@types/react": ">=16", "react": ">=16" } }, "sha512-f++rKLQgUVYDAtECQ6fn/is15GkEH9+nZPM3MS0RcxVqoTfawHvDlSCH7JbMhAM6uJ32v3eXLvLmLvjGu7PTQw=="],
 
