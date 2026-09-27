@@ -9,7 +9,7 @@ export const mymind: Comparison = {
   intro:
     "mymind and abode share a belief: save everything, organise nothing, let search do the work. mymind is the more mature, polished app and deliberately private. abode is open source, runs on your own server if you want, and lets you share what you've collected.",
   verdict: {
-    them: "you want the most polished private vault, with native apps and no sharing at all",
+    them: "you want the most polished private vault, with native apps and nothing public",
     abode:
       "you want the same no-folders idea, open source and self-hostable, with public rooms to share",
   },

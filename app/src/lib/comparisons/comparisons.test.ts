@@ -26,6 +26,7 @@ describe("comparisons", () => {
     for (const { slug, verdict } of COMPARISONS) {
       expect(verdict.them.trim(), slug).not.toBe("");
       expect(verdict.abode.trim(), slug).not.toBe("");
+      expect(verdict.them.trim(), slug).not.toBe(verdict.abode.trim());
     }
   });
 
