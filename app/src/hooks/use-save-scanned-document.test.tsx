@@ -14,16 +14,19 @@ const m = vi.hoisted(() => ({
   invalidate: vi.fn(),
   preview: vi.fn(),
   isDailyLimitError: vi.fn(),
+  capture: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: m.push }),
   usePathname: () => m.pathname,
 }));
-vi.mock("@/lib/api-client", () => ({
+vi.mock("@/lib/api-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api-client")>()),
   api: { post: m.post },
   isDailyLimitError: m.isDailyLimitError,
 }));
+vi.mock("posthog-js", () => ({ default: { captureException: m.capture } }));
 vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => m.invalidate }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -37,6 +40,7 @@ vi.mock("@/lib/logger.client", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn() }),
 }));
 
+import { ApiClientError } from "@/lib/api-client";
 import { useSaveScannedDocument } from "./use-save-scanned-document";
 
 const USER = "user-1";
@@ -50,9 +54,16 @@ const page = (overrides: Partial<FinishedScanPage> = {}): FinishedScanPage => ({
   ...overrides,
 });
 
-function save(pages: FinishedScanPage[]) {
+async function* stream(pages: FinishedScanPage[]) {
+  for (const page of pages) yield page;
+}
+
+function save(pages: FinishedScanPage[] | AsyncIterable<FinishedScanPage>) {
   const { result } = renderHook(() => useSaveScannedDocument());
-  return result.current(pages);
+  const iterable = Array.isArray(pages) ? stream(pages) : pages;
+  return result.current(iterable, {
+    pageCount: Array.isArray(pages) ? pages.length : 2,
+  });
 }
 
 beforeEach(() => {
@@ -95,8 +106,26 @@ describe("useSaveScannedDocument", () => {
     expect(m.invalidate).toHaveBeenCalled();
   });
 
-  it("removes the uploaded files and reports when saving fails", async () => {
-    m.post.mockRejectedValue(new Error("500"));
+  it("uploads each page as it's rendered, before the next is rendered", async () => {
+    const events: string[] = [];
+    m.upload.mockImplementation(async () => {
+      events.push("upload");
+      return { error: null };
+    });
+    async function* rendering() {
+      events.push("render 1");
+      yield page({ original: null });
+      events.push("render 2");
+      yield page({ original: null });
+    }
+    await save(rendering());
+    expect(events).toEqual(["render 1", "upload", "render 2", "upload"]);
+  });
+
+  it("removes the uploads when the API rejects the document", async () => {
+    m.post.mockRejectedValue(
+      new ApiClientError({ message: "Internal server error", status: 500 }),
+    );
     await expect(save([page()])).resolves.toBe(false);
     expect(m.remove).toHaveBeenCalledWith(
       m.upload.mock.calls.map(([key]) => key),
@@ -104,6 +133,34 @@ describe("useSaveScannedDocument", () => {
     expect(m.error).toHaveBeenCalledWith(
       "Couldn't save the document. Please try again.",
     );
+  });
+
+  it("keeps the files when the save's outcome is unknown (e.g. connection dropped)", async () => {
+    m.post.mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(save([page()])).resolves.toBe(false);
+    expect(m.remove).not.toHaveBeenCalled();
+    expect(m.error).toHaveBeenCalledWith(
+      expect.stringMatching(/Couldn't confirm the document saved/),
+    );
+  });
+
+  it("removes what was uploaded when rendering a later page fails", async () => {
+    async function* rendering() {
+      yield page({ original: null });
+      throw new Error("render failed");
+    }
+    await expect(save(rendering())).resolves.toBe(false);
+    expect(m.remove).toHaveBeenCalledWith([m.upload.mock.calls[0][0]]);
+    expect(m.post).not.toHaveBeenCalled();
+  });
+
+  it("reports when the uploads of an unsaved document can't be removed", async () => {
+    m.post.mockRejectedValue(
+      new ApiClientError({ message: "Bad request", status: 400 }),
+    );
+    m.remove.mockResolvedValue({ error: new Error("storage down") });
+    await save([page()]);
+    expect(m.capture).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it("removes what was uploaded when a later upload fails", async () => {
@@ -116,7 +173,9 @@ describe("useSaveScannedDocument", () => {
   });
 
   it("explains the daily limit when it's reached", async () => {
-    m.post.mockRejectedValue(new Error("429"));
+    m.post.mockRejectedValue(
+      new ApiClientError({ message: "limit", status: 429 }),
+    );
     m.isDailyLimitError.mockReturnValue(true);
     await save([page()]);
     expect(m.error).toHaveBeenCalledWith(expect.stringMatching(/daily limit/i));

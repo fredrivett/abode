@@ -153,7 +153,7 @@ describe("transcribeDocumentWithOpenAI", () => {
     create.mockResolvedValueOnce(page("stop", "text"));
     await transcribeDocumentWithOpenAI(Buffer.from("x"));
     const [args] = create.mock.calls[0] as [{ max_tokens: number }];
-    expect(args.max_tokens).toBeGreaterThanOrEqual(4000);
+    expect(args.max_tokens).toBeGreaterThanOrEqual(8000);
     expect(promptOfCall(0)).toMatch(/Transcribe all the text/);
   });
 
@@ -162,6 +162,8 @@ describe("transcribeDocumentWithOpenAI", () => {
     const result = await transcribeDocumentWithOpenAI(Buffer.from("x"));
     expect(result.text).toBe("First half of the page");
     expect(result.truncated).toBe(true);
+    // The truncated call is still billed
+    expect(result.usage).toEqual({ promptTokens: 1100, completionTokens: 700 });
   });
 
   it("returns empty text for a page with none", async () => {

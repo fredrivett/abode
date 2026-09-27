@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { api, isDailyLimitError } from "@/lib/api-client";
+import { ApiClientError, api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
 import type { CreateDocumentBody } from "@/lib/documents/create-document-schema";
 import { getImagePreview } from "@/lib/image-preview";
@@ -27,9 +28,15 @@ async function coverBlur(page: FinishedScanPage): Promise<string | undefined> {
 
 /**
  * Saves a scanned document: uploads each page (and its colour original) to
- * storage, then creates the document item. If anything fails, the uploaded
- * files are removed again. Reports its own success/errors via toasts and
- * resolves whether it saved.
+ * storage as it's rendered — so only one page's images are held at a time —
+ * then creates the document item. Reports its own success/errors via toasts
+ * and resolves whether it saved.
+ *
+ * Uploaded files are removed again only when the document definitely wasn't
+ * created: an upload/render failure, or the API answering with an error. If
+ * the request itself failed (e.g. the connection dropped) the document may
+ * have been created, so its files are left in place rather than risk breaking
+ * it.
  */
 export function useSaveScannedDocument() {
   const supabase = useMemo(() => createClient(), []);
@@ -38,8 +45,26 @@ export function useSaveScannedDocument() {
   const pathname = usePathname();
 
   return useCallback(
-    async (pages: FinishedScanPage[]): Promise<boolean> => {
+    async (
+      pages: AsyncIterable<FinishedScanPage>,
+      { pageCount }: { pageCount: number },
+    ): Promise<boolean> => {
       const uploaded: string[] = [];
+      let requestSent = false;
+
+      const removeUploaded = async () => {
+        if (uploaded.length === 0) return;
+        const { error } = await supabase.storage.from("items").remove(uploaded);
+        if (error) {
+          // Orphaned files in the user's own folder; report so it's visible
+          log.warn(
+            { error },
+            "Failed to remove uploads of an unsaved document",
+          );
+          posthog.captureException(error);
+        }
+      };
+
       try {
         const {
           data: { user },
@@ -61,7 +86,9 @@ export function useSaveScannedDocument() {
         };
 
         const bodyPages: CreateDocumentBody["pages"] = [];
-        for (const page of pages) {
+        let blurDataUrl: string | undefined;
+        for await (const page of pages) {
+          if (bodyPages.length === 0) blurDataUrl = await coverBlur(page);
           const fileKey = await upload(page.image);
           const originalFileKey = page.original
             ? await upload(page.original)
@@ -76,17 +103,17 @@ export function useSaveScannedDocument() {
           });
         }
 
-        const blurDataUrl = await coverBlur(pages[0]);
         const body: CreateDocumentBody = {
           pages: bodyPages,
           ...(blurDataUrl ? { blurDataUrl } : {}),
         };
+        requestSent = true;
         await api.post("/api/v1/items/documents", body);
 
         toast.success(
-          pages.length === 1
+          pageCount === 1
             ? "Document saved"
-            : `Document saved (${pages.length} pages)`,
+            : `Document saved (${pageCount} pages)`,
         );
         if (pathname === "/" || pathname.startsWith("/dashboard")) {
           invalidateItems();
@@ -96,14 +123,19 @@ export function useSaveScannedDocument() {
         return true;
       } catch (error) {
         log.error({ error }, "Failed to save scanned document");
-        if (uploaded.length > 0) {
-          await supabase.storage.from("items").remove(uploaded);
+        const definitelyNotSaved =
+          !requestSent || error instanceof ApiClientError;
+        if (definitelyNotSaved) await removeUploaded();
+
+        if (isDailyLimitError(error)) {
+          toast.error(DAILY_LIMIT_REACHED_MESSAGE);
+        } else if (definitelyNotSaved) {
+          toast.error("Couldn't save the document. Please try again.");
+        } else {
+          toast.error(
+            "Couldn't confirm the document saved. Check your items before saving again.",
+          );
         }
-        toast.error(
-          isDailyLimitError(error)
-            ? DAILY_LIMIT_REACHED_MESSAGE
-            : "Couldn't save the document. Please try again.",
-        );
         return false;
       }
     },

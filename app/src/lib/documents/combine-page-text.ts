@@ -23,5 +23,7 @@ export function combinePageText({
     .filter((pageText): pageText is string => Boolean(pageText))
     .join("\n\n");
   if (!text) return null;
-  return text.length > maxChars ? text.slice(0, maxChars) : text;
+  if (text.length <= maxChars) return text;
+  // Cut on code points, so the cap never splits a character (e.g. an emoji)
+  return [...text].slice(0, maxChars).join("");
 }

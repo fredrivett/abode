@@ -63,6 +63,7 @@ describe("DELETE /api/v1/items", () => {
       `${USER}/p1-c.jpg`,
       `${USER}/p2.jpg`,
     ]);
+    expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "doc-1" } });
     expect(m.userUpdate).toHaveBeenCalledWith({
       where: { id: USER },
       data: {
@@ -82,6 +83,7 @@ describe("DELETE /api/v1/items", () => {
     });
     await call("img-1");
     expect(m.remove).toHaveBeenCalledWith([`${USER}/photo.jpg`]);
+    expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "img-1" } });
   });
 
   it("doesn't touch storage for an item without files", async () => {
@@ -107,5 +109,6 @@ describe("DELETE /api/v1/items", () => {
     });
     expect((await call("x")).status).toBe(403);
     expect(m.remove).not.toHaveBeenCalled();
+    expect(m.itemDelete).not.toHaveBeenCalled();
   });
 });

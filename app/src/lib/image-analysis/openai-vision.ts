@@ -163,8 +163,8 @@ export async function analyzeImageWithOpenAI(
   }
 }
 
-/** Output budget for transcribing one dense page (~3k words) */
-const DOCUMENT_OCR_MAX_TOKENS = 4096;
+/** Output budget for transcribing one dense page (~6k words) */
+const DOCUMENT_OCR_MAX_TOKENS = 8192;
 
 const DOCUMENT_OCR_PROMPT = `Transcribe all the text on this scanned document page, top to bottom, in reading order.
 - Output only the transcribed text: no commentary, headings of your own or Markdown fences

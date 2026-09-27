@@ -84,7 +84,12 @@ describe("POST /api/v1/items/documents", () => {
       },
     ],
     ["an unknown filter", { pages: [{ ...page(1), filter: "sepia" }] }],
-    ["a non-positive size", { pages: [{ ...page(1), width: 0 }] }],
+    ["a non-positive width", { pages: [{ ...page(1), width: 0 }] }],
+    ["a negative size", { pages: [{ ...page(1), size: -1 }] }],
+    [
+      "a height past the database's int range",
+      { pages: [{ ...page(1), height: 2_147_483_648 }] },
+    ],
     ["a malformed body", null],
   ])("rejects %s without counting it", async (_label, body) => {
     const res = await call(body);

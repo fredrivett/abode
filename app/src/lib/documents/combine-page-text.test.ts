@@ -32,6 +32,15 @@ describe("combinePageText", () => {
     ).toBeNull();
   });
 
+  it("never splits a character when truncating", () => {
+    expect(
+      combinePageText({
+        pages: [{ position: 0, ocrText: "ab😀cd" }],
+        maxChars: 3,
+      }),
+    ).toBe("ab😀");
+  });
+
   it("truncates to the cap", () => {
     expect(
       combinePageText({

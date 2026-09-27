@@ -12,8 +12,9 @@ const pageSchema = z.object({
   /** The flattened colour page (same key as `fileKey` for colour pages) */
   originalFileKey: z.string().min(1),
   filter: z.enum(["bw", "grey", "original"]),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  // Bounded to Postgres int, so a bad value is a 400 rather than a failed insert
+  width: z.number().int().positive().max(2_147_483_647),
+  height: z.number().int().positive().max(2_147_483_647),
   /** Bytes uploaded for this page (both files), for storage accounting */
   size: z.number().int().nonnegative(),
 });

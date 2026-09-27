@@ -128,12 +128,17 @@ test.describe("Document scanner", () => {
     const document = items.find(
       (item: { kind: string }) => item.kind === "document",
     );
-    expect(document.meta).toMatchObject({ pageCount: 1, type: "image/jpeg" });
-    expect(uploads).toContain(document.fileKey);
-
-    const deleted = await page.request.delete("/api/v1/items", {
-      data: { id: document.id },
-    });
-    expect(deleted.status()).toBe(200);
+    expect(document).toBeTruthy();
+    try {
+      expect(document.meta).toMatchObject({ pageCount: 1, type: "image/jpeg" });
+      expect(uploads).toContain(document.fileKey);
+    } finally {
+      // Always clean up, so a failed assertion can't leave a document behind
+      // for later tests to trip over
+      const deleted = await page.request.delete("/api/v1/items", {
+        data: { id: document.id },
+      });
+      expect(deleted.status()).toBe(200);
+    }
   });
 });

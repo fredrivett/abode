@@ -27,7 +27,7 @@ export async function enqueueDocumentAnalysis(params: {
       "Failed to enqueue document analysis",
     );
     captureServerException(error, params.userId, {
-      route: "POST /api/v1/documents",
+      route: "POST /api/v1/items/documents",
       stage: "trigger:analyze-document",
       itemId: params.itemId,
     });

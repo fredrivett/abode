@@ -192,6 +192,28 @@ describe("analyzeDocumentTask", () => {
     );
   });
 
+  it("fails a document that has no pages", async () => {
+    m.findPages.mockResolvedValue([]);
+    await expect(run()).rejects.toThrow("Document has no pages");
+    expect(m.updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ processingStatus: "failed" }),
+      }),
+    );
+    expect(m.trigger).not.toHaveBeenCalled();
+  });
+
+  it("still completes when the visual vector can't be stored", async () => {
+    m.upsertVisualVector.mockRejectedValue(new Error("pgvector down"));
+    await expect(run()).resolves.toMatchObject({ success: true });
+    expect(m.capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      "user-1",
+      expect.objectContaining({ source: "analyze-document:visual-embedding" }),
+    );
+    expect(m.trigger).toHaveBeenCalledWith("enrich-item", expect.anything());
+  });
+
   it("marks the item failed and rethrows when a page can't be downloaded", async () => {
     m.download.mockResolvedValue({ data: null, error: new Error("gone") });
     await expect(run()).rejects.toThrow(/Failed to download/);

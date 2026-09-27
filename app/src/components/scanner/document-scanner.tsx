@@ -55,14 +55,19 @@ interface PageCapture {
   mode: CameraCapture["mode"] | "import";
 }
 
+type SaveScannedPages = (
+  pages: AsyncIterable<FinishedScanPage>,
+  options: { pageCount: number },
+) => Promise<boolean>;
+
 interface DocumentScannerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /**
-   * Persists the rendered pages and reports its own errors; the scanner
-   * closes when it resolves true
+   * Persists the pages, rendered lazily as it iterates, and reports its own
+   * errors; the scanner closes when it resolves true
    */
-  onSave: (pages: FinishedScanPage[]) => Promise<boolean>;
+  onSave: SaveScannedPages;
 }
 
 /** Full-screen multi-page document scanner (camera → review → save) */
@@ -104,7 +109,7 @@ function ScannerSession({
   onSave,
 }: {
   onClose: () => void;
-  onSave: (pages: FinishedScanPage[]) => Promise<boolean>;
+  onSave: SaveScannedPages;
 }) {
   const [client, setClient] = useState<ScannerClient | null>(null);
   const [ready, setReady] = useState(false);
@@ -273,34 +278,37 @@ function ScannerSession({
     }
   };
 
+  /** Renders each page as it's asked for, so they're never all in memory */
+  async function* renderFinishedPages(
+    scanner: ScannerClient,
+  ): AsyncGenerator<FinishedScanPage> {
+    for (const page of pages) {
+      const image = await scanner.render(page);
+      const original =
+        page.filter === "original"
+          ? null
+          : await scanner.render({ ...page, filter: "original" });
+      yield {
+        image: image.blob,
+        original: original?.blob ?? null,
+        filter: page.filter,
+        width: image.width,
+        height: image.height,
+      };
+    }
+  }
+
   const save = async () => {
     if (!client) return;
     setSaving(true);
     try {
-      // One page at a time, to bound memory on phones
-      const finished: FinishedScanPage[] = [];
-      for (const page of pages) {
-        const image = await client.render(page);
-        const original =
-          page.filter === "original"
-            ? null
-            : await client.render({ ...page, filter: "original" });
-        finished.push({
-          image: image.blob,
-          original: original?.blob ?? null,
-          filter: page.filter,
-          width: image.width,
-          height: image.height,
-        });
-      }
-      if (await onSave(finished)) {
+      const saved = await onSave(renderFinishedPages(client), {
+        pageCount: pages.length,
+      });
+      if (saved) {
         posthog.capture("document_scan_saved", { page_count: pages.length });
         onClose();
       }
-    } catch (error) {
-      log.error({ error }, "Failed to prepare scanned pages");
-      posthog.captureException(error);
-      toast.error("Couldn't save the document. Please try again.");
     } finally {
       setSaving(false);
     }

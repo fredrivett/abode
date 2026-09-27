@@ -2,10 +2,10 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
-import { documentFileKeys } from "@/lib/documents/create-document-schema";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
+import { deleteOwnedItem } from "@/lib/items/delete-item";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -435,38 +435,15 @@ export async function DELETE(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if item exists and belongs to user
-    const existingItem = await db.item.findUnique({
-      where: {
-        id,
-        userId: user.id,
-      },
-      include: {
-        documentPages: { select: { fileKey: true, originalFileKey: true } },
-      },
+    // Someone else's item is indistinguishable from a missing one here
+    const result = await deleteOwnedItem({
+      supabase,
+      itemId: id,
+      userId: user.id,
     });
-
-    if (!existingItem) {
+    if (result !== "deleted") {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
-
-    // A document's page files would otherwise outlive it (the rows cascade)
-    const pageKeys = documentFileKeys(existingItem.documentPages);
-    if (pageKeys.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from("items")
-        .remove(pageKeys);
-      if (storageError) {
-        log.error(
-          { itemId: id, error: storageError },
-          "Document page storage deletion error",
-        );
-      }
-    }
-
-    await db.item.delete({
-      where: { id },
-    });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
