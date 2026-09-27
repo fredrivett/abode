@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
+import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
 import { roomItemSelect, toClientRoomItem } from "@/lib/rooms/room-item-query";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
@@ -12,7 +13,12 @@ const PAGE_SIZE = 100;
 type RouteParams = { params: Promise<{ id: string }> };
 
 /**
- * GET /api/v1/rooms/:id/items - Get paginated items in a room
+ * GET /api/v1/rooms/:id/items - Get paginated items in a room.
+ *
+ * Mirrors the room page's access: the owner sees every item; anyone else
+ * (signed in or not) can page through a public room's publicly viewable
+ * items. A private room is a 404 to non-owners, so its existence isn't
+ * revealed.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -20,25 +26,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await createClient();
     const {
       data: { user },
-      error: authError,
     } = await getUserWithMfa(supabase);
+    const viewerId = user?.id ?? null;
 
-    if (authError || !user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if room exists and belongs to user
     const room = await db.room.findUnique({
-      where: {
-        id,
-        userId: user.id,
-      },
-      select: { id: true },
+      where: { id },
+      select: { id: true, userId: true, visibility: true },
     });
 
-    if (!room) {
+    if (!room || !canViewRoom({ room, viewerId })) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
     }
+    const isOwner = room.userId === viewerId;
 
     // Parse pagination params
     const { searchParams } = new URL(request.url);
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Get room items with their associated items
     const roomItems = await db.roomItem.findMany({
-      where: { roomId: id },
+      where: viewableRoomItemsWhere({ roomId: room.id, isOwner }),
       take: limit + 1, // Get one extra to determine if there are more
       ...(cursor && {
         cursor: { id: cursor },

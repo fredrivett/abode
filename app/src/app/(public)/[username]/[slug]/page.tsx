@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { signOut } from "@/lib/actions/auth";
 import db from "@/lib/db";
+import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
 import { roomItemSelect, toClientRoomItem } from "@/lib/rooms/room-item-query";
 import type { Filter } from "@/lib/search/types";
 import { getAuthenticatedUser } from "@/lib/user";
@@ -119,22 +120,15 @@ export default async function RoomPage({ params }: Props) {
   const currentUser = await getAuthenticatedUser();
   const isOwner = currentUser?.id === room.userId;
 
-  // Private rooms are only visible to owner
-  if (room.visibility === "private" && !isOwner) {
+  if (!canViewRoom({ room, viewerId: currentUser?.id ?? null })) {
     notFound();
   }
 
   const PAGE_SIZE = 100;
 
-  // Fetch room items with their associated items. Non-owners only see items
-  // that are actually publicly viewable in this room: an item opted out of
-  // public rooms (`excludeFromPublicRooms`) isn't viewable per `canViewItem`,
-  // so it must not appear here — otherwise its now-public reading data leaks.
+  // Non-owners only see publicly viewable items (see viewableRoomItemsWhere)
   const roomItems = await db.roomItem.findMany({
-    where: {
-      roomId: room.id,
-      ...(isOwner ? {} : { item: { excludeFromPublicRooms: false } }),
-    },
+    where: viewableRoomItemsWhere({ roomId: room.id, isOwner }),
     take: PAGE_SIZE + 1,
     orderBy: { addedAt: "desc" },
     select: roomItemSelect,
@@ -154,7 +148,7 @@ export default async function RoomPage({ params }: Props) {
   const itemCount = isOwner
     ? room._count.roomItems
     : await db.roomItem.count({
-        where: { roomId: room.id, item: { excludeFromPublicRooms: false } },
+        where: viewableRoomItemsWhere({ roomId: room.id, isOwner }),
       });
 
   const roomForClient = {
