@@ -9,9 +9,11 @@ language js
 // Scoped by an `overrides` entry in biome.json to `src/**`, exempting
 // json-ld.tsx itself. Biome 2.2 can't suppress plugin diagnostics with
 // `biome-ignore`, so a genuine exception must be exempted by path there.
-// Matches the JSX attribute and plain string literals (createElement, props)
+// Matches the JSX attribute (as a string or any expression, e.g. a template
+// literal) and plain string literals (createElement, props, constants)
 or {
   `type="application/ld+json"`,
+  `type={$value}` where { $value <: r".*application/ld\+json.*" },
   `"application/ld+json"`
 } as $type where {
   register_diagnostic(
