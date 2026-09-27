@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 // Scripts intentionally NOT in the Commands table (internal / rarely agent-run).
 // Adding a new script means either documenting it in AGENTS.md or listing it here.
 const UNDOCUMENTED_ALLOWLIST = new Set([
+  "postinstall",
   "start",
   "lint:all",
   "lint:suppressions",
