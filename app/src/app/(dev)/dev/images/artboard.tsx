@@ -15,6 +15,7 @@ import {
 } from "@/app/(marketing)/_components/gallery-card";
 import { GALLERY_CARDS } from "@/app/(marketing)/_components/gallery-data";
 import { Highlight } from "@/app/(marketing)/_components/highlight";
+import { applyThemePreference, getCurrentPreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { CardConfig, Design } from "./design";
 import { getFormat } from "./formats";
@@ -23,6 +24,18 @@ type Drag = { id: string; px: number; py: number; x: number; y: number };
 
 // Room left for the toolbar and buttons when fitting tall canvases on screen
 const PREVIEW_CHROME_PX = 160;
+
+/**
+ * Shows the page in the design's theme (the artboard reads the global theme
+ * tokens), restoring the app's own preference on the way out
+ */
+export function useDesignTheme(theme: Design["theme"]) {
+  useEffect(() => {
+    const previous = getCurrentPreference();
+    applyThemePreference(theme);
+    return () => applyThemePreference(previous);
+  }, [theme]);
+}
 
 /** The composed image: gallery cards behind the hero headline */
 export function Artboard({
@@ -102,6 +115,9 @@ export function Artboard({
               onPointerDown={(e) => onPointerDown(e, c)}
               onPointerMove={onPointerMove}
               onPointerUp={() => {
+                dragRef.current = null;
+              }}
+              onPointerCancel={() => {
                 dragRef.current = null;
               }}
               onKeyDown={(e) => onKeyDown(e, c)}

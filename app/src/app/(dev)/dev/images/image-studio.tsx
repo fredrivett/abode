@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { applyThemePreference } from "@/lib/theme";
 import { createDesign } from "./actions";
-import { Artboard } from "./artboard";
+import { Artboard, useDesignTheme } from "./artboard";
 import { type Design, defaultDesign, type SavedDesign } from "./design";
 import { DesignEditor } from "./design-editor";
 import { type FormatId, getFormat, IMAGE_FORMATS, isFormatId } from "./formats";
@@ -80,9 +79,7 @@ export function ImageStudio({
 
 /** Bare artboard at its native size — what exportDesignImage screenshots */
 function RenderView({ design }: { design: Design }) {
-  useEffect(() => {
-    applyThemePreference(design.theme);
-  }, [design.theme]);
+  useDesignTheme(design.theme);
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
@@ -108,21 +105,28 @@ function NewDesignButton() {
 
   const create = async () => {
     setCreating(true);
-    const result = await createDesign(
-      defaultDesign({
-        name: name.trim() || format.label,
-        format: formatId,
-        ...size,
-      }),
-    );
-    setCreating(false);
-    if (!result.slug) {
-      toast.error(`Couldn't create: ${result.error ?? "unknown error"}`);
-      return;
+    try {
+      const result = await createDesign(
+        defaultDesign({
+          name: name.trim() || format.label,
+          format: formatId,
+          ...size,
+        }),
+      );
+      if (!result.slug) {
+        toast.error(`Couldn't create: ${result.error ?? "unknown error"}`);
+        return;
+      }
+      setOpen(false);
+      setName("");
+      router.push(`?design=${result.slug}`);
+    } catch (error) {
+      toast.error(
+        `Couldn't create: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    } finally {
+      setCreating(false);
     }
-    setOpen(false);
-    setName("");
-    router.push(`?design=${result.slug}`);
   };
 
   return (

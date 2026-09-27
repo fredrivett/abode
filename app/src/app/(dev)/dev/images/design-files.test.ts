@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -32,6 +32,21 @@ describe("design files", () => {
     ]);
     await deleteDesign("zeta", dir);
     expect((await listDesigns(dir)).map((d) => d.slug)).toEqual(["alpha"]);
+  });
+
+  it("lands concurrent writes in call order, so a stale save can't win", async () => {
+    const stale = design("Stale");
+    const writes = Array.from({ length: 5 }, (_, i) =>
+      writeDesign(
+        { slug: "race", design: i === 4 ? design("Latest") : stale },
+        dir,
+      ),
+    );
+    await Promise.all(writes);
+    const saved = JSON.parse(
+      await readFile(path.join(dir, "race.json"), "utf8"),
+    );
+    expect(saved.name).toBe("Latest");
   });
 
   it("skips malformed and non-design files", async () => {

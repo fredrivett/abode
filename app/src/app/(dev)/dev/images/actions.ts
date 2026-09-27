@@ -91,8 +91,12 @@ export async function exportDesignImage(
   const input = parseInput({ slug, design });
   if ("error" in input) return input;
   const { width, height } = input.design;
-  // Saved first so the render view (which reads the file) matches the editor
-  await writeDesign({ slug, design: input.design });
+  try {
+    // Saved first so the render view (which reads the file) matches the editor
+    await writeDesign({ slug, design: input.design });
+  } catch (error) {
+    return { error: errorMessage(error, "Write failed") };
+  }
 
   // Dev-only dependency (via @playwright/test); Next keeps it out of the bundle
   const { chromium } = await import("playwright");
@@ -103,9 +107,14 @@ export async function exportDesignImage(
       viewport: { width, height },
       deviceScaleFactor: pixelRatio === 2 ? 2 : 1,
     });
-    await page.goto(`${getAppBaseUrl()}/dev/images?design=${slug}&render=1`, {
-      waitUntil: "networkidle",
-    });
+    const response = await page.goto(
+      `${getAppBaseUrl()}/dev/images?design=${slug}&render=1`,
+      { waitUntil: "networkidle" },
+    );
+    // goto resolves on error pages too — don't export a screenshot of one
+    if (!response?.ok()) {
+      throw new Error(`Render returned ${response?.status() ?? "no response"}`);
+    }
     await page.evaluate(() => document.fonts.ready);
     const png = await page.screenshot({ clip: { x: 0, y: 0, width, height } });
     return { png: png.toString("base64") };

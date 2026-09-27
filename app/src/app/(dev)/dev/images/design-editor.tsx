@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Switch } from "@/components/ui/switch";
-import { applyThemePreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import {
   createDesign,
@@ -22,7 +21,7 @@ import {
   exportDesignImage,
   saveDesign,
 } from "./actions";
-import { Artboard, ScaledPreview } from "./artboard";
+import { Artboard, ScaledPreview, useDesignTheme } from "./artboard";
 import { NumberSlider, Section, Toggle } from "./controls";
 import {
   type CardConfig,
@@ -65,8 +64,9 @@ export function DesignEditor({
   const latestRef = useRef(initial);
   const deletedRef = useRef(false);
 
+  useDesignTheme(design.theme);
+
   useEffect(() => {
-    applyThemePreference(design.theme);
     latestRef.current = design;
     const json = JSON.stringify(design);
     if (json === persistedRef.current) return;

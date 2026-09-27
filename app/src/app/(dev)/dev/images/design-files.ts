@@ -13,6 +13,10 @@ export const DESIGNS_DIR = path.join(
   "src/app/(dev)/dev/images/designs",
 );
 
+// Pending write per file — each write waits for the previous one, so saves
+// land in the order they were made
+const writeQueues = new Map<string, Promise<void>>();
+
 function designPath({ slug, dir }: { slug: string; dir: string }): string {
   if (!isValidSlug(slug)) throw new Error(`Invalid design slug: ${slug}`);
   return path.join(dir, `${slug}.json`);
@@ -41,11 +45,19 @@ export async function writeDesign(
   { slug, design }: SavedDesign,
   dir = DESIGNS_DIR,
 ): Promise<void> {
-  await mkdir(dir, { recursive: true });
-  await writeFile(
-    designPath({ slug, dir }),
-    `${JSON.stringify(design, null, 2)}\n`,
-  );
+  const file = designPath({ slug, dir });
+  const write = (writeQueues.get(file) ?? Promise.resolve())
+    .catch(() => {})
+    .then(async () => {
+      await mkdir(dir, { recursive: true });
+      await writeFile(file, `${JSON.stringify(design, null, 2)}\n`);
+    });
+  writeQueues.set(file, write);
+  try {
+    await write;
+  } finally {
+    if (writeQueues.get(file) === write) writeQueues.delete(file);
+  }
 }
 
 export async function deleteDesign(

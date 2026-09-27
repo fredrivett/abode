@@ -59,6 +59,17 @@ describe("defaultDesign", () => {
     expect(design.cardWidth).toBeLessThan(347);
     expect(design.textWidth).toBeLessThanOrEqual(600);
   });
+
+  it("keeps a positive text width on canvases narrower than its margin", () => {
+    const design = defaultDesign({
+      name: "Sliver",
+      format: "custom",
+      width: 50,
+      height: 50,
+    });
+    expect(design.textWidth).toBeGreaterThan(0);
+    expect(parseDesign(JSON.stringify(design))).not.toBeNull();
+  });
 });
 
 describe("parseDesign", () => {
@@ -70,6 +81,11 @@ describe("parseDesign", () => {
         JSON.stringify({ ...defaultDesign(X_HEADER), format: "billboard" }),
       ),
     ).toBeNull();
+    for (const field of ["cardWidth", "textWidth"]) {
+      expect(
+        parseDesign(JSON.stringify({ ...defaultDesign(X_HEADER), [field]: 0 })),
+      ).toBeNull();
+    }
   });
 
   it("round-trips a saved design", () => {
