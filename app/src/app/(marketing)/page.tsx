@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { JsonLd } from "@/components/seo/json-ld";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { GITHUB_URL } from "@/lib/github";
+import { homepageStructuredData } from "@/lib/seo/structured-data";
+import { getAppBaseUrl } from "@/lib/url";
 import { AccountDeletedToast } from "./_components/account-deleted-toast";
 import { ClosingCta } from "./_components/closing-cta";
 import { DemoSearchProvider } from "./_components/demo-search-context";
@@ -31,6 +34,12 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <DemoSearchProvider>
+      <JsonLd
+        data={homepageStructuredData({
+          baseUrl: getAppBaseUrl(),
+          description: DESCRIPTION,
+        })}
+      />
       <div className="flex flex-1 flex-col items-center">
         <Suspense>
           <AccountDeletedToast />
