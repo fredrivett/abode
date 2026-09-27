@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Filter, SearchState } from "@/lib/search/types";
 import { SearchInput } from "./search-input";
 
@@ -99,4 +101,65 @@ describe("SearchInput global escape (focusShortcut)", () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(onChange).not.toHaveBeenCalled();
   });
+});
+
+describe("SearchInput shortcut hint", () => {
+  const originalNavigator = global.navigator;
+  const MAC = { platform: "MacIntel", userAgent: "" };
+  const LINUX = { platform: "Linux x86_64", userAgent: "" };
+  const input = (
+    <SearchInput
+      value={{ query: "", filters: [] }}
+      onChange={vi.fn()}
+      focusShortcut
+    />
+  );
+
+  afterEach(() => {
+    vi.stubGlobal("navigator", originalNavigator);
+    document.body.innerHTML = "";
+  });
+
+  const hintKeys = () =>
+    Array.from(document.querySelectorAll("[data-slot=kbd]")).map(
+      (kbd) => kbd.textContent,
+    );
+
+  it("shows ⌘ on Apple platforms", () => {
+    vi.stubGlobal("navigator", MAC);
+    render(input);
+    expect(hintKeys()).toEqual(["⌘", "⇧", "K"]);
+  });
+
+  it("shows Ctrl on other platforms", () => {
+    vi.stubGlobal("navigator", LINUX);
+    render(input);
+    expect(hintKeys()).toEqual(["Ctrl", "⇧", "K"]);
+  });
+
+  // The production case: the server (Linux) and the browser (Mac, or vice
+  // versa locally) disagree on the platform
+  it.each([
+    { server: LINUX, client: MAC, expected: "⌘" },
+    { server: MAC, client: LINUX, expected: "Ctrl" },
+  ])(
+    "hydrates without a mismatch, then shows $expected",
+    async ({ server, client, expected }) => {
+      vi.stubGlobal("navigator", server);
+      const container = document.createElement("div");
+      container.innerHTML = renderToString(input);
+      document.body.appendChild(container);
+
+      vi.stubGlobal("navigator", client);
+      const errors: unknown[] = [];
+      await act(async () => {
+        hydrateRoot(container, input, {
+          onRecoverableError: (error) => errors.push(error),
+        });
+      });
+
+      expect(errors).toEqual([]);
+      expect(hintKeys()).toEqual([expected, "⇧", "K"]);
+    },
+  );
 });
