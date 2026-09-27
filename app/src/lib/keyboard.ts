@@ -77,7 +77,7 @@ export function getModifierKey(
  * Don't call this during render — on the server it reflects the server's OS
  * and causes a hydration mismatch. Components use `useModifierKeySymbol()`
  * (`@/hooks/use-modifier-key-symbol`), enforced by
- * `biome/no-render-modifier-symbol.grit`.
+ * `biome/no-render-platform-detection.grit`.
  */
 export function getModifierKeySymbol(): string {
   return isApplePlatform() ? "⌘" : "Ctrl";

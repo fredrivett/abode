@@ -103,7 +103,7 @@
     },
     {
       "includes": ["src/**/*.tsx"],
-      "plugins": ["./biome/no-render-modifier-symbol.grit"]
+      "plugins": ["./biome/no-render-platform-detection.grit"]
     }
   ],
   "assist": {

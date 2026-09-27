@@ -1,18 +1,25 @@
 language js
 
-// getModifierKeySymbol() reads `navigator`, which on the server (Node 21+)
-// reflects the server's OS: a Linux render says "Ctrl", a Mac browser says "⌘",
-// and hydration fails. Components must use useModifierKeySymbol()
+// Platform detection reads `navigator`, which on the server (Node 21+) reflects
+// the server's OS: a Linux render says "Ctrl", a Mac browser says "⌘", and
+// hydration fails. Components render the modifier via useModifierKeySymbol()
 // (@/hooks/use-modifier-key-symbol), which renders a stable symbol for SSR and
-// hydration, then the real one.
+// hydration, then the real one; other platform-dependent UI should follow the
+// same useSyncExternalStore server-snapshot pattern.
 //
 // Scoped by an `overrides` entry in biome.json to `src/**/*.tsx` — the hook
-// itself (a .ts file) is the one sanctioned caller. Event handlers use
-// matchesShortcut/getModifierKey, which only run in the browser.
-`getModifierKeySymbol()` as $call where {
+// and @/lib/keyboard are .ts files. Grit can't tell render from an event
+// handler, so this flags every read; handlers use matchesShortcut /
+// getModifierKey, which only run in the browser.
+or {
+  `getModifierKeySymbol()`,
+  `isApplePlatform()`,
+  `navigator.$prop` where { $prop <: or { `platform`, `userAgent`, `userAgentData` } },
+  `$owner.navigator.$prop` where { $prop <: or { `platform`, `userAgent`, `userAgentData` } }
+} as $read where {
   register_diagnostic(
-    span=$call,
-    message="Don't render getModifierKeySymbol() — it causes a hydration mismatch. Use useModifierKeySymbol() from `@/hooks/use-modifier-key-symbol`.",
+    span=$read,
+    message="Don't detect the platform during render — `navigator` reports the server's OS during SSR, causing a hydration mismatch. Use useModifierKeySymbol() from `@/hooks/use-modifier-key-symbol` (or its useSyncExternalStore server-snapshot pattern).",
     severity="error"
   )
 }
