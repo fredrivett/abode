@@ -10,6 +10,7 @@ import { SessionStateReset } from "@/components/session/session-state-reset";
 import { APP_NAME } from "@/lib/app";
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
+import { X_HANDLE } from "@/lib/social";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import { getAppBaseUrl } from "@/lib/url";
 
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
   },
   description: "the home for your info",
   applicationName: APP_NAME,
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", site: `@${X_HANDLE}` },
   icons: {
     icon: [
       {

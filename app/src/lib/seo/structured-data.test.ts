@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GITHUB_URL } from "@/lib/github";
+import { X_URL } from "@/lib/social";
 import { homepageStructuredData, serializeJsonLd } from "./structured-data";
 
 describe("homepageStructuredData", () => {
@@ -8,13 +9,13 @@ describe("homepageStructuredData", () => {
     description: "the home for your info",
   });
 
-  it("describes the organization with absolute URLs and the GitHub repo", () => {
+  it("describes the organization with absolute URLs and its GitHub and X profiles", () => {
     expect(data["@graph"][0]).toMatchObject({
       "@type": "Organization",
       "@id": "https://www.abode.fyi/#organization",
       url: "https://www.abode.fyi/",
       logo: "https://www.abode.fyi/icons/icon-512.png",
-      sameAs: [GITHUB_URL],
+      sameAs: [GITHUB_URL, X_URL],
     });
   });
 

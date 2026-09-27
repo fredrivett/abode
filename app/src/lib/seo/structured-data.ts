@@ -1,5 +1,6 @@
 import { APP_NAME } from "@/lib/app";
 import { GITHUB_URL } from "@/lib/github";
+import { X_URL } from "@/lib/social";
 
 /**
  * Schema.org graph for the homepage: who publishes the site (Organization)
@@ -24,7 +25,7 @@ export function homepageStructuredData({
         name: APP_NAME,
         url: `${baseUrl}/`,
         logo: `${baseUrl}/icons/icon-512.png`,
-        sameAs: [GITHUB_URL],
+        sameAs: [GITHUB_URL, X_URL],
       },
       {
         "@type": "WebSite",
