@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   preview: vi.fn(),
   isDailyLimitError: vi.fn(),
   capture: vi.fn(),
+  markComplete: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,6 +28,9 @@ vi.mock("@/lib/api-client", async (importOriginal) => ({
   isDailyLimitError: m.isDailyLimitError,
 }));
 vi.mock("posthog-js", () => ({ default: { captureException: m.capture } }));
+vi.mock("@/stores/milestone-store", () => ({
+  useMilestoneStore: { getState: () => ({ markComplete: m.markComplete }) },
+}));
 vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => m.invalidate }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -104,6 +108,7 @@ describe("useSaveScannedDocument", () => {
     expect(body.pages[1].originalFileKey).toBe(body.pages[1].fileKey);
     expect(m.success).toHaveBeenCalledWith("Document saved (2 pages)");
     expect(m.invalidate).toHaveBeenCalled();
+    expect(m.markComplete).toHaveBeenCalledWith("scan_first_document");
   });
 
   it("uploads each page as it's rendered, before the next is rendered", async () => {
@@ -130,6 +135,7 @@ describe("useSaveScannedDocument", () => {
     expect(m.remove).toHaveBeenCalledWith(
       m.upload.mock.calls.map(([key]) => key),
     );
+    expect(m.markComplete).not.toHaveBeenCalled();
     expect(m.error).toHaveBeenCalledWith(
       "Couldn't save the document. Please try again.",
     );

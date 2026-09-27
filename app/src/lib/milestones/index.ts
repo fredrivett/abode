@@ -13,6 +13,7 @@ export const MILESTONE_TYPES: MilestoneType[] = [
   "complete_profile",
   "upload_first_image",
   "save_first_url",
+  "scan_first_document",
   "see_ai_analysis",
   "search_items",
   "add_first_tag",
@@ -45,6 +46,11 @@ export const MILESTONE_CONFIG: Record<
   save_first_url: {
     label: "Save your first URL",
     destination: "/dashboard?action=upload",
+  },
+  scan_first_document: {
+    label: "Scan your first document",
+    // Opens the scanner straight away (see OpenScannerOnLoad)
+    destination: "/dashboard?action=scan",
   },
   see_ai_analysis: {
     label: "View AI analysis",

@@ -21,6 +21,7 @@ import {
   MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -48,7 +49,10 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const scannerAvailable = useScannerAvailable();
   const saveScannedDocument = useSaveScannedDocument();
-  const [scannerOpen, setScannerOpen] = useState(false);
+  const scannerOpen = useCommandPaletteStore((state) => state.scannerOpen);
+  const setScannerOpen = useCommandPaletteStore(
+    (state) => state.setScannerOpen,
+  );
 
   const handleClose = useCallback(() => {
     setUrl("");

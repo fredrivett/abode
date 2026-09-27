@@ -12,6 +12,7 @@ import { createLogger } from "@/lib/logger.client";
 import type { FinishedScanPage } from "@/lib/scanner/pages";
 import { createClient } from "@/lib/supabase/client";
 import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("hooks/use-save-scanned-document");
 
@@ -110,6 +111,7 @@ export function useSaveScannedDocument() {
         requestSent = true;
         await api.post("/api/v1/items/documents", body);
 
+        useMilestoneStore.getState().markComplete("scan_first_document");
         toast.success(
           pageCount === 1
             ? "Document saved"

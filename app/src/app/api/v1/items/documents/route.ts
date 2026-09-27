@@ -10,6 +10,7 @@ import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { enqueueDocumentAnalysis } from "@/lib/items/enqueue-document-analysis";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
       itemId: item.id,
       kind: "document",
     });
+    void markMilestoneComplete(user.id, "scan_first_document");
 
     return NextResponse.json(
       { ...item, pageCount: pages.length },
