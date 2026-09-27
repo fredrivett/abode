@@ -189,6 +189,7 @@ function BookDetailLoading() {
       itemId={item.id}
       bookDetails={item.bookDetails}
       title={item.title}
+      sourceUrl={item.sourceUrl}
       coverFileKey={item.coverFileKey}
       coverRatio={getBookCoverRatio(item.meta)}
       coverColor={getDominantCoverColor(item.colors)}

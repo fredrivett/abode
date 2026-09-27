@@ -37,4 +37,28 @@ describe("BookDetailPlaceholder", () => {
     );
     expect(screen.getByRole("img", { name: "T" })).toBeInTheDocument();
   });
+
+  it("includes the source link, like the view it stands in for", () => {
+    const { rerender } = render(
+      <BookDetailPlaceholder
+        itemId="b1"
+        bookDetails={book([])}
+        title="T"
+        sourceUrl="https://literal.club/book/t"
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://literal.club/book/t",
+    );
+    rerender(
+      <BookDetailPlaceholder
+        itemId="b1"
+        bookDetails={book([])}
+        title="T"
+        sourceUrl="not a url"
+      />,
+    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
 });

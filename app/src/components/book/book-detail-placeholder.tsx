@@ -1,12 +1,16 @@
+import { ViewOnButton } from "@/components/ui/view-on-button";
 import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { BookCover3D } from "./book-cover-3d";
 
 /**
- * Shown while the book view (a lazy chunk) loads: the same cover, title and
- * authors in BookDetailView's layout. The cover carries the grid card's
+ * Shown while the book view (a lazy chunk) loads: the same cover, title,
+ * authors and source link in BookDetailView's layout (the view is vertically
+ * centred, so leaving any of them out would jump the rest when it swaps in).
+ * The cover carries the grid card's
  * `layoutId`, so the card-to-dialog cover morph still lands on first open
  * (the grid already ships BookCover3D).
  */
@@ -14,6 +18,7 @@ export function BookDetailPlaceholder({
   itemId,
   bookDetails,
   title,
+  sourceUrl,
   coverFileKey,
   coverRatio = DEFAULT_BOOK_COVER_RATIO,
   coverColor,
@@ -22,6 +27,7 @@ export function BookDetailPlaceholder({
   itemId: string;
   bookDetails: BookDetails;
   title?: string | null;
+  sourceUrl?: string | null;
   coverFileKey?: string | null;
   coverRatio?: number;
   coverColor?: string;
@@ -62,6 +68,15 @@ export function BookDetailPlaceholder({
             </p>
           )}
         </div>
+
+        {sourceUrl && isValidUrl(sourceUrl) && (
+          <div className="flex items-center justify-center pt-2">
+            <ViewOnButton
+              href={sourceUrl}
+              label={bookDetails.domain ?? "site"}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
