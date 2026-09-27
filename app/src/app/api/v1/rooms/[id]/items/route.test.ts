@@ -18,10 +18,18 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-// Serialization is covered by room-item-query's own tests
+// Serialization is covered by room-item-query's own tests; here we pin that
+// the route uses the shared select + serializer (so loaded-more items match
+// the page's first page)
+const { SHARED_SELECT } = vi.hoisted(() => ({
+  SHARED_SELECT: { sharedSelect: true },
+}));
 vi.mock("@/lib/rooms/room-item-query", () => ({
-  roomItemSelect: {},
-  toClientRoomItem: (row: { id: string }) => ({ roomItemId: row.id }),
+  roomItemSelect: SHARED_SELECT,
+  toClientRoomItem: (row: { id: string }) => ({
+    roomItemId: row.id,
+    serializedBy: "toClientRoomItem",
+  }),
 }));
 
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
@@ -93,6 +101,29 @@ describe("GET /api/v1/rooms/:id/items", () => {
       expect((await get()).status).toBe(404);
     }
     expect(mockFindItems).not.toHaveBeenCalled();
+  });
+
+  it("queries with the shared select and serializes with the shared serializer", async () => {
+    signedInAs(null);
+    roomIs("public");
+    const res = await get();
+    expect(mockFindItems.mock.calls[0][0].select).toBe(SHARED_SELECT);
+    expect((await res.json()).items).toEqual([
+      { roomItemId: "ri-1", serializedBy: "toClientRoomItem" },
+      { roomItemId: "ri-2", serializedBy: "toClientRoomItem" },
+    ]);
+  });
+
+  it("returns a page and the cursor for the next when there are more", async () => {
+    signedInAs("owner");
+    roomIs("public");
+    mockFindItems.mockResolvedValue(
+      Array.from({ length: 101 }, (_, i) => ({ id: `ri-${i + 1}` })),
+    );
+    const body = await (await get()).json();
+    expect(body.items).toHaveLength(100);
+    expect(body.hasMore).toBe(true);
+    expect(body.nextCursor).toBe("ri-100");
   });
 
   it("404s a room that doesn't exist", async () => {
