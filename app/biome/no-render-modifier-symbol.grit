@@ -1,0 +1,18 @@
+language js
+
+// getModifierKeySymbol() reads `navigator`, which on the server (Node 21+)
+// reflects the server's OS: a Linux render says "Ctrl", a Mac browser says "⌘",
+// and hydration fails. Components must use useModifierKeySymbol()
+// (@/hooks/use-modifier-key-symbol), which renders a stable symbol for SSR and
+// hydration, then the real one.
+//
+// Scoped by an `overrides` entry in biome.json to `src/**/*.tsx` — the hook
+// itself (a .ts file) is the one sanctioned caller. Event handlers use
+// matchesShortcut/getModifierKey, which only run in the browser.
+`getModifierKeySymbol()` as $call where {
+  register_diagnostic(
+    span=$call,
+    message="Don't render getModifierKeySymbol() — it causes a hydration mismatch. Use useModifierKeySymbol() from `@/hooks/use-modifier-key-symbol`.",
+    severity="error"
+  )
+}
