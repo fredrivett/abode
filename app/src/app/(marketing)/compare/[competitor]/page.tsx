@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { COMPARISONS, comparePath, getComparison } from "@/lib/comparisons";
+import { COMPARISONS, getComparison } from "@/lib/comparisons";
+import { comparePath } from "@/lib/comparisons/paths";
 import { ComparisonPage } from "../_components/comparison-page";
 
 type Props = { params: Promise<{ competitor: string }> };

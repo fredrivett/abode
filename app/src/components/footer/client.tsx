@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { comparePath } from "@/lib/comparisons";
+import { comparePath } from "@/lib/comparisons/paths";
 import { AbodeLogo } from "../abode-logo";
 
 const TEXT = "your humble ";

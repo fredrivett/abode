@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { COMPARISONS, comparePath } from "@/lib/comparisons";
+import { COMPARISONS } from "@/lib/comparisons";
 import { ABODE_FACTS } from "@/lib/comparisons/abode";
+import { comparePath } from "@/lib/comparisons/paths";
 import { sharedFaqs } from "@/lib/comparisons/shared-faqs";
 import { COMPARISON_ROWS, type Comparison } from "@/lib/comparisons/types";
 import { ClosingCta } from "../../_components/closing-cta";

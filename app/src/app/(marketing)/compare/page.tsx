@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COMPARISONS, comparePath } from "@/lib/comparisons";
+import { COMPARISONS } from "@/lib/comparisons";
+import { comparePath } from "@/lib/comparisons/paths";
 import { ClosingCta } from "../_components/closing-cta";
 import { Highlight } from "../_components/highlight";
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { COMPARISONS, comparePath } from "@/lib/comparisons";
+import { COMPARISONS } from "@/lib/comparisons";
+import { comparePath } from "@/lib/comparisons/paths";
 import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
 
 /**
