@@ -37,13 +37,12 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
 
   // Public base URL of a self-hosted instance (e.g. https://abode.example.com).
-  // Unset → the hosted https://www.abode.fyi. See getAppBaseUrl() in lib/url.ts
-  NEXT_PUBLIC_SITE_URL: z
-    .string()
-    .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
-      message: "Must be a valid URL",
-    })
-    .optional(),
+  // Unset or blank → the hosted https://www.abode.fyi. See getAppBaseUrl() in
+  // lib/url.ts
+  NEXT_PUBLIC_SITE_URL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
 
   // PostHog (optional analytics)
   NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
