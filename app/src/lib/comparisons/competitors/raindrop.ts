@@ -39,6 +39,7 @@ export const raindrop: Comparison = {
     { label: "search", url: "https://help.raindrop.io/using-search" },
     { label: "export", url: "https://help.raindrop.io/export" },
     { label: "security", url: "https://help.raindrop.io/security" },
+    { label: "Raindrop on github", url: "https://github.com/raindropio" },
     { label: "public pages", url: "https://help.raindrop.io/public-page" },
   ],
   lastChecked: "2026-09-27",
