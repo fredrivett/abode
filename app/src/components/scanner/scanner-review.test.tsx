@@ -141,6 +141,22 @@ describe("ScannerReview", () => {
     );
   });
 
+  it("shows failed pages with a retry in arrange mode too", () => {
+    const { pages } = samplePages(3);
+    const onRetryPreview = vi.fn();
+    renderReview({
+      previews: new Map(),
+      failedPreviews: new Set([previewKey({ page: pages[2] })]),
+      onRetryPreview,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Arrange" }));
+    expect(screen.getByText("Couldn't prepare page")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try page 3 again" }));
+    expect(onRetryPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pages[2].id }),
+    );
+  });
+
   it("measures the carousel again after returning from arrange mode", () => {
     renderReview();
     const firstCarousel = FixedResizeObserver.observed.at(-1);

@@ -271,6 +271,8 @@ export function ScannerReview({
           <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {pages.map((page, index) => {
               const preview = previews.get(previewKey({ page }));
+              const failed =
+                !preview && failedPreviews.has(previewKey({ page }));
               return (
                 <li key={page.id} className="space-y-2">
                   <button
@@ -292,6 +294,10 @@ export function ScannerReview({
                         alt=""
                         className="max-h-full max-w-full object-contain shadow-lg"
                       />
+                    ) : failed ? (
+                      <span className="text-center text-white/70 text-xs">
+                        Couldn't prepare page
+                      </span>
                     ) : (
                       <IsLoading label="Loading" className="text-white/70" />
                     )}
@@ -307,7 +313,19 @@ export function ScannerReview({
                     >
                       <ChevronLeft />
                     </Button>
-                    {index + 1}
+                    {failed ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRetryPreview(page)}
+                        aria-label={`Try page ${index + 1} again`}
+                        className="text-white hover:bg-white/10 hover:text-white"
+                      >
+                        Try again
+                      </Button>
+                    ) : (
+                      index + 1
+                    )}
                     <Button
                       variant="ghost"
                       size="icon-sm"
