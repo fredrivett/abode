@@ -14,6 +14,16 @@ export interface ScanPage {
   filter: ScanFilter;
 }
 
+/** A page rendered for saving: the scan as shown, plus its colour original */
+export interface FinishedScanPage {
+  image: Blob;
+  /** The flattened colour page; null when `image` already is it */
+  original: Blob | null;
+  filter: ScanFilter;
+  width: number;
+  height: number;
+}
+
 export type PagesAction =
   | { type: "add"; page: ScanPage }
   | { type: "replace"; id: string; page: ScanPage }

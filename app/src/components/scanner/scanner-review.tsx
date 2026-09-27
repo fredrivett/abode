@@ -47,6 +47,8 @@ interface ScannerReviewProps {
   flight: PageFlight | null;
   onFlightEnd: () => void;
   onAddPage: () => void;
+  /** False once the document has the most pages allowed */
+  canAddPage: boolean;
   onRetake: (id: string) => void;
   onDelete: (id: string) => void;
   onRotate: (id: string) => void;
@@ -92,6 +94,7 @@ export function ScannerReview({
   flight,
   onFlightEnd,
   onAddPage,
+  canAddPage,
   onRetake,
   onDelete,
   onRotate,
@@ -241,7 +244,11 @@ export function ScannerReview({
                 ))}
               </fieldset>
               <div className="flex justify-around">
-                <ToolbarButton label="Add page" onClick={onAddPage}>
+                <ToolbarButton
+                  label="Add page"
+                  onClick={onAddPage}
+                  disabled={!canAddPage}
+                >
                   <FilePlus2 />
                 </ToolbarButton>
                 <ToolbarButton

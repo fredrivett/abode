@@ -52,6 +52,7 @@ function renderReview(
       activeId={pages[1].id}
       flight={null}
       saving={false}
+      canAddPage
       {...handlers}
       {...overrides}
     />,
@@ -166,5 +167,10 @@ describe("ScannerReview", () => {
     expect(secondCarousel).toBeDefined();
     expect(secondCarousel).not.toBe(firstCarousel);
     expect(secondCarousel?.isConnected).toBe(true);
+  });
+
+  it("disables adding pages at the page limit", () => {
+    renderReview({ canAddPage: false });
+    expect(screen.getByRole("button", { name: "Add page" })).toBeDisabled();
   });
 });

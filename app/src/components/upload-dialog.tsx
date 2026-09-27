@@ -12,9 +12,9 @@ import {
 import { useMediaQuery } from "usehooks-ts";
 import {
   LazyDocumentScanner,
-  saveScannedPages,
   useScannerAvailable,
 } from "@/components/scanner/scanner-entry";
+import { useSaveScannedDocument } from "@/hooks/use-save-scanned-document";
 import { useUpload } from "@/hooks/use-upload";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -47,6 +47,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const scannerAvailable = useScannerAvailable();
+  const saveScannedDocument = useSaveScannedDocument();
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const handleClose = useCallback(() => {
@@ -263,7 +264,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
         <LazyDocumentScanner
           open={scannerOpen}
           onOpenChange={setScannerOpen}
-          onSave={saveScannedPages}
+          onSave={saveScannedDocument}
         />
       ) : null}
     </>

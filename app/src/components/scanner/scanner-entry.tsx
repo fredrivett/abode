@@ -2,10 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { IsLoading } from "@/components/ui/is-loading";
 import { isCameraSupported } from "@/lib/scanner/camera";
-import type { ScanPage } from "@/lib/scanner/pages";
 import { useUserStore } from "@/stores/user-store";
 
 /** Full-screen placeholder while the scanner chunk downloads on first open */
@@ -50,12 +48,5 @@ export function useScannerAvailable(): boolean {
       isAdmin,
       isDevelopment: process.env.NODE_ENV === "development",
     })
-  );
-}
-
-/** Saving lands with the `document` item kind; until then, report what was scanned */
-export async function saveScannedPages(pages: ScanPage[]): Promise<void> {
-  toast.info(
-    `Scanned ${pages.length} ${pages.length === 1 ? "page" : "pages"}. Saving scans isn't available yet.`,
   );
 }

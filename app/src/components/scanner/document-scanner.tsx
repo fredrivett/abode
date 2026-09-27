@@ -22,10 +22,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { MAX_DOCUMENT_PAGES } from "@/lib/documents/create-document-schema";
 import { createLogger } from "@/lib/logger.client";
 import type { ScanFilter } from "@/lib/scanner/filters";
 import type { Quad } from "@/lib/scanner/geometry";
-import { pagesReducer, previewKey, type ScanPage } from "@/lib/scanner/pages";
+import {
+  type FinishedScanPage,
+  pagesReducer,
+  previewKey,
+  type ScanPage,
+} from "@/lib/scanner/pages";
 import { ScannerClient } from "@/lib/scanner/scanner-client";
 import {
   type CameraCapture,
@@ -52,8 +58,11 @@ interface PageCapture {
 interface DocumentScannerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Persists the scanned pages; the scanner closes once it resolves */
-  onSave: (pages: ScanPage[]) => Promise<void>;
+  /**
+   * Persists the rendered pages and reports its own errors; the scanner
+   * closes when it resolves true
+   */
+  onSave: (pages: FinishedScanPage[]) => Promise<boolean>;
 }
 
 /** Full-screen multi-page document scanner (camera → review → save) */
@@ -95,7 +104,7 @@ function ScannerSession({
   onSave,
 }: {
   onClose: () => void;
-  onSave: (pages: ScanPage[]) => Promise<void>;
+  onSave: (pages: FinishedScanPage[]) => Promise<boolean>;
 }) {
   const [client, setClient] = useState<ScannerClient | null>(null);
   const [ready, setReady] = useState(false);
@@ -265,13 +274,31 @@ function ScannerSession({
   };
 
   const save = async () => {
+    if (!client) return;
     setSaving(true);
     try {
-      await onSave(pages);
-      posthog.capture("document_scan_saved", { page_count: pages.length });
-      onClose();
+      // One page at a time, to bound memory on phones
+      const finished: FinishedScanPage[] = [];
+      for (const page of pages) {
+        const image = await client.render(page);
+        const original =
+          page.filter === "original"
+            ? null
+            : await client.render({ ...page, filter: "original" });
+        finished.push({
+          image: image.blob,
+          original: original?.blob ?? null,
+          filter: page.filter,
+          width: image.width,
+          height: image.height,
+        });
+      }
+      if (await onSave(finished)) {
+        posthog.capture("document_scan_saved", { page_count: pages.length });
+        onClose();
+      }
     } catch (error) {
-      log.error({ error }, "Failed to save scanned document");
+      log.error({ error }, "Failed to prepare scanned pages");
       posthog.captureException(error);
       toast.error("Couldn't save the document. Please try again.");
     } finally {
@@ -320,6 +347,7 @@ function ScannerSession({
             onActiveChange={setActiveId}
             flight={flight}
             onFlightEnd={() => setLandedId(flight?.pageId ?? null)}
+            canAddPage={pages.length < MAX_DOCUMENT_PAGES}
             onAddPage={() => {
               setRetakeId(null);
               setView("camera");

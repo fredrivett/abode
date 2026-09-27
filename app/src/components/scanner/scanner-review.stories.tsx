@@ -29,6 +29,7 @@ const meta = {
     onActiveChange: noop,
     onFlightEnd: noop,
     onAddPage: noop,
+    canAddPage: true,
     onRetake: noop,
     onDelete: noop,
     onRotate: noop,
