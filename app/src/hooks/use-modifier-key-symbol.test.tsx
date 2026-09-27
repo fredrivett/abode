@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { hydrateRoot } from "react-dom/client";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -8,6 +8,10 @@ import {
 } from "./use-modifier-key-symbol";
 
 const APPLE = { userAgentData: { platform: "macOS" } };
+
+// Hydrated roots aren't tracked by RTL's cleanup, so they're unmounted in
+// afterEach (even when a test fails)
+const hydratedRoots: Root[] = [];
 const NON_APPLE = { userAgentData: { platform: "Windows" } };
 
 function Probe({ onRender }: { onRender?: (symbol: string) => void }) {
@@ -36,10 +40,12 @@ async function serverRenderThenHydrate({
   const renders: string[] = [];
   const errors: unknown[] = [];
   await act(async () => {
-    hydrateRoot(
-      container,
-      <Probe onRender={(symbol) => renders.push(symbol)} />,
-      { onRecoverableError: (error) => errors.push(error) },
+    hydratedRoots.push(
+      hydrateRoot(
+        container,
+        <Probe onRender={(symbol) => renders.push(symbol)} />,
+        { onRecoverableError: (error) => errors.push(error) },
+      ),
     );
   });
 
@@ -50,6 +56,7 @@ describe("useModifierKeySymbol", () => {
   const originalNavigator = global.navigator;
 
   afterEach(() => {
+    for (const root of hydratedRoots.splice(0)) act(() => root.unmount());
     vi.stubGlobal("navigator", originalNavigator);
     document.body.innerHTML = "";
   });

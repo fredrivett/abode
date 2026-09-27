@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { hydrateRoot } from "react-dom/client";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Filter, SearchState } from "@/lib/search/types";
@@ -115,7 +115,12 @@ describe("SearchInput shortcut hint", () => {
     />
   );
 
+  // Hydrated roots aren't tracked by RTL's cleanup, so unmount them here
+  // (even when a test fails) to drop the focusShortcut document listeners
+  const hydratedRoots: Root[] = [];
+
   afterEach(() => {
+    for (const root of hydratedRoots.splice(0)) act(() => root.unmount());
     vi.stubGlobal("navigator", originalNavigator);
     document.body.innerHTML = "";
   });
@@ -153,9 +158,11 @@ describe("SearchInput shortcut hint", () => {
       vi.stubGlobal("navigator", client);
       const errors: unknown[] = [];
       await act(async () => {
-        hydrateRoot(container, input, {
-          onRecoverableError: (error) => errors.push(error),
-        });
+        hydratedRoots.push(
+          hydrateRoot(container, input, {
+            onRecoverableError: (error) => errors.push(error),
+          }),
+        );
       });
 
       expect(errors).toEqual([]);
