@@ -78,16 +78,29 @@ function matchRoute(
   return params;
 }
 
-// The page Next would serve for a path — static segments win over dynamic ones
+const isDynamicSegment = (segment: string) => /^\[.+\]$/.test(segment);
+
+// Like Next.js: at the first segment where two routes differ, static beats
+// dynamic ("/vs/[competitor]" over "/[username]/[slug]" for "/vs/mymind")
+function compareSpecificity(a: string, b: string): number {
+  const aSegments = a.split("/");
+  const bSegments = b.split("/");
+  for (const [i, aSegment] of aSegments.entries()) {
+    const aDynamic = isDynamicSegment(aSegment);
+    const bDynamic = isDynamicSegment(bSegments[i] ?? "");
+    if (aDynamic !== bDynamic) return aDynamic ? 1 : -1;
+  }
+  return 0;
+}
+
+// The page Next would serve for a path
 function resolvePage(path: string): ResolvedPage | undefined {
   return pages
     .flatMap((page) => {
       const params = matchRoute(page.route, path);
       return params ? [{ ...page, params }] : [];
     })
-    .sort(
-      (a, b) => Object.keys(a.params).length - Object.keys(b.params).length,
-    )[0];
+    .sort((a, b) => compareSpecificity(a.route, b.route))[0];
 }
 
 const sitemapFiles = new Set(
@@ -113,6 +126,12 @@ async function resolveMetadata(page: ResolvedPage): Promise<Metadata> {
 describe("route indexing", () => {
   it("finds the app's pages", () => {
     expect(pages.map((page) => page.route)).toContain("/");
+  });
+
+  it("resolves paths the way Next does — static segments first", () => {
+    expect(resolvePage("/vs")?.route).toBe("/vs");
+    expect(resolvePage("/vs/mymind")?.route).toBe("/vs/[competitor]");
+    expect(resolvePage("/@fred/books")?.route).toBe("/[username]/[slug]");
   });
 
   // A new page must be a deliberate choice: in search (sitemap), out of search
