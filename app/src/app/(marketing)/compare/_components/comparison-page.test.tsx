@@ -54,7 +54,7 @@ describe("ComparisonPage", () => {
 
     expect(
       screen.getByRole("link", { name: "abode vs mymind" }),
-    ).toHaveAttribute("href", "/vs/mymind");
+    ).toHaveAttribute("href", "/compare/mymind");
     expect(
       screen.queryByRole("link", { name: "abode vs Raindrop" }),
     ).not.toBeInTheDocument();

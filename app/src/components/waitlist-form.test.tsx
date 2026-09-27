@@ -27,14 +27,14 @@ describe("WaitlistForm tracking", () => {
         json: () => Promise.resolve({ position: 12 }),
       }),
     );
-    window.history.pushState({}, "", "/vs/mymind");
+    window.history.pushState({}, "", "/compare/mymind");
     render(<WaitlistForm />);
 
     submit();
 
     await screen.findByText("you're on the waitlist!");
     expect(capture).toHaveBeenCalledWith("waitlist_joined", {
-      source_path: "/vs/mymind",
+      source_path: "/compare/mymind",
     });
   });
 

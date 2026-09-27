@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { COMPARISONS, getComparison } from "@/lib/comparisons";
+import { COMPARISONS, comparePath, getComparison } from "@/lib/comparisons";
 import { ComparisonPage } from "../_components/comparison-page";
 
 type Props = { params: Promise<{ competitor: string }> };
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!comparison) return {};
 
   const title = `abode vs ${comparison.name} — an open-source ${comparison.name} alternative`;
-  const path = `/vs/${comparison.slug}`;
+  const path = comparePath(comparison.slug);
 
   return {
     title,

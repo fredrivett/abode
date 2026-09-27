@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COMPARISONS } from "@/lib/comparisons";
+import { COMPARISONS, comparePath } from "@/lib/comparisons";
 import { ClosingCta } from "../_components/closing-cta";
 import { Highlight } from "../_components/highlight";
 
@@ -12,11 +12,11 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/vs" },
+  alternates: { canonical: comparePath() },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    url: "/vs",
+    url: comparePath(),
     siteName: "abode",
     type: "website",
   },
@@ -39,7 +39,7 @@ export default function ComparisonsHub() {
           {COMPARISONS.map((comparison) => (
             <li key={comparison.slug}>
               <Link
-                href={`/vs/${comparison.slug}`}
+                href={comparePath(comparison.slug)}
                 className="group flex items-baseline justify-between gap-6 py-6"
               >
                 <span className="font-serif text-2xl group-hover:underline">

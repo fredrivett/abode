@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { COMPARISONS } from "@/lib/comparisons";
+import { COMPARISONS, comparePath } from "@/lib/comparisons";
 import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
 
 /**
@@ -22,8 +22,8 @@ export function isIndexableDeployment(): boolean {
  */
 export const SITEMAP_PATHS: readonly string[] = [
   "/",
-  "/vs",
-  ...COMPARISONS.map(({ slug }) => `/vs/${slug}`),
+  comparePath(),
+  ...COMPARISONS.map(({ slug }) => comparePath(slug)),
 ];
 
 /** `robots` metadata for pages that must never appear in search (app, auth) */

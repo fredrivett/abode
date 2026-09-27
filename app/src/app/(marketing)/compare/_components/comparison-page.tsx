@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COMPARISONS } from "@/lib/comparisons";
+import { COMPARISONS, comparePath } from "@/lib/comparisons";
 import { ABODE_FACTS } from "@/lib/comparisons/abode";
 import { COMPARISON_ROWS, type Comparison } from "@/lib/comparisons/types";
 import { ClosingCta } from "../../_components/closing-cta";
@@ -22,8 +22,8 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
     <div className="flex w-full flex-1 flex-col items-center">
       <main className="w-full max-w-3xl px-4 pt-16 pb-8 sm:pt-24">
         <p className="text-muted-foreground text-sm">
-          <Link href="/vs" className="hover:underline">
-            compare
+          <Link href={comparePath()} className="hover:underline">
+            /compare
           </Link>
         </p>
         <h1 className="mt-3 text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
@@ -167,7 +167,7 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
               {others.map((other, i) => (
                 <span key={other.slug}>
                   {i > 0 && " · "}
-                  <Link href={`/vs/${other.slug}`} className="underline">
+                  <Link href={comparePath(other.slug)} className="underline">
                     abode vs {other.name}
                   </Link>
                 </span>

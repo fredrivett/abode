@@ -7,7 +7,7 @@ describe("FooterClient", () => {
     render(<FooterClient isAuthenticated={false} />);
     expect(screen.getByRole("link", { name: "compare abode" })).toHaveAttribute(
       "href",
-      "/vs",
+      "/compare",
     );
   });
 

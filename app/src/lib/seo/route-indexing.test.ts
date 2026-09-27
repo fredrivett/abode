@@ -60,7 +60,7 @@ const sitemapPaths: readonly string[] = SITEMAP_PATHS;
 
 type ResolvedPage = Page & { params: Record<string, string> };
 
-// Matches a URL path to a route pattern ("/vs/[competitor]" ← "/vs/mymind")
+// Matches a URL path to a route pattern ("/compare/[competitor]" ← "/compare/mymind")
 function matchRoute(
   route: string,
   path: string,
@@ -81,7 +81,7 @@ function matchRoute(
 const isDynamicSegment = (segment: string) => /^\[.+\]$/.test(segment);
 
 // Like Next.js: at the first segment where two routes differ, static beats
-// dynamic ("/vs/[competitor]" over "/[username]/[slug]" for "/vs/mymind")
+// dynamic ("/compare/[competitor]" over "/[username]/[slug]" for "/compare/mymind")
 function compareSpecificity(a: string, b: string): number {
   const aSegments = a.split("/");
   const bSegments = b.split("/");
@@ -129,8 +129,8 @@ describe("route indexing", () => {
   });
 
   it("resolves paths the way Next does — static segments first", () => {
-    expect(resolvePage("/vs")?.route).toBe("/vs");
-    expect(resolvePage("/vs/mymind")?.route).toBe("/vs/[competitor]");
+    expect(resolvePage("/compare")?.route).toBe("/compare");
+    expect(resolvePage("/compare/mymind")?.route).toBe("/compare/[competitor]");
     expect(resolvePage("/@fred/books")?.route).toBe("/[username]/[slug]");
   });
 

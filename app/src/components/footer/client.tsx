@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import { comparePath } from "@/lib/comparisons";
 import { AbodeLogo } from "../abode-logo";
 
 const TEXT = "your humble ";
@@ -89,7 +90,7 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
       {!isAuthenticated && (
         <nav aria-label="more" className="mt-3 flex justify-center text-xs">
           <Link
-            href="/vs"
+            href={comparePath()}
             className="text-muted-foreground opacity-60 transition-opacity hover:opacity-100"
           >
             compare abode
