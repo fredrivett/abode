@@ -38,6 +38,10 @@ export default function HelpPage() {
             <Link href="/help/filtering">Filtering</Link> — Learn how to use
             filters to search and organize your items
           </li>
+          <li>
+            <Link href="/help/scanning">Scanning documents</Link> — Scan
+            multi-page documents with your camera
+          </li>
         </ul>
       </article>
     </div>

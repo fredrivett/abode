@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   userUpdate: vi.fn(),
   enqueue: vi.fn(),
   logActivity: vi.fn(),
+  milestone: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/items/enqueue-document-analysis", () => ({
   enqueueDocumentAnalysis: m.enqueue,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: m.logActivity }));
+vi.mock("@/lib/milestones", () => ({ markMilestoneComplete: m.milestone }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
@@ -170,5 +172,15 @@ describe("POST /api/v1/items/documents", () => {
   it("enqueues analysis for the saved document", async () => {
     await call({ pages: [page(1)] });
     expect(m.enqueue).toHaveBeenCalledWith({ itemId: "item-1", userId: USER });
+  });
+
+  it("completes the scan-your-first-document milestone", async () => {
+    await call({ pages: [page(1)] });
+    expect(m.milestone).toHaveBeenCalledWith(USER, "scan_first_document");
+  });
+
+  it("doesn't complete the milestone for a rejected document", async () => {
+    await call({ pages: [] });
+    expect(m.milestone).not.toHaveBeenCalled();
   });
 });

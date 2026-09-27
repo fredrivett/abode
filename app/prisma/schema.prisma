@@ -161,6 +161,7 @@ enum MilestoneType {
   complete_profile
   upload_first_image
   save_first_url
+  scan_first_document
   see_ai_analysis
   search_items
   add_first_tag

@@ -16,6 +16,7 @@ import {
   isCanonicalUuid,
 } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+import { OpenScannerOnLoad } from "./open-scanner-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
 
@@ -82,9 +83,13 @@ export async function generateMetadata({
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ share?: string; item?: string | string[] }>;
+  searchParams: Promise<{
+    share?: string;
+    item?: string | string[];
+    action?: string;
+  }>;
 }) {
-  const { share, item: openItemParam } = await searchParams;
+  const { share, item: openItemParam, action } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
@@ -132,6 +137,7 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <ShareToast share={share} />
+      <OpenScannerOnLoad action={action} />
       <SearchableItemsGrid
         initialItems={itemsForClient}
         initialCursor={initialCursor}
