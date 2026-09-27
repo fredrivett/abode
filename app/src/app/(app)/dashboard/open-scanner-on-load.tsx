@@ -23,7 +23,14 @@ export function OpenScannerOnLoad({ action }: { action?: string }) {
     if (handled.current || action !== "scan" || !available) return;
     handled.current = true;
     setScannerOpen(true);
-    window.history.replaceState(null, "", pathname);
+    // Drop only `action`, keeping anything else (e.g. an open `?item=`)
+    const url = new URL(window.location.href);
+    url.searchParams.delete("action");
+    window.history.replaceState(
+      null,
+      "",
+      `${pathname}${url.search}${url.hash}`,
+    );
   }, [action, available, pathname, setScannerOpen]);
 
   return null;

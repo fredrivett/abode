@@ -40,7 +40,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline                                  | capture + full-text search work, but no auto-enrichment |
 | [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search              | items stay bare; full-text search only                  |
 | [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)                      | skipped                                                 |
-| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scanned documents | colours skipped; document OCR uses OpenAI instead       |
+| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scanned documents | colours skipped; document OCR uses OpenAI if configured |
 | [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                              | skipped                                                 |
 | [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                              | email features off                                      |
 | [PostHog](https://posthog.com)                                | 🧩 Optional             | product analytics                                             | no telemetry (the default)                              |
@@ -58,7 +58,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 ## Features
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
-- **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd so documents are searchable by their text.
+- **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion.
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based).

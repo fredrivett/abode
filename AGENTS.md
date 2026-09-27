@@ -271,7 +271,7 @@ Docs ship with the feature, in the same change — not as a follow-up. When a ch
 - **`.env.example`**: the comment on any env var whose purpose changed, and every new one.
 - **In-app help** (`app/src/content/help/*.md`, linked from `/help` and the help nav): a short how-to for a new user-facing flow.
 - **`CONTRIBUTING.md`**: new setup steps, install-time scripts or local-dev gotchas.
-- **Onboarding checklist** (`src/lib/milestones`): a new way to add or use items should get a milestone so new users discover it.
+- **Onboarding checklist** (`app/src/lib/milestones`): a new way to add or use items should get a milestone so new users discover it.
 
 The PR template includes a checklist line for this.
 

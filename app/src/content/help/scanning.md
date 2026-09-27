@@ -28,7 +28,7 @@ Tap **Save** when you're done, or **Cancel** to discard the scan.
 
 Saved documents appear in your <Abode /> like any other item, with a badge showing how many pages they have. Open one to read through every page.
 
-The text on every page is read automatically, so you can find a document by searching for words in it, or show only documents with `@type:document`.
+The text on each page is read automatically once the document has finished processing, so you can find it by searching for words in it. To see only your documents, filter with `@type:document`.
 
 ## Troubleshooting
 

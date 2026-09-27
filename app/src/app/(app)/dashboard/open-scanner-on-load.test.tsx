@@ -29,6 +29,18 @@ describe("OpenScannerOnLoad", () => {
     );
   });
 
+  it("keeps other query params when stripping the action", () => {
+    withCamera();
+    window.history.pushState(null, "", "/dashboard?action=scan&item=abc#x");
+    render(<OpenScannerOnLoad action="scan" />);
+    expect(window.history.replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/dashboard?item=abc#x",
+    );
+    window.history.pushState(null, "", "/");
+  });
+
   it("does nothing for other actions", () => {
     withCamera();
     render(<OpenScannerOnLoad action="upload" />);
