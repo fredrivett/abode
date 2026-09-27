@@ -308,7 +308,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
             href={isAuthenticated ? "/dashboard" : "/"}
             className="group/home absolute top-full left-2 mt-1 hidden items-center whitespace-nowrap pl-5 text-foreground text-sm opacity-30 transition-opacity hover:opacity-100 xl:flex"
           >
-            <ArrowUpLeft className="group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 absolute left-0 size-3.5 transition-transform group-hover/home:scale-150" />
+            <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
             take me
             <span className="ml-1 transition-all group-hover/home:font-serif">
               home

@@ -27,7 +27,7 @@ export function ShutterButton({
     >
       <svg
         viewBox="0 0 80 80"
-        className="-rotate-90 absolute inset-0 size-full"
+        className="absolute inset-0 size-full -rotate-90"
         aria-hidden="true"
       >
         <circle

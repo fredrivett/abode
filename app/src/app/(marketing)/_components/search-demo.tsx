@@ -163,7 +163,7 @@ export function SearchDemo() {
           {frame.typing && frame.committed.length > 0 ? " " : null}
           {frame.typing}
           {!reducedMotion && (
-            <span className="-top-0.5 relative ml-px inline-block h-[1.15em] w-0.5 animate-pulse bg-foreground/70 align-middle" />
+            <span className="relative -top-0.5 ml-px inline-block h-[1.15em] w-0.5 animate-pulse bg-foreground/70 align-middle" />
           )}
         </span>
       </div>

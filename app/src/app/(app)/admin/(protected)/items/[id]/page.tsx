@@ -454,7 +454,7 @@ export default async function AdminItemInspectorPage({
       <DashboardHeader />
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8">
-        <header className="-mx-4 sticky top-16 z-40 flex items-center gap-4 border-border/60 border-b bg-background px-4 py-4">
+        <header className="sticky top-16 z-40 -mx-4 flex items-center gap-4 border-border/60 border-b bg-background px-4 py-4">
           <Link
             href="/admin"
             className="rounded-md p-2 hover:bg-muted"

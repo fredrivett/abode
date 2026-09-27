@@ -67,7 +67,7 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
           username
         </label>
         <div className="relative">
-          <span className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 text-gray-400">
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
             @
           </span>
           <input
@@ -91,13 +91,13 @@ export function CompleteSignupForm({ email, inviteToken }: Props) {
             maxLength={15}
           />
           {usernameStatus.type === "checking" && (
-            <span className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 text-xs">
+            <span className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 text-xs">
               checking
               <LoadingEllipsis />
             </span>
           )}
           {usernameStatus.type === "available" && (
-            <span className="-translate-y-1/2 absolute top-1/2 right-3 text-green-600 text-xs">
+            <span className="absolute top-1/2 right-3 -translate-y-1/2 text-green-600 text-xs">
               available
             </span>
           )}

@@ -131,6 +131,7 @@ export function TwitterDetailView({
               );
               return (
                 <CoverImageMedia
+                  // biome-ignore lint/suspicious/noArrayIndexKey: url can repeat; static, never-reordered list
                   key={`${item.url}-${index}`}
                   item={item}
                   itemId={itemId}

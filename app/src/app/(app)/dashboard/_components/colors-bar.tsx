@@ -206,6 +206,7 @@ export function ColorsBar({
 
         return (
           <Tooltip
+            // biome-ignore lint/suspicious/noArrayIndexKey: hex can repeat; static, never-reordered list
             key={`${color.hex}-${index}`}
             open={isOpen}
             disableHoverableContent

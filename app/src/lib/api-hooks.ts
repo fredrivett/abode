@@ -28,10 +28,10 @@ export const ITEMS_QUERY_KEY = ["items"] as const;
  */
 export function useInvalidateItems() {
   const queryClient = useQueryClient();
-  return useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY }),
-    [queryClient],
-  );
+  // Fire-and-forget: callers never await the refetch
+  return useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
+  }, [queryClient]);
 }
 
 // Response type for paginated items
@@ -196,7 +196,7 @@ export function useApiMutation<TData = unknown, TVariables = unknown>(
       // Invalidate specified queries to refetch fresh data
       if (options?.invalidateQueries) {
         options.invalidateQueries.forEach((queryKey) => {
-          queryClient.invalidateQueries({ queryKey: [queryKey] });
+          void queryClient.invalidateQueries({ queryKey: [queryKey] });
         });
       }
       options?.onSuccess?.(data, variables);
