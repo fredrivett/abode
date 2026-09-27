@@ -63,8 +63,11 @@ import { getAppBaseUrl } from "@/lib/url";
 const baseUrl = getAppBaseUrl();
 // Local dev: http://localhost:<port>
 // Vercel preview: https://{VERCEL_URL}
+// Self-hosted: NEXT_PUBLIC_SITE_URL
 // Production: https://www.abode.fyi
 ```
+
+Never hardcode `https://www.abode.fyi` for links — self-hosted instances set `NEXT_PUBLIC_SITE_URL` and must link to themselves.
 
 ## SEO & Indexing
 

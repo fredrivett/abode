@@ -16,6 +16,7 @@ describe("getAppBaseUrl", () => {
     delete clean.VERCEL_URL;
     delete clean.VERCEL_ENV;
     delete clean.NODE_ENV;
+    delete clean.NEXT_PUBLIC_SITE_URL;
     process.env = clean as NodeJS.ProcessEnv;
   });
 
@@ -63,5 +64,32 @@ describe("getAppBaseUrl", () => {
       VERCEL_ENV: "",
     });
     expect(getAppBaseUrl()).toBe("https://www.abode.fyi");
+  });
+
+  test("uses the configured site URL for a self-hosted production deploy", () => {
+    setEnv({
+      NODE_ENV: "production",
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_SITE_URL: "https://abode.example.com/",
+    });
+    expect(getAppBaseUrl()).toBe("https://abode.example.com");
+  });
+
+  test("keeps the preview URL on previews even when a site URL is set", () => {
+    setEnv({
+      NODE_ENV: "production",
+      VERCEL_URL: "my-app-abc123.vercel.app",
+      VERCEL_ENV: "preview",
+      NEXT_PUBLIC_SITE_URL: "https://abode.example.com",
+    });
+    expect(getAppBaseUrl()).toBe("https://my-app-abc123.vercel.app");
+  });
+
+  test("ignores the site URL in development", () => {
+    setEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_SITE_URL: "https://abode.example.com",
+    });
+    expect(getAppBaseUrl()).toBe("http://localhost:3300");
   });
 });
