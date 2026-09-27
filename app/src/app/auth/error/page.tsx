@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
+
+export const metadata: Metadata = {
+  title: "Authentication error | abode",
+  robots: NO_INDEX_ROBOTS,
+};
 
 type Props = {
   searchParams: Promise<{ reason?: string }>;
