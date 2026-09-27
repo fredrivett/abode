@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { documentFileKeys } from "@/lib/documents/create-document-schema";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
@@ -440,10 +441,27 @@ export async function DELETE(
         id,
         userId: user.id,
       },
+      include: {
+        documentPages: { select: { fileKey: true, originalFileKey: true } },
+      },
     });
 
     if (!existingItem) {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
+    }
+
+    // A document's page files would otherwise outlive it (the rows cascade)
+    const pageKeys = documentFileKeys(existingItem.documentPages);
+    if (pageKeys.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("items")
+        .remove(pageKeys);
+      if (storageError) {
+        log.error(
+          { itemId: id, error: storageError },
+          "Document page storage deletion error",
+        );
+      }
     }
 
     await db.item.delete({

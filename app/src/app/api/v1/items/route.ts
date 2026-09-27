@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { documentFileKeys } from "@/lib/documents/create-document-schema";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { isItemSource } from "@/lib/items/capture-source";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
@@ -238,7 +239,13 @@ export async function DELETE(request: NextRequest) {
     // Find the item to ensure it exists and belongs to the user
     const item = await db.item.findUnique({
       where: { id },
-      select: { id: true, userId: true, fileKey: true, meta: true },
+      select: {
+        id: true,
+        userId: true,
+        fileKey: true,
+        meta: true,
+        documentPages: { select: { fileKey: true, originalFileKey: true } },
+      },
     });
 
     if (!item) {
@@ -249,11 +256,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
-    // Delete from storage if there's a file
-    if (item.fileKey) {
+    // Delete from storage: the item's file, plus every page of a document
+    const storageKeys = [
+      ...new Set([
+        ...(item.fileKey ? [item.fileKey] : []),
+        ...documentFileKeys(item.documentPages),
+      ]),
+    ];
+    if (storageKeys.length > 0) {
       const { error: storageError } = await supabase.storage
         .from("items")
-        .remove([item.fileKey]);
+        .remove(storageKeys);
 
       if (storageError) {
         log.error(
