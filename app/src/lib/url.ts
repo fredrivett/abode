@@ -1,7 +1,11 @@
+/** The hosted abode instance — the default when no site URL is configured */
+export const HOSTED_APP_URL = "https://www.abode.fyi";
+
 /**
  * Returns the base URL for the app based on the current environment.
  * - Local dev: http://localhost:<port>
  * - Vercel preview: https://{VERCEL_URL}
+ * - Self-hosted: NEXT_PUBLIC_SITE_URL (inlined at build, so works client-side)
  * - Production: https://www.abode.fyi
  */
 export function getAppBaseUrl(): string {
@@ -15,5 +19,8 @@ export function getAppBaseUrl(): string {
 
   if (isPreview) return `https://${process.env.VERCEL_URL}`;
 
-  return "https://www.abode.fyi";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) return siteUrl.replace(/\/+$/, "");
+
+  return HOSTED_APP_URL;
 }

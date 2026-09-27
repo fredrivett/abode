@@ -47,6 +47,8 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
 
+Set `NEXT_PUBLIC_SITE_URL` to your instance's public URL (e.g. `https://abode.example.com`) so emails, share links and embeds point at your instance rather than abode.fyi. It's inlined at build time, so set it before building. Self-hosted instances are kept out of search engines (`robots.txt` disallows all).
+
 ### Usage & cost limits
 
 To stop a single account (or an abuser) running up your AI bill, abode has durable daily/monthly per-user **$ caps** plus a system-wide daily **circuit-breaker**. They're **enforced by default on any deployed instance** (production, preview, or staging) — so a fresh deploy is capped without configuration and can't silently run uncapped. Local dev and tests run in **shadow mode** (every action counted and logged, nothing blocked); when shadow mode is active the server logs a one-time warning at first use.

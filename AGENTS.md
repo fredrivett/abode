@@ -63,8 +63,11 @@ import { getAppBaseUrl } from "@/lib/url";
 const baseUrl = getAppBaseUrl();
 // Local dev: http://localhost:<port>
 // Vercel preview: https://{VERCEL_URL}
+// Self-hosted: NEXT_PUBLIC_SITE_URL
 // Production: https://www.abode.fyi
 ```
+
+Never hardcode `https://www.abode.fyi` for links — self-hosted instances set `NEXT_PUBLIC_SITE_URL` and must link to themselves.
 
 ## SEO & Indexing
 
@@ -76,7 +79,7 @@ Every page is a deliberate indexing choice — `src/lib/seo/route-indexing.test.
 
 Other rules:
 
-- Only the production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances disallow all in `robots.txt`.
+- Only the hosted abode.fyi production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances (including ones on Vercel) disallow all in `robots.txt`.
 - Structured data renders through `<JsonLd>` (`@/components/seo/json-ld`), never a raw `<script type="application/ld+json">` — enforced by `app/biome/no-raw-json-ld.grit`.
 - Public user content (profiles, rooms, items) is shareable but noindex by default — only a per-user opt-in may make it searchable, never a blanket change.
 
