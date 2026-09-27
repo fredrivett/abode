@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { ABODE_FACTS } from "./abode";
+import { COMPARISONS, getComparison } from "./index";
+import { COMPARISON_ROWS } from "./types";
+
+describe("comparisons", () => {
+  it("has unique, URL-safe slugs", () => {
+    const slugs = COMPARISONS.map(({ slug }) => slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const slug of slugs) expect(slug).toMatch(/^[a-z0-9-]+$/);
+  });
+
+  it("fills every table row, for abode and each competitor", () => {
+    for (const { key } of COMPARISON_ROWS) {
+      expect(ABODE_FACTS[key].trim(), `abode ${key}`).not.toBe("");
+      for (const comparison of COMPARISONS) {
+        expect(
+          comparison.facts[key].trim(),
+          `${comparison.slug} ${key}`,
+        ).not.toBe("");
+      }
+    }
+  });
+
+  // Honest pages: every competitor claim is sourced and dated
+  it.each(COMPARISONS.map((c) => [c.slug, c] as const))(
+    "%s cites https sources and a valid, past check date",
+    (_slug, comparison) => {
+      expect(comparison.sources.length).toBeGreaterThan(0);
+      for (const { url } of comparison.sources) {
+        expect(url).toMatch(/^https:\/\//);
+      }
+
+      const checked = new Date(`${comparison.lastChecked}T00:00:00Z`);
+      expect(comparison.lastChecked).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isNaN(checked.getTime())).toBe(false);
+      expect(checked.getTime()).toBeLessThanOrEqual(Date.now());
+    },
+  );
+
+  it("keeps meta descriptions within search-result length", () => {
+    for (const { slug, description } of COMPARISONS) {
+      expect(description.length, slug).toBeLessThanOrEqual(160);
+    }
+  });
+
+  it("looks comparisons up by slug", () => {
+    expect(getComparison("mymind")?.name).toBe("mymind");
+    expect(getComparison("nope")).toBeUndefined();
+  });
+});
