@@ -71,14 +71,14 @@ const baseUrl = getAppBaseUrl();
 Every page is a deliberate indexing choice — `src/lib/seo/route-indexing.test.ts` fails until a new `page.tsx` is one of:
 
 - **Public (in search):** add its path to `SITEMAP_PATHS` (`@/lib/seo/indexing`) and export `metadata` with its own `title`, `description` and `alternates.canonical`. Add an `opengraph-image.tsx` share card built on `@/lib/og/render`.
-- **Private:** pages under `(app)` / `(auth)` inherit `robots: NO_INDEX_ROBOTS` from the group layout; anywhere else, set it on the page or layout.
+- **Private:** pages under `(app)` / `(auth)` / `(public)` inherit `robots: NO_INDEX_ROBOTS` from the group layout; anywhere else, set it on the page or layout.
 - **Neither:** an `EXCEPTIONS` entry in that test, with a reason.
 
 Other rules:
 
 - Only the production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances disallow all in `robots.txt`.
 - Structured data renders through `<JsonLd>` (`@/components/seo/json-ld`), never a raw `<script type="application/ld+json">` — enforced by `app/biome/no-raw-json-ld.grit`.
-- Public user content (profiles, rooms, items) has no indexing policy yet — don't add it to the sitemap or JSON-LD until one is agreed.
+- Public user content (profiles, rooms, items) is shareable but noindex by default — only a per-user opt-in may make it searchable, never a blanket change.
 
 ## Development Server Management
 

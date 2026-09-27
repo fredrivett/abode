@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { describe, expect, it, vi } from "vitest";
 import { metadata as appMetadata } from "@/app/(app)/layout";
 import { metadata as authMetadata } from "@/app/(auth)/layout";
+import { metadata as publicMetadata } from "@/app/(public)/layout";
 import { metadata as authErrorMetadata } from "@/app/auth/error/page";
 import { NO_INDEX_ROBOTS, SITEMAP_PATHS } from "./indexing";
 
@@ -17,9 +18,6 @@ const APP_DIR = join(process.cwd(), "src", "app");
 // Pages that are neither noindex nor in the sitemap, on purpose
 const EXCEPTIONS: Record<string, string> = {
   "/~offline": "service-worker offline fallback, never served to crawlers",
-  "/[username]": "public user content — indexing policy pending",
-  "/[username]/[slug]": "public user content — indexing policy pending",
-  "/[username]/items/[id]": "public user content — indexing policy pending",
 };
 
 type Page = { file: string; route: string };
@@ -115,6 +113,7 @@ describe("noindex routes", () => {
   it.each([
     ["(app) — signed-in app pages", appMetadata],
     ["(auth) — login, join, password reset", authMetadata],
+    ["(public) — shared profiles, rooms and items", publicMetadata],
     ["/auth/error", authErrorMetadata],
   ])("%s are noindex", (_label, metadata) => {
     expect(metadata.robots).toEqual(NO_INDEX_ROBOTS);
