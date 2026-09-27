@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
 
 /**
@@ -22,3 +23,29 @@ export const SITEMAP_PATHS = ["/"] as const;
 
 /** `robots` metadata for pages that must never appear in search (app, auth) */
 export const NO_INDEX_ROBOTS = { index: false, follow: false } as const;
+
+/**
+ * Search metadata for a public user-content page (profile, room). The
+ * `(public)` layout is noindex; a page overrides that only when the owner has
+ * opted in (`allowSearchIndexing`), the content is publicly visible, and this
+ * deployment is indexable. Items never opt in — they're mostly copies of
+ * third-party content (article text, tweets).
+ */
+export function publicContentSeo({
+  ownerAllowsIndexing,
+  isPublic,
+  path,
+}: {
+  ownerAllowsIndexing: boolean;
+  isPublic: boolean;
+  path: string;
+}): Pick<Metadata, "robots" | "alternates"> {
+  if (!(ownerAllowsIndexing && isPublic && isIndexableDeployment())) {
+    return { robots: NO_INDEX_ROBOTS };
+  }
+
+  return {
+    robots: { index: true, follow: true },
+    alternates: { canonical: path },
+  };
+}

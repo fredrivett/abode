@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
 import { roomItemSelect, toClientRoomItem } from "@/lib/rooms/room-item-query";
 import type { Filter } from "@/lib/search/types";
+import { publicContentSeo } from "@/lib/seo/indexing";
 import { getAuthenticatedUser } from "@/lib/user";
 import { RoomPageClient } from "./_components/room-page-client";
 
@@ -38,6 +39,7 @@ const getUser = cache(async (username: string) => {
       firstName: true,
       lastName: true,
       avatarUrl: true,
+      allowSearchIndexing: true,
     },
   });
 });
@@ -92,6 +94,11 @@ export async function generateMetadata({ params }: Props) {
   return {
     title: `${room.name} | @${user.username} | abode`,
     description: `${room.name} - a room by @${user.username}`,
+    ...publicContentSeo({
+      ownerAllowsIndexing: user.allowSearchIndexing,
+      isPublic: room.visibility === "public",
+      path: `/@${user.username ?? username}/${room.slug ?? slug}`,
+    }),
   };
 }
 
