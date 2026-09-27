@@ -33,16 +33,30 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
+import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
 import { BookCover3D } from "@/components/book/book-cover-3d";
+import { BookDetailPlaceholder } from "@/components/book/book-detail-placeholder";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
+import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { NoteCard } from "@/components/note/note-card";
+import { NoteDetailPlaceholder } from "@/components/note/note-detail-placeholder";
+import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterCard } from "@/components/twitter/twitter-card";
+import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +81,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
+import { VideoDetailView } from "@/components/video/video-detail-view";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
@@ -139,21 +154,72 @@ const log = createLogger("dashboard/item-card");
 export const DETAIL_IMAGE_CLASSNAME =
   "max-h-[calc(100vh-2rem)] w-full object-contain md:h-full";
 
-// Detail views render only inside the click-to-expand modal, never in the
-// collapsed grid card. Load them lazily so they stay out of the dashboard
-// grid's initial JS. ssr:false is safe because the modal is client-only.
-const detailViewLoading = () => (
-  <div className="flex h-full w-full items-center justify-center">
-    <IsLoading label="Loading" />
-  </div>
-);
+// What the item dialog is showing, for the lazy detail views' loading
+// placeholders (next/dynamic's `loading` gets no props)
+const DetailViewContext = createContext<{
+  item: Item;
+  canEdit: boolean;
+} | null>(null);
 
+function NoteDetailLoading() {
+  const detail = useContext(DetailViewContext);
+  return (
+    <NoteDetailPlaceholder
+      content={detail?.item.noteDetails?.content ?? ""}
+      canEdit={detail?.canEdit ?? false}
+    />
+  );
+}
+
+function ArticleDetailLoading() {
+  const detail = useContext(DetailViewContext);
+  const originalName = detail?.item.meta?.originalName;
+  return (
+    <ArticleDetailPlaceholder
+      title={typeof originalName === "string" ? originalName : undefined}
+    />
+  );
+}
+
+function BookDetailLoading() {
+  const item = useContext(DetailViewContext)?.item;
+  if (!item?.bookDetails) return null;
+  return (
+    <BookDetailPlaceholder
+      itemId={item.id}
+      bookDetails={item.bookDetails}
+      title={item.title}
+      coverFileKey={item.coverFileKey}
+      coverRatio={getBookCoverRatio(item.meta)}
+      coverColor={getDominantCoverColor(item.colors)}
+      className="py-8"
+    />
+  );
+}
+
+function HighlightsPanelLoading() {
+  return (
+    <div className="space-y-2" aria-busy>
+      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+    </div>
+  );
+}
+
+// The heavy detail views (the note editor, the article reader, the book view
+// and reading controls — hundreds of KB) load lazily so they stay out of the
+// dashboard grid's initial JS. While one loads, a placeholder in its layout
+// shows what's already known (a note's text, an article's title, a book's
+// cover), so it fills in rather than flashing "Loading". The small views
+// (tweet, Instagram, video, product) are imported directly: together they
+// cost ~10 KB and never show a placeholder. ssr:false is safe because the
+// modal is client-only.
 const ArticleDetailView = dynamic(
   () =>
     import("@/components/article/article-detail-view").then(
       (m) => m.ArticleDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: ArticleDetailLoading },
 );
 
 const HighlightsPanel = dynamic(
@@ -161,13 +227,13 @@ const HighlightsPanel = dynamic(
     import("@/components/article/highlights-panel").then(
       (m) => m.HighlightsPanel,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: HighlightsPanelLoading },
 );
 
 const BookDetailView = dynamic(
   () =>
     import("@/components/book/book-detail-view").then((m) => m.BookDetailView),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: BookDetailLoading },
 );
 
 const ArticleReadingControls = dynamic(
@@ -189,39 +255,7 @@ const BookReadingControls = dynamic(
 const NoteDetailView = dynamic(
   () =>
     import("@/components/note/note-detail-view").then((m) => m.NoteDetailView),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const ProductDetailView = dynamic(
-  () =>
-    import("@/components/product/product-detail-view").then(
-      (m) => m.ProductDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const InstagramDetailView = dynamic(
-  () =>
-    import("@/components/instagram/instagram-detail-view").then(
-      (m) => m.InstagramDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const TwitterDetailView = dynamic(
-  () =>
-    import("@/components/twitter/twitter-detail-view").then(
-      (m) => m.TwitterDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const VideoDetailView = dynamic(
-  () =>
-    import("@/components/video/video-detail-view").then(
-      (m) => m.VideoDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: NoteDetailLoading },
 );
 
 type ItemCardProps = {
@@ -1980,7 +2014,7 @@ export function ItemDetailBody({
   };
 
   return (
-    <>
+    <DetailViewContext value={{ item, canEdit }}>
       {/* Top (mobile) / Left (desktop) - Main content area */}
       <div
         className={cn(
@@ -3316,7 +3350,7 @@ export function ItemDetailBody({
         isDeleting={isDeleting}
         itemName={name}
       />
-    </>
+    </DetailViewContext>
   );
 }
 
