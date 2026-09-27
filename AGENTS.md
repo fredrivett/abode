@@ -263,6 +263,18 @@ When shipping a user-facing feature, instrument it as part of the change (not la
 
 The PR template includes a checklist for this.
 
+## Documentation
+
+Docs ship with the feature, in the same change — not as a follow-up. When a change is user-facing or changes what a service is used for, update whichever of these it affects (or say in the PR why none apply):
+
+- **`README.md`**: the **Features** list and the Roadmap's **Done** list for a new capability; the **External services** table when a service gains or changes a job (including what happens without it).
+- **`.env.example`**: the comment on any env var whose purpose changed, and every new one.
+- **In-app help** (`app/src/content/help/*.md`, linked from `/help` and the help nav): a short how-to for a new user-facing flow.
+- **`CONTRIBUTING.md`**: new setup steps, install-time scripts or local-dev gotchas.
+- **Onboarding checklist** (`src/lib/milestones`): a new way to add or use items should get a milestone so new users discover it.
+
+The PR template includes a checklist line for this.
+
 ## Dependencies
 
 All package installations must use `bun` from the `./app` directory:
