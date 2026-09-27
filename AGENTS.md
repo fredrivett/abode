@@ -80,6 +80,7 @@ Every page is a deliberate indexing choice — `src/lib/seo/route-indexing.test.
 Other rules:
 
 - Only the hosted abode.fyi production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances (including ones on Vercel) disallow all in `robots.txt`.
+- Comparison pages (`/vs/<slug>`) are data-driven: add a file in `src/lib/comparisons/competitors/` and an entry in `COMPARISONS` — the page, share card and sitemap entry follow. Keep them honest: every competitor fact must come from a primary source listed in `sources`, and bump `lastChecked` when you re-verify.
 - Structured data renders through `<JsonLd>` (`@/components/seo/json-ld`), never a raw `<script type="application/ld+json">` — enforced by `app/biome/no-raw-json-ld.grit`.
 - Public user content (profiles, rooms, items) is shareable but noindex by default. A profile and its public rooms become indexable (and enter the sitemap) only via the owner's `allowSearchIndexing` opt-in, through `publicContentSeo` / `getIndexablePublicContentPaths` — keep the two in sync. Items are never indexed (mostly third-party content).
 
