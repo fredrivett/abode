@@ -44,7 +44,8 @@ describe("publicContentSeo", () => {
     });
   });
 
-  it("stays noindex on a deployment that isn't indexable", () => {
+  it("stays noindex on a preview deployment", () => {
+    stubHostedProduction();
     vi.stubEnv("VERCEL_ENV", "preview");
 
     expect(
