@@ -47,8 +47,9 @@ const OWNED_DETAIL_MODELS: Record<ItemKind, readonly ItemDetailModel[]> = {
   book: ["itemBookDetails", "itemImageDetails"],
   note: ["itemNoteDetails"],
   webpage: [],
-  // Pages live in item_document_pages (not a Details table); page 1 is
-  // visually analysed like an image upload
+  // Every page's full OCR text lives in item_document_pages (not a Details
+  // table). Visual analysis (colours, objects, similar-images) runs on the
+  // cover only: document pages look alike, so per-page visuals add no signal
   document: ["itemImageDetails"],
 };
 

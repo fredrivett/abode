@@ -448,7 +448,8 @@ enum DocumentPageFilter {
 // One page of a scanned `document` item, in reading order. Pages are flattened
 // (perspective-corrected) in the browser before upload, so both files are
 // upright page images, never the raw camera photo. The item's own fileKey
-// mirrors page 1 so grid cards, covers and image analysis work as for images.
+// mirrors page 1 so grid cards, covers and cover-level visual analysis work as
+// for images; every page gets full OCR into its own ocrText.
 model ItemDocumentPage {
   id              String             @id @default(uuid()) @db.Uuid
   itemId          String             @map("item_id") @db.Uuid
