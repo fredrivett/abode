@@ -10,6 +10,8 @@ Thanks for your interest in abode. This covers the local development details bey
 
 See `.env.example` for every variable. Only the **Required**-tier services in the README's [External services](README.md#external-services) table are needed to boot; everything else is optional and degrades gracefully when its key is absent (see [AGENTS.md](AGENTS.md#optional-services--graceful-degradation)).
 
+The document scanner's edge-detection code and model ([scanic](https://github.com/marquaye/scanic)) are served from our own origin: `bun install`'s `postinstall` step copies them from `node_modules` into `app/public/vendor/` (gitignored). If you install with lifecycle scripts disabled, run `bun scripts/copy-scanner-assets.ts` from `app/` or the scanner can't detect pages.
+
 ## Port allocation
 
 All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conductor). Each Conductor workspace gets 10 ports (`+0` to `+9`).
