@@ -96,6 +96,10 @@
     {
       "includes": ["src/app/api/**"],
       "plugins": ["./biome/no-raw-cookie-getuser.grit"]
+    },
+    {
+      "includes": ["src/**", "!src/components/seo/json-ld.tsx"],
+      "plugins": ["./biome/no-raw-json-ld.grit"]
     }
   ],
   "assist": {

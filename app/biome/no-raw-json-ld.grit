@@ -1,0 +1,22 @@
+language js
+
+// Structured data must render through <JsonLd> (@/components/seo/json-ld),
+// never a hand-rolled <script type="application/ld+json">. JsonLd serializes
+// via serializeJsonLd, which escapes `<` — a raw JSON.stringify of any
+// user-influenced value (an item title, a display name) can contain
+// `</script>` and break out of the tag into HTML (stored XSS).
+//
+// Scoped by an `overrides` entry in biome.json to `src/**`, exempting
+// json-ld.tsx itself. Biome 2.2 can't suppress plugin diagnostics with
+// `biome-ignore`, so a genuine exception must be exempted by path there.
+// Matches the JSX attribute and plain string literals (createElement, props)
+or {
+  `type="application/ld+json"`,
+  `"application/ld+json"`
+} as $type where {
+  register_diagnostic(
+    span=$type,
+    message="Render structured data with <JsonLd data={...} /> from `@/components/seo/json-ld` — it escapes `<` so values can't break out of the script tag.",
+    severity="error"
+  )
+}
