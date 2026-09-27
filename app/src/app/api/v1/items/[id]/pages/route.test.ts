@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ getUser: vi.fn(), findFirst: vi.fn() }));
+const m = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  findFirst: vi.fn(),
+  capture: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
   getUserWithMfa: () => m.getUser(),
 }));
 vi.mock("@/lib/db", () => ({ default: { item: { findFirst: m.findFirst } } }));
-vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
+vi.mock("@/lib/posthog-server", () => ({ captureServerException: m.capture }));
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
 }));
@@ -71,5 +75,16 @@ describe("GET /api/v1/items/[id]/pages", () => {
   it("is a 404 for a missing, private or non-document item", async () => {
     m.findFirst.mockResolvedValue(null);
     expect((await call("x")).status).toBe(404);
+  });
+
+  it("reports and returns 500 when the lookup fails", async () => {
+    m.findFirst.mockRejectedValue(new Error("db down"));
+    const res = await call("doc-1");
+    expect(res.status).toBe(500);
+    expect(m.capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      undefined,
+      expect.objectContaining({ route: "GET /api/v1/items/[id]/pages" }),
+    );
   });
 });

@@ -137,6 +137,7 @@ test.describe("Document scanner", () => {
       const pagesResponse = await page.request.get(
         `/api/v1/items/${document.id}/pages`,
       );
+      expect(pagesResponse.status()).toBe(200);
       const { pages } = await pagesResponse.json();
       expect(pages).toHaveLength(1);
       expect(pages[0].fileKey).toBe(document.fileKey);
