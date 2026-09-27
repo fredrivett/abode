@@ -11,6 +11,7 @@ import { APP_NAME } from "@/lib/app";
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { QueryProvider } from "@/lib/query-client";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
+import { getAppBaseUrl } from "@/lib/url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,12 +44,15 @@ export const viewport: Viewport = {
 const branchPrefix = branchTitlePrefix();
 
 export const metadata: Metadata = {
+  // Resolves relative OG image / canonical URLs to absolute ones for crawlers
+  metadataBase: new URL(getAppBaseUrl()),
   title: {
     default: `${branchPrefix}${APP_NAME}`,
     template: `${branchPrefix}%s`,
   },
   description: "the home for your info",
   applicationName: APP_NAME,
+  twitter: { card: "summary_large_image" },
   icons: {
     icon: [
       {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { GITHUB_URL } from "@/lib/github";
@@ -9,6 +10,23 @@ import { LivingGallery } from "./_components/living-gallery";
 import { OwnershipCallout } from "./_components/ownership-callout";
 import { OwnershipSection } from "./_components/ownership-section";
 import { SearchDemo } from "./_components/search-demo";
+
+const TITLE = "abode — save everything. sort nothing. own it all.";
+const DESCRIPTION =
+  "save the link, the photo, the tweet, the note-to-self — then find it the way you think. abode is an open-source, self-hostable home for everything you save.";
+
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+    siteName: "abode",
+    type: "website",
+  },
+};
 
 export default function Home() {
   return (
