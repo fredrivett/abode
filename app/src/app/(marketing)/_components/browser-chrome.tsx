@@ -59,7 +59,7 @@ export function BrowserChrome({
       >
         {/* Window frame: hugs the grid box (its p-6 is the internal gutter) and
             extends above it for the tab strip. */}
-        <div className="-top-16 absolute inset-x-0 bottom-0 flex flex-col">
+        <div className="absolute inset-x-0 -top-16 bottom-0 flex flex-col">
           <div className="relative z-10 flex h-16 items-end gap-2 px-4 pl-8">
             {/* traffic lights */}
             <span className="mr-4 flex items-center gap-3 pb-4">

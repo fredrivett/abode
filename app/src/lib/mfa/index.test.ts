@@ -36,15 +36,14 @@ describe("isMfaChallengePending", () => {
     { currentLevel: "aal3", hasVerifiedFactor: true, expected: true },
     { currentLevel: "aal1", hasVerifiedFactor: false, expected: false },
     { currentLevel: null, hasVerifiedFactor: false, expected: false },
-  ])("currentLevel=$currentLevel, factor=$hasVerifiedFactor → $expected", ({
-    currentLevel,
-    hasVerifiedFactor,
-    expected,
-  }) => {
-    expect(isMfaChallengePending({ currentLevel, hasVerifiedFactor })).toBe(
-      expected,
-    );
-  });
+  ])(
+    "currentLevel=$currentLevel, factor=$hasVerifiedFactor → $expected",
+    ({ currentLevel, hasVerifiedFactor, expected }) => {
+      expect(isMfaChallengePending({ currentLevel, hasVerifiedFactor })).toBe(
+        expected,
+      );
+    },
+  );
 });
 
 describe("getAAL", () => {

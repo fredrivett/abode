@@ -325,4 +325,4 @@ function StepperNavigation({
   );
 }
 
-export { Stepper, Step, StepperNavigation, useStepper };
+export { Step, Stepper, StepperNavigation, useStepper };

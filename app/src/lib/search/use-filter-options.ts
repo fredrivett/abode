@@ -59,8 +59,8 @@ export function useFilterOptions() {
  */
 export function useInvalidateFilterOptions() {
   const queryClient = useQueryClient();
-  return useCallback(
-    () => queryClient.invalidateQueries({ queryKey: FILTER_OPTIONS_QUERY_KEY }),
-    [queryClient],
-  );
+  // Fire-and-forget: callers never await the refetch
+  return useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: FILTER_OPTIONS_QUERY_KEY });
+  }, [queryClient]);
 }
