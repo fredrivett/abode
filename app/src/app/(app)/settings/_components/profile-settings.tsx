@@ -29,7 +29,10 @@ type ProfileSettingsProps = {
   emailChanged?: boolean;
   showInvitedBy?: boolean;
   showInvited?: boolean;
+  allowSearchIndexing?: boolean;
 };
+
+type VisibilityField = "showInvitedBy" | "showInvited" | "allowSearchIndexing";
 
 export function ProfileSettings({
   firstName: initialFirstName,
@@ -42,6 +45,7 @@ export function ProfileSettings({
   emailChanged,
   showInvitedBy: initialShowInvitedBy = true,
   showInvited: initialShowInvited = true,
+  allowSearchIndexing: initialAllowSearchIndexing = false,
 }: ProfileSettingsProps) {
   const [firstName, setFirstName] = useState(initialFirstName ?? "");
   const [lastName, setLastName] = useState(initialLastName ?? "");
@@ -56,11 +60,14 @@ export function ProfileSettings({
   // Public profile visibility toggles (saved immediately on change)
   const [showInvitedBy, setShowInvitedBy] = useState(initialShowInvitedBy);
   const [showInvited, setShowInvited] = useState(initialShowInvited);
+  const [allowSearchIndexing, setAllowSearchIndexing] = useState(
+    initialAllowSearchIndexing,
+  );
   // Track pending toggles per field so an in-flight PATCH for one doesn't
   // re-enable the other
-  const [savingToggles, setSavingToggles] = useState<
-    Set<"showInvitedBy" | "showInvited">
-  >(new Set());
+  const [savingToggles, setSavingToggles] = useState<Set<VisibilityField>>(
+    new Set(),
+  );
 
   // Email change state
   const [newEmail, setNewEmail] = useState(email ?? "");
@@ -107,11 +114,14 @@ export function ProfileSettings({
   }, [emailState, newEmail]);
 
   const handleToggleVisibility = async (
-    field: "showInvitedBy" | "showInvited",
+    field: VisibilityField,
     value: boolean,
   ) => {
-    const setLocal =
-      field === "showInvitedBy" ? setShowInvitedBy : setShowInvited;
+    const setLocal = {
+      showInvitedBy: setShowInvitedBy,
+      showInvited: setShowInvited,
+      allowSearchIndexing: setAllowSearchIndexing,
+    }[field];
     // Optimistic update
     setLocal(value);
     setSavingToggles((prev) => new Set(prev).add(field));
@@ -333,6 +343,26 @@ export function ProfileSettings({
                 disabled={savingToggles.has("showInvited")}
                 onCheckedChange={(checked) =>
                   handleToggleVisibility("showInvited", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="allowSearchIndexing">
+                  Show in search engines
+                </Label>
+                <p className="text-muted-foreground text-xs">
+                  Let Google and other search engines list your profile and
+                  public rooms. Individual items stay out of search. Changes can
+                  take a few weeks to show up.
+                </p>
+              </div>
+              <Switch
+                id="allowSearchIndexing"
+                checked={allowSearchIndexing}
+                disabled={savingToggles.has("allowSearchIndexing")}
+                onCheckedChange={(checked) =>
+                  handleToggleVisibility("allowSearchIndexing", checked)
                 }
               />
             </div>

@@ -37,6 +37,7 @@ export default async function AccountSettingsPage({
       bio: true,
       showInvitedBy: true,
       showInvited: true,
+      allowSearchIndexing: true,
       storageUsedBytes: true,
       itemCount: true,
     },
@@ -66,6 +67,7 @@ export default async function AccountSettingsPage({
         emailChanged={email_changed === "true"}
         showInvitedBy={dbUser?.showInvitedBy ?? true}
         showInvited={dbUser?.showInvited ?? true}
+        allowSearchIndexing={dbUser?.allowSearchIndexing ?? false}
       />
       <UsernameSettings
         currentUsername={dbUser?.username || null}
