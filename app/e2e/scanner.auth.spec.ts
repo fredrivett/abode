@@ -132,6 +132,15 @@ test.describe("Document scanner", () => {
     try {
       expect(document.meta).toMatchObject({ pageCount: 1, type: "image/jpeg" });
       expect(uploads).toContain(document.fileKey);
+
+      // The viewer's page list comes back for it
+      const pagesResponse = await page.request.get(
+        `/api/v1/items/${document.id}/pages`,
+      );
+      expect(pagesResponse.status()).toBe(200);
+      const { pages } = await pagesResponse.json();
+      expect(pages).toHaveLength(1);
+      expect(pages[0].fileKey).toBe(document.fileKey);
     } finally {
       // Always clean up, so a failed assertion can't leave a document behind
       // for later tests to trip over

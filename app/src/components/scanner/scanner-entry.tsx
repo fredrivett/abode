@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { IsLoading } from "@/components/ui/is-loading";
 import { isCameraSupported } from "@/lib/scanner/camera";
-import { useUserStore } from "@/stores/user-store";
 
 /** Full-screen placeholder while the scanner chunk downloads on first open */
 function ScannerLoading() {
@@ -22,31 +21,12 @@ export const LazyDocumentScanner = dynamic(
 );
 
 /**
- * Whether this viewer gets the (in-progress) document scanner: admins, and
- * anyone in local dev, while it's being built out. `isAdmin` is undefined
- * until the user store hydrates — treated as no.
+ * Whether to offer "Scan a document": the browser can open a camera (not, for
+ * example, an insecure context). Only knowable in the browser, so it's false
+ * during SSR and the first render.
  */
-export function canUseScanner({
-  isAdmin,
-  isDevelopment,
-}: {
-  isAdmin: boolean | undefined;
-  isDevelopment: boolean;
-}): boolean {
-  return isDevelopment || isAdmin === true;
-}
-
-/** Whether to offer "Scan a document": viewer has access and a camera API exists */
 export function useScannerAvailable(): boolean {
-  const isAdmin = useUserStore((state) => state.isAdmin);
-  // Camera support is only knowable in the browser
   const [cameraSupported, setCameraSupported] = useState(false);
   useEffect(() => setCameraSupported(isCameraSupported()), []);
-  return (
-    cameraSupported &&
-    canUseScanner({
-      isAdmin,
-      isDevelopment: process.env.NODE_ENV === "development",
-    })
-  );
+  return cameraSupported;
 }
