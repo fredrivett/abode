@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SITEMAP_PATHS } from "@/lib/seo/indexing";
 import { HOSTED_APP_URL } from "@/lib/url";
 import robots from "./robots";
 import sitemap from "./sitemap";
@@ -67,13 +68,14 @@ describe("sitemap", () => {
     ]);
 
     expect(await sitemap()).toEqual([
-      { url: `${HOSTED_APP_URL}/` },
+      ...SITEMAP_PATHS.map((path) => ({ url: `${HOSTED_APP_URL}${path}` })),
       { url: `${HOSTED_APP_URL}/@fred`, lastModified },
       { url: `${HOSTED_APP_URL}/@fred/books`, lastModified },
     ]);
+    expect(SITEMAP_PATHS).toContain("/vs/mymind");
     // Leaves room for the static pages under the 50k-per-file limit
     expect(getIndexablePublicContentPaths).toHaveBeenCalledWith({
-      limit: 49_999,
+      limit: 50_000 - SITEMAP_PATHS.length,
     });
   });
 

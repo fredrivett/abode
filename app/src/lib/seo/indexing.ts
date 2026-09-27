@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COMPARISONS } from "@/lib/comparisons";
 import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
 
 /**
@@ -19,7 +20,11 @@ export function isIndexableDeployment(): boolean {
  * `route-indexing.test.ts` fails until every page is either listed here,
  * noindex, or an explicit exception.
  */
-export const SITEMAP_PATHS = ["/"] as const;
+export const SITEMAP_PATHS: readonly string[] = [
+  "/",
+  "/vs",
+  ...COMPARISONS.map(({ slug }) => `/vs/${slug}`),
+];
 
 /** `robots` metadata for pages that must never appear in search (app, auth) */
 export const NO_INDEX_ROBOTS = { index: false, follow: false } as const;

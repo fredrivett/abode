@@ -58,6 +58,58 @@ function isNoIndex(pageFile: string): boolean {
 const pages = findPages(APP_DIR);
 const sitemapPaths: readonly string[] = SITEMAP_PATHS;
 
+type ResolvedPage = Page & { params: Record<string, string> };
+
+// Matches a URL path to a route pattern ("/vs/[competitor]" ← "/vs/mymind")
+function matchRoute(
+  route: string,
+  path: string,
+): Record<string, string> | null {
+  const routeSegments = route.split("/");
+  const pathSegments = path.split("/");
+  if (routeSegments.length !== pathSegments.length) return null;
+
+  const params: Record<string, string> = {};
+  for (const [i, segment] of routeSegments.entries()) {
+    const dynamic = /^\[(.+)\]$/.exec(segment);
+    if (dynamic?.[1]) params[dynamic[1]] = pathSegments[i] ?? "";
+    else if (segment !== pathSegments[i]) return null;
+  }
+  return params;
+}
+
+// The page Next would serve for a path — static segments win over dynamic ones
+function resolvePage(path: string): ResolvedPage | undefined {
+  return pages
+    .flatMap((page) => {
+      const params = matchRoute(page.route, path);
+      return params ? [{ ...page, params }] : [];
+    })
+    .sort(
+      (a, b) => Object.keys(a.params).length - Object.keys(b.params).length,
+    )[0];
+}
+
+const sitemapFiles = new Set(
+  sitemapPaths.flatMap((path) => resolvePage(path)?.file ?? []),
+);
+
+type PageModule = {
+  metadata?: Metadata;
+  generateMetadata?: (props: {
+    params: Promise<Record<string, string>>;
+  }) => Promise<Metadata>;
+};
+
+async function resolveMetadata(page: ResolvedPage): Promise<Metadata> {
+  const mod: PageModule = await import(page.file);
+  if (mod.metadata) return mod.metadata;
+  return (
+    (await mod.generateMetadata?.({ params: Promise.resolve(page.params) })) ??
+    {}
+  );
+}
+
 describe("route indexing", () => {
   it("finds the app's pages", () => {
     expect(pages.map((page) => page.route)).toContain("/");
@@ -69,9 +121,7 @@ describe("route indexing", () => {
     const unclassified = pages
       .filter(
         ({ file, route }) =>
-          !sitemapPaths.includes(route) &&
-          !isNoIndex(file) &&
-          !(route in EXCEPTIONS),
+          !sitemapFiles.has(file) && !isNoIndex(file) && !(route in EXCEPTIONS),
       )
       .map(({ file }) => relative(process.cwd(), file));
 
@@ -83,7 +133,7 @@ describe("route indexing", () => {
 
   it("only lists existing, indexable pages in the sitemap", () => {
     for (const path of sitemapPaths) {
-      const page = pages.find(({ route }) => route === path);
+      const page = resolvePage(path);
       expect(page, `${path} has no page.tsx`).toBeDefined();
       if (page) expect(isNoIndex(page.file), `${path} is noindex`).toBe(false);
     }
@@ -99,13 +149,13 @@ describe("route indexing", () => {
   it.each([...sitemapPaths])(
     "%s has its own title, description and canonical URL",
     async (path) => {
-      const page = pages.find(({ route }) => route === path);
+      const page = resolvePage(path);
       if (!page) throw new Error(`${path} has no page.tsx`);
-      const { metadata }: { metadata?: Metadata } = await import(page.file);
+      const metadata = await resolveMetadata(page);
 
-      expect(metadata?.title).toBeTruthy();
-      expect(metadata?.description).toBeTruthy();
-      expect(metadata?.alternates?.canonical).toBe(path);
+      expect(metadata.title).toBeTruthy();
+      expect(metadata.description).toBeTruthy();
+      expect(metadata.alternates?.canonical).toBe(path);
     },
   );
 });
