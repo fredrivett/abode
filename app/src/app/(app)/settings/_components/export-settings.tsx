@@ -1,0 +1,227 @@
+"use client";
+
+import { formatDistanceToNow } from "date-fns";
+import { CheckCircle2, Download, FileArchive, XCircle } from "lucide-react";
+import posthog from "posthog-js";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { IsLoading } from "@/components/ui/is-loading";
+import { ApiClientError, api } from "@/lib/api-client";
+import {
+  type DataExportSnapshot,
+  isExportInProgress,
+} from "@/lib/export/snapshot";
+import { formatBytes } from "@/lib/utils";
+
+const POLL_INTERVAL_MS = 3000;
+// Consecutive failed polls before giving up rather than spinning forever
+const MAX_CONSECUTIVE_FAILURES = 5;
+
+type ExportsResponse = { exports: DataExportSnapshot[] };
+type RequestResponse = { export: DataExportSnapshot };
+
+/** Completed but past its expiry — the archive is (or is about to be) deleted */
+function isExpired(snapshot: DataExportSnapshot, now: Date): boolean {
+  return (
+    snapshot.status === "expired" ||
+    (snapshot.status === "completed" &&
+      snapshot.expiresAt !== null &&
+      new Date(snapshot.expiresAt) <= now)
+  );
+}
+
+export function ExportSettings({
+  initialExports,
+  available,
+}: {
+  initialExports: DataExportSnapshot[];
+  /** False when the deployment has no background worker to build exports */
+  available: boolean;
+}) {
+  const [exports, setExports] = useState(initialExports);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [pollError, setPollError] = useState(false);
+
+  const inProgress = exports.some(({ status }) => isExportInProgress(status));
+
+  useEffect(() => {
+    if (!inProgress) return;
+    let active = true;
+    let failures = 0;
+    setPollError(false);
+
+    const timer = setInterval(async () => {
+      try {
+        const data = await api.get<ExportsResponse>("/api/v1/exports");
+        if (!active) return;
+        failures = 0;
+        setExports(data.exports);
+      } catch {
+        if (!active) return;
+        failures += 1;
+        if (failures >= MAX_CONSECUTIVE_FAILURES) {
+          setPollError(true);
+          clearInterval(timer);
+        }
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [inProgress]);
+
+  const handleExport = async () => {
+    if (isRequesting || inProgress || !available) return;
+    setIsRequesting(true);
+    posthog.capture("data_export_submitted");
+    try {
+      const { export: created } =
+        await api.post<RequestResponse>("/api/v1/exports");
+      setExports((current) => [created, ...current]);
+    } catch (error) {
+      toast.error(
+        error instanceof ApiClientError
+          ? error.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  return (
+    <>
+      <section className="rounded-xl border p-6">
+        <h3 className="flex items-center gap-2 font-semibold text-xl">
+          <FileArchive className="size-5 text-muted-foreground" />
+          Export your data
+        </h3>
+        <p className="mt-1 text-muted-foreground text-sm">
+          Download a copy of everything in your abode: every item with its tags,
+          notes and highlights, your rooms and your profile. You get one file
+          for moving to another abode, a Markdown file per item (ready for
+          Obsidian), a bookmarks file for any browser, and your books as a
+          Goodreads-style CSV.
+        </p>
+        <p className="mt-2 text-muted-foreground text-sm">
+          Uploaded images and files aren't included yet — only their details.
+        </p>
+
+        {available ? (
+          <Button
+            className="mt-4"
+            onClick={handleExport}
+            disabled={isRequesting || inProgress}
+          >
+            {isRequesting ? (
+              <IsLoading label="Starting" />
+            ) : inProgress ? (
+              "Export in progress…"
+            ) : (
+              "Export my data"
+            )}
+          </Button>
+        ) : (
+          <p className="mt-4 text-muted-foreground text-sm">
+            Exporting isn't available on this deployment — it needs the
+            background worker (Trigger.dev) to be configured.
+          </p>
+        )}
+
+        {inProgress && (
+          <p className="mt-3 text-muted-foreground text-xs">
+            You can leave this page — your export keeps going and will be ready
+            to download here.
+          </p>
+        )}
+        {pollError && (
+          <p className="mt-3 text-destructive text-sm">
+            Couldn't check on your export. Refresh the page to see the latest.
+          </p>
+        )}
+      </section>
+
+      {exports.length > 0 && (
+        <div className="mt-6">
+          <h4 className="mb-3 font-medium text-muted-foreground text-sm">
+            Recent exports
+          </h4>
+          <div className="space-y-2">
+            {exports.map((snapshot) => (
+              <ExportRow key={snapshot.id} snapshot={snapshot} />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ExportRow({ snapshot }: { snapshot: DataExportSnapshot }) {
+  const now = new Date();
+  const requested = formatDistanceToNow(new Date(snapshot.createdAt), {
+    addSuffix: true,
+  });
+  const expired = isExpired(snapshot, now);
+  const ready = snapshot.status === "completed" && !expired;
+
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
+      <div className="min-w-0 space-y-0.5 text-sm">
+        <p className="flex items-center gap-1.5 font-medium">
+          {ready && <CheckCircle2 className="size-4 text-emerald-600" />}
+          {snapshot.status === "failed" && (
+            <XCircle className="size-4 text-destructive" />
+          )}
+          {isExportInProgress(snapshot.status) ? (
+            <IsLoading label="Preparing your export" />
+          ) : ready ? (
+            "Ready to download"
+          ) : expired ? (
+            "Expired"
+          ) : (
+            "Export failed"
+          )}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          Requested {requested}
+          {ready && snapshot.itemCount !== null && (
+            <>
+              {" · "}
+              {snapshot.itemCount} {snapshot.itemCount === 1 ? "item" : "items"}
+            </>
+          )}
+          {ready && snapshot.sizeBytes !== null && (
+            <> · {formatBytes(snapshot.sizeBytes)}</>
+          )}
+          {ready && snapshot.expiresAt && (
+            <>
+              {" · "}expires{" "}
+              {formatDistanceToNow(new Date(snapshot.expiresAt), {
+                addSuffix: true,
+              })}
+            </>
+          )}
+        </p>
+        {snapshot.status === "failed" && snapshot.error && (
+          <p className="text-destructive text-xs">{snapshot.error}</p>
+        )}
+      </div>
+
+      {ready && (
+        <Button asChild size="sm" variant="outline">
+          <a
+            href={`/api/v1/exports/${snapshot.id}/download`}
+            onClick={() => posthog.capture("data_export_download_clicked")}
+          >
+            <Download />
+            Download
+          </a>
+        </Button>
+      )}
+    </div>
+  );
+}
