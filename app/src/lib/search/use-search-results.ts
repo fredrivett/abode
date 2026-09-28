@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
 import type { SearchItem } from "@/lib/types/item";
 import {
   type InvalidFilterValue,
   SearchError,
+  type SearchParams,
   type SearchResponse,
   search,
 } from "./api";
@@ -45,6 +52,9 @@ function showInvalidFiltersToast(invalidFilters: InvalidFilterValue[]) {
   });
 }
 
+/** Search params for a query's first page — pagination adds the cursor. */
+type SearchQueryParams = Omit<SearchParams, "cursor">;
+
 export type SearchResultsState = {
   isLoading: boolean;
   isSearching: boolean;
@@ -60,19 +70,8 @@ export type SearchResultsState = {
 /**
  * Convert frontend Filter to API search params.
  */
-function buildSearchParams(state: SearchState): {
-  q?: string;
-  type?: string[];
-  tag?: string[];
-  object?: string[];
-  color?: string[];
-  source?: string[];
-  location?: string[];
-  status?: string[];
-  dateAfter?: string;
-  dateBefore?: string;
-} {
-  const params: ReturnType<typeof buildSearchParams> = {};
+function buildSearchParams(state: SearchState): SearchQueryParams {
+  const params: SearchQueryParams = {};
 
   // Add query if present (strip incomplete filter syntax)
   const cleanQuery = state.query
@@ -150,207 +149,133 @@ function hasSearchCriteria(state: SearchState): boolean {
 }
 
 /**
+ * Query key for a search's results. Nested under the `["items"]` namespace so
+ * {@link useInvalidateItems} — called after every item edit (reading status,
+ * notes, tags…) — refetches the visible results too, not just the full list.
+ */
+export function searchResultsQueryKey(params: SearchQueryParams) {
+  return ["items", "search", params] as const;
+}
+
+const NO_PAGES: SearchResponse[] = [];
+
+const sameParams = (a: SearchQueryParams, b: SearchQueryParams) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/**
  * Hook for fetching search results based on search state.
  *
  * Returns search results that can be used to replace/filter the items grid.
- * Only fetches when there's an active search (query or filters).
+ * Only fetches when there's an active search (query or filters). Results live
+ * in the React Query cache under {@link searchResultsQueryKey}, so an item
+ * edited from a search result refreshes (or drops out of) the results.
  */
 export function useSearchResults(searchState: SearchState) {
-  const [state, setState] = useState<SearchResultsState>({
-    isLoading: false,
-    isSearching: false,
-    hasReceivedResults: false,
-    items: [],
-    total: 0,
-    cursor: null,
-    hasMore: false,
-    error: null,
-    warnings: undefined,
+  const queryClient = useQueryClient();
+  const hasActiveSearch = hasSearchCriteria(searchState);
+  const params = useMemo(() => buildSearchParams(searchState), [searchState]);
+  const [debouncedParams] = useDebounce(params, SEARCH_DEBOUNCE_MS, {
+    equalityFn: sameParams,
   });
+  const isDebouncing = !sameParams(params, debouncedParams);
 
-  // Track current request to avoid stale responses
-  const currentRequestId = useRef(0);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Invalid-filter toasts fire once per search, not again on every refetch an
+  // item edit triggers. Reset when search clears so re-entering it re-warns.
+  const toastedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasActiveSearch) toastedKeyRef.current = null;
+  }, [hasActiveSearch]);
 
-  // Perform search
-  const doSearch = useCallback(
-    async (
-      searchParams: ReturnType<typeof buildSearchParams>,
-      requestId: number,
-    ) => {
+  const query = useInfiniteQuery({
+    queryKey: searchResultsQueryKey(debouncedParams),
+    queryFn: async ({ pageParam }) => {
+      const key = JSON.stringify(debouncedParams);
+      const shouldToast = pageParam === null && toastedKeyRef.current !== key;
       try {
-        const response = await search(searchParams);
-
-        // Check if this is still the current request
-        if (requestId !== currentRequestId.current) {
-          return;
-        }
-
-        // Show toast for any invalid filter values
-        if (response.invalidFilters && response.invalidFilters.length > 0) {
+        const response = await search({
+          ...debouncedParams,
+          ...(pageParam ? { cursor: pageParam } : {}),
+        });
+        if (shouldToast && response.invalidFilters?.length) {
+          toastedKeyRef.current = key;
           showInvalidFiltersToast(response.invalidFilters);
         }
-
-        setState({
-          isLoading: false,
-          isSearching: false,
-          hasReceivedResults: true,
-          items: response.items,
-          total: response.total,
-          cursor: response.cursor || null,
-          hasMore: !!response.cursor,
-          error: null,
-          warnings: response.warnings,
-        });
+        return response;
       } catch (error) {
-        // Check if this is still the current request
-        if (requestId !== currentRequestId.current) {
-          return;
-        }
-
-        // Show toast for any invalid filter values from the error
         if (
+          shouldToast &&
           error instanceof SearchError &&
-          error.invalidFilters &&
-          error.invalidFilters.length > 0
+          error.invalidFilters?.length
         ) {
+          toastedKeyRef.current = key;
           showInvalidFiltersToast(error.invalidFilters);
         }
-
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isSearching: false,
-          error: error instanceof Error ? error.message : "Search failed",
-        }));
+        throw error;
       }
     },
-    [],
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.cursor || undefined,
+    // Gate on the debounce so a stale key (e.g. `{}` right after re-entering a
+    // search) never fires a request
+    enabled: hasActiveSearch && !isDebouncing,
+    retry: false,
+  });
+
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const loadMore = useCallback(async () => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    await fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Patch a single result's title in place across every cached search, so an
+  // optimistic rename in the detail dialog updates the visible card at once.
+  const patchItemTitle = useCallback(
+    (itemId: string, title: string) => {
+      queryClient.setQueriesData<InfiniteData<SearchResponse>>(
+        { queryKey: ["items", "search"] },
+        (old) =>
+          old
+            ? {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  items: page.items.map((item) =>
+                    item.id === itemId ? { ...item, title } : item,
+                  ),
+                })),
+              }
+            : old,
+      );
+    },
+    [queryClient],
   );
 
-  // Effect to perform search when state changes
-  useEffect(() => {
-    // Clear any pending debounce
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Check if we have search criteria
-    if (!hasSearchCriteria(searchState)) {
-      // Reset state when no search is active
-      setState({
-        isLoading: false,
-        isSearching: false,
-        hasReceivedResults: false,
-        items: [],
-        total: 0,
-        cursor: null,
-        hasMore: false,
-        error: null,
-        warnings: undefined,
-      });
-      return;
-    }
-
-    // Build search params
-    const params = buildSearchParams(searchState);
-
-    // Set searching state and reset hasReceivedResults for new search
-    setState((prev) => ({
-      ...prev,
-      isSearching: true,
-      hasReceivedResults: false,
-    }));
-
-    // Increment request ID
-    currentRequestId.current += 1;
-    const requestId = currentRequestId.current;
-
-    // Debounce the actual search
-    debounceTimeoutRef.current = setTimeout(() => {
-      setState((prev) => ({
-        ...prev,
-        isLoading: true,
-      }));
-      void doSearch(params, requestId);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [searchState, doSearch]);
-
-  // Load more results
-  const loadMore = useCallback(async () => {
-    if (!state.cursor || state.isLoading) {
-      return;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      isLoading: true,
-    }));
-
-    currentRequestId.current += 1;
-    const requestId = currentRequestId.current;
-
-    const params = {
-      ...buildSearchParams(searchState),
-      cursor: state.cursor,
-    };
-
-    try {
-      const response = await search(params);
-
-      if (requestId !== currentRequestId.current) {
-        return;
-      }
-
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        items: [...prev.items, ...response.items],
-        cursor: response.cursor || null,
-        hasMore: !!response.cursor,
-        warnings: response.warnings,
-      }));
-    } catch (error) {
-      if (requestId !== currentRequestId.current) {
-        return;
-      }
-
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Failed to load more",
-      }));
-    }
-  }, [state.cursor, state.isLoading, searchState]);
-
-  // Patch a single result's title in place — search results live in local
-  // state (not the React Query items cache), so an optimistic rename in the
-  // detail dialog has to reach them here to update the visible card.
-  const patchItemTitle = useCallback((itemId: string, title: string) => {
-    setState((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.id === itemId ? { ...item, title } : item,
-      ),
-    }));
-  }, []);
-
-  const hasActiveSearch = hasSearchCriteria(searchState);
+  const pages = (hasActiveSearch && query.data?.pages) || NO_PAGES;
+  const lastPage = pages.at(-1);
+  const items = useMemo(() => pages.flatMap((page) => page.items), [pages]);
 
   return {
-    ...state,
+    isLoading:
+      hasActiveSearch &&
+      (isFetchingNextPage || (query.isPending && query.isFetching)),
+    // True whenever there's search criteria whose results haven't landed yet —
+    // debouncing, or the first fetch for a new query. A background refetch
+    // after an item edit doesn't count, so the grid doesn't dim for it.
+    isSearching: hasActiveSearch && (isDebouncing || query.isPending),
+    hasReceivedResults: pages.length > 0,
+    items,
+    total: pages[0]?.total ?? 0,
+    cursor: lastPage?.cursor ?? null,
+    hasMore: hasActiveSearch && hasNextPage,
+    error:
+      hasActiveSearch && query.error
+        ? query.error instanceof Error
+          ? query.error.message
+          : "Search failed"
+        : null,
+    warnings: lastPage?.warnings,
     loadMore,
     patchItemTitle,
     hasActiveSearch,
-    // isSearching should be true whenever we have search criteria but haven't received results yet
-    // This covers the gap between searchState changing and the effect setting isSearching
-    isSearching:
-      hasActiveSearch && (state.isSearching || !state.hasReceivedResults),
   };
 }
