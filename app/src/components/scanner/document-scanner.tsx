@@ -336,7 +336,11 @@ function ScannerSession({
         Point your camera at a document to scan it, one page at a time.
       </DialogPrimitive.Description>
 
-      <div className={view === "camera" ? "absolute inset-0" : "hidden"}>
+      <div
+        className={view === "camera" ? "absolute inset-0" : "hidden"}
+        // Behind the load error, keep the camera out of reach
+        inert={loadStatus === "failed"}
+      >
         <ScannerCamera
           client={client}
           ready={loadStatus === "ready"}

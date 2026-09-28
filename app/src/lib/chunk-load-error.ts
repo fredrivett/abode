@@ -6,8 +6,8 @@
 export function isChunkLoadError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === "ChunkLoadError") return true;
-  // Webpack names it; Turbopack and CSS chunks only say so in the message
-  return /Loading (CSS )?chunk \S+ failed|Failed to load chunk/i.test(
+  // Webpack names it; Turbopack, CSS chunks and native import() only say so in the message
+  return /Loading (CSS )?chunk \S+ failed|Failed to load chunk|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(
     error.message,
   );
 }

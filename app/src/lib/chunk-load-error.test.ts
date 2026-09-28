@@ -10,9 +10,7 @@ function namedError(name: string, message: string): Error {
 describe("isChunkLoadError", () => {
   it("matches webpack's ChunkLoadError", () => {
     expect(
-      isChunkLoadError(
-        namedError("ChunkLoadError", "Loading chunk 8560 failed."),
-      ),
+      isChunkLoadError(namedError("ChunkLoadError", "script error.")),
     ).toBe(true);
   });
 
@@ -23,6 +21,16 @@ describe("isChunkLoadError", () => {
     expect(
       isChunkLoadError(new Error("Failed to load chunk /_next/static/x.js")),
     ).toBe(true);
+  });
+
+  it("matches native dynamic import failures", () => {
+    for (const message of [
+      "Failed to fetch dynamically imported module: https://x/_next/a.js", // Chrome
+      "Importing a module script failed.", // Safari
+      "error loading dynamically imported module: https://x/_next/a.js", // Firefox
+    ]) {
+      expect(isChunkLoadError(new TypeError(message))).toBe(true);
+    }
   });
 
   it("ignores other errors", () => {

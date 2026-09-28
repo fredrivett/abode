@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LazyDocumentScanner, useScannerAvailable } from "./scanner-entry";
 
 const chunk = vi.hoisted(() => ({ failuresLeft: 0 }));
+const captureException = vi.hoisted(() => vi.fn());
 
-vi.mock("posthog-js", () => ({ default: { captureException: vi.fn() } }));
+vi.mock("posthog-js", () => ({ default: { captureException } }));
 
 // A throwing getter rejects the lazy import, as a failed chunk download does
 vi.mock("./document-scanner", () => ({
@@ -23,6 +24,7 @@ vi.mock("./document-scanner", () => ({
 describe("LazyDocumentScanner", () => {
   beforeEach(() => {
     chunk.failuresLeft = 0;
+    captureException.mockClear();
     // React logs the error the boundary catches
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -53,6 +55,10 @@ describe("LazyDocumentScanner", () => {
     expect(
       await screen.findByText("Couldn't open the scanner"),
     ).toBeInTheDocument();
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "ChunkLoadError" }),
+      expect.anything(),
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Scanner ready")).toBeInTheDocument();

@@ -65,6 +65,7 @@ describe("DocumentScanner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Couldn't open the scanner",
     );
+    expect(screen.getByRole("button", { name: "Try again" })).toHaveFocus();
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 

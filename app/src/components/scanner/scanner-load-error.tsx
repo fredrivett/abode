@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 
 /** Full-screen notice when the scanner's code or worker fails to load */
@@ -10,6 +11,11 @@ export function ScannerLoadError({
   onRetry: () => void;
   onClose: () => void;
 }) {
+  const retryRef = useRef<HTMLButtonElement>(null);
+
+  // It replaces whatever had focus, so move keyboard focus onto it
+  useEffect(() => retryRef.current?.focus(), []);
+
   return (
     <div
       role="alert"
@@ -20,7 +26,7 @@ export function ScannerLoadError({
         This is usually a patchy connection. Check your signal and try again.
       </p>
       <div className="flex gap-2">
-        <Button variant="secondary" onClick={onRetry}>
+        <Button ref={retryRef} variant="secondary" onClick={onRetry}>
           Try again
         </Button>
         <Button
