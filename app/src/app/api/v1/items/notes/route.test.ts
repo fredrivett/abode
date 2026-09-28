@@ -98,6 +98,17 @@ describe("POST /api/v1/items/notes", () => {
     expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
   });
 
+  it("clears the draft for a composer save sent with the web app's bearer session", async () => {
+    // api-client attaches the Supabase session as a bearer header, so the
+    // composer arrives as `bearer`, not `cookie`
+    mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "bearer" });
+    const res = await POST(
+      request({ content: "a quote" }, { authorization: "Bearer session-jwt" }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
+  });
+
   it("defaults an invalid source to web", async () => {
     const res = await POST(request({ content: "a quote", source: "bogus" }));
     expect(res.status).toBe(201);
