@@ -128,4 +128,42 @@ describe("DocumentPages", () => {
     expect(screen.getByText("1 of 3")).toBeInTheDocument();
     expect(scrollTo).not.toHaveBeenCalled();
   });
+
+  it("doesn't collapse quick presses while the smooth scroll is in flight", () => {
+    // A real smooth scroll reports its position only as it arrives
+    const inFlight = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollTo", {
+      configurable: true,
+      value: inFlight,
+    });
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(inFlight).toHaveBeenLastCalledWith({
+      left: 800,
+      behavior: "smooth",
+    });
+    // …and it doesn't run past the last page
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(inFlight).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a swipe take over from a pending key press", () => {
+    const inFlight = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollTo", {
+      configurable: true,
+      value: inFlight,
+    });
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    const scroller = track();
+    if (!scroller) throw new Error("no track");
+    fireEvent.pointerDown(scroller);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    // Still on page 1 as far as the scroll position says, so → aims at page 2
+    expect(inFlight).toHaveBeenLastCalledWith({
+      left: 400,
+      behavior: "smooth",
+    });
+  });
 });
