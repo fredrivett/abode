@@ -4,6 +4,10 @@ import { logger, task, tasks } from "@trigger.dev/sdk";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
 import db from "../src/lib/db";
 import { combinePageText } from "../src/lib/documents/combine-page-text";
+import {
+  type DocumentDescription,
+  describeDocument,
+} from "../src/lib/documents/describe-document";
 import { extractPageText } from "../src/lib/documents/document-ocr";
 import {
   upsertVisualVector,
@@ -36,8 +40,9 @@ type AnalyzeDocumentPayload = {
  *      OpenAI). Pages that already have text are skipped, so a retry only pays
  *      for the pages that didn't finish.
  *   2. Vision-analyse the cover (page 1) like an image upload — colours,
- *      objects, blur, title/description, CLIP vector. Pages look alike, so the
- *      others aren't analysed visually.
+ *      objects, blur, CLIP vector. Pages look alike, so the others aren't
+ *      analysed visually. Meanwhile, title and describe the document from its
+ *      text (issuer, type, date), falling back to the cover's caption.
  *   3. Store the combined text as the item's OCR text (searched and shown like
  *      an image's), then enrich-item derives tags + the text embedding from it.
  *
@@ -101,41 +106,55 @@ export const analyzeDocumentTask = task({
         pagesWithText: pageTexts.filter((p) => p.ocrText).length,
       });
 
-      // Step 2: Analyse the cover like an image upload
+      // Step 2: Analyse the cover like an image upload, and title the
+      // document from its text. The cover's own OCR would be discarded for the
+      // page text, so it isn't requested.
       await markProcessingActive(itemId);
-      const cover = pages[0];
-      const analysis = await analyzeImageBytes({
-        buffer: await download(cover.fileKey),
-        mimeType: getMimeTypeFromFileKey(cover.fileKey),
-        itemId,
-        userId,
-        source: "upload",
-        getSignedUrl: async () => {
-          const { data, error } = await supabase.storage
-            .from("items")
-            .createSignedUrl(cover.fileKey, 3600);
-          if (error || !data) {
-            throw new Error(
-              `Failed to create signed URL: ${formatStorageError(error)}`,
-            );
-          }
-          return data.signedUrl;
-        },
-      });
-
-      // Step 3: Persist. The item's OCR text is every page's, not the cover's
-      // (photo-sized) excerpt
-      const coverAnalysis = { ...analysis, ocrText: documentText };
       const item = await db.item.findFirstOrThrow({
         where: { id: itemId, userId },
         select: { kind: true, titleEditedByUser: true },
       });
+      const mayWriteTitle = visionMayWriteTitle(item);
+      const cover = pages[0];
+      const coverBuffer = await download(cover.fileKey);
+      const [analysis, described] = await Promise.all([
+        analyzeImageBytes({
+          buffer: coverBuffer,
+          mimeType: getMimeTypeFromFileKey(cover.fileKey),
+          itemId,
+          userId,
+          source: "upload",
+          ocr: false,
+          getSignedUrl: async () => {
+            const { data, error } = await supabase.storage
+              .from("items")
+              .createSignedUrl(cover.fileKey, 3600);
+            if (error || !data) {
+              throw new Error(
+                `Failed to create signed URL: ${formatStorageError(error)}`,
+              );
+            }
+            return data.signedUrl;
+          },
+        }),
+        mayWriteTitle && documentText
+          ? describeFromText({ text: documentText, userId, itemId })
+          : null,
+      ]);
+
+      // Step 3: Persist. The item's OCR text is every page's, not the cover's
+      const coverAnalysis = { ...analysis, ocrText: documentText };
+      const naming =
+        described ??
+        (analysis.openaiConfigured
+          ? { title: analysis.title, description: analysis.description }
+          : null);
       const ops: Prisma.PrismaPromise<unknown>[] = [];
-      if (analysis.openaiConfigured && visionMayWriteTitle(item)) {
+      if (naming && mayWriteTitle) {
         ops.push(
           db.item.update({
             where: { id: itemId, userId },
-            data: { title: analysis.title, description: analysis.description },
+            data: { title: naming.title, description: naming.description },
           }),
         );
       }
@@ -215,3 +234,27 @@ export const analyzeDocumentTask = task({
     }
   },
 });
+
+/**
+ * The text-derived title, or null to fall back to the cover's caption. An
+ * optional enhancement: a failed call is reported, never fatal.
+ */
+async function describeFromText(params: {
+  text: string;
+  userId: string;
+  itemId: string;
+}): Promise<DocumentDescription | null> {
+  try {
+    return await describeDocument(params);
+  } catch (error) {
+    logger.warn("Document description failed — using the cover's title", {
+      itemId: params.itemId,
+      error,
+    });
+    captureServerException(error, params.userId, {
+      source: "analyze-document:describe",
+      itemId: params.itemId,
+    });
+    return null;
+  }
+}

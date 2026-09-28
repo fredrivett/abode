@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   signedUrl: vi.fn(),
   extractPageText: vi.fn(),
   analyzeImageBytes: vi.fn(),
+  describeDocument: vi.fn(),
   upsertVisualVector: vi.fn(),
   trigger: vi.fn(),
   markProcessingActive: vi.fn(),
@@ -41,6 +42,9 @@ vi.mock("../src/lib/db", () => ({
 }));
 vi.mock("../src/lib/documents/document-ocr", () => ({
   extractPageText: m.extractPageText,
+}));
+vi.mock("../src/lib/documents/describe-document", () => ({
+  describeDocument: m.describeDocument,
 }));
 vi.mock("../src/lib/image-analysis/analyze-image-bytes", () => ({
   analyzeImageBytes: m.analyzeImageBytes,
@@ -106,6 +110,10 @@ beforeEach(() => {
     engine: "google_vision",
   }));
   m.analyzeImageBytes.mockResolvedValue(coverAnalysis);
+  m.describeDocument.mockResolvedValue({
+    title: "Mous order confirmation, Mar 2026",
+    description: "An order confirmation from Mous.",
+  });
   m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: false });
   m.updateItem.mockReturnValue("update-item");
   m.upsertImageDetails.mockReturnValue("upsert-details");
@@ -135,9 +143,12 @@ describe("analyzeDocumentTask", () => {
     expect(m.download).not.toHaveBeenCalledWith("user-1/p0-original.jpg");
   });
 
-  it("analyses only the cover visually", async () => {
+  it("analyses only the cover visually, without its discarded OCR", async () => {
     await run();
     expect(m.analyzeImageBytes).toHaveBeenCalledTimes(1);
+    expect(m.analyzeImageBytes).toHaveBeenCalledWith(
+      expect.objectContaining({ ocr: false }),
+    );
     expect(m.download).toHaveBeenCalledWith("user-1/p0.jpg");
     expect(m.download).not.toHaveBeenCalledWith("user-1/p1.jpg");
     expect(m.upsertVisualVector).toHaveBeenCalledTimes(1);
@@ -150,23 +161,65 @@ describe("analyzeDocumentTask", () => {
     expect(update.ocrText).toBe("text 1\n\ntext 2");
   });
 
-  it("titles the document from its cover unless the user renamed it", async () => {
+  it("titles the document from its text", async () => {
     await run();
+    expect(m.describeDocument).toHaveBeenCalledWith({
+      text: "text 1\n\ntext 2",
+      userId: "user-1",
+      itemId: "item-1",
+    });
     expect(m.updateItem).toHaveBeenCalledWith({
       where: { id: "item-1", userId: "user-1" },
       data: {
-        title: "Council tax bill",
-        description: "A council tax bill for 2026.",
+        title: "Mous order confirmation, Mar 2026",
+        description: "An order confirmation from Mous.",
       },
     });
+  });
 
-    vi.clearAllMocks();
+  it("leaves a title the user renamed, without paying to describe it", async () => {
     m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: true });
-    m.findPages.mockResolvedValue([page(0, "a")]);
-    m.analyzeImageBytes.mockResolvedValue(coverAnalysis);
-    m.download.mockResolvedValue({
-      data: { arrayBuffer: async () => new ArrayBuffer(4) },
-      error: null,
+    await run();
+    expect(m.describeDocument).not.toHaveBeenCalled();
+    expect(m.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the cover's title when the document has no text", async () => {
+    m.extractPageText.mockResolvedValue({ text: null, engine: null });
+    await run();
+    expect(m.describeDocument).not.toHaveBeenCalled();
+    expect(m.updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          title: "Council tax bill",
+          description: "A council tax bill for 2026.",
+        },
+      }),
+    );
+  });
+
+  it("falls back to the cover's title when describing fails, and still completes", async () => {
+    m.describeDocument.mockRejectedValue(new Error("openai down"));
+    await expect(run()).resolves.toMatchObject({ success: true });
+    expect(m.capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      "user-1",
+      expect.objectContaining({ source: "analyze-document:describe" }),
+    );
+    expect(m.updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "Council tax bill" }),
+      }),
+    );
+  });
+
+  it("leaves the title alone when OpenAI isn't configured", async () => {
+    m.describeDocument.mockResolvedValue(null);
+    m.analyzeImageBytes.mockResolvedValue({
+      ...coverAnalysis,
+      title: "",
+      description: "",
+      openaiConfigured: false,
     });
     await run();
     expect(m.updateItem).not.toHaveBeenCalled();
