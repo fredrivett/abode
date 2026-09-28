@@ -12,6 +12,8 @@ type HelpNavItem = {
 
 const helpPages: HelpNavItem[] = [
   { href: "/help/filtering", label: "Filtering" },
+  { href: "/help/scanning", label: "Scanning documents" },
+  { href: "/help/saving-from-your-phone", label: "Saving from your phone" },
 ];
 
 /**
@@ -21,7 +23,7 @@ export function HelpNav() {
   const pathname = usePathname();
 
   return (
-    <div className="-mx-4 scroll-shadow-x scroll-shadow-x-mobile md:mx-0">
+    <div className="scroll-shadow-x scroll-shadow-x-mobile -mx-4 md:mx-0">
       <nav className="flex gap-1 overflow-x-auto px-4 md:flex-col md:px-0">
         <span className="mb-2 hidden items-center gap-1.5 font-medium text-muted-foreground text-sm md:flex">
           <FileQuestion className="size-4" />

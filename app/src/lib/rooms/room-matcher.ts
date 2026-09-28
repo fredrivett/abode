@@ -6,7 +6,11 @@
  */
 
 import { ItemKind, SourceType } from "@prisma/client";
-import { normalizeColorFilterValue } from "../search/query-builder";
+import {
+  normalizeColorFilterValue,
+  type StatusValue,
+  VALID_STATUS_VALUES,
+} from "../search/query-builder";
 import type { Filter } from "../search/types";
 import type { ItemWithDetails, RoomWithFilters } from "./types";
 
@@ -148,6 +152,55 @@ const VALID_SOURCE_TYPES = Object.values(SourceType).map((s) =>
 );
 
 /**
+ * Check if an item is in a given cross-kind reading/consumption status.
+ *
+ * Must mirror `statusMatchSql` in query-builder.ts exactly — the SQL search
+ * path and this in-memory matcher are two implementations of the same status
+ * vocabulary, and they must agree (see the parity test in
+ * room-service.integration.test.ts). Value is assumed already validated against
+ * VALID_STATUS_VALUES by the caller.
+ *   - read: an article marked read OR a book with status read.
+ *   - reading: a book currently being read (articles never qualify).
+ *   - dnf: a book marked did-not-finish (articles never qualify).
+ *   - unread: a readable item not yet read — an article with no read_at, or a
+ *     book with null/want_to_read status.
+ */
+function matchesStatus(item: ItemWithDetails, value: StatusValue): boolean {
+  const bookStatus = item.bookDetails?.status ?? null;
+  const articleReadAt = item.articleDetails?.readAt ?? null;
+
+  switch (value) {
+    case "read":
+      return articleReadAt !== null || bookStatus === "read";
+    case "reading":
+      return bookStatus === "reading";
+    case "dnf":
+      return bookStatus === "dnf";
+    case "unread":
+      return (
+        (item.kind === "article" && articleReadAt === null) ||
+        (item.kind === "book" &&
+          bookStatus !== "reading" &&
+          bookStatus !== "read" &&
+          bookStatus !== "dnf")
+      );
+  }
+}
+
+/**
+ * Exhaustiveness guard for the filter-type switch.
+ *
+ * Adding a new FilterType member without a matching `case` fails typecheck here
+ * (the arg is no longer `never`) — the compile-time defense against the search
+ * vocabulary and this matcher silently drifting apart. At runtime an unknown
+ * type only reaches here via malformed stored data, where excluding (false) is
+ * safer than flooding every room.
+ */
+function unhandledFilterType(_type: never): false {
+  return false;
+}
+
+/**
  * Check if item matches a single value for a given filter type.
  * Does not handle negation - that's applied at the filter level.
  */
@@ -177,8 +230,19 @@ function matchesSingleValue(
       return matchesSource(item, value);
     case "location":
       return matchesLocation(item, value);
-    default:
+    case "status": {
+      const normalized = value.toLowerCase();
+      if (!VALID_STATUS_VALUES.includes(normalized as StatusValue)) {
+        return true; // Invalid status filter = pass (don't block)
+      }
+      return matchesStatus(item, normalized as StatusValue);
+    }
+    case "date":
+      // Date filters need the full Filter (operator, endDate) and are evaluated
+      // in filterMatchesItem; they never reach matchesSingleValue.
       return true;
+    default:
+      return unhandledFilterType(type);
   }
 }
 

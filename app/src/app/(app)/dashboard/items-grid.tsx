@@ -1,37 +1,29 @@
 "use client";
 
-import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import { Home, SearchX } from "lucide-react";
-import {
-  type CSSProperties,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, useEffect, useMemo, useRef } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
+import { MasonryGrid } from "@/components/masonry/masonry-grid";
 import { Button } from "@/components/ui/button";
-import { useColumnWidth } from "@/hooks/use-column-width";
 import { useGridDensity } from "@/hooks/use-grid-density";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { useRootFontSize } from "@/hooks/use-root-font-size";
-import { getBookTileFrame } from "@/lib/book-cover";
-import {
-  estimateNoteAspect,
-  estimateTweetAspect,
-} from "@/lib/items/card-aspect";
-import { measureCardText } from "@/lib/items/card-text-measurer";
+import { diffItemIds } from "@/lib/debug/grid-layout-diff";
+import { debugTrace, isTracing } from "@/lib/debug/trace";
+import { useDebugGridObserver } from "@/lib/debug/use-debug-grid-observer";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { isFreshlyAdded } from "@/lib/items/grow-in";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
-import { readAspectHint } from "@/lib/items/provisional-aspect";
+import { useCardFrame } from "@/lib/items/use-card-frame";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 import { ItemCard } from "./item-card";
-import { ItemCardSkeleton, shuffleSkeletonFrames } from "./item-card-skeleton";
-import { ItemFrame } from "./item-frame";
+import {
+  ItemCardSkeleton,
+  type SKELETON_FRAMES,
+  shuffleSkeletonFrames,
+} from "./item-card-skeleton";
 import { NoteComposer } from "./note-composer";
 
 function formatBytes(bytes?: number | null) {
@@ -46,6 +38,13 @@ function formatBytes(bytes?: number | null) {
     units[exponent]
   }`;
 }
+
+// What the grid lays out: the note composer as the first card, the items, and
+// skeletons teasing the next page while it loads
+type GridEntry =
+  | { type: "composer" }
+  | { type: "item"; item: Item }
+  | { type: "skeleton"; frame: (typeof SKELETON_FRAMES)[number] };
 
 type ItemsGridProps = {
   items: Item[];
@@ -86,24 +85,39 @@ export function ItemsGrid({
     containerRef,
     hasHydrated,
   } = useGridDensity();
-  // Actual rendered column width — coverless text cards (notes, text tweets)
-  // size their height from their content against this width.
-  const columnWidth = useColumnWidth({
-    ref: containerRef,
-    frameWidth,
-    gap,
-    enabled: hasHydrated,
-  });
-  // Card root font size in px: gridCardStyle sets font-size to
-  // calc(var(--grid-font-scale) * 1rem), so 1em on a card is fontScale × the
-  // live root rem (not a hard-coded 16px — respects the user's font-size pref).
-  const rootRemPx = useRootFontSize();
-  const cardRootPx = fontScale * rootRemPx;
+  const getCardFrame = useCardFrame(fontScale);
   const { ref: loadMoreRef } = useInfiniteScroll({
     hasMore: hasMore ?? false,
     isLoading: isLoadingMore ?? false,
     onLoadMore: onLoadMore ?? (() => {}),
   });
+
+  // Debug trace (no-ops unless an admin has tracing on): masonry reflows, list
+  // changes, and the geometry/loading inputs that drive them
+  const gridDebugRef = useDebugGridObserver();
+  useDebugLifecycle({
+    name: "ItemsGrid",
+    channel: "grid",
+    watch: {
+      itemCount: items.length,
+      frameWidth,
+      isLoadingMore,
+      isSearchPending,
+      hasMore,
+    },
+  });
+  // null until the first render's ids are recorded (an empty list is a real state)
+  const prevItemIdsRef = useRef<string[] | null>(null);
+  useEffect(() => {
+    const ids = items.map((item) => item.id);
+    const prev = prevItemIdsRef.current;
+    prevItemIdsRef.current = ids;
+    if (!isTracing() || prev === null) return;
+    const diff = diffItemIds({ prev, next: ids });
+    if (diff.added || diff.removed || diff.reordered) {
+      debugTrace("grid", "items", { count: ids.length, ...diff });
+    }
+  }, [items]);
 
   // Fresh random order per load; stable across re-renders while loading so the
   // placeholders don't reshuffle mid-fetch.
@@ -112,37 +126,19 @@ export function ItemsGrid({
     [isLoadingMore],
   );
 
-  // Enable the frame transition only after the first paint. The masonry engine
-  // sets each frame's `transform` on its initial (synchronous) layout;
-  // transitioning that from the start would cascade every card in from the top
-  // on load. Once mounted, when a card finishing analysis changes its aspect,
-  // both animate together over the same duration: `transform` slides its
-  // neighbours (the reflow) and `aspect-ratio` resizes its own box — so the
-  // card grows into the slot the reflow opens instead of snapping and
-  // overlapping. (We transition `aspect-ratio` directly rather than via an
-  // @property number var, because Tailwind/Lightning CSS strips hand-authored
-  // @property rules from the build.)
-  const [enableFrameTransition, setEnableFrameTransition] = useState(false);
-  useEffect(() => setEnableFrameTransition(true), []);
-  const frameTransition = enableFrameTransition
-    ? "transform 0.3s ease, aspect-ratio 0.3s ease"
-    : undefined;
-
-  // Grow newly-added items into the grid instead of popping them in at full
-  // height. Seed the set with the items present on first render so the initial
-  // load doesn't animate; anything that appears later and isn't in the set (and
-  // was created recently) is a fresh insert. Pagination/search bring in older
-  // items, which fail the freshness check and appear instantly.
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const seenItemIdsRef = useRef<Set<string> | null>(null);
-  if (seenItemIdsRef.current === null) {
-    seenItemIdsRef.current = new Set(items.map((item) => item.id));
-  }
-  const seenItemIds = seenItemIdsRef.current;
-  useEffect(() => {
-    const seen = seenItemIdsRef.current;
-    if (seen) for (const item of items) seen.add(item.id);
-  }, [items]);
+  // The note composer lives in the grid as the first card. It stays on the
+  // full-list view (including while the first search is still in flight, just
+  // disabled) and is hidden once results are shown, so it doesn't reflow the
+  // grid the instant the user types. Skeletons tease the next page while it
+  // loads, so the grid grows in place rather than showing a spinner below it.
+  const entries = useMemo(
+    (): GridEntry[] => [
+      ...(showComposer ? [{ type: "composer" as const }] : []),
+      ...items.map((item) => ({ type: "item" as const, item })),
+      ...skeletonFrames.map((frame) => ({ type: "skeleton" as const, frame })),
+    ],
+    [showComposer, items, skeletonFrames],
+  );
 
   if (!hasHydrated) {
     return null;
@@ -229,185 +225,61 @@ export function ItemsGrid({
         )
       ) : (
         <div
-          className={cn(items.length <= 4 && "flex justify-center", busyClass)}
+          ref={gridDebugRef}
+          className={busyClass}
           aria-busy={isSearchPending}
         >
-          <BalancedMasonryGrid
-            frameWidth={frameWidth}
+          <MasonryGrid<GridEntry>
+            items={entries}
+            getKey={(entry) =>
+              entry.type === "composer"
+                ? "note-composer"
+                : entry.type === "item"
+                  ? entry.item.id
+                  : entry.frame.id
+            }
+            getFrame={(entry, geometry) =>
+              // Pinned to the first column: as the first entry that's top-left,
+              // even when it rejoins a laid-out grid (search cleared) and
+              // would otherwise balance into the shortest column
+              entry.type === "composer"
+                ? { width: 1, height: 1, column: 0 }
+                : entry.type === "item"
+                  ? getCardFrame(entry.item, geometry)
+                  : entry.frame
+            }
+            minColumnWidth={frameWidth}
             gap={gap}
-            style={{ overflow: "visible !important" }}
-          >
-            {/* The note composer lives in the grid as the first card. It stays
-                on the full-list view (including while the first search is still
-                in flight, just disabled) and is hidden once results are shown,
-                so it doesn't reflow the grid the instant the user types. */}
-            {showComposer && (
-              <Frame key="note-composer" width={1} height={1}>
-                <div className="h-full">
+            animate
+            // Grow freshly-added items in (an upload, a new note) rather than
+            // popping them in; pagination/search bring in older items, which
+            // aren't fresh and appear instantly
+            shouldGrowIn={(entry) =>
+              entry.type === "item" &&
+              isFreshlyAdded(entry.item.createdAt, Date.now())
+            }
+            renderItem={(entry) => {
+              if (entry.type === "composer") {
+                return (
                   <NoteComposer
                     initialDraft={initialNoteDraft}
                     disabled={isSearchPending}
                   />
-                </div>
-              </Frame>
-            )}
-            {items.map((item) => {
-              const meta = item.meta || {};
-              const isArticleOrWebpage =
-                item.kind === "article" || item.kind === "webpage";
-              const isTwitter = item.kind === "twitter";
-              const isInstagram = item.kind === "instagram";
-              const isVideo = item.kind === "video";
-              const isProduct = item.kind === "product";
-              const isBook = item.kind === "book";
-              const isNote = item.kind === "note";
-              // A URL whose kind hasn't resolved yet — still processing or
-              // failed. Both render the icon placeholder card and should share
-              // the provisional aspect so it doesn't snap between states.
-              const isUnresolvedUrl =
-                item.sourceType === "url" && item.kind === null;
-
-              const name = getItemDisplayName(item);
-
-              const size = formatBytes(meta.size as number | undefined);
-              const mimeType = meta.type as string | undefined;
-
-              // Calculate aspect ratio based on item type
-              // - Twitter: cover media's natural aspect; falls back to card image / text-only defaults
-              // - Video: 16:9 (YouTube/Vimeo thumbnails are always 16:9)
-              // - Articles, webpages, and processing URLs: 4:3
-              // - Images: actual dimensions or 3:4 default
-              let width: number;
-              let height: number;
-              if (isTwitter) {
-                const coverIndex = item.twitterDetails?.coverMediaIndex ?? 0;
-                const coverMedia =
-                  item.twitterDetails?.media?.[coverIndex] ??
-                  item.twitterDetails?.media?.[0];
-                const hasCardImage = !!item.twitterDetails?.card?.imageUrl;
-                if (coverMedia?.width && coverMedia?.height) {
-                  width = coverMedia.width;
-                  height = coverMedia.height;
-                } else if (hasCardImage) {
-                  // Twitter link-card images render at ~1.91:1
-                  width = 16;
-                  height = 9;
-                } else if (columnWidth !== null && item.twitterDetails?.text) {
-                  // Text-only tweet: height follows the tweet text
-                  ({ width, height } = estimateTweetAspect(
-                    {
-                      text: item.twitterDetails.text,
-                      hasAvatar: !!item.twitterDetails.authorAvatarUrl,
-                    },
-                    {
-                      columnWidthPx: columnWidth,
-                      rootRemPx,
-                      measure: measureCardText,
-                    },
-                  ));
-                } else {
-                  // Text-only tweet placeholder (pre-measurement / no text)
-                  width = 16;
-                  height = 12;
-                }
-              } else if (isInstagram) {
-                const coverIndex = item.instagramDetails?.coverMediaIndex ?? 0;
-                const coverMedia =
-                  item.instagramDetails?.media?.[coverIndex] ??
-                  item.instagramDetails?.media?.[0];
-                if (coverMedia?.width && coverMedia?.height) {
-                  width = coverMedia.width;
-                  height = coverMedia.height;
-                } else {
-                  // OG covers carry no dimensions; Instagram posts are ~square
-                  width = 1;
-                  height = 1;
-                }
-              } else if (isVideo) {
-                // New videos persist thumbnail dims into meta; older ones fall back to 16:9
-                width = (meta.width as number | undefined) ?? 16;
-                height = (meta.height as number | undefined) ?? 9;
-              } else if (isProduct) {
-                const coverIndex = item.productDetails?.coverImageIndex ?? 0;
-                const coverImage = item.productDetails?.images?.[coverIndex];
-                if (coverImage?.width && coverImage?.height) {
-                  width = coverImage.width;
-                  height = coverImage.height;
-                } else {
-                  // Most product photography is squarish to portrait
-                  width = 1;
-                  height = 1;
-                }
-              } else if (isBook) {
-                // Cover's ingested aspect ratio plus equal padding all round
-                ({ width, height } = getBookTileFrame(item.meta));
-              } else if (isUnresolvedUrl) {
-                // Use the insert-time aspect hint (video/twitter) when present
-                // so the card lands at its final shape; otherwise 4:3.
-                const hint = readAspectHint(meta);
-                width = hint?.width ?? 4;
-                height = hint?.height ?? 3;
-              } else if (isArticleOrWebpage) {
-                width = 4;
-                height = 3;
-              } else if (isNote) {
-                if (columnWidth !== null) {
-                  // Coverless text card: height follows the note's content
-                  ({ width, height } = estimateNoteAspect(
-                    {
-                      title: item.title,
-                      body: item.noteDetails?.content ?? "",
-                    },
-                    {
-                      columnWidthPx: columnWidth,
-                      cardRootPx,
-                      rootRemPx,
-                      measure: measureCardText,
-                    },
-                  ));
-                } else {
-                  // Square sticky note until we've measured the column
-                  width = 1;
-                  height = 1;
-                }
-              } else {
-                width = (meta.width as number | undefined) ?? 3;
-                height = (meta.height as number | undefined) ?? 4;
+                );
               }
-
-              const animateIn =
-                !prefersReducedMotion &&
-                !seenItemIds.has(item.id) &&
-                isFreshlyAdded(item.createdAt, Date.now());
-
+              if (entry.type === "skeleton") return <ItemCardSkeleton />;
+              const { item } = entry;
+              const meta = item.meta || {};
               return (
-                <ItemFrame
-                  key={item.id}
-                  width={width}
-                  height={height}
-                  columnWidth={columnWidth}
-                  frameTransition={frameTransition}
-                  animateIn={animateIn}
-                >
-                  <ItemCard
-                    item={item}
-                    name={name}
-                    size={size}
-                    mimeType={mimeType}
-                  />
-                </ItemFrame>
+                <ItemCard
+                  item={item}
+                  name={getItemDisplayName(item)}
+                  size={formatBytes(meta.size as number | undefined)}
+                  mimeType={meta.type as string | undefined}
+                />
               );
-            })}
-            {/* While the next page loads, tease it with skeleton cards so the
-                grid grows in place rather than showing a spinner below it. */}
-            {skeletonFrames.map(({ id, width, height }) => (
-              <Frame key={id} width={width} height={height}>
-                <div className="h-full">
-                  <ItemCardSkeleton />
-                </div>
-              </Frame>
-            ))}
-          </BalancedMasonryGrid>
+            }}
+          />
         </div>
       )}
 

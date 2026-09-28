@@ -23,7 +23,7 @@ export function BlurPlaceholder({
     <div
       aria-hidden
       className={cn(
-        "-inset-4 absolute bg-center bg-cover blur-[8px] transition-opacity duration-700",
+        "absolute -inset-4 bg-center bg-cover blur-[8px] transition-opacity duration-700",
         visible ? "opacity-100" : "opacity-0",
         className,
       )}

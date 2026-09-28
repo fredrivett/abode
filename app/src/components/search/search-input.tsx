@@ -6,11 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import {
-  getModifierKeySymbol,
-  isEditableTarget,
-  matchesShortcut,
-} from "@/lib/keyboard";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
+import { isEditableTarget, matchesShortcut } from "@/lib/keyboard";
 import type { FiltersResponse } from "@/lib/search/api";
 import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { getFilterTriggerQuery } from "@/lib/search/get-filter-trigger-query";
@@ -54,6 +51,7 @@ export function SearchInput({
   disabled = false,
   focusShortcut = false,
 }: SearchInputProps) {
+  const modifierKeySymbol = useModifierKeySymbol();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dateFilterAppliedRef = useRef(false);
@@ -411,7 +409,7 @@ export function SearchInput({
             {focusShortcut && !isFocused && (
               <div className="pointer-events-none absolute right-0 flex">
                 <KbdGroup className="hidden md:inline-flex">
-                  <Kbd>{getModifierKeySymbol()}</Kbd>
+                  <Kbd>{modifierKeySymbol}</Kbd>
                   <Kbd>⇧</Kbd>
                   <Kbd>K</Kbd>
                 </KbdGroup>

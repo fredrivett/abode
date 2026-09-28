@@ -9,6 +9,7 @@ import {
   DoorOpen,
   Download,
   ExternalLink,
+  Files,
   FileText,
   Hand,
   Link2,
@@ -33,16 +34,32 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import posthog from "posthog-js";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
+import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
 import { BookCover3D } from "@/components/book/book-cover-3d";
+import { BookDetailView } from "@/components/book/book-detail-view";
+import { BookReadingStatusBadge } from "@/components/book/book-reading-status-icon";
+import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
+import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { NoteCard } from "@/components/note/note-card";
+import { NoteDetailPlaceholder } from "@/components/note/note-detail-placeholder";
+import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterCard } from "@/components/twitter/twitter-card";
+import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +84,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
+import { VideoDetailView } from "@/components/video/video-detail-view";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
@@ -81,10 +99,14 @@ import {
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
+import { debugTrace } from "@/lib/debug/trace";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
+import { documentPageCount } from "@/lib/documents/document-pages";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
+import { shouldShowReadingStatusBadge } from "@/lib/items/book-reading-status";
 import { captureSourceLabel } from "@/lib/items/capture-source";
 import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
@@ -96,10 +118,8 @@ import {
   USER_TAG_REGEX,
 } from "@/lib/items/user-tag-validation";
 import { createLogger } from "@/lib/logger.client";
-import {
-  shouldCompleteAddFirstTag,
-  shouldCompleteSeeAiAnalysis,
-} from "@/lib/milestones/conditions";
+import { shouldCompleteAddFirstTag } from "@/lib/milestones/conditions";
+import { completeSeeAiAnalysisOnOpen } from "@/lib/milestones/see-ai-analysis";
 import { getPlatformName } from "@/lib/platforms";
 import { useSearch } from "@/lib/search";
 import {
@@ -137,21 +157,56 @@ const log = createLogger("dashboard/item-card");
 export const DETAIL_IMAGE_CLASSNAME =
   "max-h-[calc(100vh-2rem)] w-full object-contain md:h-full";
 
-// Detail views render only inside the click-to-expand modal, never in the
-// collapsed grid card. Load them lazily so they stay out of the dashboard
-// grid's initial JS. ssr:false is safe because the modal is client-only.
-const detailViewLoading = () => (
-  <div className="flex h-full w-full items-center justify-center">
-    <IsLoading label="Loading" />
-  </div>
-);
+// What the item dialog is showing, for the lazy detail views' loading
+// placeholders (next/dynamic's `loading` gets no props)
+const DetailViewContext = createContext<{
+  item: Item;
+  canEdit: boolean;
+} | null>(null);
 
+function NoteDetailLoading() {
+  const detail = useContext(DetailViewContext);
+  return (
+    <NoteDetailPlaceholder
+      content={detail?.item.noteDetails?.content ?? ""}
+      canEdit={detail?.canEdit ?? false}
+    />
+  );
+}
+
+function ArticleDetailLoading() {
+  const detail = useContext(DetailViewContext);
+  const originalName = detail?.item.meta?.originalName;
+  return (
+    <ArticleDetailPlaceholder
+      title={typeof originalName === "string" ? originalName : undefined}
+    />
+  );
+}
+
+function HighlightsPanelLoading() {
+  return (
+    <div className="space-y-2" aria-busy>
+      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+    </div>
+  );
+}
+
+// The heavy detail views (the note editor, the article reader, the reading
+// controls — hundreds of KB) load lazily so they stay out of the dashboard
+// grid's initial JS. While one loads, a placeholder in its layout shows what's
+// already known (a note's text, an article's title), so it fills in rather
+// than flashing "Loading". The light views (book, tweet, Instagram, video,
+// product) are imported directly: their code is almost all shared with the
+// grid, so they add ~2 KB and never show a placeholder. ssr:false is safe
+// because the modal is client-only.
 const ArticleDetailView = dynamic(
   () =>
     import("@/components/article/article-detail-view").then(
       (m) => m.ArticleDetailView,
     ),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: ArticleDetailLoading },
 );
 
 const HighlightsPanel = dynamic(
@@ -159,13 +214,7 @@ const HighlightsPanel = dynamic(
     import("@/components/article/highlights-panel").then(
       (m) => m.HighlightsPanel,
     ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const BookDetailView = dynamic(
-  () =>
-    import("@/components/book/book-detail-view").then((m) => m.BookDetailView),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: HighlightsPanelLoading },
 );
 
 const ArticleReadingControls = dynamic(
@@ -187,39 +236,7 @@ const BookReadingControls = dynamic(
 const NoteDetailView = dynamic(
   () =>
     import("@/components/note/note-detail-view").then((m) => m.NoteDetailView),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const ProductDetailView = dynamic(
-  () =>
-    import("@/components/product/product-detail-view").then(
-      (m) => m.ProductDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const InstagramDetailView = dynamic(
-  () =>
-    import("@/components/instagram/instagram-detail-view").then(
-      (m) => m.InstagramDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const TwitterDetailView = dynamic(
-  () =>
-    import("@/components/twitter/twitter-detail-view").then(
-      (m) => m.TwitterDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
-);
-
-const VideoDetailView = dynamic(
-  () =>
-    import("@/components/video/video-detail-view").then(
-      (m) => m.VideoDetailView,
-    ),
-  { ssr: false, loading: detailViewLoading },
+  { ssr: false, loading: NoteDetailLoading },
 );
 
 type ItemCardProps = {
@@ -285,6 +302,14 @@ export function ItemCard({
   const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
+  const bookStatusBadge =
+    item.bookDetails &&
+    shouldShowReadingStatusBadge({
+      status: item.bookDetails.status,
+      canEdit,
+    }) ? (
+      <BookReadingStatusBadge status={item.bookDetails.status} />
+    ) : null;
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
@@ -371,6 +396,7 @@ export function ItemCard({
   };
 
   const handleOpenDetail = () => {
+    debugTrace("dialog", "card:click", { itemId: item.id });
     setIsAnimating(true);
     setShowDetailDialog(true);
 
@@ -381,12 +407,10 @@ export function ItemCard({
       source_type: item.sourceType,
     });
 
-    // Mark see_ai_analysis milestone if item processing is complete
-    if (shouldCompleteSeeAiAnalysis(item.processingStatus)) {
-      useMilestoneStore.getState().markComplete("see_ai_analysis");
-      // Also persist to server (fire-and-forget)
-      void api.post("/api/v1/user/milestones", { type: "see_ai_analysis" });
-    }
+    completeSeeAiAnalysisOnOpen({
+      canEdit,
+      processingStatus: item.processingStatus,
+    });
   };
 
   if (error) {
@@ -502,6 +526,7 @@ export function ItemCard({
               </p>
             )}
           </div>
+          {bookStatusBadge}
         </button>
 
         {!itemDialog && (
@@ -833,6 +858,7 @@ export function ItemCard({
             coverColor={getDominantCoverColor(item.colors)}
             blurDataUrl={blurDataUrl}
           />
+          {bookStatusBadge}
         </button>
 
         {!itemDialog && (
@@ -908,6 +934,8 @@ export function ItemCard({
   const sortedColors = [...item.colors].sort(
     (a, b) => (b.score ?? 0) - (a.score ?? 0),
   );
+  const cardPageCount =
+    item.kind === "document" ? documentPageCount(item.meta) : null;
   const topColor = sortedColors[0] ?? null;
   const secondColor = sortedColors[1] ?? null;
 
@@ -960,6 +988,13 @@ export function ItemCard({
               {item.productDetails.currency
                 ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
                 : item.productDetails.price}
+            </div>
+          )}
+          {cardPageCount !== null && cardPageCount > 1 && (
+            <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
+              <Files className="size-3" aria-hidden="true" />
+              {cardPageCount}
+              <span className="sr-only"> pages</span>
             </div>
           )}
         </motion.div>
@@ -1261,6 +1296,11 @@ export function ItemDialogFrame({
     defaultValue: false,
     initializeWithValue: false,
   });
+  useDebugLifecycle({
+    name: "ItemDialogFrame",
+    channel: "dialog",
+    watch: { open, isTouchDevice },
+  });
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
   const closingOpacity = useMotionValue(1);
@@ -1409,7 +1449,7 @@ export function ItemDetailBody({
       setIsDeleting(false);
     }
   };
-  const { setState: setSearchState } = useSearch();
+  const { applySearch } = useSearch();
   const itemDialog = useItemDialog();
   // Base id for associating setting labels with their Switch (unique per card)
   const toggleId = useId();
@@ -1560,6 +1600,8 @@ export function ItemDetailBody({
   const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
+  const documentPages =
+    item.kind === "document" ? documentPageCount(item.meta) : null;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to recheck clamping when description or expanded state changes
   useEffect(() => {
@@ -1835,16 +1877,14 @@ export function ItemDetailBody({
   // Clicking a value chip (color, object, or tag) replaces the current search
   // with that single filter and closes the dialog
   const handleChipSearch = (chip: ChipSearch) => {
-    // Write the URL immediately: closing the dialog unmounts this hook, which
-    // would cancel a debounced URL update before it fires
-    setSearchState(chipSearchState(chip), { immediate: true });
+    // Closes the URL-addressed dialog in place, keeping the new filter (going
+    // Back via onOpenChange would pop the entry and undo it)
+    applySearch(chipSearchState(chip));
     posthog.capture(
       "item_detail_chip_searched",
       chipSearchAnalytics({ itemId: item.id, ...chip }),
     );
-    // In URL mode the search write drops ?item and closes the dialog on its own.
-    // Calling onOpenChange here would pop the pushed history entry and undo the
-    // filter the search write just applied — so only close manually off-URL.
+    // Off-URL (e.g. a room) there's no URL dialog to close: close it here
     if (!itemDialog) onOpenChange(false);
   };
 
@@ -1974,7 +2014,7 @@ export function ItemDetailBody({
   };
 
   return (
-    <>
+    <DetailViewContext value={{ item, canEdit }}>
       {/* Top (mobile) / Left (desktop) - Main content area */}
       <div
         className={cn(
@@ -2110,6 +2150,15 @@ export function ItemDetailBody({
               src={fullQualityUrl || previewUrl}
               alt={name}
               className="max-h-[calc(100vh-2rem)] w-full object-contain"
+            />
+          </DetailPaneFade>
+        ) : documentPages !== null && documentPages > 1 ? (
+          <DetailPaneFade animateEntrance={animateEntrance}>
+            <DocumentDetailView
+              itemId={item.id}
+              pageCount={documentPages}
+              coverUrl={fullQualityUrl || previewUrl}
+              title={name}
             />
           </DetailPaneFade>
         ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
@@ -2281,7 +2330,7 @@ export function ItemDetailBody({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Saved</span>
-                  <DateTime date={item.createdAt} className="font-medium" />
+                  <DateTime date={item.addedAt} className="font-medium" />
                 </div>
                 {item.captureSource && (
                   <div className="flex justify-between">
@@ -3310,7 +3359,7 @@ export function ItemDetailBody({
         isDeleting={isDeleting}
         itemName={name}
       />
-    </>
+    </DetailViewContext>
   );
 }
 

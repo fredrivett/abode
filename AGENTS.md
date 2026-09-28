@@ -63,8 +63,26 @@ import { getAppBaseUrl } from "@/lib/url";
 const baseUrl = getAppBaseUrl();
 // Local dev: http://localhost:<port>
 // Vercel preview: https://{VERCEL_URL}
+// Self-hosted: NEXT_PUBLIC_SITE_URL
 // Production: https://www.abode.fyi
 ```
+
+Never hardcode `https://www.abode.fyi` for links — self-hosted instances set `NEXT_PUBLIC_SITE_URL` and must link to themselves.
+
+## SEO & Indexing
+
+Every page is a deliberate indexing choice — `src/lib/seo/route-indexing.test.ts` fails until a new `page.tsx` is one of:
+
+- **Public (in search):** add its path to `SITEMAP_PATHS` (`@/lib/seo/indexing`) and export `metadata` with its own `title`, `description` and `alternates.canonical`. Add an `opengraph-image.tsx` share card built on `@/lib/og/render`.
+- **Private:** pages under `(app)` / `(auth)` / `(public)` inherit `robots: NO_INDEX_ROBOTS` from the group layout; anywhere else, set it on the page or layout.
+- **Neither:** an `EXCEPTIONS` entry in that test, with a reason.
+
+Other rules:
+
+- Only the hosted abode.fyi production deployment is indexable (`isIndexableDeployment`) — previews, dev and self-hosted instances (including ones on Vercel) disallow all in `robots.txt`.
+- Comparison pages (`/compare/<slug>`) are data-driven: add a file in `src/lib/comparisons/competitors/` and an entry in `COMPARISONS` — the page, share card and sitemap entry follow. Keep them honest: every competitor fact must come from a primary source listed in `sources`, and bump `lastChecked` when you re-verify.
+- Structured data renders through `<JsonLd>` (`@/components/seo/json-ld`), never a raw `<script type="application/ld+json">` — enforced by `app/biome/no-raw-json-ld.grit`.
+- Public user content (profiles, rooms, items) is shareable but noindex by default. A profile and its public rooms become indexable (and enter the sitemap) only via the owner's `allowSearchIndexing` opt-in, through `publicContentSeo` / `getIndexablePublicContentPaths` — keep the two in sync. Items are never indexed (mostly third-party content).
 
 ## Development Server Management
 
@@ -188,6 +206,10 @@ agent-browser screenshot /tmp/check.png   # then Read the image to inspect it
 
 Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive. If `agent-browser` isn't installed: `npm install -g agent-browser && agent-browser install`.
 
+### Debug trace (UX jank)
+
+For jank (grid jumping, dialogs remounting, layout shifts), use the admin debug trace instead of guessing: open any page with `?debug=1` (admins; anyone in local dev) or toggle "Debug trace" in the admin account menu. A panel records a timeline of URL writes (with call stacks), React Query fetches/invalidations, masonry reflows (which frames moved, flashed blue), layout shifts (flashed red), slow frames, and dialog/grid mount/unmount/prop changes; "Copy" exports it as JSON. Code lives in `src/lib/debug/` + `src/components/debug/`. Instrument new suspect components with `useDebugLifecycle` / `debugTrace` (no-ops when tracing is off). When driving the app with `agent-browser`, read the trace via `window.__abodeDebugTrace.export().events` (and `.clear()` before reproducing) instead of the clipboard.
+
 For automated tests, run from the `./app` directory:
 
 ```bash
@@ -241,6 +263,18 @@ When shipping a user-facing feature, instrument it as part of the change (not la
 - Ensure new error paths report via `captureServerException` (server) or the error boundary (client).
 
 The PR template includes a checklist for this.
+
+## Documentation
+
+Docs ship with the feature, in the same change — not as a follow-up. When a change is user-facing or changes what a service is used for, update whichever of these it affects (or say in the PR why none apply):
+
+- **`README.md`**: the **Features** list and the Roadmap's **Done** list for a new capability; the **External services** table when a service gains or changes a job (including what happens without it).
+- **`.env.example`**: the comment on any env var whose purpose changed, and every new one.
+- **In-app help** (`app/src/content/help/*.md`, linked from `/help` and the help nav): a short how-to for a new user-facing flow.
+- **`CONTRIBUTING.md`**: new setup steps, install-time scripts or local-dev gotchas.
+- **Onboarding checklist** (`app/src/lib/milestones`): a new way to add or use items should get a milestone so new users discover it.
+
+The PR template includes a checklist line for this.
 
 ## Dependencies
 
@@ -303,10 +337,15 @@ When a recurring defect is fixed, append a one-line entry here — but first try
 
 - New Postgres tables must enable RLS (default-deny) or they're reachable by the anon/authenticated Supabase roles — enforced by `src/lib/__tests__/rls-coverage.integration.test.ts`.
 - Server-side fetches of a user-supplied URL must use `safeFetch` (`@/lib/http/safe-fetch`), never the global `fetch`, or the SSRF gate is bypassed — enforced in `trigger/**` and `src/app/api/**` by `app/biome/no-raw-fetch.grit`.
-- `biome.json` takes no comments: with one present Biome 2.2 silently falls back to its default config (whole repo reformats to tabs) rather than erroring — document Biome config decisions in the plugin file, not inline.
+- `biome.json` takes no comments: with one present Biome (2.2 through 2.5) silently falls back to its default config (whole repo reformats to tabs) rather than erroring — document Biome config decisions in the plugin file, not inline.
 - User-initiated item processing must enqueue via `enqueueUserProcessing` (applies the per-user concurrencyKey + `USER_ACTION_PRIORITY`), never raw `tasks.trigger`, or live runs lose priority to background work — enforced over `src/lib/items/**` and `src/app/api/**` by `app/biome/no-raw-user-processing.grit`. Trigger `priority` is a positive `createdAt` offset; a *negative* one delays a run into the future (strands it in `queued`).
 - Trigger `priority` must stay well below ~2.1M seconds: the API rejects an over-large value (`priority × 1000` ms overflows int32), throwing `TriggerApiError` from `tasks.trigger` and breaking *every* enqueue that carries it. A year-long `USER_ACTION_PRIORITY` silently killed all user-initiated processing — guarded by `enqueue-user-processing.test.ts` (`MAX_SAFE_PRIORITY`).
 - Cookie-authed API routes must resolve the user via `getUserWithMfa` (`@/lib/supabase/server`), never `supabase.auth.getUser()` directly, or a 2FA user's AAL1 session (password sign-in, TOTP not completed) bypasses the challenge — the page middleware only guards page navigations. Enforced over `src/app/api/**` by `app/biome/no-raw-cookie-getuser.grit`.
+- Search filters run through two matchers — SQL (`search/query-builder.ts`) for search, in-memory (`rooms/room-matcher.ts`) for room membership — which can silently diverge (a `@status:` room once matched every item). The matcher's filter-type switch is exhaustive (`unhandledFilterType(_type: never)`) so a new `FilterType` without a case fails `tsc`; semantic parity is guarded by the SQL-vs-membership test in `room-service.integration.test.ts` ("SQL parity").
+- Tap handlers must use `onPointerDown`/`onClick`, never `onMouseDown` alone — on touch the tap blurs the input / unmounts a focus-gated overlay before the synthesized mouse event fires, so it drops the tap or hits whatever is underneath (search suggestions once fell through to item delete buttons on mobile). Enforced by `app/biome/no-mouse-down-tap.grit`.
+- Never read `navigator` (platform/UA) during render — on the server Node 21+ has a global `navigator` reporting the *server's* OS, so SSR and the browser disagree and hydration fails (the ⌘/Ctrl shortcut hints once broke hydration of the dashboard header for every Mac user). Render the modifier via `useModifierKeySymbol()`, and give other platform-dependent UI the same `useSyncExternalStore` server snapshot. `app/biome/no-render-platform-detection.grit` flags `navigator.platform`/`userAgent`/`userAgentData`, `isApplePlatform()` and `getModifierKeySymbol()` in `src/**/*.tsx`.
+- Supabase Storage `list()` silently returns only 100 entries unless given a limit — account deletion listed the user's folder once and removed the result, so every file past the first 100 outlived the account. List via `listAllObjectPaths` / `removeAllObjectsUnderPrefix` (`src/lib/storage-objects.ts`), which page and descend into sub-folders — enforced over `src/**` + `trigger/**` by `app/biome/no-raw-storage-list.grit`.
+- An item's stored files live in several places (own columns, product/tweet/Instagram JSON, tweet author avatar, document pages), and hand-kept copies of that list drifted: deleting an item leaked its cover, favicon and re-hosted images, and re-hosted tweet avatars 404'd in the image proxy. Item delete and the proxy now derive from `itemFileKeysSelect` / `collectItemFileKeys` (`src/lib/item-storage.ts`), and re-capture reclaim from its `capturedFileKeysSelect` / `collectCapturedFileKeys` subset (deliberately without document pages, which re-capture never replaces); `item-file-keys.test.ts` fails when a schema column that could hold a key isn't classified, and `image-key-lookup.integration.test.ts` checks the proxy resolves every key.
 
 ## Trigger.dev
 

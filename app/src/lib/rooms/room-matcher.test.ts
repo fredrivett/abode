@@ -1,4 +1,10 @@
-import type { ItemImageDetails, ItemKind, ItemLocation } from "@prisma/client";
+import type {
+  ItemArticleDetails,
+  ItemBookDetails,
+  ItemImageDetails,
+  ItemKind,
+  ItemLocation,
+} from "@prisma/client";
 import type { Filter } from "../search/types";
 import { itemMatchesRoom } from "./room-matcher";
 import {
@@ -52,6 +58,58 @@ function createLocation(overrides: Partial<ItemLocation> = {}): ItemLocation {
 }
 
 /**
+ * Create a complete ItemBookDetails object for testing.
+ */
+function createBookDetails(
+  overrides: Partial<ItemBookDetails> = {},
+): ItemBookDetails {
+  return {
+    itemId: "test-item-id",
+    authors: [],
+    publisher: null,
+    publishedAt: null,
+    isbn: null,
+    pageCount: null,
+    domain: null,
+    status: null,
+    startedAt: null,
+    startedAtPrecision: null,
+    finishedAt: null,
+    finishedAtPrecision: null,
+    progressValue: null,
+    progressUnit: "page",
+    progressUpdatedAt: null,
+    rating: null,
+    review: null,
+    createdAt: new Date("2024-06-15"),
+    updatedAt: new Date("2024-06-15"),
+    ...overrides,
+  };
+}
+
+/**
+ * Create a complete ItemArticleDetails object for testing.
+ */
+function createArticleDetails(
+  overrides: Partial<ItemArticleDetails> = {},
+): ItemArticleDetails {
+  return {
+    itemId: "test-item-id",
+    author: null,
+    domain: null,
+    publishedAt: null,
+    readingTime: null,
+    content: null,
+    readAt: null,
+    scrollProgress: null,
+    progressUpdatedAt: null,
+    createdAt: new Date("2024-06-15"),
+    updatedAt: new Date("2024-06-15"),
+    ...overrides,
+  };
+}
+
+/**
  * Factory function to create a test item with default values.
  */
 function createTestItem(
@@ -66,6 +124,8 @@ function createTestItem(
     createdAt?: Date;
     excludeFromPublicRooms?: boolean;
     imageDetails?: ItemImageDetails | null;
+    bookDetails?: ItemBookDetails | null;
+    articleDetails?: ItemArticleDetails | null;
     locations?: ItemLocation[];
   } = {},
 ): ItemWithDetails {
@@ -87,6 +147,8 @@ function createTestItem(
     userTags: overrides.userTags ?? [],
     excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
     imageDetails: overrides.imageDetails ?? null,
+    bookDetails: overrides.bookDetails ?? null,
+    articleDetails: overrides.articleDetails ?? null,
     locations: overrides.locations ?? [],
   } as ItemWithDetails;
 }
@@ -494,6 +556,200 @@ describe("itemMatchesRoom", () => {
       });
       const room = createTestRoom([createFilter("color", "red")]);
       expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+  });
+
+  describe("status filter", () => {
+    describe("reading", () => {
+      it("matches a book currently being read", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "reading" }),
+        });
+        const room = createTestRoom([createFilter("status", "reading")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match a book with a different status", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "read" }),
+        });
+        const room = createTestRoom([createFilter("status", "reading")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+
+      it("does not match an article (articles are never 'reading')", () => {
+        const item = createTestItem({
+          kind: "article",
+          articleDetails: createArticleDetails({ readAt: null }),
+        });
+        const room = createTestRoom([createFilter("status", "reading")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+    });
+
+    describe("read", () => {
+      it("matches a book with status read", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "read" }),
+        });
+        const room = createTestRoom([createFilter("status", "read")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("matches an article that has been read", () => {
+        const item = createTestItem({
+          kind: "article",
+          articleDetails: createArticleDetails({
+            readAt: new Date("2024-06-15"),
+          }),
+        });
+        const room = createTestRoom([createFilter("status", "read")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match an unread article", () => {
+        const item = createTestItem({
+          kind: "article",
+          articleDetails: createArticleDetails({ readAt: null }),
+        });
+        const room = createTestRoom([createFilter("status", "read")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+    });
+
+    describe("dnf", () => {
+      it("matches a book marked did-not-finish", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "dnf" }),
+        });
+        const room = createTestRoom([createFilter("status", "dnf")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match a read book", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "read" }),
+        });
+        const room = createTestRoom([createFilter("status", "dnf")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+    });
+
+    describe("unread", () => {
+      it("matches a book with null status (saved, untracked)", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: null }),
+        });
+        const room = createTestRoom([createFilter("status", "unread")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("matches a want_to_read book (collapses into unread)", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "want_to_read" }),
+        });
+        const room = createTestRoom([createFilter("status", "unread")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("matches an unread article", () => {
+        const item = createTestItem({
+          kind: "article",
+          articleDetails: createArticleDetails({ readAt: null }),
+        });
+        const room = createTestRoom([createFilter("status", "unread")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match a reading book", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "reading" }),
+        });
+        const room = createTestRoom([createFilter("status", "unread")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+
+      it("does not match a read article", () => {
+        const item = createTestItem({
+          kind: "article",
+          articleDetails: createArticleDetails({
+            readAt: new Date("2024-06-15"),
+          }),
+        });
+        const room = createTestRoom([createFilter("status", "unread")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+    });
+
+    it("does not match an image for any status", () => {
+      const item = createTestItem({ kind: "image" });
+      for (const status of ["unread", "reading", "read", "dnf"]) {
+        const room = createTestRoom([createFilter("status", status)]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      }
+    });
+
+    it("is case-insensitive", () => {
+      const item = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "reading" }),
+      });
+      const room = createTestRoom([createFilter("status", "READING")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("ignores invalid status values (does not block)", () => {
+      const item = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "reading" }),
+      });
+      const room = createTestRoom([createFilter("status", "bogus")]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
+    });
+
+    it("handles negated status filter", () => {
+      const item = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "reading" }),
+      });
+      const room = createTestRoom([
+        createFilter("status", "reading", { negated: true }),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(false);
+    });
+
+    it("matches any value in an OR group (reading|read)", () => {
+      const readingItem = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "reading" }),
+      });
+      const readItem = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "read" }),
+      });
+      const room = createTestRoom([createFilter("status", "reading|read")]);
+      expect(itemMatchesRoom(readingItem, room)).toBe(true);
+      expect(itemMatchesRoom(readItem, room)).toBe(true);
+    });
+
+    it("combines with a type filter (AND logic)", () => {
+      const item = createTestItem({
+        kind: "book",
+        bookDetails: createBookDetails({ status: "reading" }),
+      });
+      const room = createTestRoom([
+        createFilter("type", "book"),
+        createFilter("status", "reading"),
+      ]);
+      expect(itemMatchesRoom(item, room)).toBe(true);
     });
   });
 

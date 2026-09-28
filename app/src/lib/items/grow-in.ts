@@ -19,18 +19,3 @@ export function isFreshlyAdded(
   const created = Date.parse(createdAt);
   return Number.isFinite(created) && nowMs - created < windowMs;
 }
-
-/**
- * The height (px) a frame settles at, from the measured column width and the
- * frame's aspect (width/height are the masonry aspect props, not real pixels).
- * Animating an explicit height to this value is linear in pixels — unlike
- * transitioning `aspect-ratio`, whose interpolation of the ratio keeps the box
- * near-zero until the very end of the tween.
- */
-export function growInTargetPx(
-  columnWidth: number,
-  width: number,
-  height: number,
-): number {
-  return columnWidth * (height / width);
-}

@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { documentFileKeys } from "@/lib/documents/create-document-schema";
 
 function positiveNumberField(meta: unknown, key: string): bigint {
   if (meta && typeof meta === "object" && key in meta) {
@@ -11,9 +12,10 @@ function positiveNumberField(meta: unknown, key: string): bigint {
 }
 
 /**
- * Logical storage bytes an item's meta accounts for. Mirrors the daily
- * reconciliation (reconcile-user-data), which sums meta.size (uploads/images)
- * and meta.coverSize (article/book/product/video covers).
+ * Storage bytes an item's meta accounts for: meta.size (uploads/images) plus
+ * meta.coverSize (article/book/product/video covers). The live counters move by
+ * this; it misses galleries, favicons and avatars, so the daily reconcile resets
+ * them to the true bucket totals (storedBytesByUser).
  */
 export function getItemStorageBytes(meta: unknown): bigint {
   return (
@@ -71,6 +73,77 @@ export function extractInstagramImageKeys(
   media: Prisma.JsonValue | null | undefined,
 ): string[] {
   return collectFileKeys(media);
+}
+
+/**
+ * Every column holding a key an item's capture/enrichment wrote to the `items`
+ * bucket: the item's own file, cover and favicon, plus the images re-hosted
+ * into product/tweet/Instagram JSON. Re-capturing an item replaces these (see
+ * reclaimReplacedStorage), so the old ones must be deleted.
+ *
+ * This and {@link itemFileKeysSelect} are the single inventory of where an
+ * item's files live — delete, reclaim and the image proxy's ownership lookup
+ * all derive from it. `item-file-keys.test.ts` fails when a schema column that
+ * could hold a key isn't accounted for here.
+ */
+export const capturedFileKeysSelect = {
+  fileKey: true,
+  coverFileKey: true,
+  faviconFileKey: true,
+  productDetails: { select: { images: true } },
+  twitterDetails: {
+    select: { media: true, card: true, authorAvatarFileKey: true },
+  },
+  instagramDetails: { select: { media: true } },
+} satisfies Prisma.ItemSelect;
+
+/**
+ * Every file an item owns: its captured files plus, for a scanned document,
+ * each page's displayed and colour-original image. Pages are user-scanned, not
+ * re-captured, so they're only in this full set (delete/export), never reclaim.
+ */
+export const itemFileKeysSelect = {
+  ...capturedFileKeysSelect,
+  documentPages: { select: { fileKey: true, originalFileKey: true } },
+} satisfies Prisma.ItemSelect;
+
+type CapturedFileKeysSource = Prisma.ItemGetPayload<{
+  select: typeof capturedFileKeysSelect;
+}>;
+export type ItemFileKeysSource = Prisma.ItemGetPayload<{
+  select: typeof itemFileKeysSelect;
+}>;
+
+const isKey = (key: unknown): key is string =>
+  typeof key === "string" && key.length > 0;
+
+/** Storage keys an item's capture wrote (see {@link capturedFileKeysSelect}) */
+export function collectCapturedFileKeys(
+  item: CapturedFileKeysSource,
+): string[] {
+  const keys = [
+    item.fileKey,
+    item.coverFileKey,
+    item.faviconFileKey,
+    ...extractProductImageKeys(item.productDetails?.images),
+    ...extractTwitterImageKeys(
+      item.twitterDetails?.media,
+      item.twitterDetails?.card,
+    ),
+    item.twitterDetails?.authorAvatarFileKey,
+    ...extractInstagramImageKeys(item.instagramDetails?.media),
+  ].filter(isKey);
+  return [...new Set(keys)];
+}
+
+/** Every storage key an item owns, de-duplicated (see {@link itemFileKeysSelect}) */
+export function collectItemFileKeys(item: ItemFileKeysSource): string[] {
+  return [
+    ...new Set([
+      ...collectCapturedFileKeys(item),
+      ...documentFileKeys(item.documentPages),
+    ]),
+  ];
 }
 
 /**

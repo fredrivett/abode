@@ -76,6 +76,23 @@ describe("TwitterCard", () => {
     expect(avatar).toHaveAttribute("alt", "");
   });
 
+  it("serves the re-hosted avatar via the proxy when a fileKey exists", () => {
+    const { container } = render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          authorAvatarUrl: "https://pbs.twimg.com/avatar.jpg",
+          authorAvatarFileKey: "user/avatar.jpg",
+        }}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
+    const avatar = container.querySelector("img");
+    expect(avatar?.getAttribute("src")).toContain("/api/v1/images/");
+    expect(avatar?.getAttribute("src")).not.toContain("twimg");
+  });
+
   it("falls back to the placeholder when there is neither media nor text", () => {
     render(
       <TwitterCard

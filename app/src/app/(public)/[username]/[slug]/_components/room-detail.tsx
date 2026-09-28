@@ -1,6 +1,5 @@
 "use client";
 
-import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { RoomVisibility } from "@prisma/client";
 import {
   ArrowLeft,
@@ -21,6 +20,7 @@ import { toast } from "sonner";
 import { CentralItemDialog } from "@/app/(app)/dashboard/_components/central-item-dialog";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
 import { ItemDialogProvider } from "@/app/(app)/dashboard/item-dialog-context";
+import { MasonryGrid } from "@/components/masonry/masonry-grid";
 import { EmbedStatsDialog } from "@/components/rooms/embed-stats-dialog";
 import { EmojiPickerPopover } from "@/components/rooms/emoji-picker-popover";
 import { ShareRoomDialog } from "@/components/rooms/share-room-dialog";
@@ -57,6 +57,7 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { ProfileTag } from "@/components/user/profile-tag";
 import { useGridDensity } from "@/hooks/use-grid-density";
+import { useCardFrame } from "@/lib/items/use-card-frame";
 import type { Room, RoomItem } from "@/lib/types/room";
 
 type RoomOwner = {
@@ -107,6 +108,7 @@ export function RoomDetail({
     containerRef,
     hasHydrated,
   } = useGridDensity();
+  const getCardFrame = useCardFrame(fontScale);
   const [roomEmoji, setRoomEmoji] = useState(room.emoji);
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
@@ -405,46 +407,29 @@ export function RoomDetail({
           </div>
         ) : (
           <>
-            <div className={items.length <= 4 ? "flex justify-center" : ""}>
-              <BalancedMasonryGrid
-                frameWidth={frameWidth}
-                gap={gap}
-                style={{ overflow: "visible !important" }}
-              >
-                {items.map((item) => {
-                  const meta = item.meta || {};
-                  const isArticleOrWebpage =
-                    item.kind === "article" || item.kind === "webpage";
-
-                  // item.title is the single source of truth for display name
-                  const name = item.title ?? "Untitled";
-
-                  const size = formatBytes(meta.size as number | undefined);
-                  const mimeType = meta.type as string | undefined;
-
-                  // For articles/webpages, use 4:3 aspect ratio; for images use actual dimensions or 3:4
-                  const width = isArticleOrWebpage
-                    ? 4
-                    : ((meta.width as number | undefined) ?? 3);
-                  const height = isArticleOrWebpage
-                    ? 3
-                    : ((meta.height as number | undefined) ?? 4);
-
-                  return (
-                    <Frame key={item.id} width={width} height={height}>
-                      <ItemCard
-                        item={item}
-                        name={name}
-                        size={size}
-                        mimeType={mimeType}
-                        canEdit={isOwner}
-                        onDeleted={() => removeRoomItem(item.id)}
-                      />
-                    </Frame>
-                  );
-                })}
-              </BalancedMasonryGrid>
-            </div>
+            <MasonryGrid<RoomItem>
+              items={items}
+              getKey={(item) => item.id}
+              getFrame={getCardFrame}
+              minColumnWidth={frameWidth}
+              gap={gap}
+              // Removing an item closes up its column instead of snapping
+              animate
+              renderItem={(item) => {
+                const meta = item.meta || {};
+                return (
+                  <ItemCard
+                    item={item}
+                    // item.title is the single source of truth for display name
+                    name={item.title ?? "Untitled"}
+                    size={formatBytes(meta.size as number | undefined)}
+                    mimeType={meta.type as string | undefined}
+                    canEdit={isOwner}
+                    onDeleted={() => removeRoomItem(item.id)}
+                  />
+                );
+              }}
+            />
 
             {/* Load more button */}
             {hasMore && (

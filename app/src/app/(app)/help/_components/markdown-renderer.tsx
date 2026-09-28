@@ -1,7 +1,7 @@
 "use client";
 
 import Markdown from "markdown-to-jsx";
-import { AbodeInline } from "./abode-inline";
+import { AbodeInline } from "@/components/abode-inline";
 import { FilterTypesTable } from "./filter-types-table";
 import { HeadingIdProvider } from "./heading-id-context";
 import { HeadingLink } from "./heading-link";

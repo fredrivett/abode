@@ -50,7 +50,7 @@ export function ActivityHeatmap({ activityOverview }: ActivityHeatmapProps) {
                   title={`${day.date}: ${day.totalActions} actions, ${day.activeUsers} users`}
                 >
                   {/* Tooltip */}
-                  <div className="-translate-x-1/2 absolute bottom-full left-1/2 z-10 mb-2 hidden whitespace-nowrap rounded bg-popover px-2 py-1 text-xs shadow-md group-hover:block">
+                  <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs shadow-md group-hover:block">
                     <div className="font-medium">{day.date}</div>
                     <div>{day.totalActions} actions</div>
                     <div>{day.activeUsers} users</div>

@@ -57,6 +57,9 @@ storybook-static
 
 .trigger
 
+# Document scanner assets copied from node_modules (scripts/copy-scanner-assets.ts)
+/public/vendor/
+
 # Serwist service worker output
 public/sw*
 public/swe-worker*

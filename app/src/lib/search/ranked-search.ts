@@ -1,6 +1,11 @@
 import { createLogger } from "@/lib/logger.server";
-import { fullTextSearch, ocrTextSearch } from "@/lib/search/full-text-search";
+import {
+  fullTextSearch,
+  ocrTextSearch,
+  phraseSearch,
+} from "@/lib/search/full-text-search";
 import type { ParsedFilters } from "@/lib/search/query-builder";
+import { parseQuotedQuery } from "@/lib/search/quoted-phrases";
 import { mergeSearchResults } from "@/lib/search/rrf";
 import { vectorSearch } from "@/lib/search/vector-search";
 
@@ -31,6 +36,10 @@ export type RankedSearchOptions = {
  * the search API and the MCP server so both rank identically. Returns ordered
  * item ids with match metadata; hydrating those ids into full items is the
  * caller's job. Vector search failure degrades to text + OCR (never throws).
+ *
+ * Quoted phrases in the query are exact-match requirements: every retriever is
+ * restricted to items containing them, and any exact match none of the
+ * retrievers ranked is appended after the ranked ones (source `"phrase"`).
  */
 export async function rankedSearch(
   userId: string,
@@ -39,29 +48,34 @@ export async function rankedSearch(
   options: RankedSearchOptions = {},
 ): Promise<RankedSearchResult[]> {
   const limit = options.limit ?? DEFAULT_RANKED_LIMIT;
+  const { text, phrases } = parseQuotedQuery(query);
+  if (!text) return [];
+  const scopedFilters: ParsedFilters =
+    phrases.length > 0 ? { ...filters, phrases } : filters;
 
-  const [textResults, vectorResults, ocrResults] = await Promise.all([
-    fullTextSearch(userId, filters, query, limit),
-    vectorSearch(userId, filters, query, limit).catch((error) => {
-      log.error({ error }, "Vector search failed, falling back to text-only");
-      options.onVectorUnavailable?.();
-      return [];
-    }),
-    ocrTextSearch(userId, filters, query, limit),
-  ]);
+  const [textResults, vectorResults, ocrResults, phraseResults] =
+    await Promise.all([
+      fullTextSearch(userId, scopedFilters, text, limit),
+      vectorSearch(userId, scopedFilters, text, limit).catch((error) => {
+        log.error({ error }, "Vector search failed, falling back to text-only");
+        options.onVectorUnavailable?.();
+        return [];
+      }),
+      ocrTextSearch(userId, scopedFilters, text, limit),
+      phraseSearch(userId, scopedFilters, limit),
+    ]);
 
-  if (
-    textResults.length === 0 &&
-    vectorResults.length === 0 &&
-    ocrResults.length === 0
-  ) {
-    return [];
-  }
-
-  const merged = mergeSearchResults(textResults, vectorResults, ocrResults, {
+  const ranked = mergeSearchResults(textResults, vectorResults, ocrResults, {
     k: 60,
     limit,
   });
+  const rankedIds = new Set(ranked.map((result) => result.id));
+  const merged = [
+    ...ranked,
+    ...phraseResults
+      .filter((id) => !rankedIds.has(id))
+      .map((id) => ({ id, sources: ["phrase"] })),
+  ].slice(0, limit);
   if (merged.length === 0) return [];
 
   // Full-text search computes its own OCR headline; seed from it so items that

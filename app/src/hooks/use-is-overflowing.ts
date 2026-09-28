@@ -1,6 +1,7 @@
 "use client";
 
 import { type RefObject, useEffect, useLayoutEffect, useState } from "react";
+import { coalesceFrame } from "@/lib/raf-coalesce";
 
 // Layout effect on the client so the fade decision lands before paint; a no-op
 // effect on the server avoids the SSR warning.
@@ -35,17 +36,22 @@ export function useIsOverflowing(
       setOverflowing(element.scrollHeight - element.clientHeight > tolerancePx);
     measure();
 
+    // rAF-defer + coalesce observer callbacks so a measure-driven reflow can't
+    // retrigger the observer mid-delivery (the "ResizeObserver loop …
+    // undelivered notifications" error).
+    const scheduler = coalesceFrame(measure);
+
     // Observers are optional: the synchronous measure above is enough for the
     // initial decision, and jsdom (unit tests) has no ResizeObserver.
     const resizeObserver =
       typeof ResizeObserver === "undefined"
         ? null
-        : new ResizeObserver(measure);
+        : new ResizeObserver(scheduler.schedule);
     resizeObserver?.observe(element);
     const mutationObserver =
       typeof MutationObserver === "undefined"
         ? null
-        : new MutationObserver(measure);
+        : new MutationObserver(scheduler.schedule);
     mutationObserver?.observe(element, {
       childList: true,
       subtree: true,
@@ -53,6 +59,7 @@ export function useIsOverflowing(
     });
 
     return () => {
+      scheduler.cancel();
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };

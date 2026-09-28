@@ -43,8 +43,9 @@ import {
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { UploadDialog } from "@/components/upload-dialog";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
 import { signOut } from "@/lib/actions/auth";
-import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import { matchesShortcut } from "@/lib/keyboard";
 import { emptySearchState, useSearch } from "@/lib/search";
 import { removeSpan, type Suggestion } from "@/lib/search/detect-suggestions";
 import { parseFilterContext } from "@/lib/search/parse-filter-context";
@@ -71,6 +72,7 @@ import {
   getDensityIndex,
   useGridDensityStore,
 } from "@/stores/grid-density-store";
+import { useUserStore } from "@/stores/user-store";
 
 type UserProfile = {
   id: string;
@@ -90,6 +92,7 @@ type Room = {
 };
 
 export function CommandPalette() {
+  const modifierKeySymbol = useModifierKeySymbol();
   const router = useRouter();
   const pathname = usePathname();
   const { open, setOpen, targetPage, uploadDialogOpen, setUploadDialogOpen } =
@@ -225,13 +228,13 @@ export function CommandPalette() {
   );
 
   // Search handler
-  const { setState: setSearchStoreState } = useSearch();
+  const { applySearch } = useSearch();
   const handleSearch = useCallback(() => {
     if (!searchState.query.trim() && searchState.filters.length === 0) return;
 
     if (pathname === "/dashboard") {
-      // Update search state directly
-      setSearchStoreState({
+      // A new search replaces the view (and closes any open item)
+      applySearch({
         query: searchState.query.trim(),
         filters: searchState.filters,
       });
@@ -244,7 +247,7 @@ export function CommandPalette() {
       router.push(`/dashboard?${params.toString()}`);
     }
     setOpen(false);
-  }, [searchState, pathname, setSearchStoreState, router, setOpen]);
+  }, [searchState, pathname, applySearch, router, setOpen]);
 
   // Filter handlers
   const handleSelectFilterType = useCallback(
@@ -425,6 +428,8 @@ export function CommandPalette() {
   // Sign out handler
   const handleSignOut = useCallback(async () => {
     setOpen(false);
+    // Drop the signed-in user's client state first (see SignOutForm)
+    useUserStore.getState().clearUser();
     await signOut();
   }, [setOpen]);
 
@@ -679,19 +684,19 @@ export function CommandPalette() {
                       <div className="ml-auto flex items-center gap-2">
                         {isNextLarger && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>+</Kbd>
                           </KbdGroup>
                         )}
                         {isNextSmaller && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>-</Kbd>
                           </KbdGroup>
                         )}
                         {isDefault && (
                           <KbdGroup>
-                            <Kbd>{getModifierKeySymbol()}</Kbd>
+                            <Kbd>{modifierKeySymbol}</Kbd>
                             <Kbd>0</Kbd>
                           </KbdGroup>
                         )}

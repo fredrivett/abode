@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { signOut } from "@/lib/actions/auth";
 import { getAAL, getVerifiedTOTPFactor } from "@/lib/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 import { VerifyMFAForm } from "./verify-mfa-form";
+
+export const metadata: Metadata = { title: "Verify sign-in | abode" };
 
 type Props = {
   searchParams: Promise<{ next?: string | string[] }>;
@@ -58,14 +62,14 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
         <VerifyMFAForm factorId={factor.id} next={safeNext} />
 
         <div className="text-center text-gray-500 text-sm dark:text-gray-400">
-          <form action={signOut} className="inline">
+          <SignOutForm action={signOut} className="inline">
             <button
               type="submit"
               className="font-medium text-gray-900 hover:underline dark:text-gray-100"
             >
               Back to login
             </button>
-          </form>
+          </SignOutForm>
         </div>
       </div>
     </div>

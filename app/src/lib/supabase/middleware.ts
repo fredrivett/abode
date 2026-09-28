@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { isMfaChallengePending } from "@/lib/mfa";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 
 /**
@@ -62,7 +63,14 @@ export async function updateSession(request: NextRequest) {
   // Check MFA requirement for authenticated users accessing protected routes
   if (user && isProtectedRoute) {
     const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (data && data.currentLevel === "aal1" && data.nextLevel === "aal2") {
+    // nextLevel is aal2 exactly when the user has a verified factor
+    if (
+      data &&
+      isMfaChallengePending({
+        currentLevel: data.currentLevel,
+        hasVerifiedFactor: data.nextLevel === "aal2",
+      })
+    ) {
       // User has MFA enabled but hasn't completed the challenge — preserve
       // the original destination (e.g. /save?url=...) across verification
       const next = request.nextUrl.pathname + request.nextUrl.search;

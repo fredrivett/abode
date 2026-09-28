@@ -55,6 +55,22 @@ export const BOOK_READING_STATUS_LABELS: Record<BookReadingStatus, string> = {
   dnf: "Did not finish",
 };
 
+// Label for a book saved without a reading status (status null)
+export const NOT_TRACKED_LABEL = "Not tracked";
+
+// Grid-card status badge visibility. A tracked status shows to everyone (it's
+// public reading data); "not tracked" only shows to the owner, as a prompt to
+// set one — to visitors it's noise.
+export function shouldShowReadingStatusBadge({
+  status,
+  canEdit,
+}: {
+  status: BookReadingStatus | null;
+  canEdit: boolean;
+}): boolean {
+  return status !== null || canEdit;
+}
+
 // Rating is stored on a /10 scale so half-stars are expressible (1..10 => 0.5..5
 // stars); null means unrated.
 export const MIN_BOOK_RATING = 1;

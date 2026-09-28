@@ -4,6 +4,7 @@ import {
   BOOK_READING_STATUS_LABELS,
   bookReadingSchema,
   isReadingDateRangeInverted,
+  shouldShowReadingStatusBadge,
 } from "./book-reading-status";
 
 describe("isReadingDateRangeInverted", () => {
@@ -67,6 +68,26 @@ describe("BOOK_READING_STATUS_LABELS", () => {
     for (const status of Object.values(BookReadingStatus)) {
       expect(BOOK_READING_STATUS_LABELS[status]).toBeTruthy();
     }
+  });
+});
+
+describe("shouldShowReadingStatusBadge", () => {
+  it("shows a tracked status to everyone", () => {
+    expect(
+      shouldShowReadingStatusBadge({ status: "reading", canEdit: false }),
+    ).toBe(true);
+    expect(
+      shouldShowReadingStatusBadge({ status: "reading", canEdit: true }),
+    ).toBe(true);
+  });
+
+  it("shows not-tracked only to the owner", () => {
+    expect(shouldShowReadingStatusBadge({ status: null, canEdit: true })).toBe(
+      true,
+    );
+    expect(shouldShowReadingStatusBadge({ status: null, canEdit: false })).toBe(
+      false,
+    );
   });
 });
 

@@ -153,7 +153,7 @@ export function UserAvatarSetting({
               type="button"
               onClick={handleDeleteClick}
               disabled={isDeleting}
-              className="-right-1 -bottom-1 absolute flex size-7 cursor-pointer items-center justify-center rounded-full bg-secondary text-muted-foreground shadow-md transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed"
+              className="absolute -right-1 -bottom-1 flex size-7 cursor-pointer items-center justify-center rounded-full bg-secondary text-muted-foreground shadow-md transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed"
             >
               {isDeleting ? (
                 <Loader2 className="size-3.5 animate-spin" />

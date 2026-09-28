@@ -20,6 +20,7 @@ const profileUpdateSchema = z.object({
   bio: z.string().max(BIO_MAX_LENGTH).optional(),
   showInvitedBy: z.boolean().optional(),
   showInvited: z.boolean().optional(),
+  allowSearchIndexing: z.boolean().optional(),
 });
 
 export async function GET(_request: NextRequest) {
@@ -89,8 +90,15 @@ export async function PATCH(request: NextRequest) {
       return zodErrorResponse(parsed.error);
     }
 
-    const { firstName, lastName, website, bio, showInvitedBy, showInvited } =
-      parsed.data;
+    const {
+      firstName,
+      lastName,
+      website,
+      bio,
+      showInvitedBy,
+      showInvited,
+      allowSearchIndexing,
+    } = parsed.data;
 
     // Normalize the bio: empty (or whitespace-only) clears it
     const bioValue: string | null | undefined =
@@ -122,6 +130,7 @@ export async function PATCH(request: NextRequest) {
         ...(bioValue !== undefined && { bio: bioValue }),
         ...(showInvitedBy !== undefined && { showInvitedBy }),
         ...(showInvited !== undefined && { showInvited }),
+        ...(allowSearchIndexing !== undefined && { allowSearchIndexing }),
       },
       select: {
         firstName: true,
@@ -140,6 +149,7 @@ export async function PATCH(request: NextRequest) {
       ...(bio !== undefined ? ["bio"] : []),
       ...(showInvitedBy !== undefined ? ["showInvitedBy"] : []),
       ...(showInvited !== undefined ? ["showInvited"] : []),
+      ...(allowSearchIndexing !== undefined ? ["allowSearchIndexing"] : []),
     ];
     void logActivity(user.id, "user_update", { fields: changedFields });
 

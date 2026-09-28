@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
-import { getAAL } from "@/lib/mfa";
+import { getAAL, isMfaChallengePending } from "@/lib/mfa";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
@@ -60,7 +60,7 @@ export async function login(
 
   // Check if user has MFA enabled and needs to complete challenge
   const aal = await getAAL(supabase);
-  if (aal.hasVerifiedFactor && aal.currentLevel === "aal1") {
+  if (isMfaChallengePending(aal)) {
     // User has MFA but hasn't completed the challenge yet — carry next through
     redirect(`/login/verify-mfa?next=${encodeURIComponent(safeNext)}`);
   }

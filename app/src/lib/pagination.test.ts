@@ -35,7 +35,7 @@ describe("parsePageSize", () => {
 
 describe("decodeCursor", () => {
   it("round-trips a valid cursor via encodeCursor", () => {
-    const data = { createdAt: new Date().toISOString(), id: VALID_UUID };
+    const data = { addedAt: new Date().toISOString(), id: VALID_UUID };
     expect(decodeCursor(encodeCursor(data))).toEqual(data);
   });
 
@@ -52,21 +52,21 @@ describe("decodeCursor", () => {
 
   it("returns null when fields are missing", () => {
     expect(
-      decodeCursor(encode({ createdAt: new Date().toISOString() })),
+      decodeCursor(encode({ addedAt: new Date().toISOString() })),
     ).toBeNull();
     expect(decodeCursor(encode({ id: "abc-123" }))).toBeNull();
   });
 
   it("returns null when fields are the wrong type", () => {
-    expect(decodeCursor(encode({ createdAt: 123, id: "abc-123" }))).toBeNull();
+    expect(decodeCursor(encode({ addedAt: 123, id: "abc-123" }))).toBeNull();
     expect(
-      decodeCursor(encode({ createdAt: new Date().toISOString(), id: 5 })),
+      decodeCursor(encode({ addedAt: new Date().toISOString(), id: 5 })),
     ).toBeNull();
   });
 
-  it("returns null when createdAt is not a valid date", () => {
+  it("returns null when addedAt is not a valid date", () => {
     expect(
-      decodeCursor(encode({ createdAt: "not-a-date", id: VALID_UUID })),
+      decodeCursor(encode({ addedAt: "not-a-date", id: VALID_UUID })),
     ).toBeNull();
   });
 
@@ -74,7 +74,7 @@ describe("decodeCursor", () => {
     // ids are compared against a uuid column; a non-UUID would 500 the query
     expect(
       decodeCursor(
-        encode({ createdAt: new Date().toISOString(), id: "abc-123" }),
+        encode({ addedAt: new Date().toISOString(), id: "abc-123" }),
       ),
     ).toBeNull();
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { debugTrace } from "@/lib/debug/trace";
 
 type UseInfiniteScrollOptions = {
   hasMore: boolean;
@@ -47,6 +48,7 @@ export function useInfiniteScroll({
       wasIntersectingRef.current = isNowIntersecting;
 
       if (isNowIntersecting && !wasIntersecting) {
+        debugTrace("grid", "load-more:trigger");
         onLoadMore();
       }
     };
