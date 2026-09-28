@@ -200,5 +200,13 @@ export const GrowIn: Story = {
       expect(cell.getBoundingClientRect().height).toBeGreaterThan(50),
     );
     expect(cell.style.transform).toMatch(/^translate3d\(0px, 0px,/);
+    // The previous top-left card reflowed along to the next top-row slot
+    // rather than being pushed down its column
+    const previousFirst = canvasElement.querySelector<HTMLElement>(
+      '[data-grid-item="card-0"]',
+    );
+    expect(previousFirst?.style.transform).toMatch(
+      /^translate3d\([1-9][\d.]*px, 0px,/,
+    );
   },
 };
