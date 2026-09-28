@@ -9,6 +9,8 @@ import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
+import { captureServerException } from "@/lib/posthog-server";
+import { removeUserStorage } from "@/lib/storage-objects";
 import { createClient } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
@@ -87,24 +89,18 @@ export async function deleteUserAsAdmin(
       where: { id: userId },
     });
 
-    // Delete avatar files from Supabase Storage
-    const { data: avatarFiles } = await supabaseAdmin.storage
-      .from("avatars")
-      .list(userId);
-
-    if (avatarFiles && avatarFiles.length > 0) {
-      const filesToDelete = avatarFiles.map((f) => `${userId}/${f.name}`);
-      await supabaseAdmin.storage.from("avatars").remove(filesToDelete);
-    }
-
-    // Delete item files from Supabase Storage
-    const { data: itemFiles } = await supabaseAdmin.storage
-      .from("items")
-      .list(userId);
-
-    if (itemFiles && itemFiles.length > 0) {
-      const filesToDelete = itemFiles.map((f) => `${userId}/${f.name}`);
-      await supabaseAdmin.storage.from("items").remove(filesToDelete);
+    // Delete every stored file (item files + avatars), paging past list()'s
+    // default 100 so large libraries don't leave files behind
+    const storage = await removeUserStorage(supabaseAdmin, userId);
+    for (const { bucket, error } of storage.failures) {
+      log.error(
+        { error, userId: userId, bucket, adminId: adminUser.id },
+        "Failed to delete user storage",
+      );
+      captureServerException(error, userId, {
+        bucket,
+        context: "account_deletion",
+      });
     }
 
     // Delete the Supabase auth user
