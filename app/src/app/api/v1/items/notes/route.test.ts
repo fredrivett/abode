@@ -124,6 +124,8 @@ describe("POST /api/v1/items/notes", () => {
       "user_1",
       expect.objectContaining({ source: "extension" }),
     );
+    // Not a composer save, so the web draft is left intact
+    expect(mockClearNoteDraft).not.toHaveBeenCalled();
   });
 });
 
@@ -155,6 +157,8 @@ describe("POST /api/v1/items/notes — personal access tokens", () => {
         personalAccessTokenId: "tok_1",
       }),
     );
+    // A script's save must not wipe the user's in-progress composer draft
+    expect(mockClearNoteDraft).not.toHaveBeenCalled();
     expect(mockCapture).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "note_created",

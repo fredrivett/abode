@@ -100,7 +100,11 @@ describe("TokenSettings", () => {
       ok: true,
       json: async () => ({
         token: "abode_pat_SECRETVALUE",
-        tokenSummary: summary({ id: "t2", name: "Shortcut" }),
+        tokenSummary: summary({
+          id: "t2",
+          name: "Shortcut",
+          scopes: ["write"],
+        }),
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -119,6 +123,10 @@ describe("TokenSettings", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1].body);
     expect(body.scopes).toEqual(["write"]);
+    // The new row reflects the token as created
+    expect(
+      await screen.findByText("0 items saved", { exact: false }),
+    ).toBeInTheDocument();
   });
 
   it("can't create a token with no permissions", () => {

@@ -64,9 +64,10 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       personalAccessTokenId,
     });
 
-    // The composer's save path — creating the note clears its in-progress draft
-    // in the same request, so the client needs no extra call.
-    await clearNoteDraft(user.id);
+    // The in-app composer's save (a cookie session) clears its in-progress draft
+    // in the same request, so the client needs no extra call. Extension and token
+    // saves leave it alone — they didn't come from the composer.
+    if (auth.method === "cookie") await clearNoteDraft(user.id);
 
     const posthog = getPostHogClient();
     posthog?.capture({
