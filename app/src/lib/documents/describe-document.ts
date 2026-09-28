@@ -64,9 +64,11 @@ export async function describeDocument({
   }
 
   const client = getOpenAiClient();
+  // `.create()` rather than `.parse()`: parse throws on a truncated or
+  // off-schema response before we can record its (billed) usage
   const completion = await retryTransient(
     () =>
-      client.chat.completions.parse({
+      client.chat.completions.create({
         model: DESCRIBE_MODEL,
         messages: [
           {
@@ -98,9 +100,13 @@ export async function describeDocument({
     outputTokens: completion.usage?.completion_tokens,
   });
 
-  const parsed = completion.choices[0]?.message.parsed;
-  if (!parsed?.title.trim()) {
-    throw new Error("No document title in OpenAI response");
+  const choice = completion.choices[0];
+  if (choice?.finish_reason === "length" || !choice?.message.content) {
+    throw new Error("No complete document description in OpenAI response");
   }
-  return { title: parsed.title.trim(), description: parsed.description.trim() };
+  const { title, description } = DocumentDescriptionSchema.parse(
+    JSON.parse(choice.message.content),
+  );
+  if (!title.trim()) throw new Error("No document title in OpenAI response");
+  return { title: title.trim(), description: description.trim() };
 }

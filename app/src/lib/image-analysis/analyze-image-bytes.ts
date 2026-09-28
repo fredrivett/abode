@@ -18,7 +18,7 @@ import {
   type ImageEmbeddingSource,
   reportImageEmbeddingFailure,
 } from "./embedding-failure";
-import { analyzeImageWithOpenAI } from "./openai-vision";
+import { analyzeImageWithOpenAI, BilledVisionError } from "./openai-vision";
 
 const log = createLogger("lib/analyze-image-bytes");
 
@@ -130,18 +130,29 @@ export async function analyzeImageBytes(params: {
     }),
     (async (): Promise<OpenAiVisionResult | null> => {
       if (!openaiConfigured) return null;
-      const result = await analyzeImageWithOpenAI(buffer, mimeType, { ocr });
-      recordAiUsage({
-        userId,
-        itemId,
-        provider: "openai",
-        operation: "vision_analysis",
-        model: result.model,
-        inputTokens: result.usage.promptTokens,
-        outputTokens: result.usage.completionTokens,
-        source: "ingestion",
-      });
-      return result;
+      const recordVisionUsage = ({
+        model,
+        usage,
+      }: Pick<OpenAiVisionResult, "model" | "usage">) =>
+        recordAiUsage({
+          userId,
+          itemId,
+          provider: "openai",
+          operation: "vision_analysis",
+          model,
+          inputTokens: usage.promptTokens,
+          outputTokens: usage.completionTokens,
+          source: "ingestion",
+        });
+      try {
+        const result = await analyzeImageWithOpenAI(buffer, mimeType, { ocr });
+        recordVisionUsage(result);
+        return result;
+      } catch (error) {
+        // An unusable response was still billed
+        if (error instanceof BilledVisionError) recordVisionUsage(error.billed);
+        throw error;
+      }
     })(),
     // LQIP blur placeholder — local compute, best-effort (never throws)
     generateBlurDataUrl(buffer),

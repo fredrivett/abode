@@ -43,6 +43,22 @@ export type OpenAIVisionAnalysisResult = {
   model: string;
 };
 
+/**
+ * A vision call that was billed but whose response was unusable (truncated,
+ * empty or off-schema). Carries the usage so the caller can still record the
+ * spend before failing.
+ */
+export class BilledVisionError extends Error {
+  constructor(
+    message: string,
+    readonly billed: Pick<OpenAIVisionAnalysisResult, "usage" | "model">,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = "BilledVisionError";
+  }
+}
+
 // Garbled glyphs (glitch art, fake HUD readouts) can send the model into a
 // repetition loop in ocrText until it hits max_tokens, so steer it to legible
 // text only and cap the length
@@ -134,34 +150,43 @@ export async function analyzeImageWithOpenAI(
       ? await requestAnalysis({ ocr: false })
       : first;
 
-    const choice = completion.choices[0];
-    if (choice?.finish_reason === "length") {
-      throw new Error("OpenAI vision response truncated even without OCR");
-    }
-    if (!choice?.message.content) {
-      throw new Error("No content in OpenAI response");
-    }
-    const parsed = ImageAnalysisSchema.parse(
-      JSON.parse(choice.message.content),
-    );
-    const analysis = truncated || !ocr ? { ...parsed, ocrText: null } : parsed;
-
-    log.info({ title: analysis.title }, "OpenAI vision analysis complete");
-
     const calls = truncated ? [first, completion] : [completion];
     const tokens = (
       key: "prompt_tokens" | "completion_tokens" | "total_tokens",
     ) => calls.reduce((sum, call) => sum + (call.usage?.[key] ?? 0), 0);
-
-    return {
-      analysis,
-      usage: {
-        promptTokens: tokens("prompt_tokens"),
-        completionTokens: tokens("completion_tokens"),
-        totalTokens: tokens("total_tokens"),
-      },
-      model: completion.model,
+    const usage = {
+      promptTokens: tokens("prompt_tokens"),
+      completionTokens: tokens("completion_tokens"),
+      totalTokens: tokens("total_tokens"),
     };
+    const billedError = (message: string, cause?: unknown) =>
+      new BilledVisionError(
+        message,
+        { usage, model: completion.model },
+        { cause },
+      );
+
+    const choice = completion.choices[0];
+    if (choice?.finish_reason === "length") {
+      throw billedError("OpenAI vision response truncated even without OCR");
+    }
+    if (!choice?.message.content) {
+      throw billedError("No content in OpenAI response");
+    }
+    let parsed: OpenAIVisionResult;
+    try {
+      parsed = ImageAnalysisSchema.parse(JSON.parse(choice.message.content));
+    } catch (error) {
+      throw billedError(
+        "OpenAI vision response didn't match the schema",
+        error,
+      );
+    }
+    const analysis = truncated || !ocr ? { ...parsed, ocrText: null } : parsed;
+
+    log.info({ title: analysis.title }, "OpenAI vision analysis complete");
+
+    return { analysis, usage, model: completion.model };
   } catch (error) {
     log.error({ error }, "OpenAI vision analysis failed");
     throw error;
