@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { logger, task, tasks } from "@trigger.dev/sdk";
 import { imageSize } from "image-size";
 import { truncateToTokenLimit } from "../src/lib/ai/generate-tags-from-content";
+import { isJevConfigured, judgeArticleVsWebpage } from "../src/lib/ai/jev";
 import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import { classifyItemKind } from "../src/lib/classify-item-kind";
 import db from "../src/lib/db";
@@ -13,6 +14,7 @@ import {
   extractAllProductImageCandidates,
   extractArticleMetadata,
   extractFaviconUrl,
+  hasArticleStructuredData,
   type ProductImageCandidate,
   type ProductMetadata,
 } from "../src/lib/html-metadata";
@@ -575,14 +577,56 @@ export const classifyUrlTask = task({
         );
       }
 
-      // Article or generic webpage
-      const itemKind =
+      // Article or generic webpage. The structural heuristic decides this, but
+      // it's the one item-kind call known to misfire (metadata-less essays vs
+      // link-dense hubs) — so when Jev is configured we let its calibrated
+      // judgement override a *heuristic* result (never a user's forced kind).
+      const heuristicKind: "article" | "webpage" =
         classification?.kind === "article" ? "article" : "webpage";
+      let itemKind: "article" | "webpage" = heuristicKind;
       const metadata =
         classification && "metadata" in classification
           ? classification.metadata
           : extractArticleMetadata(html, fetchUrl);
       const { articleContent, readingTime, wordCount } = getReadableContent();
+
+      // Only refine the *fuzzy* article/webpage call: when the publisher
+      // declares an article via structured metadata that decision is
+      // authoritative, so Jev must not be allowed to demote it.
+      if (!forcedKind && isJevConfigured() && !hasArticleStructuredData(html)) {
+        const readable = getReadableContent();
+        const jev = await judgeArticleVsWebpage({
+          title: metadata.title,
+          description: metadata.description,
+          content: readable.articleContent,
+          linkDensity: readable.linkDensity,
+          longestParagraphWords: readable.longestParagraphWords,
+          wordCount: readable.wordCount,
+        });
+        if (jev.decision && jev.decision !== heuristicKind) {
+          logger.log("Jev refined item kind", {
+            itemId,
+            from: heuristicKind,
+            to: jev.decision,
+            probability: jev.probability,
+          });
+          itemKind = jev.decision;
+        }
+        // A billed call must be recorded even when its verdict was inconclusive
+        // (usage is present only when a call actually completed).
+        if (jev.usage && jev.model) {
+          recordAiUsage({
+            userId,
+            itemId,
+            itemKind,
+            provider: "typesafe",
+            operation: "kind_classification",
+            model: jev.model,
+            inputTokens: jev.usage.inputTokens,
+            outputTokens: jev.usage.outputTokens,
+          });
+        }
+      }
 
       logger.log(`URL classified as ${itemKind}`, {
         itemId,
