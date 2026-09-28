@@ -2,14 +2,15 @@
 
 import posthog from "posthog-js";
 import { useEffect } from "react";
+import { isChunkLoadError } from "@/lib/chunk-load-error";
 import { applyThemePreference, getCurrentPreference } from "@/lib/theme";
 
 export default function GlobalError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     applyThemePreference(getCurrentPreference());
@@ -32,7 +33,10 @@ export default function GlobalError({
         </p>
         <button
           type="button"
-          onClick={reset}
+          onClick={() =>
+            // A failed chunk download stays cached, so only a full reload recovers
+            isChunkLoadError(error) ? window.location.reload() : retry()
+          }
           className="rounded-md bg-gray-900 px-4 py-2 font-medium text-sm text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
         >
           Try again
