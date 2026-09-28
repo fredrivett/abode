@@ -2,11 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import {
-  createItemFromUrl,
-  InvalidUrlError,
-  isItemSource,
-} from "@/lib/items/from-url";
+import { captureAttribution } from "@/lib/items/capture-source";
+import { createItemFromUrl, InvalidUrlError } from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -45,10 +42,15 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     }
 
     try {
+      const { captureSource, personalAccessTokenId } = captureAttribution(
+        auth,
+        source,
+      );
       const item = await createItemFromUrl({
         userId: user.id,
         url,
-        source: isItemSource(source) ? source : "web",
+        source: captureSource,
+        personalAccessTokenId,
         // Optional extension-captured rendered DOM. createItemFromUrl decides
         // whether it's a usable capture (document-shaped, within the size cap)
         // and otherwise falls back to a server-side fetch.

@@ -93,6 +93,7 @@ describe("POST /api/v1/items/notes", () => {
       content: "a quote",
       title: "Source",
       source: "web",
+      personalAccessTokenId: null,
     });
     expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
   });
@@ -122,6 +123,46 @@ describe("POST /api/v1/items/notes", () => {
     expect(mockCreateNote).toHaveBeenCalledWith(
       "user_1",
       expect.objectContaining({ source: "extension" }),
+    );
+  });
+});
+
+describe("POST /api/v1/items/notes — personal access tokens", () => {
+  it("requires the write scope", async () => {
+    await POST(request({ content: "hello" }));
+    expect(mockAuth).toHaveBeenCalledWith(expect.anything(), {
+      tokenScope: "write",
+    });
+  });
+
+  it("attributes a token save as api with the token, whatever source the body claims", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user_1" },
+      method: "pat",
+      tokenId: "tok_1",
+    });
+    const res = await POST(
+      request(
+        { content: "from a script", source: "extension" },
+        { authorization: "Bearer abode_pat_x" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(mockCreateNote).toHaveBeenCalledWith(
+      "user_1",
+      expect.objectContaining({
+        source: "api",
+        personalAccessTokenId: "tok_1",
+      }),
+    );
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "note_created",
+        properties: expect.objectContaining({
+          source: "api",
+          token_id: "tok_1",
+        }),
+      }),
     );
   });
 });

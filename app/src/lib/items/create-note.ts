@@ -1,5 +1,5 @@
+import type { CaptureSource } from "@prisma/client";
 import { write } from "@/lib/db";
-import type { ItemSource } from "./capture-source";
 import { promoteNoteHeading } from "./note-title";
 import { itemSelect, type RawItem } from "./query";
 
@@ -8,8 +8,10 @@ export type CreateNoteInput = {
   content?: string | null;
   /** Optional explicit title; when provided it wins and the body is left intact */
   title?: string | null;
-  /** Entry point the note was saved from (in-app composer vs extension selection) */
-  source: ItemSource;
+  /** Entry point the note was saved from (in-app composer, extension selection, API) */
+  source: CaptureSource;
+  /** The token that saved this note — set together with source `api` (see captureAttribution) */
+  personalAccessTokenId?: string | null;
 };
 
 /**
@@ -38,6 +40,7 @@ export async function createNote(
       kind: "note",
       sourceType: "compose",
       captureSource: input.source,
+      personalAccessTokenId: input.personalAccessTokenId ?? null,
       processingStatus: "completed",
       userId,
       title,

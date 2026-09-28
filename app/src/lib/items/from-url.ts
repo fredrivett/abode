@@ -1,6 +1,6 @@
 import type { classifyUrlTask } from "@app/trigger/classify-url";
+import type { CaptureSource } from "@prisma/client";
 import db from "@/lib/db";
-import { type ItemSource, isItemSource } from "@/lib/items/capture-source";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { markItemEnqueueFailed } from "@/lib/items/mark-enqueue-failed";
 import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
@@ -42,10 +42,6 @@ function usableCapturedHtml(html: string | undefined): string | undefined {
   return html;
 }
 
-// Re-exported for existing importers; canonical definition lives in
-// ./capture-source alongside the persisted CaptureSource enum.
-export { type ItemSource, isItemSource };
-
 /** Thrown when the provided URL is missing or not an http(s) URL. */
 export class InvalidUrlError extends Error {}
 
@@ -63,11 +59,14 @@ export async function createItemFromUrl({
   userId,
   url,
   source,
+  personalAccessTokenId = null,
   html,
 }: {
   userId: string;
   url: string;
-  source: ItemSource;
+  source: CaptureSource;
+  /** The token that saved this item — set together with source `api` (see captureAttribution) */
+  personalAccessTokenId?: string | null;
   /**
    * The page's already-rendered DOM, captured client-side by the browser
    * extension. When present, classification uses it instead of a server-side
@@ -98,6 +97,7 @@ export async function createItemFromUrl({
       sourceType: "url",
       sourceUrl: parsedUrl.href,
       captureSource: source,
+      personalAccessTokenId,
       userId,
       processingStatus: "processing",
       ...(aspectHint ? { meta: { aspectHint } } : {}),
@@ -148,6 +148,7 @@ export async function createItemFromUrl({
       item_id: item.id,
       url_domain: parsedUrl.hostname,
       source,
+      token_id: personalAccessTokenId,
       captured_html: captured !== undefined,
     },
   });
