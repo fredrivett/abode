@@ -50,6 +50,7 @@ import { ArticleCard } from "@/components/article/article-card";
 import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
+import { BookReadingStatusBadge } from "@/components/book/book-reading-status-icon";
 import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
@@ -520,6 +521,9 @@ export function ItemCard({
               </p>
             )}
           </div>
+          {item.bookDetails?.status && (
+            <BookReadingStatusBadge status={item.bookDetails.status} />
+          )}
         </button>
 
         {!itemDialog && (
@@ -851,6 +855,9 @@ export function ItemCard({
             coverColor={getDominantCoverColor(item.colors)}
             blurDataUrl={blurDataUrl}
           />
+          {item.bookDetails?.status && (
+            <BookReadingStatusBadge status={item.bookDetails.status} />
+          )}
         </button>
 
         {!itemDialog && (

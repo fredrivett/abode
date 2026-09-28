@@ -1,3 +1,4 @@
+import { BookReadingStatusIcon } from "@/components/book/book-reading-status-icon";
 import { RatingStarsDisplay } from "@/components/ui/rating-stars";
 import { BOOK_READING_STATUS_LABELS } from "@/lib/items/book-reading-status";
 import { formatReadingDate } from "@/lib/items/date-precision";
@@ -49,7 +50,8 @@ export function BookReadingSummary({
       {(status !== null || rating !== null || dateLabel !== null) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {status !== null && (
-            <span className="rounded-full bg-muted px-2.5 py-0.5 font-medium text-muted-foreground text-xs">
+            <span className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 font-medium text-muted-foreground text-xs">
+              <BookReadingStatusIcon status={status} className="size-3" />
               {BOOK_READING_STATUS_LABELS[status]}
             </span>
           )}
