@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
-import { isItemSource } from "@/lib/items/capture-source";
+import { captureAttribution } from "@/lib/items/capture-source";
 import { createNote } from "@/lib/items/create-note";
 import { clearNoteDraft } from "@/lib/items/note-draft";
 import { transformItem } from "@/lib/items/query";
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
 async function handlePost(request: NextRequest): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await authenticateRequest(request, { tokenScope: "write" });
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -52,22 +52,33 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     }
 
     // Extension "save selection as note" passes source: "extension"; the in-app
-    // composer omits it and defaults to "web".
+    // composer omits it and defaults to "web". A token save is always "api".
+    const { captureSource, personalAccessTokenId } = captureAttribution(
+      auth,
+      source,
+    );
     const item = await createNote(user.id, {
       content,
       title,
-      source: isItemSource(source) ? source : "web",
+      source: captureSource,
+      personalAccessTokenId,
     });
 
-    // The composer's save path — creating the note clears its in-progress draft
-    // in the same request, so the client needs no extra call.
-    await clearNoteDraft(user.id);
+    // The in-app composer's save clears its in-progress draft in the same
+    // request, so the client needs no extra call. Keyed on the attributed source,
+    // not the auth method: the web app sends its session as a bearer token too.
+    // Extension and token saves leave the draft alone.
+    if (captureSource === "web") await clearNoteDraft(user.id);
 
     const posthog = getPostHogClient();
     posthog?.capture({
       distinctId: user.id,
       event: "note_created",
-      properties: { item_id: item.id },
+      properties: {
+        item_id: item.id,
+        source: captureSource,
+        token_id: personalAccessTokenId,
+      },
     });
 
     return NextResponse.json(transformItem(item), { status: 201 });

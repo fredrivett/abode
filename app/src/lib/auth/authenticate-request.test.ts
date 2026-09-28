@@ -66,6 +66,12 @@ function jwt(aal: string): string {
   return `header.${payload}.signature`;
 }
 
+// Session paths ignore tokenScope, so they're exercised on a route that rejects
+// tokens outright — proving the web app and extension keep full access
+const SESSION_ONLY = { tokenScope: null } as const;
+const READ = { tokenScope: "read" } as const;
+const WRITE = { tokenScope: "write" } as const;
+
 function request(authorization?: string) {
   return {
     headers: {
@@ -99,7 +105,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request("Bearer token-abc"));
+    const result = await authenticateRequest(
+      request("Bearer token-abc"),
+      SESSION_ONLY,
+    );
 
     expect(result).toEqual({ user: { id: "u_bearer" }, method: "bearer" });
     // The bearer token is validated, never the cookie session.
@@ -113,7 +122,7 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    await authenticateRequest(request("bearer   spaced-token  "));
+    await authenticateRequest(request("bearer   spaced-token  "), SESSION_ONLY);
 
     expect(mockBearerGetUser).toHaveBeenCalledWith("spaced-token");
   });
@@ -128,7 +137,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request("Bearer bad"));
+    const result = await authenticateRequest(
+      request("Bearer bad"),
+      SESSION_ONLY,
+    );
 
     expect(result).toBeNull();
     expect(mockCookieGetUser).not.toHaveBeenCalled();
@@ -140,7 +152,7 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request());
+    const result = await authenticateRequest(request(), SESSION_ONLY);
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
     expect(mockBearerGetUser).not.toHaveBeenCalled();
@@ -162,7 +174,7 @@ describe("authenticateRequest", () => {
 
     // A direct API call with an unverified (AAL1) cookie must not bypass 2FA,
     // even though the page middleware would only redirect page navigations
-    const result = await authenticateRequest(request());
+    const result = await authenticateRequest(request(), SESSION_ONLY);
 
     expect(result).toBeNull();
   });
@@ -181,7 +193,7 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request());
+    const result = await authenticateRequest(request(), SESSION_ONLY);
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
   });
@@ -194,7 +206,7 @@ describe("authenticateRequest", () => {
     // A transient Supabase failure during the MFA check must not grant access
     mockCookieAAL.mockRejectedValue(new Error("supabase unavailable"));
 
-    const result = await authenticateRequest(request());
+    const result = await authenticateRequest(request(), SESSION_ONLY);
 
     expect(result).toBeNull();
   });
@@ -205,7 +217,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request("Basic abc123"));
+    const result = await authenticateRequest(
+      request("Basic abc123"),
+      SESSION_ONLY,
+    );
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
     expect(mockBearerGetUser).not.toHaveBeenCalled();
@@ -214,7 +229,7 @@ describe("authenticateRequest", () => {
   it("returns null when neither a bearer token nor a cookie session is present", async () => {
     mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
-    const result = await authenticateRequest(request());
+    const result = await authenticateRequest(request(), SESSION_ONLY);
 
     expect(result).toBeNull();
   });
@@ -227,7 +242,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(`Bearer ${jwt("aal2")}`));
+    const result = await authenticateRequest(
+      request(`Bearer ${jwt("aal2")}`),
+      SESSION_ONLY,
+    );
 
     expect(result).toEqual({
       user: { id: "u_mfa", factors: [{ status: "verified" }] },
@@ -247,7 +265,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+    const result = await authenticateRequest(
+      request(`Bearer ${jwt("aal1")}`),
+      SESSION_ONLY,
+    );
 
     // 2FA is enrolled but not satisfied → treated as unauthenticated, and never
     // a silent fallback to the cookie session
@@ -264,7 +285,10 @@ describe("authenticateRequest", () => {
     });
 
     // getUser somehow validated it, but there is no readable aal claim
-    const result = await authenticateRequest(request("Bearer not-a-jwt"));
+    const result = await authenticateRequest(
+      request("Bearer not-a-jwt"),
+      SESSION_ONLY,
+    );
 
     expect(result).toBeNull();
   });
@@ -278,7 +302,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+    const result = await authenticateRequest(
+      request(`Bearer ${jwt("aal1")}`),
+      SESSION_ONLY,
+    );
 
     expect(result).toEqual({
       user: { id: "u_nomfa", factors: [{ status: "unverified" }] },
@@ -292,7 +319,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(`Bearer ${jwt("aal1")}`));
+    const result = await authenticateRequest(
+      request(`Bearer ${jwt("aal1")}`),
+      SESSION_ONLY,
+    );
 
     expect(result).toEqual({ user: { id: "u_plain" }, method: "bearer" });
   });
@@ -302,7 +332,10 @@ describe("authenticateRequest", () => {
     vi.stubEnv("SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
 
-    const result = await authenticateRequest(request("Bearer token-abc"));
+    const result = await authenticateRequest(
+      request("Bearer token-abc"),
+      SESSION_ONLY,
+    );
 
     expect(result).toBeNull();
     expect(mockBearerGetUser).not.toHaveBeenCalled();
@@ -320,6 +353,7 @@ describe("authenticateRequest — personal access tokens", () => {
       expiresAt: null,
       revokedAt: null,
       lastUsedAt: null,
+      scopes: ["read"],
       ...overrides,
     };
   }
@@ -335,9 +369,13 @@ describe("authenticateRequest — personal access tokens", () => {
     mockFindUnique.mockResolvedValue(patRecord());
     withUser();
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
-    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    expect(result).toEqual({
+      user: { id: "u_pat" },
+      method: "pat",
+      tokenId: "tok_1",
+    });
     // Looked up by hash, never the raw token
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { tokenHash: PAT_HASH },
@@ -347,6 +385,7 @@ describe("authenticateRequest — personal access tokens", () => {
         expiresAt: true,
         revokedAt: true,
         lastUsedAt: true,
+        scopes: true,
       },
     });
     expect(mockAdminGetUserById).toHaveBeenCalledWith("u_pat");
@@ -361,7 +400,7 @@ describe("authenticateRequest — personal access tokens", () => {
     );
     withUser();
 
-    await authenticateRequest(request(`Bearer ${PAT}`));
+    await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     // The write re-checks the window in the WHERE clause, so concurrent requests
     // racing at the boundary still yield a single write
@@ -378,7 +417,7 @@ describe("authenticateRequest — personal access tokens", () => {
     mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: null }));
     withUser();
 
-    await authenticateRequest(request(`Bearer ${PAT}`));
+    await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     expect(mockUpdateMany).toHaveBeenCalledTimes(1);
   });
@@ -387,18 +426,22 @@ describe("authenticateRequest — personal access tokens", () => {
     mockFindUnique.mockResolvedValue(patRecord({ lastUsedAt: new Date() }));
     withUser();
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     // Fast path: the already-fetched lastUsedAt gates the write, so a busy token
     // issues no extra query at all
-    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    expect(result).toEqual({
+      user: { id: "u_pat" },
+      method: "pat",
+      tokenId: "tok_1",
+    });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it("returns null for an unknown token without falling back to cookies", async () => {
     mockFindUnique.mockResolvedValue(null);
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     expect(result).toBeNull();
     expect(mockAdminGetUserById).not.toHaveBeenCalled();
@@ -408,7 +451,7 @@ describe("authenticateRequest — personal access tokens", () => {
   it("returns null for a revoked token", async () => {
     mockFindUnique.mockResolvedValue(patRecord({ revokedAt: new Date() }));
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     expect(result).toBeNull();
     expect(mockAdminGetUserById).not.toHaveBeenCalled();
@@ -420,7 +463,7 @@ describe("authenticateRequest — personal access tokens", () => {
       patRecord({ expiresAt: new Date(Date.now() - 1000) }),
     );
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     expect(result).toBeNull();
     expect(mockAdminGetUserById).not.toHaveBeenCalled();
@@ -432,9 +475,13 @@ describe("authenticateRequest — personal access tokens", () => {
     );
     withUser();
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
-    expect(result).toEqual({ user: { id: "u_pat" }, method: "pat" });
+    expect(result).toEqual({
+      user: { id: "u_pat" },
+      method: "pat",
+      tokenId: "tok_1",
+    });
   });
 
   it("returns null and skips the last-used write when the auth user cannot be loaded", async () => {
@@ -444,9 +491,83 @@ describe("authenticateRequest — personal access tokens", () => {
       error: { message: "not found" },
     });
 
-    const result = await authenticateRequest(request(`Bearer ${PAT}`));
+    const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
 
     expect(result).toBeNull();
     expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+  describe("scopes", () => {
+    it("accepts a write token on a write route", async () => {
+      mockFindUnique.mockResolvedValue(patRecord({ scopes: ["write"] }));
+      withUser();
+
+      const result = await authenticateRequest(request(`Bearer ${PAT}`), WRITE);
+
+      expect(result).toMatchObject({ method: "pat", tokenId: "tok_1" });
+    });
+
+    it("rejects a read-only token on a write route", async () => {
+      mockFindUnique.mockResolvedValue(patRecord({ scopes: ["read"] }));
+      withUser();
+
+      const result = await authenticateRequest(request(`Bearer ${PAT}`), WRITE);
+
+      expect(result).toBeNull();
+      // Rejected before loading the user or counting it as used
+      expect(mockAdminGetUserById).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
+      expect(mockCookieGetUser).not.toHaveBeenCalled();
+    });
+
+    it("rejects a save-only token on a read route (write does not imply read)", async () => {
+      mockFindUnique.mockResolvedValue(patRecord({ scopes: ["write"] }));
+      withUser();
+
+      const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
+
+      expect(result).toBeNull();
+    });
+
+    it("accepts a token holding both scopes on either route", async () => {
+      mockFindUnique.mockResolvedValue(
+        patRecord({ scopes: ["read", "write"] }),
+      );
+      withUser();
+
+      expect(
+        await authenticateRequest(request(`Bearer ${PAT}`), READ),
+      ).not.toBeNull();
+      expect(
+        await authenticateRequest(request(`Bearer ${PAT}`), WRITE),
+      ).not.toBeNull();
+    });
+
+    it("rejects a token with no recognised scopes", async () => {
+      mockFindUnique.mockResolvedValue(patRecord({ scopes: ["admin"] }));
+      withUser();
+
+      const result = await authenticateRequest(request(`Bearer ${PAT}`), READ);
+
+      expect(result).toBeNull();
+    });
+
+    it("rejects any token on a session-only route without a DB lookup or cookie fallback", async () => {
+      mockFindUnique.mockResolvedValue(
+        patRecord({ scopes: ["read", "write"] }),
+      );
+      mockCookieGetUser.mockResolvedValue({
+        data: { user: { id: "u_cookie" } },
+        error: null,
+      });
+
+      const result = await authenticateRequest(
+        request(`Bearer ${PAT}`),
+        SESSION_ONLY,
+      );
+
+      expect(result).toBeNull();
+      expect(mockFindUnique).not.toHaveBeenCalled();
+      expect(mockCookieGetUser).not.toHaveBeenCalled();
+    });
   });
 });

@@ -29,6 +29,7 @@ const UNDOCUMENTED_ALLOWLIST = new Set([
   "storybook:build",
   "prisma:deploy",
   "check:commands-doc",
+  "check:prisma-format",
   "supabase:start",
   "supabase:stop",
   "supabase:status",

@@ -93,7 +93,19 @@ describe("POST /api/v1/items/notes", () => {
       content: "a quote",
       title: "Source",
       source: "web",
+      personalAccessTokenId: null,
     });
+    expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
+  });
+
+  it("clears the draft for a composer save sent with the web app's bearer session", async () => {
+    // api-client attaches the Supabase session as a bearer header, so the
+    // composer arrives as `bearer`, not `cookie`
+    mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "bearer" });
+    const res = await POST(
+      request({ content: "a quote" }, { authorization: "Bearer session-jwt" }),
+    );
+    expect(res.status).toBe(201);
     expect(mockClearNoteDraft).toHaveBeenCalledWith("user_1");
   });
 
@@ -122,6 +134,50 @@ describe("POST /api/v1/items/notes", () => {
     expect(mockCreateNote).toHaveBeenCalledWith(
       "user_1",
       expect.objectContaining({ source: "extension" }),
+    );
+    // Not a composer save, so the web draft is left intact
+    expect(mockClearNoteDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/v1/items/notes — personal access tokens", () => {
+  it("requires the write scope", async () => {
+    await POST(request({ content: "hello" }));
+    expect(mockAuth).toHaveBeenCalledWith(expect.anything(), {
+      tokenScope: "write",
+    });
+  });
+
+  it("attributes a token save as api with the token, whatever source the body claims", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user_1" },
+      method: "pat",
+      tokenId: "tok_1",
+    });
+    const res = await POST(
+      request(
+        { content: "from a script", source: "extension" },
+        { authorization: "Bearer abode_pat_x" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(mockCreateNote).toHaveBeenCalledWith(
+      "user_1",
+      expect.objectContaining({
+        source: "api",
+        personalAccessTokenId: "tok_1",
+      }),
+    );
+    // A script's save must not wipe the user's in-progress composer draft
+    expect(mockClearNoteDraft).not.toHaveBeenCalled();
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "note_created",
+        properties: expect.objectContaining({
+          source: "api",
+          token_id: "tok_1",
+        }),
+      }),
     );
   });
 });

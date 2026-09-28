@@ -5,6 +5,7 @@ import {
   hashPersonalAccessToken,
   isPersonalAccessTokenFormat,
 } from "@/lib/auth/personal-access-token";
+import { hasTokenScope, type TokenScope } from "@/lib/auth/token-scopes";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { needsMFAChallenge } from "@/lib/mfa";
@@ -13,12 +14,21 @@ import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("lib/auth/authenticate-request");
 
-export type AuthMethod = "cookie" | "bearer" | "pat";
+export type AuthenticatedRequest =
+  | { user: User; method: "cookie" | "bearer" }
+  // tokenId attributes what the token did (items it saved, analytics)
+  | { user: User; method: "pat"; tokenId: string };
 
-export interface AuthenticatedRequest {
-  user: User;
-  method: AuthMethod;
-}
+export type AuthenticateRequestOptions = {
+  /**
+   * The scope a personal access token needs to reach this route, or null to
+   * reject tokens outright (session-only routes). Required — every route must
+   * decide explicitly whether tokens can reach it. Web-app sessions and the
+   * extension's Supabase login are unaffected: they're the user themselves and
+   * keep full access.
+   */
+  tokenScope: TokenScope | null;
+};
 
 // Touch last_used_at at most this often, so a busy token isn't written on every request
 const LAST_USED_THROTTLE_MS = 60 * 1000;
@@ -35,6 +45,9 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  * rejected bearer token returns null (never a silent cookie fallback). Returns
  * null when nothing yields a user.
  *
+ * A personal access token is only accepted when the route opts in via
+ * `tokenScope` and the token holds that scope; otherwise it returns null.
+ *
  * Both interactive paths (bearer and cookie) reject a session that hasn't
  * completed MFA when the user has 2FA enabled — the page middleware only guards
  * page navigations, not direct API calls. Personal access tokens are exempt (an
@@ -43,12 +56,17 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  */
 export async function authenticateRequest(
   request: NextRequest,
+  { tokenScope }: AuthenticateRequestOptions,
 ): Promise<AuthenticatedRequest | null> {
   const token = extractBearerToken(request);
   if (token) {
     if (isPersonalAccessTokenFormat(token)) {
-      const user = await resolvePersonalAccessTokenUser(token);
-      return user ? { user, method: "pat" } : null;
+      if (!tokenScope) {
+        log.warn("Rejected personal access token on a session-only route");
+        return null;
+      }
+      const resolved = await resolvePersonalAccessToken(token, tokenScope);
+      return resolved ? { ...resolved, method: "pat" } : null;
     }
     const user = await resolveBearerUser(token);
     return user ? { user, method: "bearer" } : null;
@@ -92,13 +110,15 @@ function extractBearerToken(request: NextRequest): string | null {
 
 /**
  * Validates an `abode_pat_…` personal access token against the database and
- * returns its user, or null. Rejects unknown, revoked, and expired tokens, and
- * tokens whose user the auth server can't load. Best-effort updates last_used_at
- * (throttled) without blocking the request.
+ * returns its user and id, or null. Rejects unknown, revoked, and expired
+ * tokens, tokens without the `required` scope, and tokens whose user the auth
+ * server can't load. Best-effort updates last_used_at (throttled) without
+ * blocking the request.
  */
-async function resolvePersonalAccessTokenUser(
+async function resolvePersonalAccessToken(
   token: string,
-): Promise<User | null> {
+  required: TokenScope,
+): Promise<{ user: User; tokenId: string } | null> {
   const tokenHash = hashPersonalAccessToken(token);
 
   const record = await db.personalAccessToken.findUnique({
@@ -109,18 +129,26 @@ async function resolvePersonalAccessTokenUser(
       expiresAt: true,
       revokedAt: true,
       lastUsedAt: true,
+      scopes: true,
     },
   });
 
   if (!record) return null;
   if (record.revokedAt) return null;
   if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) return null;
+  if (!hasTokenScope(record.scopes, required)) {
+    log.warn(
+      { tokenId: record.id, required },
+      "Rejected personal access token missing the required scope",
+    );
+    return null;
+  }
 
   const user = await resolveUserById(record.userId);
   if (!user) return null;
 
   touchLastUsed(record.id, record.lastUsedAt);
-  return user;
+  return { user, tokenId: record.id };
 }
 
 /**

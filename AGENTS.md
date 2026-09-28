@@ -21,7 +21,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | --- | --- | --- |
 | `bun run dev` | Start Next.js dev server (Turbopack) | Local development — the user usually has this running |
 | `bun run build` | Production build (webpack) | CI / verifying a prod build — **not** during a dev session |
-| `bun run check:fix` | Biome autofix + `tsc --noEmit` | After every code change (run this before considering work done) |
+| `bun run check:fix` | Biome autofix + `prisma format` + `tsc --noEmit` | After every code change (run this before considering work done) |
 | `bun run fix` | Biome lint/format autofix | Quick format/lint pass |
 | `bun run lint` | Biome check, no fixes | Read-only lint (matches CI) |
 | `bun run ts:check` | TypeScript check (`tsc --noEmit`) | Verify types only |
@@ -31,6 +31,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | `bun run test:e2e` | Playwright E2E (isolated Supabase — requires Docker) | After user-facing flow changes |
 | `bun run test:coverage` | Vitest with coverage | Check coverage |
 | `bun run prisma:generate` | Generate Prisma client | After schema changes / fresh install |
+| `bun run prisma:format` | Format `prisma/schema.prisma` (CI checks it via `check:prisma-format`) | After schema edits (`check:fix` runs it too) |
 | `bun run prisma:migrate --name <name>` | Create + apply a dev migration (`prisma migrate dev`) | Only per the Database Migrations policy below |
 | `bun add <pkg>` | Install a dependency (bun only, from `./app`) | Adding dependencies |
 | `bun run storybook` | Run Storybook on port 6306 | Component development |
@@ -99,7 +100,7 @@ cd ./app
 bun run check:fix
 ```
 
-This (1) auto-fixes lint/format issues (Biome) and (2) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
+This (1) auto-fixes lint/format issues (Biome), (2) formats `prisma/schema.prisma` (`prisma format`; CI fails an unformatted schema) and (3) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
 
 ### Type Safety
 
@@ -346,6 +347,7 @@ When a recurring defect is fixed, append a one-line entry here — but first try
 - Never read `navigator` (platform/UA) during render — on the server Node 21+ has a global `navigator` reporting the *server's* OS, so SSR and the browser disagree and hydration fails (the ⌘/Ctrl shortcut hints once broke hydration of the dashboard header for every Mac user). Render the modifier via `useModifierKeySymbol()`, and give other platform-dependent UI the same `useSyncExternalStore` server snapshot. `app/biome/no-render-platform-detection.grit` flags `navigator.platform`/`userAgent`/`userAgentData`, `isApplePlatform()` and `getModifierKeySymbol()` in `src/**/*.tsx`.
 - Supabase Storage `list()` silently returns only 100 entries unless given a limit — account deletion listed the user's folder once and removed the result, so every file past the first 100 outlived the account. List via `listAllObjectPaths` / `removeAllObjectsUnderPrefix` (`src/lib/storage-objects.ts`), which page and descend into sub-folders — enforced over `src/**` + `trigger/**` by `app/biome/no-raw-storage-list.grit`.
 - An item's stored files live in several places (own columns, product/tweet/Instagram JSON, tweet author avatar, document pages), and hand-kept copies of that list drifted: deleting an item leaked its cover, favicon and re-hosted images, and re-hosted tweet avatars 404'd in the image proxy. Item delete and the proxy now derive from `itemFileKeysSelect` / `collectItemFileKeys` (`src/lib/item-storage.ts`), and re-capture reclaim from its `capturedFileKeysSelect` / `collectCapturedFileKeys` subset (deliberately without document pages, which re-capture never replaces); `item-file-keys.test.ts` fails when a schema column that could hold a key isn't classified, and `image-key-lookup.integration.test.ts` checks the proxy resolves every key.
+- Adding personal-access-token support inside the shared `authenticateRequest` silently opened every route using it to tokens, so read-only tokens could save items. It now takes a required `tokenScope` (`"read"` / `"write"` / `null` = tokens rejected), so each call site states whether tokens can reach it and with which scope, and `src/lib/auth/token-route-access.test.ts` pins every calling route and its scope (failing on aliased imports or calls outside route files). Token saves are stamped `captureSource: api` + `personalAccessTokenId` from the credential, never from the request body.
 
 ## Trigger.dev
 

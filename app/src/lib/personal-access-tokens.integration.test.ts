@@ -29,6 +29,7 @@ describe("Personal access tokens integration", () => {
       const { token, summary } = await createPersonalAccessToken(USER_A, {
         name: "Claude Desktop",
         expiresInDays: null,
+        scopes: ["read"],
       });
 
       expect(token.startsWith("abode_pat_")).toBe(true);
@@ -44,6 +45,26 @@ describe("Personal access tokens integration", () => {
       expect(summary.tokenPrefix.startsWith("abode_pat_")).toBe(true);
     });
 
+    it("persists the chosen scopes", async () => {
+      const { write } = await import("@/lib/db");
+      const { createPersonalAccessToken } = await import(
+        "@/lib/personal-access-tokens"
+      );
+
+      const { summary } = await createPersonalAccessToken(USER_A, {
+        name: "Shortcut",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+
+      expect(summary.scopes).toEqual(["write"]);
+      expect(summary.itemCount).toBe(0);
+      const row = await write.personalAccessToken.findUnique({
+        where: { id: summary.id },
+      });
+      expect(row?.scopes).toEqual(["write"]);
+    });
+
     it("sets an expiry roughly expiresInDays out when provided", async () => {
       const { createPersonalAccessToken } = await import(
         "@/lib/personal-access-tokens"
@@ -52,6 +73,7 @@ describe("Personal access tokens integration", () => {
       const { summary } = await createPersonalAccessToken(USER_A, {
         name: "Expiring",
         expiresInDays: 30,
+        scopes: ["read"],
       });
 
       expect(summary.expiresAt).not.toBeNull();
@@ -74,15 +96,52 @@ describe("Personal access tokens integration", () => {
       const first = await createPersonalAccessToken(USER_A, {
         name: "first",
         expiresInDays: null,
+        scopes: ["read"],
       });
       const second = await createPersonalAccessToken(USER_A, {
         name: "second",
         expiresInDays: null,
+        scopes: ["read"],
       });
       await revokePersonalAccessToken(first.summary.id, USER_A);
 
       const list = await listPersonalAccessTokens(USER_A);
       expect(list.map((t) => t.id)).toEqual([second.summary.id]);
+    });
+
+    it("counts the items each token saved", async () => {
+      const { write } = await import("@/lib/db");
+      const { createPersonalAccessToken, listPersonalAccessTokens } =
+        await import("@/lib/personal-access-tokens");
+
+      const saver = await createPersonalAccessToken(USER_A, {
+        name: "saver",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+      const reader = await createPersonalAccessToken(USER_A, {
+        name: "reader",
+        expiresInDays: null,
+        scopes: ["read"],
+      });
+      for (const title of ["one", "two"]) {
+        await write.item.create({
+          data: {
+            userId: USER_A,
+            title,
+            captureSource: "api",
+            personalAccessTokenId: saver.summary.id,
+          },
+        });
+      }
+      // A session save isn't attributed to any token
+      await write.item.create({
+        data: { userId: USER_A, title: "web", captureSource: "web" },
+      });
+
+      const list = await listPersonalAccessTokens(USER_A);
+      const counts = Object.fromEntries(list.map((t) => [t.name, t.itemCount]));
+      expect(counts).toEqual({ saver: 2, reader: 0 });
     });
 
     it("is scoped to the owner", async () => {
@@ -92,6 +151,7 @@ describe("Personal access tokens integration", () => {
       await createPersonalAccessToken(USER_B, {
         name: "b's token",
         expiresInDays: null,
+        scopes: ["read"],
       });
 
       const list = await listPersonalAccessTokens(USER_A);
@@ -108,6 +168,7 @@ describe("Personal access tokens integration", () => {
       const { summary } = await createPersonalAccessToken(USER_A, {
         name: "to revoke",
         expiresInDays: null,
+        scopes: ["read"],
       });
 
       const result = await revokePersonalAccessToken(summary.id, USER_A);
@@ -127,6 +188,7 @@ describe("Personal access tokens integration", () => {
       const { summary } = await createPersonalAccessToken(USER_B, {
         name: "b's token",
         expiresInDays: null,
+        scopes: ["read"],
       });
 
       const result = await revokePersonalAccessToken(summary.id, USER_A);
@@ -164,6 +226,7 @@ describe("Personal access tokens integration", () => {
       const { summary } = await createPersonalAccessToken(USER_A, {
         name: "once",
         expiresInDays: null,
+        scopes: ["read"],
       });
       await revokePersonalAccessToken(summary.id, USER_A);
       const again = await revokePersonalAccessToken(summary.id, USER_A);

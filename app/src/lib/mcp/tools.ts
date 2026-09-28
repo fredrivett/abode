@@ -12,6 +12,32 @@ import { getAppBaseUrl } from "@/lib/url";
 export const MCP_DEFAULT_LIMIT = 20;
 export const MCP_MAX_LIMIT = 50;
 
+// Article bodies are Markdown and occasionally book-length. ~15k tokens keeps a
+// single get_item comfortably inside client output caps (Claude Code truncates
+// MCP results past ~25k tokens by default)
+export const MCP_MAX_ARTICLE_TOKENS = 15_000;
+
+/**
+ * Cuts `text` to roughly `budget` tokens, or returns null when it already fits.
+ * A deliberately pessimistic estimate, not a real tokenizer: ~4 ASCII chars per
+ * token (English, Markdown) but a whole token for any other character, since
+ * CJK, emoji and symbols often cost a token or more each. Never splits a
+ * surrogate pair.
+ */
+export function truncateToTokenBudget(
+  text: string,
+  budget: number,
+): string | null {
+  let tokens = 0;
+  let end = 0;
+  for (const char of text) {
+    tokens += (char.codePointAt(0) ?? 0) < 128 ? 0.25 : 1;
+    if (tokens > budget) return text.slice(0, end);
+    end += char.length;
+  }
+  return null;
+}
+
 /** Compact, token-efficient item shape for list/search results. */
 export type McpItem = {
   id: string;
@@ -208,7 +234,26 @@ export async function getItem(userId: string, id: string) {
   if (!row) return null;
 
   const username = await getUsername(userId);
-  return { ...transformItem(row), url: itemUrl(id, username) };
+  const item = transformItem(row);
+  const article = item.articleDetails;
+  const truncated = article?.content
+    ? truncateToTokenBudget(article.content, MCP_MAX_ARTICLE_TOKENS)
+    : null;
+  if (article?.content && truncated !== null) {
+    return {
+      ...item,
+      articleDetails: {
+        // Flags first, so they survive even if a client cuts the result short:
+        // they tell the assistant the text stops early and how long it was
+        contentTruncated: true,
+        contentLength: article.content.length,
+        ...article,
+        content: truncated,
+      },
+      url: itemUrl(id, username),
+    };
+  }
+  return { ...item, url: itemUrl(id, username) };
 }
 
 /** A user's distinct filterable values (tags, kinds, sources, …) for discovery. */

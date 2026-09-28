@@ -1,5 +1,6 @@
 import type { PersonalAccessToken } from "@prisma/client";
 import { generatePersonalAccessToken } from "@/lib/auth/personal-access-token";
+import type { TokenScope } from "@/lib/auth/token-scopes";
 import db from "@/lib/db";
 import { isCanonicalUuid } from "@/lib/pagination";
 
@@ -14,17 +15,23 @@ export type PersonalAccessTokenSummary = {
   name: string;
   tokenPrefix: string;
   scopes: string[];
+  /** Items this token saved that still exist */
+  itemCount: number;
   lastUsedAt: string | null;
   expiresAt: string | null;
   createdAt: string;
 };
 
-function toSummary(token: PersonalAccessToken): PersonalAccessTokenSummary {
+function toSummary(
+  token: PersonalAccessToken,
+  itemCount: number,
+): PersonalAccessTokenSummary {
   return {
     id: token.id,
     name: token.name,
     tokenPrefix: token.tokenPrefix,
     scopes: token.scopes,
+    itemCount,
     lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
     expiresAt: token.expiresAt?.toISOString() ?? null,
     createdAt: token.createdAt.toISOString(),
@@ -38,8 +45,9 @@ export async function listPersonalAccessTokens(
   const tokens = await db.personalAccessToken.findMany({
     where: { userId, revokedAt: null },
     orderBy: { createdAt: "desc" },
+    include: { _count: { select: { items: true } } },
   });
-  return tokens.map(toSummary);
+  return tokens.map(({ _count, ...token }) => toSummary(token, _count.items));
 }
 
 export type CreatePersonalAccessTokenResult = {
@@ -51,10 +59,15 @@ export type CreatePersonalAccessTokenResult = {
 /**
  * Mint a token for a user. Persists only the hash + display prefix and returns
  * the raw token once for the caller to show. `expiresInDays` null = no expiry.
+ * `scopes` must be non-empty (validated at the route).
  */
 export async function createPersonalAccessToken(
   userId: string,
-  { name, expiresInDays }: { name: string; expiresInDays: number | null },
+  {
+    name,
+    expiresInDays,
+    scopes,
+  }: { name: string; expiresInDays: number | null; scopes: TokenScope[] },
 ): Promise<CreatePersonalAccessTokenResult> {
   const { token, tokenHash, tokenPrefix } = generatePersonalAccessToken();
   const expiresAt =
@@ -63,10 +76,10 @@ export async function createPersonalAccessToken(
       : null;
 
   const record = await db.personalAccessToken.create({
-    data: { userId, name, tokenHash, tokenPrefix, expiresAt },
+    data: { userId, name, tokenHash, tokenPrefix, expiresAt, scopes },
   });
 
-  return { token, summary: toSummary(record) };
+  return { token, summary: toSummary(record, 0) };
 }
 
 export type RevokePersonalAccessTokenResult =

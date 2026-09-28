@@ -1,8 +1,10 @@
 import type { CaptureSource } from "@prisma/client";
+import type { AuthenticatedRequest } from "@/lib/auth/authenticate-request";
 
-// The entry point an item was saved from. Mirrors the Prisma `CaptureSource`
-// enum; kept as a runtime array so request handlers can validate untrusted
-// client input before persisting it.
+// The entry points a client may claim an item was saved from, kept as a runtime
+// array so request handlers can validate untrusted input before persisting it.
+// Deliberately excludes `api`: that's stamped server-side from the credential
+// (see captureAttribution), never taken from the request body.
 const VALID_ITEM_SOURCES = [
   "web",
   "share_target",
@@ -24,8 +26,34 @@ const CAPTURE_SOURCE_LABELS: Record<CaptureSource, string> = {
   web: "Web",
   share_target: "Shared",
   extension: "Extension",
+  api: "API",
 };
 
 export function captureSourceLabel(source: CaptureSource): string {
   return CAPTURE_SOURCE_LABELS[source];
+}
+
+export type CaptureAttribution = {
+  captureSource: CaptureSource;
+  /** The token that saved the item, or null for any non-token entry point */
+  personalAccessTokenId: string | null;
+};
+
+/**
+ * Where a new item came from, decided by the credential rather than trusted
+ * from the client: a personal-access-token save is always `api` and records the
+ * token, whatever the body claims. Sessions keep their self-reported source
+ * (in-app vs extension), falling back to `web`.
+ */
+export function captureAttribution(
+  auth: AuthenticatedRequest,
+  clientSource: unknown,
+): CaptureAttribution {
+  if (auth.method === "pat") {
+    return { captureSource: "api", personalAccessTokenId: auth.tokenId };
+  }
+  return {
+    captureSource: isItemSource(clientSource) ? clientSource : "web",
+    personalAccessTokenId: null,
+  };
 }

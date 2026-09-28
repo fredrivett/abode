@@ -40,6 +40,12 @@ export default function HelpPage() {
             </Link>{" "}
             — Save links from your phone's share sheet
           </li>
+          <li>
+            <Link href="/help/connecting-ai-assistants">
+              Connecting AI assistants
+            </Link>{" "}
+            — Let Claude, Cursor and other assistants search your abode
+          </li>
         </ul>
       </article>
     </div>
