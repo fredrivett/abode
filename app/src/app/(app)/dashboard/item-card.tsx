@@ -985,7 +985,8 @@ export function ItemCard({
           {cardPageCount !== null && cardPageCount > 1 && (
             <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
               <Files className="size-3" aria-hidden="true" />
-              {cardPageCount} pages
+              {cardPageCount}
+              <span className="sr-only"> pages</span>
             </div>
           )}
         </motion.div>
