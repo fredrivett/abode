@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
 async function handlePost(request: NextRequest): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await authenticateRequest(request, { tokenScope: "write" });
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

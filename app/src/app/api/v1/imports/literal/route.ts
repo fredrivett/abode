@@ -26,7 +26,7 @@ const bodySchema = z.union([
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await authenticateRequest(request, { tokenScope: null });
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

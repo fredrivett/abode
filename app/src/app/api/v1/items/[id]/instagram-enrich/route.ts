@@ -36,7 +36,7 @@ async function handlePost(
   try {
     const { id } = await params;
 
-    const auth = await authenticateRequest(request);
+    const auth = await authenticateRequest(request, { tokenScope: null });
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
