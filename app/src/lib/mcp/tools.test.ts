@@ -31,7 +31,12 @@ vi.mock("@/lib/items/available-filters", () => ({
 vi.mock("@/lib/rooms", () => ({ listUserRooms: vi.fn() }));
 vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://abode.test" }));
 
-import { getItem, getItems, MCP_MAX_ARTICLE_CHARS } from "./tools";
+import {
+  getItem,
+  getItems,
+  MCP_MAX_ARTICLE_TOKENS,
+  truncateToTokenBudget,
+} from "./tools";
 
 const USER = "user-1";
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -214,8 +219,9 @@ describe("getItem", () => {
     });
   });
 
-  it("caps a very long article body and says so", async () => {
-    const content = "x".repeat(MCP_MAX_ARTICLE_CHARS + 500);
+  it("caps a very long article body and says so, flags first", async () => {
+    // 4 ASCII chars ≈ 1 token, so this is just over the budget
+    const content = "x".repeat(MCP_MAX_ARTICLE_TOKENS * 4 + 500);
     mockItemFindUnique.mockResolvedValue({
       id: UUID,
       articleDetails: { author: "A", content },
@@ -223,10 +229,16 @@ describe("getItem", () => {
     const item = await getItem(USER, UUID);
     expect(item?.articleDetails).toEqual({
       author: "A",
-      content: content.slice(0, MCP_MAX_ARTICLE_CHARS),
+      content: content.slice(0, MCP_MAX_ARTICLE_TOKENS * 4),
       contentTruncated: true,
       contentLength: content.length,
     });
+    // The flags serialize before the body, so a client cutting the result
+    // short still sees them
+    expect(Object.keys(item?.articleDetails ?? {}).slice(0, 2)).toEqual([
+      "contentTruncated",
+      "contentLength",
+    ]);
   });
 
   it("leaves an article within the cap untouched", async () => {
@@ -246,5 +258,22 @@ describe("getItem", () => {
       title: "T",
       url: `https://abode.test/@fred/items/${UUID}`,
     });
+  });
+});
+
+describe("truncateToTokenBudget", () => {
+  it("returns null when ASCII text fits (~4 chars per token)", () => {
+    expect(truncateToTokenBudget("a".repeat(400), 100)).toBeNull();
+  });
+
+  it("budgets non-ASCII text at a token per char, so CJK is cut far sooner", () => {
+    const cjk = "字".repeat(400);
+    expect(truncateToTokenBudget(cjk, 100)).toBe("字".repeat(100));
+  });
+
+  it("never splits a surrogate pair", () => {
+    const emoji = "😀".repeat(10);
+    const cut = truncateToTokenBudget(emoji, 3);
+    expect(cut).toBe("😀😀😀");
   });
 });
