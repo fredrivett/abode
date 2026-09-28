@@ -14,11 +14,23 @@ const base = {
   title: "Council tax bill",
 };
 
-// jsdom has no layout: give the track a width and record scroll requests
-const scrollTo = vi.fn();
+// jsdom has no layout or scrolling: give the track a width, and make
+// scrollTo move it and fire a scroll event the way a browser does
+const scrollTo = vi.fn(function (
+  this: Element,
+  options?: ScrollToOptions | number,
+) {
+  if (typeof options === "object" && options.left !== undefined) {
+    this.scrollLeft = options.left;
+    this.dispatchEvent(new Event("scroll"));
+  }
+});
 beforeEach(() => {
-  scrollTo.mockReset();
-  Element.prototype.scrollTo = scrollTo;
+  scrollTo.mockClear();
+  Object.defineProperty(Element.prototype, "scrollTo", {
+    configurable: true,
+    value: scrollTo,
+  });
   Object.defineProperty(HTMLElement.prototype, "clientWidth", {
     configurable: true,
     get: () => 400,
@@ -55,15 +67,20 @@ describe("DocumentPages", () => {
 
   it("pages with the arrows, disabled at either end", () => {
     render(<DocumentPages {...base} pages={pages} status="ready" />);
-    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Previous page" }),
+    ).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeEnabled();
 
-    const scroller = track();
-    if (!scroller) throw new Error("no track");
-    scroller.scrollLeft = 800;
-    fireEvent.scroll(scroller);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("3 of 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
   });
 
   it("shows the cover while the pages load", () => {
