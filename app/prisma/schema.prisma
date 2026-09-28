@@ -62,6 +62,7 @@ model User {
   noteDraft            NoteDraft?
   usageDaily           UsageDaily[]
   personalAccessTokens PersonalAccessToken[]
+  dataExports          DataExport[]
 
   @@map("users")
 }
@@ -926,4 +927,41 @@ model ItemImport {
 
   @@index([userId, status])
   @@map("item_imports")
+}
+
+// A user's request to export their library (src/lib/export). One row per run:
+// the background task builds a ZIP into the private `exports` storage bucket and
+// flips `status`; the settings page lists recent runs and serves the download.
+// The archive is deleted (status -> expired) once `expiresAt` passes, and a run
+// stranded in pending/exporting is failed so it can't block a new export.
+// RLS-enabled (default-deny) in migration.
+enum DataExportStatus {
+  pending
+  exporting
+  completed
+  failed
+  expired
+}
+
+model DataExport {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  status      DataExportStatus @default(pending)
+  // Key of the archive in the `exports` bucket; set on completion, cleared on expiry.
+  fileKey     String?          @map("file_key")
+  sizeBytes   BigInt?          @map("size_bytes")
+  itemCount   Int?             @map("item_count")
+  // Safe, user-facing failure summary (never raw errors); null unless failed.
+  error       String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  completedAt DateTime?        @map("completed_at")
+  expiresAt   DateTime?        @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  // Drives the expiry/stranded-run sweep: seeks non-terminal + expiring rows.
+  @@index([status, expiresAt])
+  @@map("data_exports")
 }
