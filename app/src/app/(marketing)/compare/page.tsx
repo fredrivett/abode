@@ -29,12 +29,12 @@ export default function ComparisonsHub() {
     <div className="flex w-full flex-1 flex-col items-center">
       <main className="w-full max-w-3xl px-4 pt-16 pb-8 sm:pt-24">
         <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-          <AbodeInline className="ml-0" />, <Highlight>compared.</Highlight>
+          <AbodeInline />, <Highlight>compared.</Highlight>
         </h1>
         <p className="mt-6 text-balance text-lg text-muted-foreground leading-relaxed">
-          there are good places to keep the things you find. here&apos;s how
-          abode stacks up — honestly, including where the others are the better
-          pick.
+          there are good places to keep the things you find. here&apos;s how{" "}
+          <AbodeInline /> stacks up — honestly, including where the others are
+          the better pick.
         </p>
 
         <ul className="mt-12 divide-y border-y">
@@ -45,7 +45,7 @@ export default function ComparisonsHub() {
                 className="group flex items-baseline justify-between gap-6 py-6"
               >
                 <span className="font-serif text-2xl group-hover:underline">
-                  <AbodeInline className="ml-0" /> vs {comparison.name}
+                  <AbodeInline /> vs {comparison.name}
                 </span>
                 <span className="text-muted-foreground text-sm">→</span>
               </Link>

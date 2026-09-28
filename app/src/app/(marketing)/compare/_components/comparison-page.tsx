@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AbodeInline } from "@/components/abode-inline";
+import { AbodeInline, AbodeText } from "@/components/abode-inline";
 import { COMPARISONS } from "@/lib/comparisons";
 import { ABODE_FACTS } from "@/lib/comparisons/abode";
 import { comparePath } from "@/lib/comparisons/paths";
@@ -31,11 +31,10 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
           </Link>
         </p>
         <h1 className="mt-3 text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-          <AbodeInline className="ml-0" /> vs{" "}
-          <Highlight>{comparison.name}</Highlight>
+          <AbodeInline /> vs <Highlight>{comparison.name}</Highlight>
         </h1>
         <p className="mt-6 text-balance text-lg text-muted-foreground leading-relaxed">
-          {comparison.intro}
+          <AbodeText>{comparison.intro}</AbodeText>
         </p>
 
         <section
@@ -73,7 +72,7 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
                 <dd className="mt-2 grid gap-2 text-sm leading-relaxed">
                   <p>
                     <span className="font-medium">
-                      <AbodeInline className="ml-0" />
+                      <AbodeInline />
                     </span>{" "}
                     · {ABODE_FACTS[key]}
                   </p>
@@ -92,7 +91,7 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
                   <span className="sr-only">feature</span>
                 </th>
                 <th scope="col" className="w-[37.5%] py-3 pr-4 font-medium">
-                  <AbodeInline className="ml-0" />
+                  <AbodeInline />
                 </th>
                 <th scope="col" className="w-[37.5%] py-3 font-medium">
                   {comparison.name}
@@ -127,7 +126,9 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
             </h2>
             <ul className="mt-4 list-disc space-y-2 pl-5 text-muted-foreground leading-relaxed">
               {comparison.theyShine.map((point) => (
-                <li key={point}>{point}</li>
+                <li key={point}>
+                  <AbodeText>{point}</AbodeText>
+                </li>
               ))}
             </ul>
           </div>
@@ -137,7 +138,9 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
             </h2>
             <ul className="mt-4 list-disc space-y-2 pl-5 text-muted-foreground leading-relaxed">
               {comparison.abodeFits.map((point) => (
-                <li key={point}>{point}</li>
+                <li key={point}>
+                  <AbodeText>{point}</AbodeText>
+                </li>
               ))}
             </ul>
           </div>
@@ -150,9 +153,11 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
           <dl className="mt-4 divide-y border-y">
             {faqs.map(({ question, answer }) => (
               <div key={question} className="py-5">
-                <dt className="font-medium">{question}</dt>
+                <dt className="font-medium">
+                  <AbodeText>{question}</AbodeText>
+                </dt>
                 <dd className="mt-2 text-muted-foreground leading-relaxed">
-                  {answer}
+                  <AbodeText>{answer}</AbodeText>
                 </dd>
               </div>
             ))}
@@ -190,12 +195,17 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
           </p>
           {others.length > 0 && (
             <p className="mt-3">
-              more comparisons:{" "}
+              {/* The logo sits outside the links: underlines can't run under an SVG */}
+              compare <AbodeInline /> with{" "}
               {others.map((other, i) => (
                 <span key={other.slug}>
                   {i > 0 && " · "}
-                  <Link href={comparePath(other.slug)} className="underline">
-                    abode vs {other.name}
+                  <Link
+                    href={comparePath(other.slug)}
+                    aria-label={`abode vs ${other.name}`}
+                    className="underline"
+                  >
+                    {other.name}
                   </Link>
                 </span>
               ))}
