@@ -49,7 +49,7 @@ If you need to start Supabase manually (outside of `bin/dev`):
 Run from the `app/` directory:
 
 ```bash
-bun run check:fix   # Biome autofix + tsc --noEmit (run before every commit)
+bun run check:fix   # Biome autofix + prisma format + tsc --noEmit (run before every commit)
 bun run test        # unit tests
 ```
 
