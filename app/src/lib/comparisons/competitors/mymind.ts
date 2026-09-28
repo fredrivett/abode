@@ -37,7 +37,7 @@ export const mymind: Comparison = {
   ],
   abodeFits: [
     "you want the code to be open, and the option to run it on your own server",
-    "you want to share — a public profile and public rooms, not links that expire in a day",
+    "you want to share some of what you save — a public profile and public rooms, not links that expire in a day",
     "you want a free option with no card limit — self-hosted abode has none",
   ],
   faqs: [
