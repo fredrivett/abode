@@ -34,6 +34,12 @@ export default function HelpPage() {
             <Link href="/help/scanning">Scanning documents</Link> — Scan
             multi-page documents with your camera
           </li>
+          <li>
+            <Link href="/help/saving-from-your-phone">
+              Saving from your phone
+            </Link>{" "}
+            — Save links from your phone's share sheet
+          </li>
         </ul>
       </article>
     </div>

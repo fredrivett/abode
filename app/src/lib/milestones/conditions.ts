@@ -46,3 +46,19 @@ export function shouldCompleteCreateDynamicRoom(
 ): boolean {
   return roomType === "smart";
 }
+
+/**
+ * Gates for milestones that only make sense once something else has happened.
+ * A pending milestone stays hidden until its gate opens.
+ */
+export type MilestoneConditional =
+  | "has_article"
+  | "has_item"
+  | "has_first_room"
+  | "has_items_to_share";
+
+/**
+ * Items a user needs before "Invite a friend" appears, so we don't ask
+ * before they've properly started using abode.
+ */
+export const INVITE_NUDGE_MIN_ITEMS = 2;

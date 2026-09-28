@@ -2,6 +2,7 @@
 
 import type { MilestoneType } from "@prisma/client";
 import { create } from "zustand";
+import type { MilestoneConditional } from "@/lib/milestones/conditions";
 
 export type CompletedMilestone = {
   type: MilestoneType;
@@ -11,7 +12,7 @@ export type CompletedMilestone = {
 export type MilestoneConfig = {
   label: string;
   destination: string;
-  conditional?: "has_article";
+  conditional?: MilestoneConditional;
 };
 
 type MilestoneState = {
