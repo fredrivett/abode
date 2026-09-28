@@ -1,11 +1,15 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import { createLogger } from "@/lib/logger.server";
 import {
   buildMcpServer,
   callerFromAuthInfo,
   toAuthInfo,
 } from "@/lib/mcp/server";
+import { captureServerException } from "@/lib/posthog-server";
+
+const log = createLogger("api/mcp");
 
 /**
  * abode's MCP server (Streamable HTTP, stateless): read-only tools over the
@@ -22,15 +26,31 @@ const handler = createMcpHandler(({ authInfo }) => {
 });
 
 async function handle(request: NextRequest): Promise<Response> {
-  const auth = await authenticateRequest(request, { tokenScope: "read" });
-  if (!auth) {
+  try {
+    const auth = await authenticateRequest(request, { tokenScope: "read" });
+    if (!auth) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        // Plain bearer challenge: abode has no OAuth server to point clients at
+        {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Bearer realm="abode"' },
+        },
+      );
+    }
+    return await handler.fetch(request, { authInfo: toAuthInfo(auth) });
+  } catch (error) {
+    // Tool failures are handled per tool (lib/mcp/server); this catches the
+    // auth lookup or the transport itself failing
+    log.error({ error }, "MCP request failed");
+    captureServerException(error, undefined, {
+      route: `${request.method} /api/mcp`,
+    });
     return NextResponse.json(
-      { message: "Unauthorized" },
-      // Plain bearer challenge: abode has no OAuth server to point clients at
-      { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="abode"' } },
+      { message: "Internal server error" },
+      { status: 500 },
     );
   }
-  return handler.fetch(request, { authInfo: toAuthInfo(auth) });
 }
 
 export { handle as DELETE, handle as GET, handle as POST };

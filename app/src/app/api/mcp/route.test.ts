@@ -93,7 +93,8 @@ async function callTool(name: string, args: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // Reset, not clear: drop per-test stubs (e.g. a rejecting listRooms) too
+  vi.resetAllMocks();
   mockAuth.mockResolvedValue(TOKEN_AUTH);
   mockRateLimit.mockReturnValue({ allowed: true, remaining: 29, resetAt: 0 });
 });
@@ -114,6 +115,20 @@ describe("/api/mcp auth", () => {
       'Bearer realm="abode"',
     );
     expect(mockGetItems).not.toHaveBeenCalled();
+  });
+
+  it("returns the standard 500 when the auth lookup itself fails", async () => {
+    mockAuth.mockRejectedValue(new Error("token DB unreachable"));
+    const response = await POST(rpc("tools/list"));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      message: "Internal server error",
+    });
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.any(Error),
+      undefined,
+      { route: "POST /api/mcp" },
+    );
   });
 });
 
