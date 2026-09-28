@@ -21,7 +21,7 @@ export const InText: Story = {
 export const InHeading: Story = {
   render: () => (
     <h1 className="font-serif text-6xl tracking-tight">
-      <AbodeInline className="ml-0" /> vs mymind
+      <AbodeInline /> vs mymind
     </h1>
   ),
 };
@@ -29,7 +29,7 @@ export const InHeading: Story = {
 export const InLabel: Story = {
   render: () => (
     <p className="font-medium text-sm">
-      <AbodeInline className="ml-0" />
+      <AbodeInline />
     </p>
   ),
 };
