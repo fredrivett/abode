@@ -192,6 +192,7 @@ function createTestRoom(
     type: "smart",
     filters,
     visibility: "private",
+    autoKind: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
