@@ -62,6 +62,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion.
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
+- **MCP server:** Connect Claude, Cursor and other AI assistants to search and read your library (`/api/mcp`, read-only), authenticated with a personal access token. Tokens are scoped: read, save new items, or both.
 - **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
 - **Admin:** User management, waitlist, and invite system.
 
@@ -92,6 +93,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Public rooms, profiles + room embedding
 - Article highlighting (with per-highlight notes)
 - Command palette (⌘K) + keyboard navigation
+- MCP server for AI assistants + scoped personal access tokens
 - Admin dashboard, waitlist, invite system
 
 **🔜 Next:**

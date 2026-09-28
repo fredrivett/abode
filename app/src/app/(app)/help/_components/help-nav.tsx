@@ -14,6 +14,10 @@ const helpPages: HelpNavItem[] = [
   { href: "/help/filtering", label: "Filtering" },
   { href: "/help/scanning", label: "Scanning documents" },
   { href: "/help/saving-from-your-phone", label: "Saving from your phone" },
+  {
+    href: "/help/connecting-ai-assistants",
+    label: "Connecting AI assistants",
+  },
 ];
 
 /**

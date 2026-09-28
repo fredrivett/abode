@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { Check, ChevronDown, Copy, KeyRound, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -128,9 +129,16 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
         </h3>
         <p className="mt-1 text-muted-foreground text-sm">
           Personal access tokens let scripts and apps use abode on your behalf,
-          with only the permissions you pick. Save lets something like an iOS
-          Shortcut add links and notes; read is for the upcoming abode MCP
-          server. Treat them like passwords.
+          with only the permissions you pick. Read lets an AI assistant like
+          Claude search your library (
+          <Link
+            href="/help/connecting-ai-assistants"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            how to connect one
+          </Link>
+          ); save lets something like an iOS Shortcut add links and notes. Treat
+          them like passwords.
         </p>
 
         <form onSubmit={handleCreate} className="mt-4 space-y-3">
