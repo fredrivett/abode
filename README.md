@@ -60,7 +60,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
 - **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
-- **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match that exact text.
+- **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
 - **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
 - **Admin:** User management, waitlist, and invite system.

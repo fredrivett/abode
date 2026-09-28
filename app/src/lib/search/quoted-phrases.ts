@@ -5,8 +5,12 @@
  * since phones autocorrect `"` to `“ ”`.
  */
 
-/** A closed quote pair, straight or curly. Unclosed quotes are left as text. */
-const QUOTED_SPAN = /["“”]([^"“”]*)["“”]/g;
+/**
+ * A closed quote pair: straight `"…"` or curly `“…”`, each only closed by its
+ * own glyph so a curly pair nested in a straight one doesn't split it.
+ * Unclosed or mismatched quotes are left as text.
+ */
+const QUOTED_SPAN = /"([^"]*)"|“([^“”]*)”/g;
 
 export type QuotedSpan = { start: number; end: number; phrase: string };
 
@@ -15,7 +19,7 @@ export function findQuotedSpans(query: string): QuotedSpan[] {
   return Array.from(query.matchAll(QUOTED_SPAN), (match) => ({
     start: match.index,
     end: match.index + match[0].length,
-    phrase: match[1].replace(/\s+/g, " ").trim(),
+    phrase: (match[1] ?? match[2]).replace(/\s+/g, " ").trim(),
   }));
 }
 

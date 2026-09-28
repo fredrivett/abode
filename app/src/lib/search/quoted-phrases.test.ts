@@ -21,6 +21,17 @@ describe("findQuotedSpans", () => {
   it("ignores an unclosed quote", () => {
     expect(findQuotedSpans('"still typing')).toEqual([]);
   });
+
+  it("only closes a quote with its own glyph", () => {
+    expect(findQuotedSpans("“phrase“")).toEqual([]);
+    expect(findQuotedSpans('"phrase”')).toEqual([]);
+  });
+
+  it("keeps a curly pair nested in straight quotes inside one span", () => {
+    expect(findQuotedSpans('"trip “paris”"')).toEqual([
+      { start: 0, end: 14, phrase: "trip “paris”" },
+    ]);
+  });
 });
 
 describe("parseQuotedQuery", () => {

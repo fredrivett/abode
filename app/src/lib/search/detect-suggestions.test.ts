@@ -121,6 +121,7 @@ describe("detectSuggestions", () => {
 
   it("treats phone-autocorrected curly quotes as a literal span too", () => {
     expect(detect("“trip to paris”", { location: ["paris"] })).toEqual([]);
+    expect(detect('"trip “paris”"', { location: ["paris"] })).toEqual([]);
   });
 
   it("still suggests unquoted words alongside a quoted one", () => {
