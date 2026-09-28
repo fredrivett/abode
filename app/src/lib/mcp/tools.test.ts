@@ -31,7 +31,7 @@ vi.mock("@/lib/items/available-filters", () => ({
 vi.mock("@/lib/rooms", () => ({ listUserRooms: vi.fn() }));
 vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://abode.test" }));
 
-import { getItem, getItems } from "./tools";
+import { getItem, getItems, MCP_MAX_ARTICLE_CHARS } from "./tools";
 
 const USER = "user-1";
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -212,6 +212,30 @@ describe("getItem", () => {
       where: { id: UUID, userId: USER },
       select: {},
     });
+  });
+
+  it("caps a very long article body and says so", async () => {
+    const content = "x".repeat(MCP_MAX_ARTICLE_CHARS + 500);
+    mockItemFindUnique.mockResolvedValue({
+      id: UUID,
+      articleDetails: { author: "A", content },
+    });
+    const item = await getItem(USER, UUID);
+    expect(item?.articleDetails).toEqual({
+      author: "A",
+      content: content.slice(0, MCP_MAX_ARTICLE_CHARS),
+      contentTruncated: true,
+      contentLength: content.length,
+    });
+  });
+
+  it("leaves an article within the cap untouched", async () => {
+    mockItemFindUnique.mockResolvedValue({
+      id: UUID,
+      articleDetails: { author: "A", content: "short" },
+    });
+    const item = await getItem(USER, UUID);
+    expect(item?.articleDetails).toEqual({ author: "A", content: "short" });
   });
 
   it("returns the item detail with a deep link", async () => {

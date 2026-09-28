@@ -12,6 +12,11 @@ import { getAppBaseUrl } from "@/lib/url";
 export const MCP_DEFAULT_LIMIT = 20;
 export const MCP_MAX_LIMIT = 50;
 
+// Article bodies are Markdown and occasionally book-length. ~15k tokens keeps a
+// single get_item comfortably inside client output caps (Claude Code truncates
+// MCP results past ~25k tokens by default)
+export const MCP_MAX_ARTICLE_CHARS = 60_000;
+
 /** Compact, token-efficient item shape for list/search results. */
 export type McpItem = {
   id: string;
@@ -208,7 +213,23 @@ export async function getItem(userId: string, id: string) {
   if (!row) return null;
 
   const username = await getUsername(userId);
-  return { ...transformItem(row), url: itemUrl(id, username) };
+  const item = transformItem(row);
+  const article = item.articleDetails;
+  const content = article?.content;
+  if (article && content && content.length > MCP_MAX_ARTICLE_CHARS) {
+    return {
+      ...item,
+      articleDetails: {
+        ...article,
+        content: content.slice(0, MCP_MAX_ARTICLE_CHARS),
+        // Tells the assistant the text stops early, and how much it's missing
+        contentTruncated: true,
+        contentLength: content.length,
+      },
+      url: itemUrl(id, username),
+    };
+  }
+  return { ...item, url: itemUrl(id, username) };
 }
 
 /** A user's distinct filterable values (tags, kinds, sources, …) for discovery. */
