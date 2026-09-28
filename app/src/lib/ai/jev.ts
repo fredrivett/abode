@@ -35,6 +35,12 @@ const DEFAULT_BASE_URL = "https://api.typesafe.ai/v1";
 const ARTICLE_PROB_HIGH = 0.7;
 const ARTICLE_PROB_LOW = 0.3;
 
+/**
+ * Abort a stalled request so the awaited URL classification can't hang on Jev —
+ * it's meant to answer in 70-500ms; a timeout falls back to the heuristic.
+ */
+const JEV_TIMEOUT_MS = 5000;
+
 /** Cap the page text sent so a single call stays well within Jev's token budget. */
 const MAX_CONTENT_CHARS = 6000;
 
@@ -114,7 +120,9 @@ export async function judgeArticleVsWebpage(
   const apiKey = process.env.JEV_API_KEY;
   if (!apiKey) return NO_CALL;
 
-  const baseUrl = process.env.JEV_BASE_URL ?? DEFAULT_BASE_URL;
+  // `||` (not `??`) so a copied-blank `JEV_BASE_URL=""` falls back to the
+  // default rather than posting to a relative `/systemone` that always fails.
+  const baseUrl = process.env.JEV_BASE_URL || DEFAULT_BASE_URL;
 
   const state = JSON.stringify({
     title: args.title,
@@ -125,6 +133,8 @@ export async function judgeArticleVsWebpage(
     word_count: args.wordCount,
   });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), JEV_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/systemone`, {
@@ -144,10 +154,14 @@ export async function judgeArticleVsWebpage(
           },
         },
       }),
+      signal: controller.signal,
     });
   } catch (error) {
+    // Covers network failures and the abort timeout above.
     log.warn({ error }, "Jev request failed — keeping heuristic kind");
     return NO_CALL;
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!response.ok) {

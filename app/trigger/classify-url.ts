@@ -14,6 +14,7 @@ import {
   extractAllProductImageCandidates,
   extractArticleMetadata,
   extractFaviconUrl,
+  hasArticleStructuredData,
   type ProductImageCandidate,
   type ProductMetadata,
 } from "../src/lib/html-metadata";
@@ -589,7 +590,10 @@ export const classifyUrlTask = task({
           : extractArticleMetadata(html, fetchUrl);
       const { articleContent, readingTime, wordCount } = getReadableContent();
 
-      if (!forcedKind && isJevConfigured()) {
+      // Only refine the *fuzzy* article/webpage call: when the publisher
+      // declares an article via structured metadata that decision is
+      // authoritative, so Jev must not be allowed to demote it.
+      if (!forcedKind && isJevConfigured() && !hasArticleStructuredData(html)) {
         const readable = getReadableContent();
         const jev = await judgeArticleVsWebpage({
           title: metadata.title,

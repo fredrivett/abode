@@ -27,21 +27,20 @@ function jevResponse(body: unknown, ok = true, status = 200): Response {
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  process.env.JEV_API_KEY = "jev-test";
-  delete process.env.JEV_BASE_URL;
+  vi.stubEnv("JEV_API_KEY", "jev-test");
+  vi.stubEnv("JEV_BASE_URL", undefined);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.JEV_API_KEY;
-  delete process.env.JEV_BASE_URL;
+  vi.unstubAllEnvs();
 });
 
 describe("isJevConfigured", () => {
   test("false without a key, true with one", () => {
-    delete process.env.JEV_API_KEY;
+    vi.stubEnv("JEV_API_KEY", undefined);
     expect(isJevConfigured()).toBe(false);
-    process.env.JEV_API_KEY = "jev-test";
+    vi.stubEnv("JEV_API_KEY", "jev-test");
     expect(isJevConfigured()).toBe(true);
   });
 });
@@ -59,7 +58,7 @@ describe("articleDecisionFromProbability", () => {
 
 describe("judgeArticleVsWebpage", () => {
   test("returns NO_CALL and never fetches when unconfigured", async () => {
-    delete process.env.JEV_API_KEY;
+    vi.stubEnv("JEV_API_KEY", undefined);
     const result = await judgeArticleVsWebpage(baseArgs);
     expect(result).toEqual({
       decision: null,
@@ -130,7 +129,7 @@ describe("judgeArticleVsWebpage", () => {
   });
 
   test("targets the configured base URL with bearer auth", async () => {
-    process.env.JEV_BASE_URL = "https://openrouter.example/v1";
+    vi.stubEnv("JEV_BASE_URL", "https://openrouter.example/v1");
     fetchMock.mockResolvedValue(
       jevResponse({ answers: { is_article: { noul: 0.9 } } }),
     );
@@ -143,5 +142,21 @@ describe("judgeArticleVsWebpage", () => {
     expect(
       (init as RequestInit).headers as Record<string, string>,
     ).toMatchObject({ Authorization: "Bearer jev-test" });
+    // A stalled request must be abortable so classification can't hang on Jev.
+    expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("falls back to the default base URL when JEV_BASE_URL is blank", async () => {
+    // A copied `.env.example` yields `JEV_BASE_URL=""`; it must not post to a
+    // relative `/systemone`.
+    vi.stubEnv("JEV_BASE_URL", "");
+    fetchMock.mockResolvedValue(
+      jevResponse({ answers: { is_article: { noul: 0.9 } } }),
+    );
+
+    await judgeArticleVsWebpage(baseArgs);
+
+    const [calledUrl] = fetchMock.mock.calls[0];
+    expect(calledUrl).toBe("https://api.typesafe.ai/v1/systemone");
   });
 });
