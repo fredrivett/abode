@@ -30,7 +30,7 @@ Saved documents appear in your <Abode /> like any other item, with a badge showi
 
 Scans are often personal, so documents are kept **out of public rooms** by default: adding one to a public room won't show it there. To show a document in your public rooms, open it and turn off **Exclude from public rooms**.
 
-The text on each page is read automatically once the document has finished processing, so you can find it by searching for words in it. The document is also named from its text (who it's from, what it is and its date, e.g. "Energy bill, March 2026"), so searching for the sender's name finds it too. Rename it any time; your title is kept if the document is processed again. To see only your documents, filter with `@type:document`.
+The text on each page is read automatically once the document has finished processing, so you can find it by searching for words in it. Where its text can be read, the document is also named from it (who it's from, what it is and its date, e.g. "Energy bill, March 2026"), so searching for the sender's name finds it too. Otherwise it's named from how the first page looks. Rename it any time; your title is kept if the document is processed again. To see only your documents, filter with `@type:document`.
 
 ## Troubleshooting
 
