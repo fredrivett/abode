@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AbodeInline } from "@/components/abode-inline";
 import { COMPARISONS } from "@/lib/comparisons";
 import { comparePath } from "@/lib/comparisons/paths";
 import { ClosingCta } from "../_components/closing-cta";
@@ -28,7 +29,7 @@ export default function ComparisonsHub() {
     <div className="flex w-full flex-1 flex-col items-center">
       <main className="w-full max-w-3xl px-4 pt-16 pb-8 sm:pt-24">
         <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-          abode, <Highlight>compared.</Highlight>
+          <AbodeInline className="ml-0" />, <Highlight>compared.</Highlight>
         </h1>
         <p className="mt-6 text-balance text-lg text-muted-foreground leading-relaxed">
           there are good places to keep the things you find. here&apos;s how
@@ -44,7 +45,7 @@ export default function ComparisonsHub() {
                 className="group flex items-baseline justify-between gap-6 py-6"
               >
                 <span className="font-serif text-2xl group-hover:underline">
-                  abode vs {comparison.name}
+                  <AbodeInline className="ml-0" /> vs {comparison.name}
                 </span>
                 <span className="text-muted-foreground text-sm">→</span>
               </Link>

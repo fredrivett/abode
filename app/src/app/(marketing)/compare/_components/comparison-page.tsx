@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AbodeInline } from "@/components/abode-inline";
 import { COMPARISONS } from "@/lib/comparisons";
 import { ABODE_FACTS } from "@/lib/comparisons/abode";
 import { comparePath } from "@/lib/comparisons/paths";
@@ -30,7 +31,8 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
           </Link>
         </p>
         <h1 className="mt-3 text-balance font-serif text-5xl leading-[1.05] tracking-tight sm:text-6xl">
-          abode vs <Highlight>{comparison.name}</Highlight>
+          <AbodeInline className="ml-0" /> vs{" "}
+          <Highlight>{comparison.name}</Highlight>
         </h1>
         <p className="mt-6 text-balance text-lg text-muted-foreground leading-relaxed">
           {comparison.intro}
@@ -50,7 +52,9 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
             </span>
           </p>
           <p className="leading-relaxed">
-            <span className="font-medium">choose abode</span>{" "}
+            <span className="font-medium">
+              choose <AbodeInline />
+            </span>{" "}
             <span className="text-muted-foreground">
               if {comparison.verdict.abode}.
             </span>
@@ -68,8 +72,10 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
                 <dt className="text-muted-foreground text-sm">{label}</dt>
                 <dd className="mt-2 grid gap-2 text-sm leading-relaxed">
                   <p>
-                    <span className="font-medium">abode</span> ·{" "}
-                    {ABODE_FACTS[key]}
+                    <span className="font-medium">
+                      <AbodeInline className="ml-0" />
+                    </span>{" "}
+                    · {ABODE_FACTS[key]}
                   </p>
                   <p>
                     <span className="font-medium">{comparison.name}</span> ·{" "}
@@ -86,7 +92,7 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
                   <span className="sr-only">feature</span>
                 </th>
                 <th scope="col" className="w-[37.5%] py-3 pr-4 font-medium">
-                  abode
+                  <AbodeInline className="ml-0" />
                 </th>
                 <th scope="col" className="w-[37.5%] py-3 font-medium">
                   {comparison.name}
@@ -126,7 +132,9 @@ export function ComparisonPage({ comparison }: { comparison: Comparison }) {
             </ul>
           </div>
           <div>
-            <h2 className="font-serif text-2xl">where abode fits better</h2>
+            <h2 className="font-serif text-2xl">
+              where <AbodeInline /> fits better
+            </h2>
             <ul className="mt-4 list-disc space-y-2 pl-5 text-muted-foreground leading-relaxed">
               {comparison.abodeFits.map((point) => (
                 <li key={point}>{point}</li>
