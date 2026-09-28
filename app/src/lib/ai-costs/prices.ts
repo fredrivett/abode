@@ -41,10 +41,18 @@ const GOOGLE_VISION_PRICES = {
   IMAGE_PROPERTIES: { per1000Units: 1.5 },
 } as const;
 
+// https://openrouter.ai/typesafe — checked 2026-09
+// Jev bills input tokens only; output is free ("too cheap to meter"), so the
+// output rate is 0 and the calculator ignores output tokens entirely.
+const TYPESAFE_PRICES = {
+  "jev-latest": { inputPerMillion: 0.042 },
+} as const;
+
 type OpenAiEmbeddingModel = keyof typeof OPENAI_EMBEDDING_PRICES;
 type OpenAiChatModel = keyof typeof OPENAI_CHAT_PRICES;
 type ReplicateModel = keyof typeof REPLICATE_PRICES;
 type GoogleVisionFeature = keyof typeof GOOGLE_VISION_PRICES;
+type TypesafeModel = keyof typeof TYPESAFE_PRICES;
 
 /**
  * The model ids / features the code actually calls, grouped by calculator.
@@ -56,6 +64,7 @@ export const KNOWN_AI_MODELS = {
   openAiChat: ["gpt-4o-mini", "gpt-4.1-nano"],
   replicate: ["clip-vit-base-patch32"],
   googleVision: ["IMAGE_PROPERTIES"],
+  typesafe: ["jev-latest"],
 } as const;
 
 function isOpenAiEmbeddingModel(model: string): model is OpenAiEmbeddingModel {
@@ -70,6 +79,10 @@ function isGoogleVisionFeature(
   feature: string,
 ): feature is GoogleVisionFeature {
   return feature in GOOGLE_VISION_PRICES;
+}
+
+function isTypesafeModel(model: string): model is TypesafeModel {
+  return model in TYPESAFE_PRICES;
 }
 
 /**
@@ -132,4 +145,16 @@ export function googleVisionCostUsd(
 ): number | null {
   if (!isGoogleVisionFeature(feature)) return null;
   return (images / 1000) * GOOGLE_VISION_PRICES[feature].per1000Units;
+}
+
+/**
+ * Jev (TypeSafe) cost in USD, or null if the model isn't priced. Input tokens
+ * only — output is free, so no output-token argument.
+ */
+export function typesafeCostUsd(
+  model: string,
+  inputTokens: number,
+): number | null {
+  if (!isTypesafeModel(model)) return null;
+  return (inputTokens / 1_000_000) * TYPESAFE_PRICES[model].inputPerMillion;
 }

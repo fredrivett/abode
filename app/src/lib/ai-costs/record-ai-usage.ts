@@ -19,6 +19,7 @@ import {
   openAiChatCostUsd,
   openAiEmbeddingCostUsd,
   replicateImageCostUsd,
+  typesafeCostUsd,
 } from "@/lib/ai-costs/prices";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -26,13 +27,14 @@ import { accrueUsageCost } from "@/lib/usage-limits";
 
 const log = createLogger("lib/ai-costs/record-ai-usage");
 
-export type AiProvider = "openai" | "replicate" | "google_vision";
+export type AiProvider = "openai" | "replicate" | "google_vision" | "typesafe";
 export type AiOperation =
   | "text_embedding"
   | "image_embedding"
   | "vision_analysis"
   | "image_filtering"
-  | "translation";
+  | "translation"
+  | "kind_classification";
 export type AiUsageSource = "ingestion" | "search";
 
 export interface RecordAiUsageParams {
@@ -81,6 +83,9 @@ function computeCostUsd(params: RecordAiUsageParams): number | null {
   }
   if (provider === "google_vision") {
     return googleVisionCostUsd(model, images);
+  }
+  if (provider === "typesafe") {
+    return typesafeCostUsd(model, inputTokens);
   }
   return null;
 }

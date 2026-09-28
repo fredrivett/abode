@@ -41,6 +41,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search | items stay bare; full-text search only                  |
 | [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)         | skipped                                                 |
 | [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant-colour extraction                       | skipped                                                 |
+| [TypeSafe](https://typesafe.ai) (Jev)                         | 🧩 Optional             | calibrated article-vs-webpage kind refinement    | structural heuristic decides the kind                   |
 | [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                 | skipped                                                 |
 | [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                 | email features off                                      |
 | [PostHog](https://posthog.com)                                | 🧩 Optional             | product analytics                                | no telemetry (the default)                              |

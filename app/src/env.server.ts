@@ -36,6 +36,18 @@ export const envSchema = z.object({
   // AI (server-only)
   OPENAI_API_KEY: z.string().optional(),
 
+  // Jev (TypeSafe "System One" decision model) — optional item-kind refinement.
+  // When JEV_API_KEY is absent the article-vs-webpage decision falls back to the
+  // structural heuristic in classify-item-kind.ts. See AGENTS.md graceful
+  // degradation. JEV_BASE_URL overrides the API base (e.g. to route via
+  // OpenRouter); a blank value normalises to undefined so a copied .env.example
+  // line degrades to the built-in default rather than being sent as an empty base.
+  JEV_API_KEY: z.string().optional(),
+  JEV_BASE_URL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
+
   // PostHog (optional analytics)
   NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),

@@ -5,6 +5,7 @@ import {
   openAiChatCostUsd,
   openAiEmbeddingCostUsd,
   replicateImageCostUsd,
+  typesafeCostUsd,
 } from "./prices";
 
 describe("openAiEmbeddingCostUsd", () => {
@@ -77,6 +78,18 @@ describe("googleVisionCostUsd", () => {
   });
 });
 
+describe("typesafeCostUsd", () => {
+  test("computes cost from input tokens only (output is free)", () => {
+    // 1M input @ $0.042 = $0.042
+    expect(typesafeCostUsd("jev-latest", 1_000_000)).toBeCloseTo(0.042, 10);
+    expect(typesafeCostUsd("jev-latest", 500_000)).toBeCloseTo(0.021, 10);
+  });
+
+  test("returns null for an unknown model", () => {
+    expect(typesafeCostUsd("jev-9-ultra", 1000)).toBeNull();
+  });
+});
+
 describe("KNOWN_AI_MODELS coverage guard", () => {
   // Fails CI if the code calls a model that lacks a price entry.
   test("every known embedding model resolves to a non-null price", () => {
@@ -100,6 +113,12 @@ describe("KNOWN_AI_MODELS coverage guard", () => {
   test("every known google vision feature resolves to a non-null price", () => {
     for (const feature of KNOWN_AI_MODELS.googleVision) {
       expect(googleVisionCostUsd(feature)).not.toBeNull();
+    }
+  });
+
+  test("every known typesafe model resolves to a non-null price", () => {
+    for (const model of KNOWN_AI_MODELS.typesafe) {
+      expect(typesafeCostUsd(model, 1000)).not.toBeNull();
     }
   });
 });
