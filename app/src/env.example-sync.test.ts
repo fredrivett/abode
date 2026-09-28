@@ -73,17 +73,28 @@ describe("env schema ⇄ .env.example are in sync", () => {
   });
 
   it("has no stale allowlist entries", () => {
+    // Each entry must still exist on its own side AND still be a genuine
+    // exception (absent from the other side) — otherwise a key documented in
+    // both places could sit allowlisted forever, silently defeating the guard.
     for (const key of SCHEMA_KEYS_NOT_IN_EXAMPLE) {
       expect(
         schemaKeys,
-        `stale SCHEMA_KEYS_NOT_IN_EXAMPLE entry: ${key}`,
+        `stale SCHEMA_KEYS_NOT_IN_EXAMPLE entry (not in schema): ${key}`,
       ).toContain(key);
+      expect(
+        exampleKeys.has(key),
+        `redundant SCHEMA_KEYS_NOT_IN_EXAMPLE entry (now in .env.example): ${key}`,
+      ).toBe(false);
     }
     for (const key of EXAMPLE_KEYS_NOT_IN_SCHEMA) {
       expect(
         [...exampleKeys],
-        `stale EXAMPLE_KEYS_NOT_IN_SCHEMA entry: ${key}`,
+        `stale EXAMPLE_KEYS_NOT_IN_SCHEMA entry (not in .env.example): ${key}`,
       ).toContain(key);
+      expect(
+        schemaKeys,
+        `redundant EXAMPLE_KEYS_NOT_IN_SCHEMA entry (now in schema): ${key}`,
+      ).not.toContain(key);
     }
   });
 });
