@@ -12,9 +12,10 @@ function positiveNumberField(meta: unknown, key: string): bigint {
 }
 
 /**
- * Logical storage bytes an item's meta accounts for. Mirrors the daily
- * reconciliation (reconcile-user-data), which sums meta.size (uploads/images)
- * and meta.coverSize (article/book/product/video covers).
+ * Storage bytes an item's meta accounts for: meta.size (uploads/images) plus
+ * meta.coverSize (article/book/product/video covers). The live counters move by
+ * this; it misses galleries, favicons and avatars, so the daily reconcile resets
+ * them to the true bucket totals (storedBytesByUser).
  */
 export function getItemStorageBytes(meta: unknown): bigint {
   return (
