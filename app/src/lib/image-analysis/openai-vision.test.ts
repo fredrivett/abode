@@ -5,6 +5,7 @@ vi.mock("../embeddings", () => ({ getOpenAiClient: vi.fn() }));
 import { getOpenAiClient } from "../embeddings";
 import {
   analyzeImageWithOpenAI,
+  BilledVisionError,
   transcribeDocumentWithOpenAI,
 } from "./openai-vision";
 
@@ -112,12 +113,55 @@ describe("analyzeImageWithOpenAI", () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it("skips OCR from the start when asked, in a single call", async () => {
+    create.mockResolvedValue(completion({ completionTokens: 200 }));
+
+    const result = await analyzeImageWithOpenAI(
+      Buffer.from("img"),
+      "image/jpeg",
+      {
+        ocr: false,
+      },
+    );
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(promptOfCall(0)).toContain("ocrText: Always null");
+    // Forced null even if the model ignores the instruction
+    expect(result.analysis).toEqual({ ...analysis, ocrText: null });
+  });
+
+  it("throws without a second call when a no-OCR request is truncated", async () => {
+    create.mockResolvedValue(truncated);
+
+    await expect(
+      analyzeImageWithOpenAI(Buffer.from("img"), "image/jpeg", { ocr: false }),
+    ).rejects.toThrow("truncated even without OCR");
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries the billed usage of an unusable response on the error", async () => {
+    create.mockResolvedValue(truncated);
+
+    const error = await analyzeImageWithOpenAI(Buffer.from("img")).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toBeInstanceOf(BilledVisionError);
+    // Both the OCR attempt and the no-OCR retry were billed
+    expect((error as BilledVisionError).billed).toEqual({
+      model: "gpt-4o-mini-2024-07-18",
+      usage: { promptTokens: 1600, completionTokens: 2000, totalTokens: 3600 },
+    });
+  });
+
   it("throws on a response that doesn't match the schema", async () => {
     create.mockResolvedValue(
       completion({ content: '{"title":"x"}', completionTokens: 5 }),
     );
 
-    await expect(analyzeImageWithOpenAI(Buffer.from("img"))).rejects.toThrow();
+    await expect(analyzeImageWithOpenAI(Buffer.from("img"))).rejects.toThrow(
+      BilledVisionError,
+    );
     expect(create).toHaveBeenCalledTimes(1);
   });
 
