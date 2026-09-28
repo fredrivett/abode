@@ -46,3 +46,12 @@ export function shouldCompleteCreateDynamicRoom(
 ): boolean {
   return roomType === "smart";
 }
+
+/**
+ * Gates for milestones that only make sense once something else has happened.
+ * A pending milestone stays hidden until its gate opens.
+ */
+export type MilestoneConditional =
+  | "has_article"
+  | "has_item"
+  | "has_first_room";

@@ -162,6 +162,9 @@ enum MilestoneType {
   upload_first_image
   save_first_url
   scan_first_document
+  write_first_note
+  add_first_book
+  save_from_phone
   see_ai_analysis
   search_items
   add_first_tag

@@ -20,6 +20,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { isBlankNote } from "@/lib/items/note-title";
 import { createLogger } from "@/lib/logger.client";
+import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("dashboard/note-composer");
 
@@ -161,6 +162,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
       // Creating the note clears its server draft in the same request
       await api.post("/api/v1/items/notes", { content: markdown });
       posthog.capture("note_created", { source: "composer" });
+      useMilestoneStore.getState().markComplete("write_first_note");
       invalidateItems();
       resetComposer();
       clearConfirm.reset();
