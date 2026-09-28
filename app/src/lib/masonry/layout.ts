@@ -9,8 +9,13 @@
  * columns, re-sort the last row when a page fills it and jump those frames.)
  *
  * Passing the previous layout's columns keeps them too, so a frame changing
- * shape, being removed, or a frame inserted above only moves frames below it
- * in its own column instead of reshuffling everything after it.
+ * shape, being removed, or a frame inserted mid-list only moves frames below
+ * it in its own column instead of reshuffling everything after it.
+ *
+ * The exception is a frame inserted at the very top (a new upload or note):
+ * that relays out from scratch, so the newest frame always lands where a
+ * reload would put it — next to any pinned frames — rather than piling up in
+ * whichever column happened to be shortest.
  */
 
 /** What a frame's aspect can depend on: the rendered column width (px). */
@@ -94,8 +99,9 @@ export function layoutMasonry({
   gap: number;
   /**
    * The previous layout. Frames it placed keep their column (unless pinned to
-   * another); new ones are placed shortest-first. Ignored when the column count changed (a resize or
-   * density change reflows everything — unavoidable).
+   * another); new ones are placed shortest-first. Ignored when the column
+   * count changed (a resize or density change reflows everything —
+   * unavoidable) or a new frame leads the list (a top insert).
    */
   previous?: Pick<MasonryLayout, "columns" | "columnCount">;
 }): MasonryLayout {
@@ -104,7 +110,10 @@ export function layoutMasonry({
     frame.width > 0 ? (columnWidth * frame.height) / frame.width : 0;
 
   const kept = new Map<string, number>();
-  const keepPrevious = previous?.columnCount === columnCount;
+  const leading = frames.find((frame) => frame.column === undefined);
+  const keepPrevious =
+    previous?.columnCount === columnCount &&
+    (leading === undefined || previous.columns.has(leading.key));
   for (const frame of frames) {
     const column =
       frame.column !== undefined
@@ -117,8 +126,8 @@ export function layoutMasonry({
 
   // Each column's height from kept frames not yet walked. A new frame goes to
   // the column that's shortest once those are counted too, so frames inserted
-  // above kept ones (an upload at the top) balance against where each column
-  // ends up — for appended frames it's zero and this is plain shortest-column
+  // above kept ones balance against where each column ends up — for appended
+  // frames it's zero and this is plain shortest-column
   const pendingKept = new Array<number>(columnCount).fill(0);
   for (const frame of frames) {
     const column = kept.get(frame.key);
