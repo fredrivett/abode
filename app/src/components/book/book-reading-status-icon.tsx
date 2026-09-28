@@ -50,8 +50,9 @@ type BookReadingStatusBadgeProps = {
 };
 
 /**
- * Grid-card corner badge for a book's reading status — mirrors the X badge on
- * tweet cards. Sized in em so it scales with the card like the rest of the tile.
+ * Grid-card corner badge for a book's reading status, in the style of the X
+ * badge on tweet cards. Sized in em so it scales with the card like the rest of
+ * the tile.
  * Hovering the badge slides the label out to the left of the icon; the label
  * stays in the accessibility tree while collapsed.
  */
@@ -66,7 +67,7 @@ export function BookReadingStatusBadge({
         "group/status-badge absolute flex items-center rounded-full bg-black/60 text-white backdrop-blur-sm",
         className,
       )}
-      style={{ top: "0.5em", right: "0.5em", padding: "0.375em" }}
+      style={{ top: "0.5em", right: "0.5em", padding: "0.4em" }}
     >
       {/* 0fr → 1fr grid track animates the label's intrinsic width */}
       <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-out group-hover/status-badge:grid-cols-[1fr] motion-reduce:transition-none">
@@ -74,9 +75,9 @@ export function BookReadingStatusBadge({
           <span
             className="block whitespace-nowrap font-medium leading-none"
             style={{
-              fontSize: "0.625em",
-              paddingLeft: "0.4em",
-              paddingRight: "0.5em",
+              fontSize: "0.75em",
+              paddingLeft: "0.35em",
+              paddingRight: "0.4em",
             }}
           >
             {label}
@@ -85,7 +86,7 @@ export function BookReadingStatusBadge({
       </span>
       <BookReadingStatusIcon
         status={status}
-        className="h-[0.75em] w-[0.75em] shrink-0"
+        className="h-[1em] w-[1em] shrink-0"
       />
     </div>
   );
