@@ -58,9 +58,80 @@ function isNoIndex(pageFile: string): boolean {
 const pages = findPages(APP_DIR);
 const sitemapPaths: readonly string[] = SITEMAP_PATHS;
 
+type ResolvedPage = Page & { params: Record<string, string> };
+
+// Matches a URL path to a route pattern ("/compare/[competitor]" ← "/compare/mymind")
+function matchRoute(
+  route: string,
+  path: string,
+): Record<string, string> | null {
+  const routeSegments = route.split("/");
+  const pathSegments = path.split("/");
+  if (routeSegments.length !== pathSegments.length) return null;
+
+  const params: Record<string, string> = {};
+  for (const [i, segment] of routeSegments.entries()) {
+    const dynamic = /^\[(.+)\]$/.exec(segment);
+    if (dynamic?.[1]) params[dynamic[1]] = pathSegments[i] ?? "";
+    else if (segment !== pathSegments[i]) return null;
+  }
+  return params;
+}
+
+const isDynamicSegment = (segment: string) => /^\[.+\]$/.test(segment);
+
+// Like Next.js: at the first segment where two routes differ, static beats
+// dynamic ("/compare/[competitor]" over "/[username]/[slug]" for "/compare/mymind")
+function compareSpecificity(a: string, b: string): number {
+  const aSegments = a.split("/");
+  const bSegments = b.split("/");
+  for (const [i, aSegment] of aSegments.entries()) {
+    const aDynamic = isDynamicSegment(aSegment);
+    const bDynamic = isDynamicSegment(bSegments[i] ?? "");
+    if (aDynamic !== bDynamic) return aDynamic ? 1 : -1;
+  }
+  return 0;
+}
+
+// The page Next would serve for a path
+function resolvePage(path: string): ResolvedPage | undefined {
+  return pages
+    .flatMap((page) => {
+      const params = matchRoute(page.route, path);
+      return params ? [{ ...page, params }] : [];
+    })
+    .sort((a, b) => compareSpecificity(a.route, b.route))[0];
+}
+
+const sitemapFiles = new Set(
+  sitemapPaths.flatMap((path) => resolvePage(path)?.file ?? []),
+);
+
+type PageModule = {
+  metadata?: Metadata;
+  generateMetadata?: (props: {
+    params: Promise<Record<string, string>>;
+  }) => Promise<Metadata>;
+};
+
+async function resolveMetadata(page: ResolvedPage): Promise<Metadata> {
+  const mod: PageModule = await import(page.file);
+  if (mod.metadata) return mod.metadata;
+  return (
+    (await mod.generateMetadata?.({ params: Promise.resolve(page.params) })) ??
+    {}
+  );
+}
+
 describe("route indexing", () => {
   it("finds the app's pages", () => {
     expect(pages.map((page) => page.route)).toContain("/");
+  });
+
+  it("resolves paths the way Next does — static segments first", () => {
+    expect(resolvePage("/compare")?.route).toBe("/compare");
+    expect(resolvePage("/compare/mymind")?.route).toBe("/compare/[competitor]");
+    expect(resolvePage("/@fred/books")?.route).toBe("/[username]/[slug]");
   });
 
   // A new page must be a deliberate choice: in search (sitemap), out of search
@@ -69,9 +140,7 @@ describe("route indexing", () => {
     const unclassified = pages
       .filter(
         ({ file, route }) =>
-          !sitemapPaths.includes(route) &&
-          !isNoIndex(file) &&
-          !(route in EXCEPTIONS),
+          !sitemapFiles.has(file) && !isNoIndex(file) && !(route in EXCEPTIONS),
       )
       .map(({ file }) => relative(process.cwd(), file));
 
@@ -83,7 +152,7 @@ describe("route indexing", () => {
 
   it("only lists existing, indexable pages in the sitemap", () => {
     for (const path of sitemapPaths) {
-      const page = pages.find(({ route }) => route === path);
+      const page = resolvePage(path);
       expect(page, `${path} has no page.tsx`).toBeDefined();
       if (page) expect(isNoIndex(page.file), `${path} is noindex`).toBe(false);
     }
@@ -99,13 +168,13 @@ describe("route indexing", () => {
   it.each([...sitemapPaths])(
     "%s has its own title, description and canonical URL",
     async (path) => {
-      const page = pages.find(({ route }) => route === path);
+      const page = resolvePage(path);
       if (!page) throw new Error(`${path} has no page.tsx`);
-      const { metadata }: { metadata?: Metadata } = await import(page.file);
+      const metadata = await resolveMetadata(page);
 
-      expect(metadata?.title).toBeTruthy();
-      expect(metadata?.description).toBeTruthy();
-      expect(metadata?.alternates?.canonical).toBe(path);
+      expect(metadata.title).toBeTruthy();
+      expect(metadata.description).toBeTruthy();
+      expect(metadata.alternates?.canonical).toBe(path);
     },
   );
 });

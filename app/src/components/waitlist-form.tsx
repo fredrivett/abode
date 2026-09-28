@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -38,6 +39,11 @@ export function WaitlistForm() {
 
       setFormState("success");
       setPosition(data.position);
+      // The page they joined from; PostHog also keeps the person's first-seen
+      // page ($initial_pathname) and full path history for funnels
+      posthog.capture("waitlist_joined", {
+        source_path: window.location.pathname,
+      });
     } catch {
       setFormState("error");
       setErrorMessage("Failed to join waitlist. Please try again.");

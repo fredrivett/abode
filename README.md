@@ -98,6 +98,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 - Browser extension
 - Export / eject
+- Importers — bring your library from mymind, Raindrop, Are.na and Pinterest
 - Self-hosting guide + Docker Compose
 
 **🔮 Later:**
