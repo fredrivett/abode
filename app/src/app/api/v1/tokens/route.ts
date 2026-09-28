@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { TOKEN_SCOPES, type TokenScope } from "@/lib/auth/token-scopes";
 import { createLogger } from "@/lib/logger.server";
 import {
   createPersonalAccessToken,
@@ -22,6 +23,17 @@ const createTokenSchema = z.object({
     .union([z.literal(30), z.literal(90)])
     .nullable()
     .optional(),
+  // Independent permissions, at least one. Stored deduped in canonical order;
+  // omitted = read-only (what every token was before scopes were selectable)
+  scopes: z
+    .array(z.enum(TOKEN_SCOPES))
+    .min(1, "Choose at least one permission")
+    .optional()
+    .transform((scopes): TokenScope[] =>
+      scopes
+        ? TOKEN_SCOPES.filter((scope) => scopes.includes(scope))
+        : ["read"],
+    ),
 });
 
 /**
@@ -99,6 +111,7 @@ export async function POST(request: NextRequest) {
     const { token, summary } = await createPersonalAccessToken(user.id, {
       name: parsed.data.name,
       expiresInDays: parsed.data.expiresInDays ?? null,
+      scopes: parsed.data.scopes,
     });
 
     getPostHogClient()?.capture({
@@ -107,6 +120,7 @@ export async function POST(request: NextRequest) {
       properties: {
         token_id: summary.id,
         has_expiry: summary.expiresAt !== null,
+        scopes: summary.scopes,
       },
     });
 

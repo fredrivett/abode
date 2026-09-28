@@ -4,7 +4,9 @@ import { formatDistanceToNow } from "date-fns";
 import { Check, ChevronDown, Copy, KeyRound, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +25,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Label } from "@/components/ui/label";
+import {
+  isTokenScope,
+  TOKEN_SCOPE_DESCRIPTIONS,
+  TOKEN_SCOPE_LABELS,
+  TOKEN_SCOPES,
+  type TokenScope,
+} from "@/lib/auth/token-scopes";
 import { copyToClipboard } from "@/lib/copy";
 import type { PersonalAccessTokenSummary } from "@/lib/personal-access-tokens";
 
@@ -44,12 +53,13 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
   const [tokens, setTokens] = useState(initialTokens);
   const [name, setName] = useState("");
   const [expiry, setExpiry] = useState<ExpiryValue>("never");
+  const [scopes, setScopes] = useState<TokenScope[]>(["read"]);
   const [isCreating, setIsCreating] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || scopes.length === 0) return;
 
     setIsCreating(true);
     try {
@@ -57,7 +67,11 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
       const response = await fetch("/api/v1/tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), expiresInDays: days }),
+        body: JSON.stringify({
+          name: name.trim(),
+          expiresInDays: days,
+          scopes,
+        }),
       });
 
       const data = await response.json();
@@ -70,6 +84,7 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
       setNewToken(data.token);
       setName("");
       setExpiry("never");
+      setScopes(["read"]);
     } catch {
       toast.error("Failed to create token");
     } finally {
@@ -96,6 +111,11 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
     }
   };
 
+  const toggleScope = (scope: TokenScope, checked: boolean) =>
+    setScopes((prev) =>
+      TOKEN_SCOPES.filter((s) => (s === scope ? checked : prev.includes(s))),
+    );
+
   const selectedExpiryLabel =
     EXPIRY_OPTIONS.find((o) => o.value === expiry)?.label ?? "No expiry";
 
@@ -107,62 +127,95 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
           Access tokens
         </h3>
         <p className="mt-1 text-muted-foreground text-sm">
-          Personal access tokens let apps and scripts read your abode over the
-          API — for example an MCP server that answers questions about what
-          you've saved. Treat them like passwords.
+          Personal access tokens let scripts and apps use abode on your behalf,
+          with only the permissions you pick. Save lets something like an iOS
+          Shortcut add links and notes; read is for the upcoming abode MCP
+          server. Treat them like passwords.
         </p>
 
-        <form
-          onSubmit={handleCreate}
-          className="mt-4 flex flex-col gap-2 sm:flex-row"
-        >
-          <div className="flex-1">
-            <Label htmlFor="token-name" className="sr-only">
-              Token name
-            </Label>
-            <Input
-              id="token-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Claude Desktop"
-              maxLength={100}
-              required
-              disabled={isCreating}
-            />
+        <form onSubmit={handleCreate} className="mt-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex-1">
+              <Label htmlFor="token-name" className="sr-only">
+                Token name
+              </Label>
+              <Input
+                id="token-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Claude Desktop"
+                maxLength={100}
+                required
+                disabled={isCreating}
+              />
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isCreating}
+                  className="justify-between sm:w-36"
+                >
+                  {selectedExpiryLabel}
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup
+                  value={expiry}
+                  onValueChange={(value) => setExpiry(value as ExpiryValue)}
+                >
+                  {EXPIRY_OPTIONS.map((option) => (
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      value={option.value}
+                    >
+                      {option.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isCreating}
-                className="justify-between sm:w-36"
-              >
-                {selectedExpiryLabel}
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup
-                value={expiry}
-                onValueChange={(value) => setExpiry(value as ExpiryValue)}
-              >
-                {EXPIRY_OPTIONS.map((option) => (
-                  <DropdownMenuRadioItem
-                    key={option.value}
-                    value={option.value}
-                  >
-                    {option.label}
-                  </DropdownMenuRadioItem>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <fieldset disabled={isCreating}>
+              <legend className="sr-only">Permissions</legend>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {TOKEN_SCOPES.map((scope) => (
+                  <div key={scope} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`token-scope-${scope}`}
+                      checked={scopes.includes(scope)}
+                      onCheckedChange={(checked) =>
+                        toggleScope(scope, checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor={`token-scope-${scope}`}
+                      className="cursor-pointer font-normal text-sm"
+                    >
+                      {TOKEN_SCOPE_DESCRIPTIONS[scope]}
+                    </Label>
+                  </div>
                 ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </div>
+            </fieldset>
 
-          <Button type="submit" disabled={isCreating || !name.trim()}>
-            {isCreating ? <IsLoading label="Creating" /> : "Create token"}
-          </Button>
+            <Button
+              type="submit"
+              disabled={isCreating || !name.trim() || scopes.length === 0}
+            >
+              {isCreating ? <IsLoading label="Creating" /> : "Create token"}
+            </Button>
+          </div>
+          {scopes.length === 0 && (
+            <p className="text-muted-foreground text-xs">
+              Choose at least one permission.
+            </p>
+          )}
         </form>
       </section>
 
@@ -213,6 +266,11 @@ function TokenRow({
     ? `used ${formatDistanceToNow(new Date(token.lastUsedAt), { addSuffix: true })}`
     : "never used";
 
+  const scopes = token.scopes.filter(isTokenScope);
+  const itemsSaved = scopes.includes("write")
+    ? `${token.itemCount} ${token.itemCount === 1 ? "item" : "items"} saved`
+    : null;
+
   const handleClick = () => {
     if (!showConfirm) {
       setShowConfirm(true);
@@ -233,9 +291,14 @@ function TokenRow({
           <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
             {token.tokenPrefix}…
           </code>
+          {scopes.map((scope) => (
+            <Badge key={scope} variant="outline">
+              {TOKEN_SCOPE_LABELS[scope]}
+            </Badge>
+          ))}
         </div>
         <p className="mt-0.5 text-muted-foreground text-xs">
-          {meta()} · {lastUsed}
+          {[meta(), lastUsed, itemsSaved].filter(Boolean).join(" · ")}
         </p>
       </div>
       <Button
