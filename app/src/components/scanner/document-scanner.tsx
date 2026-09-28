@@ -38,6 +38,7 @@ import {
   ScannerCamera,
   type ScreenRect,
 } from "./scanner-camera";
+import { ScannerLoadError } from "./scanner-load-error";
 import { type PageFlight, ScannerReview } from "./scanner-review";
 import { usePagePreviews } from "./use-page-previews";
 
@@ -112,7 +113,11 @@ function ScannerSession({
   onSave: SaveScannedPages;
 }) {
   const [client, setClient] = useState<ScannerClient | null>(null);
-  const [ready, setReady] = useState(false);
+  const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  // Bumped to retry a failed load with a fresh worker (the old one's failed import stays cached)
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pages, dispatch] = useReducer(pagesReducer, []);
   const [view, setView] = useState<"camera" | "review">("camera");
   const [retakeId, setRetakeId] = useState<string | null>(null);
@@ -126,14 +131,16 @@ function ScannerSession({
   const [saving, setSaving] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loadAttempt re-runs the load on retry
   useEffect(() => {
     const scanner = ScannerClient.create();
     const controller = new AbortController();
     setClient(scanner);
+    setLoadStatus("loading");
     scanner.init().then(
       (detector) => {
         if (controller.signal.aborted) return;
-        setReady(true);
+        setLoadStatus("ready");
         if (detector === "classical") {
           log.warn("ML detector failed to load; using classical detection");
         }
@@ -143,14 +150,14 @@ function ScannerSession({
         if (controller.signal.aborted) return;
         log.error({ error }, "Scanner failed to load");
         posthog.captureException(error);
-        toast.error("The scanner failed to load. Please try again.");
+        setLoadStatus("failed");
       },
     );
     return () => {
       controller.abort();
       scanner.terminate();
     };
-  }, []);
+  }, [loadAttempt]);
 
   const previewRequests = useMemo(
     () => [
@@ -332,7 +339,7 @@ function ScannerSession({
       <div className={view === "camera" ? "absolute inset-0" : "hidden"}>
         <ScannerCamera
           client={client}
-          ready={ready}
+          ready={loadStatus === "ready"}
           active={view === "camera"}
           capturing={capturing}
           auto={auto}
@@ -376,6 +383,13 @@ function ScannerSession({
             saving={saving}
           />
         </div>
+      ) : null}
+
+      {loadStatus === "failed" ? (
+        <ScannerLoadError
+          onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+          onClose={onClose}
+        />
       ) : null}
 
       <AlertDialog open={confirmingDiscard} onOpenChange={setConfirmingDiscard}>

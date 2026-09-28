@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
-import { ScannerLoadError } from "./scanner-entry";
+import { ScannerLoadError } from "./scanner-load-error";
 
 const meta = {
   title: "Scanner/ScannerLoadError",

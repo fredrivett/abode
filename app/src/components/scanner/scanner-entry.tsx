@@ -8,10 +8,10 @@ import {
   useState,
 } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { isCameraSupported } from "@/lib/scanner/camera";
 import type { DocumentScanner } from "./document-scanner";
+import { ScannerLoadError } from "./scanner-load-error";
 
 type DocumentScannerProps = ComponentProps<typeof DocumentScanner>;
 
@@ -20,38 +20,6 @@ function ScannerLoading() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black text-white/80">
       <IsLoading label="Opening scanner" />
-    </div>
-  );
-}
-
-export function ScannerLoadError({
-  onRetry,
-  onClose,
-}: {
-  onRetry: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      role="alert"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black p-8 text-center text-white"
-    >
-      <h2 className="font-semibold text-lg">Couldn't open the scanner</h2>
-      <p className="max-w-sm text-sm text-white/70">
-        This is usually a patchy connection. Check your signal and try again.
-      </p>
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={onRetry}>
-          Try again
-        </Button>
-        <Button
-          variant="ghost"
-          className="text-white hover:bg-white/10 hover:text-white"
-          onClick={onClose}
-        >
-          Close
-        </Button>
-      </div>
     </div>
   );
 }
