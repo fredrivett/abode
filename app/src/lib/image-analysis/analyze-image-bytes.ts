@@ -77,8 +77,18 @@ export async function analyzeImageBytes(params: {
   /** Origin of the image, so a dropped CLIP embedding is attributable. */
   source: ImageEmbeddingSource;
   getSignedUrl: () => Promise<string>;
+  /** Read the image's text (default true); off when the caller OCRs it separately */
+  ocr?: boolean;
 }): Promise<ImageVisionAnalysis> {
-  const { buffer, mimeType, itemId, userId, source, getSignedUrl } = params;
+  const {
+    buffer,
+    mimeType,
+    itemId,
+    userId,
+    source,
+    getSignedUrl,
+    ocr = true,
+  } = params;
 
   const openaiConfigured = isOpenAiConfigured();
 
@@ -120,7 +130,7 @@ export async function analyzeImageBytes(params: {
     }),
     (async (): Promise<OpenAiVisionResult | null> => {
       if (!openaiConfigured) return null;
-      const result = await analyzeImageWithOpenAI(buffer, mimeType);
+      const result = await analyzeImageWithOpenAI(buffer, mimeType, { ocr });
       recordAiUsage({
         userId,
         itemId,

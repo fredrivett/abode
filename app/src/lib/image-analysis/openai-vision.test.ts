@@ -112,6 +112,32 @@ describe("analyzeImageWithOpenAI", () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it("skips OCR from the start when asked, in a single call", async () => {
+    create.mockResolvedValue(completion({ completionTokens: 200 }));
+
+    const result = await analyzeImageWithOpenAI(
+      Buffer.from("img"),
+      "image/jpeg",
+      {
+        ocr: false,
+      },
+    );
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(promptOfCall(0)).toContain("ocrText: Always null");
+    // Forced null even if the model ignores the instruction
+    expect(result.analysis).toEqual({ ...analysis, ocrText: null });
+  });
+
+  it("throws without a second call when a no-OCR request is truncated", async () => {
+    create.mockResolvedValue(truncated);
+
+    await expect(
+      analyzeImageWithOpenAI(Buffer.from("img"), "image/jpeg", { ocr: false }),
+    ).rejects.toThrow("truncated even without OCR");
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it("throws on a response that doesn't match the schema", async () => {
     create.mockResolvedValue(
       completion({ content: '{"title":"x"}', completionTokens: 5 }),

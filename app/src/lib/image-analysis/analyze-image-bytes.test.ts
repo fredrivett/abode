@@ -119,6 +119,20 @@ describe("analyzeImageBytes", () => {
     );
   });
 
+  it("asks OpenAI vision for the image's text unless told not to", async () => {
+    replicateConfigured.mockReturnValue(false);
+
+    await analyzeImageBytes(baseParams());
+    expect(openai).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", {
+      ocr: true,
+    });
+
+    await analyzeImageBytes({ ...baseParams(), ocr: false });
+    expect(openai).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", {
+      ocr: false,
+    });
+  });
+
   it("skips OpenAI vision cleanly when unconfigured", async () => {
     openaiConfigured.mockReturnValue(false);
     replicateConfigured.mockReturnValue(false);

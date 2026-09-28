@@ -73,10 +73,14 @@ All output (title, description, tags, objects, ocrText interpretation, color nam
  * If the response is truncated at max_tokens (in practice a runaway ocrText),
  * retries once without OCR so the item still gets its title/tags/colors rather
  * than failing outright. Usage covers both calls, since both are billed.
+ *
+ * `ocr: false` skips reading text from the start, for callers that OCR the
+ * image separately (scanned documents) and would discard it.
  */
 export async function analyzeImageWithOpenAI(
   imageBuffer: Buffer,
   mimeType: string = "image/jpeg",
+  { ocr = true }: { ocr?: boolean } = {},
 ): Promise<OpenAIVisionAnalysisResult> {
   const client = getOpenAiClient();
 
@@ -118,8 +122,9 @@ export async function analyzeImageWithOpenAI(
   // `.create()` rather than `.parse()`: parse throws on a truncated response
   // before we can read its (billed) usage
   try {
-    const first = await requestAnalysis({ ocr: true });
-    const truncated = first.choices[0]?.finish_reason === "length";
+    const first = await requestAnalysis({ ocr });
+    // Without OCR there's nothing to drop, so a truncation fails below
+    const truncated = ocr && first.choices[0]?.finish_reason === "length";
     if (truncated) {
       log.warn(
         "OpenAI vision hit the output token limit — retrying without OCR",
@@ -139,7 +144,7 @@ export async function analyzeImageWithOpenAI(
     const parsed = ImageAnalysisSchema.parse(
       JSON.parse(choice.message.content),
     );
-    const analysis = truncated ? { ...parsed, ocrText: null } : parsed;
+    const analysis = truncated || !ocr ? { ...parsed, ocrText: null } : parsed;
 
     log.info({ title: analysis.title }, "OpenAI vision analysis complete");
 
