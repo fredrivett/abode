@@ -116,10 +116,8 @@ import {
   USER_TAG_REGEX,
 } from "@/lib/items/user-tag-validation";
 import { createLogger } from "@/lib/logger.client";
-import {
-  shouldCompleteAddFirstTag,
-  shouldCompleteSeeAiAnalysis,
-} from "@/lib/milestones/conditions";
+import { shouldCompleteAddFirstTag } from "@/lib/milestones/conditions";
+import { completeSeeAiAnalysisOnOpen } from "@/lib/milestones/see-ai-analysis";
 import { getPlatformName } from "@/lib/platforms";
 import { useSearch } from "@/lib/search";
 import {
@@ -399,12 +397,10 @@ export function ItemCard({
       source_type: item.sourceType,
     });
 
-    // Mark see_ai_analysis milestone if item processing is complete
-    if (shouldCompleteSeeAiAnalysis(item.processingStatus)) {
-      useMilestoneStore.getState().markComplete("see_ai_analysis");
-      // Also persist to server (fire-and-forget)
-      void api.post("/api/v1/user/milestones", { type: "see_ai_analysis" });
-    }
+    completeSeeAiAnalysisOnOpen({
+      canEdit,
+      processingStatus: item.processingStatus,
+    });
   };
 
   if (error) {
