@@ -23,9 +23,16 @@ type FilterChipProps = {
   filter: Filter;
   onRemove?: (id: string) => void;
   className?: string;
+  /** Where the facet-name tooltip opens; use "left" in vertical lists so it doesn't cover the next chip */
+  tooltipSide?: "top" | "right" | "bottom" | "left";
 };
 
-export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
+export function FilterChip({
+  filter,
+  onRemove,
+  className,
+  tooltipSide = "bottom",
+}: FilterChipProps) {
   const meta = FILTER_TYPES[filter.type];
   const displayValue = getDisplayValue(filter);
 
@@ -55,7 +62,7 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
             <span aria-hidden>{meta.icon}</span>
           )}
         </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
+        <TooltipContent side={tooltipSide} sideOffset={6}>
           {meta.icon} {meta.label}
         </TooltipContent>
       </Tooltip>

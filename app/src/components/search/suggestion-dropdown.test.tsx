@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Suggestion } from "@/lib/search/detect-suggestions";
 import { SuggestionDropdown } from "./suggestion-dropdown";
 
@@ -26,7 +27,31 @@ function renderDropdown() {
   return { onApply };
 }
 
+// Radix positions the tooltip with ResizeObserver, which jsdom lacks
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+});
+
 describe("SuggestionDropdown", () => {
+  it("opens chip tooltips to the left so they don't cover the chip below", async () => {
+    renderDropdown();
+    const firstIcon = document.querySelector<HTMLElement>(
+      "[data-slot=tooltip-trigger]",
+    );
+    if (!firstIcon) throw new Error("suggestion chip icon not rendered");
+    await userEvent.setup().hover(firstIcon);
+    await screen.findByRole("tooltip");
+    expect(
+      document.querySelector("[data-slot=tooltip-content]"),
+    ).toHaveAttribute("data-side", "left");
+  });
+
   it("applies a suggestion on pointerdown, and prevents default to keep focus", () => {
     const { onApply } = renderDropdown();
     const [first] = screen.getAllByRole("button");

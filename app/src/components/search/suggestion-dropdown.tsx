@@ -117,7 +117,10 @@ export function SuggestionDropdown({
               index === selectedIndex ? "bg-accent" : "hover:bg-accent",
             )}
           >
-            <FilterChip filter={toPreviewFilter(suggestion)} />
+            <FilterChip
+              filter={toPreviewFilter(suggestion)}
+              tooltipSide="left"
+            />
             {index === selectedIndex && (
               <span className="ml-auto">
                 <Kbd className="bg-background">Tab</Kbd>
