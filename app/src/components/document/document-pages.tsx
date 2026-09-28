@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { DocumentPageSummary } from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { isEditableTarget } from "@/lib/keyboard";
 
 interface DocumentPagesProps {
   /** Pages in reading order; null until they've loaded */
@@ -51,23 +52,65 @@ export function DocumentPages({
         ? [{ key: "cover", src: coverUrl }]
         : [];
 
+  const lastIndex = slides.length - 1;
+  // Where a key/arrow press is heading. Smooth scrolling updates `index` only
+  // once it arrives, so without this a quick second press would aim at the
+  // same page and collapse into the first
+  const pendingRef = useRef<number | null>(null);
+
   const handleScroll = () => {
     const track = trackRef.current;
     if (!track?.clientWidth) return;
-    setIndex(Math.round(track.scrollLeft / track.clientWidth));
+    const current = Math.round(track.scrollLeft / track.clientWidth);
+    setIndex(current);
+    if (current === pendingRef.current) pendingRef.current = null;
   };
 
-  const goTo = (target: number) => {
+  /** Moves `step` pages from wherever the last press was heading */
+  const step = (by: number) => {
+    const target = (pendingRef.current ?? index) + by;
     const track = trackRef.current;
-    if (!track) return;
+    if (!track || target < 0 || target > lastIndex) return;
+    pendingRef.current = target;
     track.scrollTo({ left: target * track.clientWidth, behavior: "smooth" });
   };
+
+  // ← / → page through the document while it's open, except mid-typing
+  // (e.g. in the notes field or title) or with a modifier held
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      stepRef.current(event.key === "ArrowLeft" ? -1 : 1);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <div className="flex h-[70dvh] w-full flex-col md:h-full">
       <div
         ref={trackRef}
         onScroll={handleScroll}
+        // A swipe or trackpad scroll takes over from any pending key press
+        onPointerDown={() => {
+          pendingRef.current = null;
+        }}
+        onWheel={() => {
+          pendingRef.current = null;
+        }}
         className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
       >
         {slides.map((slide, slideIndex) => (
@@ -95,7 +138,7 @@ export function DocumentPages({
           size="icon-sm"
           aria-label="Previous page"
           disabled={index <= 0}
-          onClick={() => goTo(index - 1)}
+          onClick={() => step(-1)}
           className="text-white hover:bg-white/10 hover:text-white"
         >
           <ChevronLeft />
@@ -108,7 +151,7 @@ export function DocumentPages({
           size="icon-sm"
           aria-label="Next page"
           disabled={index >= slides.length - 1}
-          onClick={() => goTo(index + 1)}
+          onClick={() => step(1)}
           className="text-white hover:bg-white/10 hover:text-white"
         >
           <ChevronRight />

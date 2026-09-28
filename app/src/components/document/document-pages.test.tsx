@@ -98,4 +98,72 @@ describe("DocumentPages", () => {
       screen.getByText("Couldn't load the rest of this document's pages."),
     ).toBeInTheDocument();
   });
+
+  it("pages with the ← and → keys, stopping at either end", () => {
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByText("3 of 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+  });
+
+  it("leaves the arrow keys alone while typing or with a modifier held", () => {
+    render(
+      <>
+        <input aria-label="Notes" />
+        <DocumentPages {...base} pages={pages} status="ready" />
+      </>,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Notes" }), {
+      key: "ArrowRight",
+    });
+    fireEvent.keyDown(window, { key: "ArrowRight", metaKey: true });
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("doesn't collapse quick presses while the smooth scroll is in flight", () => {
+    // A real smooth scroll reports its position only as it arrives
+    const inFlight = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollTo", {
+      configurable: true,
+      value: inFlight,
+    });
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(inFlight).toHaveBeenLastCalledWith({
+      left: 800,
+      behavior: "smooth",
+    });
+    // …and it doesn't run past the last page
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(inFlight).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a swipe take over from a pending key press", () => {
+    const inFlight = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollTo", {
+      configurable: true,
+      value: inFlight,
+    });
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    const scroller = track();
+    if (!scroller) throw new Error("no track");
+    fireEvent.pointerDown(scroller);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    // Still on page 1 as far as the scroll position says, so → aims at page 2
+    expect(inFlight).toHaveBeenLastCalledWith({
+      left: 400,
+      behavior: "smooth",
+    });
+  });
 });

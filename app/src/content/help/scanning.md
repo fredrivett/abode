@@ -26,7 +26,7 @@ Tap **Save** when you're done, or **Cancel** to discard the scan.
 
 ## Finding your documents
 
-Saved documents appear in your <Abode /> like any other item, with a badge showing how many pages they have. Open one and swipe (or use the arrows) to page through it.
+Saved documents appear in your <Abode /> like any other item, with a badge showing how many pages they have. Open one and swipe, use the on-screen arrows, or press ← and → to page through it.
 
 Scans are often personal, so documents are kept **out of public rooms** by default: adding one to a public room won't show it there. To show a document in your public rooms, open it and turn off **Exclude from public rooms**.
 
