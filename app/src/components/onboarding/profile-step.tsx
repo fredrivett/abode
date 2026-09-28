@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AbodeInline } from "@/app/(app)/help/_components/abode-inline";
+import { AbodeInline } from "@/components/abode-inline";
 import { UserAvatarSetting } from "@/components/avatar/user-avatar-setting";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
