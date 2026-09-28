@@ -266,22 +266,22 @@ model Item {
   sharedHighlights Boolean          @default(false) @map("shared_highlights")
 
   // Relations
-  user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  locations         ItemLocation[]
-  visualVectors     ItemVisualVector[]
-  textVectors       ItemTextVector[]
-  mediaAnalyses     ItemMediaAnalysis[]
-  articleDetails    ItemArticleDetails?
-  imageDetails      ItemImageDetails?
-  twitterDetails    ItemTwitterDetails?
-  instagramDetails  ItemInstagramDetails?
-  videoDetails      ItemVideoDetails?
-  productDetails    ItemProductDetails?
-  bookDetails       ItemBookDetails?
-  noteDetails       ItemNoteDetails?
-  documentPages     ItemDocumentPage[]
-  roomItems         RoomItem[]
-  highlights        ArticleHighlight[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  locations           ItemLocation[]
+  visualVectors       ItemVisualVector[]
+  textVectors         ItemTextVector[]
+  mediaAnalyses       ItemMediaAnalysis[]
+  articleDetails      ItemArticleDetails?
+  imageDetails        ItemImageDetails?
+  twitterDetails      ItemTwitterDetails?
+  instagramDetails    ItemInstagramDetails?
+  videoDetails        ItemVideoDetails?
+  productDetails      ItemProductDetails?
+  bookDetails         ItemBookDetails?
+  noteDetails         ItemNoteDetails?
+  documentPages       ItemDocumentPage[]
+  roomItems           RoomItem[]
+  highlights          ArticleHighlight[]
   personalAccessToken PersonalAccessToken? @relation(fields: [personalAccessTokenId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt(sort: Desc)])
