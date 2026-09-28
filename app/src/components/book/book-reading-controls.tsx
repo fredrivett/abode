@@ -37,6 +37,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import {
   BOOK_READING_STATUS_LABELS,
   MAX_BOOK_REVIEW_LENGTH,
+  NOT_TRACKED_LABEL,
 } from "@/lib/items/book-reading-status";
 import {
   type DatePrecisionValue,
@@ -310,10 +311,8 @@ export function BookReadingControls({
             className="w-full justify-between"
           >
             <span className="flex items-center gap-2">
-              {status && (
-                <BookReadingStatusIcon status={status} className="size-4" />
-              )}
-              {status ? BOOK_READING_STATUS_LABELS[status] : "Not tracked"}
+              <BookReadingStatusIcon status={status} className="size-4" />
+              {status ? BOOK_READING_STATUS_LABELS[status] : NOT_TRACKED_LABEL}
             </span>
             <ChevronDown className="size-4 opacity-60" />
           </Button>

@@ -40,3 +40,4 @@ export const WantToRead: Story = {};
 export const Reading: Story = { args: { status: "reading" } };
 export const Read: Story = { args: { status: "read" } };
 export const DidNotFinish: Story = { args: { status: "dnf" } };
+export const NotTracked: Story = { args: { status: null } };
