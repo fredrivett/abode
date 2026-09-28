@@ -106,6 +106,10 @@
     {
       "includes": ["src/**/*.tsx"],
       "plugins": ["./biome/no-render-platform-detection.grit"]
+    },
+    {
+      "includes": ["src/**", "trigger/**", "!src/lib/storage-objects.ts"],
+      "plugins": ["./biome/no-raw-storage-list.grit"]
     }
   ],
   "assist": {

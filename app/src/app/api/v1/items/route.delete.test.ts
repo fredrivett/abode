@@ -86,6 +86,37 @@ describe("DELETE /api/v1/items", () => {
     expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "img-1" } });
   });
 
+  it("removes the cover, favicon and every re-hosted image, not just the file", async () => {
+    m.findUnique.mockResolvedValue({
+      id: "tweet-1",
+      userId: USER,
+      fileKey: null,
+      coverFileKey: `${USER}/photo.jpg`,
+      faviconFileKey: `${USER}/favicon.png`,
+      meta: { coverSize: 500 },
+      productDetails: null,
+      twitterDetails: {
+        media: [
+          { type: "photo", url: "https://x/1", fileKey: `${USER}/photo.jpg` },
+          { type: "photo", url: "https://x/2", fileKey: `${USER}/second.jpg` },
+        ],
+        card: { url: "https://ex.com", imageFileKey: `${USER}/card.jpg` },
+        authorAvatarFileKey: `${USER}/avatar.jpg`,
+      },
+      instagramDetails: null,
+      documentPages: [],
+    });
+    await call("tweet-1");
+    expect(m.remove).toHaveBeenCalledWith([
+      `${USER}/photo.jpg`,
+      `${USER}/favicon.png`,
+      `${USER}/second.jpg`,
+      `${USER}/card.jpg`,
+      `${USER}/avatar.jpg`,
+    ]);
+    expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "tweet-1" } });
+  });
+
   it("doesn't touch storage for an item without files", async () => {
     m.findUnique.mockResolvedValue({
       id: "url-1",

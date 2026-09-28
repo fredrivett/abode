@@ -1,7 +1,9 @@
 /// <reference types="vitest/globals" />
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
+import { collectItemFileKeys, itemFileKeysSelect } from "@/lib/item-storage";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
+import { fileKeyStrings, unpopulatedSelections } from "./file-key-strings";
 
 describe("findItemOwningImageKey integration", () => {
   beforeEach(async () => {
@@ -124,6 +126,75 @@ describe("findItemOwningImageKey integration", () => {
 
     const found = await findItemOwningImageKey(`${user.id}/favicon.png`);
     expect(found?.id).toBe(item.id);
+  });
+
+  test("resolves every key in the file-key inventory, so the proxy serves all of an item's files", async () => {
+    const { write, read } = await import("@/lib/db");
+    const user = await createUser();
+    const key = (name: string) => `${user.id}/${name}`;
+    // Every location populated at once — kinds don't gate the detail rows
+    const { id } = await write.item.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId: user.id,
+        kind: "twitter",
+        processingStatus: "completed",
+        fileKey: key("file.jpg"),
+        coverFileKey: key("cover.jpg"),
+        faviconFileKey: key("favicon.png"),
+        productDetails: {
+          create: {
+            images: [{ fileKey: key("product.jpg"), url: "https://shop/1" }],
+          },
+        },
+        twitterDetails: {
+          create: {
+            tweetId: "1",
+            authorUsername: "someone",
+            authorAvatarFileKey: key("avatar.jpg"),
+            media: [
+              { type: "photo", url: "https://x/1", fileKey: key("tweet.jpg") },
+            ],
+            card: { url: "https://ex.com", imageFileKey: key("card.jpg") },
+          },
+        },
+        instagramDetails: {
+          create: {
+            postId: "p",
+            mediaType: "post",
+            authorUsername: "someone",
+            media: [
+              { type: "image", url: "https://ig/1", fileKey: key("ig.jpg") },
+            ],
+          },
+        },
+        documentPages: {
+          create: {
+            position: 0,
+            fileKey: key("page.jpg"),
+            originalFileKey: key("page-colour.jpg"),
+            width: 100,
+            height: 140,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    const row = await read.item.findUniqueOrThrow({
+      where: { id },
+      select: itemFileKeysSelect,
+    });
+    // The fixture must fill every location the inventory selects, or a new
+    // one would silently drop out of the proxy check below
+    expect(unpopulatedSelections(itemFileKeysSelect, row)).toEqual([]);
+    const keys = collectItemFileKeys(row);
+    expect(new Set(keys)).toEqual(fileKeyStrings(row));
+
+    for (const fileKey of keys) {
+      const found = await findItemOwningImageKey(fileKey);
+      expect(found?.id, `proxy lookup for ${fileKey}`).toBe(id);
+    }
   });
 
   test("returns null for a key no item references", async () => {

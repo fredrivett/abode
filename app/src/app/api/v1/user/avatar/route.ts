@@ -6,9 +6,29 @@ import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
+import { removeAllObjectsUnderPrefix } from "@/lib/storage-objects";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
+
+/**
+ * Removes every file in the user's avatar folder (any extension). Best-effort:
+ * a stale file left behind mustn't block changing or removing the avatar.
+ */
+async function clearAvatarFolder(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+) {
+  try {
+    await removeAllObjectsUnderPrefix(
+      supabaseAdmin.storage.from("avatars"),
+      userId,
+    );
+  } catch (error) {
+    log.warn({ error, userId }, "Failed to clear old avatar files");
+    captureServerException(error, userId, { context: "avatar_cleanup" });
+  }
+}
 
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -66,14 +86,7 @@ export async function POST(request: NextRequest) {
     const filePath = `${user.id}/avatar.${ext}`;
 
     // Delete old avatar if exists (any extension)
-    const { data: existingFiles } = await supabaseAdmin.storage
-      .from("avatars")
-      .list(user.id);
-
-    if (existingFiles && existingFiles.length > 0) {
-      const filesToDelete = existingFiles.map((f) => `${user.id}/${f.name}`);
-      await supabaseAdmin.storage.from("avatars").remove(filesToDelete);
-    }
+    await clearAvatarFolder(supabaseAdmin, user.id);
 
     // Upload new avatar
     const arrayBuffer = await file.arrayBuffer();
@@ -163,14 +176,7 @@ export async function DELETE(_request: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin();
 
     // Delete avatar files
-    const { data: existingFiles } = await supabaseAdmin.storage
-      .from("avatars")
-      .list(user.id);
-
-    if (existingFiles && existingFiles.length > 0) {
-      const filesToDelete = existingFiles.map((f) => `${user.id}/${f.name}`);
-      await supabaseAdmin.storage.from("avatars").remove(filesToDelete);
-    }
+    await clearAvatarFolder(supabaseAdmin, user.id);
 
     // Clear avatar from user record
     await db.user.update({
