@@ -13,6 +13,7 @@ import {
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import {
   layoutMasonry,
+  type MasonryFrame,
   type MasonryGeometry,
   type MasonryLayout,
   type MasonryPlacement,
@@ -37,12 +38,10 @@ export type MasonryGridProps<T> = {
   getKey: (item: T) => string;
   /**
    * The item's aspect (only width:height matters). Gets the measured column
-   * width, for content-sized cards whose height depends on it.
+   * width, for content-sized cards whose height depends on it. A `column`
+   * pins the item there regardless of earlier layouts.
    */
-  getFrame: (
-    item: T,
-    geometry: MasonryGeometry,
-  ) => { width: number; height: number };
+  getFrame: (item: T, geometry: MasonryGeometry) => Omit<MasonryFrame, "key">;
   renderItem: (item: T) => ReactNode;
   /** Columns are at least this wide; as many fit as the container allows */
   minColumnWidth: number;

@@ -17,7 +17,16 @@
 export type MasonryGeometry = { columnWidth: number };
 
 /** A frame's aspect — only the ratio of `width` to `height` matters. */
-export type MasonryFrame = { key: string; width: number; height: number };
+export type MasonryFrame = {
+  key: string;
+  width: number;
+  height: number;
+  /**
+   * Always place in this column (clamped to the columns available), whatever
+   * the previous layout did — e.g. `0` on the first frame pins it top-left
+   */
+  column?: number;
+};
 
 export type MasonryPlacement = {
   key: string;
@@ -84,8 +93,8 @@ export function layoutMasonry({
   columnWidth: number;
   gap: number;
   /**
-   * The previous layout. Frames it placed keep their column; new ones are
-   * placed shortest-first. Ignored when the column count changed (a resize or
+   * The previous layout. Frames it placed keep their column (unless pinned to
+   * another); new ones are placed shortest-first. Ignored when the column count changed (a resize or
    * density change reflows everything — unavoidable).
    */
   previous?: Pick<MasonryLayout, "columns" | "columnCount">;
@@ -95,11 +104,15 @@ export function layoutMasonry({
     frame.width > 0 ? (columnWidth * frame.height) / frame.width : 0;
 
   const kept = new Map<string, number>();
-  if (previous && previous.columnCount === columnCount) {
-    for (const frame of frames) {
-      const column = previous.columns.get(frame.key);
-      if (column !== undefined) kept.set(frame.key, column);
-    }
+  const keepPrevious = previous?.columnCount === columnCount;
+  for (const frame of frames) {
+    const column =
+      frame.column !== undefined
+        ? Math.min(Math.max(0, frame.column), columnCount - 1)
+        : keepPrevious
+          ? previous?.columns.get(frame.key)
+          : undefined;
+    if (column !== undefined) kept.set(frame.key, column);
   }
 
   // Each column's height from kept frames not yet walked. A new frame goes to

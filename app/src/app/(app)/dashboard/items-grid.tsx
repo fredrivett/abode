@@ -239,8 +239,11 @@ export function ItemsGrid({
                   : entry.frame.id
             }
             getFrame={(entry, geometry) =>
+              // Pinned to the first column: as the first entry that's top-left,
+              // even when it rejoins a laid-out grid (search cleared) and
+              // would otherwise balance into the shortest column
               entry.type === "composer"
-                ? { width: 1, height: 1 }
+                ? { width: 1, height: 1, column: 0 }
                 : entry.type === "item"
                   ? getCardFrame(entry.item, geometry)
                   : entry.frame
