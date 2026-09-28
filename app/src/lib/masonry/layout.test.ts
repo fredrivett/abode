@@ -162,6 +162,46 @@ describe("layoutMasonry", () => {
     });
   });
 
+  it("places a pinned frame in its column even when another is shorter", () => {
+    const frames = [tall("a"), square("b"), square("c")];
+    const before = layoutMasonry({ frames, ...GEOMETRY });
+    // Rejoining at the top (e.g. the note composer once a search is cleared),
+    // it would otherwise balance into shorter column 1 or 2
+    const after = layoutMasonry({
+      frames: [{ ...square("pinned"), column: 0 }, ...frames],
+      ...GEOMETRY,
+      previous: before,
+    });
+    expect(positions(after)).toEqual({
+      pinned: [0, 0],
+      a: [0, 110],
+      b: [1, 0],
+      c: [2, 0],
+    });
+  });
+
+  it("keeps a pinned frame in its column over the previous layout's", () => {
+    const before = layoutMasonry({
+      frames: [tall("a"), square("pinned")],
+      ...GEOMETRY,
+    });
+    expect(positions(before).pinned[0]).toBe(1);
+    const after = layoutMasonry({
+      frames: [{ ...square("pinned"), column: 0 }, tall("a")],
+      ...GEOMETRY,
+      previous: before,
+    });
+    expect(positions(after).pinned).toEqual([0, 0]);
+  });
+
+  it("clamps a pinned column to the columns available", () => {
+    const layout = layoutMasonry({
+      frames: [{ ...square("pinned"), column: 5 }],
+      ...GEOMETRY,
+    });
+    expect(positions(layout).pinned).toEqual([2, 0]);
+  });
+
   it("closes up only the removed frame's column", () => {
     const frames = [square("a"), square("b"), square("c"), square("d")];
     const before = layoutMasonry({ frames, ...GEOMETRY });
