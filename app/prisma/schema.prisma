@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -16,51 +16,51 @@ datasource db {
 }
 
 model User {
-  id                    String    @id @db.Uuid // matches auth.users.id, no default - set by trigger
-  email                 String    @unique
-  username              String?   // Display version (e.g., "Fred_Dev"), case-insensitive unique via index
-  previousUsernames     Json?     @map("previous_usernames") // [{username, changedAt}]
-  firstName             String?   @map("first_name")
-  lastName              String?   @map("last_name")
-  website               String?   // Personal website / link shown on the public profile
-  bio                   String?   // Short free-text bio shown under the username on the public profile
-  avatarUrl             String?   @map("avatar_url")
+  id                    String        @id @db.Uuid // matches auth.users.id, no default - set by trigger
+  email                 String        @unique
+  username              String? // Display version (e.g., "Fred_Dev"), case-insensitive unique via index
+  previousUsernames     Json?         @map("previous_usernames") // [{username, changedAt}]
+  firstName             String?       @map("first_name")
+  lastName              String?       @map("last_name")
+  website               String? // Personal website / link shown on the public profile
+  bio                   String? // Short free-text bio shown under the username on the public profile
+  avatarUrl             String?       @map("avatar_url")
   avatarSource          AvatarSource? @map("avatar_source")
-  memberNumber          Int?      @unique @map("member_number") // Sequential member number based on signup order
-  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
-  isAdmin               Boolean   @default(false) @map("is_admin")
-  storageUsedBytes      BigInt    @default(0) @map("storage_used_bytes")
-  itemCount             Int       @default(0) @map("item_count")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  memberNumber          Int?          @unique @map("member_number") // Sequential member number based on signup order
+  onboardingCompletedAt DateTime?     @map("onboarding_completed_at")
+  isAdmin               Boolean       @default(false) @map("is_admin")
+  storageUsedBytes      BigInt        @default(0) @map("storage_used_bytes")
+  itemCount             Int           @default(0) @map("item_count")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
 
   // Referral tracking
-  referredById      String?        @map("referred_by_id") @db.Uuid
-  inviteAllocation  Int            @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
-  origin            InviteOrigin?  @map("origin")
+  referredById     String?       @map("referred_by_id") @db.Uuid
+  inviteAllocation Int           @default(3) @map("invite_allocation") // Total invites this user can have active/accepted
+  origin           InviteOrigin? @map("origin")
 
   // Public profile visibility toggles
-  showInvitedBy     Boolean        @default(true) @map("show_invited_by") // Show who invited this user
-  showInvited       Boolean        @default(true) @map("show_invited") // Show the people this user invited
-  allowSearchIndexing Boolean      @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
+  showInvitedBy       Boolean @default(true) @map("show_invited_by") // Show who invited this user
+  showInvited         Boolean @default(true) @map("show_invited") // Show the people this user invited
+  allowSearchIndexing Boolean @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
 
   // Relations
-  referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals         User[]  @relation("Referrals")
-  sentInvites       Invite[] @relation("SentInvites")
+  referredBy  User?    @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals   User[]   @relation("Referrals")
+  sentInvites Invite[] @relation("SentInvites")
 
-  items             Item[]
-  locations         ItemLocation[]
-  visualVectors     ItemVisualVector[]
-  textVectors       ItemTextVector[]
-  mediaAnalyses     ItemMediaAnalysis[]
-  rooms             Room[]
-  articleHighlights ArticleHighlight[]
-  activityLogs      ActivityLog[]
-  itemImports       ItemImport[]
-  milestones        UserMilestone[]
-  noteDraft         NoteDraft?
-  usageDaily        UsageDaily[]
+  items                Item[]
+  locations            ItemLocation[]
+  visualVectors        ItemVisualVector[]
+  textVectors          ItemTextVector[]
+  mediaAnalyses        ItemMediaAnalysis[]
+  rooms                Room[]
+  articleHighlights    ArticleHighlight[]
+  activityLogs         ActivityLog[]
+  itemImports          ItemImport[]
+  milestones           UserMilestone[]
+  noteDraft            NoteDraft?
+  usageDaily           UsageDaily[]
   personalAccessTokens PersonalAccessToken[]
 
   @@map("users")
@@ -194,53 +194,53 @@ model Item {
   processingStartedAt DateTime @default(now()) @map("processing_started_at")
 
   // Why processing failed (only set when processingStatus = failed). Null otherwise.
-  processingError  ProcessingErrorReason? @map("processing_error")
+  processingError ProcessingErrorReason? @map("processing_error")
 
   // Source tracking
-  sourceType       SourceType?      @map("source_type")
-  sourceUrl        String?          @map("source_url")
+  sourceType SourceType? @map("source_type")
+  sourceUrl  String?     @map("source_url")
 
   // Which entry point saved this item (web paste, share sheet, extension).
   // Stamped on every creation path; null only for items predating this column.
-  captureSource    CaptureSource?   @map("capture_source")
+  captureSource CaptureSource? @map("capture_source")
 
   // The personal access token that saved this item (captureSource = api), so a
   // token's saves can be counted and traced. Null for every other entry point.
-  personalAccessTokenId String?     @map("personal_access_token_id") @db.Uuid
+  personalAccessTokenId String? @map("personal_access_token_id") @db.Uuid
 
   // How completely this item's content was captured (see CaptureLevel).
   // Defaults to `full`; a partial server-side capture is marked `basic` so the
   // UI can offer to enrich it later.
-  captureLevel     CaptureLevel     @default(full) @map("capture_level")
+  captureLevel CaptureLevel @default(full) @map("capture_level")
 
   // Gates non-admin reassignment to once per UTC day.
-  lastReassignedAt DateTime?        @map("last_reassigned_at")
+  lastReassignedAt DateTime? @map("last_reassigned_at")
 
   // Files
-  fileKey          String?          @map("file_key")
-  coverFileKey     String?          @map("cover_file_key")
-  faviconFileKey   String?          @map("favicon_file_key")
+  fileKey        String? @map("file_key")
+  coverFileKey   String? @map("cover_file_key")
+  faviconFileKey String? @map("favicon_file_key")
 
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
-  meta             Json?
+  meta Json?
 
   // AI-generated metadata (shared across all item types)
-  title            String?
-  description      String?
+  title             String?
+  description       String?
   // Set once the user manually edits the title, so re-analysis (e.g.
   // reprocess-images) never overwrites their title with a fresh vision caption.
-  titleEditedByUser Boolean         @default(false) @map("title_edited_by_user")
-  tags             String[]         @default([])  // Auto-generated labels (Vision API)
-  userTags         String[]         @default([]) @map("user_tags") // User-added manual tags
+  titleEditedByUser Boolean  @default(false) @map("title_edited_by_user")
+  tags              String[] @default([]) // Auto-generated labels (Vision API)
+  userTags          String[] @default([]) @map("user_tags") // User-added manual tags
 
   // User-provided notes
-  notes            String?
+  notes String?
 
   // Full-text search vector (generated column, managed via raw SQL)
-  searchVector     Unsupported("tsvector")?  @map("search_vector")
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // The date this item entered the user's library — its position on the
   // timeline. Equals createdAt for items captured in abode, but an import
@@ -248,25 +248,25 @@ model Item {
   // years before signup) so imported items slot into their historical place.
   // The dashboard sorts and the item card's "added" display read THIS, not
   // createdAt (which stays the truthful row-creation time).
-  addedAt          DateTime         @default(now()) @map("added_at")
+  addedAt DateTime @default(now()) @map("added_at")
 
   // Smart rooms
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
   // Presentation: hide the cover image on the grid card (renders as a text card)
-  coverHidden      Boolean          @default(false) @map("cover_hidden")
+  coverHidden Boolean @default(false) @map("cover_hidden")
 
   // External links (e.g. Unsplash, Flickr, Instagram posts of this item)
   // Format: [{ url: string, platform: string }]
-  externalLinks    Json?            @default("[]") @map("external_links")
+  externalLinks Json? @default("[]") @map("external_links")
 
   // Direct sharing: non-null sharedAt ⟺ item is viewable via direct link.
   // sharedHighlights controls whether the owner's highlights appear on the shared view.
-  sharedAt         DateTime?        @map("shared_at")
-  sharedHighlights Boolean          @default(false) @map("shared_highlights")
+  sharedAt         DateTime? @map("shared_at")
+  sharedHighlights Boolean   @default(false) @map("shared_highlights")
 
   // Relations
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
   locations           ItemLocation[]
   visualVectors       ItemVisualVector[]
   textVectors         ItemTextVector[]
@@ -282,7 +282,7 @@ model Item {
   documentPages       ItemDocumentPage[]
   roomItems           RoomItem[]
   highlights          ArticleHighlight[]
-  personalAccessToken PersonalAccessToken? @relation(fields: [personalAccessTokenId], references: [id], onDelete: SetNull)
+  personalAccessToken PersonalAccessToken?  @relation(fields: [personalAccessTokenId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt(sort: Desc)])
   // Mirrors the createdAt index for the dashboard's addedAt keyset ordering.
@@ -298,29 +298,29 @@ model Item {
 }
 
 model ItemLocation {
-  id          String   @id @default(uuid()) @db.Uuid
-  itemId      String   @map("item_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
+  id     String @id @default(uuid()) @db.Uuid
+  itemId String @map("item_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
 
   // Source of location data (e.g. "exif", "manual", "inferred")
-  source      String
+  source String
 
-  latitude    Float?   @map("latitude")
-  longitude   Float?   @map("longitude")
+  latitude  Float? @map("latitude")
+  longitude Float? @map("longitude")
 
   // Reverse geocoded place (via Mapbox)
-  neighborhood String?  @map("neighborhood")
-  city         String?  @map("city")
-  region       String?  @map("region")
-  country      String?  @map("country")
-  countryCode  String?  @map("country_code")
-  formatted    String?  @map("formatted")
+  neighborhood String? @map("neighborhood")
+  city         String? @map("city")
+  region       String? @map("region")
+  country      String? @map("country")
+  countryCode  String? @map("country_code")
+  formatted    String? @map("formatted")
 
   // Raw payload (gps + place, provider-specific)
-  raw         Json?    @map("raw")
+  raw Json? @map("raw")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -333,12 +333,12 @@ model ItemLocation {
 }
 
 model ItemVisualVector {
-  id        String   @id @default(uuid()) @db.Uuid
-  itemId    String   @map("item_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  model     String   // e.g., "clip-vit-base-patch32"
+  id        String                 @id @default(uuid()) @db.Uuid
+  itemId    String                 @map("item_id") @db.Uuid
+  userId    String                 @map("user_id") @db.Uuid
+  model     String // e.g., "clip-vit-base-patch32"
   embedding Unsupported("vector")? // vector(768)
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime               @default(now()) @map("created_at")
 
   // Relations
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -351,12 +351,12 @@ model ItemVisualVector {
 }
 
 model ItemTextVector {
-  id        String   @id @default(uuid()) @db.Uuid
-  itemId    String   @map("item_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  model     String   // e.g., "text-embedding-3-small"
+  id        String                 @id @default(uuid()) @db.Uuid
+  itemId    String                 @map("item_id") @db.Uuid
+  userId    String                 @map("user_id") @db.Uuid
+  model     String // e.g., "text-embedding-3-small"
   embedding Unsupported("vector")? // vector(1536)
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime               @default(now()) @map("created_at")
 
   // Relations
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -400,12 +400,12 @@ model ItemMediaAnalysis {
   fileKey String @map("file_key") // storage key of the analysed image
 
   // Vision output (mirrors ItemImageDetails' analysis fields)
-  objects    String[] @default([]) // Detected objects
-  colors     Json? // Color palette
-  ocrText    String?  @map("ocr_text")
-  tags       String[] @default([]) // Vision tags → enrich-item precomputedTags
-  visionData Json?    @map("vision_data") // Raw Vision API response
-  blurDataUrl String? @map("blur_data_url") // Tiny blurred LQIP data URL
+  objects     String[] @default([]) // Detected objects
+  colors      Json? // Color palette
+  ocrText     String?  @map("ocr_text")
+  tags        String[] @default([]) // Vision tags → enrich-item precomputedTags
+  visionData  Json?    @map("vision_data") // Raw Vision API response
+  blurDataUrl String?  @map("blur_data_url") // Tiny blurred LQIP data URL
 
   // CLIP visual embedding — optional (Replicate is an optional service)
   embedding      Unsupported("vector")? // vector(768)
@@ -425,27 +425,27 @@ model ItemMediaAnalysis {
 }
 
 model ItemArticleDetails {
-  itemId      String    @id @map("item_id") @db.Uuid
-  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   author      String?
   domain      String?
   publishedAt DateTime? @map("published_at")
   readingTime Int?      @map("reading_time") // minutes
-  content     String?   // Extracted article text content
+  content     String? // Extracted article text content
 
   // Per-user read status (the item is already owned by one user). Binary:
   // null = unread, set = read. Read is always a manual confirmation (nudge or
   // toggle); capturing or briefly opening an article never marks it read.
-  readAt            DateTime? @map("read_at")
+  readAt DateTime? @map("read_at")
 
   // Scroll position for resume (0..1 fraction of the article), so reopening an
   // article returns to where the user left off. Independent of read status.
   scrollProgress    Float?    @map("scroll_progress")
   progressUpdatedAt DateTime? @map("progress_updated_at")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_article_details")
 }
@@ -464,9 +464,9 @@ enum DocumentPageFilter {
 // mirrors page 1 so grid cards, covers and cover-level visual analysis work as
 // for images; every page gets full OCR into its own ocrText.
 model ItemDocumentPage {
-  id              String             @id @default(uuid()) @db.Uuid
-  itemId          String             @map("item_id") @db.Uuid
-  item            Item               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid()) @db.Uuid
+  itemId String @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   // 0-based reading order. Not unique: reordering rewrites positions in one
   // transaction, and a unique constraint would reject the intermediate swaps
@@ -478,95 +478,95 @@ model ItemDocumentPage {
   height          Int
   ocrText         String?            @map("ocr_text")
 
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([itemId, position])
   @@map("item_document_pages")
 }
 
 model ItemImageDetails {
-  itemId      String    @id @map("item_id") @db.Uuid
-  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  objects     String[]  @default([])  // Detected objects (car, person, building, etc.)
-  colors      Json?                    // Color palette
+  objects     String[]  @default([]) // Detected objects (car, person, building, etc.)
+  colors      Json? // Color palette
   ocrText     String?   @map("ocr_text")
-  visionData  Json?     @map("vision_data")  // Raw Vision API response
+  visionData  Json?     @map("vision_data") // Raw Vision API response
   blurDataUrl String?   @map("blur_data_url") // Tiny blurred LQIP data URL
   captureDate DateTime? @map("capture_date") // EXIF capture timestamp
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([colors], type: Gin)
   @@map("item_image_details")
 }
 
 model ItemTwitterDetails {
-  itemId          String    @id @map("item_id") @db.Uuid
-  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  tweetId         String    @map("tweet_id")           // Twitter's ID for the tweet
-  authorName      String?   @map("author_name")        // Display name
-  authorUsername  String    @map("author_username")    // @handle
-  authorAvatarUrl String?   @map("author_avatar_url")
-  authorAvatarFileKey String? @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
-  text            String?                               // Tweet text content
-  postedAt        DateTime? @map("posted_at")          // When tweet was posted
-  media           Json?     @map("media")              // Array of media objects with type, url, dimensions
-  quotedTweetId   String?   @map("quoted_tweet_id")    // If quoting another tweet
-  card            Json?     @map("card")               // Link card data (title, description, url, imageUrl)
-  coverMediaIndex Int?      @map("cover_media_index")  // Index into media[] for cover image
+  tweetId             String    @map("tweet_id") // Twitter's ID for the tweet
+  authorName          String?   @map("author_name") // Display name
+  authorUsername      String    @map("author_username") // @handle
+  authorAvatarUrl     String?   @map("author_avatar_url")
+  authorAvatarFileKey String?   @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
+  text                String? // Tweet text content
+  postedAt            DateTime? @map("posted_at") // When tweet was posted
+  media               Json?     @map("media") // Array of media objects with type, url, dimensions
+  quotedTweetId       String?   @map("quoted_tweet_id") // If quoting another tweet
+  card                Json?     @map("card") // Link card data (title, description, url, imageUrl)
+  coverMediaIndex     Int?      @map("cover_media_index") // Index into media[] for cover image
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_twitter_details")
 }
 
 model ItemInstagramDetails {
-  itemId          String    @id @map("item_id") @db.Uuid
-  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  postId          String    @map("post_id")            // Instagram shortcode (from /p/<code>/)
-  mediaType       String    @map("media_type")         // "post" | "reel" | "tv"
-  authorName      String?   @map("author_name")        // Display name
-  authorUsername  String    @map("author_username")    // @handle
-  caption         String?                               // Post caption
-  postedAt        DateTime? @map("posted_at")          // When the post was published
-  media           Json?                                 // Array of media objects with type, url, dimensions
+  postId          String    @map("post_id") // Instagram shortcode (from /p/<code>/)
+  mediaType       String    @map("media_type") // "post" | "reel" | "tv"
+  authorName      String?   @map("author_name") // Display name
+  authorUsername  String    @map("author_username") // @handle
+  caption         String? // Post caption
+  postedAt        DateTime? @map("posted_at") // When the post was published
+  media           Json? // Array of media objects with type, url, dimensions
   likeCount       Int?      @map("like_count")
   commentCount    Int?      @map("comment_count")
-  coverMediaIndex Int?      @map("cover_media_index")  // Index into media[] for cover image
+  coverMediaIndex Int?      @map("cover_media_index") // Index into media[] for cover image
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_instagram_details")
 }
 
 model ItemVideoDetails {
-  itemId       String    @id @map("item_id") @db.Uuid
-  item         Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  platform     String                                  // "youtube" | "vimeo"
-  videoId      String    @map("video_id")             // Platform-specific video ID
-  channelName  String?   @map("channel_name")         // Channel/uploader name
-  channelUrl   String?   @map("channel_url")          // Link to channel
-  duration     Int?                                    // Duration in seconds (Vimeo only via oEmbed)
-  embedUrl     String?   @map("embed_url")            // Privacy-respecting embed URL
-  thumbnailUrl String?   @map("thumbnail_url")        // Original thumbnail URL from oEmbed
+  platform     String // "youtube" | "vimeo"
+  videoId      String  @map("video_id") // Platform-specific video ID
+  channelName  String? @map("channel_name") // Channel/uploader name
+  channelUrl   String? @map("channel_url") // Link to channel
+  duration     Int? // Duration in seconds (Vimeo only via oEmbed)
+  embedUrl     String? @map("embed_url") // Privacy-respecting embed URL
+  thumbnailUrl String? @map("thumbnail_url") // Original thumbnail URL from oEmbed
 
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_video_details")
 }
 
 model ItemProductDetails {
-  itemId          String    @id @map("item_id") @db.Uuid
-  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   domain          String?
   brand           String?
@@ -574,10 +574,10 @@ model ItemProductDetails {
   currency        String?
   availability    String?
   images          Json?
-  coverImageIndex Int?      @map("cover_image_index")
+  coverImageIndex Int?    @map("cover_image_index")
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_product_details")
 }
@@ -610,8 +610,8 @@ enum DatePrecision {
 }
 
 model ItemBookDetails {
-  itemId      String    @id @map("item_id") @db.Uuid
-  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   authors     String[]  @default([])
   publisher   String?
@@ -622,7 +622,7 @@ model ItemBookDetails {
 
   // Reading status (per-user; the item is already owned by one user). Null =
   // saved but not tracked — capturing a book isn't an intent to read it.
-  status      BookReadingStatus?
+  status BookReadingStatus?
 
   // When the user started/finished. Both nullable and never auto-stamped, so
   // back-dating books read before tracking existed stays clean. finishedAt is
@@ -642,25 +642,25 @@ model ItemBookDetails {
   progressUpdatedAt DateTime?        @map("progress_updated_at")
 
   // Rating stored on a /10 scale so half-stars work; displayed as /5.
-  rating      Int?
+  rating Int?
 
   // Public-facing book review. Distinct from Item.notes (which is always
   // private): review surfaces on public shelves/pages whenever the item itself
   // is publicly viewable.
-  review      String?
+  review String?
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("item_book_details")
 }
 
 model ItemNoteDetails {
-  itemId    String   @id @map("item_id") @db.Uuid
-  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String @id @map("item_id") @db.Uuid
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   // User-authored markdown body (canonical content for note items)
-  content   String   @default("")
+  content String @default("")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -687,9 +687,9 @@ model Room {
   userId     String         @map("user_id") @db.Uuid
   name       String
   slug       String?
-  emoji      String?        // Optional emoji icon for the room
+  emoji      String? // Optional emoji icon for the room
   type       RoomType
-  filters    Json?          // JSONB for smart room filters
+  filters    Json? // JSONB for smart room filters
   visibility RoomVisibility @default(private)
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
@@ -735,17 +735,17 @@ model RoomEmbedReferrer {
 }
 
 model ArticleHighlight {
-  id          String   @id @default(uuid()) @db.Uuid
-  itemId      String   @map("item_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
+  id     String @id @default(uuid()) @db.Uuid
+  itemId String @map("item_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
 
-  startOffset Int      @map("start_offset")
-  endOffset   Int      @map("end_offset")
-  text        String   // Denormalized for display/search
+  startOffset Int     @map("start_offset")
+  endOffset   Int     @map("end_offset")
+  text        String // Denormalized for display/search
   note        String?
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -788,9 +788,9 @@ model UserMilestone {
 
 // Origin of invite/user - how they got access
 enum InviteOrigin {
-  user      // Invited by another user
-  waitlist  // Promoted from waitlist by admin
-  admin     // Manually added by admin
+  user // Invited by another user
+  waitlist // Promoted from waitlist by admin
+  admin // Manually added by admin
 }
 
 enum InviteStatus {
@@ -801,24 +801,24 @@ enum InviteStatus {
 
 // Single table for ALL invite tokens - user invites, waitlist promotions, admin invites
 model Invite {
-  id              String       @id @default(uuid()) @db.Uuid
-  email           String
-  token           String       @unique
-  origin          InviteOrigin @map("origin")
-  status          InviteStatus @default(pending)
-  expiresAt       DateTime     @map("expires_at")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
-  acceptedAt      DateTime?    @map("accepted_at")
-  sendCount       Int          @default(1) @map("send_count") // How many times this invite was (re)sent
-  acceptedByUserId String?     @map("accepted_by_user_id") @db.Uuid
+  id               String       @id @default(uuid()) @db.Uuid
+  email            String
+  token            String       @unique
+  origin           InviteOrigin @map("origin")
+  status           InviteStatus @default(pending)
+  expiresAt        DateTime     @map("expires_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  acceptedAt       DateTime?    @map("accepted_at")
+  sendCount        Int          @default(1) @map("send_count") // How many times this invite was (re)sent
+  acceptedByUserId String?      @map("accepted_by_user_id") @db.Uuid
 
   // For user invites (origin: user)
-  inviterId       String?      @map("inviter_id") @db.Uuid
-  inviter         User?        @relation("SentInvites", fields: [inviterId], references: [id], onDelete: SetNull)
+  inviterId String? @map("inviter_id") @db.Uuid
+  inviter   User?   @relation("SentInvites", fields: [inviterId], references: [id], onDelete: SetNull)
 
   // For waitlist invites (origin: waitlist)
-  waitlistEntryId String?      @map("waitlist_entry_id") @db.Uuid
+  waitlistEntryId String?        @map("waitlist_entry_id") @db.Uuid
   waitlistEntry   WaitlistEntry? @relation(fields: [waitlistEntryId], references: [id], onDelete: SetNull)
 
   @@unique([inviterId, email]) // User can't invite same email twice
@@ -831,14 +831,14 @@ model Invite {
 
 // Waitlist entries - users waiting to be invited
 model WaitlistEntry {
-  id             String    @id @default(uuid()) @db.Uuid
-  email          String    @unique
-  position       Int?      // Queue position, nullable if not tracking
-  referralSource String?   @map("referral_source") // "twitter", "producthunt", etc.
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique
+  position       Int? // Queue position, nullable if not tracking
+  referralSource String?  @map("referral_source") // "twitter", "producthunt", etc.
+  createdAt      DateTime @default(now()) @map("created_at")
 
   // Invites created for this waitlist entry (usually 1, more if resent)
-  invites        Invite[]
+  invites Invite[]
 
   @@index([createdAt])
   @@map("waitlist_entries")
@@ -858,7 +858,7 @@ model UsageDaily {
   day       DateTime @db.Date // UTC day
   bucket    String // "ingestion" | "reanalysis" | "location" | "search" | "emoji"
   count     Int      @default(0) // user-initiated actions in this bucket today
-  costUsd   Decimal  @default(0) @db.Decimal(14, 8) @map("cost_usd") // downstream paid $ accrued; 14,8 keeps the original whole-dollar range + sub-cent precision
+  costUsd   Decimal  @default(0) @map("cost_usd") @db.Decimal(14, 8) // downstream paid $ accrued; 14,8 keeps the original whole-dollar range + sub-cent precision
   updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
