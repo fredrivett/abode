@@ -21,7 +21,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | --- | --- | --- |
 | `bun run dev` | Start Next.js dev server (Turbopack) | Local development — the user usually has this running |
 | `bun run build` | Production build (webpack) | CI / verifying a prod build — **not** during a dev session |
-| `bun run check:fix` | Biome autofix + `tsc --noEmit` | After every code change (run this before considering work done) |
+| `bun run check:fix` | Biome autofix + `prisma format` + `tsc --noEmit` | After every code change (run this before considering work done) |
 | `bun run fix` | Biome lint/format autofix | Quick format/lint pass |
 | `bun run lint` | Biome check, no fixes | Read-only lint (matches CI) |
 | `bun run ts:check` | TypeScript check (`tsc --noEmit`) | Verify types only |
@@ -31,6 +31,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | `bun run test:e2e` | Playwright E2E (isolated Supabase — requires Docker) | After user-facing flow changes |
 | `bun run test:coverage` | Vitest with coverage | Check coverage |
 | `bun run prisma:generate` | Generate Prisma client | After schema changes / fresh install |
+| `bun run prisma:format` | Format `prisma/schema.prisma` (CI checks it via `check:prisma-format`) | After schema edits (`check:fix` runs it too) |
 | `bun run prisma:migrate --name <name>` | Create + apply a dev migration (`prisma migrate dev`) | Only per the Database Migrations policy below |
 | `bun add <pkg>` | Install a dependency (bun only, from `./app`) | Adding dependencies |
 | `bun run storybook` | Run Storybook on port 6306 | Component development |
@@ -99,7 +100,7 @@ cd ./app
 bun run check:fix
 ```
 
-This (1) auto-fixes lint/format issues (Biome) and (2) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
+This (1) auto-fixes lint/format issues (Biome), (2) formats `prisma/schema.prisma` (`prisma format`; CI fails an unformatted schema) and (3) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
 
 ### Type Safety
 

@@ -40,6 +40,9 @@ jobs:
       - name: Check Commands table is in sync
         run: bun run check:commands-doc
 
+      - name: Check Prisma schema is formatted
+        run: bun run check:prisma-format
+
   typecheck:
     name: TypeScript
     runs-on: ubuntu-latest
