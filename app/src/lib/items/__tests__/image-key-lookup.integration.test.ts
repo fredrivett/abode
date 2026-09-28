@@ -3,7 +3,7 @@
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import { collectItemFileKeys, itemFileKeysSelect } from "@/lib/item-storage";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
-import { fileKeyStrings } from "./file-key-strings";
+import { fileKeyStrings, unpopulatedSelections } from "./file-key-strings";
 
 describe("findItemOwningImageKey integration", () => {
   beforeEach(async () => {
@@ -185,9 +185,11 @@ describe("findItemOwningImageKey integration", () => {
       where: { id },
       select: itemFileKeysSelect,
     });
+    // The fixture must fill every location the inventory selects, or a new
+    // one would silently drop out of the proxy check below
+    expect(unpopulatedSelections(itemFileKeysSelect, row)).toEqual([]);
     const keys = collectItemFileKeys(row);
     expect(new Set(keys)).toEqual(fileKeyStrings(row));
-    expect(keys).toHaveLength(10);
 
     for (const fileKey of keys) {
       const found = await findItemOwningImageKey(fileKey);

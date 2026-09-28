@@ -25,3 +25,37 @@ export function fileKeyStrings(value: unknown): Set<string> {
   walk(value);
   return found;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Paths in a Prisma `select` that `row` leaves empty (null, "", or an empty
+ * array/relation list). A fixture meant to exercise every file-key location
+ * asserts this is empty, so a location added to the select but not populated
+ * in the fixture fails by name instead of silently dropping out of the test.
+ */
+export function unpopulatedSelections(
+  select: Record<string, unknown>,
+  row: unknown,
+  path = "",
+): string[] {
+  if (!isRecord(row)) return [path || "(row)"];
+  return Object.entries(select).flatMap(([field, selection]) => {
+    const at = path ? `${path}.${field}` : field;
+    const value = row[field];
+    const empty =
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0);
+    if (empty) return [at];
+    if (!isRecord(selection) || !isRecord(selection.select)) return [];
+    const nested = selection.select;
+    return Array.isArray(value)
+      ? value.flatMap((entry, i) =>
+          unpopulatedSelections(nested, entry, `${at}[${i}]`),
+        )
+      : unpopulatedSelections(nested, value, at);
+  });
+}
