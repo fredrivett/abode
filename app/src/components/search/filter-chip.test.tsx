@@ -15,6 +15,23 @@ beforeEach(() => {
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
 });
 
+const tagFilter: Filter = {
+  id: "1",
+  type: "tag",
+  value: "book",
+  negated: false,
+};
+
+async function hoverIcon(container: HTMLElement) {
+  const icon = container.querySelector<HTMLElement>(
+    "[data-slot=tooltip-trigger]",
+  );
+  if (!icon) throw new Error("facet icon not rendered");
+  await userEvent.setup().hover(icon);
+  await screen.findByRole("tooltip");
+  return document.querySelector("[data-slot=tooltip-content]");
+}
+
 describe("FilterChip", () => {
   it("shows the facet name in a tooltip when hovering the emoji", async () => {
     const filter: Filter = {
@@ -42,14 +59,23 @@ describe("FilterChip", () => {
     };
     const { container } = render(<FilterChip filter={filter} />);
 
-    const swatch = container.querySelector<HTMLElement>(
-      "[data-slot=tooltip-trigger]",
-    );
-    if (!swatch) throw new Error("swatch not rendered");
-    await userEvent.setup().hover(swatch);
-
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    await hoverIcon(container);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
       `${FILTER_TYPES.color.icon} Color`,
     );
+  });
+
+  it("opens the tooltip below the chip by default", async () => {
+    const { container } = render(<FilterChip filter={tagFilter} />);
+    const tooltip = await hoverIcon(container);
+    expect(tooltip).toHaveAttribute("data-side", "bottom");
+  });
+
+  it("opens the tooltip on the requested side", async () => {
+    const { container } = render(
+      <FilterChip filter={tagFilter} tooltipSide="left" />,
+    );
+    const tooltip = await hoverIcon(container);
+    expect(tooltip).toHaveAttribute("data-side", "left");
   });
 });
