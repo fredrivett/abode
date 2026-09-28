@@ -10,9 +10,13 @@ language js
 // Scoped by an `overrides` entry in biome.json to `src/**` + `trigger/**`, minus
 // src/lib/storage-objects.ts (the one paged implementation).
 //
-// Matches `<x>.from(<bucket>).list(...)` — the storage bucket call shape — so
-// unrelated `.list()` methods (e.g. Trigger's `runs.list`) aren't flagged.
-`$storage.from($bucket).list($...)` as $call where {
+// Matches `<client>.storage.from(<bucket>).list(...)` and `storage.from(<bucket>)
+// .list(...)` (a destructured/aliased storage client), so unrelated `.list()`
+// methods (e.g. Trigger's `runs.list`) and other `.from()` APIs aren't flagged.
+or {
+  `$client.storage.from($bucket).list($...)`,
+  `storage.from($bucket).list($...)`
+} as $call where {
   register_diagnostic(
     span=$call,
     message="Don't call storage.from(bucket).list() directly — it silently stops at 100 entries. Use `listAllObjectPaths` or `removeAllObjectsUnderPrefix` from `@/lib/storage-objects`, which page past the limit.",

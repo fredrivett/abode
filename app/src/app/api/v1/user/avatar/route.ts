@@ -26,6 +26,7 @@ async function clearAvatarFolder(
     );
   } catch (error) {
     log.warn({ error, userId }, "Failed to clear old avatar files");
+    captureServerException(error, userId, { context: "avatar_cleanup" });
   }
 }
 
