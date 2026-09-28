@@ -98,4 +98,34 @@ describe("DocumentPages", () => {
       screen.getByText("Couldn't load the rest of this document's pages."),
     ).toBeInTheDocument();
   });
+
+  it("pages with the ← and → keys, stopping at either end", () => {
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByText("3 of 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+  });
+
+  it("leaves the arrow keys alone while typing or with a modifier held", () => {
+    render(
+      <>
+        <input aria-label="Notes" />
+        <DocumentPages {...base} pages={pages} status="ready" />
+      </>,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Notes" }), {
+      key: "ArrowRight",
+    });
+    fireEvent.keyDown(window, { key: "ArrowRight", metaKey: true });
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
 });

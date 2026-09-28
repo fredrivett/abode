@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import type { DocumentPageSummary } from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { isEditableTarget } from "@/lib/keyboard";
 
 interface DocumentPagesProps {
   /** Pages in reading order; null until they've loaded */
@@ -62,6 +63,36 @@ export function DocumentPages({
     if (!track) return;
     track.scrollTo({ left: target * track.clientWidth, behavior: "smooth" });
   };
+
+  // ← / → page through the document while it's open, except mid-typing
+  // (e.g. in the notes field or title) or with a modifier held
+  const lastIndex = slides.length - 1;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+      const target =
+        event.key === "ArrowLeft"
+          ? index - 1
+          : event.key === "ArrowRight"
+            ? index + 1
+            : null;
+      if (target === null || target < 0 || target > lastIndex) return;
+      event.preventDefault();
+      const track = trackRef.current;
+      track?.scrollTo({ left: target * track.clientWidth, behavior: "smooth" });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [index, lastIndex]);
 
   return (
     <div className="flex h-[70dvh] w-full flex-col md:h-full">
