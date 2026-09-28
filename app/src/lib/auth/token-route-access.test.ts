@@ -12,6 +12,7 @@ import type { TokenScope } from "./token-scopes";
  * import, a differently shaped call) changes the scanned set and fails.
  */
 const ROUTE_TOKEN_ACCESS: Record<string, (TokenScope | null)[]> = {
+  "app/api/mcp/route.ts": ["read"],
   "app/api/v1/imports/[id]/route.ts": [null],
   "app/api/v1/imports/literal/route.ts": [null],
   "app/api/v1/items/[id]/instagram-enrich/route.ts": [null],
