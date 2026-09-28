@@ -90,7 +90,6 @@ export function toRange(
     }
 
     // Find end position
-    // biome-ignore lint/nursery/noUnnecessaryConditions: foundStart is mutable and can be true here
     if (foundStart && charCount + length >= end) {
       range.setEnd(current, end - charCount);
       return range;
@@ -263,7 +262,6 @@ function getTextNodesInRange(range: Range): TextNodeSegment[] {
       break;
     }
 
-    // biome-ignore lint/nursery/noUnnecessaryConditions: inRange is mutable and can be true here
     if (inRange) {
       segments.push({
         node: current,

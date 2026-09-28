@@ -11,6 +11,7 @@ import { getUserAccountDeletionEmail } from "@/lib/email/templates";
 import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { removeUserStorage } from "@/lib/storage-objects";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
@@ -197,24 +198,18 @@ export async function deleteAccount(
       where: { id: user.id },
     });
 
-    // Delete avatar files from Supabase Storage
-    const { data: avatarFiles } = await supabaseAdmin.storage
-      .from("avatars")
-      .list(user.id);
-
-    if (avatarFiles && avatarFiles.length > 0) {
-      const filesToDelete = avatarFiles.map((f) => `${user.id}/${f.name}`);
-      await supabaseAdmin.storage.from("avatars").remove(filesToDelete);
-    }
-
-    // Delete item files from Supabase Storage
-    const { data: itemFiles } = await supabaseAdmin.storage
-      .from("items")
-      .list(user.id);
-
-    if (itemFiles && itemFiles.length > 0) {
-      const filesToDelete = itemFiles.map((f) => `${user.id}/${f.name}`);
-      await supabaseAdmin.storage.from("items").remove(filesToDelete);
+    // Delete every stored file (item files + avatars), paging past list()'s
+    // default 100 so large libraries don't leave files behind
+    const storage = await removeUserStorage(supabaseAdmin, user.id);
+    for (const { bucket, error } of storage.failures) {
+      log.error(
+        { error, userId: user.id, bucket },
+        "Failed to delete user storage",
+      );
+      captureServerException(error, user.id, {
+        bucket,
+        context: "account_deletion",
+      });
     }
 
     // Delete the Supabase auth user

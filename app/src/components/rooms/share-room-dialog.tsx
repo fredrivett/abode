@@ -95,12 +95,12 @@ function generateEmbedCode(
   // Badge doesn't need HTML comment since it's inline
   if (config.type === "badge") {
     return `<${tag} ${attributes}${fontSizeStyle}></${tag}>
-<script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
+<script src="${typeof window !== "undefined" ? window.location.origin : getAppBaseUrl()}/embed.js" async></script>`;
   }
 
   return `<!-- Abode Room Widget -->
 <${tag} ${attributes}${fontSizeStyle}></${tag}>
-<script src="${typeof window !== "undefined" ? window.location.origin : "https://www.abode.fyi"}/embed.js" async></script>`;
+<script src="${typeof window !== "undefined" ? window.location.origin : getAppBaseUrl()}/embed.js" async></script>`;
 }
 
 declare global {

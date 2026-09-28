@@ -1,7 +1,12 @@
 /// <reference types="vitest/globals" />
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
-import type { Prisma } from "@prisma/client";
+import type { BookReadingStatus, Prisma } from "@prisma/client";
+import {
+  buildFilterConditions,
+  type ParsedFilters,
+} from "@/lib/search/query-builder";
+import type { Filter } from "@/lib/search/types";
 
 describe("Room Service Integration", () => {
   // Reset the database before each test to ensure isolation
@@ -554,6 +559,220 @@ describe("Room Service Integration", () => {
         added: 0,
         removed: 0,
       });
+    });
+  });
+
+  describe("status filter", () => {
+    const createBook = async (
+      userId: string,
+      status: BookReadingStatus | null,
+    ) => {
+      const { write } = await import("@/lib/db");
+      return write.item.create({
+        data: {
+          userId,
+          kind: "book",
+          sourceType: "url",
+          bookDetails: { create: { status } },
+        },
+      });
+    };
+
+    const createArticle = async (userId: string, readAt: Date | null) => {
+      const { write } = await import("@/lib/db");
+      return write.item.create({
+        data: {
+          userId,
+          kind: "article",
+          sourceType: "url",
+          articleDetails: { create: { readAt } },
+        },
+      });
+    };
+
+    it("adds books matching the reading status to a smart room", async () => {
+      const user = await createTestUser();
+      const { read } = await import("@/lib/db");
+      const { syncRoomItems } = await import("@/lib/rooms/room-service");
+
+      const reading = await createBook(user.id, "reading");
+      await createBook(user.id, "read");
+      await createBook(user.id, null);
+
+      const room = await createTestRoom(user.id, {
+        filters: [
+          { type: "type", value: "book", negated: false },
+          { type: "status", value: "reading", negated: false },
+        ],
+      });
+
+      const result = await syncRoomItems(room.id, user.id);
+      expect(result.added).toBe(1);
+
+      const roomItems = await read.roomItem.findMany({
+        where: { roomId: room.id },
+      });
+      expect(roomItems.map((ri) => ri.itemId)).toEqual([reading.id]);
+    });
+
+    it("moves a book between rooms when its status changes", async () => {
+      const user = await createTestUser();
+      const { write, read } = await import("@/lib/db");
+      const { syncItemToRooms } = await import("@/lib/rooms/room-service");
+
+      const readingRoom = await createTestRoom(user.id, {
+        name: "Reading",
+        filters: [{ type: "status", value: "reading", negated: false }],
+      });
+      const readRoom = await createTestRoom(user.id, {
+        name: "Read",
+        filters: [{ type: "status", value: "read", negated: false }],
+      });
+
+      const book = await createBook(user.id, "reading");
+      await syncItemToRooms(book.id, user.id);
+
+      const before = await read.roomItem.findMany({
+        where: { itemId: book.id },
+      });
+      expect(before.map((ri) => ri.roomId)).toEqual([readingRoom.id]);
+
+      // Finish the book -> should move Reading -> Read
+      await write.itemBookDetails.update({
+        where: { itemId: book.id },
+        data: { status: "read" },
+      });
+      await syncItemToRooms(book.id, user.id);
+
+      const after = await read.roomItem.findMany({
+        where: { itemId: book.id },
+      });
+      expect(after.map((ri) => ri.roomId)).toEqual([readRoom.id]);
+    });
+
+    // Parity guard: the in-memory room matcher and the SQL search path are two
+    // implementations of the same status vocabulary. This asserts they agree so
+    // they can't silently drift (the bug that let status:reading match every
+    // item). Seeds one item per status, then for each filter compares real
+    // syncRoomItems membership against a raw query built from the SQL source of
+    // truth (buildFilterConditions -> statusMatchSql).
+    describe("SQL parity", () => {
+      const seedAllStatuses = async (userId: string) => {
+        await createBook(userId, "reading");
+        await createBook(userId, "read");
+        await createBook(userId, "dnf");
+        await createBook(userId, "want_to_read");
+        await createBook(userId, null);
+        await createArticle(userId, new Date("2024-06-15"));
+        await createArticle(userId, null);
+        // An image: readable-status filters should never match it.
+        await createTestItem(userId, { kind: "image" });
+      };
+
+      const sqlMatchIds = async (
+        userId: string,
+        parsed: ParsedFilters,
+      ): Promise<Set<string>> => {
+        const { read } = await import("@/lib/db");
+        const { conditions, params } = buildFilterConditions(userId, parsed, {
+          alias: "i",
+        });
+        const rows = await read.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT i.id FROM items i WHERE ${conditions.join(" AND ")}`,
+          ...params,
+        );
+        return new Set(rows.map((r) => r.id));
+      };
+
+      const membershipIds = async (
+        userId: string,
+        roomFilters: Filter[],
+      ): Promise<Set<string>> => {
+        const { write, read } = await import("@/lib/db");
+        const { syncRoomItems } = await import("@/lib/rooms/room-service");
+        const room = await write.room.create({
+          data: {
+            userId,
+            name: "Parity",
+            type: "smart",
+            filters: roomFilters as unknown as Prisma.InputJsonValue,
+            visibility: "private",
+          },
+        });
+        await syncRoomItems(room.id, userId);
+        const members = await read.roomItem.findMany({
+          where: { roomId: room.id },
+          select: { itemId: true },
+        });
+        return new Set(members.map((m) => m.itemId));
+      };
+
+      const filter = (
+        type: Filter["type"],
+        value: string,
+        negated = false,
+      ): Filter => ({ id: `${type}-${value}`, type, value, negated });
+
+      it.each([
+        {
+          name: "unread",
+          roomFilters: [filter("status", "unread")],
+          parsed: { status: [{ value: "unread", negated: false }] },
+        },
+        {
+          name: "reading",
+          roomFilters: [filter("status", "reading")],
+          parsed: { status: [{ value: "reading", negated: false }] },
+        },
+        {
+          name: "read",
+          roomFilters: [filter("status", "read")],
+          parsed: { status: [{ value: "read", negated: false }] },
+        },
+        {
+          name: "dnf",
+          roomFilters: [filter("status", "dnf")],
+          parsed: { status: [{ value: "dnf", negated: false }] },
+        },
+        {
+          name: "negated read",
+          roomFilters: [filter("status", "read", true)],
+          parsed: { status: [{ value: "read", negated: true }] },
+        },
+        {
+          name: "OR group reading|read",
+          roomFilters: [filter("status", "reading|read")],
+          parsed: {
+            status: [
+              { value: "reading", negated: false, orGroup: 0 },
+              { value: "read", negated: false, orGroup: 0 },
+            ],
+          },
+        },
+        {
+          name: "type:book + status:reading",
+          roomFilters: [filter("type", "book"), filter("status", "reading")],
+          parsed: {
+            type: [{ value: "book", negated: false }],
+            status: [{ value: "reading", negated: false }],
+          },
+        },
+      ] satisfies {
+        name: string;
+        roomFilters: Filter[];
+        parsed: ParsedFilters;
+      }[])(
+        "in-memory membership equals SQL search for $name",
+        async ({ roomFilters, parsed }) => {
+          const user = await createTestUser();
+          await seedAllStatuses(user.id);
+
+          const sqlIds = await sqlMatchIds(user.id, parsed);
+          const memberIds = await membershipIds(user.id, roomFilters);
+
+          expect(memberIds).toEqual(sqlIds);
+        },
+      );
     });
   });
 

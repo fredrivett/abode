@@ -47,6 +47,10 @@ const OWNED_DETAIL_MODELS: Record<ItemKind, readonly ItemDetailModel[]> = {
   book: ["itemBookDetails", "itemImageDetails"],
   note: ["itemNoteDetails"],
   webpage: [],
+  // Every page's full OCR text lives in item_document_pages (not a Details
+  // table). Visual analysis (colours, objects, similar-images) runs on the
+  // cover only: document pages look alike, so per-page visuals add no signal
+  document: ["itemImageDetails"],
 };
 
 export type PruneItemDetailsOptions = {

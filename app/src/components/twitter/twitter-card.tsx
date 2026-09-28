@@ -38,6 +38,12 @@ export function TwitterCard({
   className,
 }: TwitterCardProps) {
   const { media, card } = twitterDetails;
+  // Prefer our re-hosted avatar copy, falling back to the original twimg URL
+  const authorAvatarSrc = twitterImageSrc(
+    twitterDetails.authorAvatarFileKey,
+    twitterDetails.authorAvatarUrl,
+    "thumb",
+  );
   const autoplayAllowed = useAutoplayAllowed();
   const textRef = useRef<HTMLDivElement>(null);
   const isTextOverflowing = useIsOverflowing(textRef);
@@ -138,11 +144,11 @@ export function TwitterCard({
         // No media - show the tweet text (with author), clipped with a fade
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden p-4 text-left">
           <div className="flex shrink-0 items-center gap-2">
-            {twitterDetails.authorAvatarUrl ? (
+            {authorAvatarSrc ? (
               // Decorative: the author name renders as visible text alongside
               // biome-ignore lint/performance/noImgElement: external avatar URL
               <img
-                src={twitterDetails.authorAvatarUrl}
+                src={authorAvatarSrc}
                 alt=""
                 className="size-6 shrink-0 rounded-full"
                 loading="lazy"

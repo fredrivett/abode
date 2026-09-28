@@ -3,6 +3,8 @@
 import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { debugTrace } from "@/lib/debug/trace";
+import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useItem } from "@/lib/items/use-item";
@@ -70,10 +72,18 @@ export function CentralItemDialog({
   // deep-linked room item beyond page one) can't be fetched, so don't try.
   const needsFetch = openItemId !== null && !inList && !fromInitial && canEdit;
   const { data: fetched, isError } = useItem(openItemId, needsFetch);
+  // An edit can drop the open item out of the list mid-dialog (marking a book
+  // read under a `@status:reading` search). Keep showing the last copy while
+  // the by-id fetch catches up, rather than unmounting the dialog under the user.
+  const lastResolvedRef = useRef<Item | null>(null);
+  const lastResolved =
+    lastResolvedRef.current?.id === openItemId ? lastResolvedRef.current : null;
   const resolved =
     inList ??
     fromInitial ??
-    (fetched && fetched.id === openItemId ? fetched : null);
+    (fetched && fetched.id === openItemId ? fetched : null) ??
+    lastResolved;
+  lastResolvedRef.current = resolved;
 
   // The by-id fetch failed (deleted item, network, or not the viewer's to see)
   // — close rather than sit on the loading skeleton forever.
@@ -108,12 +118,37 @@ export function CentralItemDialog({
   const showSeed = !resolved && !!seed && seed.id === openItemId;
   const hasContent = resolved !== null || showSeed;
 
+  // Debug trace: which source resolved the open item, so a dialog that exits
+  // and re-enters shows the input that flipped (e.g. list → none mid-refetch)
+  useDebugLifecycle({
+    name: "CentralItemDialog",
+    channel: "dialog",
+    watch: {
+      openItemId,
+      source: inList
+        ? "list"
+        : fromInitial
+          ? "initial"
+          : fetched && fetched.id === openItemId
+            ? "fetched"
+            : resolved
+              ? "last"
+              : showSeed
+                ? "seed"
+                : "none",
+      hasContent,
+      needsFetch,
+      fetchError: isError,
+    },
+  });
+
   return (
     <AnimatePresence>
       {open && hasContent && (
         <ItemDialogFrame
           open
           onOpenChange={(next) => {
+            debugTrace("dialog", "frame:onOpenChange", { next });
             if (!next) closeItem?.();
           }}
         >
@@ -155,6 +190,11 @@ function CentralItemBody({
   onItemRenamed: (itemId: string, title: string) => void;
   onItemDeleted?: (itemId: string) => void;
 }) {
+  useDebugLifecycle({
+    name: "CentralItemBody",
+    channel: "dialog",
+    watch: { itemId: item.id, animateEntrance },
+  });
   const displayName = getItemDisplayName(item);
   // Local mirror so a rename shows in the dialog immediately; onItemRenamed
   // keeps the grid card in sync, and displayName re-derives on the next render.

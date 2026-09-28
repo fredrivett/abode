@@ -198,7 +198,9 @@ export function FilterDropdown({
                     type="button"
                     key={type}
                     data-index={index}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
+                      // pointerdown (not mousedown) so taps register on touch;
+                      // preventDefault keeps focus in the input
                       e.preventDefault();
                       e.stopPropagation();
                       onSelectType(type);
@@ -242,7 +244,9 @@ export function FilterDropdown({
                     type="button"
                     key={value}
                     data-index={index}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
+                      // pointerdown (not mousedown) so taps register on touch;
+                      // preventDefault keeps focus in the input
                       e.preventDefault();
                       e.stopPropagation();
                       onSelectValue(value);

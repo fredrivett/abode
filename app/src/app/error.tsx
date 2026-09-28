@@ -3,14 +3,15 @@
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { isChunkLoadError } from "@/lib/chunk-load-error";
 import { applyThemePreference, getCurrentPreference } from "@/lib/theme";
 
 export default function ErrorPage({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     applyThemePreference(getCurrentPreference());
@@ -29,7 +30,13 @@ export default function ErrorPage({
       <p className="max-w-md text-muted-foreground">
         An unexpected error occurred. Please try again.
       </p>
-      <Button variant="outline" onClick={reset}>
+      <Button
+        variant="outline"
+        onClick={() =>
+          // A failed chunk download stays cached, so only a full reload recovers
+          isChunkLoadError(error) ? window.location.reload() : retry()
+        }
+      >
         Try again
       </Button>
       <p className="max-w-md text-muted-foreground text-sm">

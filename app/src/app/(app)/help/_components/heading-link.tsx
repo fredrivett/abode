@@ -86,14 +86,14 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
       ref={headingRef}
       id={id}
       className={cn(
-        "group -mx-2.5 -my-1.5 relative scroll-mt-20 rounded-md px-2.5 py-1.5 transition-all duration-500",
+        "group relative -mx-2.5 -my-1.5 scroll-mt-20 rounded-md px-2.5 py-1.5 transition-all duration-500",
         isHighlighted && "scale-[1.075] bg-muted shadow-xl",
       )}
     >
       <button
         type="button"
         onClick={handleClick}
-        className="-translate-x-full -translate-y-1/2 hover:!opacity-100 absolute top-1/2 left-0 cursor-pointer pr-1 opacity-0 transition-opacity group-hover:opacity-50"
+        className="hover:!opacity-100 absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 cursor-pointer pr-1 opacity-0 transition-opacity group-hover:opacity-50"
         aria-label={`Copy link to ${text}`}
       >
         <Hash className="size-[1em]" />

@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpLeft,
+  Bug,
   CircleHelp,
   Command,
   DoorOpen,
@@ -24,6 +25,7 @@ import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
 import { AbodeLogo } from "@/components/abode-logo";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { ChecklistPopover } from "@/components/checklist";
 import { SearchInput } from "@/components/search";
@@ -43,12 +45,17 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getModifierKeySymbol } from "@/lib/keyboard";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
+import { setDebugFlag, useDebugFlag } from "@/lib/debug/debug-flag";
 import { emptySearchState, useFilterOptions, useSearch } from "@/lib/search";
 import { useThemePreference } from "@/lib/use-theme-preference";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
-import { useUserStore } from "@/stores/user-store";
+import {
+  currentUserValue,
+  type UserProfile,
+  useUserStore,
+} from "@/stores/user-store";
 
 type NavItem = {
   href: string;
@@ -178,6 +185,8 @@ type AuthenticatedProps = BaseProps & {
   lastName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  /** Signed-in user's id, so the client store can tell users apart */
+  userId: string;
   isAdmin?: boolean;
   availableInvites: number;
   signOutAction: () => Promise<void>;
@@ -199,15 +208,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
     centerSlot,
   } = props;
 
-  const {
-    firstName: storeFirstName,
-    lastName: storeLastName,
-    username: storeUsername,
-    email: storeEmail,
-    avatarUrl: storeAvatarUrl,
-    availableInvites: storeAvailableInvites,
-    hydrateUser,
-  } = useUserStore();
+  const modifierKeySymbol = useModifierKeySymbol();
+  const userStore = useUserStore();
+  const { hydrateUser } = userStore;
 
   const { setOpen, setUploadDialogOpen } = useCommandPaletteStore();
   const {
@@ -232,11 +235,13 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
 
   // Extract authenticated props for hydration (with type narrowing)
   const authProps = isAuthenticated ? props : null;
+  const debugFlag = useDebugFlag();
 
   // Hydrate store with server-fetched values on mount
   useEffect(() => {
     if (authProps) {
       hydrateUser({
+        userId: authProps.userId,
         firstName: authProps.firstName,
         lastName: authProps.lastName,
         username: authProps.username,
@@ -251,24 +256,25 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   // Use store value if hydrated, otherwise fall back to prop.
   // Props are used during SSR and initial client render (before useEffect hydrates the store).
   // After hydration, store values take over so mutations (e.g., name changes) reflect immediately.
-  const firstName =
-    storeFirstName !== undefined
-      ? storeFirstName
-      : (authProps?.firstName ?? null);
-  const lastName =
-    storeLastName !== undefined ? storeLastName : (authProps?.lastName ?? null);
-  const username =
-    storeUsername !== undefined ? storeUsername : (authProps?.username ?? null);
-  const email =
-    storeEmail !== undefined ? storeEmail : (authProps?.email ?? null);
-  const avatarUrl =
-    storeAvatarUrl !== undefined
-      ? storeAvatarUrl
-      : (authProps?.avatarUrl ?? null);
+  // Only the signed-in user's values count — see currentUserValue.
+  const fromStore = <K extends keyof UserProfile>(
+    key: K,
+    fallback: NonNullable<UserProfile[K]> | null,
+  ) => {
+    const value = currentUserValue({
+      state: userStore,
+      userId: authProps?.userId,
+      key,
+    });
+    return value !== undefined ? value : fallback;
+  };
+  const firstName = fromStore("firstName", authProps?.firstName ?? null);
+  const lastName = fromStore("lastName", authProps?.lastName ?? null);
+  const username = fromStore("username", authProps?.username ?? null);
+  const email = fromStore("email", authProps?.email ?? null);
+  const avatarUrl = fromStore("avatarUrl", authProps?.avatarUrl ?? null);
   const availableInvites =
-    storeAvailableInvites !== undefined
-      ? storeAvailableInvites
-      : (authProps?.availableInvites ?? 0);
+    fromStore("availableInvites", authProps?.availableInvites ?? 0) ?? 0;
 
   // Compute display values for the user dropdown
   // If user has a name (first and/or last), show name on line 1 and @username on line 2
@@ -302,7 +308,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
             href={isAuthenticated ? "/dashboard" : "/"}
             className="group/home absolute top-full left-2 mt-1 hidden items-center whitespace-nowrap pl-5 text-foreground text-sm opacity-30 transition-opacity hover:opacity-100 xl:flex"
           >
-            <ArrowUpLeft className="group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 absolute left-0 size-3.5 transition-transform group-hover/home:scale-150" />
+            <ArrowUpLeft className="absolute left-0 size-3.5 transition-transform group-hover/home:-translate-x-0.5 group-hover/home:-translate-y-0.5 group-hover/home:scale-150" />
             take me
             <span className="ml-1 transition-all group-hover/home:font-serif">
               home
@@ -446,6 +452,13 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                         Admin
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDebugFlag(!debugFlag)}
+                      className="flex items-center gap-2"
+                    >
+                      <Bug className="size-4" />
+                      <span>Debug trace: {debugFlag ? "On" : "Off"}</span>
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
@@ -457,7 +470,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                     <Settings className="size-4" />
                     <span className="flex-1">Settings</span>
                     <KbdGroup>
-                      <Kbd>{getModifierKeySymbol()}</Kbd>
+                      <Kbd>{modifierKeySymbol}</Kbd>
                       <Kbd>,</Kbd>
                     </KbdGroup>
                   </Link>
@@ -492,7 +505,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                   <Command className="size-4" />
                   <span className="flex-1">Commands</span>
                   <KbdGroup>
-                    <Kbd>{getModifierKeySymbol()}</Kbd>
+                    <Kbd>{modifierKeySymbol}</Kbd>
                     <Kbd>K</Kbd>
                   </KbdGroup>
                 </DropdownMenuItem>
@@ -504,7 +517,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <form action={props.signOutAction}>
+                  <SignOutForm action={props.signOutAction}>
                     <button
                       type="submit"
                       className="flex w-full items-center gap-2"
@@ -512,7 +525,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
                       <LogOut className="size-4" />
                       Sign out
                     </button>
-                  </form>
+                  </SignOutForm>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -162,6 +162,108 @@ describe("buildFilterConditions integration", () => {
     },
   );
 
+  test.each(["i", "items"] as const)(
+    "matches quoted phrases exactly, case-insensitively, under the %s alias",
+    async (alias) => {
+      const { write } = await import("@/lib/db");
+      const user = await createUser(`phrase-${alias}@example.com`);
+      const make = (data: {
+        kind?: "image" | "document";
+        title?: string;
+        description?: string;
+        notes?: string;
+        userTags?: string[];
+      }) =>
+        write.item
+          .create({
+            data: { ...data, id: crypto.randomUUID(), userId: user.id },
+          })
+          .then((item) => item.id);
+
+      const inTitle = await make({
+        title: "On the Equality of All Things",
+      });
+      const inNotes = await make({
+        notes: "a line about equality of all\nthings wrapped",
+      });
+      const inUserTag = await make({
+        userTags: ["equality of all things"],
+      });
+      const inOcr = await make({ kind: "image" });
+      await write.itemImageDetails.create({
+        data: { itemId: inOcr, ocrText: "EQUALITY OF ALL THINGS" },
+      });
+      const inDocPage = await make({ kind: "document" });
+      await write.itemDocumentPage.create({
+        data: {
+          itemId: inDocPage,
+          position: 2,
+          fileKey: "page.jpg",
+          originalFileKey: "page-original.jpg",
+          width: 1,
+          height: 1,
+          ocrText: "…on the equality of all things…",
+        },
+      });
+      // Every word present, but not as the phrase
+      await make({
+        title: "All things considered",
+        description: "equality of opportunity",
+      });
+
+      expect(
+        await runQuery(user.id, { phrases: ["equality of all things"] }, alias),
+      ).toEqual([inTitle, inNotes, inUserTag, inOcr, inDocPage].sort());
+
+      // Several phrases must all match
+      expect(
+        await runQuery(
+          user.id,
+          { phrases: ["equality of all things", "on the"] },
+          alias,
+        ),
+      ).toEqual([inTitle, inDocPage].sort());
+
+      // Regex metacharacters match literally rather than as a pattern
+      const literal = await make({ title: "C++ (2nd ed.)" });
+      await make({ title: "Cxx 2nd ed" });
+      expect(
+        await runQuery(user.id, { phrases: ["c++ (2nd ed.)"] }, alias),
+      ).toEqual([literal]);
+    },
+  );
+
+  test("phraseSearch returns title matches first, then newest", async () => {
+    const { phraseSearch } = await import("./full-text-search");
+    const user = await createUser("phrase-order@example.com");
+    const { write } = await import("@/lib/db");
+    const make = (data: { title?: string; notes?: string; createdAt: Date }) =>
+      write.item
+        .create({ data: { ...data, id: crypto.randomUUID(), userId: user.id } })
+        .then((item) => item.id);
+
+    const oldTitle = await make({
+      title: "all things",
+      createdAt: new Date("2020-01-01"),
+    });
+    const newNotes = await make({
+      notes: "all things",
+      createdAt: new Date("2024-01-01"),
+    });
+    const oldNotes = await make({
+      notes: "all things",
+      createdAt: new Date("2021-01-01"),
+    });
+    await make({ title: "things, all", createdAt: new Date("2025-01-01") });
+
+    expect(await phraseSearch(user.id, { phrases: ["All Things"] })).toEqual([
+      oldTitle,
+      newNotes,
+      oldNotes,
+    ]);
+    expect(await phraseSearch(user.id, {})).toEqual([]);
+  });
+
   test("scopes to the requesting user under both aliases", async () => {
     const owner = await createUser("owner@example.com");
     const other = await createUser("other@example.com");

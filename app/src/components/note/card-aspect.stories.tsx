@@ -1,7 +1,6 @@
-import { BalancedMasonryGrid, Frame } from "@masonry-grid/react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ReactNode } from "react";
-
+import { MasonryGrid } from "@/components/masonry/masonry-grid";
 import { NoteCard } from "@/components/note/note-card";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import type { TwitterDetails } from "@/components/twitter/types";
@@ -345,63 +344,60 @@ const MASONRY_SAMPLES: Sample[] = [
   })),
 ].filter((s) => !(s.kind === "note" && s.content === "" && s.title === null));
 
-// A fixed container width whose columns land exactly on FRAME_WIDTH (no `1fr`
-// stretch), so the estimator's column width matches the real layout without a
-// measuring hook — Storybook's nextjs-vite framework crashes on `"use client"`
-// hook modules in the render path.
 const FRAME_WIDTH = 240;
 const GAP = 12;
 const COLS = 4;
 const CONTAINER_WIDTH = COLS * FRAME_WIDTH + (COLS - 1) * GAP;
 
+type MasonrySample = (typeof MASONRY_SAMPLES)[number];
+
+function sampleAspect(sample: MasonrySample, columnWidthPx: number) {
+  return sample.kind === "note"
+    ? estimateNoteAspect(
+        { title: sample.title, body: sample.content },
+        { columnWidthPx, cardRootPx: 16, measure: measureCardText },
+      )
+    : estimateTweetAspect(
+        {
+          text: sample.details.text ?? "",
+          hasAvatar: !!sample.details.authorAvatarUrl,
+        },
+        { columnWidthPx, measure: measureCardText },
+      );
+}
+
 function MasonryDemo() {
   return (
     <div style={{ width: CONTAINER_WIDTH, maxWidth: "100%" }}>
-      <BalancedMasonryGrid frameWidth={FRAME_WIDTH} gap={GAP}>
-        {MASONRY_SAMPLES.map((s) => {
-          const aspect =
-            s.kind === "note"
-              ? estimateNoteAspect(
-                  { title: s.title, body: s.content },
-                  {
-                    columnWidthPx: FRAME_WIDTH,
-                    cardRootPx: 16,
-                    measure: measureCardText,
-                  },
-                )
-              : estimateTweetAspect(
-                  {
-                    text: s.details.text ?? "",
-                    hasAvatar: !!s.details.authorAvatarUrl,
-                  },
-                  { columnWidthPx: FRAME_WIDTH, measure: measureCardText },
-                );
-          return (
-            <Frame key={s.id} width={aspect.width} height={aspect.height}>
-              <div className="h-full">
-                {s.kind === "note" ? (
-                  <NoteCard
-                    title={s.title}
-                    content={s.content}
-                    onClick={noop}
-                  />
-                ) : (
-                  <TwitterCard
-                    twitterDetails={s.details}
-                    itemId="story-item"
-                    onClick={noop}
-                  />
-                )}
-              </div>
-            </Frame>
-          );
-        })}
-      </BalancedMasonryGrid>
+      <MasonryGrid<MasonrySample>
+        items={MASONRY_SAMPLES}
+        getKey={(sample) => sample.id}
+        getFrame={(sample, { columnWidth }) =>
+          sampleAspect(sample, columnWidth)
+        }
+        minColumnWidth={FRAME_WIDTH}
+        gap={GAP}
+        renderItem={(sample) =>
+          sample.kind === "note" ? (
+            <NoteCard
+              title={sample.title}
+              content={sample.content}
+              onClick={noop}
+            />
+          ) : (
+            <TwitterCard
+              twitterDetails={sample.details}
+              itemId="story-item"
+              onClick={noop}
+            />
+          )
+        }
+      />
     </div>
   );
 }
 
-/** The real `BalancedMasonryGrid`, to judge how varied heights pack together. */
+/** The real `MasonryGrid`, to judge how varied heights pack together. */
 export const Masonry: Story = {
   render: () => <MasonryDemo />,
 };

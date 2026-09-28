@@ -12,7 +12,7 @@ import { getUserWithMfa } from "./server";
 
 type FakeClientOptions = {
   user: { id: string } | null;
-  currentLevel?: "aal1" | "aal2";
+  currentLevel?: string | null;
   verifiedFactor?: boolean;
   mfaThrows?: boolean;
 };
@@ -74,6 +74,19 @@ describe("getUserWithMfa", () => {
     );
 
     // 2FA enrolled but not satisfied → caller's `if (!user)` guard returns 401
+    expect(result.data.user).toBeNull();
+  });
+
+  it("fails closed: nulls the user when the session reports an unrecognised AAL", async () => {
+    // Supabase passes the JWT's aal claim through unchecked; only aal2 satisfies 2FA
+    const result = await getUserWithMfa(
+      fakeClient({
+        user: { id: "u1" },
+        currentLevel: "aal3",
+        verifiedFactor: true,
+      }),
+    );
+
     expect(result.data.user).toBeNull();
   });
 

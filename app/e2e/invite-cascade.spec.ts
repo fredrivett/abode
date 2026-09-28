@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type BrowserContext, expect, test } from "@playwright/test";
 import { createAndLogin } from "./helpers/auth";
 import { disconnectE2EPrisma, getE2EPrisma } from "./helpers/db";
 import {
@@ -11,6 +11,23 @@ import {
 import { createUser } from "./helpers/user";
 
 const DEFAULT_PASSWORD = "test-password-123!";
+
+// Close a context after letting its pages go idle. Closing mid-request aborts
+// that request on the shared dev server (logged as
+// `uncaughtException: Error: aborted`), which can blank a concurrent SSR render
+// — the intermittent cause of this suite's status-page assertions failing after
+// a sibling context is torn down. Best-effort: the idle wait is bounded and
+// swallowed so teardown can never hang or throw.
+async function closeContext(context: BrowserContext): Promise<void> {
+  await Promise.all(
+    context
+      .pages()
+      .map((page) =>
+        page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {}),
+      ),
+  );
+  await context.close();
+}
 
 test.afterAll(async () => {
   await disconnectE2EPrisma();
@@ -70,9 +87,9 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     // Verify inviterB's invites remaining haven't decreased
     await expect(pageB.getByTestId("invites-remaining")).toHaveText("3");
 
-    await ctxA.close();
-    await ctxB.close();
-    await inviteeCtx.close();
+    await closeContext(ctxA);
+    await closeContext(ctxB);
+    await closeContext(inviteeCtx);
   });
 
   test("inviter deletes account - invite still works", async ({ browser }) => {
@@ -91,7 +108,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     const token = await getInviteTokenFromDB(inviter.id, inviteeEmail);
 
     await deleteAccountViaUI(inviterPage, inviter.password);
-    await inviterCtx.close();
+    await closeContext(inviterCtx);
 
     // New user signs up via the invite (inviter is gone)
     const inviteeCtx = await browser.newContext();
@@ -117,7 +134,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     expect(invite?.inviterId).toBeNull();
     expect(invite?.status).toBe("accepted");
 
-    await inviteeCtx.close();
+    await closeContext(inviteeCtx);
   });
 
   test("invited user deletes account - shows User deleted", async ({
@@ -148,13 +165,13 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 
     // Invitee deletes their account
     await deleteAccountViaUI(inviteePage, DEFAULT_PASSWORD);
-    await inviteeCtx.close();
+    await closeContext(inviteeCtx);
 
     // Inviter checks their sent invites
     await inviterPage.goto("/settings/invites");
     await expect(inviterPage.getByText("User deleted")).toBeVisible();
 
-    await inviterCtx.close();
+    await closeContext(inviterCtx);
   });
 
   test("multiple inviters + invited user deletes", async ({ browser }) => {
@@ -193,7 +210,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 
     // Invitee deletes their account
     await deleteAccountViaUI(inviteePage, DEFAULT_PASSWORD);
-    await inviteeCtx.close();
+    await closeContext(inviteeCtx);
 
     // InviterA sees: accepted + "User deleted"
     await pageA.goto("/settings/invites");
@@ -203,8 +220,8 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     await pageB.goto("/settings/invites");
     await expect(pageB.getByText("Joined (now deleted)")).toBeVisible();
 
-    await ctxA.close();
-    await ctxB.close();
+    await closeContext(ctxA);
+    await closeContext(ctxB);
   });
 
   test("pending invite stays pending", async ({ browser }) => {
@@ -222,7 +239,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     await expect(page.getByText(inviteeEmail)).toBeVisible();
     await expect(page.getByText(/expires/)).toBeVisible();
 
-    await context.close();
+    await closeContext(context);
   });
 
   test("invite count accuracy with joined_elsewhere", async ({ browser }) => {
@@ -267,7 +284,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
       username: "t6_invitee_2",
       password: DEFAULT_PASSWORD,
     });
-    await inviteeCtx.close();
+    await closeContext(inviteeCtx);
 
     // InviterA reloads — should now have 1 invite remaining
     // (joined_elsewhere doesn't count toward allocation)
@@ -279,8 +296,8 @@ test.describe("Invite Cascade Deletion Behavior", () => {
       pageA.getByRole("button", { name: /send invite/i }),
     ).toBeVisible();
 
-    await ctxA.close();
-    await ctxB.close();
+    await closeContext(ctxA);
+    await closeContext(ctxB);
   });
 
   test("inviter deleted during signup flow", async ({ browser }) => {
@@ -321,7 +338,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
 
     // Now delete the inviter while the invitee hasn't confirmed yet
     await deleteAccountViaUI(inviterPage, inviter.password);
-    await inviterCtx.close();
+    await closeContext(inviterCtx);
 
     // Invitee clicks confirmation link
     const { getConfirmationPath } = await import("./helpers/mailpit");
@@ -338,7 +355,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     expect(invite?.inviterId).toBeNull();
     expect(invite?.status).toBe("accepted");
 
-    await inviteeCtx.close();
+    await closeContext(inviteeCtx);
   });
 
   test("revoked invite no longer works", async ({ browser }) => {
@@ -392,8 +409,8 @@ test.describe("Invite Cascade Deletion Behavior", () => {
       inviteePage.getByText(/this invite link is invalid or doesn't exist/i),
     ).toBeVisible();
 
-    await inviterCtx.close();
-    await inviteeCtx.close();
+    await closeContext(inviterCtx);
+    await closeContext(inviteeCtx);
   });
 
   test("UI displays all status types correctly", async ({ browser }) => {
@@ -440,7 +457,7 @@ test.describe("Invite Cascade Deletion Behavior", () => {
       username: "t9_accepted",
       password: DEFAULT_PASSWORD,
     });
-    await ctx1.close();
+    await closeContext(ctx1);
 
     // InviterB invites emailJoinedElsewhere, user 2 signs up via inviterB → inviterA's becomes "joined_elsewhere"
     const { context: ctxB, page: pageB } = await createAndLogin(
@@ -459,8 +476,8 @@ test.describe("Invite Cascade Deletion Behavior", () => {
       username: "t9_elsewhere",
       password: DEFAULT_PASSWORD,
     });
-    await ctx2.close();
-    await ctxB.close();
+    await closeContext(ctx2);
+    await closeContext(ctxB);
 
     // Set emailExpired invite to past expiry via Prisma
     await prisma.invite.updateMany({
@@ -485,6 +502,6 @@ test.describe("Invite Cascade Deletion Behavior", () => {
     await expect(pageA.getByText(emailExpired)).toBeVisible();
     await expect(pageA.getByText("expired", { exact: true })).toBeVisible();
 
-    await ctxA.close();
+    await closeContext(ctxA);
   });
 });

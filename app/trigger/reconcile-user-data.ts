@@ -1,5 +1,6 @@
 import { logger, schedules } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
+import { storedBytesByUser } from "../src/lib/storage-usage";
 
 /**
  * Daily reconciliation task for user data.
@@ -49,18 +50,10 @@ export const reconcileUserDataTask = schedules.task({
     }
 
     // === Storage & Item Count Reconciliation ===
-    // Calculate actual storage and item count for all users in parallel queries
-    // Storage calculation includes both meta.size (for images) and meta.coverSize (for article covers)
-    const [storageByUser, itemCountByUser] = await Promise.all([
-      db.$queryRaw<{ user_id: string; total: bigint | null }[]>`
-        SELECT u.id as user_id, COALESCE(SUM(
-          COALESCE(CASE WHEN jsonb_typeof(i.meta->'size') = 'number' THEN (i.meta->>'size')::numeric::bigint ELSE 0 END, 0) +
-          COALESCE(CASE WHEN jsonb_typeof(i.meta->'coverSize') = 'number' THEN (i.meta->>'coverSize')::numeric::bigint ELSE 0 END, 0)
-        ), 0) as total
-        FROM users u
-        LEFT JOIN items i ON i.user_id = u.id
-        GROUP BY u.id
-      `,
+    // Storage comes from what's actually in the buckets (see storedBytesByUser),
+    // not per-item meta sizes, which miss galleries, favicons and avatars
+    const [actualStorageMap, itemCountByUser] = await Promise.all([
+      storedBytesByUser(),
       db.$queryRaw<{ user_id: string; total: bigint }[]>`
         SELECT u.id as user_id, COUNT(i.id) as total
         FROM users u
@@ -73,13 +66,6 @@ export const reconcileUserDataTask = schedules.task({
     const users = await db.user.findMany({
       select: { id: true, storageUsedBytes: true, itemCount: true },
     });
-
-    // Create lookup maps for actual values
-    // Note: Prisma $queryRaw returns bigint as Decimal, so we must convert explicitly
-    const actualStorageMap = new Map<string, bigint>();
-    for (const row of storageByUser) {
-      actualStorageMap.set(row.user_id, BigInt(row.total?.toString() ?? "0"));
-    }
 
     const actualItemCountMap = new Map<string, number>();
     for (const row of itemCountByUser) {

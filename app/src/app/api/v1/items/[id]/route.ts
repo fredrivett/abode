@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
+import { deleteOwnedItem } from "@/lib/items/delete-item";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -434,21 +435,15 @@ export async function DELETE(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if item exists and belongs to user
-    const existingItem = await db.item.findUnique({
-      where: {
-        id,
-        userId: user.id,
-      },
+    // Someone else's item is indistinguishable from a missing one here
+    const result = await deleteOwnedItem({
+      supabase,
+      itemId: id,
+      userId: user.id,
     });
-
-    if (!existingItem) {
+    if (result !== "deleted") {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
-
-    await db.item.delete({
-      where: { id },
-    });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

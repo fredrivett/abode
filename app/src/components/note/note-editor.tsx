@@ -6,7 +6,11 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
+import {
+  NOTE_EDITOR_CLASS,
+  NOTE_PROSE_CLASS,
+  NOTE_PROSE_FONT_SIZE,
+} from "./note-prose";
 
 // A document whose first node must be a heading, so the note always opens with
 // a title line (Notion-style). The required heading can't be deleted, only
@@ -36,11 +40,6 @@ type NoteEditorProps = {
    */
   titleFirst?: boolean;
 };
-
-// `max-md:text-[1rem]` keeps the editor root at 16px on small screens — prose-sm
-// would drop it to 14px, which makes iOS Safari auto-zoom the UI on focus
-const EDITOR_BASE_CLASS =
-  "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
 
 /**
  * WYSIWYG note editor backed by markdown.
@@ -77,7 +76,7 @@ export function NoteEditor({
     editorProps: {
       attributes: {
         class: cn(
-          EDITOR_BASE_CLASS,
+          NOTE_EDITOR_CLASS,
           NOTE_PROSE_CLASS,
           titleFirst && TITLE_HEADING_CLASS,
           className,
@@ -92,9 +91,11 @@ export function NoteEditor({
     },
   });
 
-  // Keep editability in sync when the prop changes
+  // Keep editability in sync when the prop changes. `emitUpdate: false` —
+  // TipTap otherwise fires an "update" here, which reads as an edit and made
+  // merely opening a note autosave it
   useEffect(() => {
-    editor?.setEditable(editable);
+    editor?.setEditable(editable, false);
   }, [editor, editable]);
 
   // Sync external content changes that didn't originate from this editor

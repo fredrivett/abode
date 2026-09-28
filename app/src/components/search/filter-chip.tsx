@@ -3,6 +3,11 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { colorSwatchCss } from "@/lib/search/color-utils";
 import { collapseDateRange } from "@/lib/search/date-range-label";
 import {
@@ -18,9 +23,16 @@ type FilterChipProps = {
   filter: Filter;
   onRemove?: (id: string) => void;
   className?: string;
+  /** Where the facet-name tooltip opens; use "left" in vertical lists so it doesn't cover the next chip */
+  tooltipSide?: "top" | "right" | "bottom" | "left";
 };
 
-export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
+export function FilterChip({
+  filter,
+  onRemove,
+  className,
+  tooltipSide = "bottom",
+}: FilterChipProps) {
   const meta = FILTER_TYPES[filter.type];
   const displayValue = getDisplayValue(filter);
 
@@ -38,15 +50,22 @@ export function FilterChip({ filter, onRemove, className }: FilterChipProps) {
     >
       {/* facet is conveyed by the emoji + accent colour; keep the label for screen readers */}
       <span className="sr-only">{meta.label}:</span>
-      {filter.type === "color" ? (
-        <span
-          aria-hidden
-          className="size-3 rounded-full border border-current/20"
-          style={{ backgroundColor: colorSwatchCss(filter.value) }}
-        />
-      ) : (
-        <span aria-hidden>{meta.icon}</span>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {filter.type === "color" ? (
+            <span
+              aria-hidden
+              className="size-3 rounded-full border border-current/20"
+              style={{ backgroundColor: colorSwatchCss(filter.value) }}
+            />
+          ) : (
+            <span aria-hidden>{meta.icon}</span>
+          )}
+        </TooltipTrigger>
+        <TooltipContent side={tooltipSide} sideOffset={6}>
+          {meta.icon} {meta.label}
+        </TooltipContent>
+      </Tooltip>
       <span
         className={cn(
           "font-medium",

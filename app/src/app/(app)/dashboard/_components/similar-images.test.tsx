@@ -53,6 +53,7 @@ const sampleItem = {
   id: "target-1",
   fileKey: "user/photo-1.jpg",
   title: "A beach",
+  kind: "image" as const,
   blurDataUrl: BLUR,
   similarity: 0.92,
 };
@@ -134,6 +135,7 @@ describe("SimilarImages", () => {
       id: "target-1",
       imageFileKey: "user/photo-1.jpg",
       title: "A beach",
+      kind: "image",
       blurDataUrl: BLUR,
     });
     expect(capture).toHaveBeenCalledWith("similar_image_clicked", {

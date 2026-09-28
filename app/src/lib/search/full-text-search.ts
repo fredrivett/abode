@@ -7,6 +7,7 @@
 
 import db from "@/lib/db";
 import { buildFilterConditions, type ParsedFilters } from "./query-builder";
+import { phraseToPattern } from "./quoted-phrases";
 
 export type FullTextResult = {
   id: string;
@@ -155,4 +156,38 @@ export async function ocrTextSearch(
     rank: r.rank,
     snippet: r.snippet,
   }));
+}
+
+/**
+ * Every item containing the query's exact phrases (`filters.phrases`), title
+ * matches first then newest. Full-text, vector and OCR search only rank the
+ * items they can find, and a phrase can live where none of them look (notes
+ * alongside non-phrase words, a later document page) — this guarantees every
+ * exact match is returned.
+ */
+export async function phraseSearch(
+  userId: string,
+  filters: ParsedFilters,
+  limit = 100,
+): Promise<string[]> {
+  const [firstPhrase] = filters.phrases ?? [];
+  if (!firstPhrase) return [];
+
+  const { conditions, params } = buildFilterConditions(userId, filters);
+
+  params.push(phraseToPattern(firstPhrase));
+  const patternParamIndex = params.length;
+
+  const results = await db.$queryRawUnsafe<Array<{ id: string }>>(
+    `
+    SELECT i.id
+    FROM items i
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY COALESCE(i.title ~* $${patternParamIndex}, false) DESC, i.created_at DESC
+    LIMIT ${limit}
+  `,
+    ...params,
+  );
+
+  return results.map((r) => r.id);
 }

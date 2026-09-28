@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { validateInviteToken } from "@/lib/invites";
 import { EnterCodeForm } from "./enter-code-form";
@@ -7,6 +8,8 @@ import {
   InviteInvalidError,
 } from "./invite-errors";
 import { JoinForm } from "./join-form";
+
+export const metadata: Metadata = { title: "Join | abode" };
 
 type PageProps = {
   searchParams: Promise<{ token?: string }>;

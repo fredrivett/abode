@@ -28,7 +28,7 @@ type UpdateHighlightPayload = {
   note?: string;
 };
 
-function highlightsQueryKey(itemId: string) {
+export function highlightsQueryKey(itemId: string) {
   return ["items", itemId, "highlights"] as const;
 }
 
@@ -54,7 +54,9 @@ export function useCreateHighlight(itemId: string) {
   return useMutation<HighlightResponse, Error, CreateHighlightPayload>({
     mutationFn: (data) => api.post(`/api/v1/items/${itemId}/highlights`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: highlightsQueryKey(itemId) });
+      void queryClient.invalidateQueries({
+        queryKey: highlightsQueryKey(itemId),
+      });
       useMilestoneStore.getState().markComplete("highlight_article");
     },
   });
@@ -74,7 +76,9 @@ export function useUpdateHighlight(itemId: string) {
     mutationFn: ({ highlightId, ...data }) =>
       api.patch(`/api/v1/items/${itemId}/highlights/${highlightId}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: highlightsQueryKey(itemId) });
+      void queryClient.invalidateQueries({
+        queryKey: highlightsQueryKey(itemId),
+      });
     },
   });
 }
@@ -89,7 +93,9 @@ export function useDeleteHighlight(itemId: string) {
     mutationFn: (highlightId) =>
       api.delete(`/api/v1/items/${itemId}/highlights/${highlightId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: highlightsQueryKey(itemId) });
+      void queryClient.invalidateQueries({
+        queryKey: highlightsQueryKey(itemId),
+      });
     },
   });
 }

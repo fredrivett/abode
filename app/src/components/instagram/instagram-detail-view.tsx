@@ -81,6 +81,7 @@ export function InstagramDetailView({
           <div className="grid grid-cols-1 gap-2 overflow-hidden rounded-xl">
             {media.map((item, index) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: url can repeat; static, never-reordered list
                 key={`${item.url}-${index}`}
                 className="relative overflow-hidden bg-gray-100 dark:bg-gray-800"
               >

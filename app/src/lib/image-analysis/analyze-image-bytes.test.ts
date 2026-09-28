@@ -4,7 +4,11 @@ vi.mock("../vision", () => ({
   analyzeImageColorsOnly: vi.fn(),
   isGoogleVisionConfigured: vi.fn(),
 }));
-vi.mock("./openai-vision", () => ({ analyzeImageWithOpenAI: vi.fn() }));
+vi.mock("./openai-vision", async (importOriginal) => ({
+  BilledVisionError: (await importOriginal<typeof import("./openai-vision")>())
+    .BilledVisionError,
+  analyzeImageWithOpenAI: vi.fn(),
+}));
 vi.mock("../embeddings", () => ({
   isOpenAiConfigured: vi.fn(),
   isReplicateConfigured: vi.fn(),
@@ -27,7 +31,7 @@ import { captureServerException } from "../posthog-server";
 import { analyzeImageColorsOnly, isGoogleVisionConfigured } from "../vision";
 import { analyzeImageBytes } from "./analyze-image-bytes";
 import { reportImageEmbeddingFailure } from "./embedding-failure";
-import { analyzeImageWithOpenAI } from "./openai-vision";
+import { analyzeImageWithOpenAI, BilledVisionError } from "./openai-vision";
 
 const openai = vi.mocked(analyzeImageWithOpenAI);
 const colors = vi.mocked(analyzeImageColorsOnly);
@@ -115,6 +119,40 @@ describe("analyzeImageBytes", () => {
         itemId: "item-1",
         source: "upload",
         phase: "initial",
+      }),
+    );
+  });
+
+  it("asks OpenAI vision for the image's text unless told not to", async () => {
+    replicateConfigured.mockReturnValue(false);
+
+    await analyzeImageBytes(baseParams());
+    expect(openai).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", {
+      ocr: true,
+    });
+
+    await analyzeImageBytes({ ...baseParams(), ocr: false });
+    expect(openai).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", {
+      ocr: false,
+    });
+  });
+
+  it("records the billed usage of an unusable vision response, then rethrows", async () => {
+    replicateConfigured.mockReturnValue(false);
+    openai.mockRejectedValue(
+      new BilledVisionError("truncated", {
+        model: "gpt-x",
+        usage: { promptTokens: 5, completionTokens: 1000, totalTokens: 1005 },
+      }),
+    );
+
+    await expect(analyzeImageBytes(baseParams())).rejects.toThrow("truncated");
+    expect(recordAiUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "openai",
+        model: "gpt-x",
+        inputTokens: 5,
+        outputTokens: 1000,
       }),
     );
   });

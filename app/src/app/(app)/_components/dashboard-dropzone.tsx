@@ -151,7 +151,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       {(isFileLoading || isUrlLoading) && !isDragging && (
         <div
           aria-live="polite"
-          className="-translate-x-1/2 fade-in-0 slide-in-from-bottom-2 pointer-events-none fixed bottom-6 left-1/2 z-50 animate-in duration-150"
+          className="fade-in-0 slide-in-from-bottom-2 pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-in duration-150"
         >
           <div className="rounded-full border bg-background/95 px-4 py-2 shadow-lg">
             <p className="font-medium text-foreground text-sm">

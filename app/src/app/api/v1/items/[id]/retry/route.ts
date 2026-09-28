@@ -1,3 +1,4 @@
+import type { analyzeDocumentTask } from "@app/trigger/analyze-document";
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
 import type { ProcessingErrorReason } from "@prisma/client";
@@ -69,7 +70,8 @@ export async function POST(
 
     const canRetry =
       (item.sourceType === "url" && item.sourceUrl) ||
-      (item.kind === "image" && item.fileKey);
+      (item.kind === "image" && item.fileKey) ||
+      item.kind === "document";
 
     if (!canRetry) {
       log.warn(
@@ -153,6 +155,18 @@ export async function POST(
             userId: item.userId,
             fileKey: item.fileKey,
           },
+          item.userId,
+        );
+      } else if (item.kind === "document") {
+        log.info(
+          { itemId: id, userId: item.userId, triggeredBy: user.id },
+          "Retrying document analysis",
+        );
+        // Pages OCR'd by the failed attempt are skipped, so this only redoes
+        // the unfinished work
+        await enqueueUserProcessing<typeof analyzeDocumentTask>(
+          "analyze-document",
+          { itemId: id, userId: item.userId },
           item.userId,
         );
       }

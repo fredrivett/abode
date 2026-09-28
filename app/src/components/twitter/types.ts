@@ -28,6 +28,7 @@ export type TwitterDetails = {
   authorName: string | null;
   authorUsername: string;
   authorAvatarUrl: string | null;
+  authorAvatarFileKey?: string | null;
   text: string | null;
   postedAt: string | null;
   media: TwitterMedia[] | null;

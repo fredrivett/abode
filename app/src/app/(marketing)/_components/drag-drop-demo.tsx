@@ -92,7 +92,7 @@ export function DragDropDemo({
               />
             </div>
             {/* cursor tip resting in the middle of the page (image centre) */}
-            <MacCursor className="-translate-x-[5px] -translate-y-[2px] absolute top-1/2 left-1/2 size-7 drop-shadow-md" />
+            <MacCursor className="absolute top-1/2 left-1/2 size-7 -translate-x-[5px] -translate-y-[2px] drop-shadow-md" />
           </div>
         </div>
       </div>

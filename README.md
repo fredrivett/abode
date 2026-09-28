@@ -34,19 +34,21 @@ Next.js 16 (React 19) · Tailwind CSS 4 · shadcn/ui · Zustand · TanStack Quer
 
 The only thing you _must_ provision to self-host is a database and Supabase. Everything else is an enhancement that lights up when you add its key and [degrades cleanly](AGENTS.md#optional-services--graceful-degradation) when you don't.
 
-| Service                                                       | Tier                 | Unlocks                                          | Without it                                              |
-| ------------------------------------------------------------- | -------------------- | ------------------------------------------------ | ------------------------------------------------------- |
-| PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | 🔒 **Required**         | the app itself                                   | won't run                                               |
-| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline                     | capture + full-text search work, but no auto-enrichment |
-| [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search | items stay bare; full-text search only                  |
-| [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)         | skipped                                                 |
-| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant-colour extraction                       | skipped                                                 |
-| [TypeSafe](https://typesafe.ai) (Jev)                         | 🧩 Optional             | calibrated article-vs-webpage kind refinement    | structural heuristic decides the kind                   |
-| [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                 | skipped                                                 |
-| [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                 | email features off                                      |
-| [PostHog](https://posthog.com)                                | 🧩 Optional             | product analytics                                | no telemetry (the default)                              |
+| Service                                                       | Tier                    | Unlocks                                                       | Without it                                              |
+| ------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
+| PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | 🔒 **Required**         | the app itself                                                | won't run                                               |
+| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline                                  | capture + full-text search work, but no auto-enrichment |
+| [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search              | items stay bare; full-text search only                  |
+| [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)                      | skipped                                                 |
+| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scanned documents | colours skipped; document OCR uses OpenAI if configured |
+| [TypeSafe](https://typesafe.ai) (Jev)                         | 🧩 Optional             | calibrated article-vs-webpage kind refinement                | structural heuristic decides the kind                   |
+| [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                              | skipped                                                 |
+| [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                              | email features off                                      |
+| [PostHog](https://posthog.com)                                | 🧩 Optional             | product analytics                                             | no telemetry (the default)                              |
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
+
+Set `NEXT_PUBLIC_SITE_URL` to your instance's public URL (e.g. `https://abode.example.com`) so emails, share links and embeds point at your instance rather than abode.fyi. It's inlined at build time, so set it before building. Self-hosted instances are kept out of search engines (`robots.txt` disallows all).
 
 ### Usage & cost limits
 
@@ -57,10 +59,11 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 ## Features
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
+- **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
-- **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion.
+- **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
-- **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI), and embedding generation — all via async Trigger.dev tasks.
+- **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
 - **Admin:** User management, waitlist, and invite system.
 
 ## Development
@@ -78,6 +81,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 **✅ Done (v0):**
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
+- Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
 - Masonry gallery, full-text + semantic search, filters
 - Metadata extraction + article parsing (Mozilla Readability)
 - OCR + auto-tagging (OpenAI)
@@ -95,6 +99,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 - Browser extension
 - Export / eject
+- Importers — bring your library from mymind, Raindrop, Are.na and Pinterest
 - Self-hosting guide + Docker Compose
 
 **🔮 Later:**

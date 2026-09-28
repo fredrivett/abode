@@ -4,13 +4,19 @@ import db from "@/lib/db";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { getNoteDraft } from "@/lib/items/note-draft";
-import { itemSelect, transformItem } from "@/lib/items/query";
+import {
+  ITEM_TIMELINE_ORDER_BY,
+  itemSelect,
+  itemTimelineCursor,
+  transformItem,
+} from "@/lib/items/query";
 import {
   DEFAULT_PAGE_SIZE,
   encodeCursor,
   isCanonicalUuid,
 } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+import { OpenScannerOnLoad } from "./open-scanner-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
 
@@ -77,9 +83,13 @@ export async function generateMetadata({
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ share?: string; item?: string | string[] }>;
+  searchParams: Promise<{
+    share?: string;
+    item?: string | string[];
+    action?: string;
+  }>;
 }) {
-  const { share, item: openItemParam } = await searchParams;
+  const { share, item: openItemParam, action } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
@@ -96,7 +106,7 @@ export default async function DashboardPage({
     ? await Promise.all([
         db.item.findMany({
           where: { userId: user.id },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: ITEM_TIMELINE_ORDER_BY,
           take: fetchLimit,
           select: itemSelect,
         }),
@@ -118,10 +128,7 @@ export default async function DashboardPage({
   let initialCursor: string | null = null;
   if (hasMore && pageItems.length > 0) {
     const lastItem = pageItems[pageItems.length - 1];
-    initialCursor = encodeCursor({
-      createdAt: lastItem.createdAt.toISOString(),
-      id: lastItem.id,
-    });
+    initialCursor = encodeCursor(itemTimelineCursor(lastItem));
   }
 
   const itemsForClient = pageItems.map(transformItem);
@@ -130,6 +137,7 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <ShareToast share={share} />
+      <OpenScannerOnLoad action={action} />
       <SearchableItemsGrid
         initialItems={itemsForClient}
         initialCursor={initialCursor}

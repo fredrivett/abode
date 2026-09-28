@@ -12,6 +12,7 @@ import posthog from "posthog-js";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { BookReadingStatusIcon } from "@/components/book/book-reading-status-icon";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -36,6 +37,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import {
   BOOK_READING_STATUS_LABELS,
   MAX_BOOK_REVIEW_LENGTH,
+  NOT_TRACKED_LABEL,
 } from "@/lib/items/book-reading-status";
 import {
   type DatePrecisionValue,
@@ -308,7 +310,10 @@ export function BookReadingControls({
             size="sm"
             className="w-full justify-between"
           >
-            {status ? BOOK_READING_STATUS_LABELS[status] : "Not tracked"}
+            <span className="flex items-center gap-2">
+              <BookReadingStatusIcon status={status} className="size-4" />
+              {status ? BOOK_READING_STATUS_LABELS[status] : NOT_TRACKED_LABEL}
+            </span>
             <ChevronDown className="size-4 opacity-60" />
           </Button>
         </DropdownMenuTrigger>
@@ -322,6 +327,7 @@ export function BookReadingControls({
           >
             {STATUS_ORDER.map((s) => (
               <DropdownMenuRadioItem key={s} value={s}>
+                <BookReadingStatusIcon status={s} />
                 {BOOK_READING_STATUS_LABELS[s]}
               </DropdownMenuRadioItem>
             ))}

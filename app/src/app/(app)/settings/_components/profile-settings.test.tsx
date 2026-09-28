@@ -89,6 +89,35 @@ describe("ProfileSettings visibility toggles", () => {
     ).toBeChecked();
   });
 
+  it("defaults the search engines toggle off (opt-in)", () => {
+    render(<ProfileSettings />);
+    expect(
+      screen.getByRole("switch", { name: "Show in search engines" }),
+    ).not.toBeChecked();
+  });
+
+  it("PATCHes allowSearchIndexing when opting in to search engines", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ProfileSettings allowSearchIndexing={false} />);
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Show in search engines" }),
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowSearchIndexing: true }),
+      }),
+    );
+    expect(
+      screen.getByRole("switch", { name: "Show in search engines" }),
+    ).toBeChecked();
+  });
+
   it("reverts the toggle and surfaces an error when the request fails", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false });
     vi.stubGlobal("fetch", fetchMock);

@@ -97,7 +97,13 @@ export const backfillTweetImageItemTask = task({
       select: {
         coverFileKey: true,
         twitterDetails: {
-          select: { media: true, card: true, coverMediaIndex: true },
+          select: {
+            media: true,
+            card: true,
+            coverMediaIndex: true,
+            authorAvatarUrl: true,
+            authorAvatarFileKey: true,
+          },
         },
       },
     });
@@ -116,6 +122,8 @@ export const backfillTweetImageItemTask = task({
       media: item.twitterDetails.media as TwitterMedia[] | null,
       card: item.twitterDetails.card as TwitterDetails["card"],
       coverMediaIndex: item.twitterDetails.coverMediaIndex,
+      authorAvatarUrl: item.twitterDetails.authorAvatarUrl,
+      authorAvatarFileKey: item.twitterDetails.authorAvatarFileKey,
     };
 
     const rehosted = await rehostTwitterImages(details, (imageUrl) =>
@@ -155,6 +163,7 @@ export const backfillTweetImageItemTask = task({
           data: {
             media: (rehosted.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
             card: (rehosted.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+            authorAvatarFileKey: rehosted.authorAvatarFileKey,
           },
         });
 
@@ -168,10 +177,13 @@ export const backfillTweetImageItemTask = task({
       throw error;
     }
 
+    // Keep every key the new row references, not just this run's uploads: an
+    // avatar re-hosted by a prior avatar-backfill is preserved (not in
+    // storedFileKeys) yet still referenced, so it must not be reclaimed here.
     await deleteReplacedFiles(
       supabase,
       replacedFileKeys,
-      rehosted.storedFileKeys,
+      rehosted.keepFileKeys,
     );
 
     logger.info("Backfilled tweet images", {

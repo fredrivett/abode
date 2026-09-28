@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import path from "node:path";
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
@@ -55,6 +56,25 @@ const nextConfig: NextConfig = {
   // handlers set their own CORS headers on the response, which coexist with
   // these.
   headers: securityHeadersConfig,
+  // Tailwind's stylesheet is generated from a scan of every source file, but
+  // webpack's persistent cache (restored between Vercel builds) reused the
+  // compiled CSS when only existing files changed — so new utility classes
+  // silently never shipped. Opting the entry stylesheet out of the cache makes
+  // Tailwind rescan on every production build (~1s); everything else stays
+  // cached. Turbopack (dev) is unaffected.
+  webpack: (config) => {
+    config.module.rules.push({
+      test: path.resolve(import.meta.dirname, "src/app/globals.css"),
+      enforce: "pre",
+      use: [
+        path.resolve(
+          import.meta.dirname,
+          "webpack-loaders/uncacheable-loader.cjs",
+        ),
+      ],
+    });
+    return config;
+  },
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [

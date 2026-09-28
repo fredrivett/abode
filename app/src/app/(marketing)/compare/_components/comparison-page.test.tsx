@@ -1,0 +1,74 @@
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { getComparison } from "@/lib/comparisons";
+import { ABODE_FACTS } from "@/lib/comparisons/abode";
+
+// The closing CTA pulls in the waitlist form; not what's under test here
+vi.mock("../../_components/closing-cta", () => ({ ClosingCta: () => null }));
+
+import { ComparisonPage, formatCheckedDate } from "./comparison-page";
+
+const comparison = getComparison("raindrop");
+if (!comparison) throw new Error("raindrop comparison missing");
+
+describe("ComparisonPage", () => {
+  it("puts abode's and the competitor's facts side by side", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    const row = screen.getByRole("row", { name: /^pricing/ });
+    expect(within(row).getByText(ABODE_FACTS.pricing)).toBeInTheDocument();
+    expect(within(row).getByText(comparison.facts.pricing)).toBeInTheDocument();
+  });
+
+  it("leads with who should choose which", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    expect(
+      screen.getByText(`if ${comparison.verdict.them}.`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(`if ${comparison.verdict.abode}.`),
+    ).toBeInTheDocument();
+  });
+
+  it("answers its own questions first, then the shared ones", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    const questions = within(screen.getByRole("region", { name: "questions" }))
+      .getAllByRole("term")
+      .map((term) => term.textContent);
+    const own = comparison.faqs.map(({ question }) => question);
+    expect(questions.slice(0, own.length)).toEqual(own);
+    expect(questions).toContain("can I bring my Raindrop library to abode?");
+    expect(questions).toContain("is abode free?");
+  });
+
+  it("links every source and dates the check", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    for (const source of comparison.sources) {
+      expect(screen.getByRole("link", { name: source.label })).toHaveAttribute(
+        "href",
+        source.url,
+      );
+    }
+    expect(
+      screen.getByText(new RegExp(formatCheckedDate(comparison.lastChecked))),
+    ).toBeInTheDocument();
+  });
+
+  it("formats the check date as a readable UTC date", () => {
+    expect(formatCheckedDate("2026-09-27")).toBe("27 September 2026");
+  });
+
+  it("links the other comparisons, not this one", () => {
+    render(<ComparisonPage comparison={comparison} />);
+
+    expect(
+      screen.getByRole("link", { name: "abode vs mymind" }),
+    ).toHaveAttribute("href", "/compare/mymind");
+    expect(
+      screen.queryByRole("link", { name: "abode vs Raindrop" }),
+    ).not.toBeInTheDocument();
+  });
+});

@@ -185,6 +185,8 @@ export async function loadItemWithDetails(
     },
     include: {
       imageDetails: true,
+      bookDetails: true,
+      articleDetails: true,
       locations: true,
     },
   });
@@ -204,6 +206,8 @@ export async function loadUserItemsWithDetails(
     },
     include: {
       imageDetails: true,
+      bookDetails: true,
+      articleDetails: true,
       locations: true,
     },
   });

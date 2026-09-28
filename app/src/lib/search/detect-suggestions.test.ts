@@ -119,6 +119,11 @@ describe("detectSuggestions", () => {
     expect(detect('"june 2026"', {})).toEqual([]);
   });
 
+  it("treats phone-autocorrected curly quotes as a literal span too", () => {
+    expect(detect("“trip to paris”", { location: ["paris"] })).toEqual([]);
+    expect(detect('"trip “paris”"', { location: ["paris"] })).toEqual([]);
+  });
+
   it("still suggests unquoted words alongside a quoted one", () => {
     const out = detect('paris "june 2026"', { location: ["paris"] });
     expect(out.map((s) => s.facet)).toEqual(["location"]);

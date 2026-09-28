@@ -1,6 +1,6 @@
 "use client";
 
-import { Handshake, KeyRound, User } from "lucide-react";
+import { BookDown, Handshake, KeyRound, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -21,13 +21,18 @@ const navItems = [
     label: "Invites",
     icon: Handshake,
   },
+  {
+    href: "/settings/import",
+    label: "Import",
+    icon: BookDown,
+  },
 ];
 
 export function SettingsNav() {
   const pathname = usePathname();
 
   return (
-    <div className="-mx-4 scroll-shadow-x scroll-shadow-x-mobile md:mx-0">
+    <div className="scroll-shadow-x scroll-shadow-x-mobile -mx-4 md:mx-0">
       <nav className="flex gap-1 overflow-x-auto px-4 md:flex-col md:px-0">
         {navItems.map((item) => {
           const Icon = item.icon;

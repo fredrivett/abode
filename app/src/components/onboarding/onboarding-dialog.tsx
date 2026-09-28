@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Kbd } from "@/components/ui/kbd";
-import { getModifierKeySymbol, matchesShortcut } from "@/lib/keyboard";
+import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
+import { matchesShortcut } from "@/lib/keyboard";
 import { ProfileStep } from "./profile-step";
 
 type UserMetadata = {
@@ -34,6 +35,7 @@ export function OnboardingDialog({
   onComplete,
   userMetadata,
 }: OnboardingDialogProps) {
+  const modifierKeySymbol = useModifierKeySymbol();
   const [isCompleting, setIsCompleting] = useState(false);
   const firstNameRef = useRef(userMetadata?.firstName ?? "");
   const lastNameRef = useRef(userMetadata?.lastName ?? "");
@@ -104,7 +106,7 @@ export function OnboardingDialog({
           <div className="mt-6 flex justify-end">
             <Button onClick={handleComplete}>
               {isCompleting ? <IsLoading label="Finishing" /> : "That's me"}
-              <Kbd variant="primary">{getModifierKeySymbol()}</Kbd>
+              <Kbd variant="primary">{modifierKeySymbol}</Kbd>
               <Kbd variant="primary">↵</Kbd>
             </Button>
           </div>

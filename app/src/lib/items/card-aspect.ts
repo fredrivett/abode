@@ -2,7 +2,7 @@
  * Content-driven aspect ratios for coverless text cards (notes and text-only
  * tweets) in the masonry grid.
  *
- * The masonry engine (`@masonry-grid/react`) sizes every frame from an aspect
+ * The masonry grid (`MasonryGrid`) sizes every frame from an aspect
  * ratio it's given up front — it never measures rendered content. So a note or
  * a text tweet gets whatever fixed ratio we hand it, regardless of how much
  * text it holds. These estimators replace those fixed ratios with a ratio
@@ -30,7 +30,7 @@ export type CardTextStyle = {
 /** Measures the rendered width (px) of a single line of `text` in `style`. */
 export type TextMeasurer = (text: string, style: CardTextStyle) => number;
 
-/** Frame dimensions for `@masonry-grid` — only their ratio (width/height) is used. */
+/** Masonry frame dimensions — only their ratio (width/height) is used. */
 export type FrameAspect = { width: number; height: number };
 
 export type AspectBounds = {

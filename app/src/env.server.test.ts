@@ -56,3 +56,23 @@ describe("env.server schema — optional-services contract", () => {
     expect(requiredInSchema).toEqual([...REQUIRED_CORE_KEYS].sort());
   });
 });
+
+describe("NEXT_PUBLIC_SITE_URL", () => {
+  const field = envSchema.shape.NEXT_PUBLIC_SITE_URL;
+
+  // .env.example ships it blank for local dev and the hosted instance
+  it("treats a blank value as unset", () => {
+    expect(field.safeParse("")).toEqual({ success: true, data: undefined });
+  });
+
+  it("accepts a full URL", () => {
+    expect(field.safeParse("https://abode.example.com").success).toBe(true);
+  });
+
+  it.each(["https://", "abode.example.com", "http://x y"])(
+    "rejects %s",
+    (value) => {
+      expect(field.safeParse(value).success).toBe(false);
+    },
+  );
+});

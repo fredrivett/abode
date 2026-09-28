@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -38,6 +39,11 @@ export function WaitlistForm() {
 
       setFormState("success");
       setPosition(data.position);
+      // The page they joined from; PostHog also keeps the person's first-seen
+      // page ($initial_pathname) and full path history for funnels
+      posthog.capture("waitlist_joined", {
+        source_path: window.location.pathname,
+      });
     } catch {
       setFormState("error");
       setErrorMessage("Failed to join waitlist. Please try again.");
@@ -68,12 +74,12 @@ export function WaitlistForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="enter your email"
           required
-          className="h-11 flex-1 rounded-l-md border border-gray-200 bg-white px-4 py-2 text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
+          className="h-11 min-w-0 flex-1 rounded-l-md border border-gray-200 bg-white px-4 py-2 text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
           disabled={formState === "submitting"}
         />
         <Button
           type="submit"
-          className="h-11 rounded-l-none px-5 text-base"
+          className="h-11 shrink-0 rounded-l-none px-5 text-base"
           disabled={formState === "submitting" || !email.trim()}
         >
           {formState === "submitting" ? (

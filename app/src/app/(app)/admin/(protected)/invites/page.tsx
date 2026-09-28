@@ -219,7 +219,7 @@ export default async function AdminInvitesPage(props: {
               method="GET"
               className="relative max-w-sm flex-1"
             >
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
                 name="search"

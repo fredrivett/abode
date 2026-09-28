@@ -33,7 +33,9 @@ export function SaveRedirect({ url }: { url: string }) {
           url,
           source: "share_target",
         });
-        useMilestoneStore.getState().markComplete("save_first_url");
+        const { markComplete } = useMilestoneStore.getState();
+        markComplete("save_first_url");
+        markComplete("save_from_phone");
         invalidateItems();
         router.replace(`${ROUTES.DASHBOARD}?share=saved`);
       } catch (error) {

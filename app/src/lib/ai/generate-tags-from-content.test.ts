@@ -1,6 +1,11 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+
+vi.mock("@/lib/embeddings", () => ({ getOpenAiClient: vi.fn() }));
+
+import { getOpenAiClient } from "@/lib/embeddings";
 import {
   buildEmbeddingText,
+  generateTagsFromText,
   truncateToTokenLimit,
 } from "./generate-tags-from-content";
 
@@ -107,5 +112,24 @@ describe("buildEmbeddingText", () => {
     const result = buildEmbeddingText(["tag1"], undefined);
     expect(result).not.toMatch(/\n$/);
     expect(result).toBe("tag1");
+  });
+});
+
+describe("generateTagsFromText", () => {
+  test("asks for the names the content mentions, brands by name not domain", async () => {
+    const parse = vi.fn().mockResolvedValue({
+      choices: [{ message: { parsed: { tags: ["mous", "invoice"] } } }],
+    });
+    vi.mocked(getOpenAiClient).mockReturnValue({
+      chat: { completions: { parse } },
+    } as unknown as ReturnType<typeof getOpenAiClient>);
+
+    const tags = await generateTagsFromText("Thanks for your order — mous.co");
+
+    expect(tags).toEqual(["mous", "invoice"]);
+    const prompt: string = parse.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("brands, companies, organisations");
+    expect(prompt).toContain('"mous.co" → "Mous"');
+    expect(prompt).toContain("Thanks for your order — mous.co");
   });
 });

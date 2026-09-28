@@ -224,7 +224,8 @@ export const GALLERY_CARDS: GalleryCard[] = [
       ],
       tags: ["sunset", "skyline", "river", "silhouette"],
       location: "london",
-      date: "2024",
+      // 2025 (vs the red-arch photo's 2024) so [london] [2024] narrows to one
+      date: "2025",
     },
   },
   {

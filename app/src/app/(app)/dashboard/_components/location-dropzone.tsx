@@ -134,7 +134,7 @@ export function LocationDropzone({
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: dropzone requires drag event handlers */}
       <div
-        className="-m-2 relative p-2"
+        className="relative -m-2 p-2"
         onDragOver={(event) => {
           if (!hasFiles(event.dataTransfer)) return;
           event.preventDefault();

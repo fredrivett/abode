@@ -24,6 +24,15 @@ type SearchableItemsGridProps = {
   initialOpenItem: Item | null;
 };
 
+/** The pagination props the grid needs, taken as one unit from whichever list is
+ * active so its count and load-more always come from the same source. */
+type GridPagination = {
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+  total: number;
+};
+
 /**
  * Items grid with integrated search, infinite scroll, and processing status polling.
  *
@@ -103,7 +112,10 @@ export function SearchableItemsGrid({
   // Cleared when search is cleared; on the very first search it stays null so
   // we fall back to the full paginated list until the first results land.
   const lastSearchResultsRef = useRef<Item[] | null>(null);
-  const isSearchPending = searchResults.isSearching || searchResults.isLoading;
+  // Pending means a *new* query/filter is resolving (dims the grid, retains the
+  // last results). Pagination via loadMore is not pending — it appends, and is
+  // surfaced through isLoadingMore below — so it's deliberately excluded here.
+  const isSearchPending = searchResults.isSearching;
   if (!searchResults.hasActiveSearch) {
     lastSearchResultsRef.current = null;
   } else if (!isSearchPending) {
@@ -133,10 +145,27 @@ export function SearchableItemsGrid({
   // displaying search results it's hidden. While the first search is in flight
   // we're still on the full list, so keep it mounted but disabled.
   const showComposer = searchItems === null;
-  const showLoadMore = !searchResults.hasActiveSearch && hasNextPage;
-  const displayTotal = searchResults.hasActiveSearch
-    ? searchResults.total
-    : total;
+  // Search and the full list paginate through separate cursors (the search API's
+  // own cursor vs React Query). Take all four props from one source so the
+  // grid's count and load-more always agree — mixing them left filtered views
+  // stuck on page 1 under a footer claiming the full total.
+  const pagination: GridPagination = searchResults.hasActiveSearch
+    ? {
+        // While a new query is pending, searchResults still holds the previous
+        // search's cursor. Gating on !isSearchPending stops the infinite-scroll
+        // observer from paginating that stale cursor and superseding the
+        // first-page request (which would strand the grid pending).
+        hasMore: !isSearchPending && searchResults.hasMore,
+        isLoadingMore: searchResults.isLoading,
+        onLoadMore: searchResults.loadMore,
+        total: searchResults.total,
+      }
+    : {
+        hasMore: hasNextPage,
+        isLoadingMore: isFetchingNextPage,
+        onLoadMore: loadMore,
+        total,
+      };
 
   return (
     <ItemDialogProvider>
@@ -146,10 +175,10 @@ export function SearchableItemsGrid({
         showComposer={showComposer}
         isSearchPending={isSearchPending}
         onClearSearch={clearAll}
-        hasMore={showLoadMore}
-        isLoadingMore={isFetchingNextPage}
-        onLoadMore={loadMore}
-        total={displayTotal}
+        hasMore={pagination.hasMore}
+        isLoadingMore={pagination.isLoadingMore}
+        onLoadMore={pagination.onLoadMore}
+        total={pagination.total}
         initialNoteDraft={initialNoteDraft}
       />
       <CentralItemDialog

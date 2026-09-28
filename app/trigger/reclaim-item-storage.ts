@@ -2,9 +2,8 @@ import type { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import {
-  extractInstagramImageKeys,
-  extractProductImageKeys,
-  extractTwitterImageKeys,
+  capturedFileKeysSelect,
+  collectCapturedFileKeys,
   filesToRemove,
   getItemStorageBytes,
 } from "../src/lib/item-storage";
@@ -31,15 +30,7 @@ export async function reclaimReplacedStorage(
 ): Promise<string[]> {
   const existing = await tx.item.findUnique({
     where: { id: itemId },
-    select: {
-      meta: true,
-      fileKey: true,
-      coverFileKey: true,
-      faviconFileKey: true,
-      productDetails: { select: { images: true } },
-      twitterDetails: { select: { media: true, card: true } },
-      instagramDetails: { select: { media: true } },
-    },
+    select: { meta: true, ...capturedFileKeysSelect },
   });
   if (!existing) return [];
 
@@ -52,17 +43,7 @@ export async function reclaimReplacedStorage(
     });
   }
 
-  return [
-    existing.fileKey,
-    existing.coverFileKey,
-    existing.faviconFileKey,
-    ...extractProductImageKeys(existing.productDetails?.images),
-    ...extractTwitterImageKeys(
-      existing.twitterDetails?.media,
-      existing.twitterDetails?.card,
-    ),
-    ...extractInstagramImageKeys(existing.instagramDetails?.media),
-  ].filter((key): key is string => typeof key === "string" && key.length > 0);
+  return collectCapturedFileKeys(existing);
 }
 
 /**

@@ -42,6 +42,7 @@ model User {
   // Public profile visibility toggles
   showInvitedBy     Boolean        @default(true) @map("show_invited_by") // Show who invited this user
   showInvited       Boolean        @default(true) @map("show_invited") // Show the people this user invited
+  allowSearchIndexing Boolean      @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
 
   // Relations
   referredBy        User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -56,6 +57,7 @@ model User {
   rooms             Room[]
   articleHighlights ArticleHighlight[]
   activityLogs      ActivityLog[]
+  itemImports       ItemImport[]
   milestones        UserMilestone[]
   noteDraft         NoteDraft?
   usageDaily        UsageDaily[]
@@ -74,6 +76,7 @@ enum ItemKind {
   note
   webpage
   book
+  document
 }
 
 enum SourceType {
@@ -158,6 +161,10 @@ enum MilestoneType {
   complete_profile
   upload_first_image
   save_first_url
+  scan_first_document
+  write_first_note
+  add_first_book
+  save_from_phone
   see_ai_analysis
   search_items
   add_first_tag
@@ -229,6 +236,14 @@ model Item {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
+  // The date this item entered the user's library — its position on the
+  // timeline. Equals createdAt for items captured in abode, but an import
+  // backdates it to the source's own "added" date (e.g. a Literal book added
+  // years before signup) so imported items slot into their historical place.
+  // The dashboard sorts and the item card's "added" display read THIS, not
+  // createdAt (which stays the truthful row-creation time).
+  addedAt          DateTime         @default(now()) @map("added_at")
+
   // Smart rooms
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
@@ -258,10 +273,13 @@ model Item {
   productDetails    ItemProductDetails?
   bookDetails       ItemBookDetails?
   noteDetails       ItemNoteDetails?
+  documentPages     ItemDocumentPage[]
   roomItems         RoomItem[]
   highlights        ArticleHighlight[]
 
   @@index([userId, createdAt(sort: Desc)])
+  // Mirrors the createdAt index for the dashboard's addedAt keyset ordering.
+  @@index([userId, addedAt(sort: Desc)])
   @@index([tags])
   @@index([userTags])
   // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
@@ -424,6 +442,41 @@ model ItemArticleDetails {
   @@map("item_article_details")
 }
 
+// How a scanned page is rendered. `bw` (the default) is the "scanned document"
+// look; `original` is the flattened colour photo.
+enum DocumentPageFilter {
+  bw
+  grey
+  original
+}
+
+// One page of a scanned `document` item, in reading order. Pages are flattened
+// (perspective-corrected) in the browser before upload, so both files are
+// upright page images, never the raw camera photo. The item's own fileKey
+// mirrors page 1 so grid cards, covers and cover-level visual analysis work as
+// for images; every page gets full OCR into its own ocrText.
+model ItemDocumentPage {
+  id              String             @id @default(uuid()) @db.Uuid
+  itemId          String             @map("item_id") @db.Uuid
+  item            Item               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // 0-based reading order. Not unique: reordering rewrites positions in one
+  // transaction, and a unique constraint would reject the intermediate swaps
+  position        Int
+  fileKey         String             @map("file_key") // The page as displayed (filter + rotation applied)
+  originalFileKey String             @map("original_file_key") // Flattened colour page, so the filter can change later
+  filter          DocumentPageFilter @default(bw)
+  width           Int
+  height          Int
+  ocrText         String?            @map("ocr_text")
+
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  @@index([itemId, position])
+  @@map("item_document_pages")
+}
+
 model ItemImageDetails {
   itemId      String    @id @map("item_id") @db.Uuid
   item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -450,6 +503,7 @@ model ItemTwitterDetails {
   authorName      String?   @map("author_name")        // Display name
   authorUsername  String    @map("author_username")    // @handle
   authorAvatarUrl String?   @map("author_avatar_url")
+  authorAvatarFileKey String? @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
   text            String?                               // Tweet text content
   postedAt        DateTime? @map("posted_at")          // When tweet was posted
   media           Json?     @map("media")              // Array of media objects with type, url, dimensions
@@ -824,4 +878,43 @@ model PersonalAccessToken {
 
   @@index([userId])
   @@map("personal_access_tokens")
+}
+
+// Progress/status for a bulk item import (books from literal.club today; future:
+// articles from Pocket, etc.). One row per import run: the background task
+// increments the counters and flips `status` so the UI can show "X of Y" and
+// history. Generic across item kinds — the per-source adapter/writer decides what
+// gets created. RLS-enabled (default-deny) in migration.
+enum ImportStatus {
+  pending
+  importing
+  completed
+  failed
+}
+
+// Where an import pulled from. Only `literal` today; add a value (+ migration)
+// per new source (goodreads, pocket, letterboxd, …).
+enum ImportSource {
+  literal
+}
+
+model ItemImport {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  source        ImportSource
+  status        ImportStatus @default(pending)
+  totalCount    Int          @default(0) @map("total_count")
+  importedCount Int          @default(0) @map("imported_count")
+  skippedCount  Int          @default(0) @map("skipped_count")
+  failedCount   Int          @default(0) @map("failed_count")
+  // Safe, user-facing failure summary (never raw errors/credentials); null unless failed.
+  error         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  completedAt   DateTime?    @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("item_imports")
 }
