@@ -118,25 +118,53 @@ describe("layoutMasonry", () => {
     });
   });
 
-  it("puts a frame inserted at the top into the shortest column, moving only that column", () => {
+  it("relays out from scratch when a frame is inserted at the top", () => {
     const frames = [tall("a"), square("b"), square("c"), square("d")];
     const before = layoutMasonry({ frames, ...GEOMETRY });
+    const inserted = [square("new"), ...frames];
     const after = layoutMasonry({
-      frames: [square("new"), ...frames],
+      frames: inserted,
       ...GEOMETRY,
       previous: before,
     });
-    // Column 2 (just c) was shortest overall
-    expect(positions(after).new).toEqual([2, 0]);
-    expect(positions(after)).toMatchObject({
-      a: [0, 0],
-      b: [1, 0],
-      d: [1, 110],
-      c: [2, 110],
+    // Exactly what a reload lays out: new first, the rest reflowing after it
+    expect(positions(after)).toEqual(
+      positions(layoutMasonry({ frames: inserted, ...GEOMETRY })),
+    );
+    expect(positions(after)).toEqual({
+      new: [0, 0],
+      a: [1, 0],
+      b: [2, 0],
+      c: [0, 110],
+      d: [2, 110],
     });
   });
 
-  it("balances several frames inserted at the top against where columns end up", () => {
+  it("puts each of several one-by-one top inserts first, next to a pinned frame", () => {
+    const pinned = { ...square("pinned"), column: 0 };
+    const frames = [pinned, square("a"), square("b"), square("c")];
+    const first = layoutMasonry({
+      frames: [pinned, square("new1"), ...frames.slice(1)],
+      ...GEOMETRY,
+      previous: layoutMasonry({ frames, ...GEOMETRY }),
+    });
+    expect(positions(first)).toMatchObject({ pinned: [0, 0], new1: [1, 0] });
+
+    const second = layoutMasonry({
+      frames: [pinned, square("new2"), square("new1"), ...frames.slice(1)],
+      ...GEOMETRY,
+      previous: first,
+    });
+    // The newest takes the first slot; the previous one moves along the row
+    // instead of stacking under it in the same column
+    expect(positions(second)).toMatchObject({
+      pinned: [0, 0],
+      new2: [1, 0],
+      new1: [2, 0],
+    });
+  });
+
+  it("balances frames inserted mid-list against where columns end up", () => {
     const veryTall = (key: string): MasonryFrame => ({
       key,
       width: 1,
@@ -147,16 +175,16 @@ describe("layoutMasonry", () => {
     const before = layoutMasonry({ frames, ...GEOMETRY });
 
     const after = layoutMasonry({
-      frames: [square("new1"), square("new2"), ...frames],
+      frames: [square("a"), square("new1"), square("new2"), ...frames.slice(1)],
       ...GEOMETRY,
       previous: before,
     });
     // Both belong in the short column (even after new1, it ends at 220px),
-    // not in a tall column just because nothing new sits at its top yet
-    expect(positions(after)).toMatchObject({
-      new1: [0, 0],
-      new2: [0, 110],
-      a: [0, 220],
+    // not in a tall column just because nothing sits at its top yet
+    expect(positions(after)).toEqual({
+      a: [0, 0],
+      new1: [0, 110],
+      new2: [0, 220],
       b: [1, 0],
       c: [2, 0],
     });

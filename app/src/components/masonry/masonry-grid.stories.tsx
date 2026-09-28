@@ -180,14 +180,12 @@ function GrowingGrid() {
   );
 }
 
-// A new card at the top grows in and only pushes its own column down
+// A new card at the top grows in at the top-left, and the rest reflow after it
+// as a reload would lay them out
 export const GrowIn: Story = {
   render: () => <GrowingGrid />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const columnOf = (transform: string | undefined) =>
-      transform?.match(/translate3d\(([\d.]+)px/)?.[1];
-    const before = transforms(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Add to top" }));
 
     const cell = await waitFor(() => {
@@ -201,12 +199,6 @@ export const GrowIn: Story = {
     await waitFor(() =>
       expect(cell.getBoundingClientRect().height).toBeGreaterThan(50),
     );
-    const newColumn = columnOf(cell.style.transform);
-    const after = transforms(canvasElement);
-    for (const [key, transform] of before) {
-      if (columnOf(transform) !== newColumn) {
-        expect(after.get(key)).toBe(transform);
-      }
-    }
+    expect(cell.style.transform).toMatch(/^translate3d\(0px, 0px,/);
   },
 };
