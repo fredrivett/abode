@@ -41,6 +41,18 @@ const ARTICLE_PROB_LOW = 0.3;
  */
 const JEV_TIMEOUT_MS = 5000;
 
+/**
+ * Jev prices input tokens only, and the input *is* our request payload — so when
+ * a successful response omits `usage` we estimate cost from what we sent rather
+ * than recording a billed call as $0 (which would drop it from spend rollups).
+ * ~4 chars/token is the usual rough ratio; only used as a fallback.
+ */
+const ESTIMATED_CHARS_PER_TOKEN = 4;
+
+function estimateInputTokens(requestBody: string): number {
+  return Math.ceil(requestBody.length / ESTIMATED_CHARS_PER_TOKEN);
+}
+
 /** Cap the page text sent so a single call stays well within Jev's token budget. */
 const MAX_CONTENT_CHARS = 6000;
 
@@ -133,6 +145,18 @@ export async function judgeArticleVsWebpage(
     word_count: args.wordCount,
   });
 
+  const requestBody = JSON.stringify({
+    model: JEV_MODEL,
+    state,
+    questions: {
+      is_article: {
+        type: "noul",
+        instructions:
+          "Is this a long-form article or blog post meant to be read as sustained prose? Answer no if it is a generic web page such as a homepage, section or landing page, product listing, link hub, or a thin about/contact page.",
+      },
+    },
+  });
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), JEV_TIMEOUT_MS);
   let response: Response;
@@ -143,17 +167,7 @@ export async function judgeArticleVsWebpage(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: JEV_MODEL,
-        state,
-        questions: {
-          is_article: {
-            type: "noul",
-            instructions:
-              "Is this a long-form article or blog post meant to be read as sustained prose? Answer no if it is a generic web page such as a homepage, section or landing page, product listing, link hub, or a thin about/contact page.",
-          },
-        },
-      }),
+      body: requestBody,
       signal: controller.signal,
     });
   } catch (error) {
@@ -179,7 +193,10 @@ export async function judgeArticleVsWebpage(
       decision: articleDecisionFromProbability(probability),
       probability,
       usage: {
-        inputTokens: parsed.usage?.input_tokens ?? 0,
+        // Prefer Jev's reported usage; estimate from our request only when it's
+        // absent, so a billed call is never recorded at $0.
+        inputTokens:
+          parsed.usage?.input_tokens ?? estimateInputTokens(requestBody),
         outputTokens: parsed.usage?.output_tokens ?? 0,
       },
       model: JEV_MODEL,

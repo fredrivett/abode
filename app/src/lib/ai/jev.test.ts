@@ -91,8 +91,17 @@ describe("judgeArticleVsWebpage", () => {
     );
     const result = await judgeArticleVsWebpage(baseArgs);
     expect(result.decision).toBe("webpage");
-    // usage defaults to zeros when the response omits it, but a call was billed
-    expect(result.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  test("estimates input tokens from the request when usage is absent", async () => {
+    // A billed call whose response omits usage must not be recorded at $0 — we
+    // estimate from our own request payload (Jev prices input only).
+    fetchMock.mockResolvedValue(
+      jevResponse({ answers: { is_article: { noul: 0.9 } } }),
+    );
+    const result = await judgeArticleVsWebpage(baseArgs);
+    expect(result.usage?.inputTokens).toBeGreaterThan(0);
+    expect(result.usage?.outputTokens).toBe(0);
   });
 
   test("mid-band probability defers to the heuristic (decision null) but records the call", async () => {
