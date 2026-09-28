@@ -139,8 +139,8 @@ const FETCHERS: Record<
  * `type`, returns just that group; otherwise all seven groups run in parallel.
  * The six user-derived groups (tag/object/color/source/location/type) are
  * scoped to the user and sorted alphabetically; `status` is a fixed vocabulary
- * returned in lifecycle order (unread → reading → read → dnf). Shared by the
- * filters API and the MCP server.
+ * returned in lifecycle order (unread → want_to_read → reading → read → dnf).
+ * Shared by the filters API and the MCP server.
  */
 export async function getAvailableFilters(
   userId: string,

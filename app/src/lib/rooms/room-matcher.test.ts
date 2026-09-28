@@ -640,6 +640,26 @@ describe("itemMatchesRoom", () => {
       });
     });
 
+    describe("want_to_read", () => {
+      it("matches a book shelved as want to read", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "want_to_read" }),
+        });
+        const room = createTestRoom([createFilter("status", "want_to_read")]);
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      });
+
+      it("does not match a book with a different status", () => {
+        const item = createTestItem({
+          kind: "book",
+          bookDetails: createBookDetails({ status: "reading" }),
+        });
+        const room = createTestRoom([createFilter("status", "want_to_read")]);
+        expect(itemMatchesRoom(item, room)).toBe(false);
+      });
+    });
+
     describe("unread", () => {
       it("matches a book with null status (saved, untracked)", () => {
         const item = createTestItem({
@@ -650,13 +670,13 @@ describe("itemMatchesRoom", () => {
         expect(itemMatchesRoom(item, room)).toBe(true);
       });
 
-      it("matches a want_to_read book (collapses into unread)", () => {
+      it("does not match a want_to_read book (distinct intent, not unread)", () => {
         const item = createTestItem({
           kind: "book",
           bookDetails: createBookDetails({ status: "want_to_read" }),
         });
         const room = createTestRoom([createFilter("status", "unread")]);
-        expect(itemMatchesRoom(item, room)).toBe(true);
+        expect(itemMatchesRoom(item, room)).toBe(false);
       });
 
       it("matches an unread article", () => {
@@ -691,7 +711,13 @@ describe("itemMatchesRoom", () => {
 
     it("does not match an image for any status", () => {
       const item = createTestItem({ kind: "image" });
-      for (const status of ["unread", "reading", "read", "dnf"]) {
+      for (const status of [
+        "unread",
+        "want_to_read",
+        "reading",
+        "read",
+        "dnf",
+      ]) {
         const room = createTestRoom([createFilter("status", status)]);
         expect(itemMatchesRoom(item, room)).toBe(false);
       }
