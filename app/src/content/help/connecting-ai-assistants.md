@@ -50,14 +50,14 @@ Open **Settings → Developer → Edit Config** and add:
   "mcpServers": {
     "abode": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "{{appUrl}}/api/mcp", "--header", "Authorization: Bearer ${ABODE_TOKEN}"],
-      "env": { "ABODE_TOKEN": "abode_pat_…" }
+      "args": ["-y", "mcp-remote", "{{appUrl}}/api/mcp", "--header", "Authorization:${ABODE_AUTH}"],
+      "env": { "ABODE_AUTH": "Bearer abode_pat_…" }
     }
   }
 }
 ```
 
-Then restart Claude Desktop. This needs [Node.js](https://nodejs.org) installed.
+Keep `Bearer ` in front of the token inside `ABODE_AUTH`. It lives there, not in `args`, because spaces in `args` break on Windows. Then restart Claude Desktop. This needs [Node.js](https://nodejs.org) installed.
 
 Custom connectors on claude.ai (the website) aren't supported yet. They sign in with OAuth rather than a token.
 
