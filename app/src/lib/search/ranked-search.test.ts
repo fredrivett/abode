@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockFullText, mockOcr, mockVector } = vi.hoisted(() => ({
+const { mockFullText, mockOcr, mockPhrase, mockVector } = vi.hoisted(() => ({
   mockFullText: vi.fn(),
   mockOcr: vi.fn(),
+  mockPhrase: vi.fn(),
   mockVector: vi.fn(),
 }));
 
-// Mock the three retrievers; use the real RRF merge so ordering is exercised.
+// Mock the retrievers; use the real RRF merge so ordering is exercised.
 vi.mock("@/lib/search/full-text-search", () => ({
   fullTextSearch: mockFullText,
   ocrTextSearch: mockOcr,
+  phraseSearch: mockPhrase,
 }));
 vi.mock("@/lib/search/vector-search", () => ({
   vectorSearch: mockVector,
@@ -23,6 +25,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFullText.mockResolvedValue([]);
   mockOcr.mockResolvedValue([]);
+  mockPhrase.mockResolvedValue([]);
   mockVector.mockResolvedValue([]);
 });
 
@@ -103,5 +106,55 @@ describe("rankedSearch", () => {
 
     await rankedSearch("user-1", NO_FILTERS, "hi", { limit: 5 });
     expect(mockVector).toHaveBeenLastCalledWith("user-1", NO_FILTERS, "hi", 5);
+  });
+
+  describe("quoted phrases", () => {
+    it("restricts every retriever to the phrase and ranks on the unquoted text", async () => {
+      await rankedSearch("user-1", NO_FILTERS, '"on the Equality" rovelli');
+
+      const scoped = { phrases: ["on the Equality"] };
+      const text = "on the Equality rovelli";
+      expect(mockFullText).toHaveBeenCalledWith("user-1", scoped, text, 100);
+      expect(mockVector).toHaveBeenCalledWith("user-1", scoped, text, 100);
+      expect(mockOcr).toHaveBeenCalledWith("user-1", scoped, text, 100);
+      expect(mockPhrase).toHaveBeenCalledWith("user-1", scoped, 100);
+    });
+
+    it("appends exact matches no retriever ranked, after the ranked ones", async () => {
+      mockFullText.mockResolvedValue([{ id: "a", rank: 1 }]);
+      mockPhrase.mockResolvedValue(["b", "a", "c"]);
+
+      const results = await rankedSearch("user-1", NO_FILTERS, '"exact"');
+
+      expect(results.map((r) => r.id)).toEqual(["a", "b", "c"]);
+      expect(results[0]?.sources).toEqual(["fulltext"]);
+      expect(results[1]?.sources).toEqual(["phrase"]);
+    });
+
+    it("caps ranked + appended exact matches at the limit", async () => {
+      mockFullText.mockResolvedValue([{ id: "a", rank: 1 }]);
+      mockPhrase.mockResolvedValue(["b", "c"]);
+
+      const results = await rankedSearch("user-1", NO_FILTERS, '"exact"', {
+        limit: 2,
+      });
+
+      expect(results.map((r) => r.id)).toEqual(["a", "b"]);
+    });
+
+    it("returns nothing for a query that's only quote marks", async () => {
+      expect(await rankedSearch("user-1", NO_FILTERS, '""')).toEqual([]);
+      expect(mockVector).not.toHaveBeenCalled();
+    });
+
+    it("leaves filters untouched when nothing is quoted", async () => {
+      await rankedSearch("user-1", NO_FILTERS, "plain words");
+      expect(mockFullText).toHaveBeenCalledWith(
+        "user-1",
+        NO_FILTERS,
+        "plain words",
+        DEFAULT_RANKED_LIMIT,
+      );
+    });
   });
 });

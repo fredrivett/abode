@@ -997,7 +997,9 @@ async function executeRankedSearch(
     const reasons: MatchReason[] = [];
 
     // Add search match reasons based on sources
-    const hasFulltext = sources.includes("fulltext");
+    // An exact quoted-phrase hit is a text match on metadata too
+    const hasFulltext =
+      sources.includes("fulltext") || sources.includes("phrase");
     const hasVector = sources.includes("vector");
     const hasOcr = sources.includes("ocr");
 

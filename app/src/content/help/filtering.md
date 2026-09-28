@@ -4,6 +4,7 @@ You can search your <Abode /> in two ways:
 
 - **Natural language** — Just type what you're looking for (e.g., "beach sunset photos"), we'll do our best to find what you're looking for
 - **Filters** — Use `@` syntax for precise control (e.g., `@tag:landscape @source:instagram`)
+- **Exact phrases** — Wrap text in quotes (e.g., `"on the equality of all things"`) to only find items containing exactly that text, ignoring case. It's matched against titles, descriptions, notes, tags and any text read from images and scanned pages. Mix it with plain words and filters as usual
 
 Type `@` in the search box to see available filters.
 

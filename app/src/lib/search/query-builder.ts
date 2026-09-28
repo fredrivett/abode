@@ -17,6 +17,7 @@ import {
   hexToLab,
   normalizeColor,
 } from "./color-utils";
+import { phraseToPattern } from "./quoted-phrases";
 import { NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE } from "./types";
 
 /**
@@ -50,6 +51,12 @@ export type ParsedFilters = {
   status?: FilterValue[];
   dateAfter?: string;
   dateBefore?: string;
+  /**
+   * Exact phrases (quoted text in the search query) every item must contain,
+   * case-insensitively. Set by ranked search from the query, never from URL
+   * filter params.
+   */
+  phrases?: string[];
 };
 
 /** Valid ItemKind enum values derived from Prisma schema */
@@ -863,6 +870,13 @@ export function buildFilterConditions(
     }
   }
 
+  // Exact phrases: each must appear in one of the item's searchable text fields
+  for (const phrase of filters.phrases ?? []) {
+    conditions.push(buildPhraseCondition(alias, paramIndex));
+    params.push(phraseToPattern(phrase));
+    paramIndex++;
+  }
+
   // Color filter
   if (filters.color && filters.color.length > 0) {
     const colorCondition = buildColorCondition(filters.color, paramIndex);
@@ -876,6 +890,23 @@ export function buildFilterConditions(
   }
 
   return { conditions, params, nextParamIndex: paramIndex };
+}
+
+/**
+ * SQL requiring the regex at `$paramIndex` to match one of the item's text
+ * fields — the ones full-text search covers (title, tags, description, notes)
+ * plus user tags, OCR text and every scanned document page's OCR.
+ */
+function buildPhraseCondition(alias: string, paramIndex: number): string {
+  const pattern = `$${paramIndex}`;
+  return `(
+    ${alias}.title ~* ${pattern}
+    OR ${alias}.description ~* ${pattern}
+    OR ${alias}.notes ~* ${pattern}
+    OR EXISTS (SELECT 1 FROM unnest(${alias}.tags || ${alias}.user_tags) AS tag WHERE tag ~* ${pattern})
+    OR EXISTS (SELECT 1 FROM item_image_details phrase_iid WHERE phrase_iid.item_id = ${alias}.id AND phrase_iid.ocr_text ~* ${pattern})
+    OR EXISTS (SELECT 1 FROM item_document_pages phrase_page WHERE phrase_page.item_id = ${alias}.id AND phrase_page.ocr_text ~* ${pattern})
+  )`;
 }
 
 /**
