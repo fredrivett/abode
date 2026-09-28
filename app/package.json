@@ -80,7 +80,7 @@
     "ipaddr.js": "^2.5.0",
     "js-tiktoken": "^1.0.21",
     "lru-cache": "^11.5.3",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^1.47.0",
     "markdown-to-jsx": "^9.10.3",
     "motion": "^12.42.2",
     "nanoid": "^5.1.6",
