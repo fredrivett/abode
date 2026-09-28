@@ -41,9 +41,10 @@ beforeEach(() => {
 describe("SuggestionDropdown", () => {
   it("opens chip tooltips to the left so they don't cover the chip below", async () => {
     renderDropdown();
-    const [firstIcon] = document.querySelectorAll<HTMLElement>(
+    const firstIcon = document.querySelector<HTMLElement>(
       "[data-slot=tooltip-trigger]",
     );
+    if (!firstIcon) throw new Error("suggestion chip icon not rendered");
     await userEvent.setup().hover(firstIcon);
     await screen.findByRole("tooltip");
     expect(
