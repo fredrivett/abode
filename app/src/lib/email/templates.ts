@@ -392,3 +392,46 @@ ${htmlFooter()}`;
 
   return { subject, text, html };
 }
+
+/**
+ * Email sent when a requested data export has finished building. Links to the
+ * export settings page (which serves the download) rather than the archive
+ * itself, so the link needs a signed-in session and outlives any signed URL.
+ */
+export function getDataExportReadyEmail(options: {
+  itemCount: number;
+  expiresAt: Date;
+}): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const exportUrl = `${getAppBaseUrl()}/settings/export`;
+  const items = `${options.itemCount} ${options.itemCount === 1 ? "item" : "items"}`;
+  const expires = options.expiresAt.toUTCString().slice(0, 16);
+
+  const subject = "your abode export is ready";
+
+  const text = `your abode export is ready to download — ${items}, plus your rooms and profile.
+
+download it here: ${exportUrl}
+
+the download is available until ${expires}.
+
+if you didn't request this export, please contact us at fred@abode.fyi.
+
+${EMAIL_FOOTER}
+`;
+
+  const html = `<p>your abode export is ready to download — ${escapeHtml(items)}, plus your rooms and profile.</p>
+
+<p>${htmlLink("download your export", exportUrl)}</p>
+
+<p>the download is available until ${escapeHtml(expires)}.</p>
+
+<p>if you didn't request this export, please contact us at ${htmlLink("fred@abode.fyi", "mailto:fred@abode.fyi")}.</p>
+
+${htmlFooter()}`;
+
+  return { subject, text, html };
+}
