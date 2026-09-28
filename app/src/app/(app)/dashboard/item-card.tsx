@@ -106,6 +106,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
+import { shouldShowReadingStatusBadge } from "@/lib/items/book-reading-status";
 import { captureSourceLabel } from "@/lib/items/capture-source";
 import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
@@ -301,6 +302,14 @@ export function ItemCard({
   const isBook = item.kind === "book";
   const isNote = item.kind === "note";
   const isArticleOrWebpage = isArticle || isWebpage;
+  const bookStatusBadge =
+    item.bookDetails &&
+    shouldShowReadingStatusBadge({
+      status: item.bookDetails.status,
+      canEdit,
+    }) ? (
+      <BookReadingStatusBadge status={item.bookDetails.status} />
+    ) : null;
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
   // Failed URL items may not have a kind set yet (processing failed before classification)
@@ -517,9 +526,7 @@ export function ItemCard({
               </p>
             )}
           </div>
-          {item.bookDetails?.status && (
-            <BookReadingStatusBadge status={item.bookDetails.status} />
-          )}
+          {bookStatusBadge}
         </button>
 
         {!itemDialog && (
@@ -851,9 +858,7 @@ export function ItemCard({
             coverColor={getDominantCoverColor(item.colors)}
             blurDataUrl={blurDataUrl}
           />
-          {item.bookDetails?.status && (
-            <BookReadingStatusBadge status={item.bookDetails.status} />
-          )}
+          {bookStatusBadge}
         </button>
 
         {!itemDialog && (
