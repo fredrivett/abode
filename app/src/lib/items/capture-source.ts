@@ -1,8 +1,9 @@
 import type { CaptureSource } from "@prisma/client";
 
-// The entry point an item was saved from. Mirrors the Prisma `CaptureSource`
-// enum; kept as a runtime array so request handlers can validate untrusted
-// client input before persisting it.
+// The entry points a client may claim an item was saved from, kept as a runtime
+// array so request handlers can validate untrusted input before persisting it.
+// Deliberately excludes `api`: that is stamped server-side from the credential,
+// never taken from the request body.
 const VALID_ITEM_SOURCES = [
   "web",
   "share_target",
@@ -24,6 +25,7 @@ const CAPTURE_SOURCE_LABELS: Record<CaptureSource, string> = {
   web: "Web",
   share_target: "Shared",
   extension: "Extension",
+  api: "API",
 };
 
 export function captureSourceLabel(source: CaptureSource): string {

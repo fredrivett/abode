@@ -10,7 +10,8 @@ describe("isItemSource", () => {
     },
   );
 
-  test.each([null, undefined, "", "twitter", "WEB", 42, {}])(
+  // `api` is a real CaptureSource but only ever stamped server-side
+  test.each([null, undefined, "", "twitter", "WEB", "api", 42, {}])(
     "rejects the invalid value %p",
     (value) => {
       expect(isItemSource(value)).toBe(false);
@@ -23,6 +24,7 @@ describe("captureSourceLabel", () => {
     ["web", "Web"],
     ["share_target", "Shared"],
     ["extension", "Extension"],
+    ["api", "API"],
   ] as const)("labels %s as %s", (source, label) => {
     expect(captureSourceLabel(source)).toBe(label);
   });
