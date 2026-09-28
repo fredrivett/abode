@@ -1,0 +1,21 @@
+language js
+
+// Storage listing guardrail: Supabase Storage `list()` returns only 100 entries
+// unless given a limit, and nothing signals the truncation. Account deletion
+// once did `storage.from("items").list(userId)` and removed the result, so
+// every file past the first 100 outlived the account. List through
+// `listAllObjectPaths` / `removeAllObjectsUnderPrefix` (src/lib/storage-objects.ts),
+// which page and descend into sub-folders.
+//
+// Scoped by an `overrides` entry in biome.json to `src/**` + `trigger/**`, minus
+// src/lib/storage-objects.ts (the one paged implementation).
+//
+// Matches `<x>.from(<bucket>).list(...)` — the storage bucket call shape — so
+// unrelated `.list()` methods (e.g. Trigger's `runs.list`) aren't flagged.
+`$storage.from($bucket).list($...)` as $call where {
+  register_diagnostic(
+    span=$call,
+    message="Don't call storage.from(bucket).list() directly — it silently stops at 100 entries. Use `listAllObjectPaths` or `removeAllObjectsUnderPrefix` from `@/lib/storage-objects`, which page past the limit.",
+    severity="error"
+  )
+}
