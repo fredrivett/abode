@@ -14,7 +14,7 @@
     "fix:unsafe": "bunx -p @biomejs/biome biome check --fix --unsafe",
     "check:fix": "bun run fix && bun run prisma:format && bun run ts:check",
     "check:commands-doc": "bun scripts/check-commands-doc.ts",
-    "check:prisma-format": "bun scripts/check-prisma-format.ts",
+    "check:prisma-format": "prisma format --check --schema prisma/schema.prisma",
     "format": "bunx -p @biomejs/biome biome format --write",
     "test": "vitest --project unit",
     "test:watch": "vitest watch --project unit",
