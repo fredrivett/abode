@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DocumentPages } from "./document-pages";
 
 const pages = [
@@ -14,8 +14,21 @@ const base = {
   title: "Council tax bill",
 };
 
+// jsdom has no layout: give the track a width and record scroll requests
+const scrollTo = vi.fn();
+beforeEach(() => {
+  scrollTo.mockReset();
+  Element.prototype.scrollTo = scrollTo;
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    get: () => 400,
+  });
+});
+
+const track = () => screen.getAllByRole("img")[0].closest("div")?.parentElement;
+
 describe("DocumentPages", () => {
-  it("shows every page in order with its number", () => {
+  it("lays every page out in order, starting on page 1", () => {
     render(<DocumentPages {...base} pages={pages} status="ready" />);
     const images = screen.getAllByRole("img");
     expect(images).toHaveLength(3);
@@ -23,19 +36,42 @@ describe("DocumentPages", () => {
     expect(images[2].getAttribute("src")).toContain(
       encodeURIComponent("u/p3.jpg"),
     );
-    expect(screen.getByText("Page 3 of 3")).toBeInTheDocument();
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
   });
 
-  it("reserves each page's shape so the list doesn't jump as images load", () => {
+  it("reserves each page's shape so pages don't jump as they load", () => {
     render(<DocumentPages {...base} pages={pages} status="ready" />);
     expect(screen.getAllByRole("img")[0]).toHaveAttribute("height", "2400");
+  });
+
+  it("follows swipes, updating the counter", () => {
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    const scroller = track();
+    if (!scroller) throw new Error("no track");
+    scroller.scrollLeft = 800;
+    fireEvent.scroll(scroller);
+    expect(screen.getByText("3 of 3")).toBeInTheDocument();
+  });
+
+  it("pages with the arrows, disabled at either end", () => {
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+
+    const scroller = track();
+    if (!scroller) throw new Error("no track");
+    scroller.scrollLeft = 800;
+    fireEvent.scroll(scroller);
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
 
   it("shows the cover while the pages load", () => {
     render(<DocumentPages {...base} pages={null} status="loading" />);
     expect(screen.getByRole("img")).toHaveAttribute("src", "/cover.jpg");
-    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
     expect(screen.getByText(/Loading pages/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
 
   it("keeps the cover and explains when the pages fail to load", () => {
