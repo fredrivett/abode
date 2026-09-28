@@ -158,6 +158,15 @@ describe("POST /api/v1/items/documents", () => {
     });
   });
 
+  it("keeps documents out of public rooms by default", async () => {
+    await call({ pages: [page(1)] });
+    expect(m.itemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ excludeFromPublicRooms: true }),
+      }),
+    );
+  });
+
   it("tracks the uploaded bytes and item count", async () => {
     await call({ pages: [page(1), page(2)] });
     expect(m.userUpdate).toHaveBeenCalledWith({
