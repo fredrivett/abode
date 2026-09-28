@@ -63,6 +63,8 @@ export async function generateTagsFromText(text: string): Promise<string[]> {
 
 Return 10-15 relevant tags/labels (nouns, concepts, themes). Be specific and accurate.
 
+Include the specific names the content mentions: brands, companies, organisations, people, products and places. Name a brand by its name rather than its web address or email domain (e.g. "mous.co" → "Mous"). If the content is a document, include what kind (e.g. invoice, receipt, contract, letter).
+
 All tags MUST be in English, regardless of the language of the source content. If the content is in another language, translate concepts into their English equivalents.
 
 Content:
