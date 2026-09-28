@@ -3,7 +3,10 @@ import "server-only";
 import type { ItemKind, MilestoneType } from "@prisma/client";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
-import type { MilestoneConditional } from "@/lib/milestones/conditions";
+import {
+  INVITE_NUDGE_MIN_ITEMS,
+  type MilestoneConditional,
+} from "@/lib/milestones/conditions";
 
 const logger = createLogger("lib/milestones");
 
@@ -106,6 +109,7 @@ export const MILESTONE_CONFIG: Record<
   invite_friend: {
     label: "Invite a friend",
     destination: "/settings/invites",
+    conditional: "has_items_to_share",
   },
 };
 
@@ -170,24 +174,26 @@ export async function getMilestoneStatus(
     has_article: hasArticle,
     has_item: itemCount > 0,
     has_first_room: completedMap.has("create_first_room"),
+    has_items_to_share: itemCount >= INVITE_NUDGE_MIN_ITEMS,
   };
 
   const completed: Array<{ type: MilestoneType; completedAt: Date }> = [];
   const pending: MilestoneType[] = [];
 
   for (const type of MILESTONE_TYPES) {
-    // Skip conditional milestones if condition not met
+    const completedAt = completedMap.get(type);
+    if (completedAt) {
+      completed.push({ type, completedAt });
+      continue;
+    }
+
+    // Conditions only hide pending milestones; one done early still shows
     const { conditional } = MILESTONE_CONFIG[type];
     if (conditional && !conditionMet[conditional]) {
       continue;
     }
 
-    const completedAt = completedMap.get(type);
-    if (completedAt) {
-      completed.push({ type, completedAt });
-    } else {
-      pending.push(type);
-    }
+    pending.push(type);
   }
 
   return { completed, pending, hasArticle };

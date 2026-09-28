@@ -3,6 +3,7 @@
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import type { CaptureSource, ItemKind } from "@prisma/client";
 import { getMilestoneStatus } from "@/lib/milestones";
+import { INVITE_NUDGE_MIN_ITEMS } from "@/lib/milestones/conditions";
 
 describe("getMilestoneStatus", () => {
   beforeEach(async () => {
@@ -63,6 +64,7 @@ describe("getMilestoneStatus", () => {
     expect(status.pending).toContain("add_first_book");
     expect(status.pending).not.toContain("save_from_phone");
     expect(status.pending).not.toContain("create_first_room");
+    expect(status.pending).not.toContain("invite_friend");
   });
 
   test("offers saving from your phone once the user has an item", async () => {
@@ -106,5 +108,32 @@ describe("getMilestoneStatus", () => {
     expect(
       status.completed.find((m) => m.type === "add_first_book")?.completedAt,
     ).toEqual(completedAt);
+  });
+
+  test("holds back inviting a friend until the user has enough items", async () => {
+    const user = await createUser();
+    await createItems({ userId: user.id, count: INVITE_NUDGE_MIN_ITEMS - 1 });
+
+    expect((await getMilestoneStatus(user.id)).pending).not.toContain(
+      "invite_friend",
+    );
+
+    await createItems({ userId: user.id });
+
+    expect((await getMilestoneStatus(user.id)).pending).toContain(
+      "invite_friend",
+    );
+  });
+
+  test("still shows a gated milestone the user completed early", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    await write.userMilestone.create({
+      data: { userId: user.id, type: "invite_friend" },
+    });
+
+    const status = await getMilestoneStatus(user.id);
+
+    expect(completedTypes(status)).toContain("invite_friend");
   });
 });
