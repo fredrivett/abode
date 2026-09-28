@@ -5,7 +5,8 @@ Scoped conventions for this directory. See the `add-authed-page` skill (`.agents
 ## Auth
 
 - Pages under `(app)/` are **already authenticated** by `(app)/layout.tsx` — don't re-add a guard. Stricter access (admin) nests under a `(protected)` group with its own layout guard.
-- API routes (`api/**/route.ts`) are **not** guarded by the layout — guard explicitly: `createClient()` → `supabase.auth.getUser()` → `401 { message: "Unauthorized" }` if no user.
+- API routes (`api/**/route.ts`) are **not** guarded by the layout — guard explicitly: `createClient()` → `getUserWithMfa(supabase)` → `401 { message: "Unauthorized" }` if no user.
+- Routes the browser extension or personal access tokens must reach use `authenticateRequest(request, { tokenScope })` instead: `"read"` / `"write"` for the scope a token needs, `null` to reject tokens. Opening a route to tokens also means adding it to the allowlist in `src/lib/auth/token-route-access.test.ts`.
 - Always use `supabase.auth.getUser()` (validates the session), never `getSession()`.
 
 ## Route handlers (`api/**/route.ts`)
