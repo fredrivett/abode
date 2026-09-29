@@ -132,37 +132,42 @@ export function DocumentPages({
         ))}
       </div>
 
-      <div className="flex items-center justify-center gap-2 p-3 text-sm text-white/70">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Previous page"
-          disabled={index <= 0}
-          onClick={() => step(-1)}
-          className="text-white hover:bg-white/10 hover:text-white"
-        >
-          <ChevronLeft />
-        </Button>
-        {/* The error can wrap on the narrowest phones rather than overflow */}
-        <span aria-live="polite" className="min-w-16 text-balance text-center">
-          {index + 1} of {pageCount}
-          {status === "error" ? " · failed to load other pages" : null}
-        </span>
-        {/* Loading shows in the arrow it blocks, so nothing shifts once it's done */}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={status === "loading" ? "Loading pages" : "Next page"}
-          disabled={index >= slides.length - 1}
-          onClick={() => step(1)}
-          className="text-white hover:bg-white/10 hover:text-white"
-        >
-          {status === "loading" ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <ChevronRight />
-          )}
-        </Button>
+      {/* The error sits beside the pager, wrapping below it whole on phones too
+          narrow for both */}
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-sm text-white/70">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Previous page"
+            disabled={index <= 0}
+            onClick={() => step(-1)}
+            className="text-white hover:bg-white/10 hover:text-white"
+          >
+            <ChevronLeft />
+          </Button>
+          <span aria-live="polite" className="min-w-16 text-center">
+            {index + 1} of {pageCount}
+          </span>
+          {/* Loading shows in the arrow it blocks, so nothing shifts once it's done */}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={status === "loading" ? "Loading pages" : "Next page"}
+            disabled={index >= slides.length - 1}
+            onClick={() => step(1)}
+            className="text-white hover:bg-white/10 hover:text-white"
+          >
+            {status === "loading" ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ChevronRight />
+            )}
+          </Button>
+        </div>
+        {status === "error" ? (
+          <span className="whitespace-nowrap">Failed to load other pages</span>
+        ) : null}
       </div>
     </div>
   );
