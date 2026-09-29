@@ -11,18 +11,13 @@
  * forgets to enable RLS fails here instead of reaching production.
  */
 
-// Infrastructure tables that aren't app data and don't need RLS.
-const NON_APP_TABLES = new Set<string>([
-  "_prisma_migrations", // Prisma's own migration ledger
-]);
-
-// A new app table should get RLS in its migration, not an entry here. (Every
-// app table — including items and the vector tables, previously exempt — now
-// enables RLS unconditionally, so nothing else needs exempting.)
-const RLS_EXEMPT_TABLES = new Set<string>([...NON_APP_TABLES]);
+// A new table should get RLS in its migration, not an entry here. (Every table
+// — including items, the vector tables and Prisma's `_prisma_migrations`
+// ledger, all previously exempt — now enables RLS, so nothing needs exempting.)
+const RLS_EXEMPT_TABLES = new Set<string>();
 
 describe("row level security coverage", () => {
-  it("every application table in public has RLS enabled", async () => {
+  it("every table in public has RLS enabled", async () => {
     const { read } = await import("@/lib/db");
 
     const tables = await read.$queryRaw<
