@@ -66,7 +66,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **MCP server:** Connect Claude, Cursor and other AI assistants to search and read your library (`/api/mcp`, read-only), with a personal access token that has read access.
 - **Access tokens:** Personal access tokens with independent permissions: read your library (for MCP), save new items (for scripts or an iOS Shortcut), or both.
 - **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
-- **Export:** Download everything as a ZIP from Settings → Export: a complete `abode.json`, a Markdown file per item (Obsidian-ready), a Netscape `bookmarks.html` with a folder per room, and a Goodreads-format `books.csv`. Built in the background (needs Trigger.dev) and kept for 7 days. Uploaded files are next.
+- **Export:** Download everything as a ZIP from Settings → Export: a complete `abode.json`, a Markdown file per item (Obsidian-ready), a Netscape `bookmarks.html` with a folder per room, a Goodreads-format `books.csv`, and every upload, scan and saved image. Large libraries split into parts. Built in the background (needs Trigger.dev) and kept for 7 days.
 - **Admin:** User management, waitlist, and invite system.
 
 ## Development
@@ -98,12 +98,12 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Command palette (⌘K) + keyboard navigation
 - MCP server for AI assistants + scoped personal access tokens
 - Admin dashboard, waitlist, invite system
-- Data export (JSON, Markdown, bookmarks, books CSV)
+- Data export (JSON, Markdown, bookmarks, books CSV, every file)
 
 **🔜 Next:**
 
 - Browser extension
-- Export files (images, scans, uploads) + import an abode export (eject)
+- Import an abode export (eject to another instance)
 - Importers — bring your library from mymind, Raindrop, Are.na and Pinterest
 - Self-hosting guide + Docker Compose
 

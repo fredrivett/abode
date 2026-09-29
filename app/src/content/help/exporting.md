@@ -18,8 +18,13 @@ The download is a ZIP file containing:
 - **items/**: one Markdown file per item, grouped by kind, with its details at the top. Open them in any text editor, or drop the folder into Obsidian or Logseq.
 - **bookmarks.html**: every link you've saved, with a folder for each room. Import it into any browser, or into bookmarking apps like Raindrop or Pinboard.
 - **books.csv**: your books in Goodreads' format, including reading status, dates, ratings and reviews. StoryGraph, Hardcover and most book apps can import it.
+- **files/**: your uploads, scans, covers and saved images.
 - **README.md**: a short guide to the files.
 
-## What's not included yet
+## Large libraries
 
-Uploaded images, scanned pages and other files aren't in the export yet, only their details (titles, text found in them, tags and so on). You can still download individual files from <Abode />. Including files in the export is coming next.
+If you have a lot of images or scans, the export downloads as several parts (for example "part 1 of 3"). Download every part and unzip them all into the same folder: part 1 has your data, and the other parts add the rest of your files.
+
+## Files
+
+Everything you've uploaded, scanned or saved an image of is in the **files** folder, in a folder per item. Scanned documents include each page as shown in <Abode /> plus its colour original. Videos saved from YouTube, X or Instagram are linked rather than downloaded. If any file couldn't be copied, it's listed in **missing-files.txt**.
