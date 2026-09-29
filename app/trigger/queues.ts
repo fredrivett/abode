@@ -22,3 +22,13 @@ export const imageAnalysisQueue = queue({
   name: "image-analysis",
   concurrencyLimit: 2,
 });
+
+/**
+ * PDF imports (rendering pages to images). Kept off `image-analysis` so a long
+ * PDF doesn't hold one of its two slots for minutes while image uploads wait;
+ * the import hands its Replicate-bound analysis to that queue once pages exist.
+ */
+export const documentImportQueue = queue({
+  name: "document-import",
+  concurrencyLimit: 2,
+});

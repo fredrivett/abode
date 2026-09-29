@@ -42,6 +42,7 @@ vi.mock("../src/lib/db", () => ({
 }));
 vi.mock("../src/lib/documents/document-ocr", () => ({
   extractPageText: m.extractPageText,
+  MAX_OCR_PAGES_PER_DOCUMENT: 30,
 }));
 vi.mock("../src/lib/documents/describe-document", () => ({
   describeDocument: m.describeDocument,
@@ -66,7 +67,7 @@ vi.mock("./analyze-image", () => ({
   formatStorageError: String,
 }));
 
-import { analyzeDocumentTask } from "./analyze-document";
+import { analyzeDocumentPages, analyzeDocumentTask } from "./analyze-document";
 
 type TaskWithRun = { run: (payload: object) => Promise<unknown> };
 const run = () =>
@@ -114,7 +115,11 @@ beforeEach(() => {
     title: "Mous order confirmation, Mar 2026",
     description: "An order confirmation from Mous.",
   });
-  m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: false });
+  m.findItem.mockResolvedValue({
+    kind: "document",
+    titleEditedByUser: false,
+    meta: { pageCount: 2 },
+  });
   m.updateItem.mockReturnValue("update-item");
   m.upsertImageDetails.mockReturnValue("upsert-details");
   m.transaction.mockResolvedValue([]);
@@ -178,7 +183,11 @@ describe("analyzeDocumentTask", () => {
   });
 
   it("leaves a title the user renamed, without paying to describe it", async () => {
-    m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: true });
+    m.findItem.mockResolvedValue({
+      kind: "document",
+      titleEditedByUser: true,
+      meta: { pageCount: 2 },
+    });
     await run();
     expect(m.describeDocument).not.toHaveBeenCalled();
     expect(m.updateItem).not.toHaveBeenCalled();
@@ -275,5 +284,69 @@ describe("analyzeDocumentTask", () => {
         data: expect.objectContaining({ processingStatus: "failed" }),
       }),
     );
+  });
+});
+
+describe("analyzeDocumentPages (shared with PDF import)", () => {
+  const analyze = (maxOcrPages?: number) =>
+    analyzeDocumentPages({ itemId: "item-1", userId: "user-1", maxOcrPages });
+
+  it("uses a PDF page's text layer and only OCRs the scanned pages", async () => {
+    m.findPages.mockResolvedValue([
+      page(0, "Typed invoice text from the PDF's text layer"),
+      page(1),
+      page(2, "Typed terms and conditions"),
+    ]);
+    const result = await analyze();
+
+    expect(m.extractPageText).toHaveBeenCalledTimes(1);
+    expect(m.download).toHaveBeenCalledWith("user-1/p1-original.jpg");
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p0-original.jpg");
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p2-original.jpg");
+    const [{ create }] = m.upsertImageDetails.mock.calls[0];
+    expect(create.ocrText).toBe(
+      "Typed invoice text from the PDF's text layer\n\ntext 1\n\nTyped terms and conditions",
+    );
+    expect(result).toEqual({ pages: 3, pagesWithText: 3, ocrSkippedPages: 0 });
+  });
+
+  it("makes no OCR calls for a PDF that's all text", async () => {
+    m.findPages.mockResolvedValue([page(0, "one"), page(1, "two")]);
+    await analyze();
+    expect(m.extractPageText).not.toHaveBeenCalled();
+  });
+
+  it("stops OCR at the cap and records the skipped pages on meta", async () => {
+    m.findPages.mockResolvedValue([page(0), page(1), page(2), page(3)]);
+    const result = await analyze(2);
+
+    expect(m.extractPageText).toHaveBeenCalledTimes(2);
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p2-original.jpg");
+    expect(result.ocrSkippedPages).toBe(2);
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: expect.objectContaining({
+        meta: { pageCount: 2, ocrSkippedPages: 2 },
+      }),
+    });
+  });
+
+  it("OCRs nothing when the cap is 0 (daily allowance used up)", async () => {
+    const result = await analyze(0);
+    expect(m.extractPageText).not.toHaveBeenCalled();
+    expect(result.ocrSkippedPages).toBe(2);
+  });
+
+  it("clears a stale skipped count once every page has text", async () => {
+    m.findItem.mockResolvedValue({
+      kind: "document",
+      titleEditedByUser: true,
+      meta: { pageCount: 2, ocrSkippedPages: 1 },
+    });
+    await analyze();
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { meta: { pageCount: 2 } },
+    });
   });
 });

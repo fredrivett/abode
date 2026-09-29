@@ -38,7 +38,8 @@ export default defineConfig({
   },
   dirs: ["trigger"],
   build: {
-    external: ["@prisma/client", "jsdom", "sharp"],
+    // mupdf loads its WebAssembly from beside its own module, so it can't be bundled
+    external: ["@prisma/client", "jsdom", "sharp", "mupdf"],
     extensions: [
       prismaExtension({
         mode: "legacy",
