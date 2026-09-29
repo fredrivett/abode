@@ -95,6 +95,37 @@ describe("sweepDataExports", () => {
     ).toMatchObject({ status: "completed", fileKey: `${user.id}/old.zip` });
   });
 
+  it("still releases stranded runs when an archive can't be deleted", async () => {
+    const { write, read } = await import("@/lib/db");
+    const user = await createUser();
+    await write.dataExport.create({
+      data: {
+        userId: user.id,
+        status: "completed",
+        fileKey: `${user.id}/old.zip`,
+        expiresAt: new Date(NOW.getTime() - HOUR),
+      },
+    });
+    const stranded = await write.dataExport.create({
+      data: {
+        userId: user.id,
+        status: "exporting",
+        createdAt: new Date(NOW.getTime() - STRANDED_EXPORT_MS - HOUR),
+      },
+    });
+
+    await expect(
+      sweepDataExports({
+        supabase: fakeStorage(new Error("storage down")).supabase,
+        now: NOW,
+      }),
+    ).rejects.toThrow("storage down");
+
+    expect(
+      await read.dataExport.findUniqueOrThrow({ where: { id: stranded.id } }),
+    ).toMatchObject({ status: "failed" });
+  });
+
   it("fails runs stranded in pending/exporting, but not recent ones", async () => {
     const { write, read } = await import("@/lib/db");
     const user = await createUser();

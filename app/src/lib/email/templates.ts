@@ -408,7 +408,15 @@ export function getDataExportReadyEmail(options: {
 } {
   const exportUrl = `${getAppBaseUrl()}/settings/export`;
   const items = `${options.itemCount} ${options.itemCount === 1 ? "item" : "items"}`;
-  const expires = options.expiresAt.toUTCString().slice(0, 16);
+  // e.g. "5 October 2026 at 14:30 UTC" — the archive goes at this exact time
+  const expires = `${new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(options.expiresAt)} UTC`;
 
   const subject = "your abode export is ready";
 

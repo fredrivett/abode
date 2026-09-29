@@ -56,10 +56,20 @@ export function toBookRow(item: ExportItem): BookRow | null {
   return { id, title, sourceUrl, twitter, addedAt, userTags, notes, book };
 }
 
-/** Quote a CSV field when it holds a delimiter, quote or line break */
+// A cell starting with one of these is a formula when the CSV is opened in a
+// spreadsheet (CSV injection); a leading apostrophe makes it plain text
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/**
+ * Quote a CSV field when it holds a delimiter, quote or line break, and
+ * neutralise text a spreadsheet would run as a formula. Numbers are left as-is.
+ */
 export function csvField(value: string | number | null): string {
   if (value === null) return "";
-  const text = String(value);
+  const text =
+    typeof value === "string" && FORMULA_TRIGGER.test(value)
+      ? `'${value}`
+      : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

@@ -39,16 +39,21 @@ export async function runDataExport({
   });
   if (claimed.count === 0) return { status: "skipped" };
 
-  const { userId, user } = await db.dataExport.findUniqueOrThrow({
-    where: { id: exportId },
-    select: { userId: true, user: { select: { email: true } } },
-  });
-
   const startedAt = Date.now();
+  let userId: string;
+  let email: string;
   let itemCount: number;
   let sizeBytes: number;
   let expiresAt: Date;
+  let uploadedKey: string | null = null;
   try {
+    const row = await db.dataExport.findUniqueOrThrow({
+      where: { id: exportId },
+      select: { userId: true, user: { select: { email: true } } },
+    });
+    userId = row.userId;
+    email = row.user.email;
+
     const exportedAt = new Date();
     const archive = await buildExportArchive({
       userId,
@@ -66,6 +71,7 @@ export async function runDataExport({
         upsert: true,
       });
     if (error) throw error;
+    uploadedKey = fileKey;
 
     expiresAt = new Date(exportedAt.getTime() + EXPORT_RETENTION_MS);
     await db.dataExport.update({
@@ -80,6 +86,13 @@ export async function runDataExport({
       },
     });
   } catch (error) {
+    // A failed run is never swept, so don't leave its archive behind
+    if (uploadedKey) {
+      await supabase.storage
+        .from(EXPORTS_BUCKET)
+        .remove([uploadedKey])
+        .catch(() => {});
+    }
     await db.dataExport
       .update({
         where: { id: exportId },
@@ -101,10 +114,12 @@ export async function runDataExport({
 
   if (isEmailConfigured()) {
     try {
-      await sendEmail({
-        to: user.email,
+      const sent = await sendEmail({
+        to: email,
         ...getDataExportReadyEmail({ itemCount, expiresAt }),
       });
+      // Provider failures come back as a result, not an exception
+      if (!sent.success) throw new Error(sent.error ?? "Email not sent");
     } catch (error) {
       log.warn({ error, exportId }, "Failed to send export-ready email");
       captureServerException(error, userId, { context: "data_export_email" });

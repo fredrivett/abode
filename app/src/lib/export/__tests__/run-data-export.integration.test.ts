@@ -8,6 +8,7 @@ import { runDataExport } from "@/lib/export/run-data-export";
 const m = vi.hoisted(() => ({
   sendEmail: vi.fn(),
   capture: vi.fn(),
+  captureServerException: vi.fn(),
   emailConfigured: true,
 }));
 
@@ -16,7 +17,7 @@ vi.mock("@/lib/email", () => ({
   sendEmail: m.sendEmail,
 }));
 vi.mock("@/lib/posthog-server", () => ({
-  captureServerException: vi.fn(),
+  captureServerException: m.captureServerException,
   getPostHogClient: () => ({ capture: m.capture }),
 }));
 
@@ -121,21 +122,39 @@ describe("runDataExport", () => {
     expect(m.sendEmail).not.toHaveBeenCalled();
   });
 
-  it("still completes when the email fails to send", async () => {
-    const { read } = await import("@/lib/db");
-    const { dataExport } = await setup();
-    m.sendEmail.mockRejectedValueOnce(new Error("smtp down"));
+  it.each([
+    ["throws", () => m.sendEmail.mockRejectedValueOnce(new Error("smtp down"))],
+    [
+      "reports failure",
+      () =>
+        m.sendEmail.mockResolvedValueOnce({
+          success: false,
+          error: "rejected",
+        }),
+    ],
+  ])(
+    "still completes, and reports it, when the email %s",
+    async (_label, fail) => {
+      const { read } = await import("@/lib/db");
+      const { user, dataExport } = await setup();
+      fail();
 
-    await runDataExport({
-      exportId: dataExport.id,
-      supabase: fakeStorage().supabase,
-    });
+      await runDataExport({
+        exportId: dataExport.id,
+        supabase: fakeStorage().supabase,
+      });
 
-    const row = await read.dataExport.findUniqueOrThrow({
-      where: { id: dataExport.id },
-    });
-    expect(row.status).toBe("completed");
-  });
+      const row = await read.dataExport.findUniqueOrThrow({
+        where: { id: dataExport.id },
+      });
+      expect(row.status).toBe("completed");
+      expect(m.captureServerException).toHaveBeenCalledWith(
+        expect.any(Error),
+        user.id,
+        { context: "data_export_email" },
+      );
+    },
+  );
 
   it("is a no-op for an export that isn't pending (duplicate run)", async () => {
     const { dataExport } = await setup();
@@ -152,6 +171,26 @@ describe("runDataExport", () => {
 
     expect(again).toEqual({ status: "skipped" });
     expect(storage.upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes the uploaded archive if the run can't be marked completed", async () => {
+    const { write } = await import("@/lib/db");
+    const { user, dataExport } = await setup();
+    const remove = vi.fn(async () => ({ data: [], error: null }));
+    const upload = vi.fn(async () => {
+      // Deleting the row mid-run makes the completion write fail
+      await write.dataExport.delete({ where: { id: dataExport.id } });
+      return { data: { path: "x" }, error: null };
+    });
+    const supabase = {
+      storage: { from: () => ({ upload, remove }) },
+    } as unknown as Parameters<typeof runDataExport>[0]["supabase"];
+
+    await expect(
+      runDataExport({ exportId: dataExport.id, supabase }),
+    ).rejects.toThrow();
+
+    expect(remove).toHaveBeenCalledWith([`${user.id}/${dataExport.id}.zip`]);
   });
 
   it("marks the export failed with a safe message when the upload fails", async () => {

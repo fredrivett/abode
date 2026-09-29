@@ -58,6 +58,17 @@ describe("csvField", () => {
     expect(csvField(null)).toBe("");
     expect(csvField(3)).toBe("3");
   });
+
+  it("neutralises text a spreadsheet would run as a formula", () => {
+    expect(csvField('=HYPERLINK("http://evil")')).toBe(
+      '"\'=HYPERLINK(""http://evil"")"',
+    );
+    expect(csvField("+1")).toBe("'+1");
+    expect(csvField("-2+3")).toBe("'-2+3");
+    expect(csvField("@SUM(A1)")).toBe("'@SUM(A1)");
+    expect(csvField("plain -dash inside")).toBe("plain -dash inside");
+    expect(csvField(-1)).toBe("-1");
+  });
 });
 
 describe("buildBooksCsv", () => {

@@ -61,6 +61,16 @@ function resolveTweetMarkers(markdown: string): string {
   );
 }
 
+/** The location the app shows: a manual override wins over EXIF, as in rooms */
+function effectiveLocation(item: ExportItem) {
+  return (
+    item.locations.find(({ source }) => source === "manual") ??
+    item.locations.find(({ source }) => source === "exif") ??
+    item.locations[0] ??
+    null
+  );
+}
+
 function blockquote(text: string): string {
   return text
     .split("\n")
@@ -144,7 +154,7 @@ export function itemToMarkdown(
   item: ExportItem,
   roomNames: string[],
 ): { path: string; content: string } {
-  const location = item.locations[0]?.formatted ?? null;
+  const location = effectiveLocation(item)?.formatted ?? null;
   const frontmatter = toFrontmatter({
     id: item.id,
     kind: item.kind,

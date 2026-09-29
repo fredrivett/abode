@@ -126,6 +126,31 @@ describe("itemToMarkdown", () => {
     );
   });
 
+  it("shows the manual location over the EXIF one, like the app", () => {
+    const place = (source: string, formatted: string) => ({
+      source,
+      formatted,
+      latitude: null,
+      longitude: null,
+      neighborhood: null,
+      city: null,
+      region: null,
+      country: null,
+      countryCode: null,
+    });
+    const { content } = itemToMarkdown(
+      item({
+        locations: [
+          place("exif", "Where the camera was"),
+          place("manual", "Paris"),
+        ],
+      }),
+      [],
+    );
+    expect(content).toContain('location: "Paris"');
+    expect(content).not.toContain("Where the camera was");
+  });
+
   it("shows book ratings out of 5 and document pages by number", () => {
     const book = itemToMarkdown(
       item({

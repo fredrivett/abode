@@ -23,30 +23,36 @@ export async function sweepDataExports({
   now?: Date;
 }): Promise<{ expired: number; stranded: number }> {
   let expired = 0;
-  for (;;) {
-    const due = await db.dataExport.findMany({
-      where: { status: "completed", expiresAt: { lte: now } },
-      select: { id: true, fileKey: true },
-      take: STORAGE_PAGE_SIZE,
-    });
-    if (due.length === 0) break;
+  let expiryError: unknown = null;
+  try {
+    for (;;) {
+      const due = await db.dataExport.findMany({
+        where: { status: "completed", expiresAt: { lte: now } },
+        select: { id: true, fileKey: true },
+        take: STORAGE_PAGE_SIZE,
+      });
+      if (due.length === 0) break;
 
-    const fileKeys = due
-      .map(({ fileKey }) => fileKey)
-      .filter((key): key is string => key !== null);
-    if (fileKeys.length > 0) {
-      const { error } = await supabase.storage
-        .from(EXPORTS_BUCKET)
-        .remove(fileKeys);
-      if (error) throw error;
+      const fileKeys = due
+        .map(({ fileKey }) => fileKey)
+        .filter((key): key is string => key !== null);
+      if (fileKeys.length > 0) {
+        const { error } = await supabase.storage
+          .from(EXPORTS_BUCKET)
+          .remove(fileKeys);
+        if (error) throw error;
+      }
+
+      const { count } = await db.dataExport.updateMany({
+        where: { id: { in: due.map(({ id }) => id) } },
+        data: { status: "expired", fileKey: null },
+      });
+      expired += count;
+      if (due.length < STORAGE_PAGE_SIZE) break;
     }
-
-    const { count } = await db.dataExport.updateMany({
-      where: { id: { in: due.map(({ id }) => id) } },
-      data: { status: "expired", fileKey: null },
-    });
-    expired += count;
-    if (due.length < STORAGE_PAGE_SIZE) break;
+  } catch (error) {
+    // Still release stranded runs below; one bad archive mustn't block exports
+    expiryError = error;
   }
 
   const { count: stranded } = await db.dataExport.updateMany({
@@ -57,5 +63,6 @@ export async function sweepDataExports({
     data: { status: "failed", error: EXPORT_FAILED_MESSAGE },
   });
 
+  if (expiryError) throw expiryError;
   return { expired, stranded };
 }
