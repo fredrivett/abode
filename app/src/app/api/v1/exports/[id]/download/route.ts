@@ -6,6 +6,7 @@ import {
   exportDownloadFilename,
 } from "@/lib/export/constants";
 import { createLogger } from "@/lib/logger.server";
+import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -32,6 +33,13 @@ export async function GET(
     }
 
     const { id } = await params;
+    // Not a UUID can't be an export; don't let it reach the uuid column
+    if (!isCanonicalUuid(id)) {
+      return NextResponse.json(
+        { message: "Export not found" },
+        { status: 404 },
+      );
+    }
     const dataExport = await db.dataExport.findFirst({
       where: { id, userId: user.id },
       select: {

@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
-import { runDataExport } from "../src/lib/export/run-data-export";
+import {
+  markDataExportFailed,
+  runDataExport,
+} from "../src/lib/export/run-data-export";
 import { captureServerException } from "../src/lib/posthog-server";
 
 function supabaseServiceClient() {
@@ -32,13 +35,14 @@ export const exportUserDataTask = task({
         supabase: supabaseServiceClient(),
       });
       logger.log("Data export finished", { exportId, ...result });
-      return result;
+      return { success: true, ...result };
     } catch (error) {
       logger.error("Data export failed", { exportId, error });
       captureServerException(error, userId, {
         task: "export-user-data",
         exportId,
       });
+      await markDataExportFailed(exportId);
       throw error;
     }
   },

@@ -29,6 +29,7 @@ vi.mock("@/lib/logger.server", () => ({
 import { GET } from "./route";
 
 const USER = "user-1";
+const EXPORT_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const completed = {
   status: "completed",
   fileKey: `${USER}/export-1.zip`,
@@ -36,7 +37,7 @@ const completed = {
   expiresAt: new Date(Date.now() + 60_000),
 };
 
-const call = (id = "export-1") =>
+const call = (id = EXPORT_ID) =>
   GET({} as Parameters<typeof GET>[0], { params: Promise.resolve({ id }) });
 
 beforeEach(() => {
@@ -57,7 +58,7 @@ describe("GET /api/v1/exports/[id]/download", () => {
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("https://storage.example/signed");
     expect(m.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "export-1", userId: USER } }),
+      expect.objectContaining({ where: { id: EXPORT_ID, userId: USER } }),
     );
     expect(m.from).toHaveBeenCalledWith("exports");
     expect(m.createSignedUrl).toHaveBeenCalledWith(`${USER}/export-1.zip`, 60, {
@@ -67,6 +68,11 @@ describe("GET /api/v1/exports/[id]/download", () => {
       distinctId: USER,
       event: "data_export_downloaded",
     });
+  });
+
+  it("404s an id that isn't a UUID without querying", async () => {
+    expect((await call("not-a-uuid")).status).toBe(404);
+    expect(m.findFirst).not.toHaveBeenCalled();
   });
 
   it("rejects a signed-out request", async () => {

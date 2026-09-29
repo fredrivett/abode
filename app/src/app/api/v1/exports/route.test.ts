@@ -4,10 +4,8 @@ const m = vi.hoisted(() => ({
   getUser: vi.fn(),
   triggerConfigured: true,
   trigger: vi.fn(),
-  findFirst: vi.fn(),
+  reserve: vi.fn(),
   findMany: vi.fn(),
-  count: vi.fn(),
-  create: vi.fn(),
   update: vi.fn(),
   capture: vi.fn(),
 }));
@@ -21,15 +19,10 @@ vi.mock("@/lib/trigger/item-runs", () => ({
 }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: m.trigger } }));
 vi.mock("@/lib/db", () => ({
-  default: {
-    dataExport: {
-      findFirst: m.findFirst,
-      findMany: m.findMany,
-      count: m.count,
-      create: m.create,
-      update: m.update,
-    },
-  },
+  default: { dataExport: { findMany: m.findMany, update: m.update } },
+}));
+vi.mock("@/lib/export/reserve-data-export", () => ({
+  reserveDataExport: m.reserve,
 }));
 vi.mock("@/lib/posthog-server", () => ({
   captureServerException: vi.fn(),
@@ -57,9 +50,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.triggerConfigured = true;
   m.getUser.mockResolvedValue({ data: { user: { id: USER } } });
-  m.findFirst.mockResolvedValue(null);
-  m.count.mockResolvedValue(0);
-  m.create.mockResolvedValue(createdRow);
+  m.reserve.mockResolvedValue({ status: "created", dataExport: createdRow });
   m.update.mockResolvedValue({});
   m.trigger.mockResolvedValue({ id: "run_1" });
 });
@@ -68,36 +59,34 @@ describe("POST /api/v1/exports", () => {
   it("rejects a signed-out (or 2FA-pending) request", async () => {
     m.getUser.mockResolvedValue({ data: { user: null } });
     expect((await POST()).status).toBe(401);
-    expect(m.create).not.toHaveBeenCalled();
+    expect(m.reserve).not.toHaveBeenCalled();
   });
 
   it("is unavailable without the background worker", async () => {
     m.triggerConfigured = false;
     expect((await POST()).status).toBe(503);
-    expect(m.create).not.toHaveBeenCalled();
+    expect(m.reserve).not.toHaveBeenCalled();
   });
 
   it("allows one export in progress at a time", async () => {
-    m.findFirst.mockResolvedValue({ id: "running" });
+    m.reserve.mockResolvedValue({ status: "in_progress", exportId: "running" });
     const res = await POST();
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ exportId: "running" });
-    expect(m.create).not.toHaveBeenCalled();
+    expect(m.trigger).not.toHaveBeenCalled();
   });
 
   it("caps exports per day", async () => {
-    m.count.mockResolvedValue(3);
+    m.reserve.mockResolvedValue({ status: "daily_limit" });
     expect((await POST()).status).toBe(429);
-    expect(m.create).not.toHaveBeenCalled();
+    expect(m.trigger).not.toHaveBeenCalled();
   });
 
   it("creates the export, enqueues the build and reports it", async () => {
     const res = await POST();
 
     expect(res.status).toBe(202);
-    expect(m.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { userId: USER } }),
-    );
+    expect(m.reserve).toHaveBeenCalledWith(USER);
     expect(m.trigger).toHaveBeenCalledWith("export-user-data", {
       exportId: "export-1",
       userId: USER,

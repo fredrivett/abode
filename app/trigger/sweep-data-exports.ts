@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { logger, schedules } from "@trigger.dev/sdk";
 import { sweepDataExports } from "../src/lib/export/sweep-data-exports";
+import { captureServerException } from "../src/lib/posthog-server";
 
 function supabaseServiceClient() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -20,10 +21,16 @@ export const sweepDataExportsTask = schedules.task({
   cron: "20 * * * *", // hourly, offset from the other hourly sweeps
   maxDuration: 120,
   run: async () => {
-    const result = await sweepDataExports({
-      supabase: supabaseServiceClient(),
-    });
-    logger.log("Swept data exports", result);
-    return result;
+    try {
+      const result = await sweepDataExports({
+        supabase: supabaseServiceClient(),
+      });
+      logger.log("Swept data exports", result);
+      return { success: true, ...result };
+    } catch (error) {
+      logger.error("Data export sweep failed", { error });
+      captureServerException(error, undefined, { task: "sweep-data-exports" });
+      throw error;
+    }
   },
 });

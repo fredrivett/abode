@@ -128,3 +128,17 @@ export async function runDataExport({
 
   return { status: "completed", itemCount, sizeBytes };
 }
+
+/**
+ * Best-effort: fail an export that's still pending/exporting, for a run that
+ * died before (or outside) runDataExport's own failure handling — e.g. the
+ * worker lacks Supabase config — so it doesn't block the next request.
+ */
+export async function markDataExportFailed(exportId: string): Promise<void> {
+  await db.dataExport
+    .updateMany({
+      where: { id: exportId, status: { in: ["pending", "exporting"] } },
+      data: { status: "failed", error: EXPORT_FAILED_MESSAGE },
+    })
+    .catch(() => {});
+}

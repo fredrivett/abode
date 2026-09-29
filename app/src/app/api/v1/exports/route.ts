@@ -3,6 +3,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { MAX_EXPORTS_PER_DAY } from "@/lib/export/constants";
+import { reserveDataExport } from "@/lib/export/reserve-data-export";
 import {
   dataExportSnapshotSelect,
   RECENT_EXPORTS_LIMIT,
@@ -14,8 +15,6 @@ import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 
 const log = createLogger("api/v1/exports");
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The user's most recent exports, newest first — drives the settings page */
 export async function GET(): Promise<NextResponse> {
@@ -69,21 +68,17 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    const active = await db.dataExport.findFirst({
-      where: { userId, status: { in: ["pending", "exporting"] } },
-      select: { id: true },
-    });
-    if (active) {
+    const reserved = await reserveDataExport(userId);
+    if (reserved.status === "in_progress") {
       return NextResponse.json(
-        { message: "An export is already in progress", exportId: active.id },
+        {
+          message: "An export is already in progress",
+          exportId: reserved.exportId,
+        },
         { status: 409 },
       );
     }
-
-    const recent = await db.dataExport.count({
-      where: { userId, createdAt: { gte: new Date(Date.now() - DAY_MS) } },
-    });
-    if (recent >= MAX_EXPORTS_PER_DAY) {
+    if (reserved.status === "daily_limit") {
       return NextResponse.json(
         {
           message: `You can export up to ${MAX_EXPORTS_PER_DAY} times a day. Try again tomorrow.`,
@@ -91,11 +86,7 @@ export async function POST(): Promise<NextResponse> {
         { status: 429 },
       );
     }
-
-    const created = await db.dataExport.create({
-      data: { userId },
-      select: dataExportSnapshotSelect,
-    });
+    const created = reserved.dataExport;
 
     try {
       await tasks.trigger<typeof exportUserDataTask>("export-user-data", {
