@@ -75,6 +75,48 @@ describe("detectSuggestions", () => {
     });
   });
 
+  it("suggests a type from a word people use for it", () => {
+    const out = detect("tweets about design", { type: ["twitter"] });
+    expect(out).toEqual([
+      { facet: "type", value: "twitter", start: 0, end: 6 },
+    ]);
+    expect(detect("Photos", { type: ["image"] })[0]).toMatchObject({
+      facet: "type",
+      value: "image",
+    });
+  });
+
+  it("only suggests a type alias for kinds the user has", () => {
+    expect(detect("tweets", { type: ["image"] })).toEqual([]);
+    expect(detect("tweets", {})).toEqual([]);
+  });
+
+  it("offers each owned kind for an ambiguous type word", () => {
+    const both = detect("posts", { type: ["twitter", "instagram"] });
+    expect(both.map((s) => s.value)).toEqual(["twitter", "instagram"]);
+    const one = detect("posts", { type: ["instagram", "image"] });
+    expect(one.map((s) => s.value)).toEqual(["instagram"]);
+  });
+
+  it("prefers a longer multi-word type alias over its parts", () => {
+    const out = detect("blog posts", { type: ["article", "twitter"] });
+    expect(out).toEqual([
+      { facet: "type", value: "article", start: 0, end: 10 },
+    ]);
+  });
+
+  it("offers a type alias alongside a same-named tag", () => {
+    const out = detect("video", { type: ["video"], tag: ["video"] });
+    expect(out.map((s) => s.facet)).toEqual(["type", "tag"]);
+  });
+
+  it("skips a type alias whose kind is already applied", () => {
+    const filters: Filter[] = [
+      { id: "1", type: "type", value: "twitter", negated: false },
+    ];
+    expect(detect("tweets", { type: ["twitter"] }, filters)).toEqual([]);
+  });
+
   it("orders suggestions for different words by position in the query", () => {
     const out = detect("book 2026", { type: ["book"] });
     expect(out.map((s) => s.facet)).toEqual(["type", "date"]);
