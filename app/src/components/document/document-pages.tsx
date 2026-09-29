@@ -143,10 +143,8 @@ export function DocumentPages({
         >
           <ChevronLeft />
         </Button>
-        <span
-          aria-live="polite"
-          className="min-w-16 whitespace-nowrap text-center"
-        >
+        {/* The error can wrap on the narrowest phones rather than overflow */}
+        <span aria-live="polite" className="min-w-16 text-balance text-center">
           {index + 1} of {pageCount}
           {status === "error" ? " · failed to load other pages" : null}
         </span>
