@@ -93,6 +93,17 @@ describe("importBookChunk", () => {
     expect(row?.status).toBe("completed");
     expect(row?.importedCount).toBe(3);
     expect(row?.completedAt).not.toBeNull();
+
+    // Importing books materializes the user's auto book shelves (wiring check).
+    const shelves = await read.room.findMany({
+      where: { userId, autoKind: { not: null } },
+      select: { autoKind: true },
+    });
+    expect(shelves.map((s) => s.autoKind).sort()).toEqual([
+      "book_read",
+      "book_reading",
+      "book_want_to_read",
+    ]);
   });
 
   test("dedupes a repeated ISBN within the chunk (skipped, not enqueued)", async () => {

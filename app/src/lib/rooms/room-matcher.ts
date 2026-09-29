@@ -160,10 +160,11 @@ const VALID_SOURCE_TYPES = Object.values(SourceType).map((s) =>
  * room-service.integration.test.ts). Value is assumed already validated against
  * VALID_STATUS_VALUES by the caller.
  *   - read: an article marked read OR a book with status read.
+ *   - want_to_read: a book shelved as want-to-read (articles never qualify).
  *   - reading: a book currently being read (articles never qualify).
  *   - dnf: a book marked did-not-finish (articles never qualify).
- *   - unread: a readable item not yet read — an article with no read_at, or a
- *     book with null/want_to_read status.
+ *   - unread: an untracked readable item — an article with no read_at, or a book
+ *     with no status set (want_to_read is a distinct intent, not unread).
  */
 function matchesStatus(item: ItemWithDetails, value: StatusValue): boolean {
   const bookStatus = item.bookDetails?.status ?? null;
@@ -172,6 +173,8 @@ function matchesStatus(item: ItemWithDetails, value: StatusValue): boolean {
   switch (value) {
     case "read":
       return articleReadAt !== null || bookStatus === "read";
+    case "want_to_read":
+      return bookStatus === "want_to_read";
     case "reading":
       return bookStatus === "reading";
     case "dnf":
@@ -179,10 +182,7 @@ function matchesStatus(item: ItemWithDetails, value: StatusValue): boolean {
     case "unread":
       return (
         (item.kind === "article" && articleReadAt === null) ||
-        (item.kind === "book" &&
-          bookStatus !== "reading" &&
-          bookStatus !== "read" &&
-          bookStatus !== "dnf")
+        (item.kind === "book" && bookStatus === null)
       );
   }
 }

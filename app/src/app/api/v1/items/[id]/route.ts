@@ -173,6 +173,14 @@ export async function PATCH(
       JSON.stringify(userTags.slice().sort()) !==
         JSON.stringify(existingItem.userTags.slice().sort());
 
+    // Reading-status writes change the `@status:` facet, which drives smart-room
+    // (incl. auto book shelf) membership — so they must re-sync too. Presence of
+    // the field is enough; a same-value write just re-runs an idempotent sync.
+    const bookStatusChanged =
+      bookReading !== undefined && bookReading.status !== undefined;
+    const articleReadChanged =
+      articleReading !== undefined && articleReading.read !== undefined;
+
     // `kind` is intentionally not updatable here: changing an item's kind
     // requires re-running enrichment and pruning stale detail rows, which the
     // dedicated reassign endpoint (POST /api/v1/items/[id]/reassign) handles.
@@ -181,7 +189,9 @@ export async function PATCH(
       (excludeFromPublicRooms !== undefined &&
         excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
       tagsChanged ||
-      userTagsChanged;
+      userTagsChanged ||
+      bookStatusChanged ||
+      articleReadChanged;
 
     const updatedItem = await db.item.update({
       where: { id },

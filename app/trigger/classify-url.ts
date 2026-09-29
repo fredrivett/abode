@@ -35,6 +35,7 @@ import {
   extractReadableSignals,
   type ReadableSignals,
 } from "../src/lib/readable-signals";
+import { ensureBookRooms } from "../src/lib/rooms/auto-book-rooms";
 import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
@@ -972,6 +973,9 @@ async function handleBookUrl(
     create: { itemId, ...bookDetailsData },
     update: bookDetailsData,
   });
+
+  // The user now owns a book — materialize their book shelves (idempotent).
+  await ensureBookRooms(userId);
 
   logger.log("Book processing complete, triggering enrichment", { itemId });
 
