@@ -20,18 +20,24 @@ function fakeStorage(
     for (const key of keys) objects.delete(key);
     return { data: [], error: null };
   });
-  const list = vi.fn(async (prefix: string) => {
-    const children = new Map<string, string | null>();
-    for (const path of objects) {
-      if (!path.startsWith(`${prefix}/`)) continue;
-      const [name, ...rest] = path.slice(prefix.length + 1).split("/");
-      children.set(name, rest.length > 0 ? null : path);
-    }
-    return {
-      data: [...children].map(([name, id]) => ({ name, id })),
-      error: null,
-    };
-  });
+  const list = vi.fn(
+    async (
+      prefix: string,
+      { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+    ) => {
+      const children = new Map<string, string | null>();
+      for (const path of objects) {
+        if (!path.startsWith(`${prefix}/`)) continue;
+        const [name, ...rest] = path.slice(prefix.length + 1).split("/");
+        children.set(name, rest.length > 0 ? null : path);
+      }
+      // Pages like Supabase's list(), so the caller's paging loop terminates
+      const entries = [...children]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, id]) => ({ name, id }));
+      return { data: entries.slice(offset, offset + limit), error: null };
+    },
+  );
   return {
     supabase: {
       storage: { from: () => ({ remove, list }) },
@@ -214,6 +220,31 @@ describe("sweepDataExports", () => {
     expect(
       await read.dataExport.findUniqueOrThrow({ where: { id: run.id } }),
     ).toMatchObject({ status: "failed" });
+  });
+
+  it("releases a stranded backlog in bounded batches, oldest first", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    await write.dataExport.createMany({
+      data: Array.from({ length: 101 }, (_, i) => ({
+        userId: user.id,
+        status: "pending" as const,
+        createdAt: new Date(NOW.getTime() - STRANDED_EXPORT_MS - HOUR - i),
+      })),
+    });
+    const storage = fakeStorage();
+
+    const first = await sweepDataExports({
+      supabase: storage.supabase,
+      now: NOW,
+    });
+    const second = await sweepDataExports({
+      supabase: storage.supabase,
+      now: NOW,
+    });
+
+    expect(first.stranded).toBe(100);
+    expect(second.stranded).toBe(1);
   });
 
   it("fails runs stranded in pending/exporting, but not recent ones", async () => {

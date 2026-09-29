@@ -133,9 +133,17 @@ export async function buildExportArchive({
   await mkdir(textDir, { recursive: true });
   const jsonPath = join(textDir, "abode.json");
   const jsonOut = createWriteStream(jsonPath);
-  const jsonDone = once(jsonOut, "finish");
+  // Surface a disk error as a rejection runDataExport's cleanup can handle,
+  // never as an unhandled 'error' event that takes down the worker
+  const jsonDone = new Promise<void>((resolve, reject) => {
+    jsonOut.once("finish", resolve);
+    jsonOut.once("error", reject);
+  });
+  jsonDone.catch(() => {});
   const writeJson = async (text: string) => {
-    if (!jsonOut.write(text)) await once(jsonOut, "drain");
+    if (!jsonOut.write(text)) {
+      await Promise.race([once(jsonOut, "drain"), jsonDone]);
+    }
   };
 
   const header = JSON.stringify(

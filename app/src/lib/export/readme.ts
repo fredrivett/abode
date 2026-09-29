@@ -34,7 +34,7 @@ ${[
   ", ",
 )} (Any file that couldn't be copied in is listed in \`missing-files.txt\`.)
 
-If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), unzip them all into the same folder. Part 1 starts with this README and \`abode.json\`; together the parts make up everything below.
+If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), unzip them all into the same folder. This README is at the start of part 1, followed by \`abode.json\` (in part 2 if it's too big to share a part); together the parts make up everything below.
 
 ## What's in here
 

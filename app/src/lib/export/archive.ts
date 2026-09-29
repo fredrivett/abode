@@ -76,6 +76,11 @@ export class PartedArchiveWriter {
       out.once("finish", () => resolve());
       out.once("error", reject);
     });
+    // A disk error fails the next add (via `drained`) or the part's close
+    out.on("error", (error) => {
+      this.error ??= error;
+    });
+    done.catch(() => {});
     const part: CurrentPart = {
       position,
       path,
@@ -146,8 +151,9 @@ export class PartedArchiveWriter {
   private async drained(): Promise<void> {
     if (this.error) throw this.error;
     if (this.current.out.writableNeedDrain) {
-      await once(this.current.out, "drain");
+      await Promise.race([once(this.current.out, "drain"), this.current.done]);
     }
+    if (this.error) throw this.error;
   }
 
   /** Adds a text file (deflated) */

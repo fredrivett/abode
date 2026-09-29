@@ -5,7 +5,7 @@ import {
   STORAGE_PAGE_SIZE,
 } from "@/lib/storage-objects";
 
-// Expired exports handled per round (each can have several parts)
+// Exports handled per round (each can have several parts to delete)
 const EXPIRE_BATCH_SIZE = 100;
 
 import {
@@ -76,6 +76,9 @@ export async function sweepDataExports({
       createdAt: { lt: new Date(now.getTime() - STRANDED_EXPORT_MS) },
     },
     select: { id: true, userId: true },
+    orderBy: { createdAt: "asc" },
+    // Bounded like expiry; a backlog drains over successive hourly runs
+    take: EXPIRE_BATCH_SIZE,
   });
   for (const { id, userId } of strandedRuns) {
     try {

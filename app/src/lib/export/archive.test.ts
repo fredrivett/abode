@@ -116,4 +116,16 @@ describe("PartedArchiveWriter", () => {
       /over the 10240-byte part limit/,
     );
   });
+
+  it("surfaces a disk error as a rejection, not an unhandled error", async () => {
+    const archive = new PartedArchiveWriter({
+      dir: join(dir, "missing", "folder"),
+      modifiedAt: new Date(),
+      maxPartBytes: KB * KB,
+      onPart: async () => {},
+    });
+    await archive.addText("README.md", "hi").catch(() => {});
+
+    await expect(archive.finish()).rejects.toThrow(/ENOENT/);
+  });
 });
