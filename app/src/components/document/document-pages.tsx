@@ -1,9 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { IsLoading } from "@/components/ui/is-loading";
 import type { DocumentPageSummary } from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { isEditableTarget } from "@/lib/keyboard";
@@ -43,13 +42,14 @@ export function DocumentPages({
   const slides: Slide[] =
     pages && status === "ready"
       ? pages.map((page) => ({
-          key: page.fileKey,
+          key: `page-${page.position}`,
           src: getProxyImageUrl(page.fileKey, "detail"),
           width: page.width,
           height: page.height,
         }))
       : coverUrl
-        ? [{ key: "cover", src: coverUrl }]
+        ? // Keyed as page 1 so the same <img> carries on once the pages load
+          [{ key: "page-0", src: coverUrl }]
         : [];
 
   const lastIndex = slides.length - 1;
@@ -132,42 +132,43 @@ export function DocumentPages({
         ))}
       </div>
 
-      <div className="flex items-center justify-center gap-2 p-3 text-sm text-white/70">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Previous page"
-          disabled={index <= 0}
-          onClick={() => step(-1)}
-          className="text-white hover:bg-white/10 hover:text-white"
-        >
-          <ChevronLeft />
-        </Button>
-        <span aria-live="polite" className="min-w-16 text-center">
-          {index + 1} of {pageCount}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Next page"
-          disabled={index >= slides.length - 1}
-          onClick={() => step(1)}
-          className="text-white hover:bg-white/10 hover:text-white"
-        >
-          <ChevronRight />
-        </Button>
+      {/* The error sits beside the pager, wrapping below it whole on phones too
+          narrow for both */}
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-sm text-white/70">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Previous page"
+            disabled={index <= 0}
+            onClick={() => step(-1)}
+            className="text-white hover:bg-white/10 hover:text-white"
+          >
+            <ChevronLeft />
+          </Button>
+          <span aria-live="polite" className="min-w-16 text-center">
+            {index + 1} of {pageCount}
+          </span>
+          {/* Loading shows in the arrow it blocks, so nothing shifts once it's done */}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={status === "loading" ? "Loading pages" : "Next page"}
+            disabled={index >= slides.length - 1}
+            onClick={() => step(1)}
+            className="text-white hover:bg-white/10 hover:text-white"
+          >
+            {status === "loading" ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ChevronRight />
+            )}
+          </Button>
+        </div>
+        {status === "error" ? (
+          <span className="whitespace-nowrap">Failed to load other pages</span>
+        ) : null}
       </div>
-      {status === "loading" ? (
-        <IsLoading
-          label="Loading pages"
-          className="justify-center pb-3 text-sm text-white/70"
-        />
-      ) : null}
-      {status === "error" ? (
-        <p className="pb-3 text-center text-sm text-white/70">
-          Couldn't load the rest of this document's pages.
-        </p>
-      ) : null}
     </div>
   );
 }
