@@ -8,7 +8,7 @@ import { SearchInput } from "./search-input";
 const FILTER_OPTIONS: FiltersResponse = {
   location: ["paris", "new york"],
   color: ["orange", "teal"],
-  type: ["article", "image"],
+  type: ["article", "image", "twitter"],
   tag: ["typography", "orange"],
 };
 
@@ -67,6 +67,27 @@ export const WithSuggestions: Story = {
     await waitFor(() => {
       expect(input).toHaveValue("june 2026");
       expect(canvas.getByText("paris")).toBeInTheDocument();
+    });
+  },
+};
+
+// A word people use for a kind ("tweets") offers that type, not just its raw name.
+export const TypeAlias: Story = {
+  render: () => (
+    <StatefulSearchInput
+      initialQuery="tweets about design"
+      filterOptions={FILTER_OPTIONS}
+    />
+  ),
+  // Tab applies type: twitter, removing "tweets" from the query.
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("textbox");
+    await userEvent.click(input);
+    await userEvent.keyboard("{Tab}");
+    await waitFor(() => {
+      expect(input).toHaveValue("about design");
+      expect(canvas.getByText("twitter")).toBeInTheDocument();
     });
   },
 };

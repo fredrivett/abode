@@ -5,6 +5,8 @@
  * Grounded facets (location/tag/object/color/source/type) are matched only
  * against values that exist in THIS user's data, so we suggest "paris" as a
  * location because they have Paris items — not because we guessed it's a city.
+ * `type` is matched through the words people use for a kind ("tweets" →
+ * twitter, see `TYPE_TERMS`), still only for kinds the user actually has.
  * `status` is the one fixed-vocabulary facet (unread/reading/read/dnf), always
  * offered rather than grounded in the user's data.
  * Dates go through a small hand-rolled scanner. Pure and deterministic (`now`
@@ -14,6 +16,7 @@
 import type { FiltersResponse } from "./api";
 import { type DateMatch, findDateExpressions } from "./parse-date-expression";
 import { findQuotedSpans } from "./quoted-phrases";
+import { TYPE_TERMS } from "./type-aliases";
 import type { DateOperator, Filter, FilterType } from "./types";
 
 export type Suggestion = {
@@ -25,11 +28,11 @@ export type Suggestion = {
   endDate?: string;
 };
 
-// Grounded facets to scan against the user's own values. Order here is
-// irrelevant — FACET_PRIORITY decides ranking.
+// Grounded facets to scan literally against the user's own values (`type` is
+// scanned via its alias terms instead). Order here is irrelevant —
+// FACET_PRIORITY decides ranking.
 const GROUNDED_FACETS: (keyof FiltersResponse)[] = [
   "location",
-  "type",
   "source",
   "tag",
   "object",
@@ -94,6 +97,18 @@ export function detectSuggestions(
     for (const value of options?.[facet] ?? []) {
       for (const span of findValueSpans(lowerQuery, value)) {
         candidates.push({ facet, value, start: span.start, end: span.end });
+      }
+    }
+  }
+
+  // Item kinds via the words people use for them, grounded to kinds they have
+  const userKinds = new Set(options?.type ?? []);
+  for (const [term, kinds] of TYPE_TERMS) {
+    const ownedKinds = kinds.filter((kind) => userKinds.has(kind));
+    if (ownedKinds.length === 0) continue;
+    for (const span of findValueSpans(lowerQuery, term)) {
+      for (const kind of ownedKinds) {
+        candidates.push({ facet: "type", value: kind, ...span });
       }
     }
   }
