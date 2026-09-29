@@ -109,6 +109,9 @@ export function RoomDetail({
     hasHydrated,
   } = useGridDensity();
   const getCardFrame = useCardFrame(fontScale);
+  // Auto-generated book shelves are "hidden" (dismissed) rather than deleted —
+  // deleting one records a dismissal server-side so it isn't recreated.
+  const isAutoShelf = room.autoKind != null;
   const [roomEmoji, setRoomEmoji] = useState(room.emoji);
   const [roomName, setRoomName] = useState(room.name);
   const [roomVisibility, setRoomVisibility] = useState(room.visibility);
@@ -184,14 +187,18 @@ export function RoomDetail({
         method: "DELETE",
       });
       if (response.ok) {
-        toast.success("Room deleted");
+        toast.success(isAutoShelf ? "Shelf hidden" : "Room deleted");
         router.push("/rooms");
       } else {
-        toast.error("Failed to delete room");
+        toast.error(
+          isAutoShelf ? "Failed to hide shelf" : "Failed to delete room",
+        );
         setIsDeleting(false);
       }
     } catch {
-      toast.error("Failed to delete room");
+      toast.error(
+        isAutoShelf ? "Failed to hide shelf" : "Failed to delete room",
+      );
       setIsDeleting(false);
     }
   };
@@ -376,7 +383,7 @@ export function RoomDetail({
                     onClick={() => setShowDeleteDialog(true)}
                   >
                     <Trash2 className="size-4" />
-                    Delete room
+                    {isAutoShelf ? "Hide shelf" : "Delete room"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -507,10 +514,13 @@ export function RoomDetail({
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete room?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isAutoShelf ? "Hide this shelf?" : "Delete room?"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete "{roomName}"? This will remove
-                the room but won't delete the items in it.
+                {isAutoShelf
+                  ? `"${roomName}" will be hidden and won't reappear. Your books aren't affected.`
+                  : `Are you sure you want to delete "${roomName}"? This will remove the room but won't delete the items in it.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -522,7 +532,13 @@ export function RoomDetail({
                 onClick={handleDelete}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isDeleting ? <IsLoading label="Deleting" /> : "Delete room"}
+                {isDeleting ? (
+                  <IsLoading label={isAutoShelf ? "Hiding" : "Deleting"} />
+                ) : isAutoShelf ? (
+                  "Hide shelf"
+                ) : (
+                  "Delete room"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

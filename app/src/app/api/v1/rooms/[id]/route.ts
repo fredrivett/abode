@@ -244,9 +244,18 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
     }
 
-    // Hard delete (cascades to room_items)
-    await db.room.delete({
-      where: { id },
+    // Hard delete (cascades to room_items). If this is an auto-generated book
+    // shelf, record the dismissal in the same transaction so ensureBookRooms
+    // never recreates it. A dismissed kind can't be recreated (so can't be
+    // deleted again), so a plain push won't duplicate.
+    await db.$transaction(async (tx) => {
+      await tx.room.delete({ where: { id } });
+      if (existingRoom.autoKind) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { dismissedAutoRooms: { push: existingRoom.autoKind } },
+        });
+      }
     });
 
     // Log activity (fire-and-forget)
@@ -261,6 +270,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
         room_id: id,
         room_type: existingRoom.type,
         room_visibility: existingRoom.visibility,
+        auto_kind: existingRoom.autoKind,
       },
     });
 
