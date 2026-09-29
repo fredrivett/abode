@@ -27,6 +27,8 @@ export const exportProfileSelect = {
   showInvitedBy: true,
   showInvited: true,
   allowSearchIndexing: true,
+  // Auto book shelves the user removed, so an import doesn't bring them back
+  dismissedAutoRooms: true,
 } satisfies Prisma.UserSelect;
 
 export const exportNoteDraftSelect = {
@@ -43,6 +45,8 @@ export const exportRoomSelect = {
   type: true,
   filters: true,
   visibility: true,
+  // Set on auto-generated book shelves (Want to read / Reading / Read)
+  autoKind: true,
   createdAt: true,
   updatedAt: true,
   roomItems: {
