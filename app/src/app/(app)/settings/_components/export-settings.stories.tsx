@@ -34,21 +34,33 @@ export const Ready: Story = {
   args: { initialExports: [ready] },
 };
 
+const inProgressExports: DataExportSnapshot[] = [
+  {
+    ...ready,
+    id: "pending",
+    status: "exporting",
+    itemCount: null,
+    sizeBytes: null,
+    completedAt: null,
+    expiresAt: null,
+    createdAt: hoursFromNow(0),
+  },
+  ready,
+];
+
 export const InProgress: Story = {
-  args: {
-    initialExports: [
-      {
-        ...ready,
-        id: "pending",
-        status: "exporting",
-        itemCount: null,
-        sizeBytes: null,
-        completedAt: null,
-        expiresAt: null,
-        createdAt: hoursFromNow(0),
-      },
-      ready,
-    ],
+  args: { initialExports: inProgressExports },
+  // The page polls while an export builds; answer with the same state so the
+  // story renders offline and stays in progress
+  beforeEach: () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ exports: inProgressExports }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    return () => {
+      globalThis.fetch = realFetch;
+    };
   },
 };
 

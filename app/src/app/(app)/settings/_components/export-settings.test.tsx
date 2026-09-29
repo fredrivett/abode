@@ -11,6 +11,7 @@ import type { DataExportSnapshot } from "@/lib/export/snapshot";
 const post = vi.hoisted(() => vi.fn());
 const get = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
+const capture = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-client", () => ({
   api: { post, get },
@@ -22,7 +23,7 @@ vi.mock("@/lib/api-client", () => ({
     }
   },
 }));
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
+vi.mock("posthog-js", () => ({ default: { capture } }));
 vi.mock("sonner", () => ({ toast: { error: toastError, success: vi.fn() } }));
 
 import { ApiClientError } from "@/lib/api-client";
@@ -49,6 +50,7 @@ describe("ExportSettings", () => {
     post.mockReset();
     get.mockReset();
     toastError.mockReset();
+    capture.mockReset();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -63,6 +65,7 @@ describe("ExportSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export my data" }));
 
     await waitFor(() => expect(post).toHaveBeenCalledWith("/api/v1/exports"));
+    expect(capture).toHaveBeenCalledWith("data_export_submitted");
     expect(
       await screen.findByRole("button", { name: /export in progress/i }),
     ).toBeDisabled();
@@ -91,6 +94,9 @@ describe("ExportSettings", () => {
       "href",
       "/api/v1/exports/exp1/download",
     );
+
+    fireEvent.click(screen.getByRole("link", { name: /download/i }));
+    expect(capture).toHaveBeenCalledWith("data_export_download_clicked");
   });
 
   it("treats a completed export past its expiry as expired, with no download", () => {
