@@ -44,17 +44,41 @@ function del() {
   });
 }
 
+// Tracks whether we're inside the $transaction callback when the delete +
+// dismissal writes run — this is the atomicity the DELETE handler relies on
+// (a dismissal pushed outside the atomic block could be lost on rollback and
+// the shelf recreated). Splitting the two writes into separate transactions
+// would flip these flags and fail the assertions below.
+let inTx = false;
+let deleteInTx = false;
+let updateInTx = false;
+
 describe("DELETE /api/v1/rooms/:id — auto-shelf dismissal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    inTx = false;
+    deleteInTx = false;
+    updateInTx = false;
     mockGetUser.mockResolvedValue({ data: { user: { id: "owner" } } });
-    // Run the transaction callback against our mock tx.
+    mockRoomDelete.mockImplementation(async () => {
+      deleteInTx = inTx;
+    });
+    mockUserUpdate.mockImplementation(async () => {
+      updateInTx = inTx;
+    });
+    // Run the transaction callback against our mock tx, flagging the window.
     mockTransaction.mockImplementation(
-      async (cb: (tx: unknown) => Promise<void>) =>
-        cb({
-          room: { delete: mockRoomDelete },
-          user: { update: mockUserUpdate },
-        }),
+      async (cb: (tx: unknown) => Promise<void>) => {
+        inTx = true;
+        try {
+          return await cb({
+            room: { delete: mockRoomDelete },
+            user: { update: mockUserUpdate },
+          });
+        } finally {
+          inTx = false;
+        }
+      },
     );
   });
 
@@ -75,6 +99,26 @@ describe("DELETE /api/v1/rooms/:id — auto-shelf dismissal", () => {
       where: { id: "owner" },
       data: { dismissedAutoRooms: { push: "book_reading" } },
     });
+    // Both writes must happen inside the same transaction (atomic dismissal).
+    expect(deleteInTx).toBe(true);
+    expect(updateInTx).toBe(true);
+  });
+
+  it("rolls back (500, no dismissal committed) if the transaction fails", async () => {
+    mockFindRoom.mockResolvedValue({
+      id: "room-1",
+      userId: "owner",
+      type: "smart",
+      visibility: "private",
+      autoKind: "book_reading",
+    });
+    mockUserUpdate.mockRejectedValue(new Error("db down"));
+
+    const res = await del();
+
+    // The route surfaces a 500; because both writes share one transaction, a
+    // failed dismissal push means the room delete rolls back too.
+    expect(res.status).toBe(500);
   });
 
   it("does not touch dismissals when deleting a normal room", async () => {

@@ -68,22 +68,33 @@ async function createShelf(
   const name = shelfName(def.status);
   const slug = await generateRoomSlug(name, userId);
 
-  let roomId: string;
+  // Create the row and re-check dismissal in one transaction. The caller's
+  // dismissal read can be stale relative to a concurrent shelf-delete (which
+  // deletes the room and pushes the dismissal atomically); re-reading here
+  // shrinks that race so a just-dismissed shelf isn't recreated.
+  let roomId: string | null;
   try {
-    const room = await db.room.create({
-      data: {
-        userId,
-        name,
-        slug,
-        emoji: SHELF_EMOJI[def.autoKind],
-        type: "smart",
-        filters: shelfFilters(def.status) as unknown as Prisma.InputJsonValue,
-        visibility: "private",
-        autoKind: def.autoKind,
-      },
-      select: { id: true },
+    roomId = await db.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { dismissedAutoRooms: true },
+      });
+      if (user?.dismissedAutoRooms.includes(def.autoKind)) return null;
+      const room = await tx.room.create({
+        data: {
+          userId,
+          name,
+          slug,
+          emoji: SHELF_EMOJI[def.autoKind],
+          type: "smart",
+          filters: shelfFilters(def.status) as unknown as Prisma.InputJsonValue,
+          visibility: "private",
+          autoKind: def.autoKind,
+        },
+        select: { id: true },
+      });
+      return room.id;
     });
-    roomId = room.id;
   } catch (error) {
     // Another concurrent ensure won the [userId, autoKind] unique race — fine.
     if (
@@ -94,8 +105,17 @@ async function createShelf(
     }
     throw error;
   }
+  if (roomId === null) return; // dismissed between the caller's read and now
 
-  await syncRoomItems(roomId, userId);
+  // Populate membership. If this fails, roll the room back so a transient error
+  // doesn't leave a permanently empty shelf that future ensures skip as present.
+  try {
+    await syncRoomItems(roomId, userId);
+  } catch (error) {
+    await db.room.delete({ where: { id: roomId } }).catch(() => {});
+    throw error;
+  }
+
   getPostHogClient()?.capture({
     distinctId: userId,
     event: "book_shelf_created",
