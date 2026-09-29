@@ -29,7 +29,7 @@ function createExport(tx: Tx, userId: string) {
 
 /**
  * Creates a pending export for the user unless one is already in progress or
- * they've hit the daily cap. The checks and the insert run under a per-user
+ * they've hit the daily cap (failed runs don't count toward it). The checks and the insert run under a per-user
  * advisory lock (held until the transaction ends), so concurrent requests
  * queue behind each other instead of all seeing room and all creating one.
  */
@@ -46,8 +46,14 @@ export async function reserveDataExport(
     });
     if (active) return { status: "in_progress", exportId: active.id };
 
+    // Failed runs don't count: a failure on our side (e.g. the worker was
+    // down) mustn't lock the user out of retrying for a day
     const recent = await tx.dataExport.count({
-      where: { userId, createdAt: { gte: new Date(now.getTime() - DAY_MS) } },
+      where: {
+        userId,
+        status: { not: "failed" },
+        createdAt: { gte: new Date(now.getTime() - DAY_MS) },
+      },
     });
     if (recent >= MAX_EXPORTS_PER_DAY) return { status: "daily_limit" };
 

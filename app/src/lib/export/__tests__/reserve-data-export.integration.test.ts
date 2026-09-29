@@ -28,12 +28,18 @@ describe("reserveDataExport", () => {
     const { write } = await import("@/lib/db");
     const user = await createUser();
     // Another request mid-reservation: holds the lock, then creates its export
+    let lockHeld!: () => void;
+    const locked = new Promise<void>((resolve) => {
+      lockHeld = resolve;
+    });
     const other = write.$transaction(async (tx) => {
       await lockUserDataExports(tx, user.id);
-      await sleep(300);
+      lockHeld();
+      await sleep(200);
       await tx.dataExport.create({ data: { userId: user.id } });
     });
-    await sleep(50);
+    // Only reserve once the lock is definitely taken
+    await locked;
 
     const result = await reserveDataExport(user.id);
     await other;
@@ -66,6 +72,19 @@ describe("reserveDataExport", () => {
     });
 
     expect(await reserveDataExport(user.id)).toEqual({ status: "daily_limit" });
+  });
+
+  it("doesn't count failed runs toward the daily cap", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    await write.dataExport.createMany({
+      data: Array.from({ length: MAX_EXPORTS_PER_DAY }, () => ({
+        userId: user.id,
+        status: "failed" as const,
+      })),
+    });
+
+    expect((await reserveDataExport(user.id)).status).toBe("created");
   });
 
   it("allows a new export once yesterday's have aged out", async () => {
