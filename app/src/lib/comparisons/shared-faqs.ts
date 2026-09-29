@@ -20,7 +20,7 @@ export function sharedFaqs(comparison: Comparison): ComparisonFaq[] {
     {
       question: "is what I save private?",
       answer:
-        "yes, unless you choose otherwise: things are private until you put them in a public room or share them, and public pages stay out of search engines unless you opt in. we record anonymised usage sessions to improve abode, with everything you save masked out before it leaves your browser.",
+        "yes, unless you choose otherwise: things are private until you put them in a public room or share them, and public pages stay out of search engines unless you opt in. to improve abode we record usage sessions tied to your account, with the text, images and links on screen and your searches masked before they leave your browser; page addresses are still recorded.",
     },
   ];
 }

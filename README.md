@@ -48,7 +48,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
 
-Session replays record how the app is used, never what people save: all text, input values, images and media, and link/image URLs are masked in the browser before anything is sent (`app/src/lib/posthog-replay-privacy.ts`).
+Session replays are linked to the signed-in account and record how the app is used, not what people save: on-screen text, input values, images and media, and link/image URLs are masked in the browser before anything is sent, as are search queries and links shared to `/save` in page URLs (`app/src/lib/posthog-replay-privacy.ts`). Page paths are still recorded, so a public room's slug can appear.
 
 Set `NEXT_PUBLIC_SITE_URL` to your instance's public URL (e.g. `https://abode.example.com`) so emails, share links and embeds point at your instance rather than abode.fyi. It's inlined at build time, so set it before building. Self-hosted instances are kept out of search engines (`robots.txt` disallows all).
 
