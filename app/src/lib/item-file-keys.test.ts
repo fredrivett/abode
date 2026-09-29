@@ -5,6 +5,7 @@ import {
   collectItemFileKeys,
   type ItemFileKeysSource,
   itemFileKeysSelect,
+  listItemFiles,
 } from "./item-storage";
 import { fileKeyStrings } from "./items/__tests__/file-key-strings";
 
@@ -130,8 +131,16 @@ const everyLocation: ItemFileKeysSource = {
     media: [{ type: "image", url: "https://ig/1", fileKey: "u/ig-1.jpg" }],
   },
   documentPages: [
-    { fileKey: "u/page-1.jpg", originalFileKey: "u/page-1-colour.jpg" },
-    { fileKey: "u/page-2.jpg", originalFileKey: "u/page-2-colour.jpg" },
+    {
+      position: 1,
+      fileKey: "u/page-2.jpg",
+      originalFileKey: "u/page-2-colour.jpg",
+    },
+    {
+      position: 0,
+      fileKey: "u/page-1.jpg",
+      originalFileKey: "u/page-1-colour.jpg",
+    },
   ],
 };
 
@@ -174,5 +183,44 @@ describe("collectCapturedFileKeys", () => {
     for (const key of fileKeyStrings(documentPages)) {
       expect(keys).not.toContain(key);
     }
+  });
+});
+
+describe("listItemFiles", () => {
+  it("names every file collectItemFileKeys finds, once each", () => {
+    const files = listItemFiles(everyLocation);
+    expect(new Set(files.map(({ key }) => key))).toEqual(
+      new Set(collectItemFileKeys(everyLocation)),
+    );
+    expect(new Set(files.map(({ name }) => name)).size).toBe(files.length);
+  });
+
+  it("gives each file a readable name that keeps its extension", () => {
+    expect(listItemFiles(everyLocation).map(({ name }) => name)).toEqual([
+      "page-01.jpg",
+      "page-01-original.jpg",
+      "page-02.jpg",
+      "page-02-original.jpg",
+      "original.jpg",
+      "cover.jpg",
+      "favicon.png",
+      "product-1.jpg",
+      "product-2.jpg",
+      "media-1.jpg",
+      "media-2.jpg",
+      "media-3.jpg",
+      "card.jpg",
+      "author-avatar.jpg",
+    ]);
+  });
+
+  it("lists a key held in two places once, under its first name", () => {
+    const names = listItemFiles({
+      ...everyLocation,
+      fileKey: "u/page-1.jpg",
+      coverFileKey: "u/tweet-photo.jpg",
+    }).map(({ name }) => name);
+    expect(names.filter((n) => n.startsWith("original"))).toEqual([]);
+    expect(names).toContain("cover.jpg");
   });
 });
