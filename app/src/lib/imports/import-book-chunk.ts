@@ -7,6 +7,7 @@ import { writeImportedBook } from "@/lib/imports/write-imported-book";
 import { enqueueBackgroundProcessing } from "@/lib/items/enqueue-background-processing";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 
 const log = createLogger("lib/imports/import-book-chunk");
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -85,6 +86,12 @@ export async function importBookChunk({
         importId,
       });
     }
+  }
+
+  // Materialize the user's book shelves once per chunk (idempotent) now that
+  // they own books. Once-per-chunk, not per-book, keeps it cheap.
+  if (imported > 0) {
+    await ensureBookRooms(userId);
   }
 
   await db.itemImport.update({
