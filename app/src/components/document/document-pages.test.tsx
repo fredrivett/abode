@@ -105,6 +105,7 @@ describe("DocumentPages", () => {
   it("keeps the cover and explains when the pages fail to load", () => {
     render(<DocumentPages {...base} pages={null} status="error" />);
     expect(screen.getByRole("img")).toHaveAttribute("src", "/cover.jpg");
+    expect(screen.getByText("1 of 3")).toBeInTheDocument();
     expect(screen.getByText("Failed to load other pages")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
