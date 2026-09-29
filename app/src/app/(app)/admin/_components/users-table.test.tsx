@@ -61,6 +61,7 @@ describe("UsersTable", () => {
     });
     expect(link).toHaveAttribute("href", baseUser.replaysUrl);
     expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("omits the replays link when PostHog isn't set up", () => {

@@ -20,10 +20,15 @@ export function PostHogIdentity() {
     previousUserId.current = userId;
     // PostHog not configured (no key) — nothing to identify
     if (!posthog.__loaded) return;
-    if (previous !== undefined && previous !== userId) posthog.reset();
-    if (userId !== undefined && posthog.get_distinct_id() !== userId) {
-      posthog.identify(userId);
+    const switchedUser = previous !== undefined && previous !== userId;
+    const needsIdentify =
+      userId !== undefined && posthog.get_distinct_id() !== userId;
+    // A persisted identity from someone else (e.g. a shared device where the
+    // last user's tab closed without signing out) must not merge into this user
+    if (switchedUser || (needsIdentify && posthog._isIdentified())) {
+      posthog.reset();
     }
+    if (needsIdentify) posthog.identify(userId);
   }, [userId]);
 
   return null;

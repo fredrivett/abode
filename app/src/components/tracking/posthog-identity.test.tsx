@@ -6,9 +6,11 @@ import { PostHogIdentity } from "./posthog-identity";
 const posthog = vi.hoisted(() => ({
   __loaded: true,
   distinctId: "anon-1",
+  identified: false,
   identify: vi.fn(),
   reset: vi.fn(),
   get_distinct_id: () => posthog.distinctId,
+  _isIdentified: () => posthog.identified,
 }));
 
 vi.mock("posthog-js", () => ({ default: posthog }));
@@ -20,6 +22,7 @@ describe("PostHogIdentity", () => {
   beforeEach(() => {
     posthog.__loaded = true;
     posthog.distinctId = "anon-1";
+    posthog.identified = false;
     posthog.identify.mockClear();
     posthog.reset.mockClear();
     useUserStore.getState().clearUser();
@@ -55,9 +58,25 @@ describe("PostHogIdentity", () => {
     render(<PostHogIdentity />);
     hydrate("user-a");
     posthog.distinctId = "user-a";
+    posthog.identified = true;
     hydrate("user-b");
     expect(posthog.reset).toHaveBeenCalledOnce();
     expect(posthog.identify).toHaveBeenLastCalledWith("user-b");
+    expect(posthog.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      posthog.identify.mock.invocationCallOrder.at(-1) ?? 0,
+    );
+  });
+
+  it("resets a previous user's persisted identity before identifying", () => {
+    posthog.distinctId = "user-a";
+    posthog.identified = true;
+    render(<PostHogIdentity />);
+    hydrate("user-b");
+    expect(posthog.reset).toHaveBeenCalledOnce();
+    expect(posthog.identify).toHaveBeenCalledWith("user-b");
+    expect(posthog.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      posthog.identify.mock.invocationCallOrder[0],
+    );
   });
 
   it("does nothing when PostHog isn't initialised", () => {
