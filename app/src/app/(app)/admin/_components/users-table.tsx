@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Video } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ComponentProps } from "react";
@@ -45,6 +45,8 @@ type User = {
   createdAt: string;
   lastActiveAt: string | null;
   lastItemAddedAt: string | null;
+  /** PostHog session recordings for the user; null when PostHog isn't set up */
+  replaysUrl: string | null;
   usageToday: {
     actionCount: number;
     costUsd: number;
@@ -99,13 +101,14 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
             <TableHead>Last item added</TableHead>
             <TableHead className="text-right">Usage today</TableHead>
             <TableHead className="text-right">Spend (month)</TableHead>
+            <TableHead className="text-right">Replays</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={10}
+                colSpan={11}
                 className="text-center text-muted-foreground"
               >
                 No users found
@@ -220,6 +223,23 @@ export function UsersTable({ users, pagination }: UsersTableProps) {
                     >
                       {formatUsd(user.usageToday.monthCostUsd)}
                     </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {user.replaysUrl ? (
+                    <Button asChild variant="ghost" size="icon-sm">
+                      <a
+                        href={user.replaysUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Session replays for ${user.email}`}
+                        title="Session replays in PostHog"
+                      >
+                        <Video />
+                      </a>
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </TableCell>
               </TableRow>
