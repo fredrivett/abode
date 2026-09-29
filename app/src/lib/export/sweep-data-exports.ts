@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import db from "@/lib/db";
-import { STORAGE_PAGE_SIZE } from "@/lib/storage-objects";
+import {
+  removeAllObjectsUnderPrefix,
+  STORAGE_PAGE_SIZE,
+} from "@/lib/storage-objects";
 
 // Expired exports handled per round (each can have several parts)
 const EXPIRE_BATCH_SIZE = 100;
@@ -8,6 +11,7 @@ const EXPIRE_BATCH_SIZE = 100;
 import {
   EXPORT_FAILED_MESSAGE,
   EXPORTS_BUCKET,
+  exportPrefix,
   STRANDED_EXPORT_MS,
 } from "./constants";
 
@@ -17,7 +21,8 @@ import {
  *   A row only flips once its parts are confirmed removed, so a storage error
  *   is retried by the next sweep rather than leaking the archive.
  * - Fails runs stranded in pending/exporting (dropped from the queue or
- *   killed), which would otherwise block the user from exporting again.
+ *   killed), which would otherwise block the user from exporting again,
+ *   deleting any parts they'd uploaded before dying.
  */
 export async function sweepDataExports({
   supabase,
@@ -63,10 +68,29 @@ export async function sweepDataExports({
     expiryError = error;
   }
 
-  const { count: stranded } = await db.dataExport.updateMany({
+  // A run killed mid-export may have uploaded parts before any were recorded;
+  // they sit under its own folder, so clear that before failing it
+  const strandedRuns = await db.dataExport.findMany({
     where: {
       status: { in: ["pending", "exporting"] },
       createdAt: { lt: new Date(now.getTime() - STRANDED_EXPORT_MS) },
+    },
+    select: { id: true, userId: true },
+  });
+  for (const { id, userId } of strandedRuns) {
+    try {
+      await removeAllObjectsUnderPrefix(
+        supabase.storage.from(EXPORTS_BUCKET),
+        exportPrefix({ userId, exportId: id }),
+      );
+    } catch (error) {
+      expiryError ??= error;
+    }
+  }
+  const { count: stranded } = await db.dataExport.updateMany({
+    where: {
+      id: { in: strandedRuns.map(({ id }) => id) },
+      status: { in: ["pending", "exporting"] },
     },
     data: { status: "failed", error: EXPORT_FAILED_MESSAGE },
   });

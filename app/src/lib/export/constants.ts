@@ -21,20 +21,36 @@ export const EXPORT_TASK_MAX_DURATION_S = 60 * 60;
 export const STRANDED_EXPORT_MS =
   2 * 60 * 60 * 1000 + EXPORT_TASK_MAX_DURATION_S * 1000 + 60 * 60 * 1000;
 
-/** Default largest ZIP part, before files spill into the next part (1 GiB) */
-export const DEFAULT_EXPORT_PART_MB = 1024;
+/**
+ * Default largest ZIP part in MiB. Each part is one storage upload, and
+ * Supabase's default global upload limit (and the ceiling while a project's
+ * spend cap is on) is 50 MB, so this leaves headroom under it.
+ */
+export const DEFAULT_EXPORT_PART_MB = 45;
 
 /**
- * Largest ZIP part in bytes. Each part is one storage upload, so it must stay
- * under the Supabase project's upload size limit: set `DATA_EXPORT_PART_MB`
- * lower if your limit is smaller than the 1 GiB default. Read from process.env
- * directly (not env.server) so the Trigger task can import it.
+ * Largest ZIP part in bytes. It must stay under the Supabase project's global
+ * upload size limit; raise `DATA_EXPORT_PART_MB` (in the Trigger.dev task's
+ * env, where exports are built) after raising that limit, for fewer, bigger
+ * parts. Read from process.env directly (not env.server) so the Trigger task
+ * can import it.
  */
 export function exportPartMaxBytes(): number {
   const mb = Number(process.env.DATA_EXPORT_PART_MB);
   return (
     (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_EXPORT_PART_MB) * 1024 * 1024
   );
+}
+
+/** Storage folder holding all of an export's parts */
+export function exportPrefix({
+  userId,
+  exportId,
+}: {
+  userId: string;
+  exportId: string;
+}): string {
+  return `${userId}/${exportId}`;
 }
 
 /** Storage key of one part of an export */
@@ -47,7 +63,7 @@ export function exportPartKey({
   exportId: string;
   position: number;
 }): string {
-  return `${userId}/${exportId}/part-${position}.zip`;
+  return `${exportPrefix({ userId, exportId })}/part-${position}.zip`;
 }
 
 /**

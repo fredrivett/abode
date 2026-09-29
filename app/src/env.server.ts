@@ -90,10 +90,12 @@ export const envSchema = z.object({
   // directly for Trigger.dev import safety). Only bites when USAGE_LIMITS_ENFORCED.
   BACKGROUND_RESERVE_FRACTION: z.string().optional(),
 
-  // Largest data-export ZIP part in MiB (default 1024). Each part is a single
-  // Supabase Storage upload, so keep it under the project's upload size limit.
-  // Read via process.env in `exportPartMaxBytes()` (lib/export/constants.ts) for
-  // Trigger.dev import safety; validated as a positive number at use.
+  // Largest data-export ZIP part in MiB (default 45). Each part is a single
+  // Supabase Storage upload, so keep it under the project's global upload
+  // limit (50 MB by default, and while a spend cap is on). Set it where exports
+  // are built — the Trigger.dev task env. Read via process.env in
+  // `exportPartMaxBytes()` (lib/export/constants.ts) for Trigger.dev import
+  // safety; validated as a positive number at use.
   DATA_EXPORT_PART_MB: z.string().optional(),
 
   // Base URL of this env's Trigger.dev runs dashboard (Project > Runs), used to

@@ -23,8 +23,8 @@ The download is a ZIP file containing:
 
 ## Large libraries
 
-If you have a lot of images or scans, the export downloads as several parts (for example "part 1 of 3"). Download every part and unzip them all into the same folder: part 1 has your data, and the other parts add the rest of your files.
+If you have a lot of images or scans, the export downloads as several parts (for example "part 1 of 3"). Download every part and unzip them all into the same folder: part 1 starts with your data, and the parts together make up the whole export.
 
 ## Files
 
-Everything you've uploaded, scanned or saved an image of is in the **files** folder, in a folder per item. Scanned documents include each page as shown in <Abode /> plus its colour original. Videos saved from YouTube, X or Instagram are linked rather than downloaded. If any file couldn't be copied, it's listed in **missing-files.txt**.
+Everything you've uploaded, scanned or saved an image of is in the **files** folder, in a folder per item. A profile picture you uploaded is in **files/profile**. Scanned documents include each page as shown in <Abode /> plus its colour original. Videos saved from YouTube, X or Instagram are linked rather than downloaded. If any file couldn't be copied, it's listed in **missing-files.txt**.

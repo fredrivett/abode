@@ -47,6 +47,7 @@ function fakeStorage({
   let uploadCount = 0;
   const from = vi.fn((bucket: string) => ({
     download: async (key: string) => {
+      if (key.endsWith("/throws.jpg")) throw new Error("socket hang up");
       const data = stored[`${bucket}:${key}`];
       return data
         ? { data: new Blob([data]), error: null }
@@ -110,7 +111,8 @@ describe("runDataExport", () => {
     m.emailConfigured = true;
   });
   afterEach(() => {
-    process.env.DATA_EXPORT_PART_MB = originalPartMb;
+    if (originalPartMb === undefined) delete process.env.DATA_EXPORT_PART_MB;
+    else process.env.DATA_EXPORT_PART_MB = originalPartMb;
   });
 
   it("builds, uploads and completes the export with its files, then emails the user", async () => {
@@ -203,6 +205,30 @@ describe("runDataExport", () => {
       `${user.id}/${dataExport.id}/part-1.zip`,
       `${user.id}/${dataExport.id}/part-2.zip`,
     ]);
+  });
+
+  it("treats a download that throws as a missing file, not a failed export", async () => {
+    const { write } = await import("@/lib/db");
+    const { user, dataExport, stored } = await setup();
+    await write.item.create({
+      data: {
+        userId: user.id,
+        kind: "image",
+        processingStatus: "completed",
+        fileKey: `${user.id}/throws.jpg`,
+      },
+    });
+
+    const result = await runDataExport({
+      exportId: dataExport.id,
+      supabase: fakeStorage({ stored }).supabase,
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      fileCount: 1,
+      missingFileCount: 1,
+    });
   });
 
   it("skips the email when email isn't configured", async () => {

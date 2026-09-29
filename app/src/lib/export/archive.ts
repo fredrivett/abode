@@ -1,5 +1,6 @@
 import { once } from "node:events";
-import { createWriteStream, type WriteStream } from "node:fs";
+import { createReadStream, createWriteStream, type WriteStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
@@ -7,7 +8,18 @@ import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 const DEFLATE_LEVEL = 6;
 
 // zip32 (all fflate writes) caps an archive at 65,535 entries; roll well before
-const MAX_ENTRIES_PER_PART = 60_000;
+export const MAX_ENTRIES_PER_PART = 60_000;
+
+// zip32 record sizes, to keep a part's *finished* size under the limit: each
+// entry costs a local header (+ data descriptor) where it's written and a
+// central-directory record at the end, both carrying the filename
+const LOCAL_HEADER_BYTES = 30 + 16;
+const CENTRAL_RECORD_BYTES = 46;
+const END_RECORD_BYTES = 22;
+
+// Deflate can slightly expand incompressible input; budget for the worst case
+const deflatedBound = (rawBytes: number) =>
+  rawBytes + Math.ceil(rawBytes / 1000) + 64;
 
 export type ArchivePart = {
   /** 1-based part number */
@@ -22,33 +34,38 @@ type CurrentPart = {
   path: string;
   zip: Zip;
   out: WriteStream;
+  /** Bytes written so far */
   bytes: number;
+  /** Central-directory bytes still to be written when the part closes */
+  centralBytes: number;
   entries: number;
   done: Promise<void>;
 };
 
 /**
- * A ZIP archive written to disk as one or more parts. Text files are deflated;
- * binary files (images and PDFs, already compressed) are stored as-is. Before
- * a binary file would push the current part past `maxPartBytes` (or zip32's
- * entry limit), the part is closed and handed to `onPart` — e.g. to upload and
- * delete it — so only one part ever sits on disk. Parts only roll between
- * binary files, never while a streamed file (`openFile`) is still open.
+ * A ZIP archive written to disk as one or more parts. Text is deflated;
+ * binary files (images, PDFs — already compressed) are stored as-is. Before a
+ * file would take the finished part past `maxPartBytes` (headers and central
+ * directory included) or past `maxEntriesPerPart`, the part is closed and
+ * handed to `onPart` (e.g. to upload and delete it), so only one part ever
+ * sits on disk. Each add waits for the disk to drain, so memory stays flat.
  */
 export class PartedArchiveWriter {
   private current: CurrentPart;
   private readonly parts: ArchivePart[] = [];
-  private openStreams = 0;
   private error: Error | null = null;
+  private readonly maxEntriesPerPart: number;
 
   constructor(
     private readonly options: {
       dir: string;
       modifiedAt: Date;
       maxPartBytes: number;
+      maxEntriesPerPart?: number;
       onPart: (part: ArchivePart) => Promise<void>;
     },
   ) {
+    this.maxEntriesPerPart = options.maxEntriesPerPart ?? MAX_ENTRIES_PER_PART;
     this.current = this.startPart(1);
   }
 
@@ -64,6 +81,7 @@ export class PartedArchiveWriter {
       path,
       out,
       bytes: 0,
+      centralBytes: 0,
       entries: 0,
       done,
       zip: new Zip((error, chunk, final) => {
@@ -79,67 +97,89 @@ export class PartedArchiveWriter {
     return part;
   }
 
-  private entry<T extends ZipDeflate | ZipPassThrough>(file: T): T {
-    file.mtime = this.options.modifiedAt;
-    this.current.zip.add(file);
-    this.current.entries += 1;
-    return file;
-  }
-
   private async closeCurrent(): Promise<void> {
     const { zip, done, position, path } = this.current;
     zip.end();
     await done;
     if (this.error) throw this.error;
     const part = { position, path, sizeBytes: this.current.bytes };
+    // Only a single entry bigger than the limit can get here
+    if (part.sizeBytes > this.options.maxPartBytes) {
+      throw new Error(
+        `Export part ${position} is ${part.sizeBytes} bytes, over the ${this.options.maxPartBytes}-byte part limit`,
+      );
+    }
     this.parts.push(part);
     await this.options.onPart(part);
   }
 
-  /** Adds a whole text file (deflated) */
-  addFile(path: string, content: string): void {
-    this.entry(new ZipDeflate(path, { level: DEFLATE_LEVEL })).push(
-      strToU8(content),
-      true,
-    );
-  }
-
-  /** Opens a text file (deflated) to write incrementally; end it before finishing */
-  openFile(path: string): { write: (text: string) => void; end: () => void } {
-    const file = this.entry(new ZipDeflate(path, { level: DEFLATE_LEVEL }));
-    this.openStreams += 1;
-    return {
-      write: (text) => file.push(strToU8(text)),
-      end: () => {
-        file.push(new Uint8Array(0), true);
-        this.openStreams -= 1;
-      },
-    };
-  }
-
-  /** Adds a binary file (stored), starting a new part first if it won't fit */
-  async addBinary(path: string, data: Uint8Array): Promise<void> {
-    const { bytes, entries } = this.current;
+  /** Starts a new part first if an entry of up to `maxBytes` wouldn't fit */
+  private async makeRoom(path: string, maxBytes: number): Promise<void> {
+    const nameBytes = strToU8(path).length;
+    const { bytes, centralBytes, entries } = this.current;
+    const finishedSize =
+      bytes +
+      centralBytes +
+      END_RECORD_BYTES +
+      LOCAL_HEADER_BYTES +
+      CENTRAL_RECORD_BYTES +
+      2 * nameBytes +
+      maxBytes;
     const full =
-      bytes + data.length > this.options.maxPartBytes ||
-      entries >= MAX_ENTRIES_PER_PART;
-    if (full && entries > 0 && this.openStreams === 0) {
+      finishedSize > this.options.maxPartBytes ||
+      entries >= this.maxEntriesPerPart;
+    if (full && entries > 0) {
       await this.closeCurrent();
       this.current = this.startPart(this.current.position + 1);
     }
+    this.current.entries += 1;
+    this.current.centralBytes += CENTRAL_RECORD_BYTES + nameBytes;
+  }
 
-    this.entry(new ZipPassThrough(path)).push(data, true);
+  private add<T extends ZipDeflate | ZipPassThrough>(file: T): T {
+    file.mtime = this.options.modifiedAt;
+    this.current.zip.add(file);
+    return file;
+  }
+
+  // Let the disk catch up rather than queueing a library's worth in memory
+  private async drained(): Promise<void> {
     if (this.error) throw this.error;
-    // Let the disk catch up rather than queueing a library's worth in memory
-    if (this.current.out.writableNeedDrain)
+    if (this.current.out.writableNeedDrain) {
       await once(this.current.out, "drain");
+    }
+  }
+
+  /** Adds a text file (deflated) */
+  async addText(path: string, content: string): Promise<void> {
+    const data = strToU8(content);
+    await this.makeRoom(path, deflatedBound(data.length));
+    this.add(new ZipDeflate(path, { level: DEFLATE_LEVEL })).push(data, true);
+    await this.drained();
+  }
+
+  /** Adds a text file from local disk (deflated), streaming it in chunks */
+  async addTextFromDisk(path: string, diskPath: string): Promise<void> {
+    const { size } = await stat(diskPath);
+    await this.makeRoom(path, deflatedBound(size));
+    const file = this.add(new ZipDeflate(path, { level: DEFLATE_LEVEL }));
+    for await (const chunk of createReadStream(diskPath)) {
+      file.push(chunk);
+      await this.drained();
+    }
+    file.push(new Uint8Array(0), true);
+    await this.drained();
+  }
+
+  /** Adds a binary file (stored, not compressed) */
+  async addBinary(path: string, data: Uint8Array): Promise<void> {
+    await this.makeRoom(path, data.length);
+    this.add(new ZipPassThrough(path)).push(data, true);
+    await this.drained();
   }
 
   /** Closes the last part and returns every part, in order */
   async finish(): Promise<ArchivePart[]> {
-    if (this.openStreams > 0) {
-      throw new Error("Archive incomplete: a streamed file was never ended");
-    }
     await this.closeCurrent();
     return this.parts;
   }

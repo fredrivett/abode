@@ -7,16 +7,37 @@ import { sweepDataExports } from "@/lib/export/sweep-data-exports";
 const NOW = new Date("2026-09-28T12:00:00.000Z");
 const HOUR = 60 * 60 * 1000;
 
-function fakeStorage(removeError: Error | null = null) {
-  const remove = vi.fn(async (_keys: string[]) => ({
-    data: removeError ? null : [],
-    error: removeError,
-  }));
+/**
+ * In-memory exports bucket: `objects` are the stored paths, `list`/`remove`
+ * behave like Supabase's (one folder level at a time, sub-folders as id: null).
+ */
+function fakeStorage(
+  removeError: Error | null = null,
+  objects: Set<string> = new Set(),
+) {
+  const remove = vi.fn(async (keys: string[]) => {
+    if (removeError) return { data: null, error: removeError };
+    for (const key of keys) objects.delete(key);
+    return { data: [], error: null };
+  });
+  const list = vi.fn(async (prefix: string) => {
+    const children = new Map<string, string | null>();
+    for (const path of objects) {
+      if (!path.startsWith(`${prefix}/`)) continue;
+      const [name, ...rest] = path.slice(prefix.length + 1).split("/");
+      children.set(name, rest.length > 0 ? null : path);
+    }
+    return {
+      data: [...children].map(([name, id]) => ({ name, id })),
+      error: null,
+    };
+  });
   return {
     supabase: {
-      storage: { from: () => ({ remove }) },
+      storage: { from: () => ({ remove, list }) },
     } as unknown as Parameters<typeof sweepDataExports>[0]["supabase"],
     remove,
+    objects,
   };
 }
 
@@ -163,6 +184,35 @@ describe("sweepDataExports", () => {
 
     expect(
       await read.dataExport.findUniqueOrThrow({ where: { id: stranded.id } }),
+    ).toMatchObject({ status: "failed" });
+  });
+
+  it("deletes parts a stranded run uploaded before it died", async () => {
+    const { write, read } = await import("@/lib/db");
+    const user = await createUser();
+    const run = await write.dataExport.create({
+      data: {
+        userId: user.id,
+        status: "exporting",
+        createdAt: new Date(NOW.getTime() - STRANDED_EXPORT_MS - HOUR),
+      },
+    });
+    const storage = fakeStorage(
+      null,
+      new Set([
+        `${user.id}/${run.id}/part-1.zip`,
+        `${user.id}/${run.id}/part-2.zip`,
+        `${user.id}/other-export/part-1.zip`,
+      ]),
+    );
+
+    await sweepDataExports({ supabase: storage.supabase, now: NOW });
+
+    expect([...storage.objects]).toEqual([
+      `${user.id}/other-export/part-1.zip`,
+    ]);
+    expect(
+      await read.dataExport.findUniqueOrThrow({ where: { id: run.id } }),
     ).toMatchObject({ status: "failed" });
   });
 

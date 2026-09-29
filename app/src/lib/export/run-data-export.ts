@@ -8,6 +8,7 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { getDataExportReadyEmail } from "@/lib/email/templates";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { STORAGE_PAGE_SIZE } from "@/lib/storage-objects";
 import { getAppBaseUrl } from "@/lib/url";
 import { buildExportArchive, type ExportFileSource } from "./build-export";
 import {
@@ -41,9 +42,14 @@ async function downloadStoredFile(
   { bucket, key }: ExportFileSource,
 ): Promise<Uint8Array | null> {
   for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt++) {
-    const { data, error } = await supabase.storage.from(bucket).download(key);
-    if (data) return new Uint8Array(await data.arrayBuffer());
-    log.warn({ bucket, key, attempt, error }, "Export file download failed");
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(key);
+      if (data) return new Uint8Array(await data.arrayBuffer());
+      log.warn({ bucket, key, attempt, error }, "Export file download failed");
+    } catch (error) {
+      // A thrown download (network, body read) is a missing file, not a failed export
+      log.warn({ bucket, key, attempt, error }, "Export file download threw");
+    }
   }
   return null;
 }
@@ -150,10 +156,11 @@ export async function runDataExport({
       sizeBytes,
     };
   } catch (error) {
-    if (uploaded.length > 0) {
+    const keys = uploaded.map(({ fileKey }) => fileKey);
+    for (let i = 0; i < keys.length; i += STORAGE_PAGE_SIZE) {
       await supabase.storage
         .from(EXPORTS_BUCKET)
-        .remove(uploaded.map(({ fileKey }) => fileKey))
+        .remove(keys.slice(i, i + STORAGE_PAGE_SIZE))
         .catch(() => {});
     }
     await db.dataExport

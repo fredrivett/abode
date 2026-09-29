@@ -29,10 +29,12 @@ ${[
   count(roomCount, "room"),
   count(bookCount, "book"),
   count(bookmarkCount, "saved link"),
-  count(fileCount, "file"),
-].join(", ")}.
+  count(fileCount, "stored file"),
+].join(
+  ", ",
+)} (Any file that couldn't be copied in is listed in \`missing-files.txt\`.)
 
-If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), unzip them all into the same folder: part 1 has everything below, and the other parts add the rest of \`files/\`.
+If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), unzip them all into the same folder. Part 1 starts with this README and \`abode.json\`; together the parts make up everything below.
 
 ## What's in here
 
@@ -41,7 +43,7 @@ If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), 
 | \`abode.json\` | Everything, in one machine-readable file: your profile, rooms and every item with its details, notes, highlights and locations. The complete copy — use it to move to another abode instance, or to build your own tools. |
 | \`items/<kind>/*.md\` | One Markdown file per item, with its details as frontmatter (properties). Readable in any text editor and drops straight into Obsidian or Logseq. |
 | \`bookmarks.html\` | Every saved web link, with a folder per room. Import it into any browser or bookmarking service (Raindrop, Pinboard, Linkding, …). |
-| \`files/\` | Your uploads, scans (each page, plus its colour original), covers and saved images, in a folder per item (\`files/<item id>/\`). \`abode.json\` and the Markdown point to them; your avatar is in \`files/profile/\`. |
+| \`files/\` | Your uploads, scans (each page, plus its colour original), covers and saved images, in a folder per item (\`files/<item id>/\`). \`abode.json\` and the Markdown point to them. If you uploaded a profile picture, it's in \`files/profile/\`. |
 | \`books.csv\` | Your books in Goodreads' export format, including reading status, dates, ratings and reviews. StoryGraph, Hardcover and most book apps import it. |
 
 ## Notes on the data

@@ -259,7 +259,7 @@ describe("buildExportArchive", () => {
     expect(files["bookmarks.html"]).toContain("📚 Reading");
     expect(files["books.csv"]).toContain("The Dispossessed,Ursula K. Le Guin");
     expect(files["README.md"]).toContain(
-      "3 items, 2 rooms, 1 book, 1 saved link, 1 file.",
+      "3 items, 2 rooms, 1 book, 1 saved link, 1 stored file",
     );
     expect(json.items[1].files).toEqual([
       { name: "original.jpg", path: `files/${article.id}/original.jpg` },
@@ -364,10 +364,11 @@ describe("buildExportArchive", () => {
     expect(result.files["missing-files.txt"]).toContain(
       `files/${scan.id}/page-02-original.jpg`,
     );
-    // Data files all land in part 1
-    expect(Object.keys(result.parts[0])).toEqual(
-      expect.arrayContaining(["abode.json", "README.md", "books.csv"]),
-    );
+    // Part 1 opens with the README and the complete copy
+    expect(Object.keys(result.parts[0]).slice(0, 2)).toEqual([
+      "README.md",
+      "abode.json",
+    ]);
     expect(result.json.profile.avatarFile).toBe("files/profile/avatar.png");
     expect(JSON.stringify(result.json)).not.toMatch(/k\/p1|fileKey/);
   });

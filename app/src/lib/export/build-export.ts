@@ -1,3 +1,7 @@
+import { once } from "node:events";
+import { createWriteStream } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import db from "@/lib/db";
 import { listItemFiles } from "@/lib/item-storage";
 import {
@@ -58,13 +62,17 @@ export type BuildExportResult = {
  * Builds a user's data export as one or more ZIP parts on disk, handing each
  * finished part to `onPart` (to upload and delete it):
  *
- * 1. Data (part 1): `abode.json` (the complete copy), one Markdown file per
- *    item, `bookmarks.html`, `books.csv` and a README. Items are read in
- *    timeline order in batches and streamed into `abode.json` as they're read.
+ * 1. Data: a README, `abode.json` (the complete copy), `bookmarks.html`,
+ *    `books.csv` and one Markdown file per item. Items are read in timeline
+ *    order in batches; `abode.json` and the Markdown are staged on disk as
+ *    they're read, then added, so part 1 always opens with the README and
+ *    `abode.json`.
  * 2. Files: every stored file of every item (plus an uploaded avatar) under
- *    `files/<itemId>/<name>`, where abode.json and the Markdown point. Parts
- *    roll over at `maxPartBytes`. A file that can't be downloaded is listed in
- *    `missing-files.txt` rather than failing the export.
+ *    `files/<itemId>/<name>`, where abode.json and the Markdown point. A file
+ *    that can't be downloaded is listed in `missing-files.txt` rather than
+ *    failing the export.
+ *
+ * Parts roll over at `maxPartBytes` (see PartedArchiveWriter).
  */
 export async function buildExportArchive({
   userId,
@@ -119,13 +127,17 @@ export async function buildExportArchive({
     }
   }
 
-  const archive = new PartedArchiveWriter({
-    dir: workDir,
-    modifiedAt: exportedAt,
-    maxPartBytes,
-    onPart,
-  });
-  const json = archive.openFile("abode.json");
+  // Text is staged on local disk first, so the archive never holds a file
+  // open while items are read and can split parts at any file boundary
+  const textDir = join(workDir, "text");
+  await mkdir(textDir, { recursive: true });
+  const jsonPath = join(textDir, "abode.json");
+  const jsonOut = createWriteStream(jsonPath);
+  const jsonDone = once(jsonOut, "finish");
+  const writeJson = async (text: string) => {
+    if (!jsonOut.write(text)) await once(jsonOut, "drain");
+  };
+
   const header = JSON.stringify(
     {
       format: EXPORT_FORMAT,
@@ -140,11 +152,12 @@ export async function buildExportArchive({
     2,
   );
   // Reopen the header object (drop its closing "\n}") to append "items"
-  json.write(`${header.slice(0, -2)},\n  "items": [`);
+  await writeJson(`${header.slice(0, -2)},\n  "items": [`);
 
   const bookmarks = new Map<string, BookmarkEntry>();
   const books: BookRow[] = [];
-  const markdownPaths = new Set<string>();
+  const markdownPaths: string[] = [];
+  const seenMarkdownPaths = new Set<string>();
   let itemCount = 0;
   let cursor: CursorData | null = null;
 
@@ -160,7 +173,7 @@ export async function buildExportArchive({
 
     for (const row of batch) {
       const item = toExportItem(row);
-      json.write(
+      await writeJson(
         `${itemCount === 0 ? "\n" : ",\n"}${indentItem(JSON.stringify(item, null, 2))}`,
       );
 
@@ -174,11 +187,13 @@ export async function buildExportArchive({
 
       const markdown = itemToMarkdown(item, roomNamesByItem.get(item.id) ?? []);
       // Paths carry an id prefix, but never let a collision overwrite a file
-      const path = markdownPaths.has(markdown.path)
+      const path = seenMarkdownPaths.has(markdown.path)
         ? markdown.path.replace(/\.md$/, `-${item.id}.md`)
         : markdown.path;
-      markdownPaths.add(path);
-      archive.addFile(path, markdown.content);
+      seenMarkdownPaths.add(path);
+      markdownPaths.push(path);
+      await mkdir(dirname(join(textDir, path)), { recursive: true });
+      await writeFile(join(textDir, path), markdown.content);
 
       const bookmark = toBookmarkEntry(item);
       if (bookmark) bookmarks.set(item.id, bookmark);
@@ -192,23 +207,17 @@ export async function buildExportArchive({
     cursor = itemTimelineCursor(last);
   }
 
-  json.write(itemCount === 0 ? "]\n}\n" : "\n  ]\n}\n");
-  json.end();
+  jsonOut.end(itemCount === 0 ? "]\n}\n" : "\n  ]\n}\n");
+  await jsonDone;
 
-  archive.addFile(
-    "bookmarks.html",
-    buildBookmarksHtml({
-      entries: bookmarks,
-      folders: rooms.map((room) => ({
-        name: room.emoji ? `${room.emoji} ${room.name}` : room.name,
-        createdAt: room.createdAt,
-        itemIds: room.items.map(({ itemId }) => itemId),
-      })),
-      exportedAt,
-    }),
-  );
-  archive.addFile("books.csv", buildBooksCsv(books));
-  archive.addFile(
+  // Part 1 opens with the README and the complete copy; then everything else
+  const archive = new PartedArchiveWriter({
+    dir: workDir,
+    modifiedAt: exportedAt,
+    maxPartBytes,
+    onPart,
+  });
+  await archive.addText(
     "README.md",
     buildExportReadme({
       exportedAt,
@@ -220,6 +229,23 @@ export async function buildExportArchive({
       fileCount: queue.length,
     }),
   );
+  await archive.addTextFromDisk("abode.json", jsonPath);
+  await archive.addText(
+    "bookmarks.html",
+    buildBookmarksHtml({
+      entries: bookmarks,
+      folders: rooms.map((room) => ({
+        name: room.emoji ? `${room.emoji} ${room.name}` : room.name,
+        createdAt: room.createdAt,
+        itemIds: room.items.map(({ itemId }) => itemId),
+      })),
+      exportedAt,
+    }),
+  );
+  await archive.addText("books.csv", buildBooksCsv(books));
+  for (const path of markdownPaths) {
+    await archive.addTextFromDisk(path, join(textDir, path));
+  }
 
   const missing: string[] = [];
   for (let i = 0; i < queue.length; i += DOWNLOAD_CONCURRENCY) {
@@ -237,7 +263,7 @@ export async function buildExportArchive({
     }
   }
   if (missing.length > 0) {
-    archive.addFile(
+    await archive.addText(
       "missing-files.txt",
       `These files couldn't be copied into the export. Everything else about them is in abode.json.\n\n${missing.join("\n")}\n`,
     );
