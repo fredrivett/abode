@@ -87,16 +87,28 @@ describe("DocumentPages", () => {
     render(<DocumentPages {...base} pages={null} status="loading" />);
     expect(screen.getByRole("img")).toHaveAttribute("src", "/cover.jpg");
     expect(screen.getByText("1 of 3")).toBeInTheDocument();
-    expect(screen.getByText(/Loading pages/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Loading pages" }),
+    ).toBeDisabled();
+  });
+
+  it("keeps page 1's image mounted once the pages arrive", () => {
+    const { rerender } = render(
+      <DocumentPages {...base} pages={null} status="loading" />,
+    );
+    const cover = screen.getByRole("img");
+    rerender(<DocumentPages {...base} pages={pages} status="ready" />);
+    expect(screen.getAllByRole("img")[0]).toBe(cover);
+    expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
   });
 
   it("keeps the cover and explains when the pages fail to load", () => {
     render(<DocumentPages {...base} pages={null} status="error" />);
     expect(screen.getByRole("img")).toHaveAttribute("src", "/cover.jpg");
     expect(
-      screen.getByText("Couldn't load the rest of this document's pages."),
+      screen.getByText("1 of 3 · failed to load other pages"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
 
   it("pages with the ← and → keys, stopping at either end", () => {
