@@ -22,7 +22,7 @@ import type { Item } from "./item";
  */
 export type Room = Pick<
   PrismaRoom,
-  "id" | "name" | "emoji" | "slug" | "type" | "visibility"
+  "id" | "name" | "emoji" | "slug" | "type" | "visibility" | "autoKind"
 > & {
   filters: Filter[] | null;
   createdAt: string;

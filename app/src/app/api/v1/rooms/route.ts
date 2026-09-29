@@ -7,6 +7,7 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
+import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
 
     const typeFilter =
       typeParam === "smart" || typeParam === "manual" ? typeParam : undefined;
+    // Safety net: materialize any missing book shelves before listing
+    await ensureBookRooms(user.id);
     const rooms = await listUserRooms(user.id, typeFilter);
     return NextResponse.json(rooms);
   } catch (error) {

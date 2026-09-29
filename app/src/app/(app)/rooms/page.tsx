@@ -1,5 +1,6 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import db from "@/lib/db";
+import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
 import { getAuthUser } from "@/lib/supabase/server";
 import type { RoomWithSlug } from "@/lib/types/room";
@@ -10,6 +11,10 @@ import { RoomsList } from "./_components/rooms-list";
  */
 export default async function RoomsPage() {
   const user = await getAuthUser();
+
+  // Safety net for the write-path creation: materialize any missing book shelves
+  // before the query so they appear in this same render (covers pre-existing books).
+  if (user) await ensureBookRooms(user.id);
 
   // Get the user's username
   const dbUser = user
@@ -34,6 +39,7 @@ export default async function RoomsPage() {
           type: true,
           filters: true,
           visibility: true,
+          autoKind: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -66,6 +72,7 @@ export default async function RoomsPage() {
     type: room.type,
     filters: room.filters as Filter[] | null,
     visibility: room.visibility,
+    autoKind: room.autoKind,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
     itemCount: room._count.roomItems,
