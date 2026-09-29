@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 
+import type { Readable } from "node:stream";
 import { resetTestDatabase } from "@app/vitest.setup.db";
 import { unzipSync } from "fflate";
 import { EXPORT_RETENTION_MS } from "@/lib/export/constants";
@@ -21,20 +22,56 @@ vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => ({ capture: m.capture }),
 }));
 
-type UploadArgs = [string, Uint8Array, { contentType: string }];
+async function readStream(stream: Readable): Promise<Uint8Array> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return new Uint8Array(Buffer.concat(chunks));
+}
 
-function fakeStorage(uploadError: Error | null = null) {
-  const upload = vi.fn(async (..._args: UploadArgs) => ({
-    data: uploadError ? null : { path: "x" },
-    error: uploadError,
+/**
+ * In-memory storage: `stored` holds library files (`bucket:key`), uploads land
+ * in `uploads` (read from the stream runDataExport hands over), and `failUploadAt`
+ * makes the Nth upload fail.
+ */
+function fakeStorage({
+  stored = {},
+  failUploadAt,
+  onUpload,
+}: {
+  stored?: Record<string, Uint8Array<ArrayBuffer>>;
+  failUploadAt?: number;
+  onUpload?: () => Promise<unknown>;
+} = {}) {
+  const uploads = new Map<string, Uint8Array>();
+  const removed: string[] = [];
+  let uploadCount = 0;
+  const from = vi.fn((bucket: string) => ({
+    download: async (key: string) => {
+      const data = stored[`${bucket}:${key}`];
+      return data
+        ? { data: new Blob([data]), error: null }
+        : { data: null, error: new Error("Object not found") };
+    },
+    upload: async (key: string, body: Readable) => {
+      uploadCount += 1;
+      if (uploadCount === failUploadAt) {
+        return { data: null, error: new Error("Payload too large") };
+      }
+      uploads.set(key, await readStream(body));
+      await onUpload?.();
+      return { data: { path: key }, error: null };
+    },
+    remove: async (keys: string[]) => {
+      removed.push(...keys);
+      return { data: [], error: null };
+    },
   }));
-  const from = vi.fn(() => ({ upload }));
   return {
     supabase: { storage: { from } } as unknown as Parameters<
       typeof runDataExport
     >[0]["supabase"],
-    from,
-    upload,
+    uploads,
+    removed,
   };
 }
 
@@ -46,55 +83,77 @@ async function setup() {
       email: `run-${crypto.randomUUID()}@example.com`,
     },
   });
-  await write.item.create({
+  const photo = await write.item.create({
     data: {
       userId: user.id,
-      kind: "note",
-      title: "Hello",
+      kind: "image",
+      title: "Photo",
       processingStatus: "completed",
-      noteDetails: { create: { content: "world" } },
+      fileKey: `${user.id}/photo.jpg`,
     },
   });
   const dataExport = await write.dataExport.create({
     data: { userId: user.id },
   });
-  return { user, dataExport };
+  const stored = {
+    [`items:${user.id}/photo.jpg`]: new Uint8Array(64 * 1024).fill(5),
+  };
+  return { user, photo, dataExport, stored };
 }
 
 describe("runDataExport", () => {
+  const originalPartMb = process.env.DATA_EXPORT_PART_MB;
+
   beforeEach(async () => {
     await resetTestDatabase();
     vi.clearAllMocks();
     m.emailConfigured = true;
   });
+  afterEach(() => {
+    process.env.DATA_EXPORT_PART_MB = originalPartMb;
+  });
 
-  it("builds, uploads and completes the export, then emails the user", async () => {
+  it("builds, uploads and completes the export with its files, then emails the user", async () => {
     const { read } = await import("@/lib/db");
-    const { user, dataExport } = await setup();
-    const storage = fakeStorage();
+    const { user, photo, dataExport, stored } = await setup();
+    const storage = fakeStorage({ stored });
 
     const result = await runDataExport({
       exportId: dataExport.id,
       supabase: storage.supabase,
     });
 
-    expect(result).toMatchObject({ status: "completed", itemCount: 1 });
-    expect(storage.from).toHaveBeenCalledWith("exports");
-    const [key, bytes, options] = storage.upload.mock.calls[0];
-    expect(key).toBe(`${user.id}/${dataExport.id}.zip`);
-    expect(options.contentType).toBe("application/zip");
-    expect(Object.keys(unzipSync(bytes))).toContain("abode.json");
+    expect(result).toMatchObject({
+      status: "completed",
+      itemCount: 1,
+      fileCount: 1,
+      missingFileCount: 0,
+      partCount: 1,
+    });
+    const key = `${user.id}/${dataExport.id}/part-1.zip`;
+    const archive = unzipSync(storage.uploads.get(key) ?? new Uint8Array());
+    expect(Object.keys(archive)).toEqual(
+      expect.arrayContaining(["abode.json", `files/${photo.id}/original.jpg`]),
+    );
 
     const row = await read.dataExport.findUniqueOrThrow({
       where: { id: dataExport.id },
+      include: { parts: true },
     });
     expect(row).toMatchObject({
       status: "completed",
-      fileKey: key,
       itemCount: 1,
-      sizeBytes: BigInt(bytes.length),
+      fileCount: 1,
       error: null,
     });
+    expect(row.parts).toEqual([
+      expect.objectContaining({
+        position: 1,
+        fileKey: key,
+        sizeBytes: BigInt(storage.uploads.get(key)?.length ?? -1),
+      }),
+    ]);
+    expect(row.sizeBytes).toBe(row.parts[0].sizeBytes);
     expect(row.expiresAt?.getTime()).toBe(
       (row.completedAt?.getTime() ?? 0) + EXPORT_RETENTION_MS,
     );
@@ -106,17 +165,53 @@ describe("runDataExport", () => {
       }),
     );
     expect(m.capture).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "data_export_completed" }),
+      expect.objectContaining({
+        event: "data_export_completed",
+        properties: expect.objectContaining({ file_count: 1, part_count: 1 }),
+      }),
     );
   });
 
+  it("splits into several parts at DATA_EXPORT_PART_MB", async () => {
+    const { read } = await import("@/lib/db");
+    const { user, dataExport, stored } = await setup();
+    const { write } = await import("@/lib/db");
+    await write.item.create({
+      data: {
+        userId: user.id,
+        kind: "image",
+        processingStatus: "completed",
+        fileKey: `${user.id}/second.jpg`,
+      },
+    });
+    stored[`items:${user.id}/second.jpg`] = new Uint8Array(64 * 1024).fill(6);
+    // ~100 KB parts: each 64 KB photo needs a part of its own
+    process.env.DATA_EXPORT_PART_MB = String(100 / 1024);
+    const storage = fakeStorage({ stored });
+
+    const result = await runDataExport({
+      exportId: dataExport.id,
+      supabase: storage.supabase,
+    });
+
+    expect(result).toMatchObject({ status: "completed", partCount: 2 });
+    const parts = await read.dataExportPart.findMany({
+      where: { exportId: dataExport.id },
+      orderBy: { position: "asc" },
+    });
+    expect(parts.map(({ fileKey }) => fileKey)).toEqual([
+      `${user.id}/${dataExport.id}/part-1.zip`,
+      `${user.id}/${dataExport.id}/part-2.zip`,
+    ]);
+  });
+
   it("skips the email when email isn't configured", async () => {
-    const { dataExport } = await setup();
+    const { dataExport, stored } = await setup();
     m.emailConfigured = false;
 
     await runDataExport({
       exportId: dataExport.id,
-      supabase: fakeStorage().supabase,
+      supabase: fakeStorage({ stored }).supabase,
     });
 
     expect(m.sendEmail).not.toHaveBeenCalled();
@@ -136,12 +231,12 @@ describe("runDataExport", () => {
     "still completes, and reports it, when the email %s",
     async (_label, fail) => {
       const { read } = await import("@/lib/db");
-      const { user, dataExport } = await setup();
+      const { user, dataExport, stored } = await setup();
       fail();
 
       await runDataExport({
         exportId: dataExport.id,
-        supabase: fakeStorage().supabase,
+        supabase: fakeStorage({ stored }).supabase,
       });
 
       const row = await read.dataExport.findUniqueOrThrow({
@@ -156,9 +251,25 @@ describe("runDataExport", () => {
     },
   );
 
+  it("deletes uploaded parts if the run can't be marked completed", async () => {
+    const { write } = await import("@/lib/db");
+    const { user, dataExport, stored } = await setup();
+    const storage = fakeStorage({
+      stored,
+      // Deleting the row mid-run makes the completion write fail
+      onUpload: () => write.dataExport.delete({ where: { id: dataExport.id } }),
+    });
+
+    await expect(
+      runDataExport({ exportId: dataExport.id, supabase: storage.supabase }),
+    ).rejects.toThrow();
+
+    expect(storage.removed).toEqual([`${user.id}/${dataExport.id}/part-1.zip`]);
+  });
+
   it("is a no-op for an export that isn't pending (duplicate run)", async () => {
-    const { dataExport } = await setup();
-    const storage = fakeStorage();
+    const { dataExport, stored } = await setup();
+    const storage = fakeStorage({ stored });
     await runDataExport({
       exportId: dataExport.id,
       supabase: storage.supabase,
@@ -170,48 +281,38 @@ describe("runDataExport", () => {
     });
 
     expect(again).toEqual({ status: "skipped" });
-    expect(storage.upload).toHaveBeenCalledTimes(1);
+    expect(storage.uploads.size).toBe(1);
   });
 
-  it("deletes the uploaded archive if the run can't be marked completed", async () => {
-    const { write } = await import("@/lib/db");
-    const { user, dataExport } = await setup();
-    const remove = vi.fn(async () => ({ data: [], error: null }));
-    const upload = vi.fn(async () => {
-      // Deleting the row mid-run makes the completion write fail
-      await write.dataExport.delete({ where: { id: dataExport.id } });
-      return { data: { path: "x" }, error: null };
+  it("fails cleanly when a part won't upload, deleting parts already stored", async () => {
+    const { read, write } = await import("@/lib/db");
+    const { user, dataExport, stored } = await setup();
+    await write.item.create({
+      data: {
+        userId: user.id,
+        kind: "image",
+        processingStatus: "completed",
+        fileKey: `${user.id}/second.jpg`,
+      },
     });
-    const supabase = {
-      storage: { from: () => ({ upload, remove }) },
-    } as unknown as Parameters<typeof runDataExport>[0]["supabase"];
+    stored[`items:${user.id}/second.jpg`] = new Uint8Array(64 * 1024).fill(6);
+    process.env.DATA_EXPORT_PART_MB = String(100 / 1024);
+    const storage = fakeStorage({ stored, failUploadAt: 2 });
 
     await expect(
-      runDataExport({ exportId: dataExport.id, supabase }),
-    ).rejects.toThrow();
+      runDataExport({ exportId: dataExport.id, supabase: storage.supabase }),
+    ).rejects.toThrow("Payload too large");
 
-    expect(remove).toHaveBeenCalledWith([`${user.id}/${dataExport.id}.zip`]);
-  });
-
-  it("marks the export failed with a safe message when the upload fails", async () => {
-    const { read } = await import("@/lib/db");
-    const { dataExport } = await setup();
-
-    await expect(
-      runDataExport({
-        exportId: dataExport.id,
-        supabase: fakeStorage(new Error("bucket missing")).supabase,
-      }),
-    ).rejects.toThrow("bucket missing");
-
+    expect(storage.removed).toEqual([`${user.id}/${dataExport.id}/part-1.zip`]);
     const row = await read.dataExport.findUniqueOrThrow({
       where: { id: dataExport.id },
+      include: { parts: true },
     });
     expect(row.status).toBe("failed");
     expect(row.error).toBe(
       "The export couldn't be completed. Please try again.",
     );
-    expect(row.fileKey).toBeNull();
+    expect(row.parts).toEqual([]);
     expect(m.sendEmail).not.toHaveBeenCalled();
   });
 });

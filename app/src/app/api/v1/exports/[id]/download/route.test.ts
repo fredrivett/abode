@@ -32,13 +32,20 @@ const USER = "user-1";
 const EXPORT_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const completed = {
   status: "completed",
-  fileKey: `${USER}/export-1.zip`,
   completedAt: new Date("2026-09-28T10:00:00.000Z"),
   expiresAt: new Date(Date.now() + 60_000),
+  parts: [{ position: 1, fileKey: `${USER}/export-1/part-1.zip` }],
 };
 
-const call = (id = EXPORT_ID) =>
-  GET({} as Parameters<typeof GET>[0], { params: Promise.resolve({ id }) });
+const call = (id = EXPORT_ID, query = "") =>
+  GET(
+    {
+      nextUrl: new URL(
+        `http://localhost/api/v1/exports/${id}/download${query}`,
+      ),
+    } as Parameters<typeof GET>[0],
+    { params: Promise.resolve({ id }) },
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,12 +68,15 @@ describe("GET /api/v1/exports/[id]/download", () => {
       expect.objectContaining({ where: { id: EXPORT_ID, userId: USER } }),
     );
     expect(m.from).toHaveBeenCalledWith("exports");
-    expect(m.createSignedUrl).toHaveBeenCalledWith(`${USER}/export-1.zip`, 60, {
-      download: "abode-export-2026-09-28.zip",
-    });
+    expect(m.createSignedUrl).toHaveBeenCalledWith(
+      `${USER}/export-1/part-1.zip`,
+      60,
+      { download: "abode-export-2026-09-28.zip" },
+    );
     expect(m.capture).toHaveBeenCalledWith({
       distinctId: USER,
       event: "data_export_downloaded",
+      properties: { part: 1, part_count: 1 },
     });
   });
 
@@ -74,6 +84,37 @@ describe("GET /api/v1/exports/[id]/download", () => {
     expect((await call("not-a-uuid")).status).toBe(404);
     expect(m.findFirst).not.toHaveBeenCalled();
   });
+
+  it("serves the requested part of a split export, named part N of M", async () => {
+    m.findFirst.mockResolvedValue({
+      ...completed,
+      parts: [
+        { position: 1, fileKey: `${USER}/export-1/part-1.zip` },
+        { position: 2, fileKey: `${USER}/export-1/part-2.zip` },
+      ],
+    });
+
+    const res = await call(EXPORT_ID, "?part=2");
+
+    expect(res.status).toBe(303);
+    expect(m.createSignedUrl).toHaveBeenCalledWith(
+      `${USER}/export-1/part-2.zip`,
+      60,
+      { download: "abode-export-2026-09-28-part-2-of-2.zip" },
+    );
+  });
+
+  it("404s a part the export doesn't have", async () => {
+    expect((await call(EXPORT_ID, "?part=3")).status).toBe(404);
+    expect(m.createSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it.each(["0", "-1", "1.5", "two", ""])(
+    "400s an invalid part number (%j)",
+    async (part) => {
+      expect((await call(EXPORT_ID, `?part=${part}`)).status).toBe(400);
+    },
+  );
 
   it("rejects a signed-out request", async () => {
     m.getUser.mockResolvedValue({ data: { user: null } });
@@ -87,9 +128,9 @@ describe("GET /api/v1/exports/[id]/download", () => {
   });
 
   it.each([
-    ["still building", { ...completed, status: "exporting", fileKey: null }],
-    ["failed", { ...completed, status: "failed", fileKey: null }],
-    ["expired", { ...completed, status: "expired", fileKey: null }],
+    ["still building", { ...completed, status: "exporting", parts: [] }],
+    ["failed", { ...completed, status: "failed", parts: [] }],
+    ["expired", { ...completed, status: "expired", parts: [] }],
     ["past its expiry", { ...completed, expiresAt: new Date(Date.now() - 1) }],
   ])("410s an export that's %s", async (_label, row) => {
     m.findFirst.mockResolvedValue(row);

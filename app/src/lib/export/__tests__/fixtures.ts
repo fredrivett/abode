@@ -24,6 +24,9 @@ export function itemRow(overrides: Partial<ExportItemRow> = {}): ExportItemRow {
     externalLinks: [],
     sharedAt: null,
     sharedHighlights: false,
+    fileKey: null,
+    coverFileKey: null,
+    faviconFileKey: null,
     articleDetails: null,
     imageDetails: null,
     twitterDetails: null,
@@ -59,6 +62,24 @@ export function bookDetails(overrides: Partial<BookDetails> = {}): BookDetails {
     progressUpdatedAt: null,
     rating: null,
     review: null,
+    ...overrides,
+  };
+}
+
+type DocumentPage = ExportItemRow["documentPages"][number];
+
+export function documentPage(
+  position: number,
+  overrides: Partial<DocumentPage> = {},
+): DocumentPage {
+  return {
+    position,
+    filter: "bw",
+    width: 100,
+    height: 140,
+    ocrText: null,
+    fileKey: `u/page-${position}.jpg`,
+    originalFileKey: `u/page-${position}-colour.jpg`,
     ...overrides,
   };
 }

@@ -121,6 +121,27 @@ function kindFrontmatter(item: ExportItem): Record<string, FrontmatterValue> {
   };
 }
 
+const IMAGE_FILE = /\.(jpe?g|png|gif|webp)$/i;
+// Chrome around the content, not the content itself — still in files/
+const NOT_EMBEDDED = /^(favicon|author-avatar)\./;
+// A scan page's colour original: linked, not shown twice alongside the page
+const COLOUR_ORIGINAL = /-original\./;
+
+/**
+ * The item's own files, relative to its Markdown file (`items/<kind>/x.md`):
+ * images embedded, anything else (a PDF, a scan's colour original) linked.
+ */
+function fileSection(item: ExportItem): string | null {
+  const lines = item.files
+    .filter(({ name }) => !NOT_EMBEDDED.test(name))
+    .map(({ name, path }) =>
+      IMAGE_FILE.test(name) && !COLOUR_ORIGINAL.test(name)
+        ? `![${name}](../../${path})`
+        : `[${name}](../../${path})`,
+    );
+  return lines.length > 0 ? lines.join("\n\n") : null;
+}
+
 function kindBody(item: ExportItem): string[] {
   const sections: string[] = [];
   if (item.note) {
@@ -169,7 +190,12 @@ export function itemToMarkdown(
     shared: item.sharedAt ? true : null,
   });
 
-  const sections = [`# ${itemDisplayTitle(item)}`, ...kindBody(item)];
+  const files = fileSection(item);
+  const sections = [
+    `# ${itemDisplayTitle(item)}`,
+    ...(files ? [files] : []),
+    ...kindBody(item),
+  ];
   if (item.notes?.trim()) sections.push(`## Notes\n\n${item.notes.trim()}`);
   if (item.highlights.length > 0) {
     const highlights = item.highlights.map((highlight) =>

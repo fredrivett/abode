@@ -42,16 +42,27 @@ describe("sweepDataExports", () => {
       data: {
         userId: user.id,
         status: "completed",
-        fileKey: `${user.id}/old.zip`,
         expiresAt: new Date(NOW.getTime() - HOUR),
+        parts: {
+          create: [
+            { position: 1, fileKey: `${user.id}/old/part-1.zip`, sizeBytes: 1 },
+            { position: 2, fileKey: `${user.id}/old/part-2.zip`, sizeBytes: 1 },
+          ],
+        },
       },
     });
     const live = await write.dataExport.create({
       data: {
         userId: user.id,
         status: "completed",
-        fileKey: `${user.id}/new.zip`,
         expiresAt: new Date(NOW.getTime() + HOUR),
+        parts: {
+          create: {
+            position: 1,
+            fileKey: `${user.id}/new/part-1.zip`,
+            sizeBytes: 1,
+          },
+        },
       },
     });
     const storage = fakeStorage();
@@ -62,13 +73,27 @@ describe("sweepDataExports", () => {
     });
 
     expect(result).toEqual({ expired: 1, stranded: 0 });
-    expect(storage.remove).toHaveBeenCalledWith([`${user.id}/old.zip`]);
+    expect(storage.remove).toHaveBeenCalledWith([
+      `${user.id}/old/part-1.zip`,
+      `${user.id}/old/part-2.zip`,
+    ]);
     expect(
-      await read.dataExport.findUniqueOrThrow({ where: { id: expired.id } }),
-    ).toMatchObject({ status: "expired", fileKey: null });
+      await read.dataExport.findUniqueOrThrow({
+        where: { id: expired.id },
+        include: { parts: true },
+      }),
+    ).toMatchObject({ status: "expired", parts: [] });
     expect(
-      await read.dataExport.findUniqueOrThrow({ where: { id: live.id } }),
-    ).toMatchObject({ status: "completed", fileKey: `${user.id}/new.zip` });
+      await read.dataExport.findUniqueOrThrow({
+        where: { id: live.id },
+        include: { parts: true },
+      }),
+    ).toMatchObject({
+      status: "completed",
+      parts: [
+        expect.objectContaining({ fileKey: `${user.id}/new/part-1.zip` }),
+      ],
+    });
   });
 
   it("keeps the row (to retry next sweep) when the archive can't be deleted", async () => {
@@ -78,8 +103,14 @@ describe("sweepDataExports", () => {
       data: {
         userId: user.id,
         status: "completed",
-        fileKey: `${user.id}/old.zip`,
         expiresAt: new Date(NOW.getTime() - HOUR),
+        parts: {
+          create: {
+            position: 1,
+            fileKey: `${user.id}/old/part-1.zip`,
+            sizeBytes: 1,
+          },
+        },
       },
     });
 
@@ -91,8 +122,11 @@ describe("sweepDataExports", () => {
     ).rejects.toThrow("storage down");
 
     expect(
-      await read.dataExport.findUniqueOrThrow({ where: { id: expired.id } }),
-    ).toMatchObject({ status: "completed", fileKey: `${user.id}/old.zip` });
+      await read.dataExport.findUniqueOrThrow({
+        where: { id: expired.id },
+        include: { parts: true },
+      }),
+    ).toMatchObject({ status: "completed", parts: [expect.anything()] });
   });
 
   it("still releases stranded runs when an archive can't be deleted", async () => {
@@ -102,8 +136,14 @@ describe("sweepDataExports", () => {
       data: {
         userId: user.id,
         status: "completed",
-        fileKey: `${user.id}/old.zip`,
         expiresAt: new Date(NOW.getTime() - HOUR),
+        parts: {
+          create: {
+            position: 1,
+            fileKey: `${user.id}/old/part-1.zip`,
+            sizeBytes: 1,
+          },
+        },
       },
     });
     const stranded = await write.dataExport.create({

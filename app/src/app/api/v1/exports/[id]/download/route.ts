@@ -14,13 +14,20 @@ import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 const log = createLogger("api/v1/exports/[id]/download");
 
 /**
- * Downloads a finished export: checks the signed-in owner, then redirects to
- * a short-lived signed URL for the archive in the private exports bucket. The
+ * Downloads one part of a finished export (`?part=N`, default 1): checks the
+ * signed-in owner, then redirects to a short-lived signed URL for that part in
+ * the private exports bucket. The
  * URL is minted per click, so links in emails/pages never go stale or leak a
  * long-lived capability.
  */
+/** `?part=N` (1-based); absent means part 1, anything else invalid is null */
+function parsePartNumber(value: string | null): number | null {
+  if (value === null) return 1;
+  return /^[1-9]\d*$/.test(value) ? Number(value) : null;
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
@@ -40,13 +47,21 @@ export async function GET(
         { status: 404 },
       );
     }
+    const part = parsePartNumber(request.nextUrl.searchParams.get("part"));
+    if (part === null) {
+      return NextResponse.json(
+        { message: "part must be a positive whole number" },
+        { status: 400 },
+      );
+    }
+
     const dataExport = await db.dataExport.findFirst({
       where: { id, userId: user.id },
       select: {
         status: true,
-        fileKey: true,
         completedAt: true,
         expiresAt: true,
+        parts: { select: { position: true, fileKey: true } },
       },
     });
     if (!dataExport) {
@@ -56,10 +71,10 @@ export async function GET(
       );
     }
 
-    const { status, fileKey, completedAt, expiresAt } = dataExport;
+    const { status, completedAt, expiresAt, parts } = dataExport;
     if (
       status !== "completed" ||
-      !fileKey ||
+      parts.length === 0 ||
       !completedAt ||
       (expiresAt && expiresAt <= new Date())
     ) {
@@ -69,16 +84,29 @@ export async function GET(
       );
     }
 
+    const requested = parts.find(({ position }) => position === part);
+    if (!requested) {
+      return NextResponse.json(
+        { message: "Export part not found" },
+        { status: 404 },
+      );
+    }
+
     const { data, error } = await getSupabaseAdminClient()
       .storage.from(EXPORTS_BUCKET)
-      .createSignedUrl(fileKey, DOWNLOAD_URL_TTL_SECONDS, {
-        download: exportDownloadFilename(completedAt),
+      .createSignedUrl(requested.fileKey, DOWNLOAD_URL_TTL_SECONDS, {
+        download: exportDownloadFilename({
+          completedAt,
+          position: part,
+          partCount: parts.length,
+        }),
       });
     if (error || !data) throw error ?? new Error("No signed URL returned");
 
     getPostHogClient()?.capture({
       distinctId: user.id,
       event: "data_export_downloaded",
+      properties: { part, part_count: dataExport.parts.length },
     });
 
     return NextResponse.redirect(data.signedUrl, { status: 303 });

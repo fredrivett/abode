@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookDetails, itemRow } from "./__tests__/fixtures";
+import { bookDetails, documentPage, itemRow } from "./__tests__/fixtures";
 import { itemToMarkdown, markdownPath, toFrontmatter } from "./markdown";
 import { toExportItem } from "./serialize";
 
@@ -171,19 +171,34 @@ describe("itemToMarkdown", () => {
       item({
         kind: "document",
         documentPages: [
-          {
-            position: 0,
-            filter: "bw",
-            width: 1,
-            height: 1,
-            ocrText: "Page one",
-          },
-          { position: 1, filter: "bw", width: 1, height: 1, ocrText: null },
+          documentPage(0, { ocrText: "Page one" }),
+          documentPage(1, { ocrText: null }),
         ],
       }),
       [],
     ).content;
     expect(doc).toContain("## Page 1\n\nPage one");
+    expect(doc).toContain("![page-01.jpg](../../files/");
+    expect(doc).toContain("[page-01-original.jpg](../../files/");
+    expect(doc).not.toContain("![page-01-original.jpg]");
     expect(doc).not.toContain("## Page 2");
+  });
+
+  it("embeds the item's images and links other files, skipping chrome", () => {
+    const { content } = itemToMarkdown(
+      item({
+        id: "item-1",
+        kind: "article",
+        coverFileKey: "u/cover.jpg",
+        faviconFileKey: "u/favicon.png",
+        fileKey: "u/report.pdf",
+      }),
+      [],
+    );
+    expect(content).toContain("![cover.jpg](../../files/item-1/cover.jpg)");
+    expect(content).toContain(
+      "[original.pdf](../../files/item-1/original.pdf)",
+    );
+    expect(content).not.toContain("favicon");
   });
 });

@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { listItemFiles } from "@/lib/item-storage";
 import { FILTER_TYPES, type Filter, serializeFilter } from "@/lib/search/types";
 import type {
   ExportItemRow,
@@ -51,6 +52,14 @@ export function withoutStorageInternals(
   return out;
 }
 
+function withoutKey<T extends object, K extends keyof T>(
+  value: T,
+  key: K,
+): Omit<T, K> {
+  const { [key]: _omitted, ...rest } = value;
+  return rest;
+}
+
 function exportedMeta(meta: Prisma.JsonValue | null): Prisma.JsonObject | null {
   if (!isJsonObject(meta)) return null;
   const out: Prisma.JsonObject = {};
@@ -84,8 +93,38 @@ export function roomFilterStrings(filters: Prisma.JsonValue | null): string[] {
   );
 }
 
+/** Where an item's stored file sits inside the archive */
+export function exportFilePath({
+  itemId,
+  name,
+}: {
+  itemId: string;
+  name: string;
+}): string {
+  return `files/${itemId}/${name}`;
+}
+
+/** Archive path of the user's uploaded avatar */
+export const PROFILE_AVATAR_DIR = "files/profile";
+
+/**
+ * Storage key of an avatar the user uploaded, from its public URL
+ * (`…/object/public/avatars/{userId}/avatar.png?t=…`). OAuth and Gravatar
+ * avatars live elsewhere and aren't copied.
+ */
+export function uploadedAvatarKey(profile: ExportProfileRow): string | null {
+  if (profile.avatarSource !== "upload" || !profile.avatarUrl) return null;
+  const match = /\/avatars\/([^?#]+)/.exec(profile.avatarUrl);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export function toExportProfile(profile: ExportProfileRow) {
-  return profile;
+  const avatarKey = uploadedAvatarKey(profile);
+  const extension = avatarKey?.slice(avatarKey.lastIndexOf(".")) ?? "";
+  return {
+    ...profile,
+    avatarFile: avatarKey ? `${PROFILE_AVATAR_DIR}/avatar${extension}` : null,
+  };
 }
 
 export function toExportNoteDraft(draft: ExportNoteDraftRow | null) {
@@ -107,6 +146,9 @@ export type ExportRoom = ReturnType<typeof toExportRoom>;
 
 export function toExportItem(item: ExportItemRow) {
   const {
+    fileKey: _fileKey,
+    coverFileKey: _coverFileKey,
+    faviconFileKey: _faviconFileKey,
     tags,
     meta,
     externalLinks,
@@ -124,6 +166,11 @@ export function toExportItem(item: ExportItemRow) {
 
   return {
     ...rest,
+    // The item's stored files, as paths inside the archive (never storage keys)
+    files: listItemFiles(item).map(({ name }) => ({
+      name,
+      path: exportFilePath({ itemId: item.id, name }),
+    })),
     aiTags: tags,
     meta: exportedMeta(meta),
     externalLinks: Array.isArray(externalLinks) ? externalLinks : [],
@@ -137,7 +184,7 @@ export function toExportItem(item: ExportItemRow) {
         imageDetails.colors && withoutStorageInternals(imageDetails.colors),
     },
     twitter: twitterDetails && {
-      ...twitterDetails,
+      ...withoutKey(twitterDetails, "authorAvatarFileKey"),
       media:
         twitterDetails.media && withoutStorageInternals(twitterDetails.media),
       card: twitterDetails.card && withoutStorageInternals(twitterDetails.card),
@@ -153,7 +200,14 @@ export function toExportItem(item: ExportItemRow) {
       images:
         productDetails.images && withoutStorageInternals(productDetails.images),
     },
-    document: documentPages.length > 0 ? { pages: documentPages } : null,
+    document:
+      documentPages.length > 0
+        ? {
+            pages: documentPages.map(
+              ({ fileKey: _key, originalFileKey: _original, ...page }) => page,
+            ),
+          }
+        : null,
   };
 }
 

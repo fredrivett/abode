@@ -37,7 +37,9 @@ const snapshot = (
   id: "exp1",
   status: "completed",
   itemCount: 12,
+  fileCount: 30,
   sizeBytes: 2048,
+  parts: [{ position: 1, sizeBytes: 2048 }],
   error: null,
   createdAt: new Date(Date.now() - HOUR).toISOString(),
   completedAt: new Date(Date.now() - HOUR).toISOString(),
@@ -58,7 +60,13 @@ describe("ExportSettings", () => {
 
   it("requests an export and shows it as in progress", async () => {
     post.mockResolvedValue({
-      export: snapshot({ status: "pending", itemCount: null, sizeBytes: null }),
+      export: snapshot({
+        status: "pending",
+        itemCount: null,
+        fileCount: null,
+        sizeBytes: null,
+        parts: [],
+      }),
     });
     render(<ExportSettings initialExports={[]} available />);
 
@@ -90,13 +98,40 @@ describe("ExportSettings", () => {
 
     expect(screen.getByText("Ready to download")).toBeInTheDocument();
     expect(screen.getByText(/12 items/)).toBeInTheDocument();
+    expect(screen.getByText(/30 files/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /download/i })).toHaveAttribute(
       "href",
-      "/api/v1/exports/exp1/download",
+      "/api/v1/exports/exp1/download?part=1",
     );
 
     fireEvent.click(screen.getByRole("link", { name: /download/i }));
-    expect(capture).toHaveBeenCalledWith("data_export_download_clicked");
+    expect(capture).toHaveBeenCalledWith("data_export_download_clicked", {
+      part: 1,
+      part_count: 1,
+    });
+  });
+
+  it("offers one download per part when the export was split", () => {
+    render(
+      <ExportSettings
+        initialExports={[
+          snapshot({
+            parts: [
+              { position: 1, sizeBytes: 1024 ** 3 },
+              { position: 2, sizeBytes: 300 * 1024 ** 2 },
+            ],
+          }),
+        ]}
+        available
+      />,
+    );
+
+    const links = screen.getAllByRole("link", { name: /download part/i });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/api/v1/exports/exp1/download?part=1",
+      "/api/v1/exports/exp1/download?part=2",
+    ]);
+    expect(links[1]).toHaveAccessibleName(/part 2 of 2/i);
   });
 
   it("treats a completed export past its expiry as expired, with no download", () => {

@@ -7,8 +7,9 @@ import type { Prisma } from "@prisma/client";
  * reason) there — so the export can't silently fall behind the schema, and
  * internal columns can't silently leak into it.
  *
- * Storage keys (fileKey etc.) are deliberately absent: phase 1 exports data
- * only, and keys are internal paths, not something a user can resolve.
+ * Storage keys (fileKey etc.) are read so the item's files can be copied into
+ * the archive, but never written out: the export references each file by its
+ * path inside the archive (`files/<itemId>/<name>`) instead.
  */
 
 export const exportProfileSelect = {
@@ -71,6 +72,9 @@ export const exportItemSelect = {
   externalLinks: true,
   sharedAt: true,
   sharedHighlights: true,
+  fileKey: true,
+  coverFileKey: true,
+  faviconFileKey: true,
   articleDetails: {
     select: {
       author: true,
@@ -92,6 +96,7 @@ export const exportItemSelect = {
       authorName: true,
       authorUsername: true,
       authorAvatarUrl: true,
+      authorAvatarFileKey: true,
       text: true,
       postedAt: true,
       media: true,
@@ -164,6 +169,8 @@ export const exportItemSelect = {
       width: true,
       height: true,
       ocrText: true,
+      fileKey: true,
+      originalFileKey: true,
     },
     orderBy: { position: "asc" },
   },

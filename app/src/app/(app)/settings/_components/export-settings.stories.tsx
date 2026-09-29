@@ -10,7 +10,9 @@ const ready: DataExportSnapshot = {
   id: "ready",
   status: "completed",
   itemCount: 1284,
-  sizeBytes: 18_400_000,
+  fileCount: 612,
+  sizeBytes: 418_400_000,
+  parts: [{ position: 1, sizeBytes: 418_400_000 }],
   error: null,
   createdAt: hoursFromNow(-2),
   completedAt: hoursFromNow(-2),
@@ -34,13 +36,32 @@ export const Ready: Story = {
   args: { initialExports: [ready] },
 };
 
+export const SplitIntoParts: Story = {
+  args: {
+    initialExports: [
+      {
+        ...ready,
+        fileCount: 4210,
+        sizeBytes: 2_500_000_000,
+        parts: [
+          { position: 1, sizeBytes: 1_073_000_000 },
+          { position: 2, sizeBytes: 1_073_000_000 },
+          { position: 3, sizeBytes: 354_000_000 },
+        ],
+      },
+    ],
+  },
+};
+
 const inProgressExports: DataExportSnapshot[] = [
   {
     ...ready,
     id: "pending",
     status: "exporting",
     itemCount: null,
+    fileCount: null,
     sizeBytes: null,
+    parts: [],
     completedAt: null,
     expiresAt: null,
     createdAt: hoursFromNow(0),
@@ -73,7 +94,9 @@ export const History: Story = {
         id: "failed",
         status: "failed",
         itemCount: null,
+        fileCount: null,
         sizeBytes: null,
+        parts: [],
         error: "The export couldn't be completed. Please try again.",
         createdAt: hoursFromNow(-30),
       },
@@ -81,6 +104,7 @@ export const History: Story = {
         ...ready,
         id: "expired",
         status: "expired",
+        parts: [],
         createdAt: hoursFromNow(-24 * 9),
         expiresAt: hoursFromNow(-24 * 2),
       },

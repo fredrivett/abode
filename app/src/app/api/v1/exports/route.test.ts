@@ -39,7 +39,9 @@ const createdRow = {
   id: "export-1",
   status: "pending",
   itemCount: null,
+  fileCount: null,
   sizeBytes: null,
+  parts: [],
   error: null,
   createdAt: new Date("2026-09-28T10:00:00.000Z"),
   completedAt: null,
@@ -123,6 +125,8 @@ describe("GET /api/v1/exports", () => {
         status: "completed",
         sizeBytes: BigInt(2048),
         itemCount: 4,
+        fileCount: 2,
+        parts: [{ position: 1, sizeBytes: BigInt(2048) }],
       },
     ]);
 
@@ -132,7 +136,15 @@ describe("GET /api/v1/exports", () => {
       expect.objectContaining({ where: { userId: USER }, take: 5 }),
     );
     expect(await res.json()).toMatchObject({
-      exports: [{ id: "export-1", sizeBytes: 2048, itemCount: 4 }],
+      exports: [
+        {
+          id: "export-1",
+          sizeBytes: 2048,
+          itemCount: 4,
+          fileCount: 2,
+          parts: [{ position: 1, sizeBytes: 2048 }],
+        },
+      ],
     });
   });
 

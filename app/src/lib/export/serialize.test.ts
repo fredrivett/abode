@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { itemRow } from "./__tests__/fixtures";
+import { documentPage, itemRow } from "./__tests__/fixtures";
 import {
   roomFilterStrings,
   toExportItem,
   toExportNoteDraft,
+  toExportProfile,
+  uploadedAvatarKey,
   withoutStorageInternals,
 } from "./serialize";
 
@@ -41,6 +43,7 @@ describe("toExportItem", () => {
           authorName: "A",
           authorUsername: "a",
           authorAvatarUrl: null,
+          authorAvatarFileKey: "u/avatar.jpg",
           text: "hello",
           postedAt: null,
           media: [{ type: "photo", url: "https://x/1", fileKey: "u/1.jpg" }],
@@ -59,24 +62,42 @@ describe("toExportItem", () => {
       { type: "photo", url: "https://x/1" },
     ]);
     expect(item.twitter?.card).toEqual({ url: "https://ex.com" });
+    expect(item.twitter).not.toHaveProperty("authorAvatarFileKey");
   });
 
-  it("groups document pages and leaves absent details null", () => {
-    const pages = [
-      {
-        position: 0,
-        filter: "bw" as const,
-        width: 1,
-        height: 2,
-        ocrText: "p1",
-      },
-    ];
+  it("groups document pages (without their keys) and leaves absent details null", () => {
     const item = toExportItem(
-      itemRow({ kind: "document", documentPages: pages }),
+      itemRow({
+        kind: "document",
+        documentPages: [documentPage(0, { ocrText: "p1" })],
+      }),
     );
-    expect(item.document).toEqual({ pages });
+    expect(item.document).toEqual({
+      pages: [
+        { position: 0, filter: "bw", width: 100, height: 140, ocrText: "p1" },
+      ],
+    });
     expect(item.article).toBeNull();
     expect(toExportItem(itemRow()).document).toBeNull();
+  });
+
+  it("lists the item's files as archive paths, never storage keys", () => {
+    const item = toExportItem(
+      itemRow({
+        id: "item-1",
+        fileKey: "u/aaa.jpg",
+        coverFileKey: "u/bbb.png",
+        faviconFileKey: "u/ccc.ico",
+      }),
+    );
+    expect(item.files).toEqual([
+      { name: "original.jpg", path: "files/item-1/original.jpg" },
+      { name: "cover.png", path: "files/item-1/cover.png" },
+      { name: "favicon.ico", path: "files/item-1/favicon.ico" },
+    ]);
+    const json = JSON.stringify(item);
+    expect(json).not.toContain("u/aaa.jpg");
+    expect(json).not.toMatch(/fileKey/i);
   });
 
   it("never serializes a storage key anywhere in the item", () => {
@@ -123,5 +144,38 @@ describe("toExportNoteDraft", () => {
       toExportNoteDraft({ content: "  ", createdAt: at, updatedAt: at }),
     ).toBeNull();
     expect(toExportNoteDraft(null)).toBeNull();
+  });
+});
+
+describe("toExportProfile", () => {
+  const profile = {
+    email: "a@example.com",
+    username: "a",
+    previousUsernames: null,
+    firstName: null,
+    lastName: null,
+    website: null,
+    bio: null,
+    avatarUrl:
+      "http://127.0.0.1:54321/storage/v1/object/public/avatars/u1/avatar.png?t=1",
+    avatarSource: "upload" as const,
+    memberNumber: 1,
+    createdAt: new Date(),
+    showInvitedBy: true,
+    showInvited: true,
+    allowSearchIndexing: false,
+  };
+
+  it("points an uploaded avatar at its copy in the archive", () => {
+    expect(uploadedAvatarKey(profile)).toBe("u1/avatar.png");
+    expect(toExportProfile(profile).avatarFile).toBe(
+      "files/profile/avatar.png",
+    );
+  });
+
+  it("doesn't copy OAuth or Gravatar avatars", () => {
+    const oauth = { ...profile, avatarSource: "oauth" as const };
+    expect(uploadedAvatarKey(oauth)).toBeNull();
+    expect(toExportProfile(oauth).avatarFile).toBeNull();
   });
 });

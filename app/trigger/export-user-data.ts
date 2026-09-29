@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
+import { EXPORT_TASK_MAX_DURATION_S } from "../src/lib/export/constants";
 import {
   markDataExportFailed,
   runDataExport,
@@ -26,8 +27,10 @@ type ExportUserDataPayload = { exportId: string; userId: string };
 export const exportUserDataTask = task({
   id: "export-user-data",
   retry: { maxAttempts: 1 },
-  // Well inside STRANDED_EXPORT_MS (with the project's 2h queue TTL)
-  maxDuration: 900,
+  // STRANDED_EXPORT_MS is derived from this (plus the project's 2h queue TTL)
+  maxDuration: EXPORT_TASK_MAX_DURATION_S,
+  // Holds a few files in memory while copying them into the current part
+  machine: "small-2x",
   run: async ({ exportId, userId }: ExportUserDataPayload) => {
     try {
       const result = await runDataExport({

@@ -10,7 +10,6 @@ import { EXPORT_ROOT_SELECTS } from "./select";
  */
 
 const ROW_BOOKKEEPING = "row bookkeeping: implied by the export's structure";
-const STORAGE_KEY = "internal storage path; files come in a later export phase";
 
 const EXCLUDED_FIELDS: Record<string, string> = {
   // User — account internals, and other people's data
@@ -52,7 +51,7 @@ const EXCLUDED_FIELDS: Record<string, string> = {
   "RoomItem.room": ROW_BOOKKEEPING,
   "RoomItem.item": ROW_BOOKKEEPING,
 
-  // Item — pipeline internals and storage keys
+  // Item — pipeline internals
   "Item.userId": ROW_BOOKKEEPING,
   "Item.user": ROW_BOOKKEEPING,
   "Item.processingStatus": "capture pipeline state",
@@ -63,9 +62,6 @@ const EXCLUDED_FIELDS: Record<string, string> = {
   "Item.personalAccessTokenId":
     "which credential saved it; captureSource already says it came via the API",
   "Item.personalAccessToken": "credential",
-  "Item.fileKey": STORAGE_KEY,
-  "Item.coverFileKey": STORAGE_KEY,
-  "Item.faviconFileKey": STORAGE_KEY,
   "Item.roomItems": "exported as rooms[].items",
   "Item.visualVectors": "embeddings: model-specific, not portable",
   "Item.textVectors": "embeddings: model-specific, not portable",
@@ -85,7 +81,6 @@ const EXCLUDED_FIELDS: Record<string, string> = {
   "ItemTwitterDetails.item": ROW_BOOKKEEPING,
   "ItemTwitterDetails.createdAt": ROW_BOOKKEEPING,
   "ItemTwitterDetails.updatedAt": ROW_BOOKKEEPING,
-  "ItemTwitterDetails.authorAvatarFileKey": STORAGE_KEY,
   "ItemInstagramDetails.itemId": ROW_BOOKKEEPING,
   "ItemInstagramDetails.item": ROW_BOOKKEEPING,
   "ItemInstagramDetails.createdAt": ROW_BOOKKEEPING,
@@ -111,8 +106,6 @@ const EXCLUDED_FIELDS: Record<string, string> = {
   "ItemDocumentPage.item": ROW_BOOKKEEPING,
   "ItemDocumentPage.createdAt": ROW_BOOKKEEPING,
   "ItemDocumentPage.updatedAt": ROW_BOOKKEEPING,
-  "ItemDocumentPage.fileKey": STORAGE_KEY,
-  "ItemDocumentPage.originalFileKey": STORAGE_KEY,
   "ItemLocation.id": ROW_BOOKKEEPING,
   "ItemLocation.itemId": ROW_BOOKKEEPING,
   "ItemLocation.item": ROW_BOOKKEEPING,

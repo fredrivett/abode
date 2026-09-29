@@ -930,8 +930,9 @@ model ItemImport {
 }
 
 // A user's request to export their library (src/lib/export). One row per run:
-// the background task builds a ZIP into the private `exports` storage bucket and
-// flips `status`; the settings page lists recent runs and serves the download.
+// the background task builds the archive into the private `exports` storage
+// bucket as one or more ZIP parts (DataExportPart) and flips `status`; the
+// settings page lists recent runs and serves each part's download.
 // The archive is deleted (status -> expired) once `expiresAt` passes, and a run
 // stranded in pending/exporting is failed so it can't block a new export.
 // RLS-enabled (default-deny) in migration.
@@ -947,10 +948,10 @@ model DataExport {
   id          String           @id @default(uuid()) @db.Uuid
   userId      String           @map("user_id") @db.Uuid
   status      DataExportStatus @default(pending)
-  // Key of the archive in the `exports` bucket; set on completion, cleared on expiry.
-  fileKey     String?          @map("file_key")
   sizeBytes   BigInt?          @map("size_bytes")
   itemCount   Int?             @map("item_count")
+  // Stored files (uploads, covers, scans…) included in the archive
+  fileCount   Int?             @map("file_count")
   // Safe, user-facing failure summary (never raw errors); null unless failed.
   error       String?
   createdAt   DateTime         @default(now()) @map("created_at")
@@ -958,10 +959,32 @@ model DataExport {
   completedAt DateTime?        @map("completed_at")
   expiresAt   DateTime?        @map("expires_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parts DataExportPart[]
 
   @@index([userId, createdAt(sort: Desc)])
   // Drives the expiry/stranded-run sweep: seeks non-terminal + expiring rows.
   @@index([status, expiresAt])
   @@map("data_exports")
+}
+
+// One ZIP part of a completed export. Large libraries are split so each part
+// stays within the storage upload limit (and zip32's 4 GB ceiling); part 1
+// carries the data files, later parts carry the rest of the stored files.
+// Deleted (with its storage object) when the export expires. RLS-enabled
+// (default-deny) in migration.
+model DataExportPart {
+  id        String   @id @default(uuid()) @db.Uuid
+  exportId  String   @map("export_id") @db.Uuid
+  // 1-based part number, in download order
+  position  Int
+  // Key of the part in the `exports` bucket
+  fileKey   String   @map("file_key")
+  sizeBytes BigInt   @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  export DataExport @relation(fields: [exportId], references: [id], onDelete: Cascade)
+
+  @@unique([exportId, position])
+  @@map("data_export_parts")
 }

@@ -1,11 +1,12 @@
 import db from "@/lib/db";
+import { listItemFiles } from "@/lib/item-storage";
 import {
   ITEM_TIMELINE_ORDER_BY,
   itemTimelineCursor,
   itemTimelineCursorWhere,
 } from "@/lib/items/query";
 import type { CursorData } from "@/lib/pagination";
-import { ArchiveWriter } from "./archive";
+import { type ArchivePart, PartedArchiveWriter } from "./archive";
 import {
   type BookmarkEntry,
   buildBookmarksHtml,
@@ -23,34 +24,68 @@ import {
 import {
   EXPORT_FORMAT,
   EXPORT_FORMAT_VERSION,
+  exportFilePath,
   toExportItem,
   toExportNoteDraft,
   toExportProfile,
   toExportRoom,
+  uploadedAvatarKey,
 } from "./serialize";
 
 // Items per query. Article bodies can be long, so keep batches modest.
 const ITEM_BATCH_SIZE = 100;
 
+// Files downloaded at once while copying them in: enough to hide latency,
+// few enough (at up to 15 MB each) to keep memory small
+const DOWNLOAD_CONCURRENCY = 6;
+
 // Nest each pretty-printed item inside the top-level "items" array
 const indentItem = (json: string) => `    ${json.replace(/\n/g, "\n    ")}`;
 
+/** A stored file to copy into the archive */
+export type ExportFileSource = { bucket: "items" | "avatars"; key: string };
+
+type QueuedFile = ExportFileSource & { path: string };
+
+export type BuildExportResult = {
+  parts: ArchivePart[];
+  itemCount: number;
+  fileCount: number;
+  missingFileCount: number;
+};
+
 /**
- * Builds a user's data export as a ZIP: `abode.json` (the complete copy),
- * one Markdown file per item, `bookmarks.html`, `books.csv` and a README.
- * Items are read in timeline order in batches and streamed into `abode.json`
- * as they're read, so the JSON is never held as one giant string.
+ * Builds a user's data export as one or more ZIP parts on disk, handing each
+ * finished part to `onPart` (to upload and delete it):
+ *
+ * 1. Data (part 1): `abode.json` (the complete copy), one Markdown file per
+ *    item, `bookmarks.html`, `books.csv` and a README. Items are read in
+ *    timeline order in batches and streamed into `abode.json` as they're read.
+ * 2. Files: every stored file of every item (plus an uploaded avatar) under
+ *    `files/<itemId>/<name>`, where abode.json and the Markdown point. Parts
+ *    roll over at `maxPartBytes`. A file that can't be downloaded is listed in
+ *    `missing-files.txt` rather than failing the export.
  */
 export async function buildExportArchive({
   userId,
   exportedAt,
   instanceUrl,
+  workDir,
+  maxPartBytes,
+  downloadFile,
+  onPart,
 }: {
   userId: string;
   exportedAt: Date;
   instanceUrl: string;
-}): Promise<{ bytes: Uint8Array; itemCount: number }> {
-  const [profile, noteDraft, roomRows] = await Promise.all([
+  /** Empty directory for parts in progress */
+  workDir: string;
+  maxPartBytes: number;
+  /** A stored file's bytes, or null if it can't be fetched */
+  downloadFile: (file: ExportFileSource) => Promise<Uint8Array | null>;
+  onPart: (part: ArchivePart) => Promise<void>;
+}): Promise<BuildExportResult> {
+  const [profileRow, noteDraft, roomRows] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: userId },
       select: exportProfileSelect,
@@ -66,6 +101,13 @@ export async function buildExportArchive({
     }),
   ]);
   const rooms = roomRows.map(toExportRoom);
+  const profile = toExportProfile(profileRow);
+
+  const queue: QueuedFile[] = [];
+  const avatarKey = uploadedAvatarKey(profileRow);
+  if (avatarKey && profile.avatarFile) {
+    queue.push({ bucket: "avatars", key: avatarKey, path: profile.avatarFile });
+  }
 
   const roomNamesByItem = new Map<string, string[]>();
   for (const room of rooms) {
@@ -77,7 +119,12 @@ export async function buildExportArchive({
     }
   }
 
-  const archive = new ArchiveWriter(exportedAt);
+  const archive = new PartedArchiveWriter({
+    dir: workDir,
+    modifiedAt: exportedAt,
+    maxPartBytes,
+    onPart,
+  });
   const json = archive.openFile("abode.json");
   const header = JSON.stringify(
     {
@@ -85,7 +132,7 @@ export async function buildExportArchive({
       version: EXPORT_FORMAT_VERSION,
       exportedAt,
       instance: instanceUrl,
-      profile: toExportProfile(profile),
+      profile,
       noteDraft: toExportNoteDraft(noteDraft),
       rooms,
     },
@@ -116,6 +163,14 @@ export async function buildExportArchive({
       json.write(
         `${itemCount === 0 ? "\n" : ",\n"}${indentItem(JSON.stringify(item, null, 2))}`,
       );
+
+      for (const { key, name } of listItemFiles(row)) {
+        queue.push({
+          bucket: "items",
+          key,
+          path: exportFilePath({ itemId: row.id, name }),
+        });
+      }
 
       const markdown = itemToMarkdown(item, roomNamesByItem.get(item.id) ?? []);
       // Paths carry an id prefix, but never let a collision overwrite a file
@@ -162,8 +217,36 @@ export async function buildExportArchive({
       roomCount: rooms.length,
       bookCount: books.length,
       bookmarkCount: bookmarks.size,
+      fileCount: queue.length,
     }),
   );
 
-  return { bytes: archive.finish(), itemCount };
+  const missing: string[] = [];
+  for (let i = 0; i < queue.length; i += DOWNLOAD_CONCURRENCY) {
+    const batch = queue.slice(i, i + DOWNLOAD_CONCURRENCY);
+    const downloads = await Promise.all(
+      batch.map(({ bucket, key }) => downloadFile({ bucket, key })),
+    );
+    for (const [index, file] of batch.entries()) {
+      const data = downloads[index];
+      if (data) {
+        await archive.addBinary(file.path, data);
+      } else {
+        missing.push(file.path);
+      }
+    }
+  }
+  if (missing.length > 0) {
+    archive.addFile(
+      "missing-files.txt",
+      `These files couldn't be copied into the export. Everything else about them is in abode.json.\n\n${missing.join("\n")}\n`,
+    );
+  }
+
+  return {
+    parts: await archive.finish(),
+    itemCount,
+    fileCount: queue.length - missing.length,
+    missingFileCount: missing.length,
+  };
 }

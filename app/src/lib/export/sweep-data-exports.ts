@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import db from "@/lib/db";
 import { STORAGE_PAGE_SIZE } from "@/lib/storage-objects";
+
+// Expired exports handled per round (each can have several parts)
+const EXPIRE_BATCH_SIZE = 100;
+
 import {
   EXPORT_FAILED_MESSAGE,
   EXPORTS_BUCKET,
@@ -9,8 +13,8 @@ import {
 
 /**
  * Housekeeping for data exports, run on a schedule:
- * - Deletes the archives of exports past `expiresAt` and marks them expired.
- *   A row only flips once its file is confirmed removed, so a storage error
+ * - Deletes every part of exports past `expiresAt` and marks them expired.
+ *   A row only flips once its parts are confirmed removed, so a storage error
  *   is retried by the next sweep rather than leaking the archive.
  * - Fails runs stranded in pending/exporting (dropped from the queue or
  *   killed), which would otherwise block the user from exporting again.
@@ -28,27 +32,31 @@ export async function sweepDataExports({
     for (;;) {
       const due = await db.dataExport.findMany({
         where: { status: "completed", expiresAt: { lte: now } },
-        select: { id: true, fileKey: true },
-        take: STORAGE_PAGE_SIZE,
+        select: { id: true, parts: { select: { fileKey: true } } },
+        take: EXPIRE_BATCH_SIZE,
       });
       if (due.length === 0) break;
 
-      const fileKeys = due
-        .map(({ fileKey }) => fileKey)
-        .filter((key): key is string => key !== null);
-      if (fileKeys.length > 0) {
+      const fileKeys = due.flatMap(({ parts }) =>
+        parts.map(({ fileKey }) => fileKey),
+      );
+      for (let i = 0; i < fileKeys.length; i += STORAGE_PAGE_SIZE) {
         const { error } = await supabase.storage
           .from(EXPORTS_BUCKET)
-          .remove(fileKeys);
+          .remove(fileKeys.slice(i, i + STORAGE_PAGE_SIZE));
         if (error) throw error;
       }
 
-      const { count } = await db.dataExport.updateMany({
-        where: { id: { in: due.map(({ id }) => id) } },
-        data: { status: "expired", fileKey: null },
-      });
+      const ids = due.map(({ id }) => id);
+      const [, { count }] = await db.$transaction([
+        db.dataExportPart.deleteMany({ where: { exportId: { in: ids } } }),
+        db.dataExport.updateMany({
+          where: { id: { in: ids } },
+          data: { status: "expired" },
+        }),
+      ]);
       expired += count;
-      if (due.length < STORAGE_PAGE_SIZE) break;
+      if (due.length < EXPIRE_BATCH_SIZE) break;
     }
   } catch (error) {
     // Still release stranded runs below; one bad archive mustn't block exports

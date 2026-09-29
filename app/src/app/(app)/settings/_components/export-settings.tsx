@@ -101,13 +101,14 @@ export function ExportSettings({
         </h3>
         <p className="mt-1 text-muted-foreground text-sm">
           Download a copy of everything in your abode: every item with its tags,
-          notes and highlights, your rooms and your profile. You get one file
-          for moving to another abode, a Markdown file per item (ready for
-          Obsidian), a bookmarks file for any browser, and your books as a
-          Goodreads-style CSV.
+          notes and highlights, your uploads, scans and saved images, your rooms
+          and your profile. You get one file for moving to another abode, a
+          Markdown file per item (ready for Obsidian), a bookmarks file for any
+          browser, and your books as a Goodreads-style CSV.
         </p>
         <p className="mt-2 text-muted-foreground text-sm">
-          Uploaded images and files aren't included yet — only their details.
+          Large libraries download in several parts — unzip them into the same
+          folder.
         </p>
 
         {available ? (
@@ -167,61 +168,115 @@ function ExportRow({ snapshot }: { snapshot: DataExportSnapshot }) {
   });
   const expired = isExpired(snapshot, now);
   const ready = snapshot.status === "completed" && !expired;
+  const split = ready && snapshot.parts.length > 1;
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-      <div className="min-w-0 space-y-0.5 text-sm">
-        <p className="flex items-center gap-1.5 font-medium">
-          {ready && <CheckCircle2 className="size-4 text-emerald-600" />}
-          {snapshot.status === "failed" && (
-            <XCircle className="size-4 text-destructive" />
+    <div className="rounded-lg border px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 space-y-0.5 text-sm">
+          <p className="flex items-center gap-1.5 font-medium">
+            {ready && <CheckCircle2 className="size-4 text-emerald-600" />}
+            {snapshot.status === "failed" && (
+              <XCircle className="size-4 text-destructive" />
+            )}
+            {isExportInProgress(snapshot.status) ? (
+              <IsLoading label="Preparing your export" />
+            ) : ready ? (
+              "Ready to download"
+            ) : expired ? (
+              "Expired"
+            ) : (
+              "Export failed"
+            )}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Requested {requested}
+            {ready && snapshot.itemCount !== null && (
+              <>
+                {" · "}
+                {snapshot.itemCount}{" "}
+                {snapshot.itemCount === 1 ? "item" : "items"}
+              </>
+            )}
+            {ready && snapshot.fileCount !== null && (
+              <>
+                {" · "}
+                {snapshot.fileCount}{" "}
+                {snapshot.fileCount === 1 ? "file" : "files"}
+              </>
+            )}
+            {ready && snapshot.sizeBytes !== null && (
+              <> · {formatBytes(snapshot.sizeBytes)}</>
+            )}
+            {ready && snapshot.expiresAt && (
+              <>
+                {" · "}expires{" "}
+                {formatDistanceToNow(new Date(snapshot.expiresAt), {
+                  addSuffix: true,
+                })}
+              </>
+            )}
+          </p>
+          {snapshot.status === "failed" && snapshot.error && (
+            <p className="text-destructive text-xs">{snapshot.error}</p>
           )}
-          {isExportInProgress(snapshot.status) ? (
-            <IsLoading label="Preparing your export" />
-          ) : ready ? (
-            "Ready to download"
-          ) : expired ? (
-            "Expired"
-          ) : (
-            "Export failed"
-          )}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          Requested {requested}
-          {ready && snapshot.itemCount !== null && (
-            <>
-              {" · "}
-              {snapshot.itemCount} {snapshot.itemCount === 1 ? "item" : "items"}
-            </>
-          )}
-          {ready && snapshot.sizeBytes !== null && (
-            <> · {formatBytes(snapshot.sizeBytes)}</>
-          )}
-          {ready && snapshot.expiresAt && (
-            <>
-              {" · "}expires{" "}
-              {formatDistanceToNow(new Date(snapshot.expiresAt), {
-                addSuffix: true,
-              })}
-            </>
-          )}
-        </p>
-        {snapshot.status === "failed" && snapshot.error && (
-          <p className="text-destructive text-xs">{snapshot.error}</p>
-        )}
-      </div>
+        </div>
 
-      {ready && (
-        <Button asChild size="sm" variant="outline">
-          <a
-            href={`/api/v1/exports/${snapshot.id}/download`}
-            onClick={() => posthog.capture("data_export_download_clicked")}
-          >
-            <Download />
-            Download
-          </a>
-        </Button>
-      )}
+        {ready && !split && <SingleDownloadButton snapshot={snapshot} />}
+      </div>
+      {split && <PartDownloadButtons snapshot={snapshot} />}
+    </div>
+  );
+}
+
+const downloadHref = (snapshot: DataExportSnapshot, position: number) =>
+  `/api/v1/exports/${snapshot.id}/download?part=${position}`;
+
+const trackDownload = (snapshot: DataExportSnapshot, position: number) =>
+  posthog.capture("data_export_download_clicked", {
+    part: position,
+    part_count: snapshot.parts.length,
+  });
+
+function SingleDownloadButton({ snapshot }: { snapshot: DataExportSnapshot }) {
+  return (
+    <Button asChild size="sm" variant="outline">
+      <a
+        href={downloadHref(snapshot, 1)}
+        onClick={() => trackDownload(snapshot, 1)}
+      >
+        <Download />
+        Download
+      </a>
+    </Button>
+  );
+}
+
+/** One button per part, under the details, for an export split into parts */
+function PartDownloadButtons({ snapshot }: { snapshot: DataExportSnapshot }) {
+  const count = snapshot.parts.length;
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="text-muted-foreground text-xs">
+        Download all {count} parts and unzip them into the same folder.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {snapshot.parts.map(({ position, sizeBytes }) => (
+          <Button key={position} asChild size="sm" variant="outline">
+            <a
+              href={downloadHref(snapshot, position)}
+              onClick={() => trackDownload(snapshot, position)}
+              aria-label={`Download part ${position} of ${count} (${formatBytes(sizeBytes)})`}
+            >
+              <Download />
+              Part {position}
+              <span className="text-muted-foreground">
+                {formatBytes(sizeBytes)}
+              </span>
+            </a>
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

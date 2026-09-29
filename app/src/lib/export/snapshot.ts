@@ -5,7 +5,10 @@ export type DataExportSnapshot = {
   id: string;
   status: DataExportStatus;
   itemCount: number | null;
+  fileCount: number | null;
   sizeBytes: number | null;
+  /** Downloadable ZIP parts, in order (empty until completed, and after expiry) */
+  parts: { position: number; sizeBytes: number }[];
   error: string | null;
   createdAt: string;
   completedAt: string | null;
@@ -16,7 +19,12 @@ export const dataExportSnapshotSelect = {
   id: true,
   status: true,
   itemCount: true,
+  fileCount: true,
   sizeBytes: true,
+  parts: {
+    select: { position: true, sizeBytes: true },
+    orderBy: { position: "asc" },
+  },
   error: true,
   createdAt: true,
   completedAt: true,
@@ -33,6 +41,10 @@ export function toDataExportSnapshot(
   return {
     ...row,
     sizeBytes: row.sizeBytes === null ? null : Number(row.sizeBytes),
+    parts: row.parts.map(({ position, sizeBytes }) => ({
+      position,
+      sizeBytes: Number(sizeBytes),
+    })),
     createdAt: row.createdAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
     expiresAt: row.expiresAt?.toISOString() ?? null,
