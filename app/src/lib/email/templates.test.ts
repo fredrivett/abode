@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { getAdminNotificationEmail } from "./templates";
+import {
+  getAdminNotificationEmail,
+  getDataExportReadyEmail,
+} from "./templates";
 
 describe("getAdminNotificationEmail — waitlist_signup", () => {
   test("email address is a pre-filled mailto invite link", () => {
@@ -47,5 +50,31 @@ describe("getAdminNotificationEmail — waitlist_signup", () => {
     expect(subject).toBe("[abode] waitlist signup: person@example.com");
     expect(text).toContain("email: person@example.com");
     expect(text).toContain("position: #42");
+  });
+});
+
+describe("getDataExportReadyEmail", () => {
+  const email = getDataExportReadyEmail({
+    itemCount: 12,
+    expiresAt: new Date("2026-10-05T14:30:00.000Z"),
+  });
+
+  test("links to the export page, never to the archive itself", () => {
+    expect(email.text).toContain("/settings/export");
+    expect(email.html).toContain("/settings/export");
+    expect(email.text).not.toMatch(/\.zip|storage/);
+  });
+
+  test("gives the exact expiry, with time and zone", () => {
+    expect(email.text).toContain("5 October 2026 at 14:30 UTC");
+    expect(email.text).toContain("12 items");
+  });
+
+  test("uses the singular for one item", () => {
+    const one = getDataExportReadyEmail({
+      itemCount: 1,
+      expiresAt: new Date(),
+    });
+    expect(one.text).toContain("1 item,");
   });
 });

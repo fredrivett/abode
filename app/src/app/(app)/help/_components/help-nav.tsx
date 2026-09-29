@@ -18,6 +18,7 @@ const helpPages: HelpNavItem[] = [
     href: "/help/connecting-ai-assistants",
     label: "Connecting AI assistants",
   },
+  { href: "/help/exporting", label: "Exporting your data" },
 ];
 
 /**
