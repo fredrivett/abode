@@ -207,6 +207,8 @@ export type Item = {
   fileKey: string | null;
   coverFileKey: string | null;
   faviconFileKey: string | null;
+  /** The original file a document was made from (an uploaded PDF), for download */
+  sourceFileKey?: string | null;
   meta: Record<string, unknown> | null;
   sourceType: SourceType | null;
   sourceUrl: string | null;

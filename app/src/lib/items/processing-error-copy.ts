@@ -33,6 +33,16 @@ const COPY: Record<ProcessingErrorReason, ProcessingErrorCopy> = {
     message: "We couldn't start processing this — please try again.",
     retryable: true,
   },
+  file_unreadable: {
+    message:
+      "We couldn't open this file — it may be damaged or password-protected. Try re-saving it without a password and uploading again.",
+    retryable: false,
+  },
+  document_too_long: {
+    message:
+      "This document has too many pages for us to import. Try splitting it into smaller files.",
+    retryable: false,
+  },
   unknown: {
     message: "Analysis failed. You can retry or delete the item.",
     retryable: true,

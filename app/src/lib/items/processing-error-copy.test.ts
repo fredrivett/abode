@@ -7,6 +7,8 @@ const ALL_REASONS: ProcessingErrorReason[] = [
   "source_not_found",
   "source_unreachable",
   "unsupported_content",
+  "file_unreadable",
+  "document_too_long",
   "unknown",
 ];
 
@@ -29,6 +31,11 @@ describe("getProcessingErrorCopy", () => {
     expect(getProcessingErrorCopy("source_blocked").retryable).toBe(false);
     expect(getProcessingErrorCopy("source_not_found").retryable).toBe(false);
     expect(getProcessingErrorCopy("unsupported_content").retryable).toBe(false);
+  });
+
+  it("marks unreadable and over-long files as non-retryable", () => {
+    expect(getProcessingErrorCopy("file_unreadable").retryable).toBe(false);
+    expect(getProcessingErrorCopy("document_too_long").retryable).toBe(false);
   });
 
   it("marks unreachable/unknown as retryable", () => {

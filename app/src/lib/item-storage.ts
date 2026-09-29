@@ -77,8 +77,8 @@ export function extractInstagramImageKeys(
 
 /**
  * Every column holding a key an item's capture/enrichment wrote to the `items`
- * bucket: the item's own file, cover and favicon, plus the images re-hosted
- * into product/tweet/Instagram JSON. Re-capturing an item replaces these (see
+ * bucket: the item's own file, cover, favicon and source file (a document's
+ * original PDF), plus the images re-hosted into product/tweet/Instagram JSON. Re-capturing an item replaces these (see
  * reclaimReplacedStorage), so the old ones must be deleted.
  *
  * This and {@link itemFileKeysSelect} are the single inventory of where an
@@ -90,6 +90,7 @@ export const capturedFileKeysSelect = {
   fileKey: true,
   coverFileKey: true,
   faviconFileKey: true,
+  sourceFileKey: true,
   productDetails: { select: { images: true } },
   twitterDetails: {
     select: { media: true, card: true, authorAvatarFileKey: true },
@@ -125,6 +126,7 @@ export function collectCapturedFileKeys(
     item.fileKey,
     item.coverFileKey,
     item.faviconFileKey,
+    item.sourceFileKey,
     ...extractProductImageKeys(item.productDetails?.images),
     ...extractTwitterImageKeys(
       item.twitterDetails?.media,

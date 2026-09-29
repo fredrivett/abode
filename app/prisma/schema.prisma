@@ -123,6 +123,8 @@ enum ProcessingErrorReason {
   unsupported_content // fetched but couldn't parse/classify
   stalled // never reached a terminal status (worker died/timed out/dropped) — swept by the stuck-items reaper
   enqueue_failed // the background run was never enqueued (tasks.trigger threw at save time)
+  file_unreadable // uploaded file is damaged, password-protected or not what its type claims (e.g. a PDF)
+  document_too_long // uploaded document is past the page safety ceiling (MAX_PDF_PAGES)
   unknown // catch-all
 }
 
@@ -220,6 +222,9 @@ model Item {
   fileKey        String? @map("file_key")
   coverFileKey   String? @map("cover_file_key")
   faviconFileKey String? @map("favicon_file_key")
+  // The original file a document was made from (e.g. an uploaded PDF), kept
+  // for download. `fileKey` stays the cover image the grid and viewer show.
+  sourceFileKey  String? @map("source_file_key")
 
   // File metadata e.g. { originalName, size, type, width, height, duration, pageCount, etc. }
   meta Json?

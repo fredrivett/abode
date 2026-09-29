@@ -74,6 +74,7 @@ export const itemSelect = {
   captureSource: true,
   coverFileKey: true,
   faviconFileKey: true,
+  sourceFileKey: true,
   createdAt: true,
   addedAt: true,
   updatedAt: true,

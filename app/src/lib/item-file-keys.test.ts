@@ -108,6 +108,7 @@ const everyLocation: ItemFileKeysSource = {
   fileKey: "u/file.jpg",
   coverFileKey: "u/cover.jpg",
   faviconFileKey: "u/favicon.png",
+  sourceFileKey: "u/source.pdf",
   productDetails: {
     images: [
       { fileKey: "u/product-1.jpg", url: "https://shop/1.jpg" },
@@ -156,6 +157,7 @@ describe("collectItemFileKeys", () => {
         fileKey: null,
         coverFileKey: null,
         faviconFileKey: null,
+        sourceFileKey: null,
         productDetails: null,
         twitterDetails: null,
         instagramDetails: null,
