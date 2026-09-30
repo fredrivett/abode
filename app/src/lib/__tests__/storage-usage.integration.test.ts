@@ -58,6 +58,15 @@ describe("storedBytesByUser", () => {
   it("omits users with nothing stored", async () => {
     expect((await storedBytesByUser()).size).toBe(0);
   });
+});
+
+describe("storedFilesForUser", () => {
+  beforeEach(createStorageObjectsTable);
+
+  afterAll(async () => {
+    const { write } = await import("@/lib/db");
+    await write.$executeRawUnsafe(`DROP SCHEMA IF EXISTS storage CASCADE`);
+  });
 
   it("counts one user's library files and bytes, ignoring others and export archives", async () => {
     await putObject("items", "user-a/upload.jpg", { size: 1000 });
