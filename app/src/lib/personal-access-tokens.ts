@@ -1,8 +1,12 @@
-import type { PersonalAccessToken } from "@prisma/client";
+import type { ItemKind, PersonalAccessToken } from "@prisma/client";
 import { generatePersonalAccessToken } from "@/lib/auth/personal-access-token";
 import type { TokenScope } from "@/lib/auth/token-scopes";
 import db from "@/lib/db";
-import { isCanonicalUuid } from "@/lib/pagination";
+import {
+  type CursorData,
+  encodeCursor,
+  isCanonicalUuid,
+} from "@/lib/pagination";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -111,4 +115,78 @@ export async function revokePersonalAccessToken(
     return { success: false, error: "Token not found", code: "NOT_FOUND" };
   }
   return { success: true };
+}
+
+/** One item a token saved, as listed in the token's settings row */
+export type TokenSavedItem = {
+  id: string;
+  title: string | null;
+  kind: ItemKind | null;
+  sourceUrl: string | null;
+  addedAt: string;
+};
+
+export type TokenSavedItemsPage = {
+  items: TokenSavedItem[];
+  /** Pass back as `cursor` for the next page; null on the last page */
+  nextCursor: string | null;
+};
+
+/**
+ * The items a token saved, newest first, a page at a time. Owner-scoped: an
+ * unknown token, or another user's, returns null (→ 404) rather than an empty
+ * page, so the route never confirms a token exists. Revoked tokens still list —
+ * seeing what a leaked token added is the point.
+ */
+export async function listTokenSavedItems({
+  userId,
+  tokenId,
+  cursor,
+  limit,
+}: {
+  userId: string;
+  tokenId: string;
+  cursor: CursorData | null;
+  limit: number;
+}): Promise<TokenSavedItemsPage | null> {
+  if (!isCanonicalUuid(tokenId)) return null;
+
+  const token = await db.personalAccessToken.findFirst({
+    where: { id: tokenId, userId },
+    select: { id: true },
+  });
+  if (!token) return null;
+
+  const rows = await db.item.findMany({
+    where: {
+      userId,
+      personalAccessTokenId: tokenId,
+      ...(cursor && {
+        OR: [
+          { addedAt: { lt: new Date(cursor.addedAt) } },
+          { addedAt: new Date(cursor.addedAt), id: { lt: cursor.id } },
+        ],
+      }),
+    },
+    select: {
+      id: true,
+      title: true,
+      kind: true,
+      sourceUrl: true,
+      addedAt: true,
+    },
+    orderBy: [{ addedAt: "desc" }, { id: "desc" }],
+    // One extra row tells us whether there's another page
+    take: limit + 1,
+  });
+
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  return {
+    items: page.map((row) => ({ ...row, addedAt: row.addedAt.toISOString() })),
+    nextCursor:
+      rows.length > limit && last
+        ? encodeCursor({ addedAt: last.addedAt.toISOString(), id: last.id })
+        : null,
+  };
 }

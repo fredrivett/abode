@@ -119,7 +119,7 @@ describe("Personal access tokens integration", () => {
         expiresInDays: null,
         scopes: ["write"],
       });
-      const reader = await createPersonalAccessToken(USER_A, {
+      await createPersonalAccessToken(USER_A, {
         name: "reader",
         expiresInDays: null,
         scopes: ["read"],
@@ -231,6 +231,122 @@ describe("Personal access tokens integration", () => {
       await revokePersonalAccessToken(summary.id, USER_A);
       const again = await revokePersonalAccessToken(summary.id, USER_A);
       expect(again.success).toBe(false);
+    });
+  });
+
+  describe("listTokenSavedItems", () => {
+    async function saveWith(tokenId: string, title: string, addedAt: Date) {
+      const { write } = await import("@/lib/db");
+      return write.item.create({
+        data: {
+          userId: USER_A,
+          title,
+          captureSource: "api",
+          personalAccessTokenId: tokenId,
+          addedAt,
+        },
+        select: { id: true },
+      });
+    }
+
+    it("lists only that token's items, newest first, a page at a time", async () => {
+      const { write } = await import("@/lib/db");
+      const { createPersonalAccessToken, listTokenSavedItems } = await import(
+        "@/lib/personal-access-tokens"
+      );
+      const { decodeCursor } = await import("@/lib/pagination");
+
+      const saver = await createPersonalAccessToken(USER_A, {
+        name: "saver",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+      const other = await createPersonalAccessToken(USER_A, {
+        name: "other",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+      const day = 24 * 60 * 60 * 1000;
+      for (const [i, title] of ["oldest", "middle", "newest"].entries()) {
+        await saveWith(
+          saver.summary.id,
+          title,
+          new Date(Date.now() - (3 - i) * day),
+        );
+      }
+      await saveWith(other.summary.id, "other token's", new Date());
+      await write.item.create({ data: { userId: USER_A, title: "web save" } });
+
+      const first = await listTokenSavedItems({
+        userId: USER_A,
+        tokenId: saver.summary.id,
+        cursor: null,
+        limit: 2,
+      });
+      expect(first?.items.map((i) => i.title)).toEqual(["newest", "middle"]);
+      expect(first?.nextCursor).not.toBeNull();
+
+      const second = await listTokenSavedItems({
+        userId: USER_A,
+        tokenId: saver.summary.id,
+        cursor: decodeCursor(first?.nextCursor ?? ""),
+        limit: 2,
+      });
+      expect(second?.items.map((i) => i.title)).toEqual(["oldest"]);
+      expect(second?.nextCursor).toBeNull();
+    });
+
+    it("still lists a revoked token's items", async () => {
+      const {
+        createPersonalAccessToken,
+        revokePersonalAccessToken,
+        listTokenSavedItems,
+      } = await import("@/lib/personal-access-tokens");
+
+      const { summary } = await createPersonalAccessToken(USER_A, {
+        name: "leaked",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+      await saveWith(summary.id, "added by the leak", new Date());
+      await revokePersonalAccessToken(summary.id, USER_A);
+
+      const page = await listTokenSavedItems({
+        userId: USER_A,
+        tokenId: summary.id,
+        cursor: null,
+        limit: 25,
+      });
+      expect(page?.items.map((i) => i.title)).toEqual(["added by the leak"]);
+    });
+
+    it("returns null for another user's token or a malformed id", async () => {
+      const { createPersonalAccessToken, listTokenSavedItems } = await import(
+        "@/lib/personal-access-tokens"
+      );
+
+      const { summary } = await createPersonalAccessToken(USER_B, {
+        name: "b's token",
+        expiresInDays: null,
+        scopes: ["write"],
+      });
+
+      expect(
+        await listTokenSavedItems({
+          userId: USER_A,
+          tokenId: summary.id,
+          cursor: null,
+          limit: 25,
+        }),
+      ).toBeNull();
+      expect(
+        await listTokenSavedItems({
+          userId: USER_A,
+          tokenId: "not-a-uuid",
+          cursor: null,
+          limit: 25,
+        }),
+      ).toBeNull();
     });
   });
 });
