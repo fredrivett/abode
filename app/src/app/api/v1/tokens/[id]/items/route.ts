@@ -29,9 +29,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    // Absent = first page; present but empty or undecodable = a bad request
     const rawCursor = request.nextUrl.searchParams.get("cursor");
-    const cursor = rawCursor ? decodeCursor(rawCursor) : null;
-    if (rawCursor && !cursor) {
+    const cursor = rawCursor === null ? null : decodeCursor(rawCursor);
+    if (rawCursor !== null && !cursor) {
       return NextResponse.json({ message: "Invalid cursor" }, { status: 400 });
     }
 

@@ -77,9 +77,11 @@ describe("GET /api/v1/tokens/[id]/items", () => {
     expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ cursor }));
   });
 
-  it("rejects a malformed cursor", async () => {
-    const response = await GET(request("?cursor=garbage"), ctx);
-    expect(response.status).toBe(400);
+  it("rejects a malformed or empty cursor", async () => {
+    for (const query of ["?cursor=garbage", "?cursor="]) {
+      const response = await GET(request(query), ctx);
+      expect(response.status).toBe(400);
+    }
     expect(mockList).not.toHaveBeenCalled();
   });
 
