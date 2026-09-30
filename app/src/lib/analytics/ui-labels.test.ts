@@ -45,8 +45,9 @@ describe("decodeJsxEntities", () => {
     ).toBe("don't & \"x\" 'y'");
   });
 
-  it("leaves unknown entities alone", () => {
+  it("leaves unknown and out-of-range entities alone", () => {
     expect(decodeJsxEntities("&bogus;")).toBe("&bogus;");
+    expect(decodeJsxEntities("&#x110000;")).toBe("&#x110000;");
   });
 
   it("is applied to JSX text only", () => {

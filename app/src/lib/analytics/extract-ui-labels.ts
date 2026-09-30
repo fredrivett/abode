@@ -37,7 +37,9 @@ export function decodeJsxEntities(text: string): string {
           body[1]?.toLowerCase() === "x"
             ? Number.parseInt(body.slice(2), 16)
             : Number.parseInt(body.slice(1), 10);
-        return Number.isNaN(code) ? entity : String.fromCodePoint(code);
+        return code >= 0 && code <= 0x10ffff
+          ? String.fromCodePoint(code)
+          : entity;
       }
       return NAMED_ENTITIES[body.toLowerCase()] ?? entity;
     },
