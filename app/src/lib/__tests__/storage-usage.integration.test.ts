@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { storedBytesByUser } from "@/lib/storage-usage";
+import { storedBytesByUser, storedFilesForUser } from "@/lib/storage-usage";
 
 /**
  * The test database is plain Postgres, not Supabase, so stand in the one table
@@ -57,5 +57,26 @@ describe("storedBytesByUser", () => {
 
   it("omits users with nothing stored", async () => {
     expect((await storedBytesByUser()).size).toBe(0);
+  });
+
+  it("counts one user's library files and bytes, ignoring others and export archives", async () => {
+    await putObject("items", "user-a/upload.jpg", { size: 1000 });
+    await putObject("items", "user-a/cover.jpg", { size: 200 });
+    await putObject("avatars", "user-a/avatar.png", { size: 4 });
+    await putObject("exports", "user-a/export-1/part-1.zip", { size: 999_999 });
+    await putObject("items", "user-ab/other.jpg", { size: 50 });
+    await putObject("items", "user-b/upload.jpg", { size: 7 });
+
+    expect(await storedFilesForUser("user-a")).toEqual({
+      fileCount: 3,
+      bytes: BigInt(1204),
+    });
+  });
+
+  it("reports nothing for a user with no files", async () => {
+    expect(await storedFilesForUser("nobody")).toEqual({
+      fileCount: 0,
+      bytes: BigInt(0),
+    });
   });
 });
