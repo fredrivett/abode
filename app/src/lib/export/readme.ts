@@ -34,7 +34,7 @@ ${[
   ", ",
 )} (Any file that couldn't be copied in is listed in \`missing-files.txt\`.)
 
-If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), unzip them all into the same folder. This README is at the start of part 1, followed by \`abode.json\` (in part 2 if it's too big to share a part); together the parts make up everything below.
+If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), each unzips into its own folder. Part 1 is the main folder, with this README, \`abode.json\` and everything else below; each later part (\`…-part-2\` and so on) holds more of \`files/\`. To put everything in one place, move the contents of each later part's \`files\` folder into the main folder's \`files\` folder, which is where \`abode.json\` and the Markdown expect them.
 
 ## What's in here
 

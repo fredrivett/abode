@@ -62,6 +62,8 @@ export class PartedArchiveWriter {
       modifiedAt: Date;
       maxPartBytes: number;
       maxEntriesPerPart?: number;
+      /** Top-level folder for each part's entries (none if omitted) */
+      folderForPart?: (position: number) => string;
       onPart: (part: ArchivePart) => Promise<void>;
     },
   ) {
@@ -118,9 +120,18 @@ export class PartedArchiveWriter {
     await this.options.onPart(part);
   }
 
-  /** Starts a new part first if an entry of up to `maxBytes` wouldn't fit */
-  private async makeRoom(path: string, maxBytes: number): Promise<void> {
-    const nameBytes = strToU8(path).length;
+  /** An entry's full path inside the current part */
+  private entryPath(path: string): string {
+    const folder = this.options.folderForPart?.(this.current.position);
+    return folder ? `${folder}/${path}` : path;
+  }
+
+  /**
+   * Starts a new part first if an entry of up to `maxBytes` wouldn't fit, and
+   * returns the entry's full path in whichever part it lands in
+   */
+  private async makeRoom(path: string, maxBytes: number): Promise<string> {
+    const nameBytes = strToU8(this.entryPath(path)).length;
     const { bytes, centralBytes, entries } = this.current;
     const finishedSize =
       bytes +
@@ -137,8 +148,11 @@ export class PartedArchiveWriter {
       await this.closeCurrent();
       this.current = this.startPart(this.current.position + 1);
     }
+    const fullPath = this.entryPath(path);
     this.current.entries += 1;
-    this.current.centralBytes += CENTRAL_RECORD_BYTES + nameBytes;
+    this.current.centralBytes +=
+      CENTRAL_RECORD_BYTES + strToU8(fullPath).length;
+    return fullPath;
   }
 
   private add<T extends ZipDeflate | ZipPassThrough>(file: T): T {
@@ -159,16 +173,19 @@ export class PartedArchiveWriter {
   /** Adds a text file (deflated) */
   async addText(path: string, content: string): Promise<void> {
     const data = strToU8(content);
-    await this.makeRoom(path, deflatedBound(data.length));
-    this.add(new ZipDeflate(path, { level: DEFLATE_LEVEL })).push(data, true);
+    const fullPath = await this.makeRoom(path, deflatedBound(data.length));
+    this.add(new ZipDeflate(fullPath, { level: DEFLATE_LEVEL })).push(
+      data,
+      true,
+    );
     await this.drained();
   }
 
   /** Adds a text file from local disk (deflated), streaming it in chunks */
   async addTextFromDisk(path: string, diskPath: string): Promise<void> {
     const { size } = await stat(diskPath);
-    await this.makeRoom(path, deflatedBound(size));
-    const file = this.add(new ZipDeflate(path, { level: DEFLATE_LEVEL }));
+    const fullPath = await this.makeRoom(path, deflatedBound(size));
+    const file = this.add(new ZipDeflate(fullPath, { level: DEFLATE_LEVEL }));
     for await (const chunk of createReadStream(diskPath)) {
       file.push(chunk);
       await this.drained();
@@ -179,8 +196,8 @@ export class PartedArchiveWriter {
 
   /** Adds a binary file (stored, not compressed) */
   async addBinary(path: string, data: Uint8Array): Promise<void> {
-    await this.makeRoom(path, data.length);
-    this.add(new ZipPassThrough(path)).push(data, true);
+    const fullPath = await this.makeRoom(path, data.length);
+    this.add(new ZipPassThrough(fullPath)).push(data, true);
     await this.drained();
   }
 

@@ -128,4 +128,26 @@ describe("PartedArchiveWriter", () => {
 
     await expect(archive.finish()).rejects.toThrow(/ENOENT/);
   });
+
+  it("puts each part's entries in that part's own top-level folder", async () => {
+    const archive = new PartedArchiveWriter({
+      dir,
+      modifiedAt: new Date(),
+      maxPartBytes: 100 * KB,
+      folderForPart: (position) => `export-part-${position}`,
+      onPart: async (part) => {
+        handed.push({ part, files: unzipSync(readFileSync(part.path)) });
+      },
+    });
+    await archive.addText("README.md", "hi");
+    await archive.addBinary("files/a/1.jpg", bytes(60 * KB, 1));
+    await archive.addBinary("files/b/2.jpg", bytes(60 * KB, 2));
+
+    await archive.finish();
+
+    expect(handed.map(({ files }) => Object.keys(files).sort())).toEqual([
+      ["export-part-1/README.md", "export-part-1/files/a/1.jpg"],
+      ["export-part-2/files/b/2.jpg"],
+    ]);
+  });
 });

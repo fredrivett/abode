@@ -17,6 +17,7 @@ import {
   toBookmarkEntry,
 } from "./bookmarks";
 import { type BookRow, buildBooksCsv, toBookRow } from "./books-csv";
+import { exportFolderName } from "./constants";
 import { itemToMarkdown } from "./markdown";
 import { buildExportReadme } from "./readme";
 import {
@@ -223,6 +224,7 @@ export async function buildExportArchive({
     dir: workDir,
     modifiedAt: exportedAt,
     maxPartBytes,
+    folderForPart: (position) => exportFolderName({ exportedAt, position }),
     onPart,
   });
   await archive.addText(
