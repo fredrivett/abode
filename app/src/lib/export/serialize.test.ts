@@ -164,6 +164,7 @@ describe("toExportProfile", () => {
     showInvitedBy: true,
     showInvited: true,
     allowSearchIndexing: false,
+    dismissedAutoRooms: [],
   };
 
   it("points an uploaded avatar at its copy in the archive", () => {
