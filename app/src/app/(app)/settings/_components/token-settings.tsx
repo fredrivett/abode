@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Check, ChevronDown, Copy, KeyRound, Trash2 } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/auth/token-scopes";
 import { copyToClipboard } from "@/lib/copy";
 import type { PersonalAccessTokenSummary } from "@/lib/personal-access-tokens";
+import { TokenSavedItemsDialog } from "./token-saved-items-dialog";
 
 // Expiry choices offered at creation; kept client-side so this file stays free
 // of the server-only token lib. `days` maps to the API's `expiresInDays`.
@@ -57,6 +59,8 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
   const [scopes, setScopes] = useState<TokenScope[]>(["read"]);
   const [isCreating, setIsCreating] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
+  const [viewingItemsOf, setViewingItemsOf] =
+    useState<PersonalAccessTokenSummary | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,7 +238,18 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
         {tokens.length > 0 ? (
           <div className="space-y-2">
             {tokens.map((token) => (
-              <TokenRow key={token.id} token={token} onRevoke={handleRevoke} />
+              <TokenRow
+                key={token.id}
+                token={token}
+                onRevoke={handleRevoke}
+                onViewItems={() => {
+                  posthog.capture("token_saved_items_viewed", {
+                    token_id: token.id,
+                    item_count: token.itemCount,
+                  });
+                  setViewingItemsOf(token);
+                }}
+              />
             ))}
           </div>
         ) : (
@@ -245,6 +260,10 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
       </div>
 
       <NewTokenDialog token={newToken} onClose={() => setNewToken(null)} />
+      <TokenSavedItemsDialog
+        token={viewingItemsOf}
+        onClose={() => setViewingItemsOf(null)}
+      />
     </>
   );
 }
@@ -252,9 +271,11 @@ export function TokenSettings({ initialTokens }: TokenSettingsProps) {
 function TokenRow({
   token,
   onRevoke,
+  onViewItems,
 }: {
   token: PersonalAccessTokenSummary;
   onRevoke: (id: string) => Promise<void>;
+  onViewItems: () => void;
 }) {
   const [isRevoking, setIsRevoking] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -306,7 +327,21 @@ function TokenRow({
           ))}
         </div>
         <p className="mt-0.5 text-muted-foreground text-xs">
-          {[meta(), lastUsed, itemsSaved].filter(Boolean).join(" · ")}
+          {meta()} · {lastUsed}
+          {itemsSaved && " · "}
+          {itemsSaved &&
+            (token.itemCount > 0 ? (
+              <Button
+                type="button"
+                variant="link"
+                onClick={onViewItems}
+                className="h-auto p-0 text-muted-foreground text-xs underline underline-offset-2 hover:text-foreground"
+              >
+                {itemsSaved}
+              </Button>
+            ) : (
+              itemsSaved
+            ))}
         </p>
       </div>
       <Button
