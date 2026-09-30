@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSharedUrl, firstSharedValue } from "./share-target";
+import { describeSharedValue, extractSharedUrl } from "./share-target";
 
 describe("extractSharedUrl", () => {
   it("returns the url param when it is a valid URL", () => {
@@ -56,29 +56,24 @@ describe("extractSharedUrl", () => {
   });
 });
 
-describe("firstSharedValue", () => {
-  it("returns the trimmed url value when present", () => {
-    expect(firstSharedValue({ url: "  hello  " })).toBe("hello");
+describe("describeSharedValue", () => {
+  it("describes the first shared value without its contents", () => {
+    const shape = describeSharedValue({ text: "  my secret note.txt  " });
+    expect(shape).toEqual({
+      param: "text",
+      length: 18,
+      hasScheme: false,
+      hasDot: true,
+      hasWhitespace: true,
+    });
+    expect(JSON.stringify(shape)).not.toContain("secret");
   });
 
-  it("surfaces an unparseable (e.g. double-encoded) value as-is", () => {
-    const doubleEncoded = "https%253A%252F%252Fexample.com";
-    expect(extractSharedUrl({ url: doubleEncoded })).toBeNull();
-    expect(firstSharedValue({ url: doubleEncoded })).toBe(doubleEncoded);
+  it("flags a scheme", () => {
+    expect(describeSharedValue({ url: "intent:foo" }).hasScheme).toBe(true);
   });
 
-  it("falls back across url → text → title", () => {
-    expect(firstSharedValue({ text: "from text" })).toBe("from text");
-    expect(firstSharedValue({ title: "from title" })).toBe("from title");
-  });
-
-  it("skips empty values and uses the first array element", () => {
-    expect(firstSharedValue({ url: "   ", text: "real" })).toBe("real");
-    expect(firstSharedValue({ url: ["first", "second"] })).toBe("first");
-  });
-
-  it("returns undefined when nothing was shared", () => {
-    expect(firstSharedValue({})).toBeUndefined();
-    expect(firstSharedValue({ url: "   " })).toBeUndefined();
+  it("handles an empty share", () => {
+    expect(describeSharedValue({})).toMatchObject({ param: null, length: 0 });
   });
 });
