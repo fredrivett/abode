@@ -123,10 +123,14 @@ describe("detectSuggestions", () => {
   });
 
   it("suggests the status facet for a status word", () => {
-    const status = ["unread", "reading", "read", "dnf"];
+    const status = ["unread", "want_to_read", "reading", "read", "dnf"];
     expect(detect("unread", { status })[0]).toMatchObject({
       facet: "status",
       value: "unread",
+    });
+    expect(detect("want_to_read", { status })[0]).toMatchObject({
+      facet: "status",
+      value: "want_to_read",
     });
     expect(detect("dnf", { status })[0]).toMatchObject({ facet: "status" });
     // Whole-word only: "already" contains "read" but must not match.

@@ -720,6 +720,11 @@ describe("Room Service Integration", () => {
           parsed: { status: [{ value: "unread", negated: false }] },
         },
         {
+          name: "want_to_read",
+          roomFilters: [filter("status", "want_to_read")],
+          parsed: { status: [{ value: "want_to_read", negated: false }] },
+        },
+        {
           name: "reading",
           roomFilters: [filter("status", "reading")],
           parsed: { status: [{ value: "reading", negated: false }] },

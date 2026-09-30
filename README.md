@@ -37,7 +37,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | Service                                                       | Tier                    | Unlocks                                                       | Without it                                              |
 | ------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
 | PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | 🔒 **Required**         | the app itself                                                | won't run                                               |
-| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline                                  | capture + full-text search work, but no auto-enrichment |
+| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline and builds data exports          | capture + full-text search work, but no auto-enrichment or data export |
 | [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search              | items stay bare; full-text search only                  |
 | [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)                      | skipped                                                 |
 | [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scanned documents | colours skipped; document OCR uses OpenAI if configured |
@@ -68,10 +68,11 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
-- **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
+- **Rooms:** Manual collections and smart rooms (dynamic, filter-based), plus auto-generated book shelves (Want to read / Reading / Read) that appear once you have books and stay in sync as you update reading status.
 - **MCP server:** Connect Claude, Cursor and other AI assistants to search and read your library (`/api/mcp`, read-only), with a personal access token that has read access.
 - **Access tokens:** Personal access tokens with independent permissions: read your library (for MCP), save new items (for scripts or an iOS Shortcut), or both.
 - **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
+- **Export:** Download everything as a ZIP from Settings → Export: a complete `abode.json`, a Markdown file per item (Obsidian-ready), a Netscape `bookmarks.html` with a folder per room, a Goodreads-format `books.csv`, and every upload, scan and saved image. Large libraries split into parts. Built in the background (needs Trigger.dev) and kept for 7 days.
 - **Admin:** User management, waitlist, and invite system.
 
 ## Development
@@ -103,11 +104,12 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Command palette (⌘K) + keyboard navigation
 - MCP server for AI assistants + scoped personal access tokens
 - Admin dashboard, waitlist, invite system
+- Data export (JSON, Markdown, bookmarks, books CSV, every file)
 
 **🔜 Next:**
 
 - Browser extension
-- Export / eject
+- Import an abode export (eject to another instance)
 - Importers — bring your library from mymind, Raindrop, Are.na and Pinterest
 - Self-hosting guide + Docker Compose
 

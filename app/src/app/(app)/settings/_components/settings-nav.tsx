@@ -1,6 +1,6 @@
 "use client";
 
-import { BookDown, Handshake, KeyRound, User } from "lucide-react";
+import { BookDown, FileArchive, Handshake, KeyRound, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,11 @@ const navItems = [
     href: "/settings/import",
     label: "Import",
     icon: BookDown,
+  },
+  {
+    href: "/settings/export",
+    label: "Export",
+    icon: FileArchive,
   },
 ];
 

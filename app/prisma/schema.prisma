@@ -44,6 +44,9 @@ model User {
   showInvited         Boolean @default(true) @map("show_invited") // Show the people this user invited
   allowSearchIndexing Boolean @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
 
+  // Auto book shelves the user dismissed; ensureBookRooms skips these so they're never recreated
+  dismissedAutoRooms RoomAutoKind[] @default([]) @map("dismissed_auto_rooms")
+
   // Relations
   referredBy  User?    @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals   User[]   @relation("Referrals")
@@ -62,6 +65,7 @@ model User {
   noteDraft            NoteDraft?
   usageDaily           UsageDaily[]
   personalAccessTokens PersonalAccessToken[]
+  dataExports          DataExport[]
 
   @@map("users")
 }
@@ -134,6 +138,14 @@ enum RoomType {
 enum RoomVisibility {
   private
   public
+}
+
+// Identifies an auto-generated book shelf so it can be reconciled + dismissed.
+// Null on a Room means a normal user-created room.
+enum RoomAutoKind {
+  book_want_to_read
+  book_reading
+  book_read
 }
 
 enum AvatarSource {
@@ -691,6 +703,7 @@ model Room {
   type       RoomType
   filters    Json? // JSONB for smart room filters
   visibility RoomVisibility @default(private)
+  autoKind   RoomAutoKind?  @map("auto_kind") // set on auto-generated book shelves; null = normal room
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
 
@@ -699,6 +712,7 @@ model Room {
   embedReferrers RoomEmbedReferrer[]
 
   @@unique([userId, slug])
+  @@unique([userId, autoKind]) // one shelf of each kind per user; nulls exempt → race-safe create
   @@index([userId])
   @@map("rooms")
 }
@@ -926,4 +940,64 @@ model ItemImport {
 
   @@index([userId, status])
   @@map("item_imports")
+}
+
+// A user's request to export their library (src/lib/export). One row per run:
+// the background task builds the archive into the private `exports` storage
+// bucket as one or more ZIP parts (DataExportPart) and flips `status`; the
+// settings page lists recent runs and serves each part's download.
+// The archive is deleted (status -> expired) once `expiresAt` passes, and a run
+// stranded in pending/exporting is failed so it can't block a new export.
+// RLS-enabled (default-deny) in migration.
+enum DataExportStatus {
+  pending
+  exporting
+  completed
+  failed
+  expired
+}
+
+model DataExport {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  status      DataExportStatus @default(pending)
+  sizeBytes   BigInt?          @map("size_bytes")
+  itemCount   Int?             @map("item_count")
+  // Stored files (uploads, covers, scans…) included in the archive
+  fileCount   Int?             @map("file_count")
+  // Safe, user-facing failure summary (never raw errors); null unless failed.
+  error       String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  completedAt DateTime?        @map("completed_at")
+  expiresAt   DateTime?        @map("expires_at")
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parts DataExportPart[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  // Drives the expiry/stranded-run sweep: seeks non-terminal + expiring rows.
+  @@index([status, expiresAt])
+  @@map("data_exports")
+}
+
+// One ZIP part of a completed export. Large libraries are split so each part
+// stays within the storage upload limit (and zip32's 4 GB ceiling); part 1
+// carries the data files, later parts carry the rest of the stored files.
+// Deleted (with its storage object) when the export expires. RLS-enabled
+// (default-deny) in migration.
+model DataExportPart {
+  id        String   @id @default(uuid()) @db.Uuid
+  exportId  String   @map("export_id") @db.Uuid
+  // 1-based part number, in download order
+  position  Int
+  // Key of the part in the `exports` bucket
+  fileKey   String   @map("file_key")
+  sizeBytes BigInt   @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  export DataExport @relation(fields: [exportId], references: [id], onDelete: Cascade)
+
+  @@unique([exportId, position])
+  @@map("data_export_parts")
 }

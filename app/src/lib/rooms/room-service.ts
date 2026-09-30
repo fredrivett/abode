@@ -123,6 +123,7 @@ export async function listUserRooms(userId: string, type?: "smart" | "manual") {
       type: true,
       filters: true,
       visibility: true,
+      autoKind: true,
       createdAt: true,
       updatedAt: true,
       _count: { select: { roomItems: true } },
