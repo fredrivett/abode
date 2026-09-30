@@ -26,3 +26,28 @@ export async function storedBytesByUser(): Promise<Map<string, bigint>> {
     rows.map((row) => [row.user_id, BigInt(row.total?.toString() ?? "0")]),
   );
 }
+
+/**
+ * One user's stored files right now: how many objects they have in their
+ * library folders (item files and avatars), and their total bytes. Read live
+ * from the same source the daily reconcile uses, so the account page's file
+ * count and storage used agree with each other rather than lagging a day.
+ */
+export async function storedFilesForUser(
+  userId: string,
+): Promise<{ fileCount: number; bytes: bigint }> {
+  const [row] = await db.$queryRaw<
+    { file_count: bigint; total: bigint | null }[]
+  >`
+    SELECT COUNT(*) AS file_count,
+      SUM(CASE WHEN jsonb_typeof(metadata->'size') = 'number'
+        THEN (metadata->>'size')::bigint ELSE 0 END) AS total
+    FROM storage.objects
+    WHERE bucket_id IN (${Prisma.join([...LIBRARY_BUCKETS])})
+      AND name LIKE ${`${userId}/%`}
+  `;
+  return {
+    fileCount: Number(row?.file_count ?? 0),
+    bytes: BigInt(row?.total?.toString() ?? "0"),
+  };
+}
