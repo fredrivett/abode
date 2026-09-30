@@ -59,29 +59,32 @@ export function TokenSavedItemsDialog({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
-  // Guards against a slow response landing after the dialog moved on
-  const activeToken = useRef<string | null>(null);
+  // Bumped on every open (and close), so a response from an earlier open —
+  // even of the same token — can't land in this one
+  const openGeneration = useRef(0);
 
   const tokenId = token?.id ?? null;
 
   const loadPage = async (id: string, cursor: string | null) => {
+    const generation = openGeneration.current;
+    const isCurrent = () => openGeneration.current === generation;
     setIsLoading(true);
     setError(false);
     try {
       const page = await fetchSavedItems(id, cursor);
-      if (activeToken.current !== id) return;
+      if (!isCurrent()) return;
       setItems((prev) => (cursor ? [...prev, ...page.items] : page.items));
       setNextCursor(page.nextCursor);
     } catch {
-      if (activeToken.current === id) setError(true);
+      if (isCurrent()) setError(true);
     } finally {
-      if (activeToken.current === id) setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
   };
 
   // Reads the latest loadPage without making it an effect dependency
   const openFor = useEffectEvent((id: string | null) => {
-    activeToken.current = id;
+    openGeneration.current += 1;
     setItems([]);
     setNextCursor(null);
     setError(false);

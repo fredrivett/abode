@@ -103,6 +103,34 @@ describe("TokenSavedItemsDialog", () => {
     );
   });
 
+  it("ignores a late response from an earlier open of the same token", async () => {
+    let resolveStale: (value: unknown) => void = () => {};
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveStale = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(page([item({ id: "fresh", title: "Fresh" })]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { rerender } = render(
+      <TokenSavedItemsDialog token={TOKEN} onClose={vi.fn()} />,
+    );
+    // Close and reopen the same token before the first request finishes
+    rerender(<TokenSavedItemsDialog token={null} onClose={vi.fn()} />);
+    rerender(<TokenSavedItemsDialog token={TOKEN} onClose={vi.fn()} />);
+
+    expect(await screen.findByText("Fresh")).toBeInTheDocument();
+    resolveStale(page([item({ id: "stale", title: "Stale" })]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText("Stale")).not.toBeInTheDocument();
+    expect(screen.getByText("Fresh")).toBeInTheDocument();
+  });
+
   it("stays closed and fetches nothing without a token", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
