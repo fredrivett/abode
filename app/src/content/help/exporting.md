@@ -23,7 +23,7 @@ The download is a ZIP file containing:
 
 ## Large libraries
 
-If you have a lot of images or scans, the export downloads as several parts (for example "part 1 of 3"). Each part unzips into its own folder: part 1 is the main folder with your data, and each later part holds more of your files. To put everything in one place, move the contents of each later part's **files** folder into the main folder's **files** folder.
+If you have a lot of images or scans, the export downloads as several parts (for example "part 1 of 3"). Each part unzips into its own folder: part 1 is the main folder with your data, and each later part holds the rest, mostly more of your files. To put everything in one place, move everything inside each later part's folder into the main folder, merging its **files** folder into the main one. If some files couldn't be copied, **missing-files.txt** (in the last part) lists them.
 
 ## Files
 

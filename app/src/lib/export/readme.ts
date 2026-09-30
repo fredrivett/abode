@@ -32,9 +32,9 @@ ${[
   count(fileCount, "stored file"),
 ].join(
   ", ",
-)} (Any file that couldn't be copied in is listed in \`missing-files.txt\`.)
+)} (Any file that couldn't be copied in is listed in \`missing-files.txt\`, in the last part if your export was split.)
 
-If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), each unzips into its own folder. Part 1 is the main folder, with this README, \`abode.json\` and everything else below; each later part (\`…-part-2\` and so on) holds more of \`files/\`. To put everything in one place, move the contents of each later part's \`files\` folder into the main folder's \`files\` folder, which is where \`abode.json\` and the Markdown expect them.
+If your export downloaded as several parts (\`…-part-1-of-3.zip\` and so on), each unzips into its own folder. Part 1 is the main folder, starting with this README and \`abode.json\`; each later part (\`…-part-2\` and so on) holds the rest, mostly more of \`files/\`. To put everything in one place, move everything inside each later part's folder into the main folder, merging its \`files\` folder into the main one. That's where \`abode.json\` and the Markdown expect them.
 
 ## What's in here
 
