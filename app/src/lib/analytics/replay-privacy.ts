@@ -1,4 +1,5 @@
 import type { PostHogConfig } from "posthog-js";
+import { maskContentInUrl } from "./mask-url";
 
 type SessionRecordingOptions = NonNullable<PostHogConfig["session_recording"]>;
 
@@ -86,18 +87,9 @@ export const REPLAY_PRIVACY_OPTIONS = {
   maskTextSelector: "*",
   blockSelector: "img, picture, video, audio, canvas, iframe, object, embed",
   maskAttributeFn: maskReplayAttribute,
+  // Also applied to the page URL in replay metadata, not just network requests
+  maskCapturedNetworkRequestFn: (request) => ({
+    ...request,
+    name: maskContentInUrl(request.name),
+  }),
 } satisfies SessionRecordingOptions;
-
-/**
- * Query params that carry user content: search queries (`q`, `search`) and
- * links/text shared to `/save`. Masked in page URLs on analytics events and
- * in replay metadata.
- */
-export const CONTENT_QUERY_PARAMS = ["q", "search", "url", "text", "title"];
-
-/** Privacy settings spread into `posthog.init` */
-export const POSTHOG_PRIVACY_CONFIG = {
-  session_recording: REPLAY_PRIVACY_OPTIONS,
-  mask_personal_data_properties: true,
-  custom_personal_data_properties: CONTENT_QUERY_PARAMS,
-} satisfies Partial<PostHogConfig>;

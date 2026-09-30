@@ -1,5 +1,9 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getAnalyticsUsername,
+  setAnalyticsUsername,
+} from "@/lib/analytics/analytics-username";
 import { useUserStore } from "@/stores/user-store";
 import { PostHogIdentity } from "./posthog-identity";
 
@@ -26,6 +30,7 @@ describe("PostHogIdentity", () => {
     posthog.identify.mockClear();
     posthog.reset.mockClear();
     useUserStore.getState().clearUser();
+    setAnalyticsUsername(null);
   });
 
   afterEach(() => {
@@ -77,6 +82,24 @@ describe("PostHogIdentity", () => {
     expect(posthog.reset.mock.invocationCallOrder[0]).toBeLessThan(
       posthog.identify.mock.invocationCallOrder[0],
     );
+  });
+
+  it("records the username for URL masking and forgets it on sign-out", () => {
+    render(<PostHogIdentity />);
+    act(() =>
+      useUserStore
+        .getState()
+        .hydrateUser({ userId: "user-a", username: "fred" }),
+    );
+    expect(getAnalyticsUsername()).toBe("fred");
+    act(() => useUserStore.getState().clearUser());
+    expect(getAnalyticsUsername()).toBeNull();
+  });
+
+  it("keeps a persisted username while the store is still hydrating", () => {
+    setAnalyticsUsername("fred");
+    render(<PostHogIdentity />);
+    expect(getAnalyticsUsername()).toBe("fred");
   });
 
   it("does nothing when PostHog isn't initialised", () => {

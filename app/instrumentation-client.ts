@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 import { BUILD_SHA, isDevelopment, POSTHOG_HOST, POSTHOG_KEY } from "@/env";
+import { POSTHOG_PRIVACY_CONFIG } from "@/lib/analytics/posthog-privacy-config";
 import { createLogger } from "@/lib/logger.client";
-import { POSTHOG_PRIVACY_CONFIG } from "@/lib/posthog-replay-privacy";
 
 const log = createLogger("posthog");
 

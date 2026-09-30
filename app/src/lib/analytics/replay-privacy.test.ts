@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  maskReplayAttribute,
-  POSTHOG_PRIVACY_CONFIG,
-  REPLAY_PRIVACY_OPTIONS,
-} from "./posthog-replay-privacy";
+import { POSTHOG_PRIVACY_CONFIG } from "./posthog-privacy-config";
+import { maskReplayAttribute, REPLAY_PRIVACY_OPTIONS } from "./replay-privacy";
+import { scrubEvent } from "./scrub-event";
 
 describe("maskReplayAttribute", () => {
   it.each([
@@ -72,6 +70,20 @@ describe("REPLAY_PRIVACY_OPTIONS", () => {
 });
 
 describe("POSTHOG_PRIVACY_CONFIG", () => {
+  it("scrubs events before they're sent", () => {
+    expect(POSTHOG_PRIVACY_CONFIG.before_send).toBe(scrubEvent);
+  });
+
+  it("masks content in replay network and page URLs", () => {
+    const masked = REPLAY_PRIVACY_OPTIONS.maskCapturedNetworkRequestFn({
+      name: "https://abode.test/api/v1/items?q=secret",
+      entryType: "resource",
+      startTime: 0,
+      duration: 0,
+    });
+    expect(masked.name).toBe("https://abode.test/api/v1/items?q=<masked>");
+  });
+
   it("masks search and shared-content query params in page URLs", () => {
     expect(POSTHOG_PRIVACY_CONFIG.mask_personal_data_properties).toBe(true);
     expect(POSTHOG_PRIVACY_CONFIG.custom_personal_data_properties).toEqual(

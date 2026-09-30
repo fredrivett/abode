@@ -22,7 +22,8 @@
       "!**/*.css",
       "!**/*.html",
       "!**/*.svg",
-      "!public/embed.js"
+      "!public/embed.js",
+      "!src/lib/analytics/ui-labels.generated.ts"
     ]
   },
   "formatter": {
