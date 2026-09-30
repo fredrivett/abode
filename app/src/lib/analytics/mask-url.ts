@@ -1,4 +1,8 @@
-import { getAnalyticsUsername } from "./analytics-username";
+import {
+  ANY_ROOM_OWNER,
+  getRoomMaskScope,
+  type RoomMaskScope,
+} from "./analytics-username";
 
 /**
  * Query params that carry user content: search queries (`q`, `search`) and
@@ -20,24 +24,24 @@ function escapeRegExp(text: string): string {
 
 /**
  * Masks user content out of a URL or path: content query params, and the
- * room slug in `/@<username>/<slug>` when `username` is the signed-in user.
- * Only an owner can open a private room, so masking the owner's own room
- * paths covers every private-room visit while keeping visitors' public-room
- * paths intact.
+ * room slug in `/@<owner>/<slug>` for owners in `scope` (by default the
+ * signed-in user). Only an owner can open a private room, so masking the
+ * owner's own room paths covers every private-room visit while keeping
+ * visitors' public-room paths intact. Usernames and slugs route
+ * case-insensitively, and `@` may arrive percent-encoded.
  */
 export function maskContentInUrl(
   url: string,
-  username: string | null = getAnalyticsUsername(),
+  scope: RoomMaskScope = getRoomMaskScope(),
 ): string {
-  let masked = url.includes("=")
+  const masked = url.includes("=")
     ? url.replace(CONTENT_QUERY, "$1<masked>")
     : url;
-  if (username && masked.includes(`/@${username}/`)) {
-    masked = masked.replace(
-      new RegExp(`(/@${escapeRegExp(username)}/)([^/?#]+)`, "g"),
-      (match, prefix: string, segment: string) =>
-        NON_ROOM_SEGMENTS.has(segment) ? match : `${prefix}[room]`,
-    );
-  }
-  return masked;
+  if (scope === null) return masked;
+  const owner = scope === ANY_ROOM_OWNER ? "[^/?#]+" : escapeRegExp(scope);
+  return masked.replace(
+    new RegExp(`(/(?:@|%40)${owner}/)([^/?#]+)`, "gi"),
+    (match, prefix: string, segment: string) =>
+      NON_ROOM_SEGMENTS.has(segment.toLowerCase()) ? match : `${prefix}[room]`,
+  );
 }

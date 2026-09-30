@@ -18,9 +18,11 @@ export function PostHogIdentity() {
   const username = useUserStore((state) => state.username);
   const previousUserId = useRef<string | undefined>(undefined);
 
-  // Kept while the store is still hydrating on load; cleared on sign-out below
+  // Unconfirmed while the store hydrates; cleared on sign-out below
   useEffect(() => {
-    if (userId !== undefined && username) setAnalyticsUsername(username);
+    if (userId !== undefined && username !== undefined) {
+      setAnalyticsUsername(username);
+    }
   }, [userId, username]);
 
   useEffect(() => {

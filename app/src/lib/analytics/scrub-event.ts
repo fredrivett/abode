@@ -80,7 +80,12 @@ function scrubProperties(properties: Properties | undefined): void {
     properties.$elements_chain = scrubElementsChain(properties.$elements_chain);
   }
   for (const [key, value] of Object.entries(properties)) {
-    if (typeof value === "string" && key !== "$elements_chain") {
+    if (typeof value !== "string" || key === "$elements_chain") continue;
+    if (key.startsWith("$el_attr__")) {
+      const kept = scrubAttribute(key.slice("$el_attr__".length), value);
+      if (kept === null) delete properties[key];
+      else properties[key] = maskContentInUrl(kept);
+    } else {
       properties[key] = maskContentInUrl(value);
     }
   }

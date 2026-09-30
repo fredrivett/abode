@@ -1,7 +1,8 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getAnalyticsUsername,
+  getRoomMaskScope,
+  resetAnalyticsUsername,
   setAnalyticsUsername,
 } from "@/lib/analytics/analytics-username";
 import { useUserStore } from "@/stores/user-store";
@@ -30,7 +31,7 @@ describe("PostHogIdentity", () => {
     posthog.identify.mockClear();
     posthog.reset.mockClear();
     useUserStore.getState().clearUser();
-    setAnalyticsUsername(null);
+    resetAnalyticsUsername();
   });
 
   afterEach(() => {
@@ -84,22 +85,25 @@ describe("PostHogIdentity", () => {
     );
   });
 
-  it("records the username for URL masking and forgets it on sign-out", () => {
+  it("confirms the username for URL masking and clears it on sign-out", () => {
     render(<PostHogIdentity />);
     act(() =>
       useUserStore
         .getState()
         .hydrateUser({ userId: "user-a", username: "fred" }),
     );
-    expect(getAnalyticsUsername()).toBe("fred");
+    expect(getRoomMaskScope()).toBe("fred");
     act(() => useUserStore.getState().clearUser());
-    expect(getAnalyticsUsername()).toBeNull();
+    expect(getRoomMaskScope()).toBeNull();
   });
 
-  it("keeps a persisted username while the store is still hydrating", () => {
-    setAnalyticsUsername("fred");
+  it("confirms a user without a username", () => {
+    setAnalyticsUsername("stale");
     render(<PostHogIdentity />);
-    expect(getAnalyticsUsername()).toBe("fred");
+    act(() =>
+      useUserStore.getState().hydrateUser({ userId: "user-a", username: null }),
+    );
+    expect(getRoomMaskScope()).toBeNull();
   });
 
   it("does nothing when PostHog isn't initialised", () => {

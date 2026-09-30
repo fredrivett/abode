@@ -14,6 +14,36 @@ function isUsableLabel(text: string): boolean {
   );
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
+
+/**
+ * JSX text renders entities decoded (`don&apos;t` shows as `don't`), so
+ * decode them to match what autocapture records. String literals and
+ * attribute values keep entities literally and aren't passed through this.
+ */
+export function decodeJsxEntities(text: string): string {
+  return text.replace(
+    /&(#x[\da-f]+|#\d+|[a-z]+);/gi,
+    (entity, body: string) => {
+      if (body[0] === "#") {
+        const code =
+          body[1]?.toLowerCase() === "x"
+            ? Number.parseInt(body.slice(2), 16)
+            : Number.parseInt(body.slice(1), 10);
+        return Number.isNaN(code) ? entity : String.fromCodePoint(code);
+      }
+      return NAMED_ENTITIES[body.toLowerCase()] ?? entity;
+    },
+  );
+}
+
 /** String literals an expression can evaluate to (`a ? "x" : "y"`, `c && "x"`) */
 function literalBranches(node: ts.Expression): string[] {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -56,7 +86,7 @@ export function extractLabelsFromSource(source: string): string[] {
 
   const visit = (node: ts.Node) => {
     if (ts.isJsxText(node)) {
-      labels.push(node.text);
+      labels.push(decodeJsxEntities(node.text));
     } else if (
       ts.isJsxExpression(node) &&
       node.expression &&
@@ -86,6 +116,19 @@ export function extractLabelsFromSource(source: string): string[] {
 
 const EXCLUDED_FILE = /\.(test|stories)\.tsx$/;
 
+// Dev-only routes (404 in production), whose copy never reaches users
+const DEV_ROUTE_ROOTS = [
+  ["app", "(dev)"],
+  ["app", "(app)", "dev"],
+];
+
+export function isDevOnly(relativePath: string): boolean {
+  const segments = relativePath.split(/[\\/]/);
+  return DEV_ROUTE_ROOTS.some((root) =>
+    root.every((segment, index) => segments[index] === segment),
+  );
+}
+
 function listTsxFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
@@ -100,8 +143,7 @@ function listTsxFiles(dir: string): string[] {
 export function extractUiLabels(srcDir: string): string[] {
   const labels = new Set<string>();
   for (const file of listTsxFiles(srcDir).sort()) {
-    // Dev-only tooling never ships to users
-    if (relative(srcDir, file).startsWith(join("app", "(dev)"))) continue;
+    if (isDevOnly(relative(srcDir, file))) continue;
     for (const label of extractLabelsFromSource(readFileSync(file, "utf8"))) {
       labels.add(label);
     }

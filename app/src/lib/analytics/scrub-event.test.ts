@@ -1,6 +1,9 @@
 import type { CaptureResult } from "posthog-js";
 import { afterEach, describe, expect, it } from "vitest";
-import { setAnalyticsUsername } from "./analytics-username";
+import {
+  resetAnalyticsUsername,
+  setAnalyticsUsername,
+} from "./analytics-username";
 import { isUiLabel, scrubElementsChain, scrubEvent } from "./scrub-event";
 
 function event(properties: CaptureResult["properties"]): CaptureResult {
@@ -19,7 +22,7 @@ describe("isUiLabel", () => {
 });
 
 describe("scrubEvent", () => {
-  afterEach(() => setAnalyticsUsername(null));
+  afterEach(() => resetAnalyticsUsername());
 
   it("passes null through", () => {
     expect(scrubEvent(null)).toBeNull();
@@ -67,6 +70,22 @@ describe("scrubEvent", () => {
       },
       { tag_name: "a" },
     ]);
+  });
+
+  it("scrubs top-level target attributes", () => {
+    const scrubbed = scrubEvent(
+      event({
+        "$el_attr__aria-label": "Close",
+        $el_attr__href: "https://example.com/private",
+        $el_attr__title: "An article I saved",
+        "$el_attr__data-text": "shared text",
+        $el_attr__class: "btn",
+      }),
+    );
+    expect(scrubbed?.properties).toEqual({
+      "$el_attr__aria-label": "Close",
+      $el_attr__class: "btn",
+    });
   });
 
   it("drops properties that only carry page content", () => {
