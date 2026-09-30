@@ -89,7 +89,7 @@
     "motion": "^12.42.2",
     "nanoid": "^5.1.6",
     "next": "16.3.6",
-    "nodemailer": "^7.0.12",
+    "nodemailer": "^10.0.10",
     "openai": "^6.48.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
