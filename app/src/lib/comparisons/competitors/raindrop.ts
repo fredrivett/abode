@@ -19,7 +19,7 @@ export const raindrop: Comparison = {
     selfHost: "no",
     organisation: "folder-first — nested collections, tags and filters",
     search:
-      "AI tag and collection suggestions, semantic search and an AI assistant (pro); full-text search of pages and PDFs (pro); no OCR",
+      "AI tag/collection suggestions and semantic search are free; Stella, the AI assistant (beta), and full-text search of saved pages, PDFs, EPUB and YouTube transcripts need pro; no OCR",
     saves:
       "links, articles, videos, highlights, notes, uploaded files (images, video, audio, PDFs, epub)",
     sharing:
@@ -31,7 +31,7 @@ export const raindrop: Comparison = {
   },
   theyShine: [
     "classic bookmark management at scale — nested collections, duplicate and broken-link finding, standard import and export",
-    "permanent web archive copies and full-text search of pages, PDFs and YouTube transcripts",
+    "permanent web archive copies and full-text search of pages, PDFs, EPUB and YouTube transcripts",
     "apps for every platform, including windows and firefox, and unlimited bookmarks for free",
   ],
   abodeFits: [
@@ -53,6 +53,12 @@ export const raindrop: Comparison = {
     { label: "security", url: "https://help.raindrop.io/security" },
     { label: "Raindrop on github", url: "https://github.com/raindropio" },
     { label: "public pages", url: "https://help.raindrop.io/public-page" },
+    {
+      label: "premium features",
+      url: "https://help.raindrop.io/premium-features",
+    },
+    { label: "plan limits", url: "https://help.raindrop.io/limitations" },
+    { label: "Stella AI assistant", url: "https://help.raindrop.io/stella" },
   ],
   lastChecked: "2026-09-27",
 };
