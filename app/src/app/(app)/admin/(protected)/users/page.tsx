@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
 import { getUsersUsageToday } from "@/lib/admin/usage-stats";
 import db from "@/lib/db";
+import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
 import { parseSortParams, type SortState } from "@/lib/table-sort";
 import {
   USER_SORT_COLUMNS,
@@ -142,6 +143,7 @@ export default async function AdminUsersPage(props: {
     createdAt: user.createdAt.toISOString(),
     lastActiveAt: lastActiveByUser.get(user.id)?.toISOString() ?? null,
     lastItemAddedAt: lastItemByUser.get(user.id)?.toISOString() ?? null,
+    replaysUrl: getPostHogPersonReplaysUrl(user.id),
     usageToday: usageToday.get(user.id) ?? {
       actionCount: 0,
       costUsd: 0,
