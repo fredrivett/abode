@@ -38,6 +38,28 @@ describe("TwitterCard", () => {
     expect(screen.getByText("Cora Meridian")).toBeInTheDocument();
   });
 
+  it("marks truncated text with an ellipsis", () => {
+    render(
+      <TwitterCard
+        twitterDetails={{ ...baseTweet, textTruncated: true }}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.getByText(/printed\.…$/)).toBeInTheDocument();
+  });
+
+  it("adds no ellipsis to complete text", () => {
+    render(
+      <TwitterCard
+        twitterDetails={baseTweet}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/…/)).not.toBeInTheDocument();
+  });
+
   it("shows media instead of text when the tweet has a photo", () => {
     render(
       <TwitterCard

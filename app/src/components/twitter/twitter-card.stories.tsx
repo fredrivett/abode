@@ -166,6 +166,16 @@ export const LongText: Story = {
   ],
 };
 
+export const TruncatedText: Story = {
+  args: {
+    twitterDetails: {
+      ...longTextTweet,
+      text: "A long post whose full text couldn't be fetched, so it ends mid-sentence and",
+      textTruncated: true,
+    },
+  },
+};
+
 const noAvatarTweet: TwitterDetails = {
   tweetId: "no-avatar-example",
   authorName: "Anonymous User",

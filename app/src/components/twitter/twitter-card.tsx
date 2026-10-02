@@ -164,6 +164,7 @@ export function TwitterCard({
           >
             <p className="whitespace-pre-wrap text-gray-900 text-sm leading-snug dark:text-gray-100">
               {parseTweetText(twitterDetails.text)}
+              {twitterDetails.textTruncated && "…"}
             </p>
             {/* Fade out clipped text — only when there's more below the fold */}
             {isTextOverflowing && (

@@ -38,6 +38,7 @@ export function TwitterDetailView({
     authorUsername,
     authorAvatarUrl,
     text,
+    textTruncated,
     postedAt,
     media,
     card,
@@ -109,6 +110,19 @@ export function TwitterDetailView({
         {text && (
           <p className="whitespace-pre-wrap text-gray-900 text-lg dark:text-gray-100">
             {parseTweetText(text)}
+            {textTruncated && (
+              <>
+                {"… "}
+                <a
+                  href={tweetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  Show more on X
+                </a>
+              </>
+            )}
           </p>
         )}
 
