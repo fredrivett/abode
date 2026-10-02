@@ -44,6 +44,7 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | [TypeSafe](https://typesafe.ai) (Jev)                         | 🧩 Optional             | calibrated article-vs-webpage kind refinement                | structural heuristic decides the kind                   |
 | [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                              | skipped                                                 |
 | [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                              | email features off                                      |
+| [FxTwitter](https://github.com/FixTweet/FxTwitter) (keyless)    | 🧩 Optional             | full text of long X posts (X's embed data cuts them at ~280 chars) | post saved truncated, with a "Show more on X" link |
 | [PostHog](https://posthog.com)                                | 🧩 Optional             | product analytics                                             | no telemetry (the default)                              |
 
 Self-hosted instances send **no telemetry** unless you set your own PostHog key.
