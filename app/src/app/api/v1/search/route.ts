@@ -105,6 +105,7 @@ type RawItemRow = {
   twitter_author_username: string | null;
   twitter_author_avatar_url: string | null;
   twitter_text: string | null;
+  twitter_text_truncated: boolean | null;
   twitter_posted_at: Date | null;
   twitter_media: unknown;
   twitter_quoted_tweet_id: string | null;
@@ -242,6 +243,7 @@ function transformRawItemToItem(
             authorUsername: row.twitter_author_username,
             authorAvatarUrl: row.twitter_author_avatar_url,
             text: row.twitter_text,
+            textTruncated: row.twitter_text_truncated ?? false,
             postedAt: row.twitter_posted_at?.toISOString() ?? null,
             media: row.twitter_media as TwitterMedia[] | null,
             quotedTweetId: row.twitter_quoted_tweet_id,
@@ -640,6 +642,7 @@ async function executeFiltersOnlySearch(
       td.author_username as twitter_author_username,
       td.author_avatar_url as twitter_author_avatar_url,
       td.text as twitter_text,
+      td.text_truncated as twitter_text_truncated,
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
@@ -900,6 +903,7 @@ async function executeRankedSearch(
       td.author_username as twitter_author_username,
       td.author_avatar_url as twitter_author_avatar_url,
       td.text as twitter_text,
+      td.text_truncated as twitter_text_truncated,
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,

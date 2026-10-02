@@ -84,6 +84,7 @@ export const roomItemSelect = {
           authorUsername: true,
           authorAvatarUrl: true,
           text: true,
+          textTruncated: true,
           postedAt: true,
           media: true,
           quotedTweetId: true,
@@ -185,6 +186,7 @@ export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
           authorUsername: roomItem.item.twitterDetails.authorUsername,
           authorAvatarUrl: roomItem.item.twitterDetails.authorAvatarUrl,
           text: roomItem.item.twitterDetails.text,
+          textTruncated: roomItem.item.twitterDetails.textTruncated,
           postedAt:
             roomItem.item.twitterDetails.postedAt?.toISOString() ?? null,
           media: roomItem.item.twitterDetails.media as TwitterMedia[] | null,

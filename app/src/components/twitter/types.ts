@@ -30,6 +30,8 @@ export type TwitterDetails = {
   authorAvatarUrl: string | null;
   authorAvatarFileKey?: string | null;
   text: string | null;
+  // True when `text` is cut short (a long post whose full text we couldn't fetch)
+  textTruncated?: boolean;
   postedAt: string | null;
   media: TwitterMedia[] | null;
   quotedTweetId: string | null;

@@ -525,6 +525,7 @@ model ItemTwitterDetails {
   authorAvatarUrl     String?   @map("author_avatar_url")
   authorAvatarFileKey String?   @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
   text                String? // Tweet text content
+  textTruncated       Boolean   @default(false) @map("text_truncated") // text is cut short (long post whose full text couldn't be fetched)
   postedAt            DateTime? @map("posted_at") // When tweet was posted
   media               Json?     @map("media") // Array of media objects with type, url, dimensions
   quotedTweetId       String?   @map("quoted_tweet_id") // If quoting another tweet

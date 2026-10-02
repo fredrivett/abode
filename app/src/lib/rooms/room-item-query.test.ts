@@ -78,6 +78,7 @@ describe("toClientRoomItem", () => {
           authorUsername: "a",
           authorAvatarUrl: null,
           text: "hello",
+          textTruncated: false,
           postedAt: posted,
           media: [{ url: "m", width: 3, height: 2 }],
           quotedTweetId: null,
