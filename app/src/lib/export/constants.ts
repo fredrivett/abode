@@ -67,6 +67,27 @@ export function exportPartKey({
 }
 
 /**
+ * Top-level folder a part unzips to. Every entry of a part sits inside it, so
+ * each part extracts to its own clearly named folder (tools like macOS Archive
+ * Utility otherwise dump a later part's bare `files/` folder next to the
+ * others as `files 2`, `files 3`…). Part 1, which carries the data, is the
+ * main folder; later parts are numbered. The total isn't known while part 1
+ * is written, so unlike the download filename it isn't "part N of M".
+ */
+export function exportFolderName({
+  exportedAt,
+  position,
+}: {
+  exportedAt: Date;
+  position: number;
+}): string {
+  const date = exportedAt.toISOString().slice(0, 10);
+  return position === 1
+    ? `abode-export-${date}`
+    : `abode-export-${date}-part-${position}`;
+}
+
+/**
  * Filename a part downloads as: `abode-export-2026-09-28.zip`, or
  * `abode-export-2026-09-28-part-2-of-3.zip` when the export was split.
  */

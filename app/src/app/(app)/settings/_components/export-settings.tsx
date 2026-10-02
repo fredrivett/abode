@@ -107,8 +107,8 @@ export function ExportSettings({
           browser, and your books as a Goodreads-style CSV.
         </p>
         <p className="mt-2 text-muted-foreground text-sm">
-          Large libraries download in several parts — unzip them into the same
-          folder.
+          Large libraries download in several parts, each of which unzips into
+          its own folder.
         </p>
 
         {available ? (
@@ -258,7 +258,8 @@ function PartDownloadButtons({ snapshot }: { snapshot: DataExportSnapshot }) {
   return (
     <div className="mt-3 space-y-2">
       <p className="text-muted-foreground text-xs">
-        Download all {count} parts and unzip them into the same folder.
+        Download all {count} parts. Each unzips into its own folder; part 1 is
+        the main one.
       </p>
       <div className="flex flex-wrap gap-2">
         {snapshot.parts.map(({ position, sizeBytes }) => (

@@ -134,8 +134,14 @@ describe("runDataExport", () => {
     });
     const key = `${user.id}/${dataExport.id}/part-1.zip`;
     const archive = unzipSync(storage.uploads.get(key) ?? new Uint8Array());
+    // Named from the run's own export date, so read it back from the archive
+    const [folder] = Object.keys(archive)[0].split("/");
+    expect(folder).toMatch(/^abode-export-\d{4}-\d{2}-\d{2}$/);
     expect(Object.keys(archive)).toEqual(
-      expect.arrayContaining(["abode.json", `files/${photo.id}/original.jpg`]),
+      expect.arrayContaining([
+        `${folder}/abode.json`,
+        `${folder}/files/${photo.id}/original.jpg`,
+      ]),
     );
 
     const row = await read.dataExport.findUniqueOrThrow({
