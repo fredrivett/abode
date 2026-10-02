@@ -7,6 +7,8 @@ import db from "../src/lib/db";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
 import { downloadAndStoreImage } from "../src/lib/media/rehost-image";
 import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
+import { captureServerException } from "../src/lib/posthog-server";
+import { fetchFullTweetText } from "../src/lib/twitter/full-text";
 import type {
   ExternalLink,
   TwitterDetails,
@@ -110,6 +112,8 @@ export function transformTweetData(tweet: Tweet): TwitterDetails {
     authorUsername: tweet.user.screen_name,
     authorAvatarUrl: tweet.user.profile_image_url_https ?? null,
     text: tweet.text ?? null,
+    // Syndication cuts long posts to ~280 chars, flagging them via note_tweet
+    textTruncated: !!tweet.note_tweet,
     postedAt: tweet.created_at
       ? new Date(tweet.created_at).toISOString()
       : null,
@@ -246,6 +250,52 @@ export async function rehostTwitterImages(
 }
 
 /**
+ * Swap a long post's truncated syndication text for its full text when
+ * FxTwitter can supply it. Best-effort: on any failure the details come back
+ * unchanged (still flagged truncated) so capture never fails over it.
+ */
+export async function completeTruncatedText(
+  details: TwitterDetails,
+  {
+    userId,
+    itemId,
+    fetchFullText = fetchFullTweetText,
+  }: {
+    userId: string;
+    itemId: string;
+    fetchFullText?: typeof fetchFullTweetText;
+  },
+): Promise<TwitterDetails> {
+  if (!details.textTruncated) return details;
+  try {
+    const fullText = await fetchFullText({
+      tweetId: details.tweetId,
+      truncatedText: details.text,
+    });
+    if (!fullText) {
+      logger.info("Full text unavailable for long tweet, keeping truncated", {
+        itemId,
+        tweetId: details.tweetId,
+      });
+      return details;
+    }
+    return { ...details, text: fullText, textTruncated: false };
+  } catch (error) {
+    logger.warn("Failed to fetch full text for long tweet", {
+      itemId,
+      tweetId: details.tweetId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    captureServerException(error, userId, {
+      source: "handle-twitter-url:full-text",
+      itemId,
+      tweetId: details.tweetId,
+    });
+    return details;
+  }
+}
+
+/**
  * Handle a Twitter/X URL by fetching tweet data and storing it.
  */
 export async function handleTwitterUrl(
@@ -283,8 +333,11 @@ export async function handleTwitterUrl(
     hasCard: !!(tweet as { card?: unknown }).card,
   });
 
-  // Transform to our format
-  const twitterDetails = transformTweetData(tweet);
+  // Transform to our format, recovering a long post's full text if we can
+  const twitterDetails = await completeTruncatedText(
+    transformTweetData(tweet),
+    { userId, itemId },
+  );
 
   // Re-host tweet images (media stills + card image) so the saved tweet
   // survives deletion or twimg URL rotation. Best-effort per image.
@@ -397,6 +450,7 @@ export async function handleTwitterUrl(
         authorAvatarUrl: details.authorAvatarUrl,
         authorAvatarFileKey: details.authorAvatarFileKey ?? null,
         text: details.text,
+        textTruncated: details.textTruncated ?? false,
         postedAt: details.postedAt ? new Date(details.postedAt) : null,
         media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         quotedTweetId: details.quotedTweetId,

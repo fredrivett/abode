@@ -1,4 +1,5 @@
 import {
+  completeTruncatedText,
   rehostTwitterImages,
   transformTweetData,
 } from "@app/trigger/handle-twitter-url";
@@ -37,6 +38,7 @@ describe("transformTweetData", () => {
         authorUsername: "testuser",
         authorAvatarUrl: null,
         text: null,
+        textTruncated: false,
         postedAt: null,
         media: null,
         quotedTweetId: null,
@@ -210,6 +212,18 @@ describe("transformTweetData", () => {
       const result = transformTweetData(tweet);
 
       expect(result.media).toBeNull();
+    });
+  });
+
+  describe("long post handling", () => {
+    it("flags text as truncated when syndication marks a note tweet", () => {
+      const tweet = {
+        id_str: "1",
+        text: "cut short",
+        note_tweet: { id: "note-1" },
+        user: { screen_name: "a" },
+      } as Tweet;
+      expect(transformTweetData(tweet).textTruncated).toBe(true);
     });
   });
 
@@ -586,5 +600,51 @@ describe("rehostTwitterImages", () => {
     expect(result.media?.[0].fileKey).toBe("existing/a.jpg");
     expect(result.authorAvatarFileKey).toBe("key/avatar.jpg");
     expect(result.storedFileKeys).toEqual(["key/avatar.jpg"]);
+  });
+});
+
+describe("completeTruncatedText", () => {
+  const truncated: TwitterDetails = {
+    ...baseDetails,
+    text: "cut short",
+    textTruncated: true,
+  };
+  const ctx = { userId: "u1", itemId: "i1" };
+
+  it("leaves complete text alone without fetching", async () => {
+    const fetchFullText = vi.fn();
+    const details = { ...baseDetails, text: "short", textTruncated: false };
+    await expect(
+      completeTruncatedText(details, { ...ctx, fetchFullText }),
+    ).resolves.toBe(details);
+    expect(fetchFullText).not.toHaveBeenCalled();
+  });
+
+  it("swaps in the full text and clears the flag", async () => {
+    const fetchFullText = vi.fn().mockResolvedValue("cut short, now whole");
+    await expect(
+      completeTruncatedText(truncated, { ...ctx, fetchFullText }),
+    ).resolves.toMatchObject({
+      text: "cut short, now whole",
+      textTruncated: false,
+    });
+    expect(fetchFullText).toHaveBeenCalledWith({
+      tweetId: "1",
+      truncatedText: "cut short",
+    });
+  });
+
+  it("keeps the truncated text when no full text is available", async () => {
+    const fetchFullText = vi.fn().mockResolvedValue(null);
+    await expect(
+      completeTruncatedText(truncated, { ...ctx, fetchFullText }),
+    ).resolves.toBe(truncated);
+  });
+
+  it("is best-effort: a fetch error keeps the truncated text", async () => {
+    const fetchFullText = vi.fn().mockRejectedValue(new Error("boom"));
+    await expect(
+      completeTruncatedText(truncated, { ...ctx, fetchFullText }),
+    ).resolves.toBe(truncated);
   });
 });
