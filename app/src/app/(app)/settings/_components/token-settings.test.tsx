@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PersonalAccessTokenSummary } from "@/lib/personal-access-tokens";
 import { TokenSettings } from "./token-settings";
 
+const { capture } = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock("posthog-js", () => ({ default: { capture } }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -165,6 +167,55 @@ describe("TokenSettings", () => {
     expect(screen.getByText(/3 items saved/)).toBeInTheDocument();
     // A read-only token can't save, so it shows no count
     expect(screen.getAllByText(/items? saved/)).toHaveLength(1);
+  });
+
+  it("opens a token's saved items from its count, only when there are some", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: "i1",
+            title: "Saved by the shortcut",
+            kind: "article",
+            sourceUrl: null,
+            addedAt: new Date().toISOString(),
+          },
+        ],
+        nextCursor: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <TokenSettings
+        initialTokens={[
+          summary({ id: "t1", name: "Unused", scopes: ["write"] }),
+          summary({
+            id: "t2",
+            name: "Shortcut",
+            scopes: ["write"],
+            itemCount: 1,
+          }),
+        ]}
+      />,
+    );
+
+    // Nothing to list: plain text, not a button
+    expect(
+      screen.queryByRole("button", { name: "0 items saved" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "1 item saved" }));
+
+    expect(
+      await screen.findByText("Saved by the shortcut"),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/tokens/t2/items");
+    expect(capture).toHaveBeenCalledWith("token_saved_items_viewed", {
+      token_id: "t2",
+      item_count: 1,
+    });
   });
 
   it("revokes a token on a two-step confirm and removes the row", async () => {
