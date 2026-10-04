@@ -12,6 +12,7 @@ import {
 } from "@/lib/export/build-export";
 
 const EXPORTED_AT = new Date("2026-09-28T12:00:00.000Z");
+const DATE = "2026-09-28";
 const INSTANCE = "https://abode.example.com";
 const BINARY = /^files\//;
 
@@ -45,6 +46,7 @@ async function build(
 ) {
   const workDir = await mkdtemp(join(tmpdir(), "build-export-test-"));
   const parts: Record<string, Uint8Array>[] = [];
+  const folders: string[] = [];
   const requested: ExportFileSource[] = [];
   try {
     const result = await buildExportArchive({
@@ -58,7 +60,21 @@ async function build(
         return stored[`${file.bucket}:${file.key}`] ?? null;
       },
       onPart: async (part) => {
-        parts.push(unzipSync(readFileSync(part.path)));
+        const entries = unzipSync(readFileSync(part.path));
+        // Every entry of a part sits in that part's own top-level folder
+        const folder =
+          part.position === 1
+            ? `abode-export-${DATE}`
+            : `abode-export-${DATE}-part-${part.position}`;
+        folders.push(folder);
+        const inside: Record<string, Uint8Array> = {};
+        for (const [path, data] of Object.entries(entries)) {
+          if (!path.startsWith(`${folder}/`)) {
+            throw new Error(`${path} isn't inside ${folder}/`);
+          }
+          inside[path.slice(folder.length + 1)] = data;
+        }
+        parts.push(inside);
       },
     });
     const files: Record<string, string> = {};
@@ -70,7 +86,7 @@ async function build(
       }
     }
     const json = JSON.parse(files["abode.json"] ?? "null");
-    return { ...result, parts, files, binaries, json, requested };
+    return { ...result, parts, folders, files, binaries, json, requested };
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
@@ -363,6 +379,12 @@ describe("buildExportArchive", () => {
     });
     expect(result.files["missing-files.txt"]).toContain(
       `files/${scan.id}/page-02-original.jpg`,
+    );
+    // Each part unzips into its own folder; part 1 is the main one
+    expect(result.folders).toEqual(
+      result.parts.map((_, i) =>
+        i === 0 ? `abode-export-${DATE}` : `abode-export-${DATE}-part-${i + 1}`,
+      ),
     );
     // Part 1 opens with the README and the complete copy
     expect(Object.keys(result.parts[0]).slice(0, 2)).toEqual([
