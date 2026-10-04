@@ -12,7 +12,7 @@
     "lint:all": "bunx concurrently --success=all -n biome,TS -c cyan,magenta \"bun run format\" \"bun run ts:check\"",
     "fix": "bunx -p @biomejs/biome biome check --fix",
     "fix:unsafe": "bunx -p @biomejs/biome biome check --fix --unsafe",
-    "check:fix": "bun run fix && bun run prisma:format && bun scripts/generate-ui-labels.ts && bun run ts:check",
+    "check:fix": "bun run fix && bun run prisma:format && bun run ts:check",
     "check:commands-doc": "bun scripts/check-commands-doc.ts",
     "check:prisma-format": "prisma format --check --schema prisma/schema.prisma",
     "format": "bunx -p @biomejs/biome biome format --write",

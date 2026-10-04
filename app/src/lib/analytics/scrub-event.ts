@@ -1,15 +1,7 @@
 import type { CaptureResult, Properties } from "posthog-js";
 import { maskContentInUrl } from "./mask-url";
 import { maskReplayAttribute } from "./replay-privacy";
-import { UI_LABELS } from "./ui-labels.generated";
-import { normalizeLabel } from "./ui-labels-module";
-
-const UI_LABEL_SET = new Set(UI_LABELS);
-
-/** True when text is UI copy written in the source, not something a user wrote */
-export function isUiLabel(text: string): boolean {
-  return UI_LABEL_SET.has(normalizeLabel(text));
-}
+import { isUiLabel } from "./ui-labels";
 
 // Attributes that are UI copy when written literally, content otherwise
 const LABEL_ATTRIBUTES = new Set(["title", "aria-label", "label"]);

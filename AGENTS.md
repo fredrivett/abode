@@ -21,7 +21,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | --- | --- | --- |
 | `bun run dev` | Start Next.js dev server (Turbopack) | Local development — the user usually has this running |
 | `bun run build` | Production build (webpack) | CI / verifying a prod build — **not** during a dev session |
-| `bun run check:fix` | Biome autofix + `prisma format` + regenerate analytics UI labels + `tsc --noEmit` | After every code change (run this before considering work done) |
+| `bun run check:fix` | Biome autofix + `prisma format` + `tsc --noEmit` | After every code change (run this before considering work done) |
 | `bun run fix` | Biome lint/format autofix | Quick format/lint pass |
 | `bun run lint` | Biome check, no fixes | Read-only lint (matches CI) |
 | `bun run ts:check` | TypeScript check (`tsc --noEmit`) | Verify types only |
@@ -100,7 +100,7 @@ cd ./app
 bun run check:fix
 ```
 
-This (1) auto-fixes lint/format issues (Biome), (2) formats `prisma/schema.prisma` (`prisma format`; CI fails an unformatted schema), (3) regenerates the analytics UI-label allowlist (`src/lib/analytics/ui-labels.generated.ts` — the UI copy PostHog may record as click text; CI fails when stale) and (4) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
+This (1) auto-fixes lint/format issues (Biome), (2) formats `prisma/schema.prisma` (`prisma format`; CI fails an unformatted schema) and (3) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
 
 ### Type Safety
 

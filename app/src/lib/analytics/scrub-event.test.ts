@@ -1,25 +1,19 @@
 import type { CaptureResult } from "posthog-js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   resetAnalyticsUsername,
   setAnalyticsUsername,
 } from "./analytics-username";
-import { isUiLabel, scrubElementsChain, scrubEvent } from "./scrub-event";
+import { scrubElementsChain, scrubEvent } from "./scrub-event";
+import { setUiLabels } from "./ui-labels";
 
 function event(properties: CaptureResult["properties"]): CaptureResult {
   return { uuid: "u", event: "$autocapture", properties };
 }
 
-describe("isUiLabel", () => {
-  it("recognises UI copy from the source, ignoring spacing", () => {
-    expect(isUiLabel("Save")).toBe(true);
-    expect(isUiLabel("  Delete ")).toBe(true);
-  });
-
-  it("rejects text that isn't in the source", () => {
-    expect(isUiLabel("My secret shopping list")).toBe(false);
-  });
-});
+// Stands in for the list next.config.ts inlines at build time
+beforeAll(() => setUiLabels(["Save", "Delete", "Close"]));
+afterAll(() => setUiLabels([]));
 
 describe("scrubEvent", () => {
   afterEach(() => resetAnalyticsUsername());

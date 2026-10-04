@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
-import { normalizeLabel } from "./ui-labels-module";
+import { normalizeLabel } from "./ui-labels";
 
 // Attributes whose literal values are UI copy that autocapture can record
 const LABEL_ATTRIBUTES = new Set(["aria-label", "title", "label"]);
