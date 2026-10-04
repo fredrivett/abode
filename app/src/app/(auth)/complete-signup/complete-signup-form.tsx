@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { useActionErrorToast } from "@/hooks/use-action-error-toast";
-import { parseEmailToUsername } from "@/lib/username/generate-from-email";
+import { parseEmailToUsername } from "@/lib/username/parse-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { completeProfile } from "./actions";
 

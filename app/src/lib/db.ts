@@ -46,7 +46,7 @@ function createWriteClient() {
       timeout: 30_000,
       maxWait: 10_000,
     },
-  }).$extends(connectionRetryExtension);
+  }).$extends(connectionRetryExtension());
 }
 
 type DbClient = ReturnType<typeof createWriteClient>;
@@ -74,7 +74,7 @@ function createReadClient() {
         url: urlWithLimit,
       },
     },
-  }).$extends(connectionRetryExtension);
+  }).$extends(connectionRetryExtension());
 }
 
 // Lazy initialization - only create clients when accessed

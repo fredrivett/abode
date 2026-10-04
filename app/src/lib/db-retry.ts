@@ -57,12 +57,18 @@ export async function retryTransientConnectionErrors<T>(
  * request was in flight (e.g. image proxy lookups while a grid loads).
  * Opening an interactive `$transaction` isn't an operation, so it isn't retried;
  * queries inside one already hold a connection, so these errors don't arise.
+ *
+ * A factory, not a module-level constant: `defineExtension` throws in the
+ * browser, and `@/lib/db` is reachable from some client bundles (its clients
+ * are only ever created server-side).
  */
-export const connectionRetryExtension = Prisma.defineExtension({
-  name: "connection-retry",
-  query: {
-    $allOperations({ args, query }) {
-      return retryTransientConnectionErrors(() => query(args));
+export function connectionRetryExtension() {
+  return Prisma.defineExtension({
+    name: "connection-retry",
+    query: {
+      $allOperations({ args, query }) {
+        return retryTransientConnectionErrors(() => query(args));
+      },
     },
-  },
-});
+  });
+}
