@@ -1,6 +1,6 @@
-import type { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
+import type { DbTransactionClient } from "@/lib/db";
 import {
   capturedFileKeysSelect,
   collectCapturedFileKeys,
@@ -21,7 +21,7 @@ import {
  * and detail rows.
  */
 export async function reclaimReplacedStorage(
-  tx: Prisma.TransactionClient,
+  tx: DbTransactionClient,
   {
     itemId,
     userId,
