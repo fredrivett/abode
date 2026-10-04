@@ -35,4 +35,10 @@ describe("imageSrcForAttempt", () => {
       "/a.jpg?retry=2",
     );
   });
+
+  it("keeps the param ahead of a fragment so it's actually sent", () => {
+    expect(imageSrcForAttempt({ src: "/a.svg?w=1#icon", attempt: 1 })).toBe(
+      "/a.svg?w=1&retry=1#icon",
+    );
+  });
 });

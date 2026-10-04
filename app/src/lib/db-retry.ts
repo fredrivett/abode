@@ -17,7 +17,15 @@ export const DB_RETRY_DELAYS_MS = [250, 1000] as const;
 
 /** True when a Prisma error means the query never ran and is safe to retry. */
 export function isTransientConnectionError(error: unknown): boolean {
-  if (error instanceof Prisma.PrismaClientInitializationError) return true;
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    // Prisma often leaves errorCode unset (an unreachable host included), so
+    // only a reported non-transient code — e.g. P1000 bad credentials — rules
+    // a retry out
+    return (
+      error.errorCode === undefined ||
+      NEVER_SENT_ERROR_CODES.has(error.errorCode)
+    );
+  }
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     NEVER_SENT_ERROR_CODES.has(error.code)

@@ -58,6 +58,9 @@ export function useImageLoaded(src: string | null | undefined) {
     if (retryTimer.current) return true; // already scheduled (e.g. twin error)
     retryTimer.current = setTimeout(() => {
       retryTimer.current = null;
+      // A twin <img> may have loaded the old URL; hold the placeholder until
+      // the retry itself paints
+      setLoaded(false);
       setAttempt(failedAttempt + 1);
     }, delay);
     return true;

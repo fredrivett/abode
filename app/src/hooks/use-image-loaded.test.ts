@@ -128,6 +128,17 @@ describe("useImageLoaded retries", () => {
     expect(result.current.imgProps.src).toBe("/img?retry=1");
   });
 
+  it("holds the placeholder through a retry even if a twin <img> already loaded", () => {
+    const { result } = renderHook(() => useImageLoaded("/img"));
+    act(() => result.current.imgProps.onLoad()); // first twin paints
+    act(() => {
+      result.current.imgProps.onError(); // second twin fails
+    });
+    act(() => vi.advanceTimersByTime(firstDelay));
+    expect(result.current.imgProps.src).toBe("/img?retry=1");
+    expect(result.current.loaded).toBe(false);
+  });
+
   it("doesn't retry third-party URLs", () => {
     const { result } = renderHook(() =>
       useImageLoaded("https://pbs.twimg.com/a.jpg"),

@@ -27,5 +27,9 @@ export function imageSrcForAttempt({
   attempt: number;
 }): string {
   if (attempt === 0) return src;
-  return `${src}${src.includes("?") ? "&" : "?"}retry=${attempt}`;
+  // The param must precede any #fragment, which the browser never sends
+  const hashIndex = src.indexOf("#");
+  const url = hashIndex === -1 ? src : src.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : src.slice(hashIndex);
+  return `${url}${url.includes("?") ? "&" : "?"}retry=${attempt}${hash}`;
 }

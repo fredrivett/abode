@@ -29,7 +29,24 @@ describe("isTransientConnectionError", () => {
     expect(isTransientConnectionError(error)).toBe(true);
   });
 
+  it("is true for an initialization error reporting a transient code", () => {
+    const error = new Prisma.PrismaClientInitializationError(
+      "Can't reach database server",
+      CLIENT_VERSION,
+      "P1001",
+    );
+    expect(isTransientConnectionError(error)).toBe(true);
+  });
+
   it.each([
+    [
+      "an initialization error with a permanent code (P1000 bad credentials)",
+      new Prisma.PrismaClientInitializationError(
+        "Authentication failed",
+        CLIENT_VERSION,
+        "P1000",
+      ),
+    ],
     ["P1017 (connection closed — the query may have run)", knownError("P1017")],
     ["P2002 (unique constraint)", knownError("P2002")],
     ["a plain Error", new Error("boom")],
@@ -69,10 +86,14 @@ describe("retryTransientConnectionErrors", () => {
   });
 
   it("rethrows the last transient error once retries run out", async () => {
-    const operation = vi.fn().mockRejectedValue(unreachable);
+    const lastError = knownError("P2024");
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(unreachable)
+      .mockRejectedValueOnce(lastError);
     await expect(
       retryTransientConnectionErrors(operation, { delaysMs: [1], sleep }),
-    ).rejects.toBe(unreachable);
+    ).rejects.toBe(lastError);
     expect(operation).toHaveBeenCalledTimes(2);
   });
 
