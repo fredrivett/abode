@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Img } from "@/components/ui/img";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getCurrencySymbol } from "@/lib/currency";
@@ -79,8 +80,7 @@ export function ProductDetailView({
           </div>
         ) : coverFileKey ? (
           <div className="overflow-hidden rounded-xl">
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL */}
-            <img
+            <Img
               src={getProxyImageUrl(coverFileKey, "full")}
               alt={title ? `${title} product image` : "Product image"}
               className="w-full object-contain"
@@ -177,8 +177,7 @@ function ProductImageItem({
         imageCount >= 3 && index === 0 && "row-span-2",
       )}
     >
-      {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored image */}
-      <img
+      <Img
         src={getProxyImageUrl(image.fileKey, "full")}
         alt={
           productTitle

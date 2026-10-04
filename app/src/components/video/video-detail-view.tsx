@@ -3,6 +3,7 @@
 import { Play } from "lucide-react";
 import { useState } from "react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
+import { Img } from "@/components/ui/img";
 import { ViewOnButton } from "@/components/ui/view-on-button";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { VideoDetails } from "@/lib/types/item";
@@ -90,8 +91,7 @@ export function VideoDetailView({
               aria-label="Play video"
             >
               {thumbnailUrl ? (
-                // biome-ignore lint/performance/noImgElement: external video thumbnail URL
-                <img
+                <Img
                   src={thumbnailUrl}
                   alt={title ?? "Video thumbnail"}
                   className="h-full w-full object-cover"

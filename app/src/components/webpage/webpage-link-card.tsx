@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Img } from "@/components/ui/img";
 import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 
@@ -86,8 +87,7 @@ export function WebpageLinkCard({
         }
       >
         {showFavicon && faviconUrl ? (
-          // biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content
-          <img
+          <Img
             src={faviconUrl}
             alt=""
             className="size-11 rounded-md object-contain"

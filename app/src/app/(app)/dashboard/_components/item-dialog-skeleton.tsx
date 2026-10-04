@@ -1,6 +1,7 @@
 "use client";
 
 import { DialogTitle } from "@/components/ui/dialog";
+import { Img } from "@/components/ui/img";
 import { IsLoading } from "@/components/ui/is-loading";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { DETAIL_IMAGE_CLASSNAME } from "../item-card";
@@ -32,14 +33,13 @@ export function ItemDialogSkeletonBody({ seed }: { seed: OpenItemSeed }) {
       </DialogTitle>
       {/* Main pane. For image-like kinds we show the seed cover straight away —
           it *is* the resolved view, so the seed→item swap is seamless (a plain
-          <img>, no blur-up, so it matches the resolved pane's box exactly).
+          <Img>, no blur-up, so it matches the resolved pane's box exactly).
           For every other kind the cover is just a thumbnail of something that
           renders differently, so we show a neutral loading pane rather than
           flashing a full-width image that then jumps to a tweet/product/etc. */}
       {src ? (
         <div className="flex shrink-0 items-center justify-center bg-gray-900 md:flex-1 md:overflow-hidden">
-          {/* biome-ignore lint/performance/noImgElement: proxy URL for user-uploaded content */}
-          <img
+          <Img
             src={src}
             alt={seed.title ?? "Loading image"}
             className={DETAIL_IMAGE_CLASSNAME}
