@@ -37,6 +37,11 @@ type AnalyzeDocumentPayload = {
   userId: string;
   /** Cap on pages to OCR — set by a PDF import from the user's allowance */
   maxOcrPages?: number;
+  /**
+   * The PDF this run analyses (set by a PDF import). If the item's source has
+   * changed since — a URL re-capture — this run is stale and drops its work.
+   */
+  sourceFileKey?: string;
 };
 
 /**
@@ -52,23 +57,41 @@ type AnalyzeDocumentPayload = {
  *   3. Store the combined text as the item's OCR text (searched and shown like
  *      an image's), then enrich-item derives tags + the text embedding from it.
  *
- * Marks the item `failed` on error so the UI offers Retry.
+ * Marks the item `failed` on error so the UI offers Retry — unless the PDF it
+ * was started for has since been replaced, when it just stops.
  */
 export const analyzeDocumentTask = task({
   id: "analyze-document",
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 1800, // up to MAX_OCR_PAGES_PER_DOCUMENT OCR calls plus the cover analysis
-  run: async ({ itemId, userId, maxOcrPages }: AnalyzeDocumentPayload) => {
+  run: async ({
+    itemId,
+    userId,
+    maxOcrPages,
+    sourceFileKey,
+  }: AnalyzeDocumentPayload) => {
     await markProcessingActive(itemId);
     try {
       const result = await analyzeDocumentPages({
         itemId,
         userId,
         maxOcrPages,
+        sourceFileKey,
       });
       return { success: true, itemId, ...result };
     } catch (error) {
+      // A re-capture replacing the PDF mid-run (e.g. deleting the pages it was
+      // reading) isn't a failure of the new one: leave that to its own run
+      if (
+        sourceFileKey &&
+        (await currentSourceFileKey({ itemId, userId })) !== sourceFileKey
+      ) {
+        logger.log("Document replaced during analysis — dropping this run", {
+          itemId,
+        });
+        return { success: true, itemId, superseded: true };
+      }
       await markDocumentFailed({
         itemId,
         userId,
@@ -119,11 +142,18 @@ export async function analyzeDocumentPages({
   itemId,
   userId,
   maxOcrPages = MAX_OCR_PAGES_PER_DOCUMENT,
+  sourceFileKey,
 }: {
   itemId: string;
   userId: string;
   maxOcrPages?: number;
-}): Promise<{ pages: number; pagesWithText: number; ocrSkippedPages: number }> {
+  sourceFileKey?: string;
+}): Promise<{
+  pages: number;
+  pagesWithText: number;
+  ocrSkippedPages: number;
+  superseded?: boolean;
+}> {
   const { url, key } = getSupabaseConfig();
   const supabase = createClient(url, key);
 
@@ -234,11 +264,22 @@ export async function analyzeDocumentPages({
     itemUpdate.description = naming.description;
   }
   // Re-read rather than reuse the snapshot from before the (slow) analysis, so
-  // a meta change meanwhile (a PDF re-capture, its OCR charge) isn't undone
-  const { meta: currentMeta } = await db.item.findFirstOrThrow({
+  // a meta change meanwhile (e.g. the import's OCR charge) isn't undone — and
+  // if the PDF was re-captured meanwhile, this run's results are stale
+  const current = await db.item.findFirstOrThrow({
     where: { id: itemId, userId },
-    select: { meta: true },
+    select: { meta: true, sourceFileKey: true },
   });
+  if (sourceFileKey && current.sourceFileKey !== sourceFileKey) {
+    logger.log("Document replaced during analysis — not saving", { itemId });
+    return {
+      pages: pages.length,
+      pagesWithText,
+      ocrSkippedPages,
+      superseded: true,
+    };
+  }
+  const currentMeta = current.meta;
   const meta = withOcrSkippedPages(currentMeta, ocrSkippedPages);
   if (meta) itemUpdate.meta = meta;
   const ops: Prisma.PrismaPromise<unknown>[] = [];
@@ -301,6 +342,20 @@ export async function analyzeDocumentPages({
   });
 
   return { pages: pages.length, pagesWithText, ocrSkippedPages };
+}
+
+async function currentSourceFileKey({
+  itemId,
+  userId,
+}: {
+  itemId: string;
+  userId: string;
+}): Promise<string | null> {
+  const item = await db.item.findFirst({
+    where: { id: itemId, userId },
+    select: { sourceFileKey: true },
+  });
+  return item?.sourceFileKey ?? null;
 }
 
 /**

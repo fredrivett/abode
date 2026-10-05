@@ -202,7 +202,12 @@ describe("importPdfTask", () => {
     expect(m.guard).toHaveBeenCalledWith("user-1", "ingestion", { weight: 1 });
     expect(m.enqueue).toHaveBeenCalledWith(
       "analyze-document",
-      { itemId: "item-1", userId: "user-1", maxOcrPages: 1 },
+      {
+        itemId: "item-1",
+        userId: "user-1",
+        maxOcrPages: 1,
+        sourceFileKey: "user-1/bill.pdf",
+      },
       "user-1",
     );
   });
@@ -249,6 +254,12 @@ describe("importPdfTask", () => {
   it("skips rendering on a retry once pages exist", async () => {
     db.pages = savedPages(3, 1);
     await run();
+    expect(m.capture).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        event: "pdf_imported",
+        properties: expect.objectContaining({ retried: true, pages: 3 }),
+      }),
+    );
     expect(m.download).not.toHaveBeenCalled();
     expect(m.upload).not.toHaveBeenCalled();
     expect(m.createPages).not.toHaveBeenCalled();
@@ -279,6 +290,34 @@ describe("importPdfTask", () => {
     expect((error as Error).constructor.name).toBe("AbortTaskRunError");
     expect(m.markFailed.mock.calls[0][0].error.reason).toBe(
       "document_too_long",
+    );
+  });
+
+  it("lets in-flight uploads settle before cleaning up after a failed one", async () => {
+    await storePdf(
+      await buildPdf(Array.from({ length: 6 }, () => ({ text: TEXT }))),
+    );
+    let finishSlowUpload: (() => void) | undefined;
+    m.upload
+      // Page 1 is still uploading when page 2's upload fails
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSlowUpload = () => resolve({ error: null });
+          }),
+      )
+      .mockResolvedValueOnce({ error: new Error("storage down") });
+    const running = run().catch((e: unknown) => e);
+    await vi.waitFor(() => expect(finishSlowUpload).toBeDefined());
+    // Nothing is removed while page 1 is still in flight
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(m.remove).not.toHaveBeenCalled();
+    finishSlowUpload?.();
+    expect(await running).toBeInstanceOf(Error);
+    // Rendering stopped at the failure, and every started upload is removed
+    expect(m.upload.mock.calls.length).toBeLessThan(6);
+    expect(m.remove).toHaveBeenCalledWith(
+      m.upload.mock.calls.map(([key]) => key),
     );
   });
 

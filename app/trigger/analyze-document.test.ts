@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
   findPages: vi.fn(),
   updatePage: vi.fn(),
   findItem: vi.fn(),
+  findItemSource: vi.fn(),
   updateItem: vi.fn(),
   upsertImageDetails: vi.fn(),
   transaction: vi.fn(),
@@ -35,7 +36,11 @@ vi.mock("@supabase/supabase-js", () => ({
 vi.mock("../src/lib/db", () => ({
   default: {
     itemDocumentPage: { findMany: m.findPages, update: m.updatePage },
-    item: { findFirstOrThrow: m.findItem, update: m.updateItem },
+    item: {
+      findFirstOrThrow: m.findItem,
+      findFirst: m.findItemSource,
+      update: m.updateItem,
+    },
     itemImageDetails: { upsert: m.upsertImageDetails },
     $transaction: m.transaction,
   },
@@ -365,5 +370,49 @@ describe("analyzeDocumentPages (shared with PDF import)", () => {
       where: { id: "item-1", userId: "user-1" },
       data: { meta: { pageCount: 3, ocrPagesCharged: 1, ocrSkippedPages: 2 } },
     });
+  });
+});
+
+describe("analyzeDocumentTask after a PDF re-capture", () => {
+  const runFor = (sourceFileKey: string) =>
+    (analyzeDocumentTask as unknown as TaskWithRun).run({
+      itemId: "item-1",
+      userId: "user-1",
+      sourceFileKey,
+    });
+
+  it("doesn't save results for a PDF that was replaced during analysis", async () => {
+    m.findItem
+      .mockResolvedValueOnce({ kind: "document", titleEditedByUser: false })
+      .mockResolvedValueOnce({ meta: {}, sourceFileKey: "user-1/new.pdf" });
+    await expect(runFor("user-1/old.pdf")).resolves.toMatchObject({
+      success: true,
+      superseded: true,
+    });
+    expect(m.transaction).not.toHaveBeenCalled();
+    expect(m.trigger).not.toHaveBeenCalled();
+  });
+
+  it("stops without failing the item when the replacement broke this run", async () => {
+    // The re-capture deleted the pages this run was downloading
+    m.download.mockResolvedValue({ data: null, error: new Error("gone") });
+    m.findItemSource.mockResolvedValue({ sourceFileKey: "user-1/new.pdf" });
+    await expect(runFor("user-1/old.pdf")).resolves.toMatchObject({
+      superseded: true,
+    });
+    expect(m.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("still fails the item when its PDF is unchanged", async () => {
+    m.download.mockResolvedValue({ data: null, error: new Error("gone") });
+    m.findItemSource.mockResolvedValue({ sourceFileKey: "user-1/old.pdf" });
+    await expect(runFor("user-1/old.pdf")).rejects.toThrow(
+      /Failed to download/,
+    );
+    expect(m.updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ processingStatus: "failed" }),
+      }),
+    );
   });
 });

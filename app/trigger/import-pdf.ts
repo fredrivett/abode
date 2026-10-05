@@ -92,7 +92,7 @@ export const importPdfTask = task({
 
       await enqueueUserProcessing<typeof analyzeDocumentTask>(
         "analyze-document",
-        { itemId, userId, maxOcrPages },
+        { itemId, userId, maxOcrPages, sourceFileKey: item.sourceFileKey },
         userId,
       );
 
@@ -298,7 +298,8 @@ type SavedPage = {
 /**
  * Render every page and upload its image, a few uploads overlapping the next
  * render. Keys are recorded in `uploadedKeys` before uploading, so the caller
- * can clean up after a failure part-way.
+ * can clean up after a failure part-way; on a failed upload, rendering stops
+ * and the rest of the uploads settle before the error is thrown.
  */
 async function renderPages({
   pdf,
@@ -316,7 +317,7 @@ async function renderPages({
   let uploadError: unknown = null;
 
   for (let index = 0; index < pdf.pageCount; index++) {
-    if (uploadError) throw uploadError;
+    if (uploadError) break;
     const rendered = pdf.renderPage(index);
     const fileKey = `${userId}/${randomUUID()}.jpg`;
     uploadedKeys.push(fileKey);
@@ -349,6 +350,8 @@ async function renderPages({
     inFlight.add(upload);
     if (inFlight.size >= UPLOAD_CONCURRENCY) await Promise.race(inFlight);
   }
+  // Settle every upload before throwing, so the caller's cleanup can't run
+  // ahead of one still in flight and leave its image behind
   await Promise.all(inFlight);
   if (uploadError) throw uploadError;
   return pages;
