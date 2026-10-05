@@ -140,7 +140,7 @@ export function DocumentPages({
 
       {/* The error sits beside the pager, wrapping below it whole on phones too
           narrow for both */}
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-sm text-white/70">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-muted-foreground text-sm">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -148,7 +148,7 @@ export function DocumentPages({
             aria-label="Previous page"
             disabled={index <= 0}
             onClick={() => step(-1)}
-            className="text-white hover:bg-white/10 hover:text-white"
+            className="text-foreground"
           >
             <ChevronLeft />
           </Button>
@@ -162,7 +162,7 @@ export function DocumentPages({
             aria-label={status === "loading" ? "Loading pages" : "Next page"}
             disabled={index >= slides.length - 1}
             onClick={() => step(1)}
-            className="text-white hover:bg-white/10 hover:text-white"
+            className="text-foreground"
           >
             {status === "loading" ? (
               <Loader2 className="animate-spin" />
