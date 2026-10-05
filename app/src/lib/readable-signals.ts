@@ -14,6 +14,11 @@
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
+import {
+  cleanArticleDocument,
+  flattenFigcaptions,
+  tidySectionBreaks,
+} from "./article-cleanup";
 import { preserveSocialEmbeds } from "./html-metadata";
 
 export type ReadableSignals = {
@@ -85,12 +90,10 @@ function normalize(text: string): string {
  * Measures link density and longest-paragraph length on the Readability HTML
  * output (before markdown conversion, so the DOM structure is intact).
  */
-function measureStructure(contentHtml: string): {
+function measureStructure(body: HTMLElement): {
   linkDensity: number;
   longestParagraphWords: number;
 } {
-  const body = new JSDOM(`<body>${contentHtml}</body>`).window.document.body;
-
   const totalLen = normalize(body.textContent ?? "").length;
   let linkLen = 0;
   for (const a of Array.from(body.querySelectorAll("a"))) {
@@ -127,24 +130,33 @@ export function extractReadableSignals(
     processedHtml = embedResult.html;
 
     const dom = new JSDOM(processedHtml, { url });
+    cleanArticleDocument(dom.window.document);
     const article = new Readability(dom.window.document).parse();
 
     if (!article?.content) {
       return { ...EMPTY, tweetIds: embedResult.tweetIds };
     }
 
-    const { linkDensity, longestParagraphWords } = measureStructure(
-      article.content,
-    );
+    const contentBody = new JSDOM(`<body>${article.content}</body>`).window
+      .document.body;
+    const { linkDensity, longestParagraphWords } =
+      measureStructure(contentBody);
+    flattenFigcaptions(contentBody);
 
     const turndown = new TurndownService({
       headingStyle: "atx",
       codeBlockStyle: "fenced",
     });
-    // Preserve inline SVGs (logos, icons, charts) as raw HTML in the markdown.
+    // Preserve inline SVGs (logos, icons, charts) as raw HTML in the markdown,
+    // and captions so the reader can style them apart from body paragraphs.
     // Cast needed because Turndown types only include HTMLElementTagNameMap.
-    turndown.keep(["svg"] as unknown as (keyof HTMLElementTagNameMap)[]);
-    const articleContent = turndown.turndown(article.content);
+    turndown.keep([
+      "svg",
+      "figcaption",
+    ] as unknown as (keyof HTMLElementTagNameMap)[]);
+    const articleContent = tidySectionBreaks(
+      turndown.turndown(contentBody.innerHTML),
+    );
 
     const wordCount = countWords(articleContent);
     const readingTime = wordCount > 0 ? Math.ceil(wordCount / 200) : null;

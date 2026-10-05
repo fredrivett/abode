@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  Synthetic fixture modelled on a WordPress magazine article layout (structure
+  and class names as captured from a real long-form feature; prose replaced
+  with placeholder text). Exercises the in-body clutter, SVG section dividers
+  and classed captions handled by article-cleanup.ts.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The Long Feature</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav>
+        <a href="/">Home</a>
+        <a class="menu-item__link menu-item__link--subscribe" href="/subscribe">Subscribe</a>
+      </nav>
+    </header>
+    <div class="article-sponsor-desktop">
+      <a href="https://sponsor.example.com/">Presented by Sponsor Co</a>
+    </div>
+    <main>
+      <article class="article-body">
+        <h1>The Long Feature</h1>
+        <div class="share"><a href="https://x.com/share">Share on X</a></div>
+        <div class="podcast-listen">
+          <input type="checkbox" class="podcast-listen__checkbox" />
+          <div class="podcast-listen__label">
+            <label class="podcast-listen__label-toggle button">Listen on</label>
+            <div class="podcast-listen__label-name">Listen on:</div>
+          </div>
+          <div class="podcast-links">
+            <a class="podcast-links__item" href="https://podcasts.example.com/">Apple Podcasts</a>
+          </div>
+        </div>
+        <div class="article-body__content">
+          <div class="block subscribe-cta">
+            <div class="subscribe-cta__text">
+              <p><em><a href="/subscribe">Subscribe</a> to print for your office or home.</em></p>
+            </div>
+            <div class="block divider divider--style-line"><div class="divider__line"></div></div>
+          </div>
+
+          <p class="wp-block-paragraph">T<strong>he opening line.</strong> The first section begins here with enough words to read as a real paragraph of long-form prose, describing the scene in some detail so that the extractor treats it as the start of the article body rather than a fragment of navigation or furniture around it.</p>
+          <p class="wp-block-paragraph">A second paragraph continues the first section, adding more sustained prose about the people involved, the place where the interview happened, and the way the conversation unfolded over the course of a long afternoon in a quiet room overlooking the water outside.</p>
+          <p class="wp-block-paragraph">A third paragraph closes the first section with a quotation and a short reflection on what it might mean, keeping the prose going long enough that Readability scores this container as the main content of the page.</p>
+
+          <div class="block single-sponsor">
+            <a href="https://sponsor.example.com/" class="single-sponsor__image"><img src="https://example.com/sponsor-banner.jpg" alt="" /></a>
+          </div>
+
+          <div class="block divider divider--style-icon">
+            <svg width="38" height="20" viewBox="0 0 38 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 19 L19 1 L37 19" stroke="currentColor" /></svg>
+          </div>
+
+          <p class="dropcap wp-block-paragraph"><strong>The second section</strong> opens after an ornamental divider, picking the story up somewhere new with another long paragraph of prose that carries the reader forward through the next part of the narrative and introduces a new set of characters.</p>
+          <p class="wp-block-paragraph">More of the second section follows here, again written at length so the body reads as continuous prose, with details about the history of the subject and the decisions that shaped the years that followed the events described above.</p>
+
+          <div class="block read-more">
+            <div class="read-more__title">Read More</div>
+            <div class="read-more__articles">
+              <a class="read-more__article" href="/article/another-story/">
+                <img src="https://example.com/another-story.jpg" alt="" />
+                <h3>Another Story Entirely</h3>
+                <p>A short teaser for a different article that the publisher would like you to read next.</p>
+                <span>By Someone Else</span>
+              </a>
+              <a class="read-more__article" href="/article/a-third-story/">
+                <img src="https://example.com/a-third-story.jpg" alt="" />
+                <h3>A Third Story</h3>
+                <p>Another teaser line promoting a third, unrelated article from the same publisher.</p>
+                <span>By A Third Writer</span>
+              </a>
+            </div>
+          </div>
+
+          <p class="wp-block-paragraph">The second section continues after the promotional block, and this paragraph must survive cleanup intact, because it is part of the article itself and sits directly between two pieces of publisher furniture on the page.</p>
+
+          <div class="block single-image">
+            <div class="single-image__image"><img src="https://example.com/photo.jpg" alt="" width="2560" height="1741" /></div>
+            <div class="single-image__caption">
+              <div class="single-image__caption-short"><p>PHOTO BY A PHOTOGRAPHER</p></div>
+            </div>
+          </div>
+
+          <div class="block divider divider--style-icon">
+            <svg width="38" height="20" viewBox="0 0 38 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 19 L19 1 L37 19" stroke="currentColor" /></svg>
+          </div>
+
+          <p class="dropcap wp-block-paragraph"><strong>The third section</strong> begins after a second divider and runs to the end of the piece, with a final stretch of prose that brings the story to a close and returns to the scene described in the opening paragraph of the article.</p>
+          <p class="wp-block-paragraph">* * *</p>
+          <p class="wp-block-paragraph">A closing coda after an asterism break, written as one more long paragraph so that it reads as prose, ending the article on a quiet note that looks back over everything that came before it in the piece.</p>
+
+          <div class="block guest-subscribe-form">
+            <p>Get the newsletter in your inbox every week.</p>
+            <form><input type="email" /><button>Sign up</button></form>
+          </div>
+        </div>
+      </article>
+      <section class="recommended-items">
+        <h2>Recommended</h2>
+        <a href="/article/one/">One</a>
+        <a href="/article/two/">Two</a>
+      </section>
+    </main>
+    <footer class="site-footer"><p>© The Publisher</p></footer>
+  </body>
+</html>
