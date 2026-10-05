@@ -202,13 +202,14 @@ function toFrameAspect(
 }
 
 // Strip inline markdown that doesn't affect line width much, so measurement
-// tracks the visible glyphs: emphasis/code markers, heading/quote/list markers,
-// and link syntax (keep the link text, drop the URL).
+// tracks the visible glyphs: emphasis/code markers, heading/quote/list markers
+// (a checklist's `[ ]`/`[x]` included — its checkbox sits in the bullet's
+// gutter), and link syntax (keep the link text, drop the URL).
 function stripInlineMarkdown(text: string): string {
   return text
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) / ![alt](url) → text
     .replace(/[*_~`]+/g, "")
-    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+|\d+\.\s+)/, "")
+    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+\.\s+)/, "")
     .trim();
 }
 
