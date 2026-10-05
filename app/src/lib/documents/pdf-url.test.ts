@@ -52,30 +52,35 @@ describe("isPdfContent", () => {
 });
 
 describe("isCapturedPdfViewer", () => {
-  it("recognises the browser's PDF viewer by its embed", () => {
+  it("recognises Chrome's PDF viewer, a lone embed of the PDF", () => {
     expect(
-      isCapturedPdfViewer({
-        url: "https://ex.com/get?id=1",
-        html: '<html><body><embed name="x" type="application/pdf" src="about:blank"></body></html>',
-      }),
+      isCapturedPdfViewer(
+        '<html><head><title>a.pdf</title></head><body style="margin:0"><embed name="x" style="position:absolute" src="about:blank" type="application/pdf" internalid="1"></body></html>',
+      ),
     ).toBe(true);
   });
 
-  it("recognises a capture of a .pdf URL", () => {
+  it("recognises Firefox's pdf.js viewer shell", () => {
     expect(
-      isCapturedPdfViewer({
-        url: "https://ex.com/a.pdf",
-        html: "<html></html>",
-      }),
+      isCapturedPdfViewer(
+        '<html><body><div id="outerContainer"><div id="viewerContainer"><div id="viewer" class="pdfViewer"></div></div></div></body></html>',
+      ),
     ).toBe(true);
   });
 
-  it("leaves an ordinary page that embeds something else alone", () => {
+  it("keeps a real page that embeds a PDF among its content", () => {
     expect(
-      isCapturedPdfViewer({
-        url: "https://ex.com/post",
-        html: '<html><body><embed type="video/mp4"><p>Hello</p></body></html>',
-      }),
+      isCapturedPdfViewer(
+        '<html><body><h1>Annual report</h1><p>Read it below.</p><embed type="application/pdf" src="/r.pdf"></body></html>',
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps an ordinary page", () => {
+    expect(
+      isCapturedPdfViewer(
+        '<html><body><embed type="video/mp4"><p>Hello</p></body></html>',
+      ),
     ).toBe(false);
   });
 });
@@ -88,6 +93,16 @@ describe("pdfFileNameFromUrl", () => {
         contentDisposition: 'attachment; filename="Annual Report 2025.pdf"',
       }),
     ).toBe("Annual Report 2025.pdf");
+  });
+
+  it("prefers the UTF-8 filename* over the ASCII fallback", () => {
+    expect(
+      pdfFileNameFromUrl({
+        url: "https://ex.com/d",
+        contentDisposition:
+          "attachment; filename=\"Resume.pdf\"; filename*=UTF-8''R%C3%A9sum%C3%A9.pdf",
+      }),
+    ).toBe("Résumé.pdf");
   });
 
   it("decodes an RFC 5987 filename", () => {

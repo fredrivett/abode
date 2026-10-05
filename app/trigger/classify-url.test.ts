@@ -357,15 +357,33 @@ describe("classifyUrlTask — PDFs", () => {
   });
 
   it("fetches the PDF when the extension captured the browser's PDF viewer", async () => {
-    mockSafeFetch.mockResolvedValue(typedResponse(PDF_URL, "application/pdf"));
+    // Not a .pdf path: the viewer is recognised from the captured DOM alone
+    const url = "https://example.com/view?doc=7";
+    mockSafeFetch.mockResolvedValue(typedResponse(url, "application/pdf"));
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url,
+      html: '<html><head></head><body><embed type="application/pdf" src="about:blank"></body></html>',
+    });
+    pdfHandled(url);
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a real page captured at a .pdf path rather than refetching it", async () => {
     await run({
       itemId: "item_1",
       userId: "user_1",
       url: PDF_URL,
-      html: '<html><body><embed type="application/pdf" src="about:blank"></body></html>',
+      html: ARTICLE_HTML,
     });
-    pdfHandled(PDF_URL);
-    expect(mockItemUpdate).not.toHaveBeenCalled();
+    expect(mockHandlePdfUrl).not.toHaveBeenCalled();
+    expect(mockSafeFetch).not.toHaveBeenCalledWith(PDF_URL, expect.anything());
+    expect(mockItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "article" }),
+      }),
+    );
   });
 
   it("treats a .pdf path served as HTML as a page", async () => {

@@ -430,11 +430,10 @@ export const classifyUrlTask = task({
       let html: string;
       let finalContentType: string | null;
 
-      // A capture of the browser's PDF viewer is just an <embed>: fetch the
-      // PDF itself instead
+      // A capture of the browser's PDF viewer isn't the page: fetch the PDF
+      // itself instead
       const capturedHtml =
-        providedHtml !== undefined &&
-        isCapturedPdfViewer({ url: fetchUrl, html: providedHtml })
+        providedHtml !== undefined && isCapturedPdfViewer(providedHtml)
           ? undefined
           : providedHtml;
 

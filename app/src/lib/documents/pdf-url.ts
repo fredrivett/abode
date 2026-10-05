@@ -34,21 +34,28 @@ export function isPdfContent({
   return (mime === "" || GENERIC_BINARY_TYPES.has(mime)) && hasPdfPath(url);
 }
 
+const PDF_EMBED = /<embed\b[^>]*type=["']application\/pdf["'][^>]*>/i;
+
 /**
  * Whether a page the browser extension captured is the browser's built-in PDF
- * viewer: its DOM is only an `<embed>` of the PDF, so the PDF itself must be
- * fetched instead.
+ * viewer rather than a page: Chrome's DOM is nothing but an `<embed>` of the
+ * PDF, and Firefox's is the pdf.js viewer shell. Either way the PDF itself
+ * must be fetched. A real page that merely embeds a PDF keeps its capture.
  */
-export function isCapturedPdfViewer({
-  url,
-  html,
-}: {
-  url: string;
-  html: string;
-}): boolean {
-  return (
-    hasPdfPath(url) || /<embed\b[^>]*type=["']application\/pdf["']/i.test(html)
-  );
+export function isCapturedPdfViewer(html: string): boolean {
+  if (
+    /\bid=["']viewerContainer["']/i.test(html) &&
+    /\bpdfViewer\b/.test(html)
+  ) {
+    return true;
+  }
+  if (!PDF_EMBED.test(html)) return false;
+  const rest = html
+    .replace(/<head\b[\s\S]*?<\/head>/gi, "")
+    .replace(new RegExp(PDF_EMBED.source, "gi"), "")
+    .replace(/<\/?(?:html|body)\b[^>]*>/gi, "")
+    .trim();
+  return rest === "";
 }
 
 /**
@@ -62,9 +69,12 @@ export function pdfFileNameFromUrl({
   url: string;
   contentDisposition: string | null;
 }): string {
-  const fromHeader = contentDisposition?.match(
-    /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i,
-  )?.[1];
+  // RFC 6266: the UTF-8 `filename*` wins over the ASCII `filename` fallback
+  const fromHeader =
+    contentDisposition?.match(
+      /filename\*\s*=\s*(?:UTF-8|ISO-8859-1)?'[^']*'([^;]+)/i,
+    )?.[1] ??
+    contentDisposition?.match(/filename\s*=\s*["']?([^"';]+)["']?/i)?.[1];
   let name = fromHeader ? safeDecode(fromHeader) : "";
   if (!name) {
     try {

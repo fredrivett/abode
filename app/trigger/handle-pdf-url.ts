@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { logger, tasks } from "@trigger.dev/sdk";
+import { logger } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import { titleFromFileName } from "../src/lib/documents/create-pdf-document-schema";
 import { pdfFileNameFromUrl } from "../src/lib/documents/pdf-url";
 import { SafeFetchError, safeFetch } from "../src/lib/http/safe-fetch";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
+import { enqueueUserProcessing } from "../src/lib/items/enqueue-user-processing";
 import {
   FetchError,
   ProcessingFailure,
@@ -85,48 +86,65 @@ export async function handlePdfUrl({
     throw new Error(`Failed to store PDF: ${formatStorageError(uploadError)}`);
   }
 
-  const replacedFileKeys = await db.$transaction(async (tx) => {
-    // Reclaims the previous capture's files — for a PDF re-capture, its pages too
-    const oldFileKeys = await reclaimReplacedStorage(tx, {
-      itemId,
-      userId,
-      addedBytes: bytes.byteLength,
-    });
-    const { titleEditedByUser } = await tx.item.findUniqueOrThrow({
-      where: { id: itemId },
-      select: { titleEditedByUser: true },
-    });
-    await tx.item.update({
-      where: { id: itemId, userId },
-      data: {
-        kind: "document",
-        sourceFileKey: fileKey,
-        // Page 1's image becomes the cover once import-pdf renders it
-        fileKey: null,
-        coverFileKey: null,
-        faviconFileKey: null,
-        // Named from its file until the import titles it from its text
-        ...(titleEditedByUser
-          ? {}
-          : { title: titleFromFileName(originalName) }),
-        meta: {
-          originalName,
-          size: bytes.byteLength,
-          type: PDF_MIME_TYPE,
-          originalUrl: url,
+  const saveItem = () =>
+    db.$transaction(async (tx) => {
+      // Reclaims the previous capture's files — for a PDF re-capture, its pages too
+      const oldFileKeys = await reclaimReplacedStorage(tx, {
+        itemId,
+        userId,
+        addedBytes: bytes.byteLength,
+      });
+      const { titleEditedByUser } = await tx.item.findUniqueOrThrow({
+        where: { id: itemId },
+        select: { titleEditedByUser: true },
+      });
+      await tx.item.update({
+        where: { id: itemId, userId },
+        data: {
+          kind: "document",
+          sourceFileKey: fileKey,
+          // Page 1's image becomes the cover once import-pdf renders it
+          fileKey: null,
+          coverFileKey: null,
+          faviconFileKey: null,
+          // Named from its file until the import titles it from its text
+          ...(titleEditedByUser
+            ? {}
+            : { title: titleFromFileName(originalName) }),
+          meta: {
+            originalName,
+            size: bytes.byteLength,
+            type: PDF_MIME_TYPE,
+            originalUrl: url,
+          },
         },
-      },
+      });
+      await pruneStaleItemDetails(tx, itemId, "document");
+      return oldFileKeys;
     });
-    await pruneStaleItemDetails(tx, itemId, "document");
-    return oldFileKeys;
-  });
+  let replacedFileKeys: string[];
+  try {
+    replacedFileKeys = await saveItem();
+  } catch (error) {
+    // Nothing references the new PDF yet, so a retry would orphan it
+    const { error: removeError } = await supabase.storage
+      .from("items")
+      .remove([fileKey]);
+    if (removeError) {
+      logger.warn("Failed to remove PDF from a failed save", {
+        fileKey,
+        error: formatStorageError(removeError),
+      });
+    }
+    throw error;
+  }
 
   await deleteReplacedFiles(supabase, replacedFileKeys, [fileKey]);
 
-  await tasks.trigger<typeof importPdfTask>(
+  await enqueueUserProcessing<typeof importPdfTask>(
     "import-pdf",
     { itemId, userId },
-    { concurrencyKey: userId },
+    userId,
   );
 
   logger.log("PDF URL stored, import triggered", {

@@ -3,17 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
   safeFetch: vi.fn(),
   upload: vi.fn(),
+  remove: vi.fn(),
   findItem: vi.fn(),
   updateItem: vi.fn(),
   reclaim: vi.fn(),
   deleteReplaced: vi.fn(),
   prune: vi.fn(),
-  trigger: vi.fn(),
+  enqueue: vi.fn(),
+  transaction: vi.fn(),
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({
-  tasks: { trigger: m.trigger },
   logger: { log: vi.fn(), warn: vi.fn() },
+}));
+vi.mock("../src/lib/items/enqueue-user-processing", () => ({
+  enqueueUserProcessing: m.enqueue,
 }));
 vi.mock("../src/lib/http/safe-fetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/lib/http/safe-fetch")>()),
@@ -21,8 +25,7 @@ vi.mock("../src/lib/http/safe-fetch", async (importOriginal) => ({
 }));
 vi.mock("../src/lib/db", () => ({
   default: {
-    $transaction: (fn: (tx: unknown) => unknown) =>
-      fn({ item: { findUniqueOrThrow: m.findItem, update: m.updateItem } }),
+    $transaction: m.transaction,
   },
 }));
 vi.mock("../src/lib/item-details", () => ({ pruneStaleItemDetails: m.prune }));
@@ -42,7 +45,7 @@ import { handlePdfUrl } from "./handle-pdf-url";
 const URL_ = "https://arxiv.org/pdf/1706.03762v7.pdf";
 const PDF_BYTES = new TextEncoder().encode("%PDF-1.7\n% a tiny pdf\n%%EOF\n");
 const supabase = {
-  storage: { from: () => ({ upload: m.upload }) },
+  storage: { from: () => ({ upload: m.upload, remove: m.remove }) },
 } as unknown as Parameters<typeof handlePdfUrl>[0]["supabase"];
 
 function response(
@@ -73,7 +76,11 @@ beforeEach(() => {
   m.upload.mockResolvedValue({ error: null });
   m.findItem.mockResolvedValue({ titleEditedByUser: false });
   m.reclaim.mockResolvedValue(["user_1/old.pdf", "user_1/old-page.jpg"]);
-  m.trigger.mockResolvedValue({});
+  m.enqueue.mockResolvedValue({});
+  m.remove.mockResolvedValue({ error: null });
+  m.transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+    fn({ item: { findUniqueOrThrow: m.findItem, update: m.updateItem } }),
+  );
 });
 
 describe("handlePdfUrl", () => {
@@ -129,13 +136,20 @@ describe("handlePdfUrl", () => {
     );
   });
 
-  it("hands off to import-pdf", async () => {
+  it("hands off to import-pdf as user processing", async () => {
     await handle();
-    expect(m.trigger).toHaveBeenCalledWith(
+    expect(m.enqueue).toHaveBeenCalledWith(
       "import-pdf",
       { itemId: "item_1", userId: "user_1" },
-      { concurrencyKey: "user_1" },
+      "user_1",
     );
+  });
+
+  it("removes the stored PDF when saving the item fails", async () => {
+    m.transaction.mockRejectedValue(new Error("db down"));
+    await expect(handle()).rejects.toThrow("db down");
+    expect(m.remove).toHaveBeenCalledWith([m.upload.mock.calls[0][0]]);
+    expect(m.enqueue).not.toHaveBeenCalled();
   });
 
   it("names it from Content-Disposition when the server sends one", async () => {
@@ -172,7 +186,7 @@ describe("handlePdfUrl", () => {
     const error = await failure(handle());
     expect((error as ProcessingFailure).reason).toBe("unsupported_content");
     expect(m.upload).not.toHaveBeenCalled();
-    expect(m.trigger).not.toHaveBeenCalled();
+    expect(m.enqueue).not.toHaveBeenCalled();
   });
 
   it("surfaces an HTTP error status for classification", async () => {
