@@ -349,4 +349,21 @@ describe("analyzeDocumentPages (shared with PDF import)", () => {
       data: { meta: { pageCount: 2 } },
     });
   });
+
+  it("merges the skipped count into the item's current meta, not a stale read", async () => {
+    m.findPages.mockResolvedValue([page(0), page(1), page(2)]);
+    m.findItem
+      .mockResolvedValueOnce({
+        kind: "document",
+        titleEditedByUser: true,
+        meta: { pageCount: 2 },
+      })
+      // Meanwhile the import recorded its OCR charge
+      .mockResolvedValueOnce({ meta: { pageCount: 3, ocrPagesCharged: 1 } });
+    await analyze(1);
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { meta: { pageCount: 3, ocrPagesCharged: 1, ocrSkippedPages: 2 } },
+    });
+  });
 });

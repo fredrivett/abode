@@ -59,7 +59,6 @@ export const importPdfTask = task({
         where: { id: itemId, userId },
         select: {
           sourceFileKey: true,
-          meta: true,
           _count: { select: { documentPages: true } },
         },
       });
@@ -76,14 +75,20 @@ export const importPdfTask = task({
               itemId,
               userId,
               sourceFileKey: item.sourceFileKey,
-              meta: item.meta,
             })
           : null;
+      if (imported?.outcome === "superseded") {
+        // The URL was re-captured mid-import; that capture's import takes over
+        logger.log("PDF replaced during import — dropping this attempt", {
+          itemId,
+        });
+        return { success: true, itemId, superseded: true };
+      }
 
       const scannedPages = await db.itemDocumentPage.count({
         where: { itemId, ocrText: null },
       });
-      const maxOcrPages = await ocrAllowance({ userId, scannedPages });
+      const maxOcrPages = await ocrAllowance({ itemId, userId, scannedPages });
 
       await enqueueUserProcessing<typeof analyzeDocumentTask>(
         "analyze-document",
@@ -97,13 +102,13 @@ export const importPdfTask = task({
         pages,
         scanned_pages: scannedPages,
         ocr_pages: maxOcrPages,
-        retried: imported === null,
+        retried: imported?.outcome !== "saved",
       });
 
       return {
         success: true,
         itemId,
-        rendered: imported !== null,
+        rendered: imported?.outcome === "saved",
         pages,
         scannedPages,
         maxOcrPages,
@@ -133,40 +138,68 @@ export const importPdfTask = task({
  * allowance and $ budget as scanning it. When the allowance is spent (and
  * limits are enforced) the pages are kept without text rather than failing the
  * import.
+ *
+ * Charged once per PDF: the granted count is kept on `meta.ocrPagesCharged`, so
+ * a retry (after a failed enqueue or analysis) reuses it instead of paying
+ * again. A re-captured URL PDF gets fresh meta, so it's charged afresh.
  */
 async function ocrAllowance({
+  itemId,
   userId,
   scannedPages,
 }: {
+  itemId: string;
   userId: string;
   scannedPages: number;
 }): Promise<number> {
   const pages = Math.min(scannedPages, MAX_OCR_PAGES_PER_DOCUMENT);
   if (pages === 0 || !isDocumentOcrConfigured()) return pages;
-  const guard = await guardDailyLimit(userId, "ingestion", { weight: pages });
-  if (guard.ok) return pages;
-  logger.info("Daily allowance reached — importing scanned pages without OCR", {
-    userId,
-    scannedPages,
+
+  const { meta } = await db.item.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { meta: true },
   });
-  return 0;
+  const previous = isRecord(meta) ? meta : {};
+  if (typeof previous.ocrPagesCharged === "number") {
+    return Math.min(pages, previous.ocrPagesCharged);
+  }
+
+  const guard = await guardDailyLimit(userId, "ingestion", { weight: pages });
+  if (!guard.ok) {
+    logger.info(
+      "Daily allowance reached — importing scanned pages without OCR",
+      { userId, scannedPages },
+    );
+    return 0;
+  }
+  await db.item.update({
+    where: { id: itemId },
+    data: { meta: { ...previous, ocrPagesCharged: pages } },
+  });
+  return pages;
 }
 
 /**
  * Steps 1–2: render the item's source PDF and save its pages, cover and
  * storage accounting. Throws a `ProcessingFailure` for a PDF it can't import.
+ *
+ * The pages are only saved if the item still holds this PDF and has no pages
+ * yet: otherwise a URL re-capture replaced it mid-import (`superseded`) or a
+ * concurrent attempt saved first (`existing`), and this attempt's images are
+ * removed.
  */
 export async function renderAndSavePages({
   itemId,
   userId,
   sourceFileKey,
-  meta,
 }: {
   itemId: string;
   userId: string;
   sourceFileKey: string;
-  meta: unknown;
-}): Promise<{ pages: number }> {
+}): Promise<{
+  outcome: "saved" | "existing" | "superseded";
+  pages: number;
+}> {
   const { url, key } = getSupabaseConfig();
   const supabase = createClient(url, key);
 
@@ -193,10 +226,14 @@ export async function renderAndSavePages({
     const pages = await renderPages({ pdf, userId, supabase, uploadedKeys });
     const pageBytes = pages.reduce((total, page) => total + page.size, 0);
     const cover = pages[0];
-    const saved = await db.$transaction(async (tx) => {
-      // A concurrent attempt got there first: keep its pages, drop ours
+    const outcome = await db.$transaction(async (tx) => {
+      const current = await tx.item.findUnique({
+        where: { id: itemId },
+        select: { sourceFileKey: true, meta: true },
+      });
+      if (current?.sourceFileKey !== sourceFileKey) return "superseded";
       const existing = await tx.itemDocumentPage.count({ where: { itemId } });
-      if (existing > 0) return false;
+      if (existing > 0) return "existing";
       await tx.itemDocumentPage.createMany({
         data: pages.map((page, position) => ({
           itemId,
@@ -209,7 +246,7 @@ export async function renderAndSavePages({
           ocrText: page.text,
         })),
       });
-      const previous = isRecord(meta) ? meta : {};
+      const previous = isRecord(current.meta) ? current.meta : {};
       const pdfSize = typeof previous.size === "number" ? previous.size : 0;
       await tx.item.update({
         where: { id: itemId, userId },
@@ -230,17 +267,18 @@ export async function renderAndSavePages({
         where: { id: userId },
         data: { storageUsedBytes: { increment: pageBytes } },
       });
-      return true;
+      return "saved" as const;
     });
-    if (!saved) await removeKeys(supabase, uploadedKeys);
+    if (outcome !== "saved") await removeKeys(supabase, uploadedKeys);
 
     logger.log("PDF pages rendered", {
       itemId,
+      outcome,
       pages: pages.length,
       pagesWithTextLayer: pages.filter((page) => page.text !== null).length,
       pageBytes,
     });
-    return { pages: pages.length };
+    return { outcome, pages: pages.length };
   } catch (error) {
     await removeKeys(supabase, uploadedKeys);
     throw error;

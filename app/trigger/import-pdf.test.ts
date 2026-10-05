@@ -4,6 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Real PDF rendering (mupdf) on generated PDFs; the side-effecting edges (db,
 // storage, usage limits, Trigger SDK) are mocked
+// A small in-memory stand-in for the item and its pages, so the mocks answer
+// from saved state rather than from how the task happens to query
+type FakePage = { ocrText: string | null };
+const db = vi.hoisted(() => ({
+  sourceFileKey: "" as string | null,
+  meta: {} as Record<string, unknown>,
+  pages: [] as FakePage[],
+}));
 const m = vi.hoisted(() => ({
   findItem: vi.fn(),
   countPages: vi.fn(),
@@ -38,15 +46,21 @@ vi.mock("@supabase/supabase-js", () => ({
   }),
 }));
 vi.mock("../src/lib/db", () => {
-  const tx = {
-    itemDocumentPage: { count: m.countPages, createMany: m.createPages },
-    item: { update: m.updateItem },
-    user: { update: m.updateUser },
+  const item = {
+    findFirstOrThrow: m.findItem,
+    findUnique: async () => ({
+      sourceFileKey: db.sourceFileKey,
+      meta: db.meta,
+    }),
+    findUniqueOrThrow: async () => ({ meta: db.meta }),
+    update: m.updateItem,
   };
+  const itemDocumentPage = { count: m.countPages, createMany: m.createPages };
+  const tx = { item, itemDocumentPage, user: { update: m.updateUser } };
   return {
     default: {
-      item: { findFirstOrThrow: m.findItem },
-      itemDocumentPage: { count: m.countPages },
+      item,
+      itemDocumentPage,
       $transaction: (fn: (t: typeof tx) => unknown) => fn(tx),
     },
   };
@@ -91,25 +105,30 @@ async function storePdf(bytes: Uint8Array) {
   });
 }
 
-let pagesSaved = 0;
+const savedPages = (count: number, scanned: number): FakePage[] =>
+  Array.from({ length: count }, (_, i) => ({
+    ocrText: i < scanned ? null : TEXT,
+  }));
+
 beforeEach(async () => {
   vi.clearAllMocks();
-  pagesSaved = 0;
-  m.findItem.mockResolvedValue({
-    sourceFileKey: "user-1/bill.pdf",
-    meta: { originalName: "bill.pdf", size: 5000, type: "application/pdf" },
-    _count: { documentPages: 0 },
-  });
+  db.sourceFileKey = "user-1/bill.pdf";
+  db.meta = { originalName: "bill.pdf", size: 5000, type: "application/pdf" };
+  db.pages = [];
+  m.findItem.mockImplementation(async () => ({
+    sourceFileKey: db.sourceFileKey,
+    _count: { documentPages: db.pages.length },
+  }));
   m.createPages.mockImplementation(async ({ data }) => {
-    pagesSaved = data.length;
+    db.pages.push(...data);
   });
-  // Existing-pages check inside the transaction, then the scanned-page count
-  m.countPages.mockImplementation(async ({ where }) =>
-    where.ocrText === null
-      ? (m.createPages.mock.calls[0]?.[0].data ?? []).filter(
-          (page: { ocrText: string | null }) => page.ocrText === null,
-        ).length
-      : pagesSaved,
+  m.updateItem.mockImplementation(async ({ data }) => {
+    if (data.meta) db.meta = data.meta;
+  });
+  m.countPages.mockImplementation(
+    async ({ where }: { where: { ocrText?: null } }) =>
+      db.pages.filter((page) => !("ocrText" in where) || page.ocrText === null)
+        .length,
   );
   m.upload.mockResolvedValue({ error: null });
   m.remove.mockResolvedValue({ error: null });
@@ -201,12 +220,7 @@ describe("importPdfTask", () => {
 
   it("caps OCR at 30 pages however many are scanned", async () => {
     // Pages already saved (a retry), so the cap is tested without rendering 35
-    m.findItem.mockResolvedValue({
-      sourceFileKey: "user-1/bill.pdf",
-      meta: {},
-      _count: { documentPages: 35 },
-    });
-    m.countPages.mockResolvedValue(35);
+    db.pages = savedPages(35, 35);
     await run();
     expect(m.guard).toHaveBeenCalledWith("user-1", "ingestion", { weight: 30 });
     expect(m.enqueue).toHaveBeenCalledWith(
@@ -233,12 +247,7 @@ describe("importPdfTask", () => {
   });
 
   it("skips rendering on a retry once pages exist", async () => {
-    m.findItem.mockResolvedValue({
-      sourceFileKey: "user-1/bill.pdf",
-      meta: {},
-      _count: { documentPages: 3 },
-    });
-    m.countPages.mockResolvedValue(1);
+    db.pages = savedPages(3, 1);
     await run();
     expect(m.download).not.toHaveBeenCalled();
     expect(m.upload).not.toHaveBeenCalled();
@@ -286,13 +295,54 @@ describe("importPdfTask", () => {
   });
 
   it("drops its pages if a concurrent attempt saved first", async () => {
-    pagesSaved = 3;
+    // Saved between the task's first read and its own save
+    m.findItem.mockResolvedValueOnce({
+      sourceFileKey: db.sourceFileKey,
+      _count: { documentPages: 0 },
+    });
+    db.pages = savedPages(3, 1);
     await run();
     expect(m.createPages).not.toHaveBeenCalled();
     expect(m.remove).toHaveBeenCalledWith(
       m.upload.mock.calls.map(([key]) => key),
     );
     expect(m.enqueue).toHaveBeenCalled();
+  });
+
+  it("drops its pages without failing if the URL was re-captured mid-import", async () => {
+    m.findItem.mockResolvedValueOnce({
+      sourceFileKey: db.sourceFileKey,
+      _count: { documentPages: 0 },
+    });
+    // The re-capture swapped in a new PDF while this one rendered
+    db.sourceFileKey = "user-1/recaptured.pdf";
+    await expect(run()).resolves.toMatchObject({ superseded: true });
+    expect(m.createPages).not.toHaveBeenCalled();
+    expect(m.remove).toHaveBeenCalledWith(
+      m.upload.mock.calls.map(([key]) => key),
+    );
+    expect(m.enqueue).not.toHaveBeenCalled();
+    expect(m.markFailed).not.toHaveBeenCalled();
+  });
+
+  it("records the OCR charge so a retry doesn't pay for the same pages again", async () => {
+    await run();
+    expect(db.meta.ocrPagesCharged).toBe(1);
+
+    m.guard.mockClear();
+    await run();
+    expect(m.guard).not.toHaveBeenCalled();
+    expect(m.enqueue).toHaveBeenLastCalledWith(
+      "analyze-document",
+      expect.objectContaining({ maxOcrPages: 1 }),
+      "user-1",
+    );
+  });
+
+  it("doesn't record a charge when the allowance was spent, so a later retry can try again", async () => {
+    m.guard.mockResolvedValue({ ok: false, check: { retryAfterSeconds: 60 } });
+    await run();
+    expect(db.meta.ocrPagesCharged).toBeUndefined();
   });
 
   it("reports the import to PostHog with its page breakdown", async () => {

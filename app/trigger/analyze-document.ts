@@ -191,7 +191,7 @@ export async function analyzeDocumentPages({
   await markProcessingActive(itemId);
   const item = await db.item.findFirstOrThrow({
     where: { id: itemId, userId },
-    select: { kind: true, titleEditedByUser: true, meta: true },
+    select: { kind: true, titleEditedByUser: true },
   });
   const mayWriteTitle = visionMayWriteTitle(item);
   const cover = pages[0];
@@ -233,7 +233,13 @@ export async function analyzeDocumentPages({
     itemUpdate.title = naming.title;
     itemUpdate.description = naming.description;
   }
-  const meta = withOcrSkippedPages(item.meta, ocrSkippedPages);
+  // Re-read rather than reuse the snapshot from before the (slow) analysis, so
+  // a meta change meanwhile (a PDF re-capture, its OCR charge) isn't undone
+  const { meta: currentMeta } = await db.item.findFirstOrThrow({
+    where: { id: itemId, userId },
+    select: { meta: true },
+  });
+  const meta = withOcrSkippedPages(currentMeta, ocrSkippedPages);
   if (meta) itemUpdate.meta = meta;
   const ops: Prisma.PrismaPromise<unknown>[] = [];
   if (Object.keys(itemUpdate).length > 0) {
