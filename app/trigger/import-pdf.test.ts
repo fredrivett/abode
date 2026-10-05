@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
   enqueue: vi.fn(),
   markFailed: vi.fn(),
   markActive: vi.fn(),
+  capture: vi.fn(),
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({
@@ -67,6 +68,9 @@ vi.mock("./analyze-image", () => ({
   formatStorageError: String,
 }));
 vi.mock("./queues", () => ({ documentImportQueue: {} }));
+vi.mock("../src/lib/posthog-server", () => ({
+  getPostHogClient: () => ({ capture: m.capture }),
+}));
 
 import { ProcessingFailure } from "../src/lib/items/processing-error";
 import { importPdfTask } from "./import-pdf";
@@ -289,5 +293,30 @@ describe("importPdfTask", () => {
       m.upload.mock.calls.map(([key]) => key),
     );
     expect(m.enqueue).toHaveBeenCalled();
+  });
+
+  it("reports the import to PostHog with its page breakdown", async () => {
+    await run();
+    expect(m.capture).toHaveBeenCalledWith({
+      distinctId: "user-1",
+      event: "pdf_imported",
+      properties: {
+        item_id: "item-1",
+        pages: 3,
+        scanned_pages: 1,
+        ocr_pages: 1,
+        retried: false,
+      },
+    });
+  });
+
+  it("reports a failed import with its reason", async () => {
+    await storePdf(new TextEncoder().encode("not a pdf"));
+    await run().catch(() => undefined);
+    expect(m.capture).toHaveBeenCalledWith({
+      distinctId: "user-1",
+      event: "pdf_import_failed",
+      properties: { item_id: "item-1", reason: "file_unreadable" },
+    });
   });
 });

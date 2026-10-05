@@ -9,7 +9,11 @@ import {
 import { openPdf } from "../src/lib/documents/render-pdf";
 import { enqueueUserProcessing } from "../src/lib/items/enqueue-user-processing";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
-import { ProcessingFailure } from "../src/lib/items/processing-error";
+import {
+  classifyFailureReason,
+  ProcessingFailure,
+} from "../src/lib/items/processing-error";
+import { getPostHogClient } from "../src/lib/posthog-server";
 import { MAX_PDF_UPLOAD_BYTES } from "../src/lib/uploads";
 import { guardDailyLimit } from "../src/lib/usage-limits";
 import type { analyzeDocumentTask } from "./analyze-document";
@@ -87,16 +91,29 @@ export const importPdfTask = task({
         userId,
       );
 
+      const pages = imported?.pages ?? item._count.documentPages;
+      captureImportEvent(userId, "pdf_imported", {
+        item_id: itemId,
+        pages,
+        scanned_pages: scannedPages,
+        ocr_pages: maxOcrPages,
+        retried: imported === null,
+      });
+
       return {
         success: true,
         itemId,
         rendered: imported !== null,
-        pages: imported?.pages,
+        pages,
         scannedPages,
         maxOcrPages,
       };
     } catch (error) {
       await markDocumentFailed({ itemId, userId, error, task: "import-pdf" });
+      captureImportEvent(userId, "pdf_import_failed", {
+        item_id: itemId,
+        reason: classifyFailureReason(error),
+      });
       // Retrying can't fix a damaged, encrypted or over-long file
       if (
         error instanceof ProcessingFailure &&
@@ -311,6 +328,19 @@ async function removeKeys(
       count: keys.length,
       error: formatStorageError(error),
     });
+  }
+}
+
+/** Funnel events after `pdf_uploaded`; best-effort, never fails the import */
+function captureImportEvent(
+  userId: string,
+  event: "pdf_imported" | "pdf_import_failed",
+  properties: Record<string, unknown>,
+): void {
+  try {
+    getPostHogClient()?.capture({ distinctId: userId, event, properties });
+  } catch {
+    // Analytics must never affect the import
   }
 }
 
