@@ -8,6 +8,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { NoteLinkMenu } from "./note-link-menu";
 import { LinkModifierClick } from "./note-link-open";
 import {
   NOTE_EDITOR_CLASS,
@@ -59,8 +60,8 @@ const CHECKLIST_EXTENSIONS = [
   BulletToTaskItem,
 ];
 
-// A plain click in an editable note places the caret rather than navigating
-// away mid-edit; ⌘/Ctrl-click opens instead
+// A plain click in an editable note places the caret (and shows the link
+// menu) rather than navigating away mid-edit; ⌘/Ctrl-click opens instead
 const LINK_OPTIONS = { openOnClick: false } as const;
 
 /** The editor's extensions; exported so tests can round-trip markdown. */
@@ -170,5 +171,10 @@ export function NoteEditor({
     }
   }, [editor, content]);
 
-  return <EditorContent editor={editor} />;
+  return (
+    <>
+      <EditorContent editor={editor} />
+      {editor && <NoteLinkMenu editor={editor} />}
+    </>
+  );
 }

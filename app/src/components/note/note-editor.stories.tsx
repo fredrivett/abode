@@ -284,8 +284,8 @@ export const TypingInBulletStartsChecklist: Story = {
 const LINKED = `Reading list: [the essay](https://example.com/essay) and
 [a second one](https://example.com/second).`;
 
-// Clicking a link while editing places the caret; it must not navigate.
-// ⌘/Ctrl-click opens it in a new tab
+// Clicking a link while editing places the caret and shows the link menu; it
+// must not navigate. ⌘/Ctrl-click opens it in a new tab
 export const WithLinks: Story = {
   args: {
     content: LINKED,
@@ -310,6 +310,12 @@ export const WithLinks: Story = {
       const user = userEvent.setup();
 
       await user.pointer({ keys: "[MouseLeft]", target: link, coords });
+      const openButton = await waitFor(() => {
+        const button = document.querySelector('[aria-label="Open link"]');
+        if (!(button instanceof HTMLElement)) throw new Error("no menu");
+        return button;
+      });
+      await waitFor(() => expect(openButton).toBeVisible());
       expect(open).not.toHaveBeenCalled();
 
       await user.keyboard("{Meta>}");
