@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
 
+import { NoteCard } from "@/components/note/note-card";
 import { NoteEditor } from "@/components/note/note-editor";
 
 const meta = {
@@ -109,6 +110,78 @@ export const ChecklistMatchesBulletList: Story = {
         1,
       );
     });
+  },
+};
+
+const NESTED_LISTS = `- Pack the kitchen
+  - Plates
+    - The good ones
+  - Glasses
+- Return the keys
+
+1. Book the van
+   1. Check the size
+2. Load up
+
+- [ ] Clean the flat
+  - [x] Oven
+  - [ ] Windows
+- [x] Pay the deposit`;
+
+/**
+ * The gap between each list item's text and the next one's, per top-level
+ * list, in document order. Measured from text line boxes (not the item boxes,
+ * which contain their nested lists), skipping the checkbox's hidden label.
+ */
+function listItemGaps(root: Element): number[][] {
+  return [...root.querySelectorAll(":scope > ul, :scope > ol")].map((list) => {
+    const lines = [...list.querySelectorAll("li")].map((item) => {
+      const rects: DOMRect[] = [];
+      const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const parent = node.parentElement;
+        if (parent?.closest("li") !== item || parent.closest("label")) continue;
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        rects.push(...range.getClientRects());
+      }
+      return {
+        top: Math.min(...rects.map((rect) => rect.top)),
+        bottom: Math.max(...rects.map((rect) => rect.bottom)),
+      };
+    });
+    return lines.slice(1).map((line, index) => line.top - lines[index].bottom);
+  });
+}
+
+// Nesting keeps the list's rhythm: a nested item sits the same gap below its
+// parent as siblings do, and the list resumes at that gap after it — in the
+// editor and on the card alike
+export const NestedListRhythm: Story = {
+  args: { content: "" },
+  render: () => (
+    <div className="grid grid-cols-2 items-start gap-6">
+      <NoteEditor content={NESTED_LISTS} />
+      <div style={{ height: 520 }}>
+        <NoteCard title={null} content={NESTED_LISTS} />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const roots = await waitFor(() => {
+      const found = canvasElement.querySelectorAll(".note-prose");
+      if (found.length !== 2 || !found[0].matches(".ProseMirror")) {
+        throw new Error("not ready");
+      }
+      return [...found];
+    });
+    const [editorGaps, cardGaps] = roots.map(listItemGaps);
+    const expected = editorGaps[0][0];
+    for (const gaps of [editorGaps, cardGaps]) {
+      expect(gaps).toHaveLength(3);
+      for (const gap of gaps.flat()) expect(gap).toBeCloseTo(expected, 1);
+    }
   },
 };
 

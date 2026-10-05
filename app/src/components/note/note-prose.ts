@@ -53,6 +53,10 @@ const NOTE_PROSE_PARTS = [
   "prose-p:my-[0.4em]",
   "prose-headings:my-[0.4em]",
   "prose-ul:my-[0.4em] prose-ol:my-[0.4em] prose-li:my-[0.15em]",
+  // Nothing adds a gap above a nested list — not the list, nor the paragraph
+  // the editor wraps its parent item's text in — so nested items sit the same
+  // item-gap from their parent as siblings do and nesting keeps the rhythm
+  "[&_li_ul]:my-0 [&_li_ol]:my-0 [&_li_p:has(+ul,+ol)]:mb-0",
   LOOSE_LIST_MARGIN_FIX,
   "prose-blockquote:my-[0.5em]",
   "prose-pre:my-[0.5em]",
