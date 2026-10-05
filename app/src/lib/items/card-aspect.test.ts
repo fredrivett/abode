@@ -186,6 +186,10 @@ describe("estimateNoteAspect", () => {
       .map((item, index) => `- [${index ? "x" : " "}] ${item}`)
       .join("\n");
     expect(noteAspect(null, checklist)).toEqual(noteAspect(null, bullets));
+    // Any bullet marker: `*` is also emphasis syntax, so it's the risky one
+    expect(noteAspect(null, checklist.replaceAll("- [", "* ["))).toEqual(
+      noteAspect(null, bullets),
+    );
     expect(noteAspect(null, checklist)).not.toEqual(
       noteAspect(null, items.map((item) => `- [ ] [ ] ${item}`).join("\n")),
     );

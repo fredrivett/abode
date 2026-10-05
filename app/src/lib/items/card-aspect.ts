@@ -206,10 +206,12 @@ function toFrameAspect(
 // (a checklist's `[ ]`/`[x]` included — its checkbox sits in the bullet's
 // gutter), and link syntax (keep the link text, drop the URL).
 function stripInlineMarkdown(text: string): string {
+  // Block markers go first: a `*` bullet would otherwise lose its `*` to the
+  // emphasis strip and keep its checklist marker
   return text
+    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+\.\s+)/, "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) / ![alt](url) → text
     .replace(/[*_~`]+/g, "")
-    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+\.\s+)/, "")
     .trim();
 }
 
