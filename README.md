@@ -60,7 +60,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
 - **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
-- **PDF upload:** Upload, drop or paste a PDF (up to 25MB) and it becomes a searchable document: pages are rendered for the document viewer (with [MuPDF](https://mupdf.com)), the original is kept for download, and each page's embedded text is used directly, so only scanned pages are OCR'd (up to 30 per document). Titled from its text like a scan.
+- **PDF upload:** Upload, drop or paste a PDF (up to 25MB), or save a link to one, and it becomes a searchable document: pages are rendered for the document viewer (with [MuPDF](https://mupdf.com)), the original is kept for download, and each page's embedded text is used directly, so only scanned pages are OCR'd (up to 30 per document). Titled from its text like a scan.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based).
@@ -85,7 +85,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
-- PDF upload as documents (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
+- PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
 - Masonry gallery, full-text + semantic search, filters
 - Metadata extraction + article parsing (Mozilla Readability)
 - OCR + auto-tagging (OpenAI)

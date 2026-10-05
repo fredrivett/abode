@@ -9,6 +9,7 @@ Any of these work, on the dashboard:
 - Tap **+** (Add item), then **Choose File** and pick a PDF
 - Drag a PDF onto the dashboard, or onto the Add item window
 - Copy a PDF file (e.g. in Finder or File Explorer) and paste it onto the dashboard
+- Save a link to a PDF, like any other link: paste it, share it from your phone, or save the PDF you're viewing with the browser extension. The PDF is downloaded and saved the same way
 
 PDFs can be up to **25MB**. A card for the PDF appears straight away while its pages are prepared; it turns into a preview of page 1 when they're ready.
 

@@ -10,6 +10,11 @@ import { tasks } from "@trigger.dev/sdk";
 // and the paid AI calls are the only fakes.
 
 const storage = vi.hoisted(() => new Map<string, Uint8Array>());
+// The bytes the "web" serves for a PDF URL
+const web = vi.hoisted(() => {
+  const served: { pdf: Uint8Array } = { pdf: new Uint8Array() };
+  return served;
+});
 const auth = vi.hoisted(() => ({ userId: "" }));
 
 vi.mock("@trigger.dev/sdk", () => ({
@@ -94,6 +99,15 @@ vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => null,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
+vi.mock("@/lib/http/safe-fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/http/safe-fetch")>()),
+  safeFetch: vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    arrayBuffer: async () => web.pdf.slice().buffer,
+  })),
+}));
 
 import { POST } from "@/app/api/v1/items/documents/pdf/route";
 import { collectItemFileKeys, itemFileKeysSelect } from "@/lib/item-storage";
@@ -101,6 +115,7 @@ import { deleteOwnedItem } from "@/lib/items/delete-item";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { ocrTextSearch } from "@/lib/search/full-text-search";
 import { analyzeDocumentTask } from "./analyze-document";
+import { handlePdfUrl } from "./handle-pdf-url";
 import { importPdfTask } from "./import-pdf";
 
 type Runnable = { run: (payload: object) => Promise<unknown> };
@@ -292,5 +307,62 @@ describe("PDF upload integration", () => {
     expect(await read.itemDocumentPage.count({ where: { itemId } })).toBe(0);
     // Only the PDF itself is stored, so deleting the item cleans up fully
     expect(storage.size).toBe(1);
+  });
+
+  test("re-capturing a saved PDF URL replaces its PDF and pages without leaking storage", async () => {
+    const user = await createUser();
+    const { write, read } = await import("@/lib/db");
+    const { id: itemId } = await write.item.create({
+      data: {
+        userId: user.id,
+        sourceType: "url",
+        sourceUrl: "https://example.com/report.pdf",
+        processingStatus: "processing",
+      },
+      select: { id: true },
+    });
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient("https://storage.test", "key");
+    const capture = async (pages: Parameters<typeof buildPdf>[0]) => {
+      web.pdf = await buildPdf(pages);
+      vi.mocked(tasks.trigger).mockClear();
+      await handlePdfUrl({
+        itemId,
+        userId: user.id,
+        url: "https://example.com/report.pdf",
+        supabase,
+      });
+      await runImport(itemId, user.id);
+    };
+
+    await capture([
+      { text: "First edition of the annual report, chapter one" },
+      { scan: true },
+    ]);
+    const first = await read.item.findUniqueOrThrow({
+      where: { id: itemId },
+      select: { kind: true, sourceFileKey: true },
+    });
+    expect(first.kind).toBe("document");
+    expect(await read.itemDocumentPage.count({ where: { itemId } })).toBe(2);
+
+    await capture([{ text: "Second edition of the annual report, revised" }]);
+
+    const row = await read.item.findUniqueOrThrow({
+      where: { id: itemId },
+      select: { ...itemFileKeysSelect, meta: true },
+    });
+    expect(row.sourceFileKey).not.toBe(first.sourceFileKey);
+    expect(row.documentPages).toHaveLength(1);
+    expect(row.meta).toMatchObject({ pageCount: 1 });
+    // The first capture's PDF and pages are gone; storage holds just the new ones
+    expect(new Set(storage.keys())).toEqual(new Set(collectItemFileKeys(row)));
+    expect(storage.size).toBe(2);
+    const stored = [...storage.values()].reduce((t, b) => t + b.byteLength, 0);
+    const { storageUsedBytes } = await read.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { storageUsedBytes: true },
+    });
+    expect(Number(storageUsedBytes)).toBe(stored);
   });
 });

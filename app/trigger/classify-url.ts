@@ -10,6 +10,10 @@ import { recordAiUsage } from "../src/lib/ai-costs/record-ai-usage";
 import { classifyItemKind } from "../src/lib/classify-item-kind";
 import db from "../src/lib/db";
 import {
+  isCapturedPdfViewer,
+  isPdfContent,
+} from "../src/lib/documents/pdf-url";
+import {
   type BookMetadata,
   extractAllProductImageCandidates,
   extractArticleMetadata,
@@ -39,6 +43,7 @@ import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
 import { handleInstagramUrl } from "./handle-instagram-url";
+import { handlePdfUrl } from "./handle-pdf-url";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
@@ -424,7 +429,15 @@ export const classifyUrlTask = task({
       let html: string;
       let finalContentType: string | null;
 
-      if (providedHtml !== undefined) {
+      // A capture of the browser's PDF viewer is just an <embed>: fetch the
+      // PDF itself instead
+      const capturedHtml =
+        providedHtml !== undefined &&
+        isCapturedPdfViewer({ url: fetchUrl, html: providedHtml })
+          ? undefined
+          : providedHtml;
+
+      if (capturedHtml !== undefined) {
         // Validated upstream (usableCapturedHtml in items/from-url): a non-empty,
         // size-bounded, document-shaped capture — a malformed/blank payload is
         // dropped there and never reaches this branch, so it can't persist an
@@ -434,9 +447,9 @@ export const classifyUrlTask = task({
         logger.log("Using extension-captured rendered HTML", {
           itemId,
           url: fetchUrl,
-          htmlLength: providedHtml.length,
+          htmlLength: capturedHtml.length,
         });
-        html = providedHtml;
+        html = capturedHtml;
         finalContentType = "text/html";
       } else {
         // Step 2: HEAD request to check the content type
@@ -473,6 +486,18 @@ export const classifyUrlTask = task({
           return await handleImageUrl(itemId, userId, fetchUrl, supabase);
         }
 
+        // Step 3b: A PDF (by content type, or a .pdf path served as a generic
+        // file) becomes a document. Skipped when a kind is forced, like images
+        if (!forcedKind && isPdfContent({ url: fetchUrl, contentType })) {
+          logger.log("URL classified as PDF", { itemId, url: fetchUrl });
+          return await handlePdfUrl({
+            itemId,
+            userId,
+            url: fetchUrl,
+            supabase,
+          });
+        }
+
         // Step 4: Fetch the full page content
         logger.log("Fetching page content", { itemId, url: fetchUrl });
 
@@ -503,6 +528,23 @@ export const classifyUrlTask = task({
         }
 
         finalContentType = response.headers.get("content-type");
+        // Some servers don't answer HEAD: catch a PDF before reading it as text
+        if (
+          !forcedKind &&
+          isPdfContent({ url: fetchUrl, contentType: finalContentType })
+        ) {
+          logger.log("URL classified as PDF after GET", {
+            itemId,
+            url: fetchUrl,
+          });
+          await response.body?.cancel();
+          return await handlePdfUrl({
+            itemId,
+            userId,
+            url: fetchUrl,
+            supabase,
+          });
+        }
         html = await response.text();
       }
 

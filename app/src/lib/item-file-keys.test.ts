@@ -168,7 +168,7 @@ describe("collectItemFileKeys", () => {
 });
 
 describe("collectCapturedFileKeys", () => {
-  it("excludes document pages, which re-capture never replaces", () => {
+  it("excludes document pages, which reclaim handles separately", () => {
     const { documentPages, ...captured } = everyLocation;
     const keys = collectCapturedFileKeys(captured);
 

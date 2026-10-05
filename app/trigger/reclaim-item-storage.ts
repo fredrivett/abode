@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
+import { documentFileKeys } from "../src/lib/documents/create-document-schema";
 import {
   capturedFileKeysSelect,
   collectCapturedFileKeys,
@@ -16,6 +17,10 @@ import {
  * decremented, so repeated reanalysis inflated the accounting. Here we apply the
  * *net* change (new − old) and return the previous file keys so the caller can
  * delete the now-orphaned blobs once the transaction commits.
+ *
+ * A document saved from a URL (a PDF, `sourceFileKey` set) is replaced whole:
+ * its pages are deleted and their keys returned too, and its source and cover
+ * cleared, so the new capture — a fresh PDF or another kind — starts clean.
  *
  * Must run before the item row is updated so it reads the item's previous meta
  * and detail rows.
@@ -43,7 +48,20 @@ export async function reclaimReplacedStorage(
     });
   }
 
-  return collectCapturedFileKeys(existing);
+  const oldFileKeys = collectCapturedFileKeys(existing);
+  if (existing.sourceFileKey) {
+    const pages = await tx.itemDocumentPage.findMany({
+      where: { itemId },
+      select: { fileKey: true, originalFileKey: true },
+    });
+    await tx.itemDocumentPage.deleteMany({ where: { itemId } });
+    await tx.item.update({
+      where: { id: itemId },
+      data: { sourceFileKey: null, fileKey: null },
+    });
+    oldFileKeys.push(...documentFileKeys(pages));
+  }
+  return [...new Set(oldFileKeys)];
 }
 
 /**

@@ -99,9 +99,10 @@ export const capturedFileKeysSelect = {
 } satisfies Prisma.ItemSelect;
 
 /**
- * Every file an item owns: its captured files plus, for a scanned document,
- * each page's displayed and colour-original image. Pages are user-scanned, not
- * re-captured, so they're only in this full set (delete/export), never reclaim.
+ * Every file an item owns: its captured files plus, for a document, each
+ * page's displayed and colour-original image. Pages aren't in the captured set:
+ * a scan or uploaded PDF is never re-captured, and a URL-saved PDF's pages are
+ * reclaimed with it by reclaimReplacedStorage (keyed off its sourceFileKey).
  */
 export const itemFileKeysSelect = {
   ...capturedFileKeysSelect,
