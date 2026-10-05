@@ -65,6 +65,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 ## Features
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
+- **Tweets:** Saved tweets keep what X shows around them: the quoted tweet, poll results, the post being replied to (or the thread it continues), and an X Article's cover, title and opening. Long-form posts — which X only shares the first ~280 characters of — are marked as cut off, with a link to the rest on X.
 - **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
 - **PDF upload:** Upload, drop or paste a PDF (up to 25MB), or save a link to one, and it becomes a searchable document: pages are rendered for the document viewer (with [MuPDF](https://mupdf.com)), the original is kept for download, and each page's embedded text is used directly, so only scanned pages are OCR'd (up to 30 per document). Titled from its text like a scan.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
@@ -92,6 +93,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
 - Markdown notes with a WYSIWYG editor (headings, lists, checklists, quotes, code)
+- Tweet context: quotes, polls, reply/thread context, X Article previews, long-form posts flagged as truncated
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
 - PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
 - Masonry gallery, full-text + semantic search, filters
