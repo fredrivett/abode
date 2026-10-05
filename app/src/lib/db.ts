@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import type { ITXClientDenyList } from "@prisma/client/runtime/library";
 import { isDevelopment } from "@/env";
+import { connectionRetryExtension } from "@/lib/db-retry";
 
 /**
  * Primary prisma client (write) and optional read-replica client.
@@ -8,8 +10,8 @@ import { isDevelopment } from "@/env";
  */
 
 const globalForPrisma = globalThis as unknown as {
-  prismaRead?: PrismaClient;
-  prismaWrite?: PrismaClient;
+  prismaRead?: DbClient;
+  prismaWrite?: DbClient;
 };
 
 const shouldLogQueries =
@@ -26,7 +28,7 @@ const CONNECTION_LIMIT = Number.parseInt(
   10,
 );
 
-function createWriteClient(): PrismaClient {
+function createWriteClient() {
   const baseUrl = process.env.DATABASE_URL || "";
   const separator = baseUrl.includes("?") ? "&" : "?";
   const urlWithLimit = baseUrl.includes("connection_limit")
@@ -44,10 +46,19 @@ function createWriteClient(): PrismaClient {
       timeout: 30_000,
       maxWait: 10_000,
     },
-  });
+  }).$extends(connectionRetryExtension());
 }
 
-function createReadClient(): PrismaClient {
+type DbClient = ReturnType<typeof createWriteClient>;
+
+/**
+ * The `tx` handed to `write.$transaction(async (tx) => …)`. Use this (not
+ * `Prisma.TransactionClient`, which types the un-extended client) for helpers
+ * that accept either a transaction or the base client.
+ */
+export type DbTransactionClient = Omit<DbClient, ITXClientDenyList>;
+
+function createReadClient() {
   const readReplicaUrl = process.env.READ_REPLICA_DATABASE_URL?.trim();
   const primaryUrl = process.env.DATABASE_URL;
   const baseUrl = readReplicaUrl || primaryUrl || "";
@@ -63,18 +74,18 @@ function createReadClient(): PrismaClient {
         url: urlWithLimit,
       },
     },
-  });
+  }).$extends(connectionRetryExtension());
 }
 
 // Lazy initialization - only create clients when accessed
-function getWriteClient(): PrismaClient {
+function getWriteClient(): DbClient {
   if (!globalForPrisma.prismaWrite) {
     globalForPrisma.prismaWrite = createWriteClient();
   }
   return globalForPrisma.prismaWrite;
 }
 
-function getReadClient(): PrismaClient {
+function getReadClient(): DbClient {
   if (!globalForPrisma.prismaRead) {
     globalForPrisma.prismaRead = createReadClient();
   }
@@ -82,13 +93,13 @@ function getReadClient(): PrismaClient {
 }
 
 // Export getter proxies that lazily initialize
-const write = new Proxy({} as PrismaClient, {
+const write = new Proxy({} as DbClient, {
   get(_, prop) {
     return Reflect.get(getWriteClient(), prop);
   },
 });
 
-const read = new Proxy({} as PrismaClient, {
+const read = new Proxy({} as DbClient, {
   get(_, prop) {
     return Reflect.get(getReadClient(), prop);
   },

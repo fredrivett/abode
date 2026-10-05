@@ -1,11 +1,25 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { IMAGE_RETRY_DELAYS_MS } from "@/lib/image-retry";
 import {
   getMonogram,
   getMonogramColor,
   WebpageLinkCard,
 } from "./webpage-link-card";
 
+// The favicon is same-origin, so <Img> retries it before giving up; walk it
+// through every retry so the card's own fallback runs
+function failEveryLoad(container: HTMLElement) {
+  for (const delay of IMAGE_RETRY_DELAYS_MS) {
+    const img = container.querySelector("img");
+    if (!img) throw new Error("expected favicon img to render");
+    fireEvent.error(img);
+    act(() => vi.advanceTimersByTime(delay));
+  }
+  const img = container.querySelector("img");
+  if (!img) throw new Error("expected favicon img to render");
+  fireEvent.error(img);
+}
 describe("getMonogram", () => {
   it("uses the first alphanumeric character, uppercased", () => {
     expect(getMonogram("fredrivett.com")).toBe("F");
@@ -89,43 +103,50 @@ describe("WebpageLinkCard", () => {
     expect(screen.queryByText("S")).not.toBeInTheDocument();
   });
 
-  it("falls back to the monogram when the favicon fails to load", () => {
-    const { container } = render(
-      <WebpageLinkCard
-        url="https://stripe.com"
-        faviconUrl="/api/v1/images/broken.png"
-      />,
-    );
-    const img = container.querySelector("img");
-    if (!img) throw new Error("expected favicon img to render");
-    fireEvent.error(img);
-    expect(screen.getByText("S")).toBeInTheDocument();
-    expect(container.querySelector("img")).toBeNull();
-  });
+  describe("when the favicon fails to load", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
 
-  it("shows a newly provided favicon after a prior one failed", () => {
-    // A reprocessed item can hand the same mounted card a fresh favicon URL —
-    // the earlier failure must not permanently pin it to the monogram
-    const { container, rerender } = render(
-      <WebpageLinkCard
-        url="https://stripe.com"
-        faviconUrl="/api/v1/images/old.png"
-      />,
-    );
-    const img = container.querySelector("img");
-    if (!img) throw new Error("expected favicon img to render");
-    fireEvent.error(img);
-    expect(container.querySelector("img")).toBeNull();
+    it("falls back to the monogram once retries run out", () => {
+      const { container } = render(
+        <WebpageLinkCard
+          url="https://stripe.com"
+          faviconUrl="/api/v1/images/broken.png"
+        />,
+      );
+      const img = container.querySelector("img");
+      if (!img) throw new Error("expected favicon img to render");
+      fireEvent.error(img);
+      // A single failure is retried rather than dropped straight to the monogram
+      expect(screen.queryByText("S")).not.toBeInTheDocument();
 
-    rerender(
-      <WebpageLinkCard
-        url="https://stripe.com"
-        faviconUrl="/api/v1/images/new.png"
-      />,
-    );
-    expect(container.querySelector("img")).toHaveAttribute(
-      "src",
-      "/api/v1/images/new.png",
-    );
+      failEveryLoad(container);
+      expect(screen.getByText("S")).toBeInTheDocument();
+      expect(container.querySelector("img")).toBeNull();
+    });
+
+    it("shows a newly provided favicon after a prior one failed", () => {
+      // A reprocessed item can hand the same mounted card a fresh favicon URL —
+      // the earlier failure must not permanently pin it to the monogram
+      const { container, rerender } = render(
+        <WebpageLinkCard
+          url="https://stripe.com"
+          faviconUrl="/api/v1/images/old.png"
+        />,
+      );
+      failEveryLoad(container);
+      expect(container.querySelector("img")).toBeNull();
+
+      rerender(
+        <WebpageLinkCard
+          url="https://stripe.com"
+          faviconUrl="/api/v1/images/new.png"
+        />,
+      );
+      expect(container.querySelector("img")).toHaveAttribute(
+        "src",
+        "/api/v1/images/new.png",
+      );
+    });
   });
 });

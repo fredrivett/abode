@@ -1,0 +1,28 @@
+language js
+
+// A raw <img> never retries a failed load, so one transient image-proxy error
+// (e.g. a brief DB pooler outage) leaves the tile broken — or stuck on its blur
+// placeholder — until a full reload. Render <Img> (@/components/ui/img), or
+// spread `{...imgProps}` from useImageLoaded when you also need the loaded
+// state; either retries same-origin loads with backoff under a cache-busting
+// URL. The spread carries the src, so a separate src= would override the retry
+// URL and is flagged too.
+//
+// Scoped in biome.json to src/**/*.tsx, excluding images that can't fail
+// transiently or aren't React DOM: next/og (satori) renderers (src/lib/og,
+// opengraph-image.tsx), local blob:/data: previews (scanner, avatar cropper,
+// 2FA QR code), static marketing assets and story fixtures.
+or {
+  `<img $attrs />`,
+  `<img $attrs>$_</img>`
+} as $el where {
+  or {
+    not $attrs <: contains `{...imgProps}`,
+    $attrs <: contains or { `src={$_}`, `src="$_"` }
+  },
+  register_diagnostic(
+    span=$el,
+    message="Raw <img> doesn't retry failed loads. Use <Img> from @/components/ui/img, or spread {...imgProps} from useImageLoaded (without a separate src).",
+    severity="error"
+  )
+}

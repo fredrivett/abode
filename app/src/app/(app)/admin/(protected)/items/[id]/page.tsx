@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Img } from "@/components/ui/img";
 import {
   getItemInspection,
   getSimilarImagesForInspector,
@@ -190,16 +191,14 @@ function MediaTable({ item }: { item: ItemInspection }) {
                           title="Open image"
                           className="inline-block transition-opacity hover:opacity-80"
                         >
-                          {/* biome-ignore lint/performance/noImgElement: admin-only debug thumbnail, hotlinks public twimg */}
-                          <img
+                          <Img
                             src={r.url}
                             alt=""
                             className="size-10 rounded object-cover"
                           />
                         </a>
                       ) : (
-                        // biome-ignore lint/performance/noImgElement: admin-only debug thumbnail, hotlinks public twimg
-                        <img
+                        <Img
                           src={r.url}
                           alt=""
                           className="size-10 rounded object-cover"
@@ -336,8 +335,7 @@ function SimilarImageCell({ row }: { row: InspectorSimilarImage }) {
     >
       <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted">
         {row.imageUrl ? (
-          // biome-ignore lint/performance/noImgElement: admin-only signed thumbnail
-          <img
+          <Img
             src={row.imageUrl}
             alt=""
             loading="lazy"

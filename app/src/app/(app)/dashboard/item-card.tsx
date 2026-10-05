@@ -80,6 +80,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
+import { Img } from "@/components/ui/img";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -2141,8 +2142,7 @@ export function ItemDetailBody({
             animateEntrance={animateEntrance}
             className="items-center justify-center"
           >
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-            <img
+            <Img
               src={fullQualityUrl || previewUrl}
               alt={name}
               className="max-h-[calc(100vh-2rem)] w-full object-contain"
@@ -2179,8 +2179,7 @@ export function ItemDetailBody({
                 className="absolute top-0 right-0 left-0 z-10 h-0.5 rounded-none bg-transparent"
               />
             )}
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-            <img
+            <Img
               src={fullQualityUrl || previewUrl}
               alt={name}
               className={DETAIL_IMAGE_CLASSNAME}
@@ -2676,8 +2675,7 @@ export function ItemDetailBody({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 1 }}
                 >
-                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-                  <img
+                  <Img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
                     className="max-h-[300px] w-full object-contain"

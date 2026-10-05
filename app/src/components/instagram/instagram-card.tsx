@@ -55,7 +55,6 @@ export function InstagramCard({
           {/* biome-ignore lint/performance/noImgElement: external Instagram image URL */}
           <img
             {...imgProps}
-            src={previewImage}
             alt={`Instagram post by @${authorUsername}`}
             className="h-full w-full object-cover"
             loading="lazy"

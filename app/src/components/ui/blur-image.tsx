@@ -33,13 +33,7 @@ export function BlurImage({
   return (
     <>
       {/* biome-ignore lint/performance/noImgElement: proxy/blob URL for user-uploaded content */}
-      <img
-        {...imgProps}
-        src={src}
-        alt={alt}
-        className={className}
-        loading={loading}
-      />
+      <img {...imgProps} alt={alt} className={className} loading={loading} />
       {blurDataUrl && (
         <BlurPlaceholder blurDataUrl={blurDataUrl} visible={!loaded} />
       )}
