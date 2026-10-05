@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+import {
+  storyArticleCard,
+  storyArticleTweet,
+  storyLongFormTweet,
+} from "./story-fixtures";
 import { TwitterCard } from "./twitter-card";
 import type { TwitterDetails } from "./types";
 
@@ -277,6 +282,40 @@ export const LinkCardNoImage: Story = {
   decorators: [
     (Story) => (
       <div className="h-[240px] w-[250px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** A long-form post X cut off at ~280 chars */
+export const LongFormPost: Story = {
+  args: { twitterDetails: storyLongFormTweet },
+  decorators: [
+    (Story) => (
+      <div className="h-[240px] w-[250px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** An X Article post: previews its cover */
+export const Article: Story = {
+  args: { twitterDetails: storyArticleTweet },
+};
+
+/** An X Article without a cover: previews its title */
+export const ArticleWithoutCover: Story = {
+  args: {
+    twitterDetails: {
+      ...storyArticleTweet,
+      card: { ...storyArticleCard, imageUrl: null },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="h-[160px] w-[250px]">
         <Story />
       </div>
     ),
