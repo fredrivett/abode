@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { expect, waitFor } from "storybook/test";
 import { highlightsQueryKey } from "@/lib/highlights/use-highlights";
 import { ArticleDetailView } from "./article-detail-view";
 
@@ -72,7 +73,37 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 // Each section after a break opens with a drop cap; the opening paragraph
-// stays plain and the caption is set apart from the body text
+// stays plain and the caption is set apart from the body text. The play test
+// guards the rendered structure the reader's sibling selectors rely on
+// (`hr + p`, `p:has(+ figcaption)`), which only exists if captured markdown
+// still renders breaks and kept captions as siblings of the paragraphs.
 export const Sectioned: Story = {
   args: { content: SECTIONED_CONTENT, originalName: "After the storm" },
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector("article figcaption")).not.toBeNull(),
+    );
+    const firstLetterFloat = (element: Element | null) => {
+      if (!element) throw new Error("missing paragraph");
+      return getComputedStyle(element, "::first-letter").float;
+    };
+
+    const sectionOpeners = canvasElement.querySelectorAll("article hr + p");
+    expect(sectionOpeners).toHaveLength(2);
+    for (const opener of sectionOpeners) {
+      expect(firstLetterFloat(opener)).toBe("left");
+    }
+    expect(firstLetterFloat(canvasElement.querySelector("article p"))).toBe(
+      "none",
+    );
+
+    const caption = canvasElement.querySelector("article figcaption");
+    const image = caption?.previousElementSibling?.querySelector("img");
+    if (!caption || !image) throw new Error("caption isn't next to its image");
+    const gap =
+      caption.getBoundingClientRect().top -
+      image.getBoundingClientRect().bottom;
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThan(16);
+  },
 };
