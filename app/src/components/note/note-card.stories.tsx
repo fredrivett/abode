@@ -58,3 +58,16 @@ export const Empty: Story = {
     content: "",
   },
 };
+
+export const Checklist: Story = {
+  args: {
+    title: "Weekend",
+    content: `Before Saturday:
+
+- [x] Book the van
+- [ ] Pack the kitchen — plates, glasses and anything else fragile
+  - [x] Buy bubble wrap
+  - [ ] Label the boxes
+- [ ] Return the keys`,
+  },
+};

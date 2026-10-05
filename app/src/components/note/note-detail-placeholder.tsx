@@ -6,6 +6,7 @@ import {
   NOTE_PROSE_CLASS,
   NOTE_PROSE_FONT_SIZE,
 } from "./note-prose";
+import { TaskCheckbox } from "./task-checkbox";
 
 /**
  * Shown while the note editor (a large lazy chunk) loads: the note's own
@@ -26,7 +27,11 @@ export function NoteDetailPlaceholder({
       <Markdown
         className={cn(NOTE_EDITOR_CLASS, NOTE_PROSE_CLASS)}
         style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
-        options={{ forceBlock: true, wrapper: "div" }}
+        options={{
+          forceBlock: true,
+          wrapper: "div",
+          overrides: { input: TaskCheckbox },
+        }}
       >
         {content}
       </Markdown>
