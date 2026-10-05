@@ -131,7 +131,20 @@ export async function POST(
     }
 
     try {
-      if (item.sourceType === "url" && item.sourceUrl) {
+      // A PDF (uploaded or saved from a URL) reruns its import from the stored
+      // file rather than downloading it again; the import skips rendering
+      // when the failed attempt already saved the pages
+      if (item.kind === "document" && item.sourceFileKey) {
+        log.info(
+          { itemId: id, userId: item.userId, triggeredBy: user.id },
+          "Retrying PDF import",
+        );
+        await enqueueUserProcessing<typeof importPdfTask>(
+          "import-pdf",
+          { itemId: id, userId: item.userId },
+          item.userId,
+        );
+      } else if (item.sourceType === "url" && item.sourceUrl) {
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",
@@ -157,17 +170,6 @@ export async function POST(
             userId: item.userId,
             fileKey: item.fileKey,
           },
-          item.userId,
-        );
-      } else if (item.kind === "document" && item.sourceFileKey) {
-        log.info(
-          { itemId: id, userId: item.userId, triggeredBy: user.id },
-          "Retrying PDF import",
-        );
-        // Skips rendering when the failed attempt already saved the pages
-        await enqueueUserProcessing<typeof importPdfTask>(
-          "import-pdf",
-          { itemId: id, userId: item.userId },
           item.userId,
         );
       } else if (item.kind === "document") {
