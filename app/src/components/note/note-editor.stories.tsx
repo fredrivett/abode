@@ -280,3 +280,55 @@ export const TypingInBulletStartsChecklist: Story = {
     expect(editor.querySelectorAll("li[data-checked]")).toHaveLength(1);
   },
 };
+
+const LINKED = `Reading list: [the essay](https://example.com/essay) and
+[a second one](https://example.com/second).`;
+
+// Clicking a link while editing places the caret; it must not navigate.
+// ⌘/Ctrl-click opens it in a new tab
+export const WithLinks: Story = {
+  args: {
+    content: LINKED,
+    editable: true,
+  },
+  play: async ({ canvasElement }) => {
+    const open = fn();
+    const originalOpen = window.open;
+    window.open = open;
+    try {
+      const link = await waitFor(() => {
+        const element = canvasElement.querySelector(".ProseMirror a");
+        if (!(element instanceof HTMLElement)) throw new Error("not ready");
+        return element;
+      });
+      // ProseMirror resolves clicks by coordinates, so click on the link itself
+      const rect = link.getBoundingClientRect();
+      const coords = {
+        clientX: rect.left + 4,
+        clientY: rect.top + rect.height / 2,
+      };
+      const user = userEvent.setup();
+
+      await user.pointer({ keys: "[MouseLeft]", target: link, coords });
+      expect(open).not.toHaveBeenCalled();
+
+      await user.keyboard("{Meta>}");
+      await user.pointer({ keys: "[MouseLeft]", target: link, coords });
+      await user.keyboard("{/Meta}");
+      expect(open).toHaveBeenCalledWith(
+        "https://example.com/essay",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } finally {
+      window.open = originalOpen;
+    }
+  },
+};
+
+export const ReadOnlyWithLinks: Story = {
+  args: {
+    content: LINKED,
+    editable: false,
+  },
+};

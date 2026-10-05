@@ -8,6 +8,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { LinkModifierClick } from "./note-link-open";
 import {
   NOTE_EDITOR_CLASS,
   NOTE_PROSE_CLASS,
@@ -58,16 +59,26 @@ const CHECKLIST_EXTENSIONS = [
   BulletToTaskItem,
 ];
 
+// A plain click in an editable note places the caret rather than navigating
+// away mid-edit; ⌘/Ctrl-click opens instead
+const LINK_OPTIONS = { openOnClick: false } as const;
+
 /** The editor's extensions; exported so tests can round-trip markdown. */
 export function noteEditorExtensions({ titleFirst }: { titleFirst: boolean }) {
   return titleFirst
     ? [
         TitleDocument,
-        StarterKit.configure({ document: false }),
+        StarterKit.configure({ document: false, link: LINK_OPTIONS }),
         ...CHECKLIST_EXTENSIONS,
         Markdown,
+        LinkModifierClick,
       ]
-    : [StarterKit, ...CHECKLIST_EXTENSIONS, Markdown];
+    : [
+        StarterKit.configure({ link: LINK_OPTIONS }),
+        ...CHECKLIST_EXTENSIONS,
+        Markdown,
+        LinkModifierClick,
+      ];
 }
 
 // Style the mandatory first line as a title, overriding the flattened heading
