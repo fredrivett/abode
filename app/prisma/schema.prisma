@@ -530,11 +530,20 @@ model ItemTwitterDetails {
   authorAvatarUrl     String?   @map("author_avatar_url")
   authorAvatarFileKey String?   @map("author_avatar_file_key") // Our re-hosted copy of the avatar (fallback: authorAvatarUrl)
   text                String? // Tweet text content
+  isTruncated         Boolean   @default(false) @map("is_truncated") // Long-form post: `text` is only the first ~280 chars
   postedAt            DateTime? @map("posted_at") // When tweet was posted
   media               Json?     @map("media") // Array of media objects with type, url, dimensions
   quotedTweetId       String?   @map("quoted_tweet_id") // If quoting another tweet
-  card                Json?     @map("card") // Link card data (title, description, url, imageUrl)
+  quotedTweet         Json?     @map("quoted_tweet") // Snapshot of the quoted tweet (QuotedTweet, zod-validated)
+  card                Json?     @map("card") // Link card data (title, description, url, imageUrl); also X Articles
+  poll                Json?     @map("poll") // Poll options + counts (TweetPoll, zod-validated)
   coverMediaIndex     Int?      @map("cover_media_index") // Index into media[] for cover image
+
+  // The post this one replies to (all null when it isn't a reply)
+  inReplyToTweetId        String? @map("in_reply_to_tweet_id")
+  inReplyToAuthorUsername String? @map("in_reply_to_author_username")
+  inReplyToAuthorName     String? @map("in_reply_to_author_name")
+  inReplyToText           String? @map("in_reply_to_text")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
