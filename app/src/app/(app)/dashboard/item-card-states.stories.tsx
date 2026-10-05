@@ -49,6 +49,10 @@ const twitterPhoto: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -64,6 +68,10 @@ const twitterText: TwitterDetails = {
   postedAt: "2024-03-01T09:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };

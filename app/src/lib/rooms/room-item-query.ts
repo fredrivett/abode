@@ -4,14 +4,16 @@ import {
   mapPublicBookDetails,
   publicBookDetailsSelect,
 } from "@/lib/items/query";
+import {
+  mapTwitterDetails,
+  twitterDetailsSelect,
+} from "@/lib/twitter/map-twitter-details";
 import type {
   InstagramDetails,
   InstagramMedia,
   NoteDetails,
   ProductDetails,
   ProductImage,
-  TwitterDetails,
-  TwitterMedia,
   VideoDetails,
 } from "@/lib/types/item";
 import type { RoomItem } from "@/lib/types/room";
@@ -77,20 +79,7 @@ export const roomItemSelect = {
           content: true,
         },
       },
-      twitterDetails: {
-        select: {
-          tweetId: true,
-          authorName: true,
-          authorUsername: true,
-          authorAvatarUrl: true,
-          text: true,
-          postedAt: true,
-          media: true,
-          quotedTweetId: true,
-          card: true,
-          coverMediaIndex: true,
-        },
-      },
+      twitterDetails: { select: twitterDetailsSelect },
       instagramDetails: {
         select: {
           postId: true,
@@ -179,19 +168,7 @@ export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
         }
       : null,
     twitterDetails: roomItem.item.twitterDetails
-      ? ({
-          tweetId: roomItem.item.twitterDetails.tweetId,
-          authorName: roomItem.item.twitterDetails.authorName,
-          authorUsername: roomItem.item.twitterDetails.authorUsername,
-          authorAvatarUrl: roomItem.item.twitterDetails.authorAvatarUrl,
-          text: roomItem.item.twitterDetails.text,
-          postedAt:
-            roomItem.item.twitterDetails.postedAt?.toISOString() ?? null,
-          media: roomItem.item.twitterDetails.media as TwitterMedia[] | null,
-          quotedTweetId: roomItem.item.twitterDetails.quotedTweetId,
-          card: roomItem.item.twitterDetails.card as TwitterDetails["card"],
-          coverMediaIndex: roomItem.item.twitterDetails.coverMediaIndex,
-        } satisfies TwitterDetails)
+      ? mapTwitterDetails(roomItem.item.twitterDetails)
       : null,
     instagramDetails: roomItem.item.instagramDetails
       ? ({

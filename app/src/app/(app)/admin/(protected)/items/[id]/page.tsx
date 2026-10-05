@@ -642,7 +642,22 @@ export default async function AdminItemInspectorPage({
                     <Empty />
                   )}
                 </Row>
+                <Row label="isTruncated">
+                  {item.twitterDetails.isTruncated ? "yes" : "no"}
+                </Row>
+                <Row label="inReplyTo">
+                  {item.twitterDetails.inReplyToTweetId ? (
+                    <Mono>{item.twitterDetails.inReplyToTweetId}</Mono>
+                  ) : (
+                    <Empty />
+                  )}
+                </Row>
                 <JsonDetails label="card" value={item.twitterDetails.card} />
+                <JsonDetails
+                  label="quotedTweet"
+                  value={item.twitterDetails.quotedTweet}
+                />
+                <JsonDetails label="poll" value={item.twitterDetails.poll} />
               </CardContent>
             </Card>
           )}

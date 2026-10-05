@@ -92,6 +92,10 @@ function tweet(
     postedAt: "2024-01-15T12:00:00.000Z",
     media: null,
     quotedTweetId: null,
+    isTruncated: false,
+    quotedTweet: null,
+    poll: null,
+    inReplyTo: null,
     card: null,
     coverMediaIndex: null,
   };

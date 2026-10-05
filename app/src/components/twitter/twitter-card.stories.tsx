@@ -48,6 +48,10 @@ const tweetWithVideo: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -69,6 +73,10 @@ const tweetWithPhoto: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -83,6 +91,10 @@ const tweetWithLinkCard: TwitterDetails = {
   postedAt: "2023-07-25T19:23:35.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: {
     title: "Introducing React Tweet - Vercel",
     description:
@@ -103,6 +115,10 @@ const textOnlyTweet: TwitterDetails = {
   postedAt: "2024-01-15T12:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -149,6 +165,10 @@ const longTextTweet: TwitterDetails = {
   postedAt: "2024-01-20T10:30:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -182,6 +202,10 @@ const noAvatarTweet: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -202,6 +226,10 @@ const usernameOnlyTweet: TwitterDetails = {
   postedAt: "2024-01-19T08:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -229,6 +257,10 @@ const linkCardNoImageTweet: TwitterDetails = {
   postedAt: "2024-01-21T12:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: {
     title: "Web Development Best Practices",
     description: "A comprehensive guide to modern web development.",

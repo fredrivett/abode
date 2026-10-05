@@ -1,6 +1,7 @@
 import type {
   CaptureSource,
   ItemKind,
+  Prisma,
   ProcessingStatus,
   SourceType,
 } from "@prisma/client";
@@ -25,6 +26,7 @@ import {
 } from "@/lib/search/query-builder";
 import { rankedSearch } from "@/lib/search/ranked-search";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { mapTwitterDetails } from "@/lib/twitter/map-twitter-details";
 import type {
   BookDetails,
   ImageColor,
@@ -34,8 +36,6 @@ import type {
   ProductDetails,
   ProductImage,
   SearchItem,
-  TwitterDetails,
-  TwitterMedia,
   VideoDetails,
 } from "@/lib/types/item";
 
@@ -105,12 +105,20 @@ type RawItemRow = {
   twitter_author_name: string | null;
   twitter_author_username: string | null;
   twitter_author_avatar_url: string | null;
+  twitter_author_avatar_file_key: string | null;
   twitter_text: string | null;
+  twitter_is_truncated: boolean | null;
   twitter_posted_at: Date | null;
-  twitter_media: unknown;
+  twitter_media: Prisma.JsonValue;
   twitter_quoted_tweet_id: string | null;
-  twitter_card: unknown;
+  twitter_quoted_tweet: Prisma.JsonValue;
+  twitter_card: Prisma.JsonValue;
+  twitter_poll: Prisma.JsonValue;
   twitter_cover_media_index: number | null;
+  twitter_in_reply_to_tweet_id: string | null;
+  twitter_in_reply_to_author_username: string | null;
+  twitter_in_reply_to_author_name: string | null;
+  twitter_in_reply_to_text: string | null;
   instagram_post_id: string | null;
   instagram_media_type: string | null;
   instagram_author_name: string | null;
@@ -238,18 +246,26 @@ function transformRawItemToItem(
         : null,
     twitterDetails:
       row.twitter_tweet_id && row.twitter_author_username
-        ? ({
+        ? mapTwitterDetails({
             tweetId: row.twitter_tweet_id,
             authorName: row.twitter_author_name,
             authorUsername: row.twitter_author_username,
             authorAvatarUrl: row.twitter_author_avatar_url,
+            authorAvatarFileKey: row.twitter_author_avatar_file_key,
             text: row.twitter_text,
-            postedAt: row.twitter_posted_at?.toISOString() ?? null,
-            media: row.twitter_media as TwitterMedia[] | null,
+            isTruncated: row.twitter_is_truncated ?? false,
+            postedAt: row.twitter_posted_at,
+            media: row.twitter_media,
             quotedTweetId: row.twitter_quoted_tweet_id,
-            card: row.twitter_card as TwitterDetails["card"],
+            quotedTweet: row.twitter_quoted_tweet,
+            card: row.twitter_card,
+            poll: row.twitter_poll,
             coverMediaIndex: row.twitter_cover_media_index,
-          } satisfies TwitterDetails)
+            inReplyToTweetId: row.twitter_in_reply_to_tweet_id,
+            inReplyToAuthorUsername: row.twitter_in_reply_to_author_username,
+            inReplyToAuthorName: row.twitter_in_reply_to_author_name,
+            inReplyToText: row.twitter_in_reply_to_text,
+          })
         : null,
     instagramDetails:
       row.instagram_post_id && row.instagram_author_username
@@ -642,12 +658,20 @@ async function executeFiltersOnlySearch(
       td.author_name as twitter_author_name,
       td.author_username as twitter_author_username,
       td.author_avatar_url as twitter_author_avatar_url,
+      td.author_avatar_file_key as twitter_author_avatar_file_key,
       td.text as twitter_text,
+      td.is_truncated as twitter_is_truncated,
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
+      td.quoted_tweet as twitter_quoted_tweet,
       td.card as twitter_card,
+      td.poll as twitter_poll,
       td.cover_media_index as twitter_cover_media_index,
+      td.in_reply_to_tweet_id as twitter_in_reply_to_tweet_id,
+      td.in_reply_to_author_username as twitter_in_reply_to_author_username,
+      td.in_reply_to_author_name as twitter_in_reply_to_author_name,
+      td.in_reply_to_text as twitter_in_reply_to_text,
       ig.post_id as instagram_post_id,
       ig.media_type as instagram_media_type,
       ig.author_name as instagram_author_name,
@@ -903,12 +927,20 @@ async function executeRankedSearch(
       td.author_name as twitter_author_name,
       td.author_username as twitter_author_username,
       td.author_avatar_url as twitter_author_avatar_url,
+      td.author_avatar_file_key as twitter_author_avatar_file_key,
       td.text as twitter_text,
+      td.is_truncated as twitter_is_truncated,
       td.posted_at as twitter_posted_at,
       td.media as twitter_media,
       td.quoted_tweet_id as twitter_quoted_tweet_id,
+      td.quoted_tweet as twitter_quoted_tweet,
       td.card as twitter_card,
+      td.poll as twitter_poll,
       td.cover_media_index as twitter_cover_media_index,
+      td.in_reply_to_tweet_id as twitter_in_reply_to_tweet_id,
+      td.in_reply_to_author_username as twitter_in_reply_to_author_username,
+      td.in_reply_to_author_name as twitter_in_reply_to_author_name,
+      td.in_reply_to_text as twitter_in_reply_to_text,
       ig.post_id as instagram_post_id,
       ig.media_type as instagram_media_type,
       ig.author_name as instagram_author_name,

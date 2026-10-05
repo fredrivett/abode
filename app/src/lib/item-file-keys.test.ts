@@ -32,6 +32,9 @@ const JSON_FIELDS_WITHOUT_FILE_KEYS: Record<string, string> = {
   "ItemMediaAnalysis.visionData": "raw vision API response",
   "ItemImageDetails.colors": "colour palette",
   "ItemImageDetails.visionData": "raw vision API response",
+  "ItemTwitterDetails.quotedTweet":
+    "quoted tweet snapshot: hotlinked twimg URLs",
+  "ItemTwitterDetails.poll": "poll options and vote counts",
 };
 
 const FILE_KEY_COLUMN = /filekey$/i;

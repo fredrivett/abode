@@ -21,6 +21,10 @@ const baseTweet: TwitterDetails = {
   postedAt: null,
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };

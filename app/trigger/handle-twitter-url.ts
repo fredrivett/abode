@@ -1,12 +1,21 @@
 import { Prisma } from "@prisma/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger, tasks } from "@trigger.dev/sdk";
-import { fetchTweet, type Tweet } from "react-tweet/api";
+import { fetchTweet } from "react-tweet/api";
 import { translateToEnglish } from "../src/lib/ai/translate-to-english";
 import db from "../src/lib/db";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
+import { ProcessingFailure } from "../src/lib/items/processing-error";
 import { downloadAndStoreImage } from "../src/lib/media/rehost-image";
 import { detectPlatform, normalizeUrl } from "../src/lib/platforms";
+import {
+  type RawTweet,
+  transformTweetData,
+  tweetDescriptionSource,
+  tweetItemTitle,
+  tweetSourceText,
+} from "../src/lib/twitter/transform-tweet";
+import { tweetContextData } from "../src/lib/twitter/tweet-context-data";
 import type {
   ExternalLink,
   TwitterDetails,
@@ -32,93 +41,6 @@ type HandleTwitterUrlResult = {
   kind: "twitter";
   twitterDetails: TwitterDetails;
 };
-
-/**
- * Transform raw tweet data from react-tweet/api into our TwitterDetails format.
- * Exported for testing purposes.
- */
-export function transformTweetData(tweet: Tweet): TwitterDetails {
-  // Transform media array
-  let media: TwitterMedia[] | null = null;
-  if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
-    media = tweet.mediaDetails.map((m): TwitterMedia => {
-      const base: TwitterMedia = {
-        type: m.type as "photo" | "video" | "animated_gif",
-        url: m.media_url_https,
-        width: m.original_info?.width,
-        height: m.original_info?.height,
-      };
-
-      // Add video-specific fields
-      if ("video_info" in m && m.video_info) {
-        base.posterUrl = m.media_url_https;
-        base.variants = m.video_info.variants
-          .filter((v) => v.content_type?.startsWith("video/"))
-          .map((v) => ({
-            type: v.content_type ?? "video/mp4",
-            src: v.url,
-            bitrate: v.bitrate,
-          }));
-      }
-
-      return base;
-    });
-  }
-
-  // Transform link card if present
-  // Note: react-tweet types don't include 'card' but it may be present in the raw data
-  let card: TwitterDetails["card"] = null;
-  const rawTweet = tweet as typeof tweet & {
-    card?: {
-      url?: string;
-      binding_values?: Record<
-        string,
-        { string_value?: string; image_value?: { url?: string } }
-      >;
-    };
-  };
-  if (rawTweet.card) {
-    // Extract card values from the binding_values object
-    const values = rawTweet.card.binding_values;
-
-    const title = values?.title?.string_value;
-    const description = values?.description?.string_value;
-    const cardUrl = values?.url?.string_value ?? rawTweet.card.url;
-    const imageUrl =
-      values?.thumbnail_image_large?.image_value?.url ??
-      values?.thumbnail_image?.image_value?.url ??
-      values?.player_image_large?.image_value?.url ??
-      null;
-
-    if (title || description) {
-      card = {
-        title: title ?? "",
-        description: description ?? "",
-        url: cardUrl ?? "",
-        imageUrl,
-      };
-    }
-  }
-
-  if (!tweet.user?.screen_name) {
-    throw new Error(`Tweet ${tweet.id_str} is missing author username`);
-  }
-
-  return {
-    tweetId: tweet.id_str,
-    authorName: tweet.user.name ?? null,
-    authorUsername: tweet.user.screen_name,
-    authorAvatarUrl: tweet.user.profile_image_url_https ?? null,
-    text: tweet.text ?? null,
-    postedAt: tweet.created_at
-      ? new Date(tweet.created_at).toISOString()
-      : null,
-    media,
-    quotedTweetId: tweet.quoted_tweet?.id_str ?? null,
-    card,
-    coverMediaIndex: null,
-  };
-}
 
 /**
  * The still image to re-host for a media item: the photo itself, or the poster
@@ -261,26 +183,33 @@ export async function handleTwitterUrl(
   const result = await fetchTweet(tweetId);
 
   if (result.tombstone) {
-    throw new Error(
-      `Tweet is no longer available (deleted or private): ${tweetId}`,
+    // X serves a tombstone to logged-out readers for deleted and protected
+    // posts, and for live posts it has marked sensitive — retrying won't help
+    throw new ProcessingFailure(
+      "source_blocked",
+      `Tweet is unavailable to logged-out viewers (deleted, protected or marked sensitive): ${tweetId}`,
     );
   }
   if (result.notFound) {
-    throw new Error(`Tweet not found: ${tweetId}`);
+    throw new ProcessingFailure(
+      "source_not_found",
+      `Tweet not found: ${tweetId}`,
+    );
   }
   if (!result.data) {
     throw new Error(`Failed to fetch tweet: ${tweetId}`);
   }
 
-  const tweet = result.data;
+  const tweet: RawTweet = result.data;
 
   logger.log("Tweet fetched successfully", {
     itemId,
     tweetId: tweet.id_str,
     authorUsername: tweet.user?.screen_name,
     hasMedia: !!tweet.mediaDetails?.length,
-    // Card may exist in raw data but isn't in the Tweet type
-    hasCard: !!(tweet as { card?: unknown }).card,
+    hasCard: !!tweet.card,
+    isArticle: !!tweet.article,
+    isTruncated: !!tweet.note_tweet,
   });
 
   // Transform to our format
@@ -320,9 +249,10 @@ export async function handleTwitterUrl(
 
   // Translate tweet text into English for the description (no-op if already English)
   let descriptionEn: string | null = null;
-  if (twitterDetails.text) {
+  const descriptionSource = tweetDescriptionSource(twitterDetails);
+  if (descriptionSource) {
     try {
-      descriptionEn = await translateToEnglish(twitterDetails.text, {
+      descriptionEn = await translateToEnglish(descriptionSource, {
         userId,
         itemId,
         itemKind: "twitter",
@@ -332,7 +262,7 @@ export async function handleTwitterUrl(
         itemId,
         error,
       });
-      descriptionEn = twitterDetails.text;
+      descriptionEn = descriptionSource;
     }
   }
 
@@ -364,7 +294,7 @@ export async function handleTwitterUrl(
         where: { id: itemId, userId },
         data: {
           kind: "twitter",
-          title: `Tweet by @${details.authorUsername}`,
+          title: tweetItemTitle(details),
           description: descriptionEn?.slice(0, 200) ?? null,
           // Clear file columns the new kind doesn't use so they never point at a
           // blob deleteReplacedFiles is about to remove
@@ -396,11 +326,10 @@ export async function handleTwitterUrl(
         authorUsername: details.authorUsername,
         authorAvatarUrl: details.authorAvatarUrl,
         authorAvatarFileKey: details.authorAvatarFileKey ?? null,
-        text: details.text,
         postedAt: details.postedAt ? new Date(details.postedAt) : null,
         media: (details.media as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        quotedTweetId: details.quotedTweetId,
         card: (details.card as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        ...tweetContextData(details),
       };
       await tx.itemTwitterDetails.upsert({
         where: { itemId },
@@ -441,14 +370,14 @@ export async function handleTwitterUrl(
       itemId,
       userId,
       fileKey: rehosted.coverFileKey,
-      extraSourceText: details.text ?? undefined,
+      extraSourceText: tweetSourceText(details),
     });
   } else {
     logger.log("Triggering item enrichment", { itemId, userId });
     await tasks.trigger<typeof enrichItemTask>("enrich-item", {
       itemId,
       userId,
-      sourceText: details.text ?? undefined,
+      sourceText: tweetSourceText(details),
     });
   }
 
