@@ -53,6 +53,24 @@ describe("openPdf", () => {
     }
   });
 
+  it("reports a page that can't be rendered as unreadable, not a crash", async () => {
+    const pdf = await openPdf(
+      await buildPdf([{ text: "One page only, nothing more here" }]),
+    );
+    try {
+      let error: unknown;
+      try {
+        pdf.renderPage(5);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ProcessingFailure);
+      expect((error as ProcessingFailure).reason).toBe("file_unreadable");
+    } finally {
+      pdf.close();
+    }
+  });
+
   it("rejects a file that isn't a PDF as unreadable", async () => {
     const bytes = new TextEncoder().encode("<html>not a pdf</html>");
     expect(await failureReason(openPdf(bytes))).toBe("file_unreadable");

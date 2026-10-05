@@ -14,9 +14,11 @@ export function downloadFileName({
 }): string {
   if (!isPdf) return name || "download";
   if (typeof originalName === "string" && /\.pdf$/i.test(originalName.trim())) {
-    return originalName.trim();
+    return withoutPathSeparators(originalName) || "document.pdf";
   }
-  // Path separators would make some browsers drop or mangle the name
-  const base = name.replace(/[\\/]+/g, "-").trim() || "document";
-  return `${base}.pdf`;
+  return `${withoutPathSeparators(name) || "document"}.pdf`;
 }
+
+// Path separators would make some browsers drop or mangle the name
+const withoutPathSeparators = (value: string) =>
+  value.replace(/[\\/]+/g, "-").trim();

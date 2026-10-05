@@ -29,6 +29,11 @@ export interface OpenedPdf {
   close(): void;
 }
 
+function unreadable(context: string, cause: unknown): ProcessingFailure {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return new ProcessingFailure("file_unreadable", `${context}: ${detail}`);
+}
+
 // A PDF's header must appear within its first 1KB
 function hasPdfHeader(bytes: Uint8Array): boolean {
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
@@ -52,46 +57,48 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedPdf> {
   try {
     doc = mupdf.Document.openDocument(bytes, "application/pdf");
   } catch (error) {
-    throw new ProcessingFailure(
-      "file_unreadable",
-      `PDF couldn't be opened: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw unreadable("PDF couldn't be opened", error);
   }
 
-  const fail = (
-    reason: "file_unreadable" | "document_too_long",
-    message: string,
-  ) => {
+  // MuPDF parses lazily, so a damaged file can also fail here or mid-render
+  let pageCount: number;
+  try {
+    if (doc.needsPassword()) {
+      throw new ProcessingFailure("file_unreadable", "PDF is encrypted");
+    }
+    pageCount = doc.countPages();
+    if (pageCount < 1) {
+      throw new ProcessingFailure("file_unreadable", "PDF has no pages");
+    }
+    if (pageCount > MAX_PDF_PAGES) {
+      throw new ProcessingFailure(
+        "document_too_long",
+        `PDF has ${pageCount} pages (max ${MAX_PDF_PAGES})`,
+      );
+    }
+  } catch (error) {
     doc.destroy();
-    return new ProcessingFailure(reason, message);
-  };
-  if (doc.needsPassword()) throw fail("file_unreadable", "PDF is encrypted");
-  const pageCount = doc.countPages();
-  if (pageCount < 1) throw fail("file_unreadable", "PDF has no pages");
-  if (pageCount > MAX_PDF_PAGES) {
-    throw fail(
-      "document_too_long",
-      `PDF has ${pageCount} pages (max ${MAX_PDF_PAGES})`,
-    );
+    throw error instanceof ProcessingFailure
+      ? error
+      : unreadable("PDF couldn't be read", error);
   }
 
-  return {
-    pageCount,
-    renderPage(index) {
-      const page = doc.loadPage(index);
+  const renderOne = (index: number): RenderedPdfPage => {
+    const page = doc.loadPage(index);
+    try {
+      const [x0, y0, x1, y1] = page.getBounds();
+      const longestSidePt = Math.max(x1 - x0, y1 - y0, 1);
+      const scale = Math.min(
+        RENDER_MAX_DPI / 72,
+        RENDER_MAX_SIDE_PX / longestSidePt,
+      );
+      const pixmap = page.toPixmap(
+        mupdf.Matrix.scale(scale, scale),
+        mupdf.ColorSpace.DeviceRGB,
+        false,
+        true,
+      );
       try {
-        const [x0, y0, x1, y1] = page.getBounds();
-        const longestSidePt = Math.max(x1 - x0, y1 - y0, 1);
-        const scale = Math.min(
-          RENDER_MAX_DPI / 72,
-          RENDER_MAX_SIDE_PX / longestSidePt,
-        );
-        const pixmap = page.toPixmap(
-          mupdf.Matrix.scale(scale, scale),
-          mupdf.ColorSpace.DeviceRGB,
-          false,
-          true,
-        );
         const text = page.toStructuredText("preserve-whitespace");
         try {
           return {
@@ -103,10 +110,22 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedPdf> {
           };
         } finally {
           text.destroy();
-          pixmap.destroy();
         }
       } finally {
-        page.destroy();
+        pixmap.destroy();
+      }
+    } finally {
+      page.destroy();
+    }
+  };
+
+  return {
+    pageCount,
+    renderPage(index) {
+      try {
+        return renderOne(index);
+      } catch (error) {
+        throw unreadable(`Page ${index + 1} couldn't be rendered`, error);
       }
     },
     close() {

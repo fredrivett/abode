@@ -70,6 +70,11 @@ test.describe("PDF upload", () => {
       expect(document.fileKey).toBeNull();
       const card = page.getByRole("button", { name: /Q1 energy bill\s*PDF/ });
       await expect(card).toBeVisible();
+      // The original is downloadable before (or without) rendered pages
+      await card.click();
+      await expect(
+        page.getByRole("button", { name: "Download PDF" }),
+      ).toBeVisible();
     } finally {
       await deleteItem(page, document.id);
     }

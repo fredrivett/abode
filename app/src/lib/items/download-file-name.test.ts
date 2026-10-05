@@ -24,6 +24,16 @@ describe("downloadFileName", () => {
     }
   });
 
+  it("strips path separators from an uploaded name", () => {
+    expect(
+      downloadFileName({
+        name: "Report",
+        originalName: "..\\finance/2026.pdf",
+        isPdf: true,
+      }),
+    ).toBe("..-finance-2026.pdf");
+  });
+
   it("strips path separators from a title-derived name", () => {
     expect(
       downloadFileName({

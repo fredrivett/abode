@@ -29,7 +29,8 @@ describe("usableTextLayer", () => {
   });
 
   it("distrusts a garbled layer from a font without a Unicode mapping", () => {
-    const garbled = `Invoice ${"\uFFFD".repeat(40)} total ${"\uE001".repeat(20)}`;
+    // Enough real letters to pass the length check, so the garble check decides
+    const garbled = `Invoice ${"\uFFFD".repeat(40)} total paid promptly ${"\uE001".repeat(20)}`;
     expect(usableTextLayer(garbled)).toBeNull();
   });
 

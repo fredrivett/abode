@@ -56,8 +56,9 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       // Don't intercept paste if user is typing in an input
       if (isEditableTarget(event.target)) return;
 
-      // A copied file (an image or a PDF from Finder/Explorer) uploads like a drop
-      const file = event.clipboardData?.files?.[0];
+      // A copied file (an image or a PDF from Finder/Explorer) uploads like a
+      // drop — and like a drop, not while a dialog (e.g. Add item) is open
+      const file = isDialogOpen() ? undefined : event.clipboardData?.files?.[0];
       if (file) {
         event.preventDefault();
         if (isLoading) {

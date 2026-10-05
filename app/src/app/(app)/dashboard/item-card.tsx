@@ -3290,7 +3290,7 @@ export function ItemDetailBody({
                   )}
                 </Button>
               )}
-              {canEdit && item.fileKey && (
+              {canEdit && (item.sourceFileKey || item.fileKey) && (
                 <Button
                   variant="outline"
                   onClick={handleDownload}

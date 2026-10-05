@@ -9,6 +9,10 @@ export async function buildPdf(
   pages: FixturePage[],
   options: { password?: string } = {},
 ): Promise<Uint8Array> {
+  // mupdf's save options are a comma/space-separated key=value list
+  if (options.password && /[\s,=]/.test(options.password)) {
+    throw new Error("buildPdf: the password can't contain spaces, commas or =");
+  }
   const mupdf = await import("mupdf");
   const doc = new mupdf.PDFDocument();
   const font = doc.addSimpleFont(new mupdf.Font("Helvetica"));
