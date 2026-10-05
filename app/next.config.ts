@@ -4,6 +4,7 @@ import { withPostHogConfig } from "@posthog/nextjs-config";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
+import { extractUiLabels } from "./src/lib/analytics/extract-ui-labels";
 import { securityHeadersConfig } from "./src/lib/security-headers";
 
 let revision: string;
@@ -26,6 +27,17 @@ if (process.env.NODE_ENV === "development") {
   }
 }
 
+// UI copy written literally in components: the only click text analytics may
+// record (see src/lib/analytics/scrub-event.ts). Extracted per build so it
+// can't go stale. On failure no labels ship, which only leaves clicks
+// unlabelled; extract-ui-labels.test.ts catches a broken extractor in CI.
+let uiLabels: string[] = [];
+try {
+  uiLabels = extractUiLabels(path.join(import.meta.dirname, "src"));
+} catch {
+  uiLabels = [];
+}
+
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
@@ -42,6 +54,7 @@ const nextConfig: NextConfig = {
   // linked back to the deploy that produced them.
   env: {
     NEXT_PUBLIC_BUILD_SHA: revision,
+    NEXT_PUBLIC_UI_LABELS: JSON.stringify(uiLabels),
     ...(gitBranch ? { NEXT_PUBLIC_GIT_BRANCH: gitBranch } : {}),
   },
   // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the

@@ -73,7 +73,7 @@ export function BookCover3D({
         >
           {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
           <img
-            src={src}
+            {...imgProps}
             alt=""
             aria-hidden
             className="h-full w-full object-cover brightness-[0.5] saturate-[0.85]"
@@ -99,7 +99,6 @@ export function BookCover3D({
             {/* biome-ignore lint/performance/noImgElement: using proxy URL for stored cover */}
             <img
               {...imgProps}
-              src={src}
               alt={alt}
               className="h-full w-full object-cover"
               loading="lazy"

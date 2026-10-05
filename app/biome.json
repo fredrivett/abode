@@ -110,6 +110,19 @@
     {
       "includes": ["src/**", "trigger/**", "!src/lib/storage-objects.ts"],
       "plugins": ["./biome/no-raw-storage-list.grit"]
+    },
+    {
+      "includes": [
+        "src/**/*.tsx",
+        "!src/lib/og/**",
+        "!**/opengraph-image.tsx",
+        "!src/components/scanner/**",
+        "!src/components/avatar/avatar-cropper.tsx",
+        "!src/app/(app)/settings/_components/security-settings.tsx",
+        "!src/app/(marketing)/**",
+        "!src/**/*.stories.tsx"
+      ],
+      "plugins": ["./biome/no-raw-img.grit"]
     }
   ],
   "assist": {

@@ -1,4 +1,5 @@
 import type { ItemKind, Prisma } from "@prisma/client";
+import type { DbTransactionClient } from "@/lib/db";
 
 /**
  * A per-kind detail model — every Prisma model named `Item<Something>Details`.
@@ -83,7 +84,7 @@ type DetailDelegate = {
 // Explicit map avoids dynamic delegate indexing (which trips the union-of-
 // call-signatures error) while staying typed against the Prisma client.
 function detailDelegates(
-  client: Prisma.TransactionClient,
+  client: DbTransactionClient,
 ): Record<ItemDetailModel, DetailDelegate> {
   return {
     itemArticleDetails: client.itemArticleDetails,
@@ -107,7 +108,7 @@ function detailDelegates(
  * with the item's kind update.
  */
 export async function pruneStaleItemDetails(
-  client: Prisma.TransactionClient,
+  client: DbTransactionClient,
   itemId: string,
   keepKind: ItemKind,
   options: PruneItemDetailsOptions = {},

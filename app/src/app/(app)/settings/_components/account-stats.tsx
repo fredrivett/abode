@@ -1,12 +1,25 @@
-import { BarChart3, HardDrive, Image } from "lucide-react";
+import {
+  BarChart3,
+  Files,
+  HardDrive,
+  Image,
+  type LucideIcon,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { formatBytesParts } from "@/lib/utils";
 
 type Props = {
   storageUsedBytes: bigint;
   itemCount: number;
+  /** Stored files (uploads, scans, covers, saved images); null if unknown */
+  fileCount: number | null;
 };
 
-export function AccountStats({ storageUsedBytes, itemCount }: Props) {
+export function AccountStats({
+  storageUsedBytes,
+  itemCount,
+  fileCount,
+}: Props) {
   const storage = formatBytesParts(storageUsedBytes);
 
   return (
@@ -19,38 +32,56 @@ export function AccountStats({ storageUsedBytes, itemCount }: Props) {
         Your account usage and storage.
       </p>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background">
-            <Image className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="font-semibold text-2xl tabular-nums">
-              {itemCount.toLocaleString()}
-            </p>
-            <p className="font-mono text-muted-foreground text-sm">
-              {itemCount === 1 ? "Item" : "Items"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background">
-            <HardDrive className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="font-semibold text-2xl tabular-nums">
+      <div
+        className={`mt-4 grid gap-4 ${fileCount === null ? "md:grid-cols-2" : "md:grid-cols-3"}`}
+      >
+        <Stat
+          icon={Image}
+          value={itemCount.toLocaleString()}
+          label={itemCount === 1 ? "Item" : "Items"}
+        />
+        {fileCount !== null && (
+          <Stat
+            icon={Files}
+            value={fileCount.toLocaleString()}
+            label={fileCount === 1 ? "File" : "Files"}
+          />
+        )}
+        <Stat
+          icon={HardDrive}
+          value={
+            <>
               {storage.value}
               <span className="small-caps font-normal text-base">
                 {storage.unit}
               </span>
-            </p>
-            <p className="font-mono text-muted-foreground text-sm">
-              Storage used
-            </p>
-          </div>
-        </div>
+            </>
+          }
+          label="Storage used"
+        />
       </div>
     </section>
+  );
+}
+
+function Stat({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: LucideIcon;
+  value: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="font-semibold text-2xl tabular-nums">{value}</p>
+        <p className="font-mono text-muted-foreground text-sm">{label}</p>
+      </div>
+    </div>
   );
 }

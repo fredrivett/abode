@@ -67,15 +67,18 @@ export const VALID_SOURCE_TYPES = Object.values(SourceType) as SourceTypeType[];
 
 /**
  * Valid `@status:` filter values — an item's consumption lifecycle. Generic
- * across media so it can grow with the app: today `unread`/`read` apply to both
- * articles and books and `reading`/`dnf` are book-only (articles use a binary
- * read/unread model); future kinds add their own verbs (e.g. `watched` for
- * videos, `listened` for podcasts) as new values + SQL cases, no token rename.
+ * across media so it can grow with the app: `unread`/`read` apply to both
+ * articles and books; `want_to_read`/`reading`/`dnf` are book-only (articles use
+ * a binary read/unread model); future kinds add their own verbs (e.g. `watched`
+ * for videos, `listened` for podcasts) as new values + SQL cases, no token
+ * rename. `unread` means untracked (an article with no read_at, or a book with
+ * no status) — `want_to_read` is a distinct explicit intent, not `unread`.
  * Kept as its own list (not the Prisma enums) because it's the union of each
  * kind's vocabulary as the user filters on it.
  */
 export const VALID_STATUS_VALUES = [
   "unread",
+  "want_to_read",
   "reading",
   "read",
   "dnf",
@@ -446,22 +449,25 @@ export function validateStatusFilters(filters: FilterValue[]): {
  * membership can't run this SQL); the two must agree — a parity test in
  * room-service.integration.test.ts guards against drift.
  *   - read: an article marked read OR a book with status read.
+ *   - want_to_read: a book shelved as want-to-read (articles never qualify).
  *   - reading: a book currently being read (articles are binary read/unread, so
  *     they never qualify).
  *   - dnf: a book that was marked did-not-finish (articles never qualify).
- *   - unread: a readable item (article or book) not yet read — articles with no
- *     read_at, books with null/want_to_read status.
+ *   - unread: an untracked readable item — an article with no read_at, or a book
+ *     with no status set (want_to_read is a distinct explicit intent, not unread).
  */
 function statusMatchSql(state: StatusValue): string {
   switch (state) {
     case "read":
       return `(EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL) OR EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'read'))`;
+    case "want_to_read":
+      return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'want_to_read')`;
     case "reading":
       return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'reading')`;
     case "dnf":
       return `EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status = 'dnf')`;
     case "unread":
-      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IN ('reading', 'read', 'dnf'))))`;
+      return `((items.kind = 'article' AND NOT EXISTS (SELECT 1 FROM item_article_details ad WHERE ad.item_id = items.id AND ad.read_at IS NOT NULL)) OR (items.kind = 'book' AND NOT EXISTS (SELECT 1 FROM item_book_details bd WHERE bd.item_id = items.id AND bd.status IS NOT NULL)))`;
   }
 }
 

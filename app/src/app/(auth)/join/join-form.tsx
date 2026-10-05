@@ -5,7 +5,7 @@ import posthog from "posthog-js";
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { parseEmailToUsername } from "@/lib/username/generate-from-email";
+import { parseEmailToUsername } from "@/lib/username/parse-email";
 import { useUsernameAvailability } from "@/lib/username/use-username-availability";
 import { signupWithInvite } from "./actions";
 

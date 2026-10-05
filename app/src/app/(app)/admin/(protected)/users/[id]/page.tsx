@@ -7,12 +7,14 @@ import {
   Home,
   Mail,
   User,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteUserButton } from "@/app/(app)/admin/_components/delete-user-button";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type DailyActivityStats, getUserDailyActivity } from "@/lib/activity";
 import {
@@ -21,6 +23,7 @@ import {
 } from "@/lib/admin/usage-stats";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
+import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
 import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
 
 type PageParams = Promise<{ id: string }>;
@@ -286,12 +289,14 @@ export default async function AdminUserDetailPage({
     getUserUsageBreakdown(id),
   ]);
 
+  const replaysUrl = getPostHogPersonReplaysUrl(user.id);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader />
 
       <div className="mx-auto w-full max-w-7xl px-4 py-8">
-        <header className="flex items-center justify-between gap-4">
+        <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link
               href="/admin/users"
@@ -322,7 +327,17 @@ export default async function AdminUserDetailPage({
               </div>
             </div>
           </div>
-          <DeleteUserButton userId={user.id} userEmail={user.email} />
+          <div className="flex items-center gap-2">
+            {replaysUrl && (
+              <Button asChild variant="outline">
+                <a href={replaysUrl} target="_blank" rel="noopener noreferrer">
+                  <Video />
+                  Session replays
+                </a>
+              </Button>
+            )}
+            <DeleteUserButton userId={user.id} userEmail={user.email} />
+          </div>
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">

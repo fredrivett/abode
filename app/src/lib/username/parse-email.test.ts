@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEmailToUsername } from "./generate-from-email";
+import { parseEmailToUsername } from "./parse-email";
 
 describe("parseEmailToUsername", () => {
   it("extracts local part from email", () => {

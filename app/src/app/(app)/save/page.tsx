@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
-import { extractSharedUrl, firstSharedValue } from "@/lib/share-target";
+import { describeSharedValue, extractSharedUrl } from "@/lib/share-target";
 import { createClient } from "@/lib/supabase/server";
 import { SaveRedirect } from "./_components/save-redirect";
 
@@ -36,7 +36,8 @@ export default async function SavePage({
   }
 
   // No parseable link — surface it on the dashboard rather than save silently.
-  const received = firstSharedValue(params);
+  // Only the shape of what was shared — never its contents
+  const received = describeSharedValue(params);
   log.warn({ received }, "Share target opened without a parseable URL");
 
   const supabase = await createClient();
@@ -47,7 +48,14 @@ export default async function SavePage({
     getPostHogClient()?.capture({
       distinctId: user.id,
       event: "share_target_failed",
-      properties: { reason: "no_url", received: received?.slice(0, 200) },
+      properties: {
+        reason: "no_url",
+        received_param: received.param,
+        received_length: received.length,
+        received_has_scheme: received.hasScheme,
+        received_has_dot: received.hasDot,
+        received_has_whitespace: received.hasWhitespace,
+      },
     });
   }
 

@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
+import { Img } from "@/components/ui/img";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
@@ -110,7 +111,6 @@ export function TwitterCard({
           {/* biome-ignore lint/performance/noImgElement: external Twitter image URL */}
           <img
             {...imgProps}
-            src={previewImage}
             alt={tweetImageAlt({
               name: twitterDetails.authorName,
               username: twitterDetails.authorUsername,
@@ -146,8 +146,7 @@ export function TwitterCard({
           <div className="flex shrink-0 items-center gap-2">
             {authorAvatarSrc ? (
               // Decorative: the author name renders as visible text alongside
-              // biome-ignore lint/performance/noImgElement: external avatar URL
-              <img
+              <Img
                 src={authorAvatarSrc}
                 alt=""
                 className="size-6 shrink-0 rounded-full"

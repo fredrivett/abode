@@ -15,17 +15,34 @@ function firstValue(param: ShareParam): string | undefined {
 }
 
 /**
- * The first non-empty raw value across url/text/title.
- *
- * Used to show the user what they actually shared when no URL could be parsed
- * — surfacing a malformed/encoded share instead of failing silently.
+ * What a share that failed to parse looked like, without its contents — for
+ * analytics and logs, which must never hold what a user shared.
  */
-export function firstSharedValue(params: ShareParams): string | undefined {
-  for (const candidate of [params.url, params.text, params.title]) {
-    const value = firstValue(candidate)?.trim();
-    if (value) return value;
+export function describeSharedValue(params: ShareParams): {
+  param: "url" | "text" | "title" | null;
+  length: number;
+  hasScheme: boolean;
+  hasDot: boolean;
+  hasWhitespace: boolean;
+} {
+  for (const param of ["url", "text", "title"] as const) {
+    const value = firstValue(params[param])?.trim();
+    if (!value) continue;
+    return {
+      param,
+      length: value.length,
+      hasScheme: /^[a-z][a-z0-9+.-]*:/i.test(value),
+      hasDot: /\w\.\w/.test(value),
+      hasWhitespace: /\s/.test(value),
+    };
   }
-  return undefined;
+  return {
+    param: null,
+    length: 0,
+    hasScheme: false,
+    hasDot: false,
+    hasWhitespace: false,
+  };
 }
 
 /**

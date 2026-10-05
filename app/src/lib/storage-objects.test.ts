@@ -128,17 +128,19 @@ describe("removeUserStorage", () => {
   it("empties the user's folder in every bucket", async () => {
     const items = fakeBucket(paths("user-1", 150));
     const avatars = fakeBucket(["user-1/avatar.png", "user-2/avatar.png"]);
-    const supabase = {
-      storage: {
-        from: (name: string) =>
-          name === "items" ? items.bucket : avatars.bucket,
-      },
+    const exports = fakeBucket(["user-1/export-1.zip"]);
+    const buckets: Record<string, Bucket> = {
+      items: items.bucket,
+      avatars: avatars.bucket,
+      exports: exports.bucket,
     };
+    const supabase = { storage: { from: (name: string) => buckets[name] } };
 
     const result = await removeUserStorage(supabase as Client, "user-1");
 
-    expect(result).toEqual({ removed: 151, failures: [] });
+    expect(result).toEqual({ removed: 152, failures: [] });
     expect(items.objects.size).toBe(0);
+    expect(exports.objects.size).toBe(0);
     expect([...avatars.objects]).toEqual(["user-2/avatar.png"]);
   });
 
@@ -146,12 +148,12 @@ describe("removeUserStorage", () => {
     const items = fakeBucket(["user-1/a.jpg"]);
     const avatars = fakeBucket(["user-1/avatar.png"]);
     items.list.mockResolvedValueOnce({ data: null, error: new Error("down") });
-    const supabase = {
-      storage: {
-        from: (name: string) =>
-          name === "items" ? items.bucket : avatars.bucket,
-      },
+    const buckets: Record<string, Bucket> = {
+      items: items.bucket,
+      avatars: avatars.bucket,
+      exports: fakeBucket([]).bucket,
     };
+    const supabase = { storage: { from: (name: string) => buckets[name] } };
 
     const result = await removeUserStorage(supabase as Client, "user-1");
 

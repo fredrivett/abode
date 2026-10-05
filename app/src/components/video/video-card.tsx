@@ -2,6 +2,7 @@
 
 import { Play } from "lucide-react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
+import { Img } from "@/components/ui/img";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { getProxyImageUrl } from "@/lib/image-url";
 import type { VideoDetails } from "@/lib/types/item";
@@ -51,8 +52,7 @@ export function VideoCard({
       <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
         {thumbnailUrl ? (
           <>
-            {/* biome-ignore lint/performance/noImgElement: external video thumbnail URL */}
-            <img
+            <Img
               src={thumbnailUrl}
               alt={title ?? "Video thumbnail"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"

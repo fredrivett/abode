@@ -7,8 +7,9 @@
  * location because they have Paris items — not because we guessed it's a city.
  * `type` is matched through the words people use for a kind ("tweets" →
  * twitter, see `TYPE_TERMS`), still only for kinds the user actually has.
- * `status` is the one fixed-vocabulary facet (unread/reading/read/dnf), always
- * offered rather than grounded in the user's data.
+ * `status` is the one fixed-vocabulary facet
+ * (unread/want_to_read/reading/read/dnf), always offered rather than grounded in
+ * the user's data.
  * Dates go through a small hand-rolled scanner. Pure and deterministic (`now`
  * is injected); the caller decides when to run it and never mutates the query
  * until a suggestion is accepted.

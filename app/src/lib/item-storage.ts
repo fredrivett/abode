@@ -106,7 +106,9 @@ export const capturedFileKeysSelect = {
  */
 export const itemFileKeysSelect = {
   ...capturedFileKeysSelect,
-  documentPages: { select: { fileKey: true, originalFileKey: true } },
+  documentPages: {
+    select: { position: true, fileKey: true, originalFileKey: true },
+  },
 } satisfies Prisma.ItemSelect;
 
 type CapturedFileKeysSource = Prisma.ItemGetPayload<{
@@ -147,6 +149,64 @@ export function collectItemFileKeys(item: ItemFileKeysSource): string[] {
       ...documentFileKeys(item.documentPages),
     ]),
   ];
+}
+
+/** One stored file of an item, with a readable name for exports */
+export type ItemFile = { key: string; name: string };
+
+// Keys are `{userId}/{uuid}.{ext}`; keep the extension so exported files open
+function extensionOf(key: string): string {
+  const dot = key.lastIndexOf(".");
+  return dot > key.lastIndexOf("/") ? key.slice(dot) : "";
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Every file an item owns (the same set as {@link collectItemFileKeys}), each
+ * with a descriptive, per-item-unique name: `page-01.jpg` / `page-01-original.jpg`,
+ * `original.jpg`, `source.pdf` (an uploaded PDF), `cover.jpg`, `favicon.png`,
+ * `product-1.jpg`, `media-1.jpg`,
+ * `card.jpg`, `author-avatar.jpg`. A key held in two places (a document's
+ * `fileKey` mirroring page 1, a tweet cover mirroring its first photo) is
+ * listed once, under the first name here.
+ */
+export function listItemFiles(item: ItemFileKeysSource): ItemFile[] {
+  const candidates: { key: string | null | undefined; name: string }[] = [
+    ...[...item.documentPages]
+      .sort((a, b) => a.position - b.position)
+      .flatMap((page, i) => [
+        { key: page.fileKey, name: `page-${pad(i + 1)}` },
+        { key: page.originalFileKey, name: `page-${pad(i + 1)}-original` },
+      ]),
+    { key: item.fileKey, name: "original" },
+    { key: item.sourceFileKey, name: "source" },
+    { key: item.coverFileKey, name: "cover" },
+    { key: item.faviconFileKey, name: "favicon" },
+    ...extractProductImageKeys(item.productDetails?.images).map((key, i) => ({
+      key,
+      name: `product-${i + 1}`,
+    })),
+    // One counter across tweet and Instagram media, so names never collide
+    ...[
+      ...collectFileKeys(item.twitterDetails?.media),
+      ...extractInstagramImageKeys(item.instagramDetails?.media),
+    ].map((key, i) => ({ key, name: `media-${i + 1}` })),
+    ...extractTwitterImageKeys(null, item.twitterDetails?.card).map((key) => ({
+      key,
+      name: "card",
+    })),
+    { key: item.twitterDetails?.authorAvatarFileKey, name: "author-avatar" },
+  ];
+
+  const seen = new Set<string>();
+  const files: ItemFile[] = [];
+  for (const { key, name } of candidates) {
+    if (!isKey(key) || seen.has(key)) continue;
+    seen.add(key);
+    files.push({ key, name: `${name}${extensionOf(key)}` });
+  }
+  return files;
 }
 
 /**

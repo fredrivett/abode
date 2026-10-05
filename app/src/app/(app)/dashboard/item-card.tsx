@@ -80,6 +80,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EditableTitle } from "@/components/ui/editable-title";
+import { Img } from "@/components/ui/img";
 import { IsLoading } from "@/components/ui/is-loading";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -1767,7 +1768,6 @@ export function ItemDetailBody({
   const saveUserTags = async (
     newTags: string[],
     action: "added" | "removed",
-    tag: string,
   ) => {
     setIsSavingUserTags(true);
     try {
@@ -1782,11 +1782,8 @@ export function ItemDetailBody({
       // Track tag change
       posthog.capture(
         action === "added" ? "item_tag_added" : "item_tag_removed",
-        {
-          item_id: item.id,
-          tag,
-          tag_count: newTags.length,
-        },
+        // Not the tag itself: tags are user content
+        { item_id: item.id, tag_count: newTags.length },
       );
     } catch (error) {
       log.error({ error }, "User tags save error");
@@ -1833,7 +1830,7 @@ export function ItemDetailBody({
     setUserTags(newTags);
     setNewTagInput("");
     setShowAddTagInput(false);
-    void saveUserTags(newTags, "added", tag);
+    void saveUserTags(newTags, "added");
   };
 
   const handleRemoveUserTag = (tagToRemove: string) => {
@@ -1842,7 +1839,7 @@ export function ItemDetailBody({
       (t) => t.toLowerCase() !== lowerTagToRemove,
     );
     setUserTags(newTags);
-    void saveUserTags(newTags, "removed", tagToRemove);
+    void saveUserTags(newTags, "removed");
   };
 
   // Clicking a value chip (color, object, or tag) replaces the current search
@@ -2123,8 +2120,7 @@ export function ItemDetailBody({
             animateEntrance={animateEntrance}
             className="items-center justify-center"
           >
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-            <img
+            <Img
               src={fullQualityUrl || previewUrl}
               alt={name}
               className="max-h-[calc(100vh-2rem)] w-full object-contain"
@@ -2164,8 +2160,7 @@ export function ItemDetailBody({
                 className="absolute top-0 right-0 left-0 z-10 h-0.5 rounded-none bg-transparent"
               />
             )}
-            {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-            <img
+            <Img
               src={fullQualityUrl || previewUrl}
               alt={name}
               className={DETAIL_IMAGE_CLASSNAME}
@@ -2661,8 +2656,7 @@ export function ItemDetailBody({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 1 }}
                 >
-                  {/* biome-ignore lint/performance/noImgElement: using proxy URL for user-uploaded content */}
-                  <img
+                  <Img
                     src={fullQualityUrl || previewUrl}
                     alt={name}
                     className="max-h-[300px] w-full object-contain"

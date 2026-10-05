@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
+import { Img } from "@/components/ui/img";
 import { LoadingEllipsis } from "@/components/ui/loading-ellipsis/loading-ellipsis";
 import { PostedDateFooter } from "@/components/ui/posted-date-footer";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
@@ -76,8 +77,7 @@ export function TwitterDetailView({
           >
             {authorAvatarSrc ? (
               // Decorative: the author name renders as visible text alongside
-              // biome-ignore lint/performance/noImgElement: external Twitter avatar URL
-              <img
+              <Img
                 src={authorAvatarSrc}
                 alt=""
                 className="size-12 rounded-full"
@@ -155,8 +155,7 @@ export function TwitterDetailView({
             className="block overflow-hidden rounded-xl border border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
           >
             {card.imageUrl && (
-              // biome-ignore lint/performance/noImgElement: proxied or external link card URL
-              <img
+              <Img
                 src={twitterImageSrc(
                   card.imageFileKey,
                   card.imageUrl,
@@ -246,8 +245,7 @@ function CoverImageMedia({
           <track kind="captions" />
         </video>
       ) : (
-        // biome-ignore lint/performance/noImgElement: proxied or external Twitter media URL
-        <img
+        <Img
           src={twitterImageSrc(item.fileKey, item.url, "detail")}
           alt={imageAlt}
           className="h-full w-full object-cover"

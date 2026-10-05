@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Img } from "@/components/ui/img";
 import {
   type DocumentPageSummary,
   MAX_OCR_PAGES_PER_DOCUMENT,
@@ -54,7 +55,7 @@ export function DocumentPages({
           height: page.height,
         }))
       : coverUrl
-        ? // Keyed as page 1 so the same <img> carries on once the pages load
+        ? // Keyed as page 1 so the same <Img> carries on once the pages load
           [{ key: "page-0", src: coverUrl }]
         : [];
 
@@ -124,8 +125,7 @@ export function DocumentPages({
             key={slide.key}
             className="flex h-full w-full shrink-0 snap-center items-center justify-center p-4 md:p-8"
           >
-            {/* biome-ignore lint/performance/noImgElement: page images come through the item image proxy */}
-            <img
+            <Img
               src={slide.src}
               alt={`${title}, page ${slideIndex + 1}`}
               width={slide.width}

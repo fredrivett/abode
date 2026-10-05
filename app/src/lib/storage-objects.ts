@@ -8,8 +8,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export const STORAGE_PAGE_SIZE = 1000;
 
-/** Buckets whose objects live under a `{userId}/` folder */
-export const USER_STORAGE_BUCKETS = ["items", "avatars"] as const;
+/** Buckets holding the user's library (item files and avatars) */
+export const LIBRARY_BUCKETS = ["items", "avatars"] as const;
+
+/**
+ * Every bucket with objects under a `{userId}/` folder: the library plus
+ * data-export archives. All of it goes when the account does.
+ */
+export const USER_STORAGE_BUCKETS = [...LIBRARY_BUCKETS, "exports"] as const;
 
 type StorageBucket = ReturnType<SupabaseClient["storage"]["from"]>;
 type BucketApi = Pick<StorageBucket, "list" | "remove">;
@@ -64,7 +70,8 @@ export async function removeAllObjectsUnderPrefix(
 }
 
 /**
- * Removes every stored file a user owns (item files and avatars). Each bucket
+ * Removes every stored file a user owns (item files, avatars, export
+ * archives). Each bucket
  * is attempted even if another fails; failures are returned, not thrown, as
  * this runs after the user's rows are already gone.
  */

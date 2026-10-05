@@ -50,6 +50,10 @@ export default function HelpPage() {
             </Link>{" "}
             — Let Claude, Cursor and other assistants search your abode
           </li>
+          <li>
+            <Link href="/help/exporting">Exporting your data</Link> — Download a
+            copy of everything in your abode
+          </li>
         </ul>
       </article>
     </div>

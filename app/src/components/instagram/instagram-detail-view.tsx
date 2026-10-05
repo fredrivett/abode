@@ -1,6 +1,7 @@
 "use client";
 
 import { InstagramIcon } from "@/components/icons/platform-icons";
+import { Img } from "@/components/ui/img";
 import { PostedDateFooter } from "@/components/ui/posted-date-footer";
 import { instagramImageSrc } from "@/lib/instagram/image-src";
 import { isValidUrl } from "@/lib/url-utils";
@@ -85,8 +86,7 @@ export function InstagramDetailView({
                 key={`${item.url}-${index}`}
                 className="relative overflow-hidden bg-gray-100 dark:bg-gray-800"
               >
-                {/* biome-ignore lint/performance/noImgElement: proxied or external Instagram media URL */}
-                <img
+                <Img
                   src={instagramImageSrc(item.fileKey, item.url, "detail")}
                   alt={`Instagram post by @${authorUsername}`}
                   className="h-full w-full object-cover"

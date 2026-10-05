@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import { Img } from "@/components/ui/img";
 
 type LocationData = {
   latitude?: number | null;
@@ -108,8 +109,7 @@ export function LocationPreview({
           rel="noopener noreferrer"
           className="block overflow-hidden rounded-md border border-zinc-200 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
         >
-          {/* biome-ignore lint/performance/noImgElement: using proxied mapbox static image */}
-          <img
+          <Img
             src={mapUrl}
             alt={`Map showing location: ${location.city || location.country || "Location"}`}
             width={width}

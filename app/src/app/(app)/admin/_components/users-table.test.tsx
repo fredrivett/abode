@@ -26,6 +26,8 @@ const baseUser: UserRow = {
   createdAt: "2026-02-12T00:00:00.000Z",
   lastActiveAt: "2026-07-20T00:00:00.000Z",
   lastItemAddedAt: "2026-07-18T00:00:00.000Z",
+  replaysUrl:
+    "https://us.posthog.com/person/user-1#activeTab=sessionRecordings",
   usageToday: {
     actionCount: 5,
     costUsd: 0.12,
@@ -50,6 +52,23 @@ function renderTable(
 describe("UsersTable", () => {
   beforeEach(() => {
     nav.params = new URLSearchParams();
+  });
+
+  it("links to the user's session replays in a new tab", () => {
+    renderTable();
+    const link = screen.getByRole("link", {
+      name: "Session replays for george@example.com",
+    });
+    expect(link).toHaveAttribute("href", baseUser.replaysUrl);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("omits the replays link when PostHog isn't set up", () => {
+    renderTable({ replaysUrl: null });
+    expect(
+      screen.queryByRole("link", { name: /Session replays/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("links the username to the public profile", () => {

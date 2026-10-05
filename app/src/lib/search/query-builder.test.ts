@@ -671,7 +671,14 @@ describe("buildStatusCondition", () => {
     expect(sql).toContain("bd.status = 'read'");
   });
 
-  it("scopes reading and dnf to books only (articles are binary)", () => {
+  it("scopes want_to_read, reading and dnf to books only (articles are binary)", () => {
+    const wantToRead = buildStatusCondition(
+      [{ value: "want_to_read", negated: false }],
+      1,
+    );
+    expect(wantToRead.sql).toContain("bd.status = 'want_to_read'");
+    expect(wantToRead.sql).not.toContain("item_article_details");
+
     const reading = buildStatusCondition(
       [{ value: "reading", negated: false }],
       1,
@@ -684,7 +691,7 @@ describe("buildStatusCondition", () => {
     expect(dnf.sql).not.toContain("item_article_details");
   });
 
-  it("matches unread readable items via read_at IS NULL / not-yet-read books", () => {
+  it("matches unread as untracked readable items (article no read_at / book no status)", () => {
     const { sql } = buildStatusCondition(
       [{ value: "unread", negated: false }],
       1,
@@ -692,7 +699,9 @@ describe("buildStatusCondition", () => {
     expect(sql).toContain("items.kind = 'article'");
     expect(sql).toContain("ad.read_at IS NOT NULL");
     expect(sql).toContain("items.kind = 'book'");
-    expect(sql).toContain("bd.status IN ('reading', 'read', 'dnf')");
+    expect(sql).toContain("bd.status IS NOT NULL");
+    // want_to_read is a distinct intent, not folded into unread
+    expect(sql).not.toContain("bd.status IN ('reading', 'read', 'dnf')");
   });
 
   it("negates with NOT and never binds params (values are hardcoded)", () => {
