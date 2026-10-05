@@ -32,6 +32,9 @@ describe("NoteCard", () => {
       "false",
       "true",
     ]);
-    expect(screen.getByText("milk")).toBeInTheDocument();
+    // The state is announced with the item, since the box itself is visual
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      "Unchecked: milk Checked: eggs",
+    );
   });
 });

@@ -140,7 +140,13 @@ function listItemGaps(root: Element): number[][] {
       const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         const parent = node.parentElement;
-        if (parent?.closest("li") !== item || parent.closest("label")) continue;
+        // Skip the checkbox's hidden state text (editor label / rendered box)
+        if (
+          parent?.closest("li") !== item ||
+          parent.closest("label, [data-task-checkbox]")
+        ) {
+          continue;
+        }
         if (!node.textContent?.trim()) continue;
         const range = document.createRange();
         range.selectNodeContents(node);
@@ -220,8 +226,9 @@ export const ReportsEdits: Story = {
   },
 };
 
-// Typing the markdown syntax starts a checklist, inside a bullet too (jsdom
-// can't type into ProseMirror, so this runs in the browser)
+// Typing the markdown syntax starts a checklist (jsdom can't type into
+// ProseMirror, so this runs in the browser). `- ` makes a bullet first, so the
+// `[ ] ` that follows is the in-bullet rule converting it
 export const TypingStartsChecklist: Story = {
   args: {
     content: "",
@@ -244,5 +251,32 @@ export const TypingStartsChecklist: Story = {
       ),
     );
     expect(editor.querySelectorAll("li[data-checked]")).toHaveLength(2);
+  },
+};
+
+// Starting a checklist from an existing bullet list: `[ ] ` at the start of a
+// new bullet turns just that item into a checklist item
+export const TypingInBulletStartsChecklist: Story = {
+  args: {
+    content: "- bread",
+    editable: true,
+    // Caret at the end of "bread"
+    autoFocus: true,
+    onChange: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const editor = await waitFor(() => {
+      const element = canvasElement.querySelector(".ProseMirror");
+      if (!(element instanceof HTMLElement)) throw new Error("not ready");
+      return element;
+    });
+    await waitFor(() => expect(editor).toHaveFocus());
+    await userEvent.keyboard("{Enter}[[ ] milk");
+    await waitFor(() =>
+      expect(args.onChange).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^- bread\n\n- \[ \] milk\s*$/),
+      ),
+    );
+    expect(editor.querySelectorAll("li[data-checked]")).toHaveLength(1);
   },
 };
