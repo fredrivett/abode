@@ -65,6 +65,13 @@ describe("cleanArticleDocument — clutter blocks", () => {
     expect(cleanArticleDocument(document).removedBlocks).toEqual([]);
   });
 
+  it("never removes a clutter-classed articleBody wrapper", () => {
+    const document = documentFor(
+      `<div class="share-wrap" itemprop="articleBody"><p>short</p></div>`,
+    );
+    expect(cleanArticleDocument(document).removedBlocks).toEqual([]);
+  });
+
   it("keeps a matched block holding a preserved tweet marker", () => {
     const document = documentFor(
       `<p>${PROSE}</p><div class="share-embed"><p data-embed-type="twitter">[[TWEET:123]]</p></div>`,
@@ -94,7 +101,7 @@ describe("cleanArticleDocument — section dividers", () => {
 
   it("leaves a divider-classed block alone when it has text or media", () => {
     const document = documentFor(
-      `<div class="divider">Chapter two</div><div class="separator"><img src="a.jpg" /></div>`,
+      `<div class="divider">Chapter two</div><div class="separator"><img src="a.jpg" /></div><img class="divider" src="b.png" />`,
     );
     expect(cleanArticleDocument(document).dividers).toBe(0);
   });

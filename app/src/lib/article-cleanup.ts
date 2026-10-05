@@ -75,6 +75,13 @@ const MAX_CAPTION_WORDS = 60;
 
 const MEDIA_SELECTOR = "img, picture, video, iframe, svg image";
 
+const ARTICLE_ROOT_SELECTOR = "article, main, [itemprop='articleBody']";
+
+/** Whether `el` is, or contains, an element matching `selector`. */
+function isOrContains(el: Element, selector: string): boolean {
+  return el.matches(selector) || el.querySelector(selector) !== null;
+}
+
 export type ArticleCleanupReport = {
   /** Class attribute of each removed clutter block, for tests and logging. */
   removedBlocks: string[];
@@ -108,11 +115,11 @@ function classMatches(el: Element, names: readonly string[]): boolean {
   });
 }
 
-const PROTECTED_TAGS = new Set(["HTML", "BODY", "MAIN", "ARTICLE"]);
+const PROTECTED_TAGS = new Set(["HTML", "BODY"]);
 
 function isSafeToRemove(el: Element, bodyWords: number): boolean {
   if (PROTECTED_TAGS.has(el.tagName)) return false;
-  if (el.querySelector("article, main, [itemprop='articleBody']")) return false;
+  if (isOrContains(el, ARTICLE_ROOT_SELECTOR)) return false;
   // Preserved tweet embeds are marker paragraphs (see preserveSocialEmbeds)
   if (el.textContent?.includes("[[TWEET:")) return false;
   if (
@@ -141,7 +148,7 @@ function removeClutter(document: Document): string[] {
 }
 
 function isContentlessBreak(el: Element): boolean {
-  if (el.querySelector(MEDIA_SELECTOR)) return false;
+  if (isOrContains(el, MEDIA_SELECTOR)) return false;
   const text = el.textContent?.trim() ?? "";
   return text === "" || ASTERISM_TEXT.test(text);
 }
@@ -172,7 +179,7 @@ function convertCaptions(document: Document): number {
     if (!el.isConnected || el.tagName === "FIGCAPTION") continue;
     if (el.closest("figcaption") || el.querySelector("figcaption")) continue;
     if (!classMatches(el, CAPTION_NAMES)) continue;
-    if (el.querySelector(MEDIA_SELECTOR)) continue;
+    if (isOrContains(el, MEDIA_SELECTOR)) continue;
     const words = countWords(el.textContent);
     if (words === 0 || words > MAX_CAPTION_WORDS) continue;
     const figcaption = document.createElement("figcaption");
