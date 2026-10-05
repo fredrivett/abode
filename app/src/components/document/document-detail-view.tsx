@@ -10,11 +10,13 @@ export function DocumentDetailView({
   pageCount,
   coverUrl,
   title,
+  ocrSkippedPages,
 }: {
   itemId: string;
   pageCount: number;
   coverUrl: string | null;
   title: string;
+  ocrSkippedPages?: number;
 }) {
   const { data, isPending, isError } = useApiQuery<DocumentPagesResponse>(
     `/api/v1/items/${itemId}/pages`,
@@ -26,6 +28,7 @@ export function DocumentDetailView({
       coverUrl={coverUrl}
       status={isError ? "error" : isPending ? "loading" : "ready"}
       title={title}
+      ocrSkippedPages={ocrSkippedPages}
     />
   );
 }

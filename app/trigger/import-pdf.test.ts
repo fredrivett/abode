@@ -196,11 +196,13 @@ describe("importPdfTask", () => {
   });
 
   it("caps OCR at 30 pages however many are scanned", async () => {
-    await storePdf(
-      await buildPdf(
-        Array.from({ length: 35 }, () => ({ scan: true as const })),
-      ),
-    );
+    // Pages already saved (a retry), so the cap is tested without rendering 35
+    m.findItem.mockResolvedValue({
+      sourceFileKey: "user-1/bill.pdf",
+      meta: {},
+      _count: { documentPages: 35 },
+    });
+    m.countPages.mockResolvedValue(35);
     await run();
     expect(m.guard).toHaveBeenCalledWith("user-1", "ingestion", { weight: 30 });
     expect(m.enqueue).toHaveBeenCalledWith(

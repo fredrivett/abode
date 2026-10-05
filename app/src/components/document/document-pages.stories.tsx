@@ -40,3 +40,12 @@ export const Loading: Story = {};
 
 /** The pages failed to load — the cover stays */
 export const LoadFailed: Story = { args: { status: "error" } };
+
+/** A long scanned PDF past the OCR cap: its owner is told which pages search can't find */
+export const PagesNotSearchable: Story = {
+  args: {
+    status: "error",
+    pageCount: 42,
+    ocrSkippedPages: 12,
+  },
+};

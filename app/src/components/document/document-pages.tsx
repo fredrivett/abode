@@ -3,7 +3,10 @@
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { DocumentPageSummary } from "@/lib/documents/document-pages";
+import {
+  type DocumentPageSummary,
+  MAX_OCR_PAGES_PER_DOCUMENT,
+} from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { isEditableTarget } from "@/lib/keyboard";
 
@@ -16,6 +19,8 @@ interface DocumentPagesProps {
   coverUrl: string | null;
   status: "loading" | "error" | "ready";
   title: string;
+  /** Scanned pages left without text, so not found by search (owner-only note) */
+  ocrSkippedPages?: number;
 }
 
 interface Slide {
@@ -35,6 +40,7 @@ export function DocumentPages({
   coverUrl,
   status,
   title,
+  ocrSkippedPages = 0,
 }: DocumentPagesProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -167,6 +173,13 @@ export function DocumentPages({
         </div>
         {status === "error" ? (
           <span className="whitespace-nowrap">Failed to load other pages</span>
+        ) : null}
+        {ocrSkippedPages > 0 ? (
+          <span className="basis-full text-center text-muted-foreground text-xs">
+            {ocrSkippedPages} scanned {ocrSkippedPages === 1 ? "page" : "pages"}{" "}
+            not searchable — text is read from up to{" "}
+            {MAX_OCR_PAGES_PER_DOCUMENT} per document
+          </span>
         ) : null}
       </div>
     </div>

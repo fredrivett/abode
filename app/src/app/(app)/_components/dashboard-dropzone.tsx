@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useUpload } from "@/hooks/use-upload";
 import { isEditableTarget } from "@/lib/keyboard";
-import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
+import { MAX_IMAGE_UPLOAD_LABEL, MAX_PDF_UPLOAD_LABEL } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
 
 function hasFiles(dataTransfer?: DataTransfer | null) {
@@ -32,8 +32,8 @@ function isDialogOpen() {
 }
 
 /**
- * Full-window dropzone for the dashboard, handling drag-and-drop file uploads
- * and URL paste events.
+ * Full-window dropzone for the dashboard, handling drag-and-drop and pasted
+ * file uploads (images and PDFs) and URL paste events.
  *
  * Listens at the window/document level so the entire viewport is the drop
  * target and a stray drop never navigates the browser away. While dragging a
@@ -55,6 +55,27 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
     const handlePaste = (event: ClipboardEvent) => {
       // Don't intercept paste if user is typing in an input
       if (isEditableTarget(event.target)) return;
+
+      // A copied file (an image or a PDF from Finder/Explorer) uploads like a drop
+      const file = event.clipboardData?.files?.[0];
+      if (file) {
+        event.preventDefault();
+        if (isLoading) {
+          toast.error("Please wait for the current operation to complete");
+          return;
+        }
+        void handleFileUpload(file, { source: "dashboard_paste" }).then(
+          (success) => {
+            if (!success) return;
+            posthog.capture("item_uploaded", {
+              file_type: file.type,
+              file_size: file.size,
+              source: "dashboard_paste",
+            });
+          },
+        );
+        return;
+      }
 
       const text = event.clipboardData?.getData("text/plain")?.trim();
       if (!text || !isValidUrl(text)) {
@@ -79,7 +100,7 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
 
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [handleUrlSubmit, isLoading]);
+  }, [handleUrlSubmit, handleFileUpload, isLoading]);
 
   // Listen for file drag events globally so the whole window is droppable
   useEffect(() => {
@@ -108,14 +129,16 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
       const file = event.dataTransfer?.files?.[0];
       if (!file) return;
 
-      void handleFileUpload(file).then((success) => {
-        if (!success) return;
-        posthog.capture("item_uploaded", {
-          file_type: file.type,
-          file_size: file.size,
-          source: "dashboard_drop",
-        });
-      });
+      void handleFileUpload(file, { source: "dashboard_drop" }).then(
+        (success) => {
+          if (!success) return;
+          posthog.capture("item_uploaded", {
+            file_type: file.type,
+            file_size: file.size,
+            source: "dashboard_drop",
+          });
+        },
+      );
     };
 
     window.addEventListener("dragover", handleDragOver);
@@ -139,10 +162,11 @@ export function DashboardDropzone({ children }: { children: React.ReactNode }) {
           <div className="rounded-lg border-2 border-primary/60 border-dashed bg-background px-8 py-6 text-center shadow-lg">
             <ImageIcon className="mx-auto mb-2 h-6 w-6 text-primary" />
             <p className="font-medium text-primary text-sm">
-              Drop your image to upload
+              Drop your image or PDF to upload
             </p>
             <p className="text-muted-foreground text-xs">
-              JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
+              Images up to {MAX_IMAGE_UPLOAD_LABEL}, PDFs up to{" "}
+              {MAX_PDF_UPLOAD_LABEL}
             </p>
           </div>
         </div>

@@ -101,13 +101,17 @@ import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { debugTrace } from "@/lib/debug/trace";
 import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
-import { documentPageCount } from "@/lib/documents/document-pages";
+import {
+  documentOcrSkippedPages,
+  documentPageCount,
+} from "@/lib/documents/document-pages";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
 import { shouldShowReadingStatusBadge } from "@/lib/items/book-reading-status";
 import { captureSourceLabel } from "@/lib/items/capture-source";
+import { downloadFileName } from "@/lib/items/download-file-name";
 import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
@@ -315,6 +319,8 @@ export function ItemCard({
   // Failed URL items may not have a kind set yet (processing failed before classification)
   const isFailedUrl =
     item.sourceType === "url" && item.processingStatus === "failed";
+  // A PDF becomes a document with a cover once its pages are rendered
+  const isPdfAwaitingPages = !!item.sourceFileKey && !item.fileKey;
   // Render the tweet/reel/video card as soon as its detail row lands, so the
   // processing/failed placeholders below don't hide it until enrichment ends.
   const hasKindSpecificContent = hasKindSpecificCardContent({
@@ -349,6 +355,7 @@ export function ItemCard({
           hasImageFileKey: false,
           isProcessingUrl,
           isFailedUrl,
+          isPdfAwaitingPages,
         })
       ) {
         setError("Missing file");
@@ -360,7 +367,13 @@ export function ItemCard({
     const proxyUrl = getProxyImageUrl(imageFileKey, "grid");
     setError(null);
     setPreviewUrl(proxyUrl);
-  }, [imageFileKey, item.kind, isProcessingUrl, isFailedUrl]);
+  }, [
+    imageFileKey,
+    item.kind,
+    isProcessingUrl,
+    isFailedUrl,
+    isPdfAwaitingPages,
+  ]);
 
   useEffect(() => {
     setItemName(name);
@@ -600,66 +613,24 @@ export function ItemCard({
     );
   }
 
-  // URL items that are still processing show a special placeholder
-  if (isProcessingUrl && !previewUrl && !hasKindSpecificContent) {
-    const domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
-    return (
-      <>
-        <button
-          type="button"
-          className="group relative flex h-full w-full cursor-pointer flex-col items-center justify-center border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 transition-colors hover:border-gray-300 dark:border-gray-800 dark:from-gray-900 dark:to-gray-800 dark:hover:border-gray-700"
-          style={{ ...gridCardStyle, padding: "1em", gap: "0.75em" }}
-          onClick={handleOpenDetail}
-        >
-          <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink
-            className="text-gray-400 dark:text-gray-500"
-            style={{ width: "3em", height: "3em" }}
-          />
-          <div className="text-center">
-            <p
-              className="line-clamp-2 font-medium text-gray-700 dark:text-gray-300"
-              style={{ fontSize: "0.875em" }}
-            >
-              {itemName}
-            </p>
-            {domain && (
-              <p
-                className="text-gray-500 dark:text-gray-400"
-                style={{ fontSize: "0.75em", marginTop: "0.25em" }}
-              >
-                {domain}
-              </p>
-            )}
-          </div>
-        </button>
-
-        {!itemDialog && (
-          <ItemDetailDialogHost
-            item={item}
-            open={showDetailDialog}
-            onOpenChange={setShowDetailDialog}
-            size={size}
-            previewUrl={null}
-            imageFileKey={imageFileKey}
-            name={itemName}
-            onNameChange={setItemName}
-            canEdit={canEdit}
-            onDeleted={onDeleted}
-          />
-        )}
-      </>
-    );
-  }
-
-  // Failed URL items (processing failed before classification) show a failure placeholder
-  if (isFailedUrl && !previewUrl && !hasKindSpecificContent) {
-    let domain: string | null = null;
-    try {
-      domain = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
-    } catch {
-      // Malformed URL, leave domain as null
+  // URL items still processing or failed before classification, and PDFs
+  // whose pages aren't rendered yet, have nothing to show but a placeholder
+  if (
+    (isProcessingUrl || isFailedUrl || isPdfAwaitingPages) &&
+    !previewUrl &&
+    !hasKindSpecificContent
+  ) {
+    let subtitle: string | null = null;
+    if (isPdfAwaitingPages) {
+      subtitle = "PDF";
+    } else {
+      try {
+        subtitle = item.sourceUrl ? new URL(item.sourceUrl).hostname : null;
+      } catch {
+        // Malformed URL, leave the domain out
+      }
     }
+    const PlaceholderIcon = isPdfAwaitingPages ? FileText : ExternalLink;
     return (
       <>
         <button
@@ -669,7 +640,7 @@ export function ItemCard({
           onClick={handleOpenDetail}
         >
           <ProcessingOverlay status={item.processingStatus} />
-          <ExternalLink
+          <PlaceholderIcon
             className="text-gray-400 dark:text-gray-500"
             style={{ width: "3em", height: "3em" }}
           />
@@ -680,12 +651,12 @@ export function ItemCard({
             >
               {itemName}
             </p>
-            {domain && (
+            {subtitle && (
               <p
                 className="text-gray-500 dark:text-gray-400"
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
-                {domain}
+                {subtitle}
               </p>
             )}
           </div>
@@ -1889,7 +1860,9 @@ export function ItemDetailBody({
   };
 
   const handleDownload = async () => {
-    if (!item.fileKey) {
+    // A PDF document downloads its original PDF, not page 1's image
+    const downloadKey = item.sourceFileKey ?? item.fileKey;
+    if (!downloadKey) {
       toast.error("No file available to download");
       return;
     }
@@ -1898,7 +1871,7 @@ export function ItemDetailBody({
     try {
       const { data, error: downloadError } = await supabase.storage
         .from("items")
-        .download(item.fileKey);
+        .download(downloadKey);
 
       if (downloadError || !data) {
         toast.error(downloadError?.message || "Failed to download file");
@@ -1909,7 +1882,11 @@ export function ItemDetailBody({
       const url = URL.createObjectURL(data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = name || "download";
+      link.download = downloadFileName({
+        name,
+        originalName: item.meta?.originalName,
+        isPdf: !!item.sourceFileKey,
+      });
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1919,6 +1896,7 @@ export function ItemDetailBody({
       posthog.capture("item_downloaded", {
         item_id: item.id,
         item_kind: item.kind,
+        is_pdf: !!item.sourceFileKey,
       });
 
       toast.success("Download started");
@@ -2159,6 +2137,9 @@ export function ItemDetailBody({
               pageCount={documentPages}
               coverUrl={fullQualityUrl || previewUrl}
               title={name}
+              ocrSkippedPages={
+                canEdit ? documentOcrSkippedPages(item.meta) : undefined
+              }
             />
           </DetailPaneFade>
         ) : previewUrl && !isArticleOrWebpage && !isProduct && !isBook ? (
@@ -3326,7 +3307,7 @@ export function ItemDetailBody({
                   ) : (
                     <>
                       <Download className="size-4" />
-                      Download
+                      {item.sourceFileKey ? "Download PDF" : "Download"}
                     </>
                   )}
                 </Button>

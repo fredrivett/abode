@@ -135,7 +135,11 @@ async function ocrAllowance({
   return 0;
 }
 
-async function renderAndSavePages({
+/**
+ * Steps 1–2: render the item's source PDF and save its pages, cover and
+ * storage accounting. Throws a `ProcessingFailure` for a PDF it can't import.
+ */
+export async function renderAndSavePages({
   itemId,
   userId,
   sourceFileKey,

@@ -14,12 +14,7 @@ export type DocumentOcrResult =
   /** No OCR service configured, or every configured one failed */
   | { text: null; engine: null };
 
-/**
- * Most pages of one document that are OCR'd. A scan (MAX_DOCUMENT_PAGES) never
- * reaches it; a long scanned PDF's later pages stay viewable but unsearchable,
- * bounding the spend one upload can trigger.
- */
-export const MAX_OCR_PAGES_PER_DOCUMENT = 30;
+export { MAX_OCR_PAGES_PER_DOCUMENT } from "./document-pages";
 
 /** Whether any service that can read document pages is configured */
 export function isDocumentOcrConfigured(): boolean {

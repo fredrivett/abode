@@ -63,7 +63,11 @@ describe("validateUploadFile", () => {
       validateUploadFile(
         file("a.pdf", "application/pdf", MAX_PDF_UPLOAD_BYTES + 1),
       ),
-    ).toEqual({ ok: false, error: "PDF is too large. Max size is 25MB." });
+    ).toEqual({
+      ok: false,
+      kind: "pdf",
+      error: "PDF is too large. Max size is 25MB.",
+    });
   });
 
   it("keeps the 15MB image limit", () => {
@@ -74,7 +78,11 @@ describe("validateUploadFile", () => {
       validateUploadFile(
         file("a.png", "image/png", MAX_IMAGE_UPLOAD_BYTES + 1),
       ),
-    ).toEqual({ ok: false, error: "File is too large. Max size is 15MB." });
+    ).toEqual({
+      ok: false,
+      kind: "image",
+      error: "File is too large. Max size is 15MB.",
+    });
   });
 });
 

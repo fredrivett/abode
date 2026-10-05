@@ -30,7 +30,8 @@ export type UploadKind = "image" | "pdf";
 
 export type UploadValidation =
   | { ok: true; kind: UploadKind }
-  | { ok: false; error: string };
+  /** `kind` is set when the type was fine but the file is too large */
+  | { ok: false; error: string; kind?: UploadKind };
 
 /**
  * Whether a file is a PDF. Some browsers/OSes report an empty type for a
@@ -51,6 +52,7 @@ export function validateUploadFile(file: {
     if (file.size > MAX_PDF_UPLOAD_BYTES) {
       return {
         ok: false,
+        kind: "pdf",
         error: `PDF is too large. Max size is ${MAX_PDF_UPLOAD_LABEL}.`,
       };
     }
@@ -67,6 +69,7 @@ export function validateUploadFile(file: {
   if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
     return {
       ok: false,
+      kind: "image",
       error: `File is too large. Max size is ${MAX_IMAGE_UPLOAD_LABEL}.`,
     };
   }
