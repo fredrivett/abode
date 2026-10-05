@@ -178,7 +178,7 @@ export function DocumentPages({
           <span className="basis-full text-center text-muted-foreground text-xs">
             {ocrSkippedPages} scanned {ocrSkippedPages === 1 ? "page" : "pages"}{" "}
             not searchable — text is read from up to{" "}
-            {MAX_OCR_PAGES_PER_DOCUMENT} per document
+            {MAX_OCR_PAGES_PER_DOCUMENT} per document, within your daily limit
           </span>
         ) : null}
       </div>

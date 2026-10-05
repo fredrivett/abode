@@ -38,4 +38,12 @@ describe("usableTextLayer", () => {
     const text = `Quarterly statement for account 12345678 \uFFFD balance carried forward`;
     expect(usableTextLayer(text)).toBe(text);
   });
+
+  it.each([
+    ["supplementary private-use", "\u{F0041}"],
+    ["C1 control", "\u0085"],
+  ])("counts %s characters as garbled", (_label, glyph) => {
+    const text = `Invoice total paid promptly ${glyph.repeat(40)}`;
+    expect(usableTextLayer(text)).toBeNull();
+  });
 });

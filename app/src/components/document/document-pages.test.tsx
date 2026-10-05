@@ -189,7 +189,7 @@ describe("DocumentPages", () => {
     );
     expect(
       screen.getByText(
-        "12 scanned pages not searchable — text is read from up to 30 per document",
+        "12 scanned pages not searchable — text is read from up to 30 per document, within your daily limit",
       ),
     ).toBeInTheDocument();
   });

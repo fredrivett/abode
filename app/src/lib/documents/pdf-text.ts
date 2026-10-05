@@ -13,17 +13,20 @@ export const MIN_TEXT_LAYER_CHARS = 20;
 const MAX_GARBLED_RATIO = 0.1;
 
 /**
- * U+FFFD (replacement), the private-use area, and control characters other
- * than tab/newline/carriage return — what an unmapped glyph extracts as
+ * U+FFFD (replacement), the private-use areas (BMP and supplementary planes
+ * 15–16), and C0/C1 control characters other than tab/newline/carriage return
+ * — what an unmapped glyph extracts as
  */
 function isGarbled(codePoint: number): boolean {
+  if (codePoint === 0x09 || codePoint === 0x0a || codePoint === 0x0d) {
+    return false;
+  }
   return (
     codePoint === 0xfffd ||
+    codePoint < 0x20 ||
+    (codePoint >= 0x7f && codePoint <= 0x9f) ||
     (codePoint >= 0xe000 && codePoint <= 0xf8ff) ||
-    (codePoint < 0x20 &&
-      codePoint !== 0x09 &&
-      codePoint !== 0x0a &&
-      codePoint !== 0x0d)
+    codePoint >= 0xf0000
   );
 }
 

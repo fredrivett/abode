@@ -83,7 +83,17 @@ test.describe("PDF upload", () => {
   test("uploads a PDF pasted onto the dashboard", async ({ page }) => {
     const uploads = await stubStorageUploads(page);
     await page.goto("/dashboard");
-    await expect(page.getByRole("button", { name: "Add item" })).toBeVisible();
+    // The button is server-rendered before React attaches the paste listener:
+    // opening the dialog proves the page is hydrated, and pastes are ignored
+    // while any dialog is open, so close it again first
+    await page.getByRole("button", { name: "Add item" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add Item" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.locator('[role="dialog"][data-state="open"]'),
+    ).toHaveCount(0);
 
     const saved = pdfSaved(page);
     await page.evaluate(() => {
