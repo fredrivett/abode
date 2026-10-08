@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,12 @@ import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
-import { getHostname, isValidUrl } from "@/lib/url-utils";
+import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
+import { QuotedTweet } from "./quoted-tweet";
+import { TweetLinkCard } from "./tweet-link-card";
+import { TweetPoll } from "./tweet-poll";
+import { TweetReplyContext } from "./tweet-reply-context";
 import type { TwitterDetails, TwitterMedia } from "./types";
 
 type TwitterDetailViewProps = {
@@ -39,9 +44,13 @@ export function TwitterDetailView({
     authorUsername,
     authorAvatarUrl,
     text,
+    isTruncated,
     postedAt,
     media,
     card,
+    poll,
+    quotedTweet,
+    inReplyTo,
   } = twitterDetails;
 
   // Prefer our re-hosted avatar copy, falling back to the original twimg URL
@@ -105,10 +114,35 @@ export function TwitterDetailView({
           </a>
         </div>
 
-        {/* Tweet text */}
-        {text && (
+        {inReplyTo && (
+          <TweetReplyContext
+            inReplyTo={inReplyTo}
+            authorUsername={authorUsername}
+          />
+        )}
+
+        {/* Tweet text — a long-form post is cut off, so link to the rest */}
+        {(text || isTruncated) && (
           <p className="whitespace-pre-wrap text-gray-900 text-lg dark:text-gray-100">
-            {parseTweetText(text)}
+            {text && parseTweetText(text)}
+            {isTruncated && (
+              <>
+                {text && "… "}
+                <a
+                  href={tweetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() =>
+                    posthog.capture("tweet_show_more_clicked", {
+                      item_id: itemId,
+                    })
+                  }
+                  className="whitespace-nowrap text-blue-500 hover:underline"
+                >
+                  Show more on X
+                </a>
+              </>
+            )}
           </p>
         )}
 
@@ -146,43 +180,11 @@ export function TwitterDetailView({
           </div>
         )}
 
-        {/* Link card */}
-        {card && (
-          <a
-            href={card.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block overflow-hidden rounded-xl border border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
-          >
-            {card.imageUrl && (
-              <Img
-                src={twitterImageSrc(
-                  card.imageFileKey,
-                  card.imageUrl,
-                  "detail",
-                )}
-                alt={
-                  card.title ? `Link preview: ${card.title}` : "Link preview"
-                }
-                className="aspect-video w-full object-cover"
-                loading="lazy"
-              />
-            )}
-            <div className="p-3">
-              <p className="text-gray-500 text-sm dark:text-gray-400">
-                {getHostname(card.url)}
-              </p>
-              <p className="font-medium text-gray-900 dark:text-gray-100">
-                {card.title}
-              </p>
-              {card.description && (
-                <p className="line-clamp-2 text-gray-600 text-sm dark:text-gray-300">
-                  {card.description}
-                </p>
-              )}
-            </div>
-          </a>
-        )}
+        {poll && <TweetPoll poll={poll} />}
+
+        {card && <TweetLinkCard card={card} />}
+
+        {quotedTweet && <QuotedTweet quote={quotedTweet} />}
 
         {/* Posted date and View on X */}
         <PostedDateFooter

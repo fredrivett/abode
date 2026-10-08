@@ -21,6 +21,10 @@ const baseTweet: TwitterDetails = {
   postedAt: null,
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -139,5 +143,37 @@ describe("TwitterCard", () => {
         '[aria-hidden="true"][style*="background-image"]',
       ),
     ).toBeNull();
+  });
+
+  it("ends a long-form post's cut-off text with an ellipsis", () => {
+    render(
+      <TwitterCard
+        twitterDetails={{ ...baseTweet, isTruncated: true }}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.getByText(/the second it's printed\.…$/)).toBeInTheDocument();
+  });
+
+  it("shows an Article's title when the post has no text or cover", () => {
+    render(
+      <TwitterCard
+        twitterDetails={{
+          ...baseTweet,
+          text: null,
+          card: {
+            type: "article",
+            title: "Notes on mapmaking",
+            description: "",
+            url: "https://x.com/i/article/1",
+            imageUrl: null,
+          },
+        }}
+        itemId="item-1"
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.getByText("Notes on mapmaking")).toBeInTheDocument();
   });
 });

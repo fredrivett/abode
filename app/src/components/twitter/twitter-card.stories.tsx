@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+import {
+  storyArticleCard,
+  storyArticleTweet,
+  storyLongFormTweet,
+} from "./story-fixtures";
 import { TwitterCard } from "./twitter-card";
 import type { TwitterDetails } from "./types";
 
@@ -48,6 +53,10 @@ const tweetWithVideo: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -69,6 +78,10 @@ const tweetWithPhoto: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -83,6 +96,10 @@ const tweetWithLinkCard: TwitterDetails = {
   postedAt: "2023-07-25T19:23:35.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: {
     title: "Introducing React Tweet - Vercel",
     description:
@@ -103,6 +120,10 @@ const textOnlyTweet: TwitterDetails = {
   postedAt: "2024-01-15T12:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -149,6 +170,10 @@ const longTextTweet: TwitterDetails = {
   postedAt: "2024-01-20T10:30:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -182,6 +207,10 @@ const noAvatarTweet: TwitterDetails = {
     },
   ],
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -202,6 +231,10 @@ const usernameOnlyTweet: TwitterDetails = {
   postedAt: "2024-01-19T08:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -229,6 +262,10 @@ const linkCardNoImageTweet: TwitterDetails = {
   postedAt: "2024-01-21T12:00:00.000Z",
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: {
     title: "Web Development Best Practices",
     description: "A comprehensive guide to modern web development.",
@@ -245,6 +282,40 @@ export const LinkCardNoImage: Story = {
   decorators: [
     (Story) => (
       <div className="h-[240px] w-[250px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** A long-form post X cut off at ~280 chars */
+export const LongFormPost: Story = {
+  args: { twitterDetails: storyLongFormTweet },
+  decorators: [
+    (Story) => (
+      <div className="h-[240px] w-[250px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** An X Article post: previews its cover */
+export const Article: Story = {
+  args: { twitterDetails: storyArticleTweet },
+};
+
+/** An X Article without a cover: previews its title */
+export const ArticleWithoutCover: Story = {
+  args: {
+    twitterDetails: {
+      ...storyArticleTweet,
+      card: { ...storyArticleCard, imageUrl: null },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="h-[160px] w-[250px]">
         <Story />
       </div>
     ),

@@ -1,10 +1,8 @@
-import {
-  rehostTwitterImages,
-  transformTweetData,
-} from "@app/trigger/handle-twitter-url";
+import { rehostTwitterImages } from "@app/trigger/handle-twitter-url";
 import type { Tweet } from "react-tweet/api";
 import { describe, expect, it, vi } from "vitest";
 import type { TwitterDetails } from "@/components/twitter/types";
+import { transformTweetData } from "@/lib/twitter/transform-tweet";
 
 const baseDetails: TwitterDetails = {
   tweetId: "1",
@@ -15,6 +13,10 @@ const baseDetails: TwitterDetails = {
   postedAt: null,
   media: null,
   quotedTweetId: null,
+  isTruncated: false,
+  quotedTweet: null,
+  poll: null,
+  inReplyTo: null,
   card: null,
   coverMediaIndex: null,
 };
@@ -40,6 +42,10 @@ describe("transformTweetData", () => {
         postedAt: null,
         media: null,
         quotedTweetId: null,
+        isTruncated: false,
+        quotedTweet: null,
+        poll: null,
+        inReplyTo: null,
         card: null,
         coverMediaIndex: null,
       });

@@ -12,6 +12,7 @@ import { gridCardStyle } from "@/lib/grid-styles";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
+import { tweetPreviewText } from "@/lib/twitter/preview-text";
 import { getTwitterVideoSrc } from "@/lib/twitter/video-src";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
@@ -48,6 +49,7 @@ export function TwitterCard({
   const autoplayAllowed = useAutoplayAllowed();
   const textRef = useRef<HTMLDivElement>(null);
   const isTextOverflowing = useIsOverflowing(textRef);
+  const previewText = tweetPreviewText(twitterDetails);
 
   // Get preview image: use cover media index, falling back to first item or
   // link card. Prefer our re-hosted copy, falling back to the original twimg URL.
@@ -140,7 +142,7 @@ export function TwitterCard({
             </div>
           )}
         </div>
-      ) : twitterDetails.text ? (
+      ) : previewText ? (
         // No media - show the tweet text (with author), clipped with a fade
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden p-4 text-left">
           <div className="flex shrink-0 items-center gap-2">
@@ -162,7 +164,9 @@ export function TwitterCard({
             className="relative min-h-0 flex-1 overflow-hidden"
           >
             <p className="whitespace-pre-wrap text-gray-900 text-sm leading-snug dark:text-gray-100">
-              {parseTweetText(twitterDetails.text)}
+              {parseTweetText(previewText)}
+              {/* Long-form post: the saved text stops mid-thought */}
+              {twitterDetails.isTruncated && "…"}
             </p>
             {/* Fade out clipped text — only when there's more below the fold */}
             {isTextOverflowing && (

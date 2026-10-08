@@ -1,4 +1,5 @@
 import { getBookTileFrame } from "@/lib/book-cover";
+import { tweetPreviewText } from "@/lib/twitter/preview-text";
 import type { Item } from "@/lib/types/item";
 import {
   estimateNoteAspect,
@@ -52,9 +53,10 @@ export function getCardFrame(
       // Twitter link-card images render at ~1.91:1
       if (details?.card?.imageUrl) return { width: 16, height: 9 };
       // Text-only tweet: height follows the tweet text
-      if (details?.text) {
+      const previewText = details && tweetPreviewText(details);
+      if (details && previewText) {
         return estimateTweetAspect(
-          { text: details.text, hasAvatar: !!details.authorAvatarUrl },
+          { text: previewText, hasAvatar: !!details.authorAvatarUrl },
           { columnWidthPx: columnWidth, rootRemPx, measure },
         );
       }

@@ -4,6 +4,10 @@
 
 import type { Prisma } from "@prisma/client";
 import type { CursorData } from "@/lib/pagination";
+import {
+  mapTwitterDetails,
+  twitterDetailsSelect,
+} from "@/lib/twitter/map-twitter-details";
 import type {
   ArticleDetails,
   BookDetails,
@@ -14,8 +18,6 @@ import type {
   NoteDetails,
   ProductDetails,
   ProductImage,
-  TwitterDetails,
-  TwitterMedia,
   VideoDetails,
 } from "@/lib/types/item";
 
@@ -122,20 +124,7 @@ export const itemSelect = {
       progressUpdatedAt: true,
     },
   },
-  twitterDetails: {
-    select: {
-      tweetId: true,
-      authorName: true,
-      authorUsername: true,
-      authorAvatarUrl: true,
-      text: true,
-      postedAt: true,
-      media: true,
-      quotedTweetId: true,
-      card: true,
-      coverMediaIndex: true,
-    },
-  },
+  twitterDetails: { select: twitterDetailsSelect },
   instagramDetails: {
     select: {
       postId: true,
@@ -258,18 +247,7 @@ export function transformItem(item: RawItem) {
       ? mapArticleDetails(item.articleDetails)
       : null,
     twitterDetails: item.twitterDetails
-      ? ({
-          tweetId: item.twitterDetails.tweetId,
-          authorName: item.twitterDetails.authorName,
-          authorUsername: item.twitterDetails.authorUsername,
-          authorAvatarUrl: item.twitterDetails.authorAvatarUrl,
-          text: item.twitterDetails.text,
-          postedAt: item.twitterDetails.postedAt?.toISOString() ?? null,
-          media: item.twitterDetails.media as TwitterMedia[] | null,
-          quotedTweetId: item.twitterDetails.quotedTweetId,
-          card: item.twitterDetails.card as TwitterDetails["card"],
-          coverMediaIndex: item.twitterDetails.coverMediaIndex,
-        } satisfies TwitterDetails)
+      ? mapTwitterDetails(item.twitterDetails)
       : null,
     instagramDetails: item.instagramDetails
       ? ({

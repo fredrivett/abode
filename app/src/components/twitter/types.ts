@@ -5,6 +5,14 @@
  * and store for display in our custom components.
  */
 
+import type {
+  QuotedTweet,
+  TweetPoll,
+  TweetReplyContext,
+} from "@/lib/twitter/tweet-context";
+
+export type { QuotedTweet, TweetPoll, TweetReplyContext };
+
 export type TwitterMedia = {
   type: "photo" | "video" | "animated_gif";
   url: string;
@@ -30,11 +38,16 @@ export type TwitterDetails = {
   authorAvatarUrl: string | null;
   authorAvatarFileKey?: string | null;
   text: string | null;
+  // Long-form post: `text` is only the first ~280 chars (X's embed data stops there)
+  isTruncated: boolean;
   postedAt: string | null;
   media: TwitterMedia[] | null;
   quotedTweetId: string | null;
-  // Link card data (when tweet contains a URL)
+  quotedTweet: QuotedTweet | null;
+  // Link card data (when tweet contains a URL), or an X Article's preview
   card: {
+    // Absent on link cards (incl. every card captured before Articles)
+    type?: "article";
     title: string;
     description: string;
     url: string;
@@ -42,5 +55,7 @@ export type TwitterDetails = {
     // Our re-hosted copy of the card image (fallback: imageUrl)
     imageFileKey?: string | null;
   } | null;
+  poll: TweetPoll | null;
+  inReplyTo: TweetReplyContext | null;
   coverMediaIndex: number | null;
 };
