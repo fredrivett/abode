@@ -134,6 +134,13 @@ function NoteLinkActions({
             event.preventDefault();
             onOpen();
           }}
+          // Middle-click too, so every open goes through the same safe,
+          // tracked path
+          onAuxClick={(event) => {
+            if (event.button !== 1) return;
+            event.preventDefault();
+            onOpen();
+          }}
           className="min-w-0 truncate px-2 text-primary text-sm underline-offset-2 hover:underline"
         >
           {label}

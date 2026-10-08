@@ -1,7 +1,25 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NoteLinkMenuPanel } from "./note-link-menu-panel";
+
+// Clicking hovers first, opening a Radix tooltip that positions itself with
+// ResizeObserver, which jsdom lacks
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+});
 
 function renderPanel(
   props: Partial<Parameters<typeof NoteLinkMenuPanel>[0]> = {},
@@ -40,6 +58,19 @@ describe("NoteLinkMenuPanel", () => {
     expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
+  it("routes a middle-click on the URL through onOpen", () => {
+    const { onOpen } = renderPanel();
+    const link = screen.getByRole("link");
+    const event = new MouseEvent("auxclick", {
+      bubbles: true,
+      cancelable: true,
+      button: 1,
+    });
+    link.dispatchEvent(event);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("doesn't offer to open an unsafe href", () => {
     renderPanel({ href: "javascript:alert(1)" });
     expect(screen.queryByRole("link")).toBeNull();
@@ -58,9 +89,16 @@ describe("NoteLinkMenuPanel", () => {
 
   it("doesn't confirm a failed copy", async () => {
     const user = userEvent.setup();
-    renderPanel({ onCopy: vi.fn().mockResolvedValue(false) });
+    const onCopy = vi.fn().mockResolvedValue(false);
+    renderPanel({ onCopy });
     await user.click(screen.getByRole("button", { name: "Copy link" }));
+    await waitFor(() => expect(onCopy).toHaveBeenCalled());
+    // Let the copy promise settle and any state update flush
+    await act(async () => {
+      await onCopy.mock.results[0]?.value;
+    });
     expect(screen.getByRole("button", { name: "Copy link" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
   });
 
   it("removes the link", async () => {
