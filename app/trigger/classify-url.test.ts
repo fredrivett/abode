@@ -20,6 +20,7 @@ const {
   mockHandleTwitterUrl,
   mockHandleTwitterArticle,
   mockHandleInstagramUrl,
+  mockHandlePdfUrl,
 } = vi.hoisted(() => ({
   mockSafeFetch: vi.fn(),
   mockItemUpdate: vi.fn(),
@@ -33,6 +34,7 @@ const {
   mockHandleTwitterUrl: vi.fn(),
   mockHandleTwitterArticle: vi.fn(),
   mockHandleInstagramUrl: vi.fn(),
+  mockHandlePdfUrl: vi.fn(),
 }));
 
 // task() returns its config so `classifyUrlTask.run(payload)` is the real run fn.
@@ -102,6 +104,7 @@ vi.mock("./handle-twitter-article", () => ({
 vi.mock("./handle-instagram-url", () => ({
   handleInstagramUrl: mockHandleInstagramUrl,
 }));
+vi.mock("./handle-pdf-url", () => ({ handlePdfUrl: mockHandlePdfUrl }));
 
 import { classifyUrlTask } from "./classify-url";
 
@@ -168,6 +171,11 @@ beforeEach(() => {
     success: true,
     itemId: "item_1",
     kind: "video",
+  });
+  mockHandlePdfUrl.mockResolvedValue({
+    success: true,
+    itemId: "item_1",
+    kind: "document",
   });
 });
 
@@ -292,5 +300,98 @@ describe("classifyUrlTask — favicon re-hosting", () => {
     const { data } = mockItemUpdate.mock.calls[0][0];
     expect(data.kind).toBe("webpage");
     expect(data.faviconFileKey).toBeNull();
+  });
+});
+
+describe("classifyUrlTask — PDFs", () => {
+  const PDF_URL = "https://example.com/papers/report.pdf";
+
+  function typedResponse(
+    url: string,
+    contentType: string | null,
+    extra: Record<string, unknown> = {},
+  ) {
+    return {
+      ok: true,
+      url,
+      headers: {
+        get: (k: string) => (k === "content-type" ? contentType : null),
+      },
+      text: async () => ARTICLE_HTML,
+      ...extra,
+    };
+  }
+
+  const pdfHandled = (url: string) =>
+    expect(mockHandlePdfUrl).toHaveBeenCalledWith({
+      itemId: "item_1",
+      userId: "user_1",
+      url,
+      supabase: expect.anything(),
+    });
+
+  it("hands a URL served as application/pdf to the PDF handler", async () => {
+    const url = "https://example.com/download?id=7";
+    mockSafeFetch.mockResolvedValue(typedResponse(url, "application/pdf"));
+    await run({ itemId: "item_1", userId: "user_1", url });
+    pdfHandled(url);
+    // Decided from HEAD: the body is never fetched as a page
+    expect(mockSafeFetch).toHaveBeenCalledTimes(1);
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("catches a PDF on the GET when the server doesn't answer HEAD", async () => {
+    const cancel = vi.fn();
+    const text = vi.fn();
+    mockSafeFetch.mockImplementation(async (url: string, opts?: unknown) => {
+      if ((opts as { method?: string } | undefined)?.method === "HEAD") {
+        throw new Error("HEAD not allowed");
+      }
+      return typedResponse(url, "application/pdf", { body: { cancel }, text });
+    });
+    const url = "https://example.com/download?id=7";
+    await run({ itemId: "item_1", userId: "user_1", url });
+    pdfHandled(url);
+    expect(cancel).toHaveBeenCalled();
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it("fetches the PDF when the extension captured the browser's PDF viewer", async () => {
+    // Not a .pdf path: the viewer is recognised from the captured DOM alone
+    const url = "https://example.com/view?doc=7";
+    mockSafeFetch.mockResolvedValue(typedResponse(url, "application/pdf"));
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url,
+      html: '<html><head></head><body><embed type="application/pdf" src="about:blank"></body></html>',
+    });
+    pdfHandled(url);
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a real page captured at a .pdf path rather than refetching it", async () => {
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url: PDF_URL,
+      html: ARTICLE_HTML,
+    });
+    expect(mockHandlePdfUrl).not.toHaveBeenCalled();
+    expect(mockSafeFetch).not.toHaveBeenCalledWith(PDF_URL, expect.anything());
+    expect(mockItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "article" }),
+      }),
+    );
+  });
+
+  it("treats a .pdf path served as HTML as a page", async () => {
+    mockSafeFetch.mockImplementation(async (url: string, opts?: unknown) =>
+      htmlResponse(url, opts as { method?: string } | undefined),
+    );
+    await run({ itemId: "item_1", userId: "user_1", url: PDF_URL });
+    expect(mockHandlePdfUrl).not.toHaveBeenCalled();
+    expect(mockItemUpdate).toHaveBeenCalled();
   });
 });

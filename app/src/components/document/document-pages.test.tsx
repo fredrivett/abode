@@ -177,4 +177,25 @@ describe("DocumentPages", () => {
       behavior: "smooth",
     });
   });
+
+  it("tells the owner how many scanned pages search can't find", () => {
+    render(
+      <DocumentPages
+        {...base}
+        pages={pages}
+        status="ready"
+        ocrSkippedPages={12}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "12 scanned pages not searchable — text is read from up to 30 per document, within your daily limit",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing about search when every page was read", () => {
+    render(<DocumentPages {...base} pages={pages} status="ready" />);
+    expect(screen.queryByText(/not searchable/)).not.toBeInTheDocument();
+  });
 });

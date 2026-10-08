@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
   findPages: vi.fn(),
   updatePage: vi.fn(),
   findItem: vi.fn(),
+  findItemSource: vi.fn(),
   updateItem: vi.fn(),
   upsertImageDetails: vi.fn(),
   transaction: vi.fn(),
@@ -35,13 +36,18 @@ vi.mock("@supabase/supabase-js", () => ({
 vi.mock("../src/lib/db", () => ({
   default: {
     itemDocumentPage: { findMany: m.findPages, update: m.updatePage },
-    item: { findFirstOrThrow: m.findItem, update: m.updateItem },
+    item: {
+      findFirstOrThrow: m.findItem,
+      findFirst: m.findItemSource,
+      update: m.updateItem,
+    },
     itemImageDetails: { upsert: m.upsertImageDetails },
     $transaction: m.transaction,
   },
 }));
 vi.mock("../src/lib/documents/document-ocr", () => ({
   extractPageText: m.extractPageText,
+  MAX_OCR_PAGES_PER_DOCUMENT: 30,
 }));
 vi.mock("../src/lib/documents/describe-document", () => ({
   describeDocument: m.describeDocument,
@@ -66,7 +72,7 @@ vi.mock("./analyze-image", () => ({
   formatStorageError: String,
 }));
 
-import { analyzeDocumentTask } from "./analyze-document";
+import { analyzeDocumentPages, analyzeDocumentTask } from "./analyze-document";
 
 type TaskWithRun = { run: (payload: object) => Promise<unknown> };
 const run = () =>
@@ -114,7 +120,11 @@ beforeEach(() => {
     title: "Mous order confirmation, Mar 2026",
     description: "An order confirmation from Mous.",
   });
-  m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: false });
+  m.findItem.mockResolvedValue({
+    kind: "document",
+    titleEditedByUser: false,
+    meta: { pageCount: 2 },
+  });
   m.updateItem.mockReturnValue("update-item");
   m.upsertImageDetails.mockReturnValue("upsert-details");
   m.transaction.mockResolvedValue([]);
@@ -178,7 +188,11 @@ describe("analyzeDocumentTask", () => {
   });
 
   it("leaves a title the user renamed, without paying to describe it", async () => {
-    m.findItem.mockResolvedValue({ kind: "document", titleEditedByUser: true });
+    m.findItem.mockResolvedValue({
+      kind: "document",
+      titleEditedByUser: true,
+      meta: { pageCount: 2 },
+    });
     await run();
     expect(m.describeDocument).not.toHaveBeenCalled();
     expect(m.updateItem).not.toHaveBeenCalled();
@@ -270,6 +284,131 @@ describe("analyzeDocumentTask", () => {
   it("marks the item failed and rethrows when a page can't be downloaded", async () => {
     m.download.mockResolvedValue({ data: null, error: new Error("gone") });
     await expect(run()).rejects.toThrow(/Failed to download/);
+    expect(m.updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ processingStatus: "failed" }),
+      }),
+    );
+  });
+});
+
+describe("analyzeDocumentPages (shared with PDF import)", () => {
+  const analyze = (maxOcrPages?: number) =>
+    analyzeDocumentPages({ itemId: "item-1", userId: "user-1", maxOcrPages });
+
+  it("uses a PDF page's text layer and only OCRs the scanned pages", async () => {
+    m.findPages.mockResolvedValue([
+      page(0, "Typed invoice text from the PDF's text layer"),
+      page(1),
+      page(2, "Typed terms and conditions"),
+    ]);
+    const result = await analyze();
+
+    expect(m.extractPageText).toHaveBeenCalledTimes(1);
+    expect(m.download).toHaveBeenCalledWith("user-1/p1-original.jpg");
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p0-original.jpg");
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p2-original.jpg");
+    const [{ create }] = m.upsertImageDetails.mock.calls[0];
+    expect(create.ocrText).toBe(
+      "Typed invoice text from the PDF's text layer\n\ntext 1\n\nTyped terms and conditions",
+    );
+    expect(result).toEqual({ pages: 3, pagesWithText: 3, ocrSkippedPages: 0 });
+  });
+
+  it("makes no OCR calls for a PDF that's all text", async () => {
+    m.findPages.mockResolvedValue([page(0, "one"), page(1, "two")]);
+    await analyze();
+    expect(m.extractPageText).not.toHaveBeenCalled();
+  });
+
+  it("stops OCR at the cap and records the skipped pages on meta", async () => {
+    m.findPages.mockResolvedValue([page(0), page(1), page(2), page(3)]);
+    const result = await analyze(2);
+
+    expect(m.extractPageText).toHaveBeenCalledTimes(2);
+    expect(m.download).not.toHaveBeenCalledWith("user-1/p2-original.jpg");
+    expect(result.ocrSkippedPages).toBe(2);
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: expect.objectContaining({
+        meta: { pageCount: 2, ocrSkippedPages: 2 },
+      }),
+    });
+  });
+
+  it("OCRs nothing when the cap is 0 (daily allowance used up)", async () => {
+    const result = await analyze(0);
+    expect(m.extractPageText).not.toHaveBeenCalled();
+    expect(result.ocrSkippedPages).toBe(2);
+  });
+
+  it("clears a stale skipped count once every page has text", async () => {
+    m.findItem.mockResolvedValue({
+      kind: "document",
+      titleEditedByUser: true,
+      meta: { pageCount: 2, ocrSkippedPages: 1 },
+    });
+    await analyze();
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { meta: { pageCount: 2 } },
+    });
+  });
+
+  it("merges the skipped count into the item's current meta, not a stale read", async () => {
+    m.findPages.mockResolvedValue([page(0), page(1), page(2)]);
+    m.findItem
+      .mockResolvedValueOnce({
+        kind: "document",
+        titleEditedByUser: true,
+        meta: { pageCount: 2 },
+      })
+      // Meanwhile the import recorded its OCR charge
+      .mockResolvedValueOnce({ meta: { pageCount: 3, ocrPagesCharged: 1 } });
+    await analyze(1);
+    expect(m.updateItem).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { meta: { pageCount: 3, ocrPagesCharged: 1, ocrSkippedPages: 2 } },
+    });
+  });
+});
+
+describe("analyzeDocumentTask after a PDF re-capture", () => {
+  const runFor = (sourceFileKey: string) =>
+    (analyzeDocumentTask as unknown as TaskWithRun).run({
+      itemId: "item-1",
+      userId: "user-1",
+      sourceFileKey,
+    });
+
+  it("doesn't save results for a PDF that was replaced during analysis", async () => {
+    m.findItem
+      .mockResolvedValueOnce({ kind: "document", titleEditedByUser: false })
+      .mockResolvedValueOnce({ meta: {}, sourceFileKey: "user-1/new.pdf" });
+    await expect(runFor("user-1/old.pdf")).resolves.toMatchObject({
+      success: true,
+      superseded: true,
+    });
+    expect(m.transaction).not.toHaveBeenCalled();
+    expect(m.trigger).not.toHaveBeenCalled();
+  });
+
+  it("stops without failing the item when the replacement broke this run", async () => {
+    // The re-capture deleted the pages this run was downloading
+    m.download.mockResolvedValue({ data: null, error: new Error("gone") });
+    m.findItemSource.mockResolvedValue({ sourceFileKey: "user-1/new.pdf" });
+    await expect(runFor("user-1/old.pdf")).resolves.toMatchObject({
+      superseded: true,
+    });
+    expect(m.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("still fails the item when its PDF is unchanged", async () => {
+    m.download.mockResolvedValue({ data: null, error: new Error("gone") });
+    m.findItemSource.mockResolvedValue({ sourceFileKey: "user-1/old.pdf" });
+    await expect(runFor("user-1/old.pdf")).rejects.toThrow(
+      /Failed to download/,
+    );
     expect(m.updateItem).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ processingStatus: "failed" }),

@@ -142,6 +142,7 @@ describe("findItemOwningImageKey integration", () => {
         fileKey: key("file.jpg"),
         coverFileKey: key("cover.jpg"),
         faviconFileKey: key("favicon.png"),
+        sourceFileKey: key("source.pdf"),
         productDetails: {
           create: {
             images: [{ fileKey: key("product.jpg"), url: "https://shop/1" }],

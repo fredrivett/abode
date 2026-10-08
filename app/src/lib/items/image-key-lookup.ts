@@ -5,7 +5,8 @@ import { itemAccessSelect } from "./access";
 /**
  * Where-clause matching the item that owns an image `fileKey`, for the image
  * proxy to authorize a request. Re-hostable keys live in several places: the
- * item's own `fileKey`/`coverFileKey`/`faviconFileKey`, and inside JSON blobs — the product
+ * item's own `fileKey`/`coverFileKey`/`faviconFileKey`/`sourceFileKey` (a
+ * document's original PDF), and inside JSON blobs — the product
  * gallery (`ItemProductDetails.images`), a tweet's media stills
  * (`ItemTwitterDetails.media[].fileKey`), a tweet's link-card image
  * (`ItemTwitterDetails.card.imageFileKey`), a tweet's re-hosted author avatar
@@ -26,6 +27,7 @@ export function itemOwningImageKeyWhere(
       { fileKey },
       { coverFileKey: fileKey },
       { faviconFileKey: fileKey },
+      { sourceFileKey: fileKey },
       { productDetails: { images: { array_contains: [{ fileKey }] } } },
       { twitterDetails: { media: { array_contains: [{ fileKey }] } } },
       { twitterDetails: { card: { path: ["imageFileKey"], equals: fileKey } } },

@@ -230,6 +230,46 @@ describe("POST /api/v1/items/[id]/retry", () => {
       );
     });
 
+    it("re-triggers the import for a failed PDF document, not bare analysis", async () => {
+      mockItemFindUnique.mockResolvedValue({
+        ...failedImageItem,
+        kind: "document" as const,
+        fileKey: null,
+        sourceFileKey: "user_1/statement.pdf",
+      });
+      const res = await call();
+      expect(res.status).toBe(200);
+      expect(mockTrigger).toHaveBeenCalledTimes(1);
+      expect(mockTrigger).toHaveBeenCalledWith(
+        "import-pdf",
+        { itemId: ITEM_ID, userId: "user_1" },
+        {
+          concurrencyKey: "user_1",
+          priority: USER_ACTION_PRIORITY,
+          tags: [itemTag(ITEM_ID), userTag("user_1")],
+        },
+      );
+    });
+
+    it("re-imports a PDF saved from a URL from its stored file, not a fresh download", async () => {
+      mockItemFindUnique.mockResolvedValue({
+        ...failedImageItem,
+        kind: "document" as const,
+        fileKey: null,
+        sourceFileKey: "user_1/report.pdf",
+        sourceType: "url" as const,
+        sourceUrl: "https://example.com/report.pdf",
+      });
+      const res = await call();
+      expect(res.status).toBe(200);
+      expect(mockTrigger).toHaveBeenCalledTimes(1);
+      expect(mockTrigger).toHaveBeenCalledWith(
+        "import-pdf",
+        { itemId: ITEM_ID, userId: "user_1" },
+        expect.anything(),
+      );
+    });
+
     it("returns a 200 no-op without triggering when it loses the claim race", async () => {
       mockItemUpdateMany.mockResolvedValue({ count: 0 });
       const res = await call();

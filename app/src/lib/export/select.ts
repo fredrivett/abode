@@ -79,6 +79,7 @@ export const exportItemSelect = {
   fileKey: true,
   coverFileKey: true,
   faviconFileKey: true,
+  sourceFileKey: true,
   articleDetails: {
     select: {
       author: true,

@@ -30,10 +30,12 @@ export function shouldShowMissingFile(params: {
   hasImageFileKey: boolean;
   isProcessingUrl: boolean;
   isFailedUrl: boolean;
+  /** A document still made of just its source PDF: pages not rendered (yet) */
+  isPdfAwaitingPages?: boolean;
 }): boolean {
   const { kind, hasImageFileKey, isProcessingUrl, isFailedUrl } = params;
   if (hasImageFileKey) return false;
   if (kind === null) return false;
-  if (isProcessingUrl || isFailedUrl) return false;
+  if (isProcessingUrl || isFailedUrl || params.isPdfAwaitingPages) return false;
   return !NON_FILE_KINDS.includes(kind);
 }

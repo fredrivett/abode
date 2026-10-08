@@ -37,10 +37,10 @@ The only thing you _must_ provision to self-host is a database and Supabase. Eve
 | Service                                                       | Tier                    | Unlocks                                                       | Without it                                              |
 | ------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
 | PostgreSQL + [Supabase](https://supabase.com) (auth, storage) | 🔒 **Required**         | the app itself                                                | won't run                                               |
-| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline and builds data exports          | capture + full-text search work, but no auto-enrichment or data export |
+| [Trigger.dev](https://trigger.dev)                            | ⭐ **Recommended core** | runs the enrichment pipeline and builds data exports          | capture + full-text search work, but no auto-enrichment, data export or PDF import |
 | [OpenAI](https://openai.com)                                  | ⭐ **Recommended core** | titles, descriptions, tags, OCR, semantic search              | items stay bare; full-text search only                  |
 | [Replicate](https://replicate.com) (CLIP)                     | 🧩 Optional             | image embeddings (powers similar images)                      | skipped                                                 |
-| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scanned documents | colours skipped; document OCR uses OpenAI if configured |
+| [Google Cloud Vision](https://cloud.google.com/vision)        | 🧩 Optional             | dominant colours; cheaper full-page OCR for scans and scanned PDF pages | colours skipped; document OCR uses OpenAI if configured |
 | [TypeSafe](https://typesafe.ai) (Jev)                         | 🧩 Optional             | calibrated article-vs-webpage kind refinement                | structural heuristic decides the kind                   |
 | [Mapbox](https://mapbox.com)                                  | 🧩 Optional             | location + static map thumbnails                              | skipped                                                 |
 | [Resend](https://resend.com)                                  | 🧩 Optional             | invite / waitlist / admin emails                              | email features off                                      |
@@ -66,6 +66,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 
 - **Capture:** Save via URL, file upload, paste, or text input. Supports images, articles, tweets, and videos.
 - **Document scanning:** Scan multi-page documents with your phone's camera, in the browser (no app): live edge detection, auto-capture once the page is held steady, perspective correction, and a B&W "scanned" look (or greyscale/colour). Every page is OCR'd (with OpenAI or Google Cloud Vision configured) so documents are searchable by their text, and each document is titled from it (issuer, type, date) with OpenAI.
+- **PDF upload:** Upload, drop or paste a PDF (up to 25MB), or save a link to one, and it becomes a searchable document: pages are rendered for the document viewer (with [MuPDF](https://mupdf.com)), the original is kept for download, and each page's embedded text is used directly, so only scanned pages are OCR'd (up to 30 per document). Titled from its text like a scan.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based), plus auto-generated book shelves (Want to read / Reading / Read) that appear once you have books and stay in sync as you update reading status.
@@ -91,6 +92,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
+- PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
 - Masonry gallery, full-text + semantic search, filters
 - Metadata extraction + article parsing (Mozilla Readability)
 - OCR + auto-tagging (OpenAI)

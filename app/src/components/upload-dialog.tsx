@@ -17,8 +17,9 @@ import {
 import { useSaveScannedDocument } from "@/hooks/use-save-scanned-document";
 import { useUpload } from "@/hooks/use-upload";
 import {
-  ALLOWED_IMAGE_MIME_TYPES,
   MAX_IMAGE_UPLOAD_LABEL,
+  MAX_PDF_UPLOAD_LABEL,
+  UPLOAD_ACCEPT,
 } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -93,7 +94,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
-        await handleFileUpload(file);
+        await handleFileUpload(file, { source: "dialog_picker" });
       }
       // Reset input so the same file can be selected again
       if (fileInputRef.current) {
@@ -112,7 +113,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
 
       const file = e.dataTransfer?.files?.[0];
       if (file) {
-        await handleFileUpload(file);
+        await handleFileUpload(file, { source: "dialog_drop" });
       }
     },
     [handleFileUpload, isLoading],
@@ -135,7 +136,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   }, []);
 
   const infoContent =
-    "You can also paste URLs or drag and drop images directly onto the dashboard";
+    "You can also paste URLs, or paste or drag and drop images and PDFs, directly onto the dashboard";
 
   return (
     <>
@@ -166,7 +167,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               </Popover>
             </DialogTitle>
             <DialogDescription className="text-left">
-              Paste a URL or upload an image
+              Paste a URL or upload an image or PDF
             </DialogDescription>
           </DialogHeader>
 
@@ -211,13 +212,13 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               onDragLeave={onDragLeave}
             >
               <p className="text-muted-foreground text-sm">
-                Drop image here or
+                Drop an image or PDF here or
               </p>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
+                accept={UPLOAD_ACCEPT}
                 onChange={onFileChange}
                 className="hidden"
               />
@@ -233,13 +234,14 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Choose Image
+                    Choose File
                   </>
                 )}
               </Button>
 
               <p className="text-muted-foreground text-xs">
-                JPEG, PNG, GIF, or WebP up to {MAX_IMAGE_UPLOAD_LABEL}
+                Images up to {MAX_IMAGE_UPLOAD_LABEL}, PDFs up to{" "}
+                {MAX_PDF_UPLOAD_LABEL}
               </p>
             </div>
 

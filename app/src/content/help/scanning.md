@@ -11,7 +11,7 @@ Scan letters, receipts, forms and notes straight into your <Abode /> with your p
 
 Tap **Auto** in the top corner to switch to **Manual** if you'd rather always capture yourself. It remembers your choice.
 
-Already have a photo of a document? Tap the gallery icon next to the shutter to import it instead. The page is found and cleaned up in the same way.
+Already have a photo of a document? Tap the gallery icon next to the shutter to import it instead. The page is found and cleaned up in the same way. Already have it as a PDF? Upload it instead, see [Saving PDFs](/help/pdfs).
 
 ## Reviewing pages
 

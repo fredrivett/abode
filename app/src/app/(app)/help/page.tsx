@@ -35,6 +35,10 @@ export default function HelpPage() {
             multi-page documents with your camera
           </li>
           <li>
+            <Link href="/help/pdfs">Saving PDFs</Link> — Upload PDFs as
+            searchable documents
+          </li>
+          <li>
             <Link href="/help/saving-from-your-phone">
               Saving from your phone
             </Link>{" "}

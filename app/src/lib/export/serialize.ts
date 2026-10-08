@@ -149,6 +149,7 @@ export function toExportItem(item: ExportItemRow) {
     fileKey: _fileKey,
     coverFileKey: _coverFileKey,
     faviconFileKey: _faviconFileKey,
+    sourceFileKey: _sourceFileKey,
     tags,
     meta,
     externalLinks,

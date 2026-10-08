@@ -4,7 +4,10 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Img } from "@/components/ui/img";
-import type { DocumentPageSummary } from "@/lib/documents/document-pages";
+import {
+  type DocumentPageSummary,
+  MAX_OCR_PAGES_PER_DOCUMENT,
+} from "@/lib/documents/document-pages";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { isEditableTarget } from "@/lib/keyboard";
 
@@ -17,6 +20,8 @@ interface DocumentPagesProps {
   coverUrl: string | null;
   status: "loading" | "error" | "ready";
   title: string;
+  /** Scanned pages left without text, so not found by search (owner-only note) */
+  ocrSkippedPages?: number;
 }
 
 interface Slide {
@@ -36,6 +41,7 @@ export function DocumentPages({
   coverUrl,
   status,
   title,
+  ocrSkippedPages = 0,
 }: DocumentPagesProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -134,7 +140,7 @@ export function DocumentPages({
 
       {/* The error sits beside the pager, wrapping below it whole on phones too
           narrow for both */}
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-sm text-white/70">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-3 text-muted-foreground text-sm">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -142,7 +148,7 @@ export function DocumentPages({
             aria-label="Previous page"
             disabled={index <= 0}
             onClick={() => step(-1)}
-            className="text-white hover:bg-white/10 hover:text-white"
+            className="text-foreground"
           >
             <ChevronLeft />
           </Button>
@@ -156,7 +162,7 @@ export function DocumentPages({
             aria-label={status === "loading" ? "Loading pages" : "Next page"}
             disabled={index >= slides.length - 1}
             onClick={() => step(1)}
-            className="text-white hover:bg-white/10 hover:text-white"
+            className="text-foreground"
           >
             {status === "loading" ? (
               <Loader2 className="animate-spin" />
@@ -167,6 +173,13 @@ export function DocumentPages({
         </div>
         {status === "error" ? (
           <span className="whitespace-nowrap">Failed to load other pages</span>
+        ) : null}
+        {ocrSkippedPages > 0 ? (
+          <span className="basis-full text-center text-muted-foreground text-xs">
+            {ocrSkippedPages} scanned {ocrSkippedPages === 1 ? "page" : "pages"}{" "}
+            not searchable — text is read from up to{" "}
+            {MAX_OCR_PAGES_PER_DOCUMENT} per document, within your daily limit
+          </span>
         ) : null}
       </div>
     </div>

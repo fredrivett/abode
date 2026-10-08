@@ -44,4 +44,18 @@ describe("shouldShowMissingFile", () => {
     );
     expect(shouldShowMissingFile({ ...base, isFailedUrl: true })).toBe(false);
   });
+
+  it("does not flag a PDF document whose pages aren't rendered yet", () => {
+    expect(
+      shouldShowMissingFile({
+        ...base,
+        kind: "document",
+        isPdfAwaitingPages: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("flags a scanned document that lost its cover", () => {
+    expect(shouldShowMissingFile({ ...base, kind: "document" })).toBe(true);
+  });
 });

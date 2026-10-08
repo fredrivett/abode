@@ -18,7 +18,7 @@ const meta = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <div className="h-[700px] bg-gray-900">
+      <div className="h-[700px] bg-background">
         <Story />
       </div>
     ),
@@ -40,3 +40,12 @@ export const Loading: Story = {};
 
 /** The pages failed to load — the cover stays */
 export const LoadFailed: Story = { args: { status: "error" } };
+
+/** A long scanned PDF past the OCR cap: its owner is told which pages search can't find */
+export const PagesNotSearchable: Story = {
+  args: {
+    status: "error",
+    pageCount: 42,
+    ocrSkippedPages: 12,
+  },
+};

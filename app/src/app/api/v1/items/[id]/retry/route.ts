@@ -1,6 +1,7 @@
 import type { analyzeDocumentTask } from "@app/trigger/analyze-document";
 import type { analyzeImageTask } from "@app/trigger/analyze-image";
 import type { classifyUrlTask } from "@app/trigger/classify-url";
+import type { importPdfTask } from "@app/trigger/import-pdf";
 import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
@@ -43,6 +44,7 @@ export async function POST(
         processingStatus: true,
         processingStartedAt: true,
         fileKey: true,
+        sourceFileKey: true,
         sourceType: true,
         sourceUrl: true,
       },
@@ -129,7 +131,20 @@ export async function POST(
     }
 
     try {
-      if (item.sourceType === "url" && item.sourceUrl) {
+      // A PDF (uploaded or saved from a URL) reruns its import from the stored
+      // file rather than downloading it again; the import skips rendering
+      // when the failed attempt already saved the pages
+      if (item.kind === "document" && item.sourceFileKey) {
+        log.info(
+          { itemId: id, userId: item.userId, triggeredBy: user.id },
+          "Retrying PDF import",
+        );
+        await enqueueUserProcessing<typeof importPdfTask>(
+          "import-pdf",
+          { itemId: id, userId: item.userId },
+          item.userId,
+        );
+      } else if (item.sourceType === "url" && item.sourceUrl) {
         log.info(
           { itemId: id, userId: item.userId, triggeredBy: user.id },
           "Retrying URL classification",

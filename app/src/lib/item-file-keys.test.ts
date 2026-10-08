@@ -109,6 +109,7 @@ const everyLocation: ItemFileKeysSource = {
   fileKey: "u/file.jpg",
   coverFileKey: "u/cover.jpg",
   faviconFileKey: "u/favicon.png",
+  sourceFileKey: "u/source.pdf",
   productDetails: {
     images: [
       { fileKey: "u/product-1.jpg", url: "https://shop/1.jpg" },
@@ -165,6 +166,7 @@ describe("collectItemFileKeys", () => {
         fileKey: null,
         coverFileKey: null,
         faviconFileKey: null,
+        sourceFileKey: null,
         productDetails: null,
         twitterDetails: null,
         instagramDetails: null,
@@ -175,7 +177,7 @@ describe("collectItemFileKeys", () => {
 });
 
 describe("collectCapturedFileKeys", () => {
-  it("excludes document pages, which re-capture never replaces", () => {
+  it("excludes document pages, which reclaim handles separately", () => {
     const { documentPages, ...captured } = everyLocation;
     const keys = collectCapturedFileKeys(captured);
 
@@ -202,6 +204,7 @@ describe("listItemFiles", () => {
       "page-02.jpg",
       "page-02-original.jpg",
       "original.jpg",
+      "source.pdf",
       "cover.jpg",
       "favicon.png",
       "product-1.jpg",

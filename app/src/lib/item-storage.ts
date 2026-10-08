@@ -77,8 +77,8 @@ export function extractInstagramImageKeys(
 
 /**
  * Every column holding a key an item's capture/enrichment wrote to the `items`
- * bucket: the item's own file, cover and favicon, plus the images re-hosted
- * into product/tweet/Instagram JSON. Re-capturing an item replaces these (see
+ * bucket: the item's own file, cover, favicon and source file (a document's
+ * original PDF), plus the images re-hosted into product/tweet/Instagram JSON. Re-capturing an item replaces these (see
  * reclaimReplacedStorage), so the old ones must be deleted.
  *
  * This and {@link itemFileKeysSelect} are the single inventory of where an
@@ -90,6 +90,7 @@ export const capturedFileKeysSelect = {
   fileKey: true,
   coverFileKey: true,
   faviconFileKey: true,
+  sourceFileKey: true,
   productDetails: { select: { images: true } },
   twitterDetails: {
     select: { media: true, card: true, authorAvatarFileKey: true },
@@ -98,9 +99,10 @@ export const capturedFileKeysSelect = {
 } satisfies Prisma.ItemSelect;
 
 /**
- * Every file an item owns: its captured files plus, for a scanned document,
- * each page's displayed and colour-original image. Pages are user-scanned, not
- * re-captured, so they're only in this full set (delete/export), never reclaim.
+ * Every file an item owns: its captured files plus, for a document, each
+ * page's displayed and colour-original image. Pages aren't in the captured set:
+ * a scan or uploaded PDF is never re-captured, and a URL-saved PDF's pages are
+ * reclaimed with it by reclaimReplacedStorage (keyed off its sourceFileKey).
  */
 export const itemFileKeysSelect = {
   ...capturedFileKeysSelect,
@@ -127,6 +129,7 @@ export function collectCapturedFileKeys(
     item.fileKey,
     item.coverFileKey,
     item.faviconFileKey,
+    item.sourceFileKey,
     ...extractProductImageKeys(item.productDetails?.images),
     ...extractTwitterImageKeys(
       item.twitterDetails?.media,
@@ -162,7 +165,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /**
  * Every file an item owns (the same set as {@link collectItemFileKeys}), each
  * with a descriptive, per-item-unique name: `page-01.jpg` / `page-01-original.jpg`,
- * `original.jpg`, `cover.jpg`, `favicon.png`, `product-1.jpg`, `media-1.jpg`,
+ * `original.jpg`, `source.pdf` (an uploaded PDF), `cover.jpg`, `favicon.png`,
+ * `product-1.jpg`, `media-1.jpg`,
  * `card.jpg`, `author-avatar.jpg`. A key held in two places (a document's
  * `fileKey` mirroring page 1, a tweet cover mirroring its first photo) is
  * listed once, under the first name here.
@@ -176,6 +180,7 @@ export function listItemFiles(item: ItemFileKeysSource): ItemFile[] {
         { key: page.originalFileKey, name: `page-${pad(i + 1)}-original` },
       ]),
     { key: item.fileKey, name: "original" },
+    { key: item.sourceFileKey, name: "source" },
     { key: item.coverFileKey, name: "cover" },
     { key: item.faviconFileKey, name: "favicon" },
     ...extractProductImageKeys(item.productDetails?.images).map((key, i) => ({

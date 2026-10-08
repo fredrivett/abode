@@ -27,6 +27,7 @@ export function itemRow(overrides: Partial<ExportItemRow> = {}): ExportItemRow {
     fileKey: null,
     coverFileKey: null,
     faviconFileKey: null,
+    sourceFileKey: null,
     articleDetails: null,
     imageDetails: null,
     twitterDetails: null,

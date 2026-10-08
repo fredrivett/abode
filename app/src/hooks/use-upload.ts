@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api, isDailyLimitError } from "@/lib/api-client";
@@ -8,11 +9,7 @@ import { useInvalidateItems } from "@/lib/api-hooks";
 import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
-import {
-  allowedImageMimeTypes,
-  MAX_IMAGE_UPLOAD_BYTES,
-  MAX_IMAGE_UPLOAD_LABEL,
-} from "@/lib/uploads";
+import { PDF_MIME_TYPE, validateUploadFile } from "@/lib/uploads";
 import { isValidUrl } from "@/lib/url-utils";
 import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 import { useMilestoneStore } from "@/stores/milestone-store";
@@ -24,20 +21,32 @@ interface UseUploadOptions {
   onError?: (error: string) => void;
 }
 
+/** Where a file upload started, for analytics */
+export type FileUploadSource =
+  | "dialog_picker"
+  | "dialog_drop"
+  | "dashboard_drop"
+  | "dashboard_paste";
+
 interface UseUploadReturn {
   handleUrlSubmit: (url: string) => Promise<boolean>;
-  handleFileUpload: (file: File) => Promise<boolean>;
+  handleFileUpload: (
+    file: File,
+    options?: { source?: FileUploadSource },
+  ) => Promise<boolean>;
   isUrlLoading: boolean;
   isFileLoading: boolean;
   isLoading: boolean;
 }
 
 /**
- * Manages URL submission and image file uploads.
+ * Manages URL submission and file uploads (images and PDFs).
  *
  * URL submissions are sent to the API for background processing.
  * File uploads go to Supabase Storage first, then create an item record via the API —
- * if the item creation fails the uploaded file is cleaned up automatically.
+ * if the item creation fails the uploaded file is cleaned up automatically. An
+ * image becomes an `image` item; a PDF becomes a `document` whose pages are
+ * rendered and read in the background.
  *
  * Both paths show toast notifications, track milestones, invalidate the items cache,
  * and redirect to the dashboard when the user isn't already there.
@@ -94,21 +103,24 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
   );
 
   const handleFileUpload = useCallback(
-    async (file: File): Promise<boolean> => {
-      if (!allowedImageMimeTypes.has(file.type)) {
-        const errorMsg =
-          "Unsupported file type. Choose a jpg, png, gif, or webp image.";
-        toast.error(errorMsg);
-        onError?.(errorMsg);
+    async (
+      file: File,
+      { source }: { source?: FileUploadSource } = {},
+    ): Promise<boolean> => {
+      const validation = validateUploadFile(file);
+      if (!validation.ok) {
+        if (validation.kind === "pdf") {
+          posthog.capture("pdf_upload_rejected", {
+            reason: "too_large",
+            file_size: file.size,
+            source,
+          });
+        }
+        toast.error(validation.error);
+        onError?.(validation.error);
         return false;
       }
-
-      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-        const errorMsg = `File is too large. Max size is ${MAX_IMAGE_UPLOAD_LABEL}.`;
-        toast.error(errorMsg);
-        onError?.(errorMsg);
-        return false;
-      }
+      const isPdf = validation.kind === "pdf";
 
       setIsFileLoading(true);
       try {
@@ -126,23 +138,29 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
 
         let dimensions: { width: number; height: number } | undefined;
         let blurDataUrl: string | null = null;
-        try {
-          const preview = await getImagePreview(file);
-          dimensions = { width: preview.width, height: preview.height };
-          blurDataUrl = preview.blurDataUrl;
-        } catch (error) {
-          log.warn({ error }, "Failed to read image preview");
+        if (!isPdf) {
+          try {
+            const preview = await getImagePreview(file);
+            dimensions = { width: preview.width, height: preview.height };
+            blurDataUrl = preview.blurDataUrl;
+          } catch (error) {
+            log.warn({ error }, "Failed to read image preview");
+          }
         }
 
-        const ext = file.name.includes(".")
-          ? file.name.split(".").pop()?.toLowerCase()
-          : undefined;
+        const ext = isPdf
+          ? "pdf"
+          : file.name.includes(".")
+            ? file.name.split(".").pop()?.toLowerCase()
+            : undefined;
         const objectPath = `${user.id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
 
         const { error: uploadError } = await supabase.storage
           .from("items")
           .upload(objectPath, file, {
-            contentType: file.type || "application/octet-stream",
+            contentType: isPdf
+              ? PDF_MIME_TYPE
+              : file.type || "application/octet-stream",
             upsert: false,
           });
 
@@ -153,26 +171,42 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         }
 
         try {
-          await api.post("/api/v1/items", {
-            kind: "image",
-            fileKey: objectPath,
-            meta: {
-              originalName: file.name,
-              size: file.size,
-              type: file.type,
-              width: dimensions?.width,
-              height: dimensions?.height,
-              ...(blurDataUrl ? { blurDataUrl } : {}),
-            },
-            sourceType: "upload",
-          });
+          if (isPdf) {
+            const item = await api.post<{ id: string }>(
+              "/api/v1/items/documents/pdf",
+              { fileKey: objectPath, originalName: file.name, size: file.size },
+            );
+            posthog.capture("pdf_uploaded", {
+              item_id: item.id,
+              file_size: file.size,
+              source,
+            });
+          } else {
+            await api.post("/api/v1/items", {
+              kind: "image",
+              fileKey: objectPath,
+              meta: {
+                originalName: file.name,
+                size: file.size,
+                type: file.type,
+                width: dimensions?.width,
+                height: dimensions?.height,
+                ...(blurDataUrl ? { blurDataUrl } : {}),
+              },
+              sourceType: "upload",
+            });
+          }
         } catch (itemError) {
           await supabase.storage.from("items").remove([objectPath]);
           throw itemError;
         }
 
-        toast.success("Upload complete");
-        useMilestoneStore.getState().markComplete("upload_first_image");
+        if (isPdf) {
+          toast.success("PDF added — reading its pages");
+        } else {
+          toast.success("Upload complete");
+          useMilestoneStore.getState().markComplete("upload_first_image");
+        }
         if (isOnDashboard) {
           invalidateItems();
         } else {
