@@ -91,6 +91,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 **✅ Done (v0):**
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
+- Markdown notes with a WYSIWYG editor (headings, lists, checklists, quotes, code)
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
 - PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
 - Masonry gallery, full-text + semantic search, filters

@@ -8,6 +8,7 @@ import {
   NOTE_PROSE_CLASS,
   NOTE_PROSE_FONT_SIZE,
 } from "@/components/note/note-prose";
+import { TaskCheckbox } from "@/components/note/task-checkbox";
 import { BlurImage } from "@/components/ui/blur-image";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { cn } from "@/lib/utils";
@@ -164,7 +165,11 @@ export function ArticleCard({
             style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
             options={{
               forceBlock: true,
-              overrides: { a: InlineText, img: StripImage },
+              overrides: {
+                a: InlineText,
+                img: StripImage,
+                input: TaskCheckbox,
+              },
             }}
           >
             {content ?? ""}

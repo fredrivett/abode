@@ -21,4 +21,20 @@ describe("NoteCard", () => {
     render(<NoteCard title={null} content="" />);
     expect(screen.getByText("Empty note")).toBeInTheDocument();
   });
+
+  it("draws checklist items as inert boxes, not inputs inside the button", () => {
+    const { container } = render(
+      <NoteCard title={null} content={"- [ ] milk\n- [x] eggs"} />,
+    );
+    expect(container.querySelector("input")).toBeNull();
+    const boxes = container.querySelectorAll("[data-task-checkbox]");
+    expect([...boxes].map((box) => box.getAttribute("data-checked"))).toEqual([
+      "false",
+      "true",
+    ]);
+    // The state is announced with the item, since the box itself is visual
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      "Unchecked: milk Checked: eggs",
+    );
+  });
 });

@@ -18,6 +18,24 @@ describe("ArticleCard", () => {
     expect(screen.getByText(/ferrying intent/)).toBeInTheDocument();
   });
 
+  it("draws checklist items as inert boxes, not inputs inside the button", () => {
+    const { container } = render(
+      <ArticleCard
+        title="Title"
+        content={"- [ ] milk\n- [x] eggs"}
+        domain="gruhn.me"
+        readingTime={4}
+      />,
+    );
+
+    expect(container.querySelector("input")).toBeNull();
+    const boxes = container.querySelectorAll("[data-task-checkbox]");
+    expect([...boxes].map((box) => box.getAttribute("data-checked"))).toEqual([
+      "false",
+      "true",
+    ]);
+  });
+
   it("strips images from the body preview but keeps the surrounding text", () => {
     render(
       <ArticleCard

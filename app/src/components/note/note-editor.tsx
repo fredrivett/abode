@@ -1,6 +1,8 @@
 "use client";
 
+import { Extension, InputRule } from "@tiptap/core";
 import Document from "@tiptap/extension-document";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Markdown } from "@tiptap/markdown";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -16,6 +18,57 @@ import {
 // a title line (Notion-style). The required heading can't be deleted, only
 // edited — an empty document is normalised to a single empty heading.
 const TitleDocument = Document.extend({ content: "heading block*" });
+
+// Typing `[ ] ` / `[x] ` at the start of a bullet item makes it a checklist
+// item, so the markdown way of starting one (`- [ ] `) works. TaskItem's own
+// rule only fires on a plain paragraph — in a bullet the brackets stayed as
+// text, which then saved as `- [ ] …` and reopened as a checklist
+const BulletToTaskItem = Extension.create({
+  name: "bulletToTaskItem",
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /^\[([ xX]?)\]\s$/,
+        handler: ({ state, range, match, chain }) => {
+          const { $from } = state.selection;
+          const isFirstLineOfBullet =
+            $from.depth >= 2 &&
+            $from.node(-1).type.name === "listItem" &&
+            $from.node(-2).type.name === "bulletList" &&
+            $from.index(-1) === 0;
+          if (!isFirstLineOfBullet) return null;
+          chain()
+            .deleteRange(range)
+            .liftListItem("listItem")
+            .toggleTaskList()
+            .updateAttributes("taskItem", {
+              checked: match[1]?.toLowerCase() === "x",
+            })
+            .run();
+        },
+      }),
+    ];
+  },
+});
+
+// Checklists (`- [ ]` / `- [x]` in markdown), nestable like other lists
+const CHECKLIST_EXTENSIONS = [
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  BulletToTaskItem,
+];
+
+/** The editor's extensions; exported so tests can round-trip markdown. */
+export function noteEditorExtensions({ titleFirst }: { titleFirst: boolean }) {
+  return titleFirst
+    ? [
+        TitleDocument,
+        StarterKit.configure({ document: false }),
+        ...CHECKLIST_EXTENSIONS,
+        Markdown,
+      ]
+    : [StarterKit, ...CHECKLIST_EXTENSIONS, Markdown];
+}
 
 // Style the mandatory first line as a title, overriding the flattened heading
 // size from the shared prose. `[&>*:first-child]` has real specificity, so it
@@ -57,10 +110,7 @@ export function NoteEditor({
   titleFirst = false,
 }: NoteEditorProps) {
   const extensions = useMemo(
-    () =>
-      titleFirst
-        ? [TitleDocument, StarterKit.configure({ document: false }), Markdown]
-        : [StarterKit, Markdown],
+    () => noteEditorExtensions({ titleFirst }),
     [titleFirst],
   );
 

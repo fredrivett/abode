@@ -5,6 +5,7 @@ import { type ReactNode, useRef } from "react";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
+import { TaskCheckbox } from "./task-checkbox";
 
 type NoteCardProps = {
   title: string | null;
@@ -67,7 +68,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
             style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
             options={{
               forceBlock: true,
-              overrides: { a: InlineText },
+              overrides: { a: InlineText, input: TaskCheckbox },
             }}
           >
             {content}

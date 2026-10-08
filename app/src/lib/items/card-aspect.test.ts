@@ -173,6 +173,27 @@ describe("estimateNoteAspect", () => {
     const line = noteAspect(null, "one two three four").width;
     expect(list).toBeLessThanOrEqual(line);
   });
+
+  it("sizes a checklist exactly like the same bullet list", () => {
+    // Each item just fits one line — the `[ ]` marker would tip it onto two if
+    // it were measured, but its checkbox sits in the bullet's gutter
+    const items = [
+      "abcd efgh ijkl mnop qrst uv",
+      "abcd efgh ijkl mnop qrst wx",
+    ];
+    const bullets = items.map((item) => `- ${item}`).join("\n");
+    const checklist = items
+      .map((item, index) => `- [${index ? "x" : " "}] ${item}`)
+      .join("\n");
+    expect(noteAspect(null, checklist)).toEqual(noteAspect(null, bullets));
+    // Any bullet marker: `*` is also emphasis syntax, so it's the risky one
+    expect(noteAspect(null, checklist.replaceAll("- [", "* ["))).toEqual(
+      noteAspect(null, bullets),
+    );
+    expect(noteAspect(null, checklist)).not.toEqual(
+      noteAspect(null, items.map((item) => `- [ ] [ ] ${item}`).join("\n")),
+    );
+  });
 });
 
 describe("estimateTweetAspect", () => {

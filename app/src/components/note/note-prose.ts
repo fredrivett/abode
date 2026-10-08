@@ -27,13 +27,22 @@ export const NOTE_PROSE_FONT_SIZE =
  * otherwise double the gap between items. Zero the first/last child's outer
  * margins so spacing comes from the list item alone. Shared by the note card /
  * composer prose and the detail-view editor.
+ *
+ * Checklist items put their content one step further in — the editor wraps it
+ * in a `<div>` after the checkbox's `<label>`, rendered markdown follows the
+ * checkbox with it — so the same fix applies there, keeping a checklist item
+ * exactly as tall as a bullet item.
  */
-export const LOOSE_LIST_MARGIN_FIX =
-  "[&_li>*:first-child]:mt-0 [&_li>*:last-child]:mb-0";
+export const LOOSE_LIST_MARGIN_FIX = [
+  "[&_li>*:first-child]:mt-0 [&_li>*:last-child]:mb-0",
+  "[&_li[data-checked]>div>*:first-child]:mt-0 [&_li[data-checked]>div>*:last-child]:mb-0",
+  "[&_li>[data-task-checkbox]+*]:mt-0",
+].join(" ");
 
 const NOTE_PROSE_PARTS = [
-  // Base scale and colors
-  "prose prose-sm dark:prose-invert max-w-none text-muted-foreground",
+  // Base scale and colors. `note-prose` hooks the checklist styles in
+  // globals.css
+  "note-prose prose prose-sm dark:prose-invert max-w-none text-muted-foreground",
   // Compact descending scale so heading levels are distinguishable without the
   // article-sized jumps prose-sm defaults to; em-relative so they track the
   // note's --note-prose-size everywhere
@@ -44,6 +53,10 @@ const NOTE_PROSE_PARTS = [
   "prose-p:my-[0.4em]",
   "prose-headings:my-[0.4em]",
   "prose-ul:my-[0.4em] prose-ol:my-[0.4em] prose-li:my-[0.15em]",
+  // Nothing adds a gap above a nested list — not the list, nor the paragraph
+  // the editor wraps its parent item's text in — so nested items sit the same
+  // item-gap from their parent as siblings do and nesting keeps the rhythm
+  "[&_li_ul]:my-0 [&_li_ol]:my-0 [&_li_p:has(+ul,+ol)]:mb-0",
   LOOSE_LIST_MARGIN_FIX,
   "prose-blockquote:my-[0.5em]",
   "prose-pre:my-[0.5em]",
