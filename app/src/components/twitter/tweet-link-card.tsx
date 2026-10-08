@@ -1,6 +1,6 @@
 import { Img } from "@/components/ui/img";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
-import { getHostname } from "@/lib/url-utils";
+import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import type { TwitterDetails } from "./types";
 
@@ -16,14 +16,12 @@ type TweetLinkCardProps = {
 export function TweetLinkCard({ card }: TweetLinkCardProps) {
   const isArticle = card.type === "article";
   const imageSrc = twitterImageSrc(card.imageFileKey, card.imageUrl, "detail");
-
-  return (
-    <a
-      href={card.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block overflow-hidden rounded-xl border border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
-    >
+  // The URL comes from X's data: only link out to a real http(s) URL
+  const href = isValidUrl(card.url) ? card.url : null;
+  const className =
+    "block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700";
+  const content = (
+    <>
       {imageSrc && (
         <Img
           src={imageSrc}
@@ -42,7 +40,7 @@ export function TweetLinkCard({ card }: TweetLinkCardProps) {
       )}
       <div className="space-y-0.5 p-3">
         <p className="text-gray-500 text-sm dark:text-gray-400">
-          {isArticle ? "Article on X" : getHostname(card.url)}
+          {isArticle ? "Article on X" : href && getHostname(href)}
         </p>
         <p
           className={cn(
@@ -62,12 +60,27 @@ export function TweetLinkCard({ card }: TweetLinkCardProps) {
             {card.description}
           </p>
         )}
-        {isArticle && (
+        {isArticle && href && (
           <p className="pt-1 font-medium text-blue-500 text-sm">
             Read the full Article on X
           </p>
         )}
       </div>
+    </>
+  );
+
+  if (!href) return <div className={className}>{content}</div>;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        className,
+        "transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50",
+      )}
+    >
+      {content}
     </a>
   );
 }

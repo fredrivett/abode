@@ -48,4 +48,19 @@ describe("TweetLinkCard", () => {
     render(<TweetLinkCard card={{ ...articleCard, imageUrl: null }} />);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it("doesn't link out when the stored URL isn't http(s)", () => {
+    render(
+      <TweetLinkCard card={{ ...linkCard, url: "javascript:alert(1)" }} />,
+    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText("Choosing shed felt")).toBeInTheDocument();
+    expect(screen.queryByText("javascript:alert(1)")).not.toBeInTheDocument();
+  });
+
+  it("drops the 'read on X' prompt for an Article with no usable URL", () => {
+    render(<TweetLinkCard card={{ ...articleCard, url: "not a url" }} />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/full Article/)).not.toBeInTheDocument();
+  });
 });

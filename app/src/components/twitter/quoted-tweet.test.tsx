@@ -64,4 +64,20 @@ describe("QuotedTweet", () => {
       "https://pbs.twimg.com/b-poster.jpg",
     ]);
   });
+
+  it("renders every still, even when the same image repeats", () => {
+    const url = "https://pbs.twimg.com/same.jpg";
+    render(
+      <QuotedTweet
+        quote={{
+          ...quote,
+          media: [
+            { type: "photo", url },
+            { type: "photo", url },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+  });
 });

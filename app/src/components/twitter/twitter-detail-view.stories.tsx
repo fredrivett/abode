@@ -49,6 +49,7 @@ export const QuoteTweet: Story = {
   args: {
     twitterDetails: {
       ...storyTweet,
+      tweetId: "1900000000000000003",
       authorName: "Nadia Builds",
       authorUsername: "nadiabuilds",
       text: "The best write-up on sheds I've read, and I've read a few",

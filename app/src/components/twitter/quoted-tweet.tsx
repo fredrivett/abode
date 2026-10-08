@@ -57,7 +57,8 @@ export function QuotedTweet({ quote }: { quote: QuotedTweetData }) {
         >
           {stills.map((src, index) => (
             <Img
-              key={src}
+              // biome-ignore lint/suspicious/noArrayIndexKey: src can repeat; static, never-reordered list
+              key={`${src}-${index}`}
               src={src}
               alt={tweetImageAlt(
                 { name: quote.authorName, username: quote.authorUsername },
