@@ -193,4 +193,56 @@ describe("tweet context backfill", () => {
     });
     expect(details).toMatchObject({ tweetId: "999", text: "Newer capture" });
   });
+
+  test("keeps a card that was filled in while X was being fetched", async () => {
+    const { read, write } = await import("@/lib/db");
+    const user = await createUser();
+    const item = await createTweet(user.id, articleTweet);
+    const hostedCard = {
+      type: "article",
+      title: "What a year of composting taught me",
+      description: "",
+      url: "https://x.com/i/article/1900000000000000099",
+      imageUrl: "https://pbs.twimg.com/media/compost.jpg",
+      imageFileKey: `${user.id}/cover.jpg`,
+    };
+
+    // A re-capture lands (with a re-hosted cover) mid-fetch
+    const fetch: typeof fetchTweet = vi.fn(async () => {
+      await write.itemTwitterDetails.update({
+        where: { itemId: item.id },
+        data: { card: hostedCard },
+      });
+      return { data: articleTweet };
+    });
+    const result = await refreshTweetContext({ itemId: item.id, fetch });
+
+    expect(result).toEqual({ refreshed: false, skipped: "superseded" });
+    const details = await read.itemTwitterDetails.findUniqueOrThrow({
+      where: { itemId: item.id },
+    });
+    expect(details.card).toEqual(hostedCard);
+  });
+
+  test("keeps a title the user edited when adding an Article card", async () => {
+    const { read, write } = await import("@/lib/db");
+    const user = await createUser();
+    const item = await createTweet(user.id, articleTweet);
+    await write.item.update({
+      where: { id: item.id },
+      data: { title: "My compost notes", titleEditedByUser: true },
+    });
+
+    const result = await refreshTweetContext({
+      itemId: item.id,
+      fetch: fetchReturning({ data: articleTweet }),
+    });
+
+    expect(result).toEqual({ refreshed: true, article: true });
+    const saved = await read.item.findUniqueOrThrow({
+      where: { id: item.id },
+      select: { title: true },
+    });
+    expect(saved.title).toBe("My compost notes");
+  });
 });

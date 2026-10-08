@@ -282,7 +282,7 @@ export async function handleTwitterUrl(
 
       const item = await tx.item.findUniqueOrThrow({
         where: { id: itemId, userId },
-        select: { externalLinks: true },
+        select: { externalLinks: true, titleEditedByUser: true },
       });
 
       const existingLinks = (item.externalLinks as ExternalLink[] | null) ?? [];
@@ -294,7 +294,7 @@ export async function handleTwitterUrl(
         where: { id: itemId, userId },
         data: {
           kind: "twitter",
-          title: tweetItemTitle(details),
+          ...(item.titleEditedByUser ? {} : { title: tweetItemTitle(details) }),
           description: descriptionEn?.slice(0, 200) ?? null,
           // Clear file columns the new kind doesn't use so they never point at a
           // blob deleteReplacedFiles is about to remove

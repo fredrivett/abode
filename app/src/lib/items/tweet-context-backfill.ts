@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { fetchTweet } from "react-tweet/api";
 import db from "@/lib/db";
 import {
@@ -53,10 +53,15 @@ export async function refreshTweetContext({
     existing.card === null && details.card?.type === "article";
 
   const claimed = await db.$transaction(async (tx) => {
-    // Compare-and-set on tweetId: if the item was re-captured as a different
-    // tweet meanwhile, its newer row wins
+    // Compare-and-set on what this run read: if the item was re-captured as a
+    // different tweet meanwhile, or (when adding an Article card) the card was
+    // filled — possibly with a re-hosted cover key — the newer row wins
     const { count } = await tx.itemTwitterDetails.updateMany({
-      where: { itemId, tweetId: existing.tweetId },
+      where: {
+        itemId,
+        tweetId: existing.tweetId,
+        ...(addArticleCard && { card: { equals: Prisma.AnyNull } }),
+      },
       data: {
         ...tweetContextData(details),
         ...(addArticleCard && { card: details.card ?? undefined }),
@@ -64,10 +69,14 @@ export async function refreshTweetContext({
     });
     if (count === 0) return false;
     if (addArticleCard) {
+      const item = await tx.item.findUniqueOrThrow({
+        where: { id: itemId },
+        select: { titleEditedByUser: true },
+      });
       await tx.item.update({
         where: { id: itemId },
         data: {
-          title: tweetItemTitle(details),
+          ...(item.titleEditedByUser ? {} : { title: tweetItemTitle(details) }),
           description: tweetDescriptionSource(details)?.slice(0, 200) ?? null,
         },
       });

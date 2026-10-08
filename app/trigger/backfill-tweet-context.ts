@@ -17,8 +17,10 @@ import { fetchTweet } from "react-tweet/api";
 import db from "../src/lib/db";
 import {
   refreshTweetContext,
+  type TweetContextRefreshResult,
   tweetContextBackfillCandidateWhere,
 } from "../src/lib/items/tweet-context-backfill";
+import { captureServerException } from "../src/lib/posthog-server";
 
 const BATCH_SIZE = 500;
 
@@ -68,7 +70,17 @@ export const backfillTweetContextItemTask = task({
   maxDuration: 60,
   run: async (payload: { itemId: string }) => {
     const { itemId } = payload;
-    const result = await refreshTweetContext({ itemId, fetch: fetchTweet });
+    let result: TweetContextRefreshResult;
+    try {
+      result = await refreshTweetContext({ itemId, fetch: fetchTweet });
+    } catch (error) {
+      logger.error("Tweet context refresh failed", { itemId, error });
+      captureServerException(error, undefined, {
+        task: "backfill-tweet-context-item",
+        itemId,
+      });
+      throw error;
+    }
 
     if (result.refreshed) {
       logger.info("Refreshed tweet context", {
