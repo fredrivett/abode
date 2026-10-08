@@ -8,7 +8,7 @@
 
 const OPENABLE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
 
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+const SCHEME = /^([a-z][a-z0-9+.-]*:)/i;
 
 /** The href as an absolute URL that's safe to open, or null (script/relative/malformed) */
 export function getOpenableHref(
@@ -30,7 +30,13 @@ export function getOpenableHref(
 export function normalizeLinkInput(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
-  if (HAS_SCHEME.test(trimmed) && !/^[^:/]+:\d/.test(trimmed)) {
+  const scheme = SCHEME.exec(trimmed)?.[1].toLowerCase();
+  // `localhost:3000` reads as a scheme too: digits after the colon mean
+  // host:port, unless the scheme is one we open (`mailto:123@…`, `tel:+44…`)
+  const isHostPort =
+    /^[^:/]+:\d/.test(trimmed) &&
+    !(scheme !== undefined && OPENABLE_PROTOCOLS.has(scheme));
+  if (scheme && !isHostPort) {
     return getOpenableHref(trimmed) ? trimmed : null;
   }
   const withScheme = `https://${trimmed}`;

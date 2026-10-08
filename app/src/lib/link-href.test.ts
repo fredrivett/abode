@@ -55,6 +55,13 @@ describe("normalizeLinkInput", () => {
     );
   });
 
+  it.each([["mailto:123@example.com"], ["tel:0123456789"]])(
+    "doesn't mistake %s for host:port",
+    (input) => {
+      expect(normalizeLinkInput(input)).toBe(input);
+    },
+  );
+
   it.each([
     [""],
     ["   "],
