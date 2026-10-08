@@ -221,4 +221,115 @@ test.describe("Note composer", () => {
 
     await context.close();
   });
+
+  test("links open on demand, not on a plain click mid-edit", async ({
+    browser,
+  }) => {
+    const user = await createUser({
+      email: "note-links@test.local",
+      username: "note_links_user",
+    });
+    const prisma = getE2EPrisma();
+    await prisma.item.create({
+      data: {
+        userId: user.id,
+        kind: "note",
+        sourceType: "compose",
+        processingStatus: "completed",
+        title: "Links note",
+        noteDetails: {
+          create: {
+            content: "Read [the essay](https://example.com/essay) soon.",
+          },
+        },
+      },
+    });
+    await prisma.noteDraft.create({
+      data: {
+        userId: user.id,
+        content: "# Draft\n\nSee [the docs](https://example.com/docs) later.",
+      },
+    });
+
+    const context = await browser.newContext();
+    // Opened tabs never leave the test environment
+    await context.route("https://example.com/**", (route) =>
+      route.fulfill({ body: "ok", contentType: "text/plain" }),
+    );
+    const page = await context.newPage();
+    const opened: string[] = [];
+    context.on("page", (popup) => opened.push(popup.url()));
+    await loginAs(page, user);
+    await page.goto("/dashboard");
+
+    // Composer: a plain click shows the link menu instead of opening the link,
+    // and the menu isn't clipped by the card's scroll box
+    const composer = page.locator(".ProseMirror").first();
+    const draftLink = composer.getByRole("link", { name: "the docs" });
+    await expect(draftLink).toBeVisible({ timeout: 15_000 });
+    await draftLink.click();
+    const openButton = page.getByRole("button", { name: "Open link" });
+    await expect(openButton).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "example.com/docs" }),
+    ).toBeVisible();
+    const menuOnTop = await openButton.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return hit !== null && button.contains(hit);
+    });
+    expect(menuOnTop).toBe(true);
+    expect(opened).toHaveLength(0);
+
+    // Open from the menu
+    const fromMenu = context.waitForEvent("page");
+    await openButton.click();
+    await expect(await fromMenu).toHaveURL("https://example.com/docs");
+
+    // Detail dialog
+    await page.bringToFront();
+    // Click the card's title, clear of the link in its preview
+    await page
+      .getByRole("button")
+      .filter({ hasText: "Links note" })
+      .click({ position: { x: 16, y: 16 } });
+    const dialog = page.getByRole("dialog", { name: /Links note/i });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    const link = dialog.locator(".ProseMirror").getByRole("link", {
+      name: "the essay",
+    });
+    await expect(link).toBeVisible({ timeout: 15_000 });
+    const openedBefore = opened.length;
+    await link.click();
+    await expect(
+      dialog.getByRole("button", { name: "Open link" }),
+    ).toBeVisible();
+    expect(opened).toHaveLength(openedBefore);
+
+    // Editing the link: Escape cancels the edit without closing the note
+    await dialog.getByRole("button", { name: "Edit link" }).click();
+    const address = dialog.getByRole("textbox", { name: "Link address" });
+    await expect(address).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(address).toBeHidden();
+    await expect(dialog).toBeVisible();
+
+    // Saving an edit rewrites the stored link (bare domains get https://)
+    await dialog.getByRole("button", { name: "Edit link" }).click();
+    await address.fill("example.com/updated");
+    await address.press("Enter");
+    await expect(link).toHaveAttribute("href", "https://example.com/updated");
+
+    // ⌘/Ctrl-click opens directly
+    const fromModifierClick = context.waitForEvent("page");
+    await link.click({ modifiers: ["ControlOrMeta"] });
+    await expect(await fromModifierClick).toHaveURL(
+      "https://example.com/updated",
+    );
+
+    await context.close();
+  });
 });
