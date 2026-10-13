@@ -40,6 +40,10 @@ export const RATE_LIMITS = {
     maxRequests: 5,
     windowMs: 60 * 1000, // 1 minute - prevents signup spam
   },
+  shareInvite: {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000, // 1 hour - each request can spend a sharer's invite
+  },
   embed: {
     maxRequests: 60,
     windowMs: 60 * 1000, // 1 minute - public widget API
