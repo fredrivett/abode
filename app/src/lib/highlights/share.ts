@@ -27,10 +27,16 @@ export function normalizeHighlightText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
 /** Truncate to at most `max` chars, backing off to a word boundary. */
 export function truncateAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
-  const slice = text.slice(0, max - 1);
+  // Don't cut between the halves of a surrogate pair (emoji, rare CJK)
+  const end = isHighSurrogate(text.charCodeAt(max - 2)) ? max - 2 : max - 1;
+  const slice = text.slice(0, end);
   const lastSpace = slice.lastIndexOf(" ");
   // Only back off to the space when it doesn't throw away most of the slice
   const cut = lastSpace > max * 0.6 ? slice.slice(0, lastSpace) : slice;
@@ -59,7 +65,7 @@ export function highlightQuoteLayout(rawText: string): HighlightQuoteLayout {
   };
 }
 
-/** Plain-text quote with attribution and link, for pasting anywhere. */
+/** Plain-text quote with attribution (and link, if given), for pasting anywhere. */
 export function formatHighlightQuote({
   text,
   title,
@@ -67,10 +73,10 @@ export function formatHighlightQuote({
 }: {
   text: string;
   title: string | null;
-  url: string;
+  url?: string;
 }): string {
   const quote = `“${normalizeHighlightText(text)}”`;
-  return [quote, title ? `— ${title}` : null, url]
+  return [quote, title ? `— ${title}` : null, url ?? null]
     .filter((line) => line !== null)
     .join("\n");
 }

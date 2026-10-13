@@ -34,7 +34,13 @@ import type { ImageColor } from "@/lib/vision";
 // Returns the username without the @ prefix, or null if invalid (missing @).
 export function parseUsername(rawUsername: string): string | null {
   // Next.js passes URL-encoded params, so %40 needs to be decoded to @
-  const decoded = decodeURIComponent(rawUsername);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawUsername);
+  } catch {
+    // Malformed percent-escape (e.g. a bare "%") — 404, not 500
+    return null;
+  }
   if (!decoded.startsWith("@")) {
     return null;
   }
@@ -182,7 +188,6 @@ const highlightSelect = {
   startOffset: true,
   endOffset: true,
   text: true,
-  note: true,
   createdAt: true,
 } satisfies Prisma.ArticleHighlightSelect;
 
@@ -190,8 +195,14 @@ type HighlightRow = Prisma.ArticleHighlightGetPayload<{
   select: typeof highlightSelect;
 }>;
 
+// A highlight's note is the owner's private annotation; public views share the
+// quote, never the note
 function toClientHighlight(highlight: HighlightRow) {
-  return { ...highlight, createdAt: highlight.createdAt.toISOString() };
+  return {
+    ...highlight,
+    note: null,
+    createdAt: highlight.createdAt.toISOString(),
+  };
 }
 
 export type PublicHighlight = ReturnType<typeof toClientHighlight>;

@@ -79,6 +79,10 @@ describe("loadPublicItem", () => {
 
   it.each([
     ["the username lacks an @", { rawUsername: "fred", id: ITEM_ID }],
+    [
+      "the username is a malformed escape",
+      { rawUsername: "@bad%zz", id: ITEM_ID },
+    ],
     ["the id isn't a uuid", { rawUsername: "@fred", id: "nope" }],
   ])("returns null when %s", async (_, args) => {
     expect(await loadPublicItem(args)).toBeNull();
@@ -115,6 +119,18 @@ describe("getSharedHighlight", () => {
     });
   });
 
+  it("never exposes the owner's private note", async () => {
+    highlightFindUnique.mockResolvedValue({
+      ...highlightRow,
+      note: "private thought",
+    });
+    const highlight = await getSharedHighlight({
+      item: makeItem(),
+      highlightId: HIGHLIGHT_ID,
+    });
+    expect(highlight?.note).toBeNull();
+  });
+
   it.each([
     ["on another item", { itemId: "other-item" }],
     ["by another user", { userId: "other-user" }],
@@ -148,11 +164,12 @@ describe("getVisibleHighlights", () => {
   });
 
   it("returns them when the item shares its highlights", async () => {
-    findMany.mockResolvedValue([highlightRow]);
+    findMany.mockResolvedValue([{ ...highlightRow, note: "private" }]);
     const highlights = await getVisibleHighlights({
       item: makeItem({ sharedHighlights: true }),
       viewerId: null,
     });
     expect(highlights.map((h) => h.id)).toEqual([HIGHLIGHT_ID]);
+    expect(highlights[0].note).toBeNull();
   });
 });

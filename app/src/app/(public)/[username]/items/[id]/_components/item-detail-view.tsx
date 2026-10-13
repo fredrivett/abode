@@ -2,7 +2,7 @@
 
 import { ArrowDown, ExternalLink, FileText, Highlighter } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { BookReadingSummary } from "@/components/book/book-reading-summary";
 import { DocumentDetailView } from "@/components/document/document-detail-view";
@@ -97,9 +97,19 @@ export function ItemDetailView({
   featuredHighlight = null,
 }: Props) {
   // Bumping the key re-runs the scroll even when the target id is unchanged
-  const [scrollTarget, setScrollTarget] = useState(
-    scrollToHighlightId ? { id: scrollToHighlightId, key: 0 } : null,
-  );
+  const [scrollTarget, setScrollTarget] = useState<{
+    id: string;
+    key: number;
+  } | null>(null);
+
+  // Follow the ?highlight= prop, including soft navigations that change it
+  useEffect(() => {
+    setScrollTarget((prev) =>
+      scrollToHighlightId
+        ? { id: scrollToHighlightId, key: (prev?.key ?? 0) + 1 }
+        : null,
+    );
+  }, [scrollToHighlightId]);
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
   const isInstagram = item.kind === "instagram";

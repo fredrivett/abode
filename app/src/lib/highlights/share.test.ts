@@ -50,6 +50,13 @@ describe("truncateAtWord", () => {
     expect(truncateAtWord("a".repeat(30), 10)).toBe(`${"a".repeat(9)}…`);
   });
 
+  it("never splits a surrogate pair at the cut", () => {
+    // Each 🙂 is two UTF-16 code units; a naive slice would cut one in half
+    const result = truncateAtWord("🙂".repeat(10), 6);
+    expect(result).toBe("🙂🙂…");
+    expect(result.isWellFormed()).toBe(true);
+  });
+
   it("strips trailing punctuation before the ellipsis", () => {
     expect(truncateAtWord("first clause, second clause here", 15)).toBe(
       "first clause…",
@@ -89,6 +96,10 @@ describe("formatHighlightQuote", () => {
         url: "https://abode.test/x",
       }),
     ).toBe("“Less, but better.”\n— Dieter Rams\nhttps://abode.test/x");
+  });
+
+  it("omits the link when none is given (native share sends it separately)", () => {
+    expect(formatHighlightQuote({ text: "Hi", title: "T" })).toBe("“Hi”\n— T");
   });
 
   it("omits the attribution line without a title", () => {
