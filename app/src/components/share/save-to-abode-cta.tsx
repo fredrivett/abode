@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Bookmark, Check } from "lucide-react";
+import Link from "next/link";
 import posthog from "posthog-js";
 import { useId, useState } from "react";
 import { AbodeLogo } from "@/components/abode-logo";
@@ -10,6 +11,7 @@ import { IsLoading } from "@/components/ui/is-loading";
 import { ApiClientError, api } from "@/lib/api-client";
 import type { ShareInviteOutcome } from "@/lib/invites/share-invite";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 type Props = {
   itemId: string;
@@ -20,6 +22,8 @@ type Props = {
   isSignedIn: boolean;
   /** The sharer has invites to give (and allows it); otherwise readers join the waitlist */
   invitesOpen: boolean;
+  /** Above the content or after it; spacing and analytics follow */
+  placement?: "top" | "bottom";
 };
 
 type ResponseOutcome = Exclude<
@@ -56,15 +60,22 @@ export function SaveToAbodeCta({
   ownerUsername,
   isSignedIn,
   invitesOpen,
+  placement = "top",
 }: Props) {
   const inputId = useId();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<FormState>({ step: "idle" });
+  const spacing = placement === "top" ? "mb-8" : "mt-10";
 
   if (isSignedIn) {
     if (!sourceUrl) return null;
     return (
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3",
+          spacing,
+        )}
+      >
         <p className="text-muted-foreground text-sm">
           Want this in your own abode?
         </p>
@@ -72,7 +83,10 @@ export function SaveToAbodeCta({
           <a
             href={savePath(sourceUrl)}
             onClick={() =>
-              posthog.capture("share_cta_save_clicked", { item_id: itemId })
+              posthog.capture("share_cta_save_clicked", {
+                item_id: itemId,
+                placement,
+              })
             }
           >
             <Bookmark />
@@ -94,6 +108,7 @@ export function SaveToAbodeCta({
       });
       posthog.capture("share_cta_submitted", {
         item_id: itemId,
+        placement,
         outcome: outcome.status,
       });
       if (outcome.status === "invited") {
@@ -115,7 +130,12 @@ export function SaveToAbodeCta({
 
   return (
     // A ticket: the invite is the stub, torn off along a perforation
-    <section className="mb-8 flex flex-col rounded-xl border border-border bg-muted/30 md:flex-row">
+    <section
+      className={cn(
+        "flex flex-col rounded-xl border border-border bg-muted/30 md:flex-row",
+        spacing,
+      )}
+    >
       <div className="flex flex-col justify-between gap-3 p-5 md:w-60 md:gap-4 md:p-6">
         <span className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">
           {invitesOpen ? "Admit one" : "Waitlist"}
@@ -127,7 +147,13 @@ export function SaveToAbodeCta({
         />
         {ownerUsername && (
           <span className="font-mono text-muted-foreground text-xs">
-            {invitesOpen ? "invite from" : "via"} @{ownerUsername}
+            {invitesOpen ? "invite from" : "via"}{" "}
+            <Link
+              href={`/@${ownerUsername}`}
+              className="underline-offset-2 hover:text-foreground hover:underline"
+            >
+              @{ownerUsername}
+            </Link>
           </span>
         )}
       </div>

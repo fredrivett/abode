@@ -139,6 +139,23 @@ export function ItemDetailView({
   const imageUrl = showImage ? getProxyImageUrl(imageFileKey, "detail") : null;
 
   const ownerHref = owner.username ? `/@${owner.username}` : null;
+  const hasArticleContent = isArticle && !!item.articleDetails?.content;
+
+  // Shown above the content and again after it, for readers who finish
+  const renderSaveCta = (placement: "top" | "bottom") =>
+    saveCta && (
+      <SaveToAbodeCta
+        itemId={item.id}
+        // Only http(s) links can be saved (by /save or after signup)
+        sourceUrl={
+          item.sourceUrl && isValidUrl(item.sourceUrl) ? item.sourceUrl : null
+        }
+        ownerUsername={owner.username}
+        isSignedIn={saveCta.isSignedIn}
+        invitesOpen={saveCta.invitesOpen}
+        placement={placement}
+      />
+    );
 
   // Designed bookmark fallback for URL-backed items with no renderable media,
   // shown in place of the bare "no preview" icon when we have a source link.
@@ -193,18 +210,7 @@ export function ItemDetailView({
         />
       )}
 
-      {saveCta && (
-        <SaveToAbodeCta
-          itemId={item.id}
-          // Only http(s) links can be saved (by /save or after signup)
-          sourceUrl={
-            item.sourceUrl && isValidUrl(item.sourceUrl) ? item.sourceUrl : null
-          }
-          ownerUsername={owner.username}
-          isSignedIn={saveCta.isSignedIn}
-          invitesOpen={saveCta.invitesOpen}
-        />
-      )}
+      {renderSaveCta("top")}
 
       <article className="flex flex-1 flex-col">
         {/* Title */}
@@ -349,13 +355,16 @@ export function ItemDetailView({
           (linkFallback ?? <EmptyState label="No preview available" />)
         )}
 
-        {/* Description */}
-        {item.description && (
+        {/* Description — not for an article shown in full, where it just
+            repeats the article as a stray paragraph after it */}
+        {item.description && !hasArticleContent && (
           <p className="mt-6 whitespace-pre-wrap text-foreground/80 text-sm md:text-base">
             {item.description}
           </p>
         )}
       </article>
+
+      {renderSaveCta("bottom")}
     </div>
   );
 }

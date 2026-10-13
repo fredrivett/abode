@@ -6,7 +6,8 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();
   return { ...actual, api: { post } };
 });
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
+const { capture } = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock("posthog-js", () => ({ default: { capture } }));
 
 import { ApiClientError } from "@/lib/api-client";
 import { SaveToAbodeCta } from "./save-to-abode-cta";
@@ -78,7 +79,12 @@ describe("SaveToAbodeCta", () => {
   it("offers signed-out readers the sharer's invite", () => {
     renderSignedOut();
     expect(screen.getByText("Admit one")).toBeInTheDocument();
-    expect(screen.getByText(/invite from @fred/)).toBeInTheDocument();
+    expect(screen.getByText(/invite from/)).toBeInTheDocument();
+    // The sharer links to their profile
+    expect(screen.getByRole("link", { name: "@fred" })).toHaveAttribute(
+      "href",
+      "/@fred",
+    );
     expect(
       screen.getByRole("button", { name: /Use invite/ }),
     ).toBeInTheDocument();
@@ -109,6 +115,20 @@ describe("SaveToAbodeCta", () => {
       itemId: ITEM_ID,
       email: "reader@example.com",
     });
+  });
+
+  it("records which placement the reader used", async () => {
+    post.mockResolvedValue({ status: "waitlisted" });
+    renderSignedOut({ placement: "bottom" });
+    submit();
+
+    await waitFor(() =>
+      expect(capture).toHaveBeenCalledWith("share_cta_submitted", {
+        item_id: ITEM_ID,
+        placement: "bottom",
+        outcome: "waitlisted",
+      }),
+    );
   });
 
   it("confirms a waitlist signup", async () => {

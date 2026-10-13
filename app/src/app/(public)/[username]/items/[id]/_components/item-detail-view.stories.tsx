@@ -33,7 +33,7 @@ const article = {
   sourceType: "url",
   sourceUrl: "https://example.com/slightly-better",
   title: "How to make everything slightly better",
-  description: null,
+  description: "A short summary of the article, as saved with it.",
   tags: [],
   userTags: [],
   objects: [],
@@ -84,7 +84,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Article: Story = {};
+export const Article: Story = {
+  play: async ({ canvasElement }) => {
+    // The saved summary would only repeat the full article after it
+    await expect(
+      within(canvasElement).queryByText(/A short summary of the article/),
+    ).toBeNull();
+  },
+};
 
 export const SharedHighlight: Story = {
   args: {
@@ -95,7 +102,9 @@ export const SharedHighlight: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The quote is attributed to its owner
-    await expect(canvas.getByText("@fred")).toBeVisible();
+    await expect(canvas.getAllByText("@fred")[0]).toBeVisible();
+    // The invite ticket appears above the article and again after it
+    await expect(canvas.getAllByText("Admit one")).toHaveLength(2);
     await userEvent.click(
       canvas.getByRole("button", { name: "Read in context" }),
     );
