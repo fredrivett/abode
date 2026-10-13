@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { useArticleReading } from "@/lib/items/use-article-reading";
+import { cn } from "@/lib/utils";
 import { ARTICLE_PROSE_CLASS } from "./article-prose";
 import { HighlightableArticle } from "./highlightable-article";
 
@@ -54,7 +55,8 @@ function resolveScroller(container: HTMLElement): HTMLElement | null {
  * highlighting. Mirrors the other per-kind detail views (product/video/note)
  * so the item dialog renders each kind through a dedicated component. For the
  * owner it also restores the saved scroll position, persists reading progress,
- * and offers an end-of-article "mark as read" nudge.
+ * and offers an end-of-article "mark as read" nudge. Once read the nudge stays
+ * as a muted "Marked as read" toggle so a mis-tap can be undone in place.
  */
 export function ArticleDetailView({
   itemId,
@@ -69,6 +71,7 @@ export function ArticleDetailView({
   const containerRef = useRef<HTMLDivElement>(null);
   const hasRestoredRef = useRef(false);
   const [isRead, setIsRead] = useState(readAt != null);
+  const [pending, setPending] = useState(false);
 
   // Re-sync read state from the server after a save invalidates the items query.
   useEffect(() => setIsRead(readAt != null), [readAt]);
@@ -105,10 +108,15 @@ export function ArticleDetailView({
     };
   }, [initialScrollProgress, enableTracking, saveScrollProgress]);
 
-  const handleMarkRead = async () => {
-    setIsRead(true);
-    const ok = await setRead(true);
-    if (!ok) setIsRead(false);
+  // Disabled while in-flight so a double-click can't send opposite values
+  // concurrently; reverts the optimistic flip if the save fails
+  const toggleRead = async () => {
+    const next = !isRead;
+    setIsRead(next);
+    setPending(true);
+    const ok = await setRead(next);
+    if (!ok) setIsRead(!next);
+    setPending(false);
   };
 
   return (
@@ -128,14 +136,24 @@ export function ArticleDetailView({
           className={ARTICLE_PROSE_CLASS}
           scrollToHighlightId={scrollToHighlightId}
         />
-        {enableTracking && !isRead && (
+        {enableTracking && (
           <div className="mt-8 flex flex-col items-center gap-3 border-t pt-6 text-center">
             <p className="text-muted-foreground text-sm">
-              You've reached the end. Mark this article as read?
+              {isRead
+                ? "You've reached the end."
+                : "You've reached the end. Mark this article as read?"}
             </p>
-            <Button size="sm" onClick={() => void handleMarkRead()}>
+            <Button
+              size="sm"
+              variant={isRead ? "secondary" : "default"}
+              className={cn(isRead && "text-muted-foreground")}
+              aria-pressed={isRead}
+              title={isRead ? "Mark as unread" : undefined}
+              disabled={pending}
+              onClick={() => void toggleRead()}
+            >
               <Check />
-              Mark as read
+              {isRead ? "Marked as read" : "Mark as read"}
             </Button>
           </div>
         )}

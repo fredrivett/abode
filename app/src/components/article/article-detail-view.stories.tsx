@@ -72,6 +72,14 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+// Owner view: the end-of-article nudge to mark the article read
+export const Unread: Story = { args: { enableTracking: true, readAt: null } };
+
+// Once read, the nudge stays as a muted toggle that can undo it
+export const Read: Story = {
+  args: { enableTracking: true, readAt: "2026-09-01T09:00:00.000Z" },
+};
+
 // Each section after a break opens with a drop cap; the opening paragraph
 // stays plain and the caption is set apart from the body text. The play test
 // guards the rendered structure the reader's sibling selectors rely on
