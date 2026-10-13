@@ -1,12 +1,15 @@
 "use client";
 
-import { ExternalLink, FileText } from "lucide-react";
+import { ArrowDown, ExternalLink, FileText, Highlighter } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import { BookReadingSummary } from "@/components/book/book-reading-summary";
 import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
+import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
 import { Img } from "@/components/ui/img";
 import { VideoDetailView } from "@/components/video/video-detail-view";
@@ -68,6 +71,8 @@ type Props = {
   highlights: ReadOnlyHighlight[];
   scrollToHighlightId: string | null;
   roomContext: RoomContext | null;
+  /** A single shared highlight, shown as a pull quote above the article */
+  featuredHighlight?: ReadOnlyHighlight | null;
 };
 
 function ownerDisplayName(owner: Owner): string {
@@ -89,7 +94,12 @@ export function ItemDetailView({
   highlights,
   scrollToHighlightId,
   roomContext,
+  featuredHighlight = null,
 }: Props) {
+  // Bumping the key re-runs the scroll even when the target id is unchanged
+  const [scrollTarget, setScrollTarget] = useState(
+    scrollToHighlightId ? { id: scrollToHighlightId, key: 0 } : null,
+  );
   const isArticle = item.kind === "article";
   const isTwitter = item.kind === "twitter";
   const isInstagram = item.kind === "instagram";
@@ -155,6 +165,19 @@ export function ItemDetailView({
         )}
       </nav>
 
+      {featuredHighlight && (
+        <FeaturedHighlight
+          highlight={featuredHighlight}
+          owner={owner}
+          onReadInContext={() =>
+            setScrollTarget((prev) => ({
+              id: featuredHighlight.id,
+              key: (prev?.key ?? 0) + 1,
+            }))
+          }
+        />
+      )}
+
       <article className="flex flex-1 flex-col">
         {/* Title */}
         <h1 className="mb-2 font-semibold text-2xl text-foreground md:text-3xl">
@@ -196,7 +219,8 @@ export function ItemDetailView({
                   <ReadOnlyArticle
                     content={item.articleDetails.content}
                     highlights={highlights}
-                    scrollToHighlightId={scrollToHighlightId}
+                    scrollToHighlightId={scrollTarget?.id ?? null}
+                    scrollRequestKey={scrollTarget?.key}
                     className="prose prose-sm md:prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif"
                   />
                 </div>
@@ -305,6 +329,85 @@ export function ItemDetailView({
         )}
       </article>
     </div>
+  );
+}
+
+function FeaturedHighlight({
+  highlight,
+  owner,
+  onReadInContext,
+}: {
+  highlight: ReadOnlyHighlight;
+  owner: Owner;
+  onReadInContext: () => void;
+}) {
+  const name = [owner.firstName, owner.lastName].filter(Boolean).join(" ");
+  const ownerHref = owner.username ? `/@${owner.username}` : null;
+  const byline = (
+    <>
+      <UserAvatar
+        avatarUrl={owner.avatarUrl}
+        firstName={owner.firstName}
+        lastName={owner.lastName}
+        username={owner.username}
+        className="size-8"
+        fallbackClassName="text-xs"
+      />
+      <span className="flex flex-col leading-tight">
+        <span className="font-medium text-foreground text-sm">
+          {name || (owner.username ? `@${owner.username}` : "abode")}
+        </span>
+        {name && owner.username && (
+          <span className="text-muted-foreground text-xs">
+            @{owner.username}
+          </span>
+        )}
+      </span>
+    </>
+  );
+
+  return (
+    <figure className="mb-10 rounded-xl border border-border bg-muted/30 p-5 md:p-8">
+      <figcaption className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        {ownerHref ? (
+          <Link
+            href={ownerHref}
+            className="-m-1 flex items-center gap-2.5 rounded-lg p-1 transition-colors hover:bg-accent/50"
+          >
+            {byline}
+          </Link>
+        ) : (
+          <span className="flex items-center gap-2.5">{byline}</span>
+        )}
+        <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+          <Highlighter className="size-3.5 text-yellow-500" />
+          Highlight
+        </span>
+      </figcaption>
+
+      <button
+        type="button"
+        onClick={onReadInContext}
+        className="group block w-full cursor-pointer rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Show this highlight in the article"
+      >
+        <blockquote className="whitespace-pre-line border-yellow-400 border-l-4 pl-5 font-serif text-foreground text-xl leading-relaxed transition-colors group-hover:border-yellow-500 md:pl-7 md:text-2xl">
+          <span className="bg-yellow-400/0 transition-colors group-hover:bg-yellow-400/20">
+            “{highlight.text.trim()}”
+          </span>
+        </blockquote>
+      </button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-6"
+        onClick={onReadInContext}
+      >
+        <ArrowDown />
+        Read in context
+      </Button>
+    </figure>
   );
 }
 

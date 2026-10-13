@@ -16,22 +16,14 @@ import type { ReactElement } from "react";
 import { ABODE_LOGO_PATHS, ABODE_LOGO_VIEWBOX } from "@/components/abode-logo";
 import { getProxyImageUrl, type ImageSize } from "@/lib/image-url";
 import { getAppBaseUrl } from "@/lib/url";
+import { OG_COLORS } from "./theme";
+
+export { OG_COLORS };
 
 // Standard OG canvas. 1200x630 (1.91:1) is the size every major network crops
 // to, so we render at exactly that and never letterbox.
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 export const OG_CONTENT_TYPE = "image/png";
-
-// The app is intentionally monochrome (see the grayscale theme in
-// globals.css). Keep the OG palette on-brand: a near-black card, off-white
-// text, muted grey for secondary lines.
-export const OG_COLORS = {
-  bg: "#171717",
-  surface: "#1f1f1f",
-  fg: "#fafafa",
-  muted: "#8f8f8f",
-  border: "rgba(255,255,255,0.10)",
-} as const;
 
 // These cards reflect mutable visibility (an item can be unshared, a room made
 // private) but are gated only at render time, so a shared cache must not keep
@@ -119,7 +111,7 @@ function abodeWordmarkSrc(color: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-function AbodeWordmark({
+export function AbodeWordmark({
   height,
   color = OG_COLORS.fg,
 }: {
