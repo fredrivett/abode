@@ -18,21 +18,30 @@ export {
   isInviteExpired,
 } from "./token";
 
+export type InviteUsage = {
+  /** Total invites the user can have active/accepted */
+  allocation: number;
+  /** Accepted plus still-active pending invites */
+  used: number;
+  available: number;
+};
+
 /**
- * Get the number of invites a user has available
- * Available = allocation - (accepted + active pending)
+ * A user's invite allocation and how much of it is used, or null if the user
+ * doesn't exist. Used = accepted + active pending; joined_elsewhere doesn't
+ * count, since the invitee didn't join via this invite.
  */
-export async function getAvailableInvites(userId: string): Promise<number> {
+export async function getInviteUsage(
+  userId: string,
+): Promise<InviteUsage | null> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { inviteAllocation: true },
   });
 
-  if (!user) return 0;
+  if (!user) return null;
 
-  // Count invites that are "used" (accepted or still active/pending)
-  // Note: joined_elsewhere doesn't count as "used" since user didn't join via this invite
-  const usedInvites = await db.invite.count({
+  const used = await db.invite.count({
     where: {
       inviterId: userId,
       OR: [
@@ -42,7 +51,19 @@ export async function getAvailableInvites(userId: string): Promise<number> {
     },
   });
 
-  return Math.max(0, user.inviteAllocation - usedInvites);
+  return {
+    allocation: user.inviteAllocation,
+    used,
+    available: Math.max(0, user.inviteAllocation - used),
+  };
+}
+
+/**
+ * Get the number of invites a user has available
+ * Available = allocation - (accepted + active pending)
+ */
+export async function getAvailableInvites(userId: string): Promise<number> {
+  return (await getInviteUsage(userId))?.available ?? 0;
 }
 
 /**
