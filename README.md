@@ -105,7 +105,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Location (auto + manual) + map thumbnails (Mapbox)
 - Rooms (manual + smart collections)
 - Public rooms, profiles + room embedding
-- Article highlighting (with per-highlight notes)
+- Article highlighting (with per-highlight notes) + shareable highlight links with quote cards
 - Command palette (⌘K) + keyboard navigation
 - MCP server for AI assistants + scoped personal access tokens
 - Admin dashboard, waitlist, invite system
