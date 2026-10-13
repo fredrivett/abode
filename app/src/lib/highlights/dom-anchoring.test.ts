@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import {
+  clampRangeToContainer,
   createAnchor,
   createQuoteSelector,
   fromRange,
@@ -75,6 +76,84 @@ describe("dom-anchoring", () => {
       const position = fromRange(container, range);
 
       expect(position).toEqual({ start: 13, end: 17 });
+    });
+  });
+
+  describe("fromRange with element boundary points", () => {
+    test("counts text before an element boundary", () => {
+      container.innerHTML = "<p>Hello</p><p>world</p>";
+      const firstText = container.querySelector("p")?.firstChild as Text;
+
+      // Drag released past the text lands on (container, childIndex)
+      const range = document.createRange();
+      range.setStart(firstText, 1);
+      range.setEnd(container, 1);
+
+      expect(fromRange(container, range)).toEqual({ start: 1, end: 5 });
+    });
+
+    test("counts all text for an end-of-container boundary", () => {
+      container.innerHTML = "<p>Hello</p><p>world</p>";
+      const range = document.createRange();
+      range.setStart(container, 1);
+      range.setEnd(container, 2);
+
+      expect(fromRange(container, range)).toEqual({ start: 5, end: 10 });
+    });
+  });
+
+  describe("clampRangeToContainer", () => {
+    test("returns the range unchanged when it's inside the container", () => {
+      container.textContent = "Hello world";
+      const textNode = container.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 5);
+
+      expect(clampRangeToContainer(container, range)?.toString()).toBe("Hello");
+    });
+
+    test("clips a range that ends after the container", () => {
+      container.textContent = "Hello world";
+      const after = document.createElement("div");
+      after.textContent = "Outside";
+      document.body.appendChild(after);
+
+      const range = document.createRange();
+      range.setStart(container.firstChild as Text, 6);
+      range.setEnd(after.firstChild as Text, 3);
+
+      const clamped = clampRangeToContainer(container, range);
+      expect(clamped?.toString()).toBe("world");
+      expect(clamped && fromRange(container, clamped)).toEqual({
+        start: 6,
+        end: 11,
+      });
+    });
+
+    test("clips a range that starts before the container", () => {
+      const before = document.createElement("div");
+      before.textContent = "Outside";
+      document.body.insertBefore(before, container);
+      container.textContent = "Hello world";
+
+      const range = document.createRange();
+      range.setStart(before.firstChild as Text, 2);
+      range.setEnd(container.firstChild as Text, 5);
+
+      expect(clampRangeToContainer(container, range)?.toString()).toBe("Hello");
+    });
+
+    test("returns null for a range outside the container", () => {
+      container.textContent = "Hello world";
+      const other = document.createElement("div");
+      other.textContent = "Elsewhere";
+      document.body.appendChild(other);
+
+      const range = document.createRange();
+      range.selectNodeContents(other);
+
+      expect(clampRangeToContainer(container, range)).toBeNull();
     });
   });
 

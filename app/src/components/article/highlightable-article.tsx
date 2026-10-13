@@ -13,6 +13,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import {
+  clampRangeToContainer,
   fromRange,
   toRange,
   wrapRangeWithHighlight,
@@ -207,15 +208,14 @@ export function HighlightableArticle({
     if (!container) return;
 
     const sel = window.getSelection();
+    // Keep only the part inside the article, so a drag released outside it still counts
     const range =
-      sel && !sel.isCollapsed && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-    const selectedText = sel?.toString().trim() ?? "";
+      sel && !sel.isCollapsed && sel.rangeCount > 0
+        ? clampRangeToContainer(container, sel.getRangeAt(0))
+        : null;
+    const selectedText = range?.toString().trim() ?? "";
 
-    if (
-      !range ||
-      selectedText.length < 3 ||
-      !container.contains(range.commonAncestorContainer)
-    ) {
+    if (!range || selectedText.length < 3) {
       if (!pressingPopoverRef.current) setSelection(null);
       return;
     }
@@ -244,8 +244,9 @@ export function HighlightableArticle({
     const handlePointerUp = () => {
       if (!mouseSelectingRef.current) return;
       mouseSelectingRef.current = false;
+      // Defer a tick: a click inside an existing selection only collapses it after release
       clearTimeout(settleTimer);
-      syncSelection();
+      settleTimer = setTimeout(syncSelection, 0);
     };
 
     document.addEventListener("selectionchange", handleSelectionChange);

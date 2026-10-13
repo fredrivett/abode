@@ -16,41 +16,22 @@ export type ArticleMetadata = {
  * Handles both attribute orderings: property/name before content and content before property/name
  */
 export function extractMetaContent(html: string, name: string): string | null {
-  // Try property (Open Graph) - property before content
-  const ogMatch = html.match(
-    new RegExp(
-      `<meta[^>]+property=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)["']`,
-      "i",
-    ),
-  );
-  if (ogMatch) return decodeHtmlEntities(ogMatch[1]);
+  const key = escapeRegex(name);
+  const patterns = [
+    // Open Graph / standard meta, property or name before content
+    `<meta[^>]+property=["']${key}["'][^>]+content=["']([^"']+)["']`,
+    `<meta[^>]+name=["']${key}["'][^>]+content=["']([^"']+)["']`,
+    // Reversed attribute order, content before property or name
+    `<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${key}["']`,
+    `<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${key}["']`,
+  ];
 
-  // Try name (standard meta) - name before content
-  const nameMatch = html.match(
-    new RegExp(
-      `<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)["']`,
-      "i",
-    ),
-  );
-  if (nameMatch) return decodeHtmlEntities(nameMatch[1]);
-
-  // Try reversed attribute order - content before property
-  const reversedOg = html.match(
-    new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${escapeRegex(name)}["']`,
-      "i",
-    ),
-  );
-  if (reversedOg) return decodeHtmlEntities(reversedOg[1]);
-
-  // Try reversed attribute order - content before name
-  const reversedName = html.match(
-    new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${escapeRegex(name)}["']`,
-      "i",
-    ),
-  );
-  if (reversedName) return decodeHtmlEntities(reversedName[1]);
+  for (const pattern of patterns) {
+    const match = html.match(new RegExp(pattern, "i"));
+    // Sites pad values (e.g. og:title=" Title"); a whitespace-only one is no value
+    const value = match ? decodeHtmlEntities(match[1]).trim() : "";
+    if (value) return value;
+  }
 
   return null;
 }
@@ -69,9 +50,8 @@ export function extractTitle(html: string): string | null {
 
   // Fall back to <title> tag
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) return decodeHtmlEntities(titleMatch[1].trim());
-
-  return null;
+  const title = titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : "";
+  return title || null;
 }
 
 /**
