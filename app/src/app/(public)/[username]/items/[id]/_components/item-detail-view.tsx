@@ -196,7 +196,10 @@ export function ItemDetailView({
       {saveCta && (
         <SaveToAbodeCta
           itemId={item.id}
-          sourceUrl={item.sourceUrl}
+          // Only http(s) links can be saved (by /save or after signup)
+          sourceUrl={
+            item.sourceUrl && isValidUrl(item.sourceUrl) ? item.sourceUrl : null
+          }
           ownerUsername={owner.username}
           isSignedIn={saveCta.isSignedIn}
           invitesOpen={saveCta.invitesOpen}

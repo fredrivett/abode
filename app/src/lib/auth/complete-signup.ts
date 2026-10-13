@@ -104,7 +104,10 @@ export async function completeSignup(
 
     // If invite was already accepted, check if it's for this email
     // (allows retry after partial signup failure)
-    if (invite.status === "accepted" && invite.email !== email) {
+    if (
+      invite.status === "accepted" &&
+      normalizeEmail(invite.email) !== normalizeEmail(email)
+    ) {
       return {
         success: false,
         error: "This invite has already been used by another user",

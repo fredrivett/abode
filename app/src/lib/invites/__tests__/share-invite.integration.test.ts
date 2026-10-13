@@ -83,6 +83,24 @@ describe("requestShareInvite (integration)", () => {
     ).toMatchObject({ referralSource: "share:@sharer" });
   });
 
+  it("never over-spends the allocation under concurrent requests", async () => {
+    await createSharerWithItem({ inviteAllocation: 1 });
+    const { read } = await import("@/lib/db");
+    const { requestShareInvite } = await import("@/lib/invites/share-invite");
+
+    const outcomes = await Promise.all(
+      ["a", "b", "c", "d"].map((name) =>
+        requestShareInvite({ itemId: ITEM_ID, email: `${name}@example.com` }),
+      ),
+    );
+
+    expect(outcomes.filter((o) => o.status === "invited")).toHaveLength(1);
+    expect(outcomes.filter((o) => o.status === "waitlisted")).toHaveLength(3);
+    expect(await read.invite.count({ where: { inviterId: SHARER_ID } })).toBe(
+      1,
+    );
+  });
+
   it("waitlists without spending an invite when the sharer opted out", async () => {
     await createSharerWithItem({ allowShareInvites: false });
     const { read } = await import("@/lib/db");

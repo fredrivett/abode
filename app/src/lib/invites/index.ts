@@ -175,6 +175,11 @@ export async function createUserInvite(
 
   // Use transaction to prevent race conditions
   return db.$transaction(async (tx) => {
+    // Lock the inviter's row so concurrent invites (e.g. several readers of a
+    // shared link at once) serialize on the allocation check below instead of
+    // each seeing the same free slot
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${inviterId}::uuid FOR UPDATE`;
+
     // Check if user exists and get allocation
     const user = await tx.user.findUnique({
       where: { id: inviterId },
@@ -466,9 +471,17 @@ function getEffectiveStatus(
 /**
  * Get the invite URL for a token
  */
-export function getInviteUrl(token: string): string {
-  const baseUrl = getAppBaseUrl();
-  return `${baseUrl}/join?token=${token}`;
+/**
+ * Join link for an invite. `saveItemId` (share invites) carries the shared
+ * item through signup so it's saved to the new abode.
+ */
+export function getInviteUrl(
+  token: string,
+  { saveItemId }: { saveItemId?: string } = {},
+): string {
+  const params = new URLSearchParams({ token });
+  if (saveItemId) params.set("save", saveItemId);
+  return `${getAppBaseUrl()}/join?${params}`;
 }
 
 export type RevokeInviteResult =

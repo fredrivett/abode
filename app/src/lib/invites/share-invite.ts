@@ -157,6 +157,7 @@ export async function requestShareInvite({
         email: normalizedEmail,
         inviterName: displayName(sharer),
         token: result.invite.token,
+        itemId,
       });
       return {
         status: "invited",
@@ -196,10 +197,12 @@ async function sendInviteEmail({
   email,
   inviterName,
   token,
+  itemId,
 }: {
   email: string;
   inviterName: string;
   token: string;
+  itemId: string;
 }) {
   if (!isEmailConfigured()) {
     log.info("Email not configured, skipping share invite email");
@@ -208,6 +211,7 @@ async function sendInviteEmail({
   const { subject, text, html } = getUserInviteEmail({
     inviterName,
     inviteToken: token,
+    saveItemId: itemId,
   });
   try {
     const result = await sendEmail({ to: email, subject, text, html });
@@ -240,6 +244,14 @@ export async function saveSharedItemForNewUser({
       log.info({ userId, itemId }, "Shared item not saveable, skipping");
       return null;
     }
+    // Idempotent: a replayed or concurrent signup completion (e.g. the
+    // confirmation link opened twice) reuses the item it already saved
+    const existing = await db.item.findFirst({
+      where: { userId, sourceUrl: shared.sourceUrl },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
     const guard = await guardDailyLimit(userId, "ingestion");
     if (!guard.ok) return null;
     const item = await createItemFromUrl({

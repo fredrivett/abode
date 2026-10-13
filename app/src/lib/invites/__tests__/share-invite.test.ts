@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   itemFindUnique: vi.fn(),
+  itemFindFirst: vi.fn(),
   userFindUnique: vi.fn(),
   waitlistFindUnique: vi.fn(),
   createUserInvite: vi.fn(),
@@ -12,11 +13,15 @@ const mocks = vi.hoisted(() => ({
   createItemFromUrl: vi.fn(),
   guardDailyLimit: vi.fn(),
   captureServerException: vi.fn(),
+  getUserInviteEmail: vi.fn(() => ({ subject: "s", text: "t", html: "h" })),
 }));
 
 vi.mock("@/lib/db", () => ({
   default: {
-    item: { findUnique: mocks.itemFindUnique },
+    item: {
+      findUnique: mocks.itemFindUnique,
+      findFirst: mocks.itemFindFirst,
+    },
     user: { findUnique: mocks.userFindUnique },
     waitlistEntry: { findUnique: mocks.waitlistFindUnique },
   },
@@ -37,7 +42,7 @@ vi.mock("@/lib/email", () => ({
   sendEmail: mocks.sendEmail,
 }));
 vi.mock("@/lib/email/templates", () => ({
-  getUserInviteEmail: () => ({ subject: "s", text: "t", html: "h" }),
+  getUserInviteEmail: mocks.getUserInviteEmail,
 }));
 vi.mock("@/lib/items/from-url", () => ({
   createItemFromUrl: mocks.createItemFromUrl,
@@ -92,6 +97,7 @@ beforeEach(() => {
   mocks.sendEmail.mockResolvedValue({ success: true });
   mocks.joinWaitlist.mockResolvedValue({ success: true, position: 7 });
   mocks.guardDailyLimit.mockResolvedValue({ ok: true });
+  mocks.itemFindFirst.mockResolvedValue(null);
 });
 
 describe("helpers", () => {
@@ -122,9 +128,13 @@ describe("requestShareInvite", () => {
       SHARER_ID,
       "reader@example.com",
     );
-    // Backup email so they can come back to the invite later
+    // Backup email so they can come back to the invite later — with the
+    // item, so returning through it still saves it
     expect(mocks.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "reader@example.com" }),
+    );
+    expect(mocks.getUserInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ inviteToken: "tok_1", saveItemId: ITEM_ID }),
     );
   });
 
@@ -277,6 +287,14 @@ describe("saveSharedItemForNewUser", () => {
       url: "https://example.com/good-design",
       source: "web",
     });
+  });
+
+  it("reuses the item it already saved instead of saving twice", async () => {
+    // e.g. the confirmation link opened twice
+    mocks.itemFindFirst.mockResolvedValue({ id: "already-saved" });
+
+    expect(await save()).toBe("already-saved");
+    expect(mocks.createItemFromUrl).not.toHaveBeenCalled();
   });
 
   it("skips items that are no longer public", async () => {

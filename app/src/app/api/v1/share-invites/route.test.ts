@@ -68,6 +68,14 @@ describe("POST /api/v1/share-invites", () => {
     expect(requestShareInvite).not.toHaveBeenCalled();
   });
 
+  it("400s malformed JSON instead of erroring", async () => {
+    const res = await POST({
+      headers: new Headers(),
+      json: () => Promise.reject(new SyntaxError("Unexpected token")),
+    } as unknown as NextRequest);
+    expect(res.status).toBe(400);
+  });
+
   it("404s an item that isn't publicly viewable", async () => {
     requestShareInvite.mockResolvedValue({ status: "unavailable" });
     expect((await post({ itemId: ITEM_ID, email: "a@b.co" })).status).toBe(404);

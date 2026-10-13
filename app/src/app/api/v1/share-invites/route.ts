@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parsed = shareInviteSchema.safeParse(await request.json());
+    // Malformed JSON is a bad request, not a server error
+    const body = await request.json().catch(() => null);
+    const parsed = shareInviteSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { message: "An email and item are required" },

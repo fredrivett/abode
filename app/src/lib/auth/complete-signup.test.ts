@@ -178,6 +178,23 @@ describe("completeSignup (invite-only gate)", () => {
     expect(result.success).toBe(true);
   });
 
+  it("lets the invitee retry after a partial failure, whatever the email casing", async () => {
+    mockInviteFindUnique.mockResolvedValue({
+      ...pendingInvite,
+      status: "accepted",
+    });
+
+    const result = await completeSignup({
+      userId: "user-10",
+      email: "INVITED@example.com",
+      username: "invited",
+      inviteToken: "tok_valid",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockAcceptInvite).not.toHaveBeenCalled();
+  });
+
   it("saves the shared item after completing signup from a share invite", async () => {
     mockInviteFindUnique.mockResolvedValue(pendingInvite);
     mockAcceptInvite.mockResolvedValue({ success: true });

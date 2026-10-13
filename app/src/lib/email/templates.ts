@@ -39,8 +39,12 @@ abode — ${ABODE_TAGLINE}
 export function getUserInviteEmail(options: {
   inviterName: string;
   inviteToken: string;
+  /** Share invites: the shared item to save once they've joined */
+  saveItemId?: string;
 }): { subject: string; text: string; html: string } {
-  const inviteUrl = getInviteUrl(options.inviteToken);
+  const inviteUrl = getInviteUrl(options.inviteToken, {
+    saveItemId: options.saveItemId,
+  });
   const websiteUrl = getAppBaseUrl();
 
   const subject = `${options.inviterName} invited you to join abode`;

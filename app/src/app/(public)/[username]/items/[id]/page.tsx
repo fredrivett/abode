@@ -64,6 +64,11 @@ export default async function ItemPage({ params, searchParams }: Props) {
   // flash the highlight.
   const highlightId = firstParam(resolvedSearchParams.highlight);
 
+  const [highlights, saveCta] = await Promise.all([
+    getVisibleHighlights({ item, viewerId }),
+    getSaveCtaState({ user, viewerId, isOwner }),
+  ]);
+
   return (
     <ItemDetailView
       item={toClientItem(item)}
@@ -74,8 +79,8 @@ export default async function ItemPage({ params, searchParams }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
-      saveCta={await getSaveCtaState({ user, viewerId, isOwner })}
-      highlights={await getVisibleHighlights({ item, viewerId })}
+      saveCta={saveCta}
+      highlights={highlights}
       scrollToHighlightId={highlightId}
       roomContext={roomContext}
     />

@@ -49,7 +49,10 @@ export default async function SharedHighlightPage({ params }: Props) {
   const { user, item, viewerId, isOwner, highlight } = loaded;
 
   // The link shares this highlight; the rest only show if the owner opted in
-  const visible = await getVisibleHighlights({ item, viewerId });
+  const [visible, saveCta] = await Promise.all([
+    getVisibleHighlights({ item, viewerId }),
+    getSaveCtaState({ user, viewerId, isOwner }),
+  ]);
   const highlights = visible.some((h) => h.id === highlight.id)
     ? visible
     : [highlight];
@@ -64,7 +67,7 @@ export default async function SharedHighlightPage({ params }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
-      saveCta={await getSaveCtaState({ user, viewerId, isOwner })}
+      saveCta={saveCta}
       highlights={highlights}
       featuredHighlight={highlight}
       scrollToHighlightId={null}
