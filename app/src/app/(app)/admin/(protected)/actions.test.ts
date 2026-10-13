@@ -36,6 +36,9 @@ describe("setInviteAllocationAsAdmin", () => {
   });
 
   it("sets the allocation and returns the new usage", async () => {
+    mocks.getInviteUsage
+      .mockResolvedValueOnce({ allocation: 3, used: 2, available: 1 })
+      .mockResolvedValueOnce({ allocation: 10, used: 2, available: 8 });
     expect(await set(10)).toEqual({
       success: true,
       usage: { allocation: 10, used: 2, available: 8 },
@@ -59,7 +62,21 @@ describe("setInviteAllocationAsAdmin", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("works out the new usage from the new allocation", async () => {
+  it("returns fresh usage after saving", async () => {
+    // An invite was sent while saving: the refreshed count includes it
+    mocks.getInviteUsage
+      .mockResolvedValueOnce({ allocation: 3, used: 2, available: 1 })
+      .mockResolvedValueOnce({ allocation: 10, used: 3, available: 7 });
+    expect(await set(10)).toEqual({
+      success: true,
+      usage: { allocation: 10, used: 3, available: 7 },
+    });
+  });
+
+  it("still reports success when the refresh after saving fails", async () => {
+    mocks.getInviteUsage
+      .mockResolvedValueOnce({ allocation: 3, used: 2, available: 1 })
+      .mockRejectedValueOnce(new Error("db blip"));
     expect(await set(1)).toEqual({
       success: true,
       usage: { allocation: 1, used: 2, available: 0 },

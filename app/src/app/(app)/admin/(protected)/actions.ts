@@ -193,6 +193,31 @@ export async function reprocessIssueGroupAsAdmin(
   }
 }
 
+// Fresh usage after a save (an invite may have been sent meanwhile). The
+// update already committed, so a failed refresh falls back to computing it
+// from the pre-save read rather than reporting the save as failed
+async function usageAfterSave({
+  userId,
+  before,
+  value,
+}: {
+  userId: string;
+  before: InviteUsage;
+  value: number;
+}): Promise<InviteUsage> {
+  try {
+    const fresh = await getInviteUsage(userId);
+    if (fresh) return fresh;
+  } catch (error) {
+    log.warn({ error, userId }, "Failed to refresh invite usage after save");
+  }
+  return {
+    allocation: value,
+    used: before.used,
+    available: Math.max(0, value - before.used),
+  };
+}
+
 export type SetInviteAllocationResult =
   | { error: string }
   | { success: true; usage: InviteUsage };
@@ -235,13 +260,11 @@ export async function setInviteAllocationAsAdmin({
       "Admin set invite allocation",
     );
 
-    const usage: InviteUsage = {
-      allocation: value,
-      used: before.used,
-      available: Math.max(0, value - before.used),
-    };
     revalidatePath(`/admin/users/${userId}`);
-    return { success: true, usage };
+    return {
+      success: true,
+      usage: await usageAfterSave({ userId, before, value }),
+    };
   } catch (error) {
     log.error({ error, userId }, "Failed to set invite allocation");
     captureServerException(error, undefined, {
