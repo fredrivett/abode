@@ -40,7 +40,8 @@ function clearSelection() {
 }
 
 const settle = () => act(() => vi.advanceTimersByTime(1000));
-const highlightButton = () => screen.queryByRole("button", { name: "Highlight" });
+const highlightButton = () =>
+  screen.queryByRole("button", { name: "Highlight" });
 
 describe("HighlightableArticle selection", () => {
   beforeEach(() => {
