@@ -197,7 +197,7 @@ export function ItemDetailView({
         <SaveToAbodeCta
           itemId={item.id}
           sourceUrl={item.sourceUrl}
-          owner={owner}
+          ownerUsername={owner.username}
           isSignedIn={saveCta.isSignedIn}
           invitesOpen={saveCta.invitesOpen}
         />

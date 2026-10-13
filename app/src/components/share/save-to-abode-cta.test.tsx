@@ -13,12 +13,6 @@ import { SaveToAbodeCta } from "./save-to-abode-cta";
 
 const ITEM_ID = "22222222-2222-4222-8222-222222222222";
 const SOURCE = "https://example.com/good-design";
-const owner = {
-  username: "fred",
-  firstName: "Fred",
-  lastName: null,
-  avatarUrl: null,
-};
 
 function renderSignedOut(
   props: Partial<Parameters<typeof SaveToAbodeCta>[0]> = {},
@@ -27,7 +21,7 @@ function renderSignedOut(
     <SaveToAbodeCta
       itemId={ITEM_ID}
       sourceUrl={SOURCE}
-      owner={owner}
+      ownerUsername="fred"
       isSignedIn={false}
       invitesOpen
       {...props}
@@ -58,7 +52,7 @@ describe("SaveToAbodeCta", () => {
       <SaveToAbodeCta
         itemId={ITEM_ID}
         sourceUrl={SOURCE}
-        owner={owner}
+        ownerUsername="fred"
         isSignedIn
         invitesOpen={false}
       />,
@@ -73,7 +67,7 @@ describe("SaveToAbodeCta", () => {
       <SaveToAbodeCta
         itemId={ITEM_ID}
         sourceUrl={null}
-        owner={owner}
+        ownerUsername="fred"
         isSignedIn
         invitesOpen={false}
       />,

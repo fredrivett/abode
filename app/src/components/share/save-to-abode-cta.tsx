@@ -3,7 +3,7 @@
 import { ArrowRight, Bookmark, Check } from "lucide-react";
 import posthog from "posthog-js";
 import { useId, useState } from "react";
-import { UserAvatar } from "@/components/avatar/user-avatar";
+import { AbodeText } from "@/components/abode-inline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -11,18 +11,12 @@ import { ApiClientError, api } from "@/lib/api-client";
 import type { ShareInviteOutcome } from "@/lib/invites/share-invite";
 import { ROUTES } from "@/lib/routes";
 
-export type SaveToAbodeOwner = {
-  username: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  avatarUrl: string | null;
-};
-
 type Props = {
   itemId: string;
   /** The link to save; items without one can't be saved, only joined from */
   sourceUrl: string | null;
-  owner: SaveToAbodeOwner;
+  /** The sharer, credited for the invite */
+  ownerUsername: string | null;
   isSignedIn: boolean;
   /** The sharer has invites to give (and allows it); otherwise readers join the waitlist */
   invitesOpen: boolean;
@@ -59,14 +53,14 @@ function loginToSavePath(sourceUrl: string | null): string {
 export function SaveToAbodeCta({
   itemId,
   sourceUrl,
-  owner,
+  ownerUsername,
   isSignedIn,
   invitesOpen,
 }: Props) {
   const inputId = useId();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<FormState>({ step: "idle" });
-  const ownerHandle = owner.username ? `@${owner.username}` : "the sharer";
+  const ownerHandle = ownerUsername ? `@${ownerUsername}` : "the sharer";
 
   if (isSignedIn) {
     if (!sourceUrl) return null;
@@ -122,27 +116,19 @@ export function SaveToAbodeCta({
 
   return (
     <section className="mb-8 rounded-xl border border-border bg-muted/30 p-5 md:p-6">
-      <div className="flex items-start gap-3">
-        <UserAvatar
-          avatarUrl={owner.avatarUrl}
-          firstName={owner.firstName}
-          lastName={owner.lastName}
-          username={owner.username}
-          className="size-9"
-          fallbackClassName="text-xs"
-        />
-        <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="font-medium text-foreground">
+      <div className="space-y-1">
+        <h2 className="font-medium text-foreground">
+          <AbodeText>
             {sourceUrl ? "Save this to your own abode" : "Start your own abode"}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            abode is a calm home for everything you save: articles, images,
-            links and notes.{" "}
-            {invitesOpen
-              ? `Join with ${ownerHandle}'s invite${sourceUrl ? " and this will be waiting for you." : "."}`
-              : "Join the waitlist and we'll let you know when there's a spot."}
-          </p>
-        </div>
+          </AbodeText>
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          A calm home for everything you save: articles, images, links and
+          notes.{" "}
+          {invitesOpen
+            ? `Join with ${ownerHandle}'s invite${sourceUrl ? " and this will be waiting for you." : "."}`
+            : "Join the waitlist and we'll let you know when there's a spot."}
+        </p>
       </div>
 
       {state.step === "waitlisted" ? (

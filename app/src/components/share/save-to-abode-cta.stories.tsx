@@ -9,12 +9,7 @@ const meta = {
   args: {
     itemId: "22222222-2222-4222-8222-222222222222",
     sourceUrl: "https://example.com/slightly-better",
-    owner: {
-      username: "fred",
-      firstName: "Fred",
-      lastName: "Rivett",
-      avatarUrl: null,
-    },
+    ownerUsername: "fred",
     isSignedIn: false,
     invitesOpen: true,
   },
