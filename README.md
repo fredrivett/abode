@@ -106,7 +106,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Rooms (manual + smart collections)
 - Public rooms, profiles + room embedding
 - Article highlighting (with per-highlight notes) + shareable highlight links with quote cards
-- "Save to your abode" on shared pages: readers join with the sharer's invite (or, when none are available, the waitlist), and joining with an invite saves the shared link to their new abode
+- "Save to your abode" on shared pages: signed-in readers save the link straight to their library; signed-out readers join with the sharer's invite (or, when none are available, the waitlist), and joining with an invite saves the shared link to their new abode
 - Command palette (⌘K) + keyboard navigation
 - MCP server for AI assistants + scoped personal access tokens
 - Admin dashboard, waitlist, invite system
