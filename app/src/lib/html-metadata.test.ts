@@ -93,6 +93,19 @@ describe("extractMetaContent", () => {
     expect(extractMetaContent(html, "og:title")).toBe("Test & Title <3>");
   });
 
+  it("trims whitespace padding the content value", () => {
+    const html = '<meta property="og:title" content=" Padded Title &nbsp;">';
+    expect(extractMetaContent(html, "og:title")).toBe("Padded Title");
+  });
+
+  it("skips a whitespace-only value for the next attribute form", () => {
+    const html = `
+      <meta property="description" content="  ">
+      <meta name="description" content="Real Description">
+    `;
+    expect(extractMetaContent(html, "description")).toBe("Real Description");
+  });
+
   it("handles colons in property names", () => {
     const html =
       '<meta property="article:published_time" content="2024-01-15">';
@@ -126,6 +139,24 @@ describe("extractTitle", () => {
 
   it("trims whitespace from title tag", () => {
     const html = "<title>  Page Title  </title>";
+    expect(extractTitle(html)).toBe("Page Title");
+  });
+
+  it("trims a leading space from og:title", () => {
+    const html = '<meta property="og:title" content=" OG Title">';
+    expect(extractTitle(html)).toBe("OG Title");
+  });
+
+  it("falls back past a whitespace-only og:title", () => {
+    const html = `
+      <meta property="og:title" content=" ">
+      <title>Page Title</title>
+    `;
+    expect(extractTitle(html)).toBe("Page Title");
+  });
+
+  it("trims entity-encoded whitespace from title tag", () => {
+    const html = "<title>&nbsp;Page Title&#32;</title>";
     expect(extractTitle(html)).toBe("Page Title");
   });
 
