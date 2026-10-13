@@ -105,7 +105,8 @@ export function EditableTitle({
 
     const nextValue = draft.trim();
 
-    if (!nextValue || nextValue === value.trim()) {
+    // Compare against the untrimmed value so stripping stray whitespace still saves
+    if (!nextValue || nextValue === value) {
       setIsEditing(false);
       setDraft(value);
       return;
