@@ -102,7 +102,7 @@ bun run check:fix
 
 This (1) auto-fixes lint/format issues (Biome), (2) formats `prisma/schema.prisma` (`prisma format`; CI fails an unformatted schema) and (3) reports TypeScript errors. Fix any TypeScript errors that can't be auto-fixed before considering the task complete.
 
-Run it **after your last edit**, right before committing. A file written after the last run (e.g. a test added at the end) goes in unformatted. The pre-commit hook (`.githooks/pre-commit`) runs `biome check --staged` as a backstop.
+Run it **after your last edit**, right before committing. A file written after the last run (e.g. a test added at the end) goes in unformatted. The pre-commit hook (`.githooks/pre-commit`) runs Biome on the staged content as a backstop.
 
 ### Type Safety
 

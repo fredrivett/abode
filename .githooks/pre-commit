@@ -15,9 +15,43 @@
 set -euo pipefail
 
 # Biome first: a file written after the last `bun run check:fix` otherwise only
-# fails in CI. --staged checks just what's being committed (read-only, no fixes).
+# fails in CI. Read-only, and checks the staged (index) content — not
+# `biome check --staged`, which reads the working tree for staged paths.
 if [ -x app/node_modules/.bin/biome ]; then
-  if ! (cd app && ./node_modules/.bin/biome check --staged --no-errors-on-unmatched --colors=off); then
+  biome_failed=0
+  full=()
+  partial=()
+  while IFS= read -r path; do
+    if git diff --quiet -- "$path"; then
+      full+=("${path#app/}")
+    else
+      partial+=("$path") # partly staged (git add -p): working tree differs from the commit
+    fi
+  done < <(git diff --cached --name-only --diff-filter=ACMR -- app)
+
+  if [ ${#full[@]} -gt 0 ] && ! (cd app && ./node_modules/.bin/biome check \
+    --no-errors-on-unmatched --files-ignore-unknown=true --colors=off -- "${full[@]}"); then
+    biome_failed=1
+  fi
+
+  # Biome can't lint a blob read-only, so compare each partly staged blob with
+  # Biome's fixed output: catches format + fixable lint (CI covers the rest)
+  if [ ${#partial[@]} -gt 0 ]; then
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    for path in "${partial[@]}"; do
+      case "$path" in *.js | *.jsx | *.mjs | *.cjs | *.ts | *.tsx | *.mts | *.cts | *.json | *.jsonc) ;; *) continue ;; esac
+      git show ":$path" >"$tmp/staged"
+      (cd app && ./node_modules/.bin/biome check --write --stdin-file-path="${path#app/}" \
+        <"$tmp/staged" >"$tmp/fixed" 2>/dev/null) || true
+      if ! cmp -s "$tmp/staged" "$tmp/fixed"; then
+        echo "✖ $path: the staged version needs Biome fixes (lint/format)."
+        biome_failed=1
+      fi
+    done
+  fi
+
+  if [ "$biome_failed" -ne 0 ]; then
     echo
     echo "❌ Biome found lint/format issues in staged files (see above)."
     echo "   Run 'bun run fix' in app/, re-stage, then commit."
