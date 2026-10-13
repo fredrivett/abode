@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArticleHighlight } from "@prisma/client";
-import { Highlighter, Trash2 } from "lucide-react";
+import { Highlighter, Share2, Trash2 } from "lucide-react";
 import Markdown from "markdown-to-jsx";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
   toRange,
   wrapRangeWithHighlight,
 } from "@/lib/highlights/dom-anchoring";
+import type { ShareableHighlight } from "@/lib/highlights/share";
 import {
   useCreateHighlight,
   useDeleteHighlight,
@@ -36,6 +37,8 @@ type Props = {
   className?: string;
   onHighlightClick?: (highlight: HighlightData) => void;
   scrollToHighlightId?: string | null;
+  /** Adds a Share action to a clicked highlight's menu */
+  onShareHighlight?: (highlight: ShareableHighlight) => void;
 };
 
 type SelectionState = {
@@ -94,6 +97,7 @@ export function HighlightableArticle({
   className,
   onHighlightClick,
   scrollToHighlightId,
+  onShareHighlight,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -355,6 +359,13 @@ export function HighlightableArticle({
     );
   }, []);
 
+  const handleShareClick = useCallback(() => {
+    const highlight = highlights.find((h) => h.id === clickedHighlight?.id);
+    if (!highlight || !onShareHighlight) return;
+    setClickedHighlight(null);
+    onShareHighlight({ id: highlight.id, text: highlight.text });
+  }, [clickedHighlight, highlights, onShareHighlight]);
+
   const handleConfirmDelete = useCallback(async () => {
     if (!clickedHighlight) return;
 
@@ -426,7 +437,7 @@ export function HighlightableArticle({
         </PopoverContent>
       </Popover>
 
-      {/* Delete highlight popover */}
+      {/* Clicked highlight actions (share / delete) */}
       <Popover
         key={clickedHighlight?.id}
         open={!!clickedHighlight}
@@ -462,15 +473,28 @@ export function HighlightableArticle({
               Confirm delete?
             </Button>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={handleDeleteClick}
-            >
-              <Trash2 className="size-4" />
-              Delete highlight
-            </Button>
+            <div className="flex items-center gap-0.5">
+              {onShareHighlight && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleShareClick}
+                >
+                  <Share2 className="size-4" />
+                  Share
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={handleDeleteClick}
+              >
+                <Trash2 className="size-4" />
+                Delete
+              </Button>
+            </div>
           )}
         </PopoverContent>
       </Popover>

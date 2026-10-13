@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   afterEach,
   beforeAll,
@@ -10,9 +16,19 @@ import {
 } from "vitest";
 import { HighlightableArticle } from "./highlightable-article";
 
-const mutateAsync = vi.fn();
+type StoredHighlight = {
+  id: string;
+  startOffset: number;
+  endOffset: number;
+  text: string;
+};
+
+const { mutateAsync, stored } = vi.hoisted(() => ({
+  mutateAsync: vi.fn(),
+  stored: { highlights: [] as StoredHighlight[] },
+}));
 vi.mock("@/lib/highlights/use-highlights", () => ({
-  useItemHighlights: () => ({ data: [] }),
+  useItemHighlights: () => ({ data: stored.highlights }),
   useCreateHighlight: () => ({ mutateAsync, isPending: false }),
   useDeleteHighlight: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -156,5 +172,61 @@ describe("HighlightableArticle", () => {
 
     expect(screen.queryByRole("button", { name: "Highlight" })).toBeNull();
     outside.remove();
+  });
+});
+
+describe("HighlightableArticle highlight menu", () => {
+  const TEXT = "First paragraph";
+
+  beforeEach(() => {
+    stored.highlights = [
+      { id: "hl-1", startOffset: 0, endOffset: TEXT.length, text: TEXT },
+    ];
+  });
+
+  afterEach(() => {
+    stored.highlights = [];
+  });
+
+  async function clickHighlight(container: HTMLElement) {
+    const mark = await waitFor(() => {
+      const el = container.querySelector('mark[data-highlight-id="hl-1"]');
+      if (!el) throw new Error("highlight not applied yet");
+      return el;
+    });
+    fireEvent.click(mark);
+  }
+
+  it("offers share alongside delete, and shares the clicked highlight", async () => {
+    const onShareHighlight = vi.fn();
+    const { container } = render(
+      <HighlightableArticle
+        itemId="a"
+        content={CONTENT}
+        onShareHighlight={onShareHighlight}
+      />,
+    );
+
+    await clickHighlight(container);
+    expect(
+      await screen.findByRole("button", { name: "Delete" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(onShareHighlight).toHaveBeenCalledWith({ id: "hl-1", text: TEXT });
+  });
+
+  it("only offers delete when sharing isn't available", async () => {
+    const { container } = render(
+      <HighlightableArticle itemId="a" content={CONTENT} />,
+    );
+
+    await clickHighlight(container);
+    expect(
+      await screen.findByRole("button", { name: "Delete" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Share" }),
+    ).not.toBeInTheDocument();
   });
 });

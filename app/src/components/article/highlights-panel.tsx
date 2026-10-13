@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArticleHighlight } from "@prisma/client";
-import { Highlighter, Trash2 } from "lucide-react";
+import { Highlighter, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Accordion,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
+import type { ShareableHighlight } from "@/lib/highlights/share";
 import {
   useDeleteHighlight,
   useItemHighlights,
@@ -30,12 +31,15 @@ type Props = {
    * Defaults to true for backwards compatibility.
    */
   canEdit?: boolean;
+  /** Shows a share button on each highlight */
+  onShareHighlight?: (highlight: ShareableHighlight) => void;
 };
 
 export function HighlightsPanel({
   itemId,
   onHighlightClick,
   canEdit = true,
+  onShareHighlight,
 }: Props) {
   const { data: highlights = [], isLoading } = useItemHighlights(itemId);
   const deleteHighlight = useDeleteHighlight(itemId);
@@ -81,6 +85,15 @@ export function HighlightsPanel({
                   }}
                   isDeleting={deletingId === highlight.id}
                   canEdit={canEdit}
+                  onShare={
+                    onShareHighlight
+                      ? () =>
+                          onShareHighlight({
+                            id: highlight.id,
+                            text: highlight.text,
+                          })
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -97,12 +110,14 @@ function HighlightCard({
   onDelete,
   isDeleting,
   canEdit,
+  onShare,
 }: {
   highlight: HighlightData;
   onClick?: () => void;
   onDelete: () => void;
   isDeleting: boolean;
   canEdit: boolean;
+  onShare?: () => void;
 }) {
   // Two-step confirm so a stray click can't delete a highlight; reverts to the
   // idle icon once the pointer leaves the card for a moment.
@@ -124,19 +139,37 @@ function HighlightCard({
       onClick={onClick}
       {...deleteConfirm.hoverProps}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-1">
         <blockquote className="flex-1 border-yellow-400 border-l-2 pl-2 text-foreground/80 text-sm italic">
           "{displayText}"
         </blockquote>
 
+        {onShare && !deleteConfirm.confirming && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Share highlight"
+            className="size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+          >
+            <Share2 className="size-3.5" />
+          </Button>
+        )}
+
         {canEdit && (
           <Button
             variant="ghost"
+            aria-label={
+              deleteConfirm.confirming ? undefined : "Delete highlight"
+            }
             size={deleteConfirm.confirming ? "sm" : "icon"}
             className={
               deleteConfirm.confirming
                 ? "shrink-0 gap-1 text-destructive hover:text-destructive"
-                : "size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                : "size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
             }
             onClick={(e) => {
               e.stopPropagation();
