@@ -6,8 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import {
+  MAX_INVITE_ALLOCATION,
+  parseInviteAllocation,
+} from "@/lib/admin/invite-allocation";
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 import db from "@/lib/db";
+import { getInviteUsage, type InviteUsage } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
@@ -185,5 +190,61 @@ export async function reprocessIssueGroupAsAdmin(
   } catch (error) {
     log.error({ error, groupKey }, "Failed to reprocess issue group");
     return { error: "Failed to reprocess. Please try again." };
+  }
+}
+
+export type SetInviteAllocationResult =
+  | { error: string }
+  | { success: true; usage: InviteUsage };
+
+/**
+ * Set how many invites a user has (their total allocation, used + available).
+ * Admin + MFA gated. Lowering it below what's already used just leaves them
+ * with none available; sent invites are untouched.
+ */
+export async function setInviteAllocationAsAdmin({
+  userId,
+  allocation,
+}: {
+  userId: string;
+  allocation: number;
+}): Promise<SetInviteAllocationResult> {
+  const supabase = await createClient();
+  const isAdmin = await hasFullAdminAccess(supabase);
+  if (!isAdmin) return { error: "Unauthorized: Admin access required" };
+
+  const value = parseInviteAllocation(allocation);
+  if (value === null) {
+    return {
+      error: `Enter a whole number from 0 to ${MAX_INVITE_ALLOCATION}`,
+    };
+  }
+
+  try {
+    const existing = await db.user.findUnique({
+      where: { id: userId },
+      select: { inviteAllocation: true },
+    });
+    if (!existing) return { error: "User not found" };
+
+    await db.user.update({
+      where: { id: userId },
+      data: { inviteAllocation: value },
+    });
+    log.info(
+      { userId, from: existing.inviteAllocation, to: value },
+      "Admin set invite allocation",
+    );
+
+    const usage = await getInviteUsage(userId);
+    if (!usage) return { error: "User not found" };
+    revalidatePath(`/admin/users/${userId}`);
+    return { success: true, usage };
+  } catch (error) {
+    log.error({ error, userId }, "Failed to set invite allocation");
+    captureServerException(error, undefined, {
+      action: "setInviteAllocationAsAdmin",
+    });
+    return { error: "Failed to update invites. Please try again." };
   }
 }
