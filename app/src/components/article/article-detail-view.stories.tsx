@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { expect, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { highlightsQueryKey } from "@/lib/highlights/use-highlights";
 import { ArticleDetailView } from "./article-detail-view";
 
@@ -72,12 +72,37 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-// Owner view: the end-of-article nudge to mark the article read
-export const Unread: Story = { args: { enableTracking: true, readAt: null } };
+// The owner view saves read state and scroll progress; answer every write
+// with success so the toggle can be exercised offline
+function withOkApi() {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response("{}", { headers: { "Content-Type": "application/json" } });
+  return () => {
+    globalThis.fetch = realFetch;
+  };
+}
 
-// Once read, the nudge stays as a muted toggle that can undo it
+// Owner view: the end-of-article nudge to mark the article read
+export const Unread: Story = {
+  args: { enableTracking: true, readAt: null },
+  beforeEach: withOkApi,
+};
+
+// Once read, the nudge stays as a muted toggle that can undo it. The play test
+// clicks it and checks it settles back to unread once the save completes
 export const Read: Story = {
   args: { enableTracking: true, readAt: "2026-09-01T09:00:00.000Z" },
+  beforeEach: withOkApi,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Marked as read" }),
+    );
+    const button = await canvas.findByRole("button", { name: "Mark as read" });
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(button).toHaveAccessibleName("Mark as read");
+  },
 };
 
 // Each section after a break opens with a drop cap; the opening paragraph
