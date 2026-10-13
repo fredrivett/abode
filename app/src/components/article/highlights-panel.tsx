@@ -132,62 +132,63 @@ function HighlightCard({
       ? `${highlight.text.slice(0, 100)}...`
       : highlight.text;
 
+  // The card is a container, not a button: the quote is the jump-to button
+  // and the actions sit beside it, so no button nests inside another
   return (
-    <button
-      type="button"
-      className="group w-full cursor-pointer rounded-md border border-border p-3 text-left transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10"
-      onClick={onClick}
+    <div
+      className="group flex items-start rounded-md border border-border transition-colors hover:border-yellow-400/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10"
       {...deleteConfirm.hoverProps}
     >
-      <div className="flex items-start justify-between gap-1">
-        <blockquote className="flex-1 border-yellow-400 border-l-2 pl-2 text-foreground/80 text-sm italic">
+      <button
+        type="button"
+        className="min-w-0 flex-1 cursor-pointer rounded-md p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onClick={onClick}
+      >
+        <blockquote className="border-yellow-400 border-l-2 pl-2 text-foreground/80 text-sm italic">
           "{displayText}"
         </blockquote>
-
-        {onShare && !deleteConfirm.confirming && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Share highlight"
-            className="size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare();
-            }}
-          >
-            <Share2 className="size-3.5" />
-          </Button>
+        {highlight.note && (
+          <p className="mt-2 pl-2 text-muted-foreground text-xs">
+            {highlight.note}
+          </p>
         )}
+      </button>
 
-        {canEdit && (
-          <Button
-            variant="ghost"
-            aria-label={
-              deleteConfirm.confirming ? undefined : "Delete highlight"
-            }
-            size={deleteConfirm.confirming ? "sm" : "icon"}
-            className={
-              deleteConfirm.confirming
-                ? "shrink-0 gap-1 text-destructive hover:text-destructive"
-                : "size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteConfirm.onClick();
-            }}
-            disabled={isDeleting}
-          >
-            <Trash2 className="size-3.5" />
-            {deleteConfirm.confirming && "Confirm?"}
-          </Button>
-        )}
-      </div>
+      {(onShare || canEdit) && (
+        <div className="flex shrink-0 items-center gap-1 py-3 pr-3">
+          {onShare && !deleteConfirm.confirming && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Share highlight"
+              className="size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+              onClick={onShare}
+            >
+              <Share2 className="size-3.5" />
+            </Button>
+          )}
 
-      {highlight.note && (
-        <p className="mt-2 pl-2 text-muted-foreground text-xs">
-          {highlight.note}
-        </p>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              aria-label={
+                deleteConfirm.confirming ? undefined : "Delete highlight"
+              }
+              size={deleteConfirm.confirming ? "sm" : "icon"}
+              className={
+                deleteConfirm.confirming
+                  ? "shrink-0 gap-1 text-destructive hover:text-destructive"
+                  : "size-6 shrink-0 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+              }
+              onClick={deleteConfirm.onClick}
+              disabled={isDeleting}
+            >
+              <Trash2 className="size-3.5" />
+              {deleteConfirm.confirming && "Confirm?"}
+            </Button>
+          )}
+        </div>
       )}
-    </button>
+    </div>
   );
 }

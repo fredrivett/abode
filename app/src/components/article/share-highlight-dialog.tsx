@@ -174,11 +174,15 @@ export function ShareHighlightDialog({
       method,
     });
 
+  // The action runs straight away, in parallel with enabling sharing: the
+  // clipboard and share sheet need the click's user activation, which awaiting
+  // the request first would spend (Safari rejects them outright)
   const run = async (method: ShareMethod, action: () => Promise<boolean>) => {
     setPending(method);
     try {
-      if (!(await ensureShared())) return;
-      if (!(await action())) return;
+      const sharing = ensureShared();
+      const done = await action();
+      if (!(await sharing) || !done) return;
       track(method);
       setCopied(method);
       setTimeout(() => setCopied((c) => (c === method ? null : c)), 2000);
@@ -198,9 +202,14 @@ export function ShareHighlightDialog({
   const nativeShare = () =>
     run("native", async () => {
       try {
+        // The link goes in `url` only; repeating it in `text` makes some
+        // targets show it twice
         await navigator.share({
           title: item.title ?? undefined,
-          text: quote,
+          text: formatHighlightQuote({
+            text: highlight.text,
+            title: item.title,
+          }),
           url,
         });
         return true;
@@ -222,8 +231,12 @@ export function ShareHighlightDialog({
       <DialogOrDrawerContent
         className="sm:max-w-xl"
         // Radix focuses the first button on open, so Copy link would open
-        // wearing its focus ring; Tab still moves into the dialog
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        // wearing its focus ring; focus the dialog itself instead, so screen
+        // readers land in it and Tab moves to the first action
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          if (e.currentTarget instanceof HTMLElement) e.currentTarget.focus();
+        }}
       >
         <DialogOrDrawerHeader>
           <DialogOrDrawerTitle>Share highlight</DialogOrDrawerTitle>
