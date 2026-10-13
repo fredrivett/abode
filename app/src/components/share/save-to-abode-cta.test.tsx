@@ -33,7 +33,7 @@ function submit(email = "reader@example.com") {
   fireEvent.change(screen.getByLabelText("Email address"), {
     target: { value: email },
   });
-  fireEvent.click(screen.getByRole("button", { name: /Save to my abode/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Use invite/ }));
 }
 
 const assign = vi.fn();
@@ -77,7 +77,11 @@ describe("SaveToAbodeCta", () => {
 
   it("offers signed-out readers the sharer's invite", () => {
     renderSignedOut();
-    expect(screen.getByText(/Join with @fred's invite/)).toBeInTheDocument();
+    expect(screen.getByText("Admit one")).toBeInTheDocument();
+    expect(screen.getByText(/invite from @fred/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Use invite/ }),
+    ).toBeInTheDocument();
   });
 
   it("offers the waitlist when the sharer's invites aren't open", () => {
@@ -85,7 +89,9 @@ describe("SaveToAbodeCta", () => {
     expect(
       screen.getByRole("button", { name: /Join the waitlist/ }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/@fred's invite/)).not.toBeInTheDocument();
+    // Never presented as an invite when there isn't one to give
+    expect(screen.queryByText("Admit one")).not.toBeInTheDocument();
+    expect(screen.queryByText(/invite from/)).not.toBeInTheDocument();
   });
 
   it("sends invited readers on to the join page", async () => {
