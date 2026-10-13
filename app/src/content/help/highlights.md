@@ -19,4 +19,6 @@ To remove a highlight, click it in the article and choose **Delete**, or hover o
 
 The link opens a page with your highlight at the top, then the full article underneath. Readers can click the highlight to see it in context.
 
+People who aren't on <Abode /> yet can save the article to their own <Abode /> from that page, joining with one of your invites. When you have none left, they join the waitlist instead, and you're credited for bringing them. You can turn this off from the share dialog or in **Settings → Invites**.
+
 Sharing a highlight turns on link sharing for the article, so anyone with the link can read it. Your other highlights stay private unless you turn on **Include my highlights** in the article's **Share** settings. To stop sharing, turn off **Share via link** there.
