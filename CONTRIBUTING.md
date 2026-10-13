@@ -53,6 +53,6 @@ bun run check:fix   # Biome autofix + prisma format + tsc --noEmit (run before e
 bun run test        # unit tests
 ```
 
-Enable the repo's git hooks once per clone (`git config core.hooksPath .githooks`). The pre-commit hook runs Biome on the staged content, so a file edited after your last `check:fix` is caught before it reaches CI, and a gitleaks secret scan. Each check runs only when its tool is available (Biome needs `bun install` in `app/`; gitleaks is a separate install). Otherwise the hook warns and skips that check, and CI still runs both.
+Enable the repo's git hooks once per clone (`git config core.hooksPath .githooks`). The pre-commit hook runs Biome on the staged content, so a file edited after your last `check:fix` is caught before it reaches CI (for a partly staged file, only formatting and auto-fixable lint; CI catches the rest), and a gitleaks secret scan. Each check runs only when its tool is available (Biome needs `bun install` in `app/`; gitleaks is a separate install). Otherwise the hook warns and skips that check, and CI still runs both.
 
 See [AGENTS.md](AGENTS.md) for the full command table, conventions, and the graceful-degradation principle for optional services.

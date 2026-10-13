@@ -21,13 +21,14 @@ if [ -x app/node_modules/.bin/biome ]; then
   biome_failed=0
   full=()
   partial=()
-  while IFS= read -r path; do
+  # NUL-delimited so paths with special characters aren't quoted
+  while IFS= read -r -d '' path; do
     if git diff --quiet -- "$path"; then
       full+=("${path#app/}")
     else
       partial+=("$path") # partly staged (git add -p): working tree differs from the commit
     fi
-  done < <(git diff --cached --name-only --diff-filter=ACMR -- app)
+  done < <(git diff --cached --name-only -z --diff-filter=ACMR -- app)
 
   if [ ${#full[@]} -gt 0 ] && ! (cd app && ./node_modules/.bin/biome check \
     --no-errors-on-unmatched --files-ignore-unknown=true --colors=off -- "${full[@]}"); then
@@ -35,16 +36,19 @@ if [ -x app/node_modules/.bin/biome ]; then
   fi
 
   # Biome can't lint a blob read-only, so compare each partly staged blob with
-  # Biome's fixed output: catches format + fixable lint (CI covers the rest)
+  # Biome's fixed output. This catches format + fixable lint only; unfixable
+  # lint in a partly staged file is left to CI
   if [ ${#partial[@]} -gt 0 ]; then
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     for path in "${partial[@]}"; do
       case "$path" in *.js | *.jsx | *.mjs | *.cjs | *.ts | *.tsx | *.mts | *.cts | *.json | *.jsonc) ;; *) continue ;; esac
       git show ":$path" >"$tmp/staged"
-      (cd app && ./node_modules/.bin/biome check --write --stdin-file-path="${path#app/}" \
-        <"$tmp/staged" >"$tmp/fixed" 2>/dev/null) || true
-      if ! cmp -s "$tmp/staged" "$tmp/fixed"; then
+      if ! (cd app && ./node_modules/.bin/biome check --write --stdin-file-path="${path#app/}" \
+        <"$tmp/staged" >"$tmp/fixed"); then
+        echo "✖ $path: Biome errored checking the staged version (see above)."
+        biome_failed=1
+      elif ! cmp -s "$tmp/staged" "$tmp/fixed"; then
         echo "✖ $path: the staged version needs Biome fixes (lint/format)."
         biome_failed=1
       fi
