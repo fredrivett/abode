@@ -43,6 +43,8 @@ type SelectionState = {
   startOffset: number;
   endOffset: number;
   anchorRect: DOMRect;
+  /** Touch selections get the native callout (Copy, Look Up…) above, so ours sits below */
+  side: "top" | "bottom";
 } | null;
 
 type ClickedHighlightState = {
@@ -55,6 +57,10 @@ const HIGHLIGHT_CLASS =
   "bg-yellow-400/25 dark:bg-yellow-500/30 text-inherit cursor-pointer transition-colors data-[active]:bg-yellow-400/40 dark:data-[active]:bg-yellow-500/50 data-[flash]:animate-highlight-flash";
 
 const TWEET_MARKER_REGEX = /^\[\[TWEET:(\d+)\]\]$/;
+
+// Touch selections (long-press, then dragging the handles) emit a stream of
+// `selectionchange` events and no mouseup, so wait for the selection to settle
+const SELECTION_SETTLE_MS = 250;
 
 /**
  * Custom paragraph component that renders tweet embeds when the content
@@ -97,13 +103,17 @@ export function HighlightableArticle({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const selectionPopoverRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<SelectionState>(null);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(
     null,
   );
   const [clickedHighlight, setClickedHighlight] =
     useState<ClickedHighlightState>(null);
+  const pointerTypeRef = useRef("mouse");
+  // A mouse drag-select reports once on release rather than on every change
+  const mouseSelectingRef = useRef(false);
+  // Tapping the popover can collapse the selection (iOS) before the tap lands
+  const pressingPopoverRef = useRef(false);
 
   const { data: highlights = [] } = useItemHighlights(itemId);
   const createHighlight = useCreateHighlight(itemId);
@@ -193,57 +203,65 @@ export function HighlightableArticle({
     }
   }, [activeHighlightId]);
 
-  const updateSelection = useCallback(() => {
-    const sel = window.getSelection();
+  const syncSelection = useCallback(() => {
     const container = contentRef.current;
+    if (!container) return;
 
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !container) {
-      setSelection(null);
-      return;
-    }
-
+    const sel = window.getSelection();
     // Keep only the part inside the article, so a drag released outside it still counts
-    const range = clampRangeToContainer(container, sel.getRangeAt(0));
-    const selectedText = range?.toString().trim();
+    const range =
+      sel && !sel.isCollapsed && sel.rangeCount > 0
+        ? clampRangeToContainer(container, sel.getRangeAt(0))
+        : null;
+    const selectedText = range?.toString().trim() ?? "";
 
-    if (!range || !selectedText || selectedText.length < 3) {
-      setSelection(null);
+    if (!range || selectedText.length < 3) {
+      if (!pressingPopoverRef.current) setSelection(null);
       return;
     }
 
     // Calculate offsets from the rendered DOM
     const position = fromRange(container, range);
-    const rect = range.getBoundingClientRect();
-
+    pressingPopoverRef.current = false;
     setSelection({
       text: selectedText,
       startOffset: position.start,
       endOffset: position.end,
-      anchorRect: rect,
+      anchorRect: range.getBoundingClientRect(),
+      side: pointerTypeRef.current === "mouse" ? "top" : "bottom",
     });
   }, []);
 
-  // Listen on the document: a drag that starts in the text can end anywhere
   useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const handleMouseUp = (e: MouseEvent) => {
-      // Re-reading the selection here would unmount the button before its click lands
-      if (
-        e.target instanceof Node &&
-        selectionPopoverRef.current?.contains(e.target)
-      ) {
-        return;
-      }
-      // Defer a tick: a click inside an existing selection only collapses it after mouseup
-      clearTimeout(timeout);
-      timeout = setTimeout(updateSelection, 0);
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const handleSelectionChange = () => {
+      if (mouseSelectingRef.current) return;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(syncSelection, SELECTION_SETTLE_MS);
     };
-    document.addEventListener("mouseup", handleMouseUp);
+
+    const handlePointerUp = () => {
+      if (!mouseSelectingRef.current) return;
+      mouseSelectingRef.current = false;
+      // Defer a tick: a click inside an existing selection only collapses it after release
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(syncSelection, 0);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("pointerup", handlePointerUp);
     return () => {
-      document.removeEventListener("mouseup", handleMouseUp);
-      clearTimeout(timeout);
+      clearTimeout(settleTimer);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [updateSelection]);
+  }, [syncSelection]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    pointerTypeRef.current = e.pointerType;
+    mouseSelectingRef.current = e.pointerType === "mouse";
+  }, []);
 
   const handleMouseOver = useCallback((e: React.MouseEvent) => {
     const mark = (e.target as Element).closest("mark[data-highlight-id]");
@@ -337,12 +355,16 @@ export function HighlightableArticle({
       toast.success("Highlight created");
     } catch {
       toast.error("Failed to create highlight");
+    } finally {
+      pressingPopoverRef.current = false;
     }
   }, [selection, createHighlight]);
 
+  // Leaves the text selected: an outside press may be the user adjusting the
+  // selection handles, and a new selection reopens the popover
   const handleClosePopover = useCallback(() => {
+    pressingPopoverRef.current = false;
     setSelection(null);
-    window.getSelection()?.removeAllRanges();
   }, []);
 
   const handleCloseHighlightPopover = useCallback(() => {
@@ -369,9 +391,13 @@ export function HighlightableArticle({
 
   return (
     <div ref={containerRef}>
+      {/* select-text: the item dialog's swipe-to-dismiss drag disables text
+          selection (and the iOS callout) on touch devices */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Event delegation for highlights */}
       <div
         ref={contentRef}
+        className="select-text [-webkit-touch-callout:default]"
+        onPointerDown={handlePointerDown}
         onMouseOver={handleMouseOver}
         onMouseOut={handleMouseOut}
         onFocus={handleFocus}
@@ -401,17 +427,27 @@ export function HighlightableArticle({
             left: selection
               ? selection.anchorRect.left + selection.anchorRect.width / 2
               : 0,
-            top: selection ? selection.anchorRect.top - 8 : 0,
+            top: selection
+              ? selection.side === "top"
+                ? selection.anchorRect.top - 8
+                : selection.anchorRect.bottom + 16
+              : 0,
             width: 0,
             height: 0,
           }}
         />
         <PopoverContent
-          ref={selectionPopoverRef}
-          side="top"
+          side={selection?.side ?? "top"}
           sideOffset={8}
           className="w-auto p-1"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
+          onPointerDown={() => {
+            pressingPopoverRef.current = true;
+          }}
+          onPointerCancel={() => {
+            pressingPopoverRef.current = false;
+          }}
         >
           <Button
             variant="ghost"

@@ -19,7 +19,11 @@ vi.mock("@/lib/highlights/use-highlights", () => ({
 
 vi.mock("./tweet-embed", () => ({ TweetEmbed: () => null }));
 
-const CONTENT = "First paragraph of text.\n\nSecond paragraph of text.";
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+const FIRST = "First paragraph of text.";
+const SECOND = "Second paragraph of text.";
+const CONTENT = `${FIRST}\n\n${SECOND}`;
 
 beforeAll(() => {
   // jsdom has no layout engine: stub what Radix's popper and the anchor need
@@ -31,6 +35,12 @@ beforeAll(() => {
   Range.prototype.getBoundingClientRect ??= () => new DOMRect(0, 0, 10, 10);
 });
 
+function textNodeOf(el: HTMLElement): Node {
+  if (!el.firstChild) throw new Error("missing text node");
+  return el.firstChild;
+}
+
+/** Sets the selection and fires `selectionchange`, which jsdom doesn't do itself */
 function selectText({
   startNode,
   startOffset,
@@ -48,13 +58,31 @@ function selectText({
   const sel = window.getSelection();
   sel?.removeAllRanges();
   sel?.addRange(range);
+  document.dispatchEvent(new Event("selectionchange"));
 }
 
-function releaseMouse(target: Element) {
-  fireEvent.mouseUp(target);
-  act(() => {
-    vi.runAllTimers();
-  });
+function clearSelection() {
+  window.getSelection()?.removeAllRanges();
+  document.dispatchEvent(new Event("selectionchange"));
+}
+
+const runTimers = () => act(() => vi.runAllTimers());
+const highlightButton = () =>
+  screen.queryByRole("button", { name: "Highlight" });
+
+/** Mouse drag-select from `paragraph`, released on `releaseTarget` */
+function mouseSelect({
+  paragraph,
+  releaseTarget = paragraph,
+  ...range
+}: Parameters<typeof selectText>[0] & {
+  paragraph: HTMLElement;
+  releaseTarget?: Element;
+}) {
+  fireEvent.pointerDown(paragraph, { pointerType: "mouse" });
+  selectText(range);
+  fireEvent.pointerUp(releaseTarget, { pointerType: "mouse" });
+  runTimers();
 }
 
 describe("HighlightableArticle", () => {
@@ -71,20 +99,38 @@ describe("HighlightableArticle", () => {
 
   it("shows the Highlight button for a selection released inside the text", () => {
     render(<HighlightableArticle itemId="a" content={CONTENT} />);
-    const text = screen.getByText("First paragraph of text.").firstChild;
-    if (!text) throw new Error("missing text node");
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
 
+    mouseSelect({
+      paragraph,
+      startNode: text,
+      startOffset: 0,
+      endNode: text,
+      endOffset: 5,
+    });
+
+    expect(highlightButton()).toBeInTheDocument();
+  });
+
+  it("waits for the mouse release instead of following the drag", () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
+
+    fireEvent.pointerDown(paragraph, { pointerType: "mouse" });
     selectText({
       startNode: text,
       startOffset: 0,
       endNode: text,
       endOffset: 5,
     });
-    releaseMouse(screen.getByText("First paragraph of text."));
+    runTimers();
+    expect(highlightButton()).not.toBeInTheDocument();
 
-    expect(
-      screen.getByRole("button", { name: "Highlight" }),
-    ).toBeInTheDocument();
+    fireEvent.pointerUp(document, { pointerType: "mouse" });
+    runTimers();
+    expect(highlightButton()).toBeInTheDocument();
   });
 
   it("shows the Highlight button when the drag ends outside the text", async () => {
@@ -92,19 +138,22 @@ describe("HighlightableArticle", () => {
     outside.textContent = "Sidebar";
     render(<HighlightableArticle itemId="a" content={CONTENT} />);
     document.body.appendChild(outside);
-    const text = screen.getByText("Second paragraph of text.").firstChild;
-    if (!text || !outside.firstChild) throw new Error("missing text node");
+    const paragraph = screen.getByText(SECOND);
 
-    selectText({
-      startNode: text,
+    mouseSelect({
+      paragraph,
+      releaseTarget: outside,
+      startNode: textNodeOf(paragraph),
       startOffset: 7,
-      endNode: outside.firstChild,
+      endNode: textNodeOf(outside),
       endOffset: 3,
     });
-    releaseMouse(outside);
 
-    fireEvent.click(screen.getByRole("button", { name: "Highlight" }));
-    await act(async () => {});
+    const button = highlightButton();
+    if (!button) throw new Error("expected the Highlight button");
+    await act(async () => {
+      fireEvent.click(button);
+    });
 
     // Only the in-article part is saved
     expect(mutateAsync).toHaveBeenCalledWith({
@@ -117,29 +166,25 @@ describe("HighlightableArticle", () => {
 
   it("hides the button once a click collapses the selection", () => {
     render(<HighlightableArticle itemId="a" content={CONTENT} />);
-    const paragraph = screen.getByText("First paragraph of text.");
-    const text = paragraph.firstChild;
-    if (!text) throw new Error("missing text node");
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
 
-    selectText({
+    mouseSelect({
+      paragraph,
       startNode: text,
       startOffset: 0,
       endNode: text,
       endOffset: 5,
     });
-    releaseMouse(paragraph);
-    expect(
-      screen.getByRole("button", { name: "Highlight" }),
-    ).toBeInTheDocument();
+    expect(highlightButton()).toBeInTheDocument();
 
-    // The browser collapses a clicked selection after mouseup, so it's read a tick later
-    fireEvent.mouseUp(paragraph);
+    // The browser collapses a clicked selection after release, so it's read a tick later
+    fireEvent.pointerDown(paragraph, { pointerType: "mouse" });
+    fireEvent.pointerUp(paragraph, { pointerType: "mouse" });
     window.getSelection()?.collapseToStart();
-    act(() => {
-      vi.runAllTimers();
-    });
+    runTimers();
 
-    expect(screen.queryByRole("button", { name: "Highlight" })).toBeNull();
+    expect(highlightButton()).not.toBeInTheDocument();
   });
 
   it("ignores selections entirely outside the article", () => {
@@ -152,9 +197,95 @@ describe("HighlightableArticle", () => {
     range.selectNodeContents(outside);
     window.getSelection()?.removeAllRanges();
     window.getSelection()?.addRange(range);
-    releaseMouse(outside);
+    document.dispatchEvent(new Event("selectionchange"));
+    fireEvent.pointerUp(outside, { pointerType: "mouse" });
+    runTimers();
 
-    expect(screen.queryByRole("button", { name: "Highlight" })).toBeNull();
+    expect(highlightButton()).not.toBeInTheDocument();
     outside.remove();
+  });
+
+  it("offers to highlight a touch selection once it settles (no mouseup)", () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
+
+    fireEvent.pointerDown(paragraph, { pointerType: "touch" });
+    selectText({
+      startNode: text,
+      startOffset: 6,
+      endNode: text,
+      endOffset: 15,
+    });
+
+    act(() => vi.advanceTimersByTime(50));
+    expect(highlightButton()).not.toBeInTheDocument();
+    runTimers();
+    expect(highlightButton()).toBeInTheDocument();
+  });
+
+  it("ignores selections shorter than three characters", () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const text = textNodeOf(screen.getByText(FIRST));
+
+    selectText({
+      startNode: text,
+      startOffset: 0,
+      endNode: text,
+      endOffset: 2,
+    });
+    runTimers();
+
+    expect(highlightButton()).not.toBeInTheDocument();
+  });
+
+  it("closes the popover when the selection is cleared", () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const text = textNodeOf(screen.getByText(FIRST));
+
+    selectText({
+      startNode: text,
+      startOffset: 0,
+      endNode: text,
+      endOffset: 5,
+    });
+    runTimers();
+    expect(highlightButton()).toBeInTheDocument();
+
+    clearSelection();
+    runTimers();
+    expect(highlightButton()).not.toBeInTheDocument();
+  });
+
+  it("creates the highlight even if tapping the button collapses the selection", async () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
+
+    fireEvent.pointerDown(paragraph, { pointerType: "touch" });
+    selectText({
+      startNode: text,
+      startOffset: 6,
+      endNode: text,
+      endOffset: 15,
+    });
+    runTimers();
+
+    const button = highlightButton();
+    if (!button) throw new Error("expected the Highlight button");
+    fireEvent.pointerDown(button, { pointerType: "touch" });
+    // iOS drops the text selection when the tap starts
+    clearSelection();
+    runTimers();
+    expect(highlightButton()).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    expect(mutateAsync).toHaveBeenCalledWith({
+      startOffset: 6,
+      endOffset: 15,
+      text: "paragraph",
+    });
   });
 });
