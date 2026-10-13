@@ -8,6 +8,7 @@ import { BookReadingSummary } from "@/components/book/book-reading-summary";
 import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
 import { ProductDetailView } from "@/components/product/product-detail-view";
+import { SaveToAbodeCta } from "@/components/share/save-to-abode-cta";
 import { TwitterDetailView } from "@/components/twitter/twitter-detail-view";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/date-time";
@@ -19,6 +20,7 @@ import { getProxyImageUrl } from "@/lib/image-url";
 import type { Item } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
+import type { SaveCtaState } from "../_lib/public-item";
 import { ReadOnlyArticle, type ReadOnlyHighlight } from "./read-only-article";
 
 type Owner = {
@@ -73,6 +75,8 @@ type Props = {
   roomContext: RoomContext | null;
   /** A single shared highlight, shown as a pull quote above the article */
   featuredHighlight?: ReadOnlyHighlight | null;
+  /** "Save to your abode" for non-owners; null hides it (the owner) */
+  saveCta?: SaveCtaState | null;
 };
 
 function ownerDisplayName(owner: Owner): string {
@@ -95,6 +99,7 @@ export function ItemDetailView({
   scrollToHighlightId,
   roomContext,
   featuredHighlight = null,
+  saveCta = null,
 }: Props) {
   // Bumping the key re-runs the scroll even when the target id is unchanged
   const [scrollTarget, setScrollTarget] = useState<{
@@ -185,6 +190,16 @@ export function ItemDetailView({
               key: (prev?.key ?? 0) + 1,
             }))
           }
+        />
+      )}
+
+      {saveCta && (
+        <SaveToAbodeCta
+          itemId={item.id}
+          sourceUrl={item.sourceUrl}
+          owner={owner}
+          isSignedIn={saveCta.isSignedIn}
+          invitesOpen={saveCta.invitesOpen}
         />
       )}
 

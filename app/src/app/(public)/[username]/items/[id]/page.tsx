@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ItemDetailView } from "./_components/item-detail-view";
 import {
+  getSaveCtaState,
   getVisibleHighlights,
   loadPublicItem,
   toClientItem,
@@ -73,6 +74,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
+      saveCta={await getSaveCtaState({ user, viewerId, isOwner })}
       highlights={await getVisibleHighlights({ item, viewerId })}
       scrollToHighlightId={highlightId}
       roomContext={roomContext}

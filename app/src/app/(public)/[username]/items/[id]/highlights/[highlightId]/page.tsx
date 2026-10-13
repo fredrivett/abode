@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { normalizeHighlightText, truncateAtWord } from "@/lib/highlights/share";
 import { ItemDetailView } from "../../_components/item-detail-view";
 import {
+  getSaveCtaState,
   getSharedHighlight,
   getVisibleHighlights,
   loadPublicItem,
@@ -63,6 +64,7 @@ export default async function SharedHighlightPage({ params }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
+      saveCta={await getSaveCtaState({ user, viewerId, isOwner })}
       highlights={highlights}
       featuredHighlight={highlight}
       scrollToHighlightId={null}

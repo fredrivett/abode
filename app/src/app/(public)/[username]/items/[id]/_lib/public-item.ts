@@ -5,6 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { cache } from "react";
 import db from "@/lib/db";
+import { shareInvitesOpen } from "@/lib/invites/share-invite";
 import {
   canViewItem,
   canViewItemHighlights,
@@ -61,6 +62,7 @@ const getUser = cache(async (username: string) => {
       firstName: true,
       lastName: true,
       avatarUrl: true,
+      allowShareInvites: true,
     },
   });
 });
@@ -377,4 +379,24 @@ export async function loadPublicItem({
     viewerId,
     isOwner: viewerId !== null && viewerId === item.userId,
   };
+}
+
+export type SaveCtaState = { isSignedIn: boolean; invitesOpen: boolean };
+
+/**
+ * How the "Save to your abode" CTA should appear for this viewer, or null for
+ * the owner (it's already theirs). Invite availability only matters to
+ * signed-out readers, so it's only looked up for them.
+ */
+export async function getSaveCtaState({
+  user,
+  viewerId,
+  isOwner,
+}: Pick<
+  PublicItem,
+  "user" | "viewerId" | "isOwner"
+>): Promise<SaveCtaState | null> {
+  if (isOwner) return null;
+  if (viewerId) return { isSignedIn: true, invitesOpen: false };
+  return { isSignedIn: false, invitesOpen: await shareInvitesOpen(user) };
 }

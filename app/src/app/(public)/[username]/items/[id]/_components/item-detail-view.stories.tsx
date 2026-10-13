@@ -87,7 +87,11 @@ type Story = StoryObj<typeof meta>;
 export const Article: Story = {};
 
 export const SharedHighlight: Story = {
-  args: { highlights: [highlight], featuredHighlight: highlight },
+  args: {
+    highlights: [highlight],
+    featuredHighlight: highlight,
+    saveCta: { isSignedIn: false, invitesOpen: true },
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The quote is attributed to its owner

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Link2, Quote, Share } from "lucide-react";
+import { Check, Link2, Quote, Share, Ticket } from "lucide-react";
 import posthog from "posthog-js";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
   highlightShareUrl,
   type ShareableHighlight,
 } from "@/lib/highlights/share";
+import { useShareInviteSettings } from "@/lib/invites/use-share-invite-settings";
 import { createLogger } from "@/lib/logger.client";
 import { OG_COLORS } from "@/lib/og/theme";
 import {
@@ -114,6 +115,46 @@ export function HighlightCardPreview(
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Whether readers of the link can join abode with one of the sharer's invites,
+ * with a quick way to turn it off (also in Settings → Invites).
+ */
+function ShareInvitesNote({ enabled }: { enabled: boolean }) {
+  const { settings, setAllowShareInvites, isSaving } = useShareInviteSettings({
+    enabled,
+  });
+  if (!settings) return null;
+
+  const { allowShareInvites, availableInvites } = settings;
+  const toggle = (
+    <button
+      type="button"
+      className="cursor-pointer underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+      disabled={isSaving}
+      onClick={() =>
+        setAllowShareInvites({
+          allow: !allowShareInvites,
+          source: "share_dialog",
+        })
+      }
+    >
+      {allowShareInvites ? "Turn off" : "Turn on"}
+    </button>
+  );
+
+  return (
+    <p className="-mt-3 flex flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs">
+      <Ticket className="size-3.5" />
+      {!allowShareInvites
+        ? "Readers can't join abode with your invites."
+        : availableInvites > 0
+          ? `Readers can join abode with one of your invites (${availableInvites} left).`
+          : "You're out of invites, so readers will join the waitlist."}{" "}
+      {toggle}
+    </p>
   );
 }
 
@@ -258,6 +299,8 @@ export function ShareHighlightDialog({
               ? "Anyone with the link can see this highlight and read the article."
               : "Sharing turns on link sharing for this article, so anyone with the link can read it. Your other highlights stay private."}
           </p>
+
+          <ShareInvitesNote enabled={open} />
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
