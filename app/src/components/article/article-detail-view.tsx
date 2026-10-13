@@ -111,10 +111,13 @@ export function ArticleDetailView({
     if (!ok) setIsRead(false);
   };
 
+  // The scroller paints its own background: Chrome fills not-yet-rastered
+  // tiles of a composited scroller with its background, so a transparent one
+  // flashes the dashboard through the (transparent) dialog mid-scroll
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12"
+      className="flex-1 overflow-y-auto bg-background p-6 md:p-8 lg:p-12"
     >
       <article className="mx-auto w-full max-w-prose">
         {originalName && (

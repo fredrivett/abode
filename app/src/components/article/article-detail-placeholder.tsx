@@ -23,7 +23,7 @@ export function ArticleDetailPlaceholder({
   title: string | undefined;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
+    <div className="flex-1 overflow-y-auto bg-background p-6 md:p-8 lg:p-12">
       <article className="mx-auto w-full max-w-prose" aria-busy>
         {title && (
           <h1 className="mb-6 font-bold font-serif text-2xl text-foreground md:text-3xl lg:mb-8 lg:text-4xl">

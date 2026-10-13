@@ -2235,7 +2235,8 @@ export function ItemDetailBody({
           />
         </DialogHeader>
 
-        <div className="flex flex-1 flex-col gap-8 px-6 pb-6 md:overflow-y-auto">
+        {/* Opaque scroller so unrastered tiles mid-scroll don't show through */}
+        <div className="flex flex-1 flex-col gap-8 bg-background px-6 pb-6 md:overflow-y-auto">
           <div className="flex-1 space-y-6">
             {/* Basic Info */}
             <div className="space-y-2">
