@@ -39,6 +39,10 @@ export default function HelpPage() {
             searchable documents
           </li>
           <li>
+            <Link href="/help/highlights">Highlighting articles</Link> —
+            Highlight the best parts of articles and share them
+          </li>
+          <li>
             <Link href="/help/saving-from-your-phone">
               Saving from your phone
             </Link>{" "}

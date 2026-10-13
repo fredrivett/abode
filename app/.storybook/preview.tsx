@@ -1,5 +1,6 @@
 import type { Preview } from "@storybook/nextjs-vite";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
+import { useEffect } from "react";
 
 import "../src/app/globals.css";
 
@@ -12,6 +13,24 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const hedvigSerif = Hedvig_Letters_Serif({
+  variable: "--font-hedvig-serif",
+  subsets: ["latin"],
+});
+
+const fontVariables = `${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable}`;
+
+// Mirrors the app's <body> so portalled content (dialogs, popovers) gets the
+// font variables too, not just the story's own subtree
+function BodyFonts() {
+  useEffect(() => {
+    const classes = fontVariables.split(" ");
+    document.body.classList.add(...classes);
+    return () => document.body.classList.remove(...classes);
+  }, []);
+  return null;
+}
 
 const preview: Preview = {
   parameters: {
@@ -30,9 +49,8 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => (
-      <div
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <div className={`${fontVariables} antialiased`}>
+        <BodyFonts />
         <Story />
       </div>
     ),

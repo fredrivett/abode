@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { ShareableHighlight } from "@/lib/highlights/share";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { useArticleReading } from "@/lib/items/use-article-reading";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,8 @@ type ArticleDetailViewProps = {
    * (and sees the end-of-article nudge). Off for read-only viewers (e.g. admin).
    */
   enableTracking?: boolean;
+  /** Adds a Share action to a clicked highlight's menu */
+  onShareHighlight?: (highlight: ShareableHighlight) => void;
 };
 
 function isScrollable(el: HTMLElement): boolean {
@@ -66,6 +69,7 @@ export function ArticleDetailView({
   initialScrollProgress = null,
   readAt = null,
   enableTracking = false,
+  onShareHighlight,
 }: ArticleDetailViewProps) {
   const { setRead, saveScrollProgress } = useArticleReading(itemId);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,6 +142,7 @@ export function ArticleDetailView({
           content={content}
           className={ARTICLE_PROSE_CLASS}
           scrollToHighlightId={scrollToHighlightId}
+          onShareHighlight={onShareHighlight}
         />
         {enableTracking && (
           <div className="mt-8 flex flex-col items-center gap-3 border-t pt-6 text-center">

@@ -165,3 +165,61 @@ export const getOgItem = cache(
     };
   },
 );
+
+export type OgHighlight = {
+  text: string;
+  itemTitle: string | null;
+  domain: string | null;
+  ownerUsername: string;
+};
+
+/**
+ * A highlight gets a real card only when its item is publicly viewable and it
+ * belongs to that item and its owner. The highlight id in the URL is the share
+ * grant for the highlight itself, so this doesn't need `sharedHighlights`.
+ */
+export const getOgHighlight = cache(
+  async ({
+    username,
+    itemId,
+    highlightId,
+  }: {
+    username: string;
+    itemId: string;
+    highlightId: string;
+  }): Promise<OgHighlight | null> => {
+    if (!isCanonicalUuid(itemId) || !isCanonicalUuid(highlightId)) return null;
+
+    const user = await db.user.findFirst({
+      where: { username: { equals: username, mode: "insensitive" } },
+      select: { id: true, username: true },
+    });
+    if (!user) return null;
+
+    const highlight = await db.articleHighlight.findFirst({
+      where: { id: highlightId, itemId, userId: user.id },
+      select: {
+        text: true,
+        item: {
+          select: {
+            title: true,
+            userId: true,
+            sharedAt: true,
+            excludeFromPublicRooms: true,
+            roomItems: { select: { room: { select: { visibility: true } } } },
+            articleDetails: { select: { domain: true } },
+          },
+        },
+      },
+    });
+    if (!highlight || highlight.item.userId !== user.id) return null;
+    if (!canViewItem(highlight.item, null)) return null;
+
+    return {
+      text: highlight.text,
+      itemTitle: highlight.item.title,
+      domain: highlight.item.articleDetails?.domain ?? null,
+      ownerUsername: user.username ?? username,
+    };
+  },
+);

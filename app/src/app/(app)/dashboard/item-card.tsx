@@ -107,6 +107,7 @@ import {
   documentPageCount,
 } from "@/lib/documents/document-pages";
 import { gridCardStyle } from "@/lib/grid-styles";
+import type { ShareableHighlight } from "@/lib/highlights/share";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
@@ -220,6 +221,14 @@ const HighlightsPanel = dynamic(
       (m) => m.HighlightsPanel,
     ),
   { ssr: false, loading: HighlightsPanelLoading },
+);
+
+const ShareHighlightDialog = dynamic(
+  () =>
+    import("@/components/article/share-highlight-dialog").then(
+      (m) => m.ShareHighlightDialog,
+    ),
+  { ssr: false },
 );
 
 const ArticleReadingControls = dynamic(
@@ -1446,6 +1455,9 @@ export function ItemDetailBody({
   const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
     null,
   );
+  const [sharingHighlight, setSharingHighlight] =
+    useState<ShareableHighlight | null>(null);
+  const [isShareHighlightOpen, setIsShareHighlightOpen] = useState(false);
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [hasCopiedId, setHasCopiedId] = useState(false);
   const [notes, setNotes] = useState(item.notes ?? "");
@@ -1659,6 +1671,19 @@ export function ItemDetailBody({
   const shareUrl = username
     ? `${getAppBaseUrl()}/@${username}/items/${item.id}`
     : null;
+
+  // Only the owner shares highlights, and the link needs their username
+  const openShareHighlight =
+    canEdit && username
+      ? (source: "article" | "panel") => (highlight: ShareableHighlight) => {
+          setSharingHighlight(highlight);
+          setIsShareHighlightOpen(true);
+          posthog.capture("highlight_share_opened", {
+            item_id: item.id,
+            source,
+          });
+        }
+      : null;
 
   const handleShareToggle = async () => {
     const newValue = !isShared;
@@ -2023,6 +2048,7 @@ export function ItemDetailBody({
               initialScrollProgress={item.articleDetails.scrollProgress}
               readAt={item.articleDetails.readAt}
               enableTracking={canEdit}
+              onShareHighlight={openShareHighlight?.("article")}
             />
           </DetailPaneFade>
         ) : isInstagram && item.instagramDetails ? (
@@ -3170,7 +3196,23 @@ export function ItemDetailBody({
                   setScrollToHighlightId(highlight.id)
                 }
                 canEdit={canEdit}
+                onShareHighlight={openShareHighlight?.("panel")}
               />
+              {username && (
+                <ShareHighlightDialog
+                  open={isShareHighlightOpen}
+                  onOpenChange={setIsShareHighlightOpen}
+                  highlight={sharingHighlight}
+                  item={{
+                    id: item.id,
+                    title: item.title,
+                    domain: item.articleDetails?.domain ?? null,
+                  }}
+                  username={username}
+                  isShared={isShared}
+                  onShared={() => setIsShared(true)}
+                />
+              )}
             </div>
           )}
 

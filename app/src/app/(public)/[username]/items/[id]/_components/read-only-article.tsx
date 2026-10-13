@@ -21,6 +21,8 @@ type Props = {
   className?: string;
   highlights: ReadOnlyHighlight[];
   scrollToHighlightId?: string | null;
+  /** Changing this re-scrolls to the same highlight */
+  scrollRequestKey?: number;
 };
 
 const HIGHLIGHT_CLASS =
@@ -67,6 +69,7 @@ export function ReadOnlyArticle({
   className,
   highlights,
   scrollToHighlightId,
+  scrollRequestKey,
 }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -102,6 +105,7 @@ export function ReadOnlyArticle({
   }, [highlights]);
 
   // Scroll to and flash the target highlight when present.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollRequestKey deliberately re-triggers the scroll for the same id
   useEffect(() => {
     if (!scrollToHighlightId) return;
     const container = contentRef.current;
@@ -128,7 +132,7 @@ export function ReadOnlyArticle({
     }, 1500);
 
     return () => clearTimeout(timeout);
-  }, [scrollToHighlightId]);
+  }, [scrollToHighlightId, scrollRequestKey]);
 
   return (
     <div ref={contentRef}>
