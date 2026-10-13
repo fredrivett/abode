@@ -1585,7 +1585,7 @@ export function ItemDetailBody({
 
   const handleNameSubmit = async (nextName: string) => {
     const trimmed = nextName.trim();
-    if (!trimmed || trimmed === name.trim()) return;
+    if (!trimmed || trimmed === name) return;
     setIsSavingName(true);
     try {
       // Update item.title directly - it's the single source of truth for display name

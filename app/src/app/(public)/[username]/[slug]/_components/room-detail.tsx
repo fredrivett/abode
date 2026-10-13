@@ -159,7 +159,7 @@ export function RoomDetail({
 
   const handleNameSubmit = async (nextName: string) => {
     const trimmed = nextName.trim();
-    if (!trimmed || trimmed === roomName.trim()) return;
+    if (!trimmed || trimmed === roomName) return;
     setIsSavingName(true);
     try {
       const response = await fetch(`/api/v1/rooms/${room.id}`, {

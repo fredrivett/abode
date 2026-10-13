@@ -28,6 +28,15 @@ describe("EditableTitle", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("leaves an untouched padded title alone", () => {
+    const onSubmit = vi.fn();
+    render(<EditableTitle value=" Title" onSubmit={onSubmit} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("skips an empty title", () => {
     const onSubmit = editAndCommit({ value: "Title", draft: "   " });
     expect(onSubmit).not.toHaveBeenCalled();

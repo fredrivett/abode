@@ -83,10 +83,10 @@ const room: Room = {
 const roomItem = (id: string, title: string): RoomItem =>
   ({ id, title, meta: {} }) as unknown as RoomItem;
 
-function renderRoom() {
+function renderRoom(roomOverrides: Partial<Room> = {}) {
   return render(
     <RoomDetail
-      room={room}
+      room={{ ...room, ...roomOverrides }}
       initialItems={[roomItem("a", "Alpha"), roomItem("b", "Beta")]}
       initialCursor={null}
       initialHasMore={false}
@@ -148,5 +148,31 @@ describe("RoomDetail", () => {
     expect(screen.getByTestId("item-a")).toBeInTheDocument();
     expect(screen.getByTestId("item-b")).toBeInTheDocument();
     expect(screen.getByText("2 items")).toBeInTheDocument();
+  });
+
+  it("saves a rename that only strips padding from the room name", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    renderRoom({ name: " My Room" });
+
+    // Default normalizer trims, which would hide the padding under test
+    const input = screen.getByDisplayValue(" My Room", {
+      normalizer: (v) => v,
+    });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "My Room" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/rooms/room-1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ name: "My Room" }),
+      }),
+    );
+    fetchMock.mockRestore();
   });
 });

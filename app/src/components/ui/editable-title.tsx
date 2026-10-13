@@ -105,8 +105,9 @@ export function EditableTitle({
 
     const nextValue = draft.trim();
 
-    // Compare against the untrimmed value so stripping stray whitespace still saves
-    if (!nextValue || nextValue === value) {
+    // An untouched draft is a no-op even if the value is padded; otherwise compare
+    // against the untrimmed value so stripping stray whitespace still saves
+    if (!nextValue || draft === value || nextValue === value) {
       setIsEditing(false);
       setDraft(value);
       return;
