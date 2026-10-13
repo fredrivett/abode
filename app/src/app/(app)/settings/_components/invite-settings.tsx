@@ -12,6 +12,7 @@ import { ProfileTag } from "@/components/user/profile-tag";
 import { cn } from "@/lib/utils";
 import { useMilestoneStore } from "@/stores/milestone-store";
 import { useUserStore } from "@/stores/user-store";
+import { ShareInvitesSetting } from "./share-invites-setting";
 
 type Invite = {
   id: string;
@@ -193,6 +194,8 @@ export function InviteSettings({
             You've used all your invites. Thanks for spreading the word!
           </p>
         )}
+
+        <ShareInvitesSetting />
       </section>
 
       <div className="mt-6">

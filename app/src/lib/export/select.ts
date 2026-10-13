@@ -27,6 +27,7 @@ export const exportProfileSelect = {
   showInvitedBy: true,
   showInvited: true,
   allowSearchIndexing: true,
+  allowShareInvites: true,
   // Auto book shelves the user removed, so an import doesn't bring them back
   dismissedAutoRooms: true,
 } satisfies Prisma.UserSelect;
