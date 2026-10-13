@@ -13,9 +13,16 @@ type JoinFormProps = {
   token: string;
   email: string;
   inviteOrigin: string;
+  /** A shared item to save to the new abode once signup completes */
+  saveItemId?: string | null;
 };
 
-export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
+export function JoinForm({
+  token,
+  email,
+  inviteOrigin,
+  saveItemId = null,
+}: JoinFormProps) {
   const [signupState, signupAction, isSigningUp] = useActionState(
     signupWithInvite,
     {},
@@ -92,6 +99,7 @@ export function JoinForm({ token, email, inviteOrigin }: JoinFormProps) {
 
       <form action={signupAction} className="space-y-6">
         <input type="hidden" name="token" value={token} />
+        {saveItemId && <input type="hidden" name="save" value={saveItemId} />}
 
         <div className="space-y-2">
           <label htmlFor="email" className="font-medium text-sm leading-none">
