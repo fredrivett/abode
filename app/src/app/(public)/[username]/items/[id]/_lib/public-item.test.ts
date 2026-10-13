@@ -6,7 +6,9 @@ const {
   highlightFindUnique,
   findMany,
   getUser,
+  shareInvitesOpen,
 } = vi.hoisted(() => ({
+  shareInvitesOpen: vi.fn(),
   itemFindUnique: vi.fn(),
   userFindFirst: vi.fn(),
   highlightFindUnique: vi.fn(),
@@ -22,8 +24,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/user", () => ({ getAuthenticatedUser: getUser }));
+vi.mock("@/lib/invites/share-invite", () => ({ shareInvitesOpen }));
 
 import {
+  getSaveCtaState,
   getSharedHighlight,
   getVisibleHighlights,
   loadPublicItem,
@@ -171,5 +175,32 @@ describe("getVisibleHighlights", () => {
     });
     expect(highlights.map((h) => h.id)).toEqual([HIGHLIGHT_ID]);
     expect(highlights[0].note).toBeNull();
+  });
+});
+
+describe("getSaveCtaState", () => {
+  const user = {
+    id: OWNER_ID,
+    allowShareInvites: true,
+  } as unknown as Parameters<typeof getSaveCtaState>[0]["user"];
+
+  it("hides the CTA from the owner", async () => {
+    expect(
+      await getSaveCtaState({ user, viewerId: OWNER_ID, isOwner: true }),
+    ).toBeNull();
+  });
+
+  it("offers signed-in readers a straight save, without counting invites", async () => {
+    expect(
+      await getSaveCtaState({ user, viewerId: "reader", isOwner: false }),
+    ).toEqual({ isSignedIn: true, invitesOpen: false });
+    expect(shareInvitesOpen).not.toHaveBeenCalled();
+  });
+
+  it("tells signed-out readers whether they can join with an invite", async () => {
+    shareInvitesOpen.mockResolvedValue(true);
+    expect(
+      await getSaveCtaState({ user, viewerId: null, isOwner: false }),
+    ).toEqual({ isSignedIn: false, invitesOpen: true });
   });
 });

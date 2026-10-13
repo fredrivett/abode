@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ItemDetailView } from "./_components/item-detail-view";
 import {
+  getSaveCtaState,
   getVisibleHighlights,
   loadPublicItem,
   toClientItem,
@@ -63,6 +64,11 @@ export default async function ItemPage({ params, searchParams }: Props) {
   // flash the highlight.
   const highlightId = firstParam(resolvedSearchParams.highlight);
 
+  const [highlights, saveCta] = await Promise.all([
+    getVisibleHighlights({ item, viewerId }),
+    getSaveCtaState({ user, viewerId, isOwner }),
+  ]);
+
   return (
     <ItemDetailView
       item={toClientItem(item)}
@@ -73,7 +79,8 @@ export default async function ItemPage({ params, searchParams }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
-      highlights={await getVisibleHighlights({ item, viewerId })}
+      saveCta={saveCta}
+      highlights={highlights}
       scrollToHighlightId={highlightId}
       roomContext={roomContext}
     />

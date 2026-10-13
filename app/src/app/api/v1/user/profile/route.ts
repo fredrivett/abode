@@ -21,6 +21,7 @@ const profileUpdateSchema = z.object({
   showInvitedBy: z.boolean().optional(),
   showInvited: z.boolean().optional(),
   allowSearchIndexing: z.boolean().optional(),
+  allowShareInvites: z.boolean().optional(),
 });
 
 export async function GET(_request: NextRequest) {
@@ -98,6 +99,7 @@ export async function PATCH(request: NextRequest) {
       showInvitedBy,
       showInvited,
       allowSearchIndexing,
+      allowShareInvites,
     } = parsed.data;
 
     // Normalize the bio: empty (or whitespace-only) clears it
@@ -131,6 +133,7 @@ export async function PATCH(request: NextRequest) {
         ...(showInvitedBy !== undefined && { showInvitedBy }),
         ...(showInvited !== undefined && { showInvited }),
         ...(allowSearchIndexing !== undefined && { allowSearchIndexing }),
+        ...(allowShareInvites !== undefined && { allowShareInvites }),
       },
       select: {
         firstName: true,
@@ -150,6 +153,7 @@ export async function PATCH(request: NextRequest) {
       ...(showInvitedBy !== undefined ? ["showInvitedBy"] : []),
       ...(showInvited !== undefined ? ["showInvited"] : []),
       ...(allowSearchIndexing !== undefined ? ["allowSearchIndexing"] : []),
+      ...(allowShareInvites !== undefined ? ["allowShareInvites"] : []),
     ];
     void logActivity(user.id, "user_update", { fields: changedFields });
 

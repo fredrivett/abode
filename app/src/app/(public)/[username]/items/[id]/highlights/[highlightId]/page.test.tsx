@@ -1,20 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { loadPublicItem, getSharedHighlight, getVisibleHighlights, notFound } =
-  vi.hoisted(() => ({
-    loadPublicItem: vi.fn(),
-    getSharedHighlight: vi.fn(),
-    getVisibleHighlights: vi.fn(),
-    notFound: vi.fn(() => {
-      throw new Error("NEXT_NOT_FOUND");
-    }),
-  }));
+const {
+  loadPublicItem,
+  getSharedHighlight,
+  getVisibleHighlights,
+  getSaveCtaState,
+  notFound,
+} = vi.hoisted(() => ({
+  loadPublicItem: vi.fn(),
+  getSharedHighlight: vi.fn(),
+  getVisibleHighlights: vi.fn(),
+  getSaveCtaState: vi.fn(),
+  notFound: vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
+}));
 
 vi.mock("next/navigation", () => ({ notFound }));
 vi.mock("../../_lib/public-item", () => ({
   loadPublicItem,
   getSharedHighlight,
   getVisibleHighlights,
+  getSaveCtaState,
   toClientItem: (item: unknown) => item,
 }));
 vi.mock("../../_components/item-detail-view", () => ({
@@ -45,6 +52,7 @@ beforeEach(() => {
     isOwner: false,
   });
   getSharedHighlight.mockResolvedValue(featured);
+  getSaveCtaState.mockResolvedValue({ isSignedIn: false, invitesOpen: true });
 });
 
 async function renderedProps() {
@@ -60,6 +68,14 @@ describe("shared highlight page", () => {
     expect(props.highlights).toEqual([featured]);
     // The reader lands on the quote at the top, not mid-article
     expect(props.scrollToHighlightId).toBeNull();
+  });
+
+  it("passes the save CTA state for this viewer", async () => {
+    getVisibleHighlights.mockResolvedValue([]);
+    expect((await renderedProps()).saveCta).toEqual({
+      isSignedIn: false,
+      invitesOpen: true,
+    });
   });
 
   it("shows all highlights when the owner shares them", async () => {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { validateInviteToken } from "@/lib/invites";
+import { getSaveableSharedItem } from "@/lib/invites/share-invite";
 import { EnterCodeForm } from "./enter-code-form";
 import {
   InviteAlreadyUsedError,
@@ -12,11 +13,11 @@ import { JoinForm } from "./join-form";
 export const metadata: Metadata = { title: "Join | abode" };
 
 type PageProps = {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; save?: string }>;
 };
 
 export default async function JoinPage({ searchParams }: PageProps) {
-  const { token } = await searchParams;
+  const { token, save } = await searchParams;
 
   // No token provided - show "enter invite code" form
   if (!token) {
@@ -55,6 +56,8 @@ export default async function JoinPage({ searchParams }: PageProps) {
   // Valid token - show signup form
   const { invite } = result;
   const showInviterBanner = invite.origin === "user" && invite.inviter;
+  // Joining from a shared item: it's saved to the new abode after signup
+  const saveItem = save ? await getSaveableSharedItem(save) : null;
 
   return (
     <div className="flex flex-1 items-center justify-center">
@@ -81,10 +84,21 @@ export default async function JoinPage({ searchParams }: PageProps) {
           </div>
         )}
 
+        {saveItem && (
+          <p className="text-center text-gray-500 text-sm dark:text-gray-400">
+            we&apos;ll save{" "}
+            <span className="font-medium text-gray-900 dark:text-gray-100">
+              {saveItem.title ?? "this"}
+            </span>{" "}
+            to your abode once you&apos;re in
+          </p>
+        )}
+
         <JoinForm
           token={token}
           email={invite.email}
           inviteOrigin={invite.origin}
+          saveItemId={saveItem?.id ?? null}
         />
       </div>
     </div>

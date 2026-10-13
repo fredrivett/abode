@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import db from "@/lib/db";
+import { ITEM_DIALOG_PARAM } from "@/lib/items/item-dialog-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
@@ -134,6 +135,10 @@ export async function GET(request: NextRequest) {
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const pendingUsername = metadata?.pending_username as string | undefined;
   const inviteToken = metadata?.invite_token as string | undefined;
+  const saveItemId =
+    typeof metadata?.save_item_id === "string"
+      ? metadata.save_item_id
+      : undefined;
   const oauthPicture =
     (metadata?.picture as string) || (metadata?.avatar_url as string) || null;
 
@@ -167,6 +172,7 @@ export async function GET(request: NextRequest) {
       "Attempting to complete signup with pending username",
     );
 
+    let savedItemId: string | undefined;
     try {
       const result = await completeSignup({
         userId: user.id,
@@ -174,6 +180,7 @@ export async function GET(request: NextRequest) {
         username: pendingUsername,
         inviteToken,
         oauthPicture,
+        saveItemId,
       });
 
       if (!result.success) {
@@ -183,6 +190,7 @@ export async function GET(request: NextRequest) {
         );
         redirect(ROUTES.COMPLETE_SIGNUP);
       }
+      savedItemId = result.savedItemId;
     } catch (error) {
       if (isRedirectError(error)) {
         throw error;
@@ -226,7 +234,12 @@ export async function GET(request: NextRequest) {
       { userId: user.id, username: pendingUsername },
       "Signup completed via email link",
     );
-    redirect(ROUTES.DASHBOARD);
+    // Open the item saved from a share invite, so they land on it
+    redirect(
+      savedItemId
+        ? `${ROUTES.DASHBOARD}?${ITEM_DIALOG_PARAM}=${savedItemId}`
+        : ROUTES.DASHBOARD,
+    );
   }
 
   // No pending_username in metadata - redirect to complete-signup page

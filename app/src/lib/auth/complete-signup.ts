@@ -2,7 +2,8 @@
 
 import { tasks } from "@trigger.dev/sdk";
 import db from "@/lib/db";
-import { acceptInvite } from "@/lib/invites";
+import { acceptInvite, normalizeEmail } from "@/lib/invites";
+import { saveSharedItemForNewUser } from "@/lib/invites/share-invite";
 import { createLogger } from "@/lib/logger.server";
 import type { adminNotificationTask } from "../../../trigger/admin-notification";
 import type { checkGravatarTask } from "../../../trigger/check-gravatar";
@@ -15,10 +16,13 @@ export type CompleteSignupParams = {
   username: string;
   inviteToken?: string;
   oauthPicture?: string | null;
+  /** A shared item to save to the new abode (joined from a share invite) */
+  saveItemId?: string;
 };
 
 export type CompleteSignupResult =
-  | { success: true }
+  /** savedItemId: the shared item saved for the new user, when there was one */
+  | { success: true; savedItemId?: string }
   | { success: false; error: string; code: string };
 
 /**
@@ -32,7 +36,8 @@ export type CompleteSignupResult =
 export async function completeSignup(
   params: CompleteSignupParams,
 ): Promise<CompleteSignupResult> {
-  const { userId, email, username, inviteToken, oauthPicture } = params;
+  const { userId, email, username, inviteToken, oauthPicture, saveItemId } =
+    params;
 
   log.info(
     {
@@ -99,11 +104,33 @@ export async function completeSignup(
 
     // If invite was already accepted, check if it's for this email
     // (allows retry after partial signup failure)
-    if (invite.status === "accepted" && invite.email !== email) {
+    if (
+      invite.status === "accepted" &&
+      normalizeEmail(invite.email) !== normalizeEmail(email)
+    ) {
       return {
         success: false,
         error: "This invite has already been used by another user",
         code: "INVITE_USED",
+      };
+    }
+
+    // An invite only ever completes for the address it was issued to. Tokens
+    // can reach people other than the invitee (share invites hand them back to
+    // whoever asked), so a token carried in someone else's signup metadata
+    // must not claim it
+    if (
+      invite.status !== "accepted" &&
+      normalizeEmail(invite.email) !== normalizeEmail(email)
+    ) {
+      log.warn(
+        { userId, inviteId: invite.id },
+        "Rejecting invite used by a different email",
+      );
+      return {
+        success: false,
+        error: "This invite was sent to a different email address",
+        code: "INVITE_EMAIL_MISMATCH",
       };
     }
 
@@ -230,5 +257,10 @@ export async function completeSignup(
     );
   }
 
-  return { success: true };
+  // Joined from a shared item: save it to the new abode (best-effort)
+  const savedItemId = saveItemId
+    ? await saveSharedItemForNewUser({ userId, itemId: saveItemId })
+    : null;
+
+  return savedItemId ? { success: true, savedItemId } : { success: true };
 }

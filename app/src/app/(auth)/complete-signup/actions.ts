@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { completeSignup } from "@/lib/auth/complete-signup";
 import db from "@/lib/db";
+import { ITEM_DIALOG_PARAM } from "@/lib/items/item-dialog-url";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import { validateUsername } from "@/lib/username";
 
@@ -48,11 +50,13 @@ export async function completeProfile(
   }
 
   // Complete signup with or without invite
+  const saveItemId = user.user_metadata?.save_item_id;
   const result = await completeSignup({
     userId: user.id,
     email: user.email,
     username,
     inviteToken: inviteToken || undefined,
+    saveItemId: typeof saveItemId === "string" ? saveItemId : undefined,
   });
 
   if (!result.success) {
@@ -60,5 +64,9 @@ export async function completeProfile(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(
+    result.savedItemId
+      ? `${ROUTES.DASHBOARD}?${ITEM_DIALOG_PARAM}=${result.savedItemId}`
+      : ROUTES.DASHBOARD,
+  );
 }

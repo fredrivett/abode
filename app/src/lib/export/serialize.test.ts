@@ -171,6 +171,7 @@ describe("toExportProfile", () => {
     showInvitedBy: true,
     showInvited: true,
     allowSearchIndexing: false,
+    allowShareInvites: true,
     dismissedAutoRooms: [],
   };
 

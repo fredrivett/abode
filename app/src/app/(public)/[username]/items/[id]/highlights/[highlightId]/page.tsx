@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { normalizeHighlightText, truncateAtWord } from "@/lib/highlights/share";
 import { ItemDetailView } from "../../_components/item-detail-view";
 import {
+  getSaveCtaState,
   getSharedHighlight,
   getVisibleHighlights,
   loadPublicItem,
@@ -48,7 +49,10 @@ export default async function SharedHighlightPage({ params }: Props) {
   const { user, item, viewerId, isOwner, highlight } = loaded;
 
   // The link shares this highlight; the rest only show if the owner opted in
-  const visible = await getVisibleHighlights({ item, viewerId });
+  const [visible, saveCta] = await Promise.all([
+    getVisibleHighlights({ item, viewerId }),
+    getSaveCtaState({ user, viewerId, isOwner }),
+  ]);
   const highlights = visible.some((h) => h.id === highlight.id)
     ? visible
     : [highlight];
@@ -63,6 +67,7 @@ export default async function SharedHighlightPage({ params }: Props) {
         avatarUrl: user.avatarUrl,
       }}
       isOwner={isOwner}
+      saveCta={saveCta}
       highlights={highlights}
       featuredHighlight={highlight}
       scrollToHighlightId={null}

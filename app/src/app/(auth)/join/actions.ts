@@ -3,6 +3,7 @@
 import db from "@/lib/db";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
+import { isCanonicalUuid } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
@@ -26,6 +27,10 @@ export async function signupWithInvite(
   const token = formData.get("token") as string;
   const password = formData.get("password") as string;
   const username = formData.get("username") as string;
+  // Shared item to save once signup completes (from a share invite)
+  const save = formData.get("save");
+  const saveItemId =
+    typeof save === "string" && isCanonicalUuid(save) ? save : null;
 
   // Validate invite token first
   const inviteResult = await validateInviteToken(token);
@@ -77,6 +82,7 @@ export async function signupWithInvite(
         invite_token: token,
         invite_origin: invite.origin,
         inviter_id: invite.inviterId,
+        ...(saveItemId && { save_item_id: saveItemId }),
       },
     },
   });

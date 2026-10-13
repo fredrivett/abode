@@ -44,6 +44,9 @@ model User {
   showInvited         Boolean @default(true) @map("show_invited") // Show the people this user invited
   allowSearchIndexing Boolean @default(false) @map("allow_search_indexing") // Opt-in: let search engines index the public profile + public rooms
 
+  // Let readers of this user's shared links join with one of their invites
+  allowShareInvites Boolean @default(true) @map("allow_share_invites")
+
   // Auto book shelves the user dismissed; ensureBookRooms skips these so they're never recreated
   dismissedAutoRooms RoomAutoKind[] @default([]) @map("dismissed_auto_rooms")
 

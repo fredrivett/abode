@@ -68,3 +68,36 @@ describe("PATCH /api/v1/user/profile — allowSearchIndexing", () => {
     expect(update).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /api/v1/user/profile — allowShareInvites", () => {
+  beforeEach(() => {
+    getUserWithMfa
+      .mockReset()
+      .mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    update.mockReset().mockResolvedValue({
+      firstName: null,
+      lastName: null,
+      avatarUrl: null,
+      website: null,
+      bio: null,
+    });
+  });
+
+  it.each([true, false])(
+    "saves allowShareInvites=%s for the caller",
+    async (enabled) => {
+      expect((await patch({ allowShareInvites: enabled })).status).toBe(200);
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "u1" },
+          data: { allowShareInvites: enabled },
+        }),
+      );
+    },
+  );
+
+  it("400 for a non-boolean value", async () => {
+    expect((await patch({ allowShareInvites: "yes" })).status).toBe(400);
+    expect(update).not.toHaveBeenCalled();
+  });
+});
