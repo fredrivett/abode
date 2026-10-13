@@ -65,7 +65,10 @@ describe("DocumentScanner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Couldn't open the scanner",
     );
-    expect(screen.getByRole("button", { name: "Try again" })).toHaveFocus();
+    // Focus moves in a passive effect, which a busy event loop can flush after findByRole resolves
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Try again" })).toHaveFocus(),
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
