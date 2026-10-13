@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   hasFullAdminAccess: vi.fn(),
-  findUnique: vi.fn(),
   update: vi.fn(),
   getInviteUsage: vi.fn(),
 }));
@@ -12,7 +11,7 @@ vi.mock("@/lib/admin/auth", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/db", () => ({
-  default: { user: { findUnique: mocks.findUnique, update: mocks.update } },
+  default: { user: { update: mocks.update } },
 }));
 vi.mock("@/lib/invites", () => ({ getInviteUsage: mocks.getInviteUsage }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -28,12 +27,11 @@ describe("setInviteAllocationAsAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.hasFullAdminAccess.mockResolvedValue(true);
-    mocks.findUnique.mockResolvedValue({ inviteAllocation: 3 });
     mocks.update.mockResolvedValue({});
     mocks.getInviteUsage.mockResolvedValue({
-      allocation: 10,
+      allocation: 3,
       used: 2,
-      available: 8,
+      available: 1,
     });
   });
 
@@ -61,8 +59,15 @@ describe("setInviteAllocationAsAdmin", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
+  it("works out the new usage from the new allocation", async () => {
+    expect(await set(1)).toEqual({
+      success: true,
+      usage: { allocation: 1, used: 2, available: 0 },
+    });
+  });
+
   it("reports a missing user", async () => {
-    mocks.findUnique.mockResolvedValue(null);
+    mocks.getInviteUsage.mockResolvedValue(null);
     expect(await set(5)).toEqual({ error: "User not found" });
     expect(mocks.update).not.toHaveBeenCalled();
   });

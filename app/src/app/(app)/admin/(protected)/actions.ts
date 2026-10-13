@@ -221,23 +221,25 @@ export async function setInviteAllocationAsAdmin({
   }
 
   try {
-    const existing = await db.user.findUnique({
-      where: { id: userId },
-      select: { inviteAllocation: true },
-    });
-    if (!existing) return { error: "User not found" };
+    // Read usage before writing, so a successful update never reports failure
+    // because a follow-up read failed
+    const before = await getInviteUsage(userId);
+    if (!before) return { error: "User not found" };
 
     await db.user.update({
       where: { id: userId },
       data: { inviteAllocation: value },
     });
     log.info(
-      { userId, from: existing.inviteAllocation, to: value },
+      { userId, from: before.allocation, to: value },
       "Admin set invite allocation",
     );
 
-    const usage = await getInviteUsage(userId);
-    if (!usage) return { error: "User not found" };
+    const usage: InviteUsage = {
+      allocation: value,
+      used: before.used,
+      available: Math.max(0, value - before.used),
+    };
     revalidatePath(`/admin/users/${userId}`);
     return { success: true, usage };
   } catch (error) {
