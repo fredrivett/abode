@@ -25,24 +25,14 @@ const CONTEXT_LENGTH = 32;
 
 /**
  * Calculate the absolute character offset of a point within a container.
- * Iterates through all text nodes to find the cumulative position.
+ * Handles element boundary points too (a drag released past the end of the
+ * text often lands on an element, e.g. `(<p>, childIndex)`).
  */
 function getTextOffset(container: Element, node: Node, offset: number): number {
-  const iterator = document.createNodeIterator(container, NodeFilter.SHOW_TEXT);
-  let charCount = 0;
-
-  for (
-    let current = iterator.nextNode();
-    current !== null;
-    current = iterator.nextNode()
-  ) {
-    if (current === node) {
-      return charCount + offset;
-    }
-    charCount += current.textContent?.length ?? 0;
-  }
-
-  return charCount;
+  const range = document.createRange();
+  range.setStart(container, 0);
+  range.setEnd(node, offset);
+  return range.toString().length;
 }
 
 /**
@@ -60,6 +50,29 @@ export function fromRange(container: Element, range: Range): TextPosition {
     start: getTextOffset(container, range.startContainer, range.startOffset),
     end: getTextOffset(container, range.endContainer, range.endOffset),
   };
+}
+
+/**
+ * Clip a range (e.g. the user's selection) to the part inside a container.
+ * Returns null when the range doesn't touch the container at all, so a drag
+ * that starts in the text but ends outside it still yields the in-text part.
+ */
+export function clampRangeToContainer(
+  container: Element,
+  range: Range,
+): Range | null {
+  if (!range.intersectsNode(container)) return null;
+
+  const bounds = document.createRange();
+  bounds.selectNodeContents(container);
+  const clamped = range.cloneRange();
+  if (clamped.compareBoundaryPoints(Range.START_TO_START, bounds) < 0) {
+    clamped.setStart(container, 0);
+  }
+  if (clamped.compareBoundaryPoints(Range.END_TO_END, bounds) > 0) {
+    clamped.setEnd(container, container.childNodes.length);
+  }
+  return clamped;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import {
+  clampRangeToContainer,
   fromRange,
   toRange,
   wrapRangeWithHighlight,
@@ -96,6 +97,7 @@ export function HighlightableArticle({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const selectionPopoverRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<SelectionState>(null);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(
     null,
@@ -191,25 +193,20 @@ export function HighlightableArticle({
     }
   }, [activeHighlightId]);
 
-  const handleMouseUp = useCallback(() => {
+  const updateSelection = useCallback(() => {
     const sel = window.getSelection();
     const container = contentRef.current;
 
-    if (!sel || sel.isCollapsed || !container) {
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !container) {
       setSelection(null);
       return;
     }
 
-    const selectedText = sel.toString().trim();
+    // Keep only the part inside the article, so a drag released outside it still counts
+    const range = clampRangeToContainer(container, sel.getRangeAt(0));
+    const selectedText = range?.toString().trim();
 
-    if (!selectedText || selectedText.length < 3) {
-      setSelection(null);
-      return;
-    }
-
-    // Verify selection is within our container
-    const range = sel.getRangeAt(0);
-    if (!container.contains(range.commonAncestorContainer)) {
+    if (!range || !selectedText || selectedText.length < 3) {
       setSelection(null);
       return;
     }
@@ -225,6 +222,28 @@ export function HighlightableArticle({
       anchorRect: rect,
     });
   }, []);
+
+  // Listen on the document: a drag that starts in the text can end anywhere
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const handleMouseUp = (e: MouseEvent) => {
+      // Re-reading the selection here would unmount the button before its click lands
+      if (
+        e.target instanceof Node &&
+        selectionPopoverRef.current?.contains(e.target)
+      ) {
+        return;
+      }
+      // Defer a tick: a click inside an existing selection only collapses it after mouseup
+      clearTimeout(timeout);
+      timeout = setTimeout(updateSelection, 0);
+    };
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mouseup", handleMouseUp);
+      clearTimeout(timeout);
+    };
+  }, [updateSelection]);
 
   const handleMouseOver = useCallback((e: React.MouseEvent) => {
     const mark = (e.target as Element).closest("mark[data-highlight-id]");
@@ -353,7 +372,6 @@ export function HighlightableArticle({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Event delegation for highlights */}
       <div
         ref={contentRef}
-        onMouseUp={handleMouseUp}
         onMouseOver={handleMouseOver}
         onMouseOut={handleMouseOut}
         onFocus={handleFocus}
@@ -389,6 +407,7 @@ export function HighlightableArticle({
           }}
         />
         <PopoverContent
+          ref={selectionPopoverRef}
           side="top"
           sideOffset={8}
           className="w-auto p-1"
