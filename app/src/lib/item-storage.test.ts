@@ -5,6 +5,7 @@ import {
   extractTwitterImageKeys,
   filesToRemove,
   getItemStorageBytes,
+  isKeyInUserFolder,
 } from "./item-storage";
 
 describe("getItemStorageBytes", () => {
@@ -123,5 +124,36 @@ describe("filesToRemove", () => {
 
   it("returns empty when every old key is still in use", () => {
     expect(filesToRemove(["a", "b"], ["a", "b"])).toEqual([]);
+  });
+});
+
+describe("isKeyInUserFolder", () => {
+  const userId = "0f8fad5b-d9cb-469f-a165-70867728950e";
+  const inFolder = (fileKey: string) => isKeyInUserFolder({ fileKey, userId });
+
+  it("accepts a key directly or nested under the user's folder", () => {
+    expect(inFolder(`${userId}/photo.jpg`)).toBe(true);
+    expect(inFolder(`${userId}/a/b.jpg`)).toBe(true);
+  });
+
+  it("rejects another user's folder and folder-prefix look-alikes", () => {
+    expect(inFolder("7c9e6679-7425-40de-944b-e07fc1f90ae7/photo.jpg")).toBe(
+      false,
+    );
+    expect(inFolder(`${userId}x/photo.jpg`)).toBe(false);
+    expect(inFolder(`x${userId}/photo.jpg`)).toBe(false);
+  });
+
+  it("rejects the bare folder and empty or dot segments", () => {
+    for (const key of [
+      userId,
+      `${userId}/`,
+      `${userId}//photo.jpg`,
+      `${userId}/./photo.jpg`,
+      `${userId}/../other/photo.jpg`,
+      `${userId}/..`,
+    ]) {
+      expect(inFolder(key), key).toBe(false);
+    }
   });
 });

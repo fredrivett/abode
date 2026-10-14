@@ -8,6 +8,7 @@ import {
 } from "@/lib/documents/create-document-schema";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { zodErrorResponse } from "@/lib/http/zod-error";
+import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueueDocumentAnalysis } from "@/lib/items/enqueue-document-analysis";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -42,7 +43,9 @@ export async function POST(request: NextRequest) {
     const { pages, blurDataUrl } = parsed.data;
 
     const keys = documentFileKeys(pages);
-    if (keys.some((key) => !key.startsWith(`${user.id}/`))) {
+    if (
+      keys.some((key) => !isKeyInUserFolder({ fileKey: key, userId: user.id }))
+    ) {
       return NextResponse.json(
         { message: "Page files must be in the user's folder" },
         { status: 400 },
