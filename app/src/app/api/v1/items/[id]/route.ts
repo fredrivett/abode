@@ -106,6 +106,8 @@ export async function PATCH(
       return zodErrorResponse(parsed.error);
     }
     const {
+      title,
+      excludeFromPublicRooms,
       notes,
       shared,
       sharedHighlights,
@@ -117,19 +119,6 @@ export async function PATCH(
       bookReading,
       articleReading,
     } = parsed.data;
-    // Fields without dedicated validation pass through unchanged from the raw
-    // body, preserving prior behavior (they were never validated here).
-    const {
-      processingStatus,
-      fileKey,
-      meta,
-      sourceType,
-      sourceUrl,
-      coverFileKey,
-      excludeFromPublicRooms,
-      tags,
-      title,
-    } = body;
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
@@ -161,13 +150,8 @@ export async function PATCH(
       );
     }
 
-    // Track if filter-relevant fields changed for room sync
-    // Compare tags arrays by value since array equality check would always fail
-    const tagsChanged =
-      tags !== undefined &&
-      JSON.stringify(tags.slice().sort()) !==
-        JSON.stringify(existingItem.tags.slice().sort());
-
+    // Track if filter-relevant fields changed for room sync. Compare tag arrays
+    // by value since array equality check would always fail
     const userTagsChanged =
       userTags !== undefined &&
       JSON.stringify(userTags.slice().sort()) !==
@@ -185,10 +169,8 @@ export async function PATCH(
     // requires re-running enrichment and pruning stale detail rows, which the
     // dedicated reassign endpoint (POST /api/v1/items/[id]/reassign) handles.
     const filterRelevantFieldsChanged =
-      (sourceType !== undefined && sourceType !== existingItem.sourceType) ||
       (excludeFromPublicRooms !== undefined &&
         excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
-      tagsChanged ||
       userTagsChanged ||
       bookStatusChanged ||
       articleReadChanged;
@@ -196,14 +178,7 @@ export async function PATCH(
     const updatedItem = await db.item.update({
       where: { id },
       data: {
-        ...(processingStatus !== undefined && { processingStatus }),
-        ...(fileKey !== undefined && { fileKey }),
-        ...(meta !== undefined && { meta }),
-        ...(sourceType !== undefined && { sourceType }),
-        ...(sourceUrl !== undefined && { sourceUrl }),
-        ...(coverFileKey !== undefined && { coverFileKey }),
         ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
-        ...(tags !== undefined && { tags }),
         ...(userTags !== undefined && { userTags }),
         // Mark the title as user-owned so re-analysis won't overwrite it
         ...(title !== undefined && { title, titleEditedByUser: true }),

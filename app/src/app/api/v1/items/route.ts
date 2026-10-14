@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { isKeyInUserFolder } from "@/lib/item-storage";
 import { isItemSource } from "@/lib/items/capture-source";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
 import { enqueueImageAnalysis } from "@/lib/items/enqueue-image-analysis";
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (fileKey && !fileKey.startsWith(`${user.id}/`)) {
+    if (fileKey && !isKeyInUserFolder({ fileKey, userId: user.id })) {
       return NextResponse.json(
         { message: "File key must be in the user's folder" },
         { status: 400 },

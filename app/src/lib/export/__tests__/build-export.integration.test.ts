@@ -18,7 +18,7 @@ const BINARY = /^files\//;
 
 async function createUser(
   username: string | null = null,
-  extra: { avatarUrl?: string; avatarSource?: "upload" } = {},
+  extra: { id?: string; avatarUrl?: string; avatarSource?: "upload" } = {},
 ) {
   const { write } = await import("@/lib/db");
   return write.user.create({
@@ -321,10 +321,11 @@ describe("buildExportArchive", () => {
 
   it("copies every stored file in, splitting parts and noting missing ones", async () => {
     const { write } = await import("@/lib/db");
+    const userId = crypto.randomUUID();
     const user = await createUser(null, {
+      id: userId,
       avatarSource: "upload",
-      avatarUrl:
-        "https://storage.example/object/public/avatars/me/avatar.png?t=1",
+      avatarUrl: `https://storage.example/object/public/avatars/${userId}/avatar.png?t=1`,
     });
     const scan = await write.item.create({
       data: {
@@ -332,20 +333,20 @@ describe("buildExportArchive", () => {
         kind: "document",
         title: "Lease",
         processingStatus: "completed",
-        fileKey: "k/p1.jpg",
+        fileKey: `${user.id}/p1.jpg`,
         documentPages: {
           create: [
             {
               position: 0,
-              fileKey: "k/p1.jpg",
-              originalFileKey: "k/p1c.jpg",
+              fileKey: `${user.id}/p1.jpg`,
+              originalFileKey: `${user.id}/p1c.jpg`,
               width: 1,
               height: 1,
             },
             {
               position: 1,
-              fileKey: "k/p2.jpg",
-              originalFileKey: "k/p2c.jpg",
+              fileKey: `${user.id}/p2.jpg`,
+              originalFileKey: `${user.id}/p2c.jpg`,
               width: 1,
               height: 1,
             },
@@ -355,18 +356,18 @@ describe("buildExportArchive", () => {
     });
     const kb = (fill: number) => new Uint8Array(40 * 1024).fill(fill);
     const stored = {
-      "avatars:me/avatar.png": kb(9),
-      "items:k/p1.jpg": kb(1),
-      "items:k/p1c.jpg": kb(2),
-      "items:k/p2.jpg": kb(3),
-      // k/p2c.jpg is gone from storage
+      [`avatars:${user.id}/avatar.png`]: kb(9),
+      [`items:${user.id}/p1.jpg`]: kb(1),
+      [`items:${user.id}/p1c.jpg`]: kb(2),
+      [`items:${user.id}/p2.jpg`]: kb(3),
+      // p2c.jpg is gone from storage
     };
 
     const result = await build(user.id, { stored, maxPartBytes: 100 * 1024 });
 
     expect(result.requested).toContainEqual({
       bucket: "avatars",
-      key: "me/avatar.png",
+      key: `${user.id}/avatar.png`,
     });
     expect(result.fileCount).toBe(4);
     expect(result.missingFileCount).toBe(1);
@@ -392,6 +393,32 @@ describe("buildExportArchive", () => {
       "abode.json",
     ]);
     expect(result.json.profile.avatarFile).toBe("files/profile/avatar.png");
-    expect(JSON.stringify(result.json)).not.toMatch(/k\/p1|fileKey/);
+    expect(JSON.stringify(result.json)).not.toMatch(/p1\.jpg|fileKey/);
+  });
+
+  it("never downloads a key outside the user's folder, noting it missing", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    const victim = await createUser();
+    const item = await write.item.create({
+      data: {
+        userId: user.id,
+        kind: "image",
+        title: "Planted",
+        processingStatus: "completed",
+        fileKey: `${victim.id}/secret.jpg`,
+      },
+    });
+
+    const result = await build(user.id, {
+      stored: { [`items:${victim.id}/secret.jpg`]: new Uint8Array([1]) },
+    });
+
+    expect(result.requested).toEqual([]);
+    expect(result.binaries).toEqual({});
+    expect(result.missingFileCount).toBe(1);
+    expect(result.files["missing-files.txt"]).toContain(
+      `files/${item.id}/original.jpg`,
+    );
   });
 });

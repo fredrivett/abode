@@ -7,6 +7,7 @@ import {
 } from "@/lib/documents/create-pdf-document-schema";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { zodErrorResponse } from "@/lib/http/zod-error";
+import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueuePdfImport } from "@/lib/items/enqueue-pdf-import";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return zodErrorResponse(parsed.error);
     const { fileKey, originalName, size } = parsed.data;
 
-    if (!fileKey.startsWith(`${user.id}/`)) {
+    if (!isKeyInUserFolder({ fileKey, userId: user.id })) {
       return NextResponse.json(
         { message: "The file must be in the user's folder" },
         { status: 400 },

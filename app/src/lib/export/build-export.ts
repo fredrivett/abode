@@ -3,7 +3,7 @@ import { createWriteStream } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import db from "@/lib/db";
-import { listItemFiles } from "@/lib/item-storage";
+import { isKeyInUserFolder, listItemFiles } from "@/lib/item-storage";
 import {
   ITEM_TIMELINE_ORDER_BY,
   itemTimelineCursor,
@@ -261,7 +261,13 @@ export async function buildExportArchive({
   for (let i = 0; i < queue.length; i += DOWNLOAD_CONCURRENCY) {
     const batch = queue.slice(i, i + DOWNLOAD_CONCURRENCY);
     const downloads = await Promise.all(
-      batch.map(({ bucket, key }) => downloadFile({ bucket, key })),
+      batch.map(({ bucket, key }) =>
+        // Downloads bypass storage policies, so never follow a key outside the
+        // user's own folder — it's reported missing instead
+        isKeyInUserFolder({ fileKey: key, userId })
+          ? downloadFile({ bucket, key })
+          : null,
+      ),
     );
     for (const [index, file] of batch.entries()) {
       const data = downloads[index];

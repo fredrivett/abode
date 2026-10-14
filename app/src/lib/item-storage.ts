@@ -23,6 +23,29 @@ export function getItemStorageBytes(meta: unknown): bigint {
   );
 }
 
+/**
+ * Whether `fileKey` lives in `userId`'s storage folder. Every item file is
+ * stored under `${userId}/`, so a key outside it was never that user's — paths
+ * that read storage with the service role check this rather than trusting
+ * whatever key a row holds.
+ */
+export function isKeyInUserFolder({
+  fileKey,
+  userId,
+}: {
+  fileKey: string;
+  userId: string;
+}): boolean {
+  const [folder, ...rest] = fileKey.split("/");
+  return (
+    folder === userId &&
+    rest.length > 0 &&
+    rest.every(
+      (segment) => segment !== "" && segment !== "." && segment !== "..",
+    )
+  );
+}
+
 /** Non-empty `fileKey` strings from a JSON array of media/image objects. */
 function collectFileKeys(value: Prisma.JsonValue | null | undefined): string[] {
   if (!Array.isArray(value)) return [];
