@@ -96,7 +96,19 @@
       "plugins": ["./biome/no-raw-user-processing.grit"]
     },
     {
-      "includes": ["src/app/api/**"],
+      "includes": [
+        "src/**",
+        "!src/lib/supabase/server.ts",
+        "!src/lib/supabase/middleware.ts",
+        "!src/lib/auth/authenticate-request.ts",
+        "!src/lib/admin/auth.ts",
+        "!src/lib/actions/auth.ts",
+        "!src/app/(auth)/**",
+        "!src/app/(app)/admin/verify/page.tsx",
+        "!src/hooks/use-upload.ts",
+        "!src/hooks/use-save-scanned-document.ts",
+        "!src/app/(app)/dashboard/upload-widget.tsx"
+      ],
       "plugins": ["./biome/no-raw-cookie-getuser.grit"]
     },
     {
