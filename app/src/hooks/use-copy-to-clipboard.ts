@@ -4,6 +4,7 @@ import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  type CopyFailureReason,
   type CopyResult,
   copyToClipboard,
   describeCopyFailure,
@@ -25,6 +26,20 @@ type UseCopyToClipboardOptions = {
   /** How long `copied` / `failed` linger before reverting to `idle` */
   resetMs?: number;
 };
+
+/** Toasts a failed copy with its explanation, and records why it failed */
+export function reportCopyFailure({
+  reason,
+  message = DEFAULT_ERROR_MESSAGE,
+}: {
+  reason: CopyFailureReason;
+  message?: string;
+}) {
+  posthog.capture("clipboard_copy_failed", { reason });
+  toast.error(message, {
+    description: describeCopyFailure(reason) ?? undefined,
+  });
+}
 
 /**
  * Copies text and tracks the outcome, so a copy button only shows its tick
@@ -69,7 +84,12 @@ export function useCopyToClipboard({
         PENDING_DELAY_MS,
       );
 
-      const result = await write();
+      let result: CopyResult;
+      try {
+        result = await write();
+      } catch {
+        result = { ok: false, reason: "unknown" };
+      }
       if (current !== attempt.current) return result;
 
       clearTimers();
@@ -77,10 +97,7 @@ export function useCopyToClipboard({
       if (result.ok) {
         if (successMessage) toast.success(successMessage);
       } else {
-        posthog.capture("clipboard_copy_failed", { reason: result.reason });
-        toast.error(errorMessage, {
-          description: describeCopyFailure(result.reason) ?? undefined,
-        });
+        reportCopyFailure({ reason: result.reason, message: errorMessage });
       }
       resetTimer.current = setTimeout(() => setStatus("idle"), resetMs);
       return result;

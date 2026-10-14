@@ -72,12 +72,12 @@ export function CopyButton({
 
   return (
     <Button
+      {...props}
       type="button"
       variant={variant}
       size={size}
       aria-label={copyStatusLabel({ status, label })}
       onClick={() => void copy(text)}
-      {...props}
     >
       <CopyStatusIcon status={status} className={iconClassName} />
     </Button>

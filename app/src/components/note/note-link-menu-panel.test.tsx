@@ -93,6 +93,15 @@ describe("NoteLinkMenuPanel", () => {
     expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
   });
 
+  it("treats a copy that throws as failed", async () => {
+    const user = userEvent.setup();
+    renderPanel({ onCopy: vi.fn().mockRejectedValue(new Error("boom")) });
+    await user.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(
+      await screen.findByRole("button", { name: "Copy failed" }),
+    ).toBeVisible();
+  });
+
   it("removes the link", async () => {
     const user = userEvent.setup();
     const { onRemove } = renderPanel();
