@@ -4,6 +4,27 @@ import { isMfaChallengePending } from "@/lib/mfa";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 
 /**
+ * Top-level sections of the signed-in app (the `(app)` route group). Every one
+ * needs a session and, for users with 2FA, a completed MFA challenge —
+ * middleware-protection.test.ts fails when a new section isn't listed.
+ */
+export const PROTECTED_ROUTE_PREFIXES = [
+  "/admin",
+  "/dashboard",
+  "/dev",
+  "/help",
+  "/rooms",
+  "/save",
+  "/settings",
+] as const;
+
+export function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
  * Refreshes the Supabase auth session and enforces route protection.
  *
  * Redirects unauthenticated users away from protected routes, enforces MFA
@@ -44,11 +65,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protected routes - redirect to login if not authenticated
-  const isProtectedRoute =
-    request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/settings") ||
-    request.nextUrl.pathname.startsWith("/admin") ||
-    request.nextUrl.pathname.startsWith("/save");
+  const isProtectedRoute = isProtectedPath(request.nextUrl.pathname);
 
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();
