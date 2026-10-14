@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { isKeyInUserFolder } from "@/lib/item-storage";
+import { isCanonicalUuid } from "@/lib/pagination";
 import { itemAccessSelect } from "./access";
 
 /**
@@ -44,11 +46,20 @@ export function itemOwningImageKeyWhere(
 
 /**
  * Find the item that owns `fileKey`, selecting the fields needed to decide
- * viewability. Returns null when no item references the key.
+ * viewability. Returns null when no item references the key. Only items of the
+ * user whose folder holds the key count, so a row pointing at someone else's
+ * file can never authorize serving it.
  */
-export function findItemOwningImageKey(fileKey: string) {
+export async function findItemOwningImageKey(fileKey: string) {
+  const [ownerId] = fileKey.split("/");
+  if (
+    !isCanonicalUuid(ownerId) ||
+    !isKeyInUserFolder({ fileKey, userId: ownerId })
+  ) {
+    return null;
+  }
   return db.item.findFirst({
-    where: itemOwningImageKeyWhere(fileKey),
+    where: { AND: [{ userId: ownerId }, itemOwningImageKeyWhere(fileKey)] },
     select: { id: true, ...itemAccessSelect },
   });
 }

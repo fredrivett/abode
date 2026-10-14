@@ -198,6 +198,48 @@ describe("findItemOwningImageKey integration", () => {
     }
   });
 
+  test("ignores another user's item that references the key", async () => {
+    const { write } = await import("@/lib/db");
+    const owner = await createUser();
+    const other = await createUser();
+    const fileKey = `${owner.id}/private.jpg`;
+    const ownersItem = await write.item.create({
+      data: { id: crypto.randomUUID(), userId: owner.id, fileKey },
+      select: { id: true },
+    });
+    // A shared item of someone else's pointing at the owner's file must not
+    // make it viewable
+    await write.item.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId: other.id,
+        coverFileKey: fileKey,
+        sharedAt: new Date(),
+      },
+    });
+
+    expect((await findItemOwningImageKey(fileKey))?.id).toBe(ownersItem.id);
+
+    await write.item.delete({ where: { id: ownersItem.id } });
+    expect(await findItemOwningImageKey(fileKey)).toBeNull();
+  });
+
+  test("returns null for a key outside any user folder", async () => {
+    const { write } = await import("@/lib/db");
+    const user = await createUser();
+    for (const fileKey of ["loose.jpg", "not-a-uuid/photo.jpg"]) {
+      await write.item.create({
+        data: { id: crypto.randomUUID(), userId: user.id, fileKey },
+      });
+      expect(await findItemOwningImageKey(fileKey)).toBeNull();
+    }
+    const traversal = `${user.id}/../${user.id}/photo.jpg`;
+    await write.item.create({
+      data: { id: crypto.randomUUID(), userId: user.id, fileKey: traversal },
+    });
+    expect(await findItemOwningImageKey(traversal)).toBeNull();
+  });
+
   test("returns null for a key no item references", async () => {
     const user = await createUser();
     expect(await findItemOwningImageKey(`${user.id}/missing.jpg`)).toBeNull();
