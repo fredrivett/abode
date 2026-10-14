@@ -12,7 +12,7 @@ import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
   type PreviousUsername,
@@ -34,7 +34,7 @@ export async function changeUsername(
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -148,7 +148,7 @@ export async function deleteAccount(
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -287,7 +287,7 @@ export async function requestEmailChange(
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };

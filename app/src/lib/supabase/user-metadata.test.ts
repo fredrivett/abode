@@ -2,6 +2,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOAuthMetadata } from "./user-metadata";
 
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ getAll: () => [], set: () => {} }),
+}));
+
 function createMockSupabase(options: {
   claims?: Record<string, unknown>;
   user?: {
@@ -9,6 +13,7 @@ function createMockSupabase(options: {
     email?: string;
     user_metadata?: Record<string, unknown>;
   } | null;
+  mfaPending?: boolean;
 }): SupabaseClient {
   return {
     auth: {
@@ -18,11 +23,45 @@ function createMockSupabase(options: {
       getUser: vi.fn().mockResolvedValue({
         data: { user: options.user ?? null },
       }),
+      mfa: {
+        getAuthenticatorAssuranceLevel: vi.fn().mockResolvedValue({
+          data: {
+            currentLevel: "aal1",
+            nextLevel: options.mfaPending ? "aal2" : "aal1",
+          },
+          error: null,
+        }),
+        listFactors: vi.fn().mockResolvedValue({
+          data: {
+            totp: options.mfaPending ? [{ status: "verified" }] : [],
+          },
+          error: null,
+        }),
+      },
     },
   } as unknown as SupabaseClient;
 }
 
 describe("getOAuthMetadata", () => {
+  it("returns the user for a session without MFA", async () => {
+    const supabase = createMockSupabase({ user: { id: "u1" } });
+
+    const result = await getOAuthMetadata(supabase);
+
+    expect(result.user?.id).toBe("u1");
+  });
+
+  it("returns no user while the session still owes its MFA challenge", async () => {
+    const supabase = createMockSupabase({
+      user: { id: "u1" },
+      mfaPending: true,
+    });
+
+    const result = await getOAuthMetadata(supabase);
+
+    expect(result.user).toBeNull();
+  });
+
   it("extracts email from claims", async () => {
     const supabase = createMockSupabase({
       claims: { email: "test@example.com" },

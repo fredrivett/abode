@@ -43,13 +43,14 @@ export async function createClient() {
 
 /**
  * Get the authenticated user from Supabase auth.
- * Returns null if not authenticated.
+ * Returns null if not authenticated or the session still owes its MFA
+ * challenge.
  */
 export async function getAuthUser() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
   return user;
 }
 
