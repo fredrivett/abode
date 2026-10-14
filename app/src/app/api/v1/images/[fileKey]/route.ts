@@ -19,6 +19,10 @@ const log = createLogger("api/v1/images");
 // window short. (The self-hostable core has no CDN purge, so this bound stays.)
 const CACHE_CONTROL = "public, max-age=3600, s-maxage=3600";
 
+// An image only its owner can see must never enter the shared cache — it's
+// keyed by URL alone, so a cached copy would serve to anyone holding the URL
+const CACHE_CONTROL_OWNER_ONLY = "private, max-age=3600";
+
 // Cache 404s briefly to avoid hammering DB for missing images
 const CACHE_CONTROL_NOT_FOUND = "public, max-age=60, s-maxage=300";
 
@@ -151,7 +155,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": CACHE_CONTROL,
+        "Cache-Control": canViewItem(item, null)
+          ? CACHE_CONTROL
+          : CACHE_CONTROL_OWNER_ONLY,
       },
     });
   } catch (error) {
