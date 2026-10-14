@@ -1,21 +1,57 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isProtectedPath, PROTECTED_ROUTE_PREFIXES } from "./middleware";
+import { isProtectedPath } from "./middleware";
 
-// Every signed-in section lives in the (app) route group, and the middleware is
+// Every signed-in page lives in the (app) route group, and the middleware is
 // what sends a password-only (aal1) session of a 2FA user to its MFA challenge.
-// A section missing from PROTECTED_ROUTE_PREFIXES renders for that session.
-const APP_GROUP = join(__dirname, "../../app/(app)");
+// A page PROTECTED_ROUTE_PREFIXES misses renders for that session; a prefix
+// that's too broad locks a public page (or the local-only (dev) tools) behind
+// login.
+const APP_DIR = join(__dirname, "../../app");
 
-const appSections = readdirSync(APP_GROUP, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
-  .map((entry) => `/${entry.name}`)
-  .sort();
+type Page = { path: string; inAppGroup: boolean };
+
+/** URL path of every page.tsx under `dir`, flattening route groups. */
+function collectPages(dir: string, segments: string[], inAppGroup: boolean) {
+  const pages: Page[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name === "page.tsx") {
+      pages.push({ path: `/${segments.join("/")}`, inAppGroup });
+    }
+    if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
+    const isGroup = entry.name.startsWith("(") && entry.name.endsWith(")");
+    const isSlot = entry.name.startsWith("@");
+    pages.push(
+      ...collectPages(
+        join(dir, entry.name),
+        isGroup || isSlot ? segments : [...segments, entry.name],
+        inAppGroup || entry.name === "(app)",
+      ),
+    );
+  }
+  return pages;
+}
+
+const pages = collectPages(APP_DIR, [], false);
 
 describe("PROTECTED_ROUTE_PREFIXES", () => {
-  it("covers every top-level section of the (app) route group", () => {
-    expect([...PROTECTED_ROUTE_PREFIXES].sort()).toEqual(appSections);
+  it("finds the app's pages", () => {
+    expect(pages.filter((page) => page.inAppGroup).length).toBeGreaterThan(5);
+  });
+
+  it("protects every page in the (app) route group", () => {
+    const unprotected = pages
+      .filter((page) => page.inAppGroup && !isProtectedPath(page.path))
+      .map((page) => page.path);
+    expect(unprotected).toEqual([]);
+  });
+
+  it("protects no page outside the (app) route group", () => {
+    const overProtected = pages
+      .filter((page) => !page.inAppGroup && isProtectedPath(page.path))
+      .map((page) => page.path);
+    expect(overProtected).toEqual([]);
   });
 });
 

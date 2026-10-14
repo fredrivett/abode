@@ -4,14 +4,16 @@ import { isMfaChallengePending } from "@/lib/mfa";
 import { getSafeRedirectPath } from "@/lib/url-utils";
 
 /**
- * Top-level sections of the signed-in app (the `(app)` route group). Every one
- * needs a session and, for users with 2FA, a completed MFA challenge —
- * middleware-protection.test.ts fails when a new section isn't listed.
+ * Sections of the signed-in app (the `(app)` route group). Every one needs a
+ * session and, for users with 2FA, a completed MFA challenge —
+ * middleware-protection.test.ts fails when an (app) page isn't covered, or a
+ * page outside it is. `/dev/colors` rather than `/dev`: the local-only
+ * `(dev)/dev/*` tools sit outside (app) and run without a session.
  */
 export const PROTECTED_ROUTE_PREFIXES = [
   "/admin",
   "/dashboard",
-  "/dev",
+  "/dev/colors",
   "/help",
   "/rooms",
   "/save",
