@@ -2,7 +2,7 @@
 
 import { Hash } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { useHeadingId } from "./heading-id-context";
 import { getTextFromChildren } from "./utils/get-text-from-children";
@@ -32,6 +32,9 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
   const instanceKey = useId(); // Stable key for this component instance
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
+  const { copy } = useCopyToClipboard({
+    successMessage: "Link copied to clipboard",
+  });
   const text = getTextFromChildren(children);
   const baseId = slugify(text);
   const id = getOrCreateId(instanceKey, baseId);
@@ -76,8 +79,7 @@ export function HeadingLink({ level, children }: HeadingLinkProps) {
   const handleClick = () => {
     const url = `${window.location.pathname}#${id}`;
     window.history.replaceState(null, "", url);
-    navigator.clipboard.writeText(window.location.href);
-    toast("Link copied to clipboard");
+    void copy(window.location.href);
     scrollAndHighlight();
   };
 

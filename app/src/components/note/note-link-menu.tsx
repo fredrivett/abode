@@ -79,9 +79,9 @@ export function NoteLinkMenu({ editor }: { editor: Editor }) {
             openNoteLink({ href, via: "menu" });
           }}
           onCopy={async () => {
-            const copied = await copyToClipboard(href);
+            const result = await copyToClipboard(href);
             editor.commands.focus();
-            return copied;
+            return result;
           }}
           onSave={(next) =>
             editor

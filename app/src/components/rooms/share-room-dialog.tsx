@@ -1,13 +1,13 @@
 "use client";
 
 import type { RoomVisibility } from "@prisma/client";
-import { AlertCircle, BrickWall, Check, Code2, Copy, Info } from "lucide-react";
+import { AlertCircle, BrickWall, Code2, Info } from "lucide-react";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   DialogOrDrawer,
   DialogOrDrawerBody,
@@ -23,7 +23,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { copyToClipboard } from "@/lib/copy";
 import type { Filter } from "@/lib/search/types";
 import { getAppBaseUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -257,7 +256,6 @@ export function ShareRoomDialog({
   const [fontSize, setFontSize] = useState(16);
   const [includeFontSize, setIncludeFontSize] = useState(false);
   const [customText, setCustomText] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const isPublic = room.visibility === "public";
 
@@ -292,17 +290,6 @@ export function ShareRoomDialog({
     includeFontSize,
     customText: customText.trim() || undefined,
   });
-
-  const handleCopy = async () => {
-    const success = await copyToClipboard(embedCode);
-    if (success) {
-      setCopied(true);
-      toast.success("Embed code copied!");
-      setTimeout(() => setCopied(false), 2000);
-    } else {
-      toast.error("Failed to copy");
-    }
-  };
 
   return (
     <DialogOrDrawer open={open} onOpenChange={onOpenChange}>
@@ -555,18 +542,15 @@ export function ShareRoomDialog({
                   <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border bg-muted/50 p-4 pr-12 text-xs">
                     <code>{embedCode}</code>
                   </pre>
-                  <Button
+                  <CopyButton
                     size="sm"
                     variant="ghost"
                     className="absolute top-2 right-2"
-                    onClick={handleCopy}
-                  >
-                    {copied ? (
-                      <Check className="size-4" />
-                    ) : (
-                      <Copy className="size-4" />
-                    )}
-                  </Button>
+                    text={embedCode}
+                    label="Copy embed code"
+                    successMessage="Embed code copied!"
+                    iconClassName="size-4"
+                  />
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink, Pencil, Unlink } from "lucide-react";
+import { Check, ExternalLink, Pencil, Unlink } from "lucide-react";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { CopyStatusIcon, copyStatusLabel } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
@@ -17,7 +18,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useModifierKeySymbol } from "@/hooks/use-modifier-key-symbol";
+import type { CopyResult } from "@/lib/copy";
 import {
   formatLinkForDisplay,
   getOpenableHref,
@@ -25,14 +28,12 @@ import {
 } from "@/lib/link-href";
 import { cn } from "@/lib/utils";
 
-const COPIED_RESET_MS = 1500;
-
 type NoteLinkMenuPanelProps = {
   /** The link's stored href (may be unsafe — it's only opened if openable) */
   href: string;
   onOpen: () => void;
   /** Resolves whether the copy succeeded */
-  onCopy: () => Promise<boolean>;
+  onCopy: () => Promise<CopyResult>;
   /** Called with the normalised href when an edit is saved */
   onSave: (href: string) => void;
   onRemove: () => void;
@@ -108,20 +109,14 @@ function NoteLinkActions({
 }: {
   href: string;
   onOpen: () => void;
-  onCopy: () => Promise<boolean>;
+  onCopy: () => Promise<CopyResult>;
   onEdit: () => void;
   onRemove: () => void;
 }) {
   const modifierKeySymbol = useModifierKeySymbol();
-  const [copied, setCopied] = useState(false);
+  const copyLink = useCopyToClipboard({ resetMs: 1500 });
   const openable = getOpenableHref(href) !== null;
   const label = formatLinkForDisplay(href) || "No address";
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), COPIED_RESET_MS);
-    return () => clearTimeout(timer);
-  }, [copied]);
 
   return (
     <>
@@ -165,10 +160,10 @@ function NoteLinkActions({
         <ExternalLink />
       </ActionButton>
       <ActionButton
-        label={copied ? "Copied" : "Copy link"}
-        onClick={async () => setCopied(await onCopy())}
+        label={copyStatusLabel({ status: copyLink.status, label: "Copy link" })}
+        onClick={() => void copyLink.track(onCopy)}
       >
-        {copied ? <Check /> : <Copy />}
+        <CopyStatusIcon status={copyLink.status} />
       </ActionButton>
       <ActionButton label="Edit link" onClick={onEdit}>
         <Pencil />
