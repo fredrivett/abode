@@ -16,6 +16,12 @@ type Session = { userId: string; aal: Aal };
 
 const prisma = () => getE2EPrisma();
 
+// Newer storage schemas reject DELETE on storage.objects unless this is set —
+// the Storage API sets it itself, and these queries stand in for the API
+async function allowDeletes(sql: Prisma.TransactionClient) {
+  await sql.$executeRawUnsafe("SET LOCAL storage.allow_delete_query = 'true'");
+}
+
 /** Run `sql` as the authenticated role holding `session`'s JWT claims. */
 async function asSession<T>(
   { userId, aal }: Session,
@@ -23,6 +29,7 @@ async function asSession<T>(
 ): Promise<T> {
   const claims = JSON.stringify({ sub: userId, role: "authenticated", aal });
   return prisma().$transaction(async (tx) => {
+    await allowDeletes(tx);
     await tx.$executeRawUnsafe("SET LOCAL ROLE authenticated");
     await tx.$queryRaw`SELECT set_config('request.jwt.claims', ${claims}, true)`;
     return run(tx);
@@ -70,8 +77,11 @@ const updateAs = (session: Session, name: string) =>
   );
 
 async function removeObjects(prefix: string) {
-  await prisma().$executeRaw`
-    DELETE FROM storage.objects WHERE bucket_id = 'items' AND name LIKE ${`${prefix}/%`}`;
+  await prisma().$transaction(async (tx) => {
+    await allowDeletes(tx);
+    await tx.$executeRaw`
+      DELETE FROM storage.objects WHERE bucket_id = 'items' AND name LIKE ${`${prefix}/%`}`;
+  });
 }
 
 test.describe("Storage policies enforce MFA", () => {
