@@ -11,7 +11,7 @@ import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
 const log = createLogger("admin/actions");
@@ -50,7 +50,7 @@ export async function deleteUserAsAdmin(
   // Get current admin user
   const {
     data: { user: adminUser },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
 
   if (!adminUser) {
     return { error: "Unauthorized" };

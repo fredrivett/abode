@@ -3,7 +3,7 @@ import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
 import { describeSharedValue, extractSharedUrl } from "@/lib/share-target";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { SaveRedirect } from "./_components/save-redirect";
 
 const log = createLogger("save");
@@ -43,7 +43,7 @@ export default async function SavePage({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
   if (user) {
     getPostHogClient()?.capture({
       distinctId: user.id,

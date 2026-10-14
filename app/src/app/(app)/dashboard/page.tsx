@@ -15,7 +15,7 @@ import {
   encodeCursor,
   isCanonicalUuid,
 } from "@/lib/pagination";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { OpenScannerOnLoad } from "./open-scanner-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
@@ -60,7 +60,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithMfa(supabase);
   if (!user) return {};
 
   const openItemRaw = await fetchOpenItem({
@@ -94,7 +94,7 @@ export default async function DashboardPage({
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
     supabase.auth.getClaims(),
-    supabase.auth.getUser(),
+    getUserWithMfa(supabase),
   ]);
 
   const user = userData.user;
