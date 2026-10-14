@@ -51,13 +51,26 @@ beforeEach(() => {
 });
 
 describe("ShareHighlightDialog copy", () => {
-  it("confirms a copied link once sharing is on", async () => {
+  it("copies without waiting on sharing, and confirms once sharing is on", async () => {
     copyToClipboard.mockResolvedValue({ ok: true });
-    patch.mockResolvedValue({});
+    let finishSharing: () => void = () => {};
+    patch.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSharing = resolve;
+      }),
+    );
     renderDialog({ isShared: false });
 
     fireEvent.click(screen.getByRole("button", { name: /Copy link/ }));
 
+    // The copy must start inside the click, before the request settles, or
+    // Safari rejects it for lack of user activation
+    expect(patch).toHaveBeenCalled();
+    expect(copyToClipboard).toHaveBeenCalled();
+    await Promise.resolve();
+    expect(toast.success).not.toHaveBeenCalled();
+
+    finishSharing();
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("Link copied"),
     );
