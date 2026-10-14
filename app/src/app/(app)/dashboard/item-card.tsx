@@ -4,8 +4,6 @@ import type { ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
   BookOpen,
-  Check,
-  Copy,
   DoorOpen,
   Download,
   ExternalLink,
@@ -72,6 +70,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Button } from "@/components/ui/button";
+import { CopyButton, CopyStatusIcon } from "@/components/ui/copy-button";
 import { DateTime } from "@/components/ui/date-time";
 import {
   Dialog,
@@ -87,6 +86,7 @@ import { Switch } from "@/components/ui/switch";
 import { VideoCard } from "@/components/video/video-card";
 import { VideoDetailView } from "@/components/video/video-detail-view";
 import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
@@ -98,7 +98,6 @@ import {
   getDominantCoverColor,
 } from "@/lib/book-cover";
 import { branchTitlePrefix } from "@/lib/branch-title";
-import { copyToClipboard } from "@/lib/copy";
 import { getCurrencySymbol } from "@/lib/currency";
 import { debugTrace } from "@/lib/debug/trace";
 import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
@@ -1451,15 +1450,20 @@ export function ItemDetailBody({
   const [isSavingShare, setIsSavingShare] = useState(false);
   const [isSavingSharedHighlights, setIsSavingSharedHighlights] =
     useState(false);
-  const [hasCopiedShareLink, setHasCopiedShareLink] = useState(false);
+  const shareLinkCopy = useCopyToClipboard({
+    successMessage: "Link copied — anyone with the link can view this",
+    errorMessage: "Failed to copy link",
+  });
   const [scrollToHighlightId, setScrollToHighlightId] = useState<string | null>(
     null,
   );
   const [sharingHighlight, setSharingHighlight] =
     useState<ShareableHighlight | null>(null);
   const [isShareHighlightOpen, setIsShareHighlightOpen] = useState(false);
-  const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
-  const [hasCopiedId, setHasCopiedId] = useState(false);
+  const idCopy = useCopyToClipboard({
+    successMessage: "Item ID copied",
+    errorMessage: "Failed to copy ID",
+  });
   const [notes, setNotes] = useState(item.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const hasTrackedNotesUpdate = useRef(false);
@@ -1701,46 +1705,6 @@ export function ItemDetailBody({
       toast.error("Failed to update sharing");
     } finally {
       setIsSavingShare(false);
-    }
-  };
-
-  const handleCopyShareLink = async () => {
-    if (!shareUrl) return;
-    setIsSavingShare(true);
-    try {
-      // Copying a link makes the item shareable if it wasn't already.
-      if (!isShared) {
-        await api.patch(`/api/v1/items/${item.id}`, { shared: true });
-        setIsShared(true);
-        posthog.capture("item_share_toggled", {
-          item_id: item.id,
-          shared: true,
-        });
-      }
-      const copied = await copyToClipboard(shareUrl);
-      if (copied) {
-        setHasCopiedShareLink(true);
-        toast.success("Link copied — anyone with the link can view this");
-        setTimeout(() => setHasCopiedShareLink(false), 2000);
-      } else {
-        toast.error("Failed to copy link");
-      }
-    } catch (error) {
-      log.error({ error }, "Copy share link error");
-      toast.error("Failed to copy link");
-    } finally {
-      setIsSavingShare(false);
-    }
-  };
-
-  const handleCopyId = async () => {
-    const copied = await copyToClipboard(item.id);
-    if (copied) {
-      setHasCopiedId(true);
-      toast.success("Item ID copied");
-      setTimeout(() => setHasCopiedId(false), 2000);
-    } else {
-      toast.error("Failed to copy ID");
     }
   };
 
@@ -2283,15 +2247,14 @@ export function ItemDetailBody({
                     </Link>
                     <button
                       type="button"
-                      onClick={handleCopyId}
+                      onClick={() => void idCopy.copy(item.id)}
                       title={`Copy item ID: ${item.id}`}
                       className="inline-flex items-center gap-1 rounded font-mono text-muted-foreground text-xs hover:text-foreground"
                     >
-                      {hasCopiedId ? (
-                        <Check className="size-3" />
-                      ) : (
-                        <Copy className="size-3" />
-                      )}
+                      <CopyStatusIcon
+                        status={idCopy.status}
+                        className="size-3"
+                      />
                       {item.id.split("-")[0]}
                     </button>
                   </div>
@@ -2417,24 +2380,12 @@ export function ItemDetailBody({
                         View original article
                       </a>
                     </Button>
-                    <Button
-                      variant="outline"
+                    <CopyButton
                       size="icon-sm"
-                      onClick={() => {
-                        if (item.sourceUrl) {
-                          navigator.clipboard.writeText(item.sourceUrl);
-                          setHasCopiedUrl(true);
-                          setTimeout(() => setHasCopiedUrl(false), 2000);
-                        }
-                      }}
-                      aria-label="Copy URL"
-                    >
-                      {hasCopiedUrl ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </Button>
+                      text={item.sourceUrl}
+                      label="Copy URL"
+                      iconClassName="size-3.5"
+                    />
                   </div>
                 )}
               </div>
@@ -2506,24 +2457,12 @@ export function ItemDetailBody({
                         View product
                       </a>
                     </Button>
-                    <Button
-                      variant="outline"
+                    <CopyButton
                       size="icon-sm"
-                      onClick={() => {
-                        if (item.sourceUrl) {
-                          navigator.clipboard.writeText(item.sourceUrl);
-                          setHasCopiedUrl(true);
-                          setTimeout(() => setHasCopiedUrl(false), 2000);
-                        }
-                      }}
-                      aria-label="Copy URL"
-                    >
-                      {hasCopiedUrl ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </Button>
+                      text={item.sourceUrl}
+                      label="Copy URL"
+                      iconClassName="size-3.5"
+                    />
                   </div>
                 )}
               </div>
@@ -2630,24 +2569,12 @@ export function ItemDetailBody({
                         View book
                       </a>
                     </Button>
-                    <Button
-                      variant="outline"
+                    <CopyButton
                       size="icon-sm"
-                      onClick={() => {
-                        if (item.sourceUrl) {
-                          navigator.clipboard.writeText(item.sourceUrl);
-                          setHasCopiedUrl(true);
-                          setTimeout(() => setHasCopiedUrl(false), 2000);
-                        }
-                      }}
-                      aria-label="Copy URL"
-                    >
-                      {hasCopiedUrl ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </Button>
+                      text={item.sourceUrl}
+                      label="Copy URL"
+                      iconClassName="size-3.5"
+                    />
                   </div>
                 )}
               </div>
@@ -3255,14 +3182,15 @@ export function ItemDetailBody({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={handleCopyShareLink}
+                      onClick={() =>
+                        shareUrl && void shareLinkCopy.copy(shareUrl)
+                      }
                       disabled={isSavingShare || !shareUrl}
                     >
-                      {hasCopiedShareLink ? (
-                        <Check className="size-4" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
+                      <CopyStatusIcon
+                        status={shareLinkCopy.status}
+                        className="size-4"
+                      />
                       <span className="ml-1.5">Copy</span>
                     </Button>
                   </div>

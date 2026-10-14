@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, ChevronDown, Copy, KeyRound, Trash2 } from "lucide-react";
+import { ChevronDown, KeyRound, Trash2 } from "lucide-react";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,6 @@ import {
   TOKEN_SCOPES,
   type TokenScope,
 } from "@/lib/auth/token-scopes";
-import { copyToClipboard } from "@/lib/copy";
 import type { PersonalAccessTokenSummary } from "@/lib/personal-access-tokens";
 import { TokenSavedItemsDialog } from "./token-saved-items-dialog";
 
@@ -372,27 +372,11 @@ function NewTokenDialog({
   token: string | null;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!token) return;
-    const ok = await copyToClipboard(token);
-    if (ok) {
-      setCopied(true);
-      toast.success("Copied");
-    } else {
-      toast.error("Failed to copy");
-    }
-  };
-
   return (
     <Dialog
       open={token !== null}
       onOpenChange={(open) => {
-        if (!open) {
-          setCopied(false);
-          onClose();
-        }
+        if (!open) onClose();
       }}
     >
       <DialogContent>
@@ -410,19 +394,12 @@ function NewTokenDialog({
           >
             {token}
           </code>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleCopy}
-            aria-label="Copy token"
-          >
-            {copied ? (
-              <Check className="size-4" />
-            ) : (
-              <Copy className="size-4" />
-            )}
-          </Button>
+          <CopyButton
+            text={token ?? ""}
+            label="Copy token"
+            successMessage="Copied"
+            iconClassName="size-4"
+          />
         </div>
         <DialogFooter>
           <Button type="button" onClick={onClose}>
