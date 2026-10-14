@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NoteLinkMenuPanel } from "./note-link-menu-panel";
@@ -26,7 +20,7 @@ function renderPanel(
 ) {
   const handlers = {
     onOpen: vi.fn(),
-    onCopy: vi.fn().mockResolvedValue(true),
+    onCopy: vi.fn().mockResolvedValue({ ok: true }),
     onSave: vi.fn(),
     onRemove: vi.fn(),
     onCancelEdit: vi.fn(),
@@ -87,17 +81,15 @@ describe("NoteLinkMenuPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("doesn't confirm a failed copy", async () => {
+  it("flags a failed copy instead of confirming it", async () => {
     const user = userEvent.setup();
-    const onCopy = vi.fn().mockResolvedValue(false);
+    const onCopy = vi.fn().mockResolvedValue({ ok: false, reason: "blocked" });
     renderPanel({ onCopy });
     await user.click(screen.getByRole("button", { name: "Copy link" }));
     await waitFor(() => expect(onCopy).toHaveBeenCalled());
-    // Let the copy promise settle and any state update flush
-    await act(async () => {
-      await onCopy.mock.results[0]?.value;
-    });
-    expect(screen.getByRole("button", { name: "Copy link" })).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: "Copy failed" }),
+    ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
   });
 

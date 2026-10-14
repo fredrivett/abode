@@ -125,7 +125,7 @@ export function ColorsBar({
 
   const copyColor = async (hex: string) => {
     setPinnedHex(hex);
-    if (!(await copyToClipboard(hex))) {
+    if (!(await copyToClipboard(hex)).ok) {
       setPinnedHex((prev) => (prev === hex ? null : prev));
       return;
     }

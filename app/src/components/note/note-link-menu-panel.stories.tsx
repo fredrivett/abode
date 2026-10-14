@@ -13,7 +13,7 @@ const meta = {
   args: {
     href: "https://www.example.com/articles/how-to-take-notes",
     onOpen: fn(),
-    onCopy: fn(async () => true),
+    onCopy: fn(async () => ({ ok: true as const })),
     onSave: fn(),
     onRemove: fn(),
     onCancelEdit: fn(),

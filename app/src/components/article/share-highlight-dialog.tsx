@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
-import { copyToClipboard } from "@/lib/copy";
+import { copyToClipboard, describeCopyFailure } from "@/lib/copy";
 import {
   formatHighlightQuote,
   highlightShareUrl,
@@ -234,10 +234,14 @@ export function ShareHighlightDialog({
 
   const copy = (method: ShareMethod, text: string, success: string) =>
     run(method, async () => {
-      const ok = await copyToClipboard(text);
-      if (ok) toast.success(success);
-      else toast.error("Failed to copy");
-      return ok;
+      const result = await copyToClipboard(text);
+      if (result.ok) toast.success(success);
+      else {
+        toast.error("Failed to copy", {
+          description: describeCopyFailure(result.reason) ?? undefined,
+        });
+      }
+      return result.ok;
     });
 
   const nativeShare = () =>
