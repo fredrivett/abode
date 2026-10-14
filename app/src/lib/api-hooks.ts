@@ -246,22 +246,6 @@ export function useCreateItem() {
   });
 }
 
-/** Updates an existing item and invalidates the items query cache. */
-export function useUpdateItem() {
-  return useApiMutation<
-    { id: string },
-    {
-      id: string;
-      processingStatus?: ProcessingStatus;
-      fileKey?: string;
-      meta?: ItemMeta;
-      sourceType?: SourceType;
-    }
-  >(({ id, ...data }) => api.patch(`/api/v1/items/${id}`, data), {
-    invalidateQueries: ["/api/v1/items"],
-  });
-}
-
 /** Deletes an item and invalidates the items query cache. */
 export function useDeleteItem() {
   return useApiMutation<void, { id: string }>(

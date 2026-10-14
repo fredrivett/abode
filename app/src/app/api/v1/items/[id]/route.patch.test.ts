@@ -120,3 +120,58 @@ describe("PATCH /api/v1/items/:id — room sync on reading-status change", () =>
     expect(syncCalls()).toHaveLength(0);
   });
 });
+
+describe("PATCH /api/v1/items/:id — server-owned fields", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: "owner" } } });
+    mockItemUpdate.mockResolvedValue({ id: "item-1" });
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "image",
+      sourceType: "upload",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+    });
+  });
+
+  it("never writes storage keys, processing state, source or AI tags from the body", async () => {
+    const res = await patch({
+      title: "Renamed",
+      fileKey: "victim/photo.jpg",
+      coverFileKey: "victim/cover.jpg",
+      processingStatus: "completed",
+      sourceType: "url",
+      sourceUrl: "https://example.com",
+      meta: { size: 1 },
+      tags: ["injected"],
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockItemUpdate).toHaveBeenCalledTimes(1);
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
+      title: "Renamed",
+      titleEditedByUser: true,
+    });
+  });
+
+  it("rejects an invalid title with 400 and writes nothing", async () => {
+    const res = await patch({ title: "   " });
+
+    expect(res.status).toBe(400);
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("re-syncs rooms when excludeFromPublicRooms changes", async () => {
+    const res = await patch({ excludeFromPublicRooms: true });
+
+    expect(res.status).toBe(200);
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
+      excludeFromPublicRooms: true,
+    });
+    expect(syncCalls()).toHaveLength(1);
+  });
+});

@@ -1,22 +1,63 @@
 import { describe, expect, it } from "vitest";
-import { itemPatchSchema } from "./schema";
+import { itemPatchSchema, MAX_ITEM_TITLE_LENGTH } from "./schema";
 
 describe("itemPatchSchema", () => {
   it("accepts an empty object (all fields optional)", () => {
     expect(itemPatchSchema.safeParse({}).success).toBe(true);
   });
 
-  it("ignores unknown/passthrough fields without rejecting", () => {
+  it("strips server-owned fields rather than accepting them", () => {
     const result = itemPatchSchema.safeParse({
-      processingStatus: "done",
-      fileKey: "abc",
+      processingStatus: "completed",
+      fileKey: "someone-else/photo.jpg",
+      coverFileKey: "someone-else/cover.jpg",
+      sourceUrl: "https://example.com",
+      sourceType: "url",
+      meta: { size: 1 },
       tags: ["a", "b"],
-      title: "hello",
       whatever: 123,
     });
     expect(result.success).toBe(true);
-    // Unknown keys are stripped, not surfaced on parsed data
     expect(result.data).toEqual({});
+  });
+
+  describe("title", () => {
+    it("accepts a title, trimmed", () => {
+      expect(itemPatchSchema.parse({ title: "  Hello  " }).title).toBe("Hello");
+    });
+
+    it("rejects empty, whitespace-only, over-long and non-string titles", () => {
+      for (const title of [
+        "",
+        "   ",
+        "a".repeat(MAX_ITEM_TITLE_LENGTH + 1),
+        null,
+        5,
+      ]) {
+        expect(itemPatchSchema.safeParse({ title }).success).toBe(false);
+      }
+    });
+
+    it("accepts a title at the length limit", () => {
+      expect(
+        itemPatchSchema.safeParse({ title: "a".repeat(MAX_ITEM_TITLE_LENGTH) })
+          .success,
+      ).toBe(true);
+    });
+  });
+
+  describe("excludeFromPublicRooms", () => {
+    it("accepts booleans and rejects anything else", () => {
+      expect(
+        itemPatchSchema.safeParse({ excludeFromPublicRooms: true }).success,
+      ).toBe(true);
+      expect(
+        itemPatchSchema.safeParse({ excludeFromPublicRooms: "yes" }).success,
+      ).toBe(false);
+      expect(
+        itemPatchSchema.safeParse({ excludeFromPublicRooms: null }).success,
+      ).toBe(false);
+    });
   });
 
   describe("notes", () => {
