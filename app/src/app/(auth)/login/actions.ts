@@ -45,10 +45,7 @@ export async function login(
     posthog?.capture({
       distinctId: authData.user.id,
       event: "user_logged_in",
-      properties: {
-        email: data.email,
-        source: "password",
-      },
+      properties: { source: "password" },
     });
     posthog?.identify({
       distinctId: authData.user.id,
