@@ -10,8 +10,20 @@ import {
  */
 export const CONTENT_QUERY_PARAMS = ["q", "search", "url", "text", "title"];
 
-const CONTENT_QUERY = new RegExp(
-  `([?&](?:${CONTENT_QUERY_PARAMS.join("|")})=)[^&#]*`,
+/**
+ * Query params that carry credentials: invite tokens (`/join?token=`) and
+ * auth email link hashes (`/auth/confirm?token_hash=`)
+ */
+export const SECRET_QUERY_PARAMS = ["token", "token_hash"];
+
+/** Every query param whose value is masked out of analytics URLs */
+export const MASKED_QUERY_PARAMS = [
+  ...CONTENT_QUERY_PARAMS,
+  ...SECRET_QUERY_PARAMS,
+];
+
+const MASKED_QUERY = new RegExp(
+  `([?&](?:${MASKED_QUERY_PARAMS.join("|")})=)[^&#]*`,
   "g",
 );
 
@@ -23,9 +35,9 @@ function escapeRegExp(text: string): string {
 }
 
 /**
- * Masks user content out of a URL or path: content query params, and the
- * room slug in `/@<owner>/<slug>` for owners in `scope` (by default the
- * signed-in user). Only an owner can open a private room, so masking the
+ * Masks user content and secrets out of a URL or path: content and secret
+ * query params, and the room slug in `/@<owner>/<slug>` for owners in
+ * `scope` (by default the signed-in user). Only an owner can open a private room, so masking the
  * owner's own room paths covers every private-room visit while keeping
  * visitors' public-room paths intact. Usernames and slugs route
  * case-insensitively, and `@` may arrive percent-encoded.
@@ -35,7 +47,7 @@ export function maskContentInUrl(
   scope: RoomMaskScope = getRoomMaskScope(),
 ): string {
   const masked = url.includes("=")
-    ? url.replace(CONTENT_QUERY, "$1<masked>")
+    ? url.replace(MASKED_QUERY, "$1<masked>")
     : url;
   if (scope === null) return masked;
   const owner = scope === ANY_ROOM_OWNER ? "[^/?#]+" : escapeRegExp(scope);

@@ -114,6 +114,25 @@ describe("scrubEvent", () => {
       $initial_current_url: "https://abode.test/@fred/[room]",
     });
   });
+
+  it("masks an invite token in the page, referrer and first-seen URLs", () => {
+    const scrubbed = scrubEvent({
+      uuid: "u",
+      event: "$pageview",
+      properties: {
+        $current_url: "https://abode.test/join?token=invite-secret",
+        $referrer: "https://abode.test/join?token=invite-secret&save=1",
+        $session_entry_url: "https://abode.test/join?token=invite-secret",
+      },
+      $set_once: {
+        $initial_current_url: "https://abode.test/join?token=invite-secret",
+      },
+    });
+    expect(JSON.stringify(scrubbed)).not.toContain("invite-secret");
+    expect(scrubbed?.properties.$current_url).toBe(
+      "https://abode.test/join?token=<masked>",
+    );
+  });
 });
 
 describe("scrubElementsChain", () => {

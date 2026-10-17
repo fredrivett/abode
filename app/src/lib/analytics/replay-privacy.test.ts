@@ -84,10 +84,28 @@ describe("POSTHOG_PRIVACY_CONFIG", () => {
     expect(masked.name).toBe("https://abode.test/api/v1/items?q=<masked>");
   });
 
-  it("masks search and shared-content query params in page URLs", () => {
+  it("masks search, shared-content and secret query params in page URLs", () => {
     expect(POSTHOG_PRIVACY_CONFIG.mask_personal_data_properties).toBe(true);
     expect(POSTHOG_PRIVACY_CONFIG.custom_personal_data_properties).toEqual(
-      expect.arrayContaining(["q", "search", "url", "text", "title"]),
+      expect.arrayContaining([
+        "q",
+        "search",
+        "url",
+        "text",
+        "title",
+        "token",
+        "token_hash",
+      ]),
     );
+  });
+
+  it("masks invite tokens in replay page URLs", () => {
+    const masked = REPLAY_PRIVACY_OPTIONS.maskCapturedNetworkRequestFn({
+      name: "https://abode.test/join?token=invite-secret",
+      entryType: "navigation",
+      startTime: 0,
+      duration: 0,
+    });
+    expect(masked.name).toBe("https://abode.test/join?token=<masked>");
   });
 });
