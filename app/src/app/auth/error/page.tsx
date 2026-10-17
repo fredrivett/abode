@@ -82,7 +82,7 @@ export default async function AuthErrorPage({ searchParams }: Props) {
                   href="/join"
                   className="font-medium text-gray-900 hover:underline dark:text-gray-100"
                 >
-                  enter a different code
+                  use a different invite link
                 </Link>
               </p>
             </>
@@ -97,7 +97,7 @@ export default async function AuthErrorPage({ searchParams }: Props) {
                   href="/join"
                   className="font-medium text-gray-900 hover:underline dark:text-gray-100"
                 >
-                  try a different invite code
+                  use a different invite link
                 </Link>
               </p>
             </>

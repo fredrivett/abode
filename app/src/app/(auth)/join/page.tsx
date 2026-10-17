@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { validateInviteToken } from "@/lib/invites";
 import { getSaveableSharedItem } from "@/lib/invites/share-invite";
-import { EnterCodeForm } from "./enter-code-form";
 import {
   InviteAlreadyUsedError,
   InviteExpiredError,
   InviteInvalidError,
 } from "./invite-errors";
 import { JoinForm } from "./join-form";
+import { JoinWithoutToken } from "./join-without-token";
 
 export const metadata: Metadata = { title: "Join | abode" };
 
@@ -19,12 +19,12 @@ type PageProps = {
 export default async function JoinPage({ searchParams }: PageProps) {
   const { token, save } = await searchParams;
 
-  // No token provided - show "enter invite code" form
+  // No token: explain invite links, take a pasted one, or join the waitlist
   if (!token) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm space-y-6 px-4">
-          <EnterCodeForm />
+          <JoinWithoutToken />
         </div>
       </div>
     );

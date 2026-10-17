@@ -64,7 +64,7 @@ function InviteErrorActions({
           href="/join"
           className="font-medium text-gray-900 hover:underline dark:text-gray-100"
         >
-          enter a different code
+          use a different invite link
         </Link>
       </p>
     </div>
