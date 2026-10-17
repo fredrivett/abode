@@ -59,6 +59,12 @@ describe("PATCH /api/v1/user/onboarding — complete_profile", () => {
 
     expect((await patch({ firstName: "Ada" })).status).toBe(200);
 
+    // The check needs the stored avatar, so the update must select it
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ avatarUrl: true }),
+      }),
+    );
     expect(markMilestoneComplete).toHaveBeenCalledWith(
       "u1",
       "complete_profile",
