@@ -3,6 +3,9 @@
 // Invite tokens are nanoids: URL-safe alphabet only
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/;
 
+// Invite links always point at /join (see getInviteUrl); allow a trailing slash
+const JOIN_PATH_PATTERN = /\/join\/?$/;
+
 // Only used to resolve scheme-less pastes ("abode.fyi/join?token=…"); never fetched
 const PARSE_BASE = "https://invite.invalid";
 
@@ -19,7 +22,8 @@ function toUrl(value: string): URL | null {
 /**
  * Pull the invite token (and any shared item to save) out of what someone
  * pasted on /join: the full invite link, the link without its scheme, or a
- * bare token. Returns null for anything that isn't one of those.
+ * bare token. Returns null for anything else, including a token on a page
+ * other than /join.
  */
 export function parseInviteLinkInput(input: string): InviteLinkParts | null {
   const value = input.trim();
@@ -27,8 +31,10 @@ export function parseInviteLinkInput(input: string): InviteLinkParts | null {
   if (TOKEN_PATTERN.test(value)) return { token: value, save: null };
 
   const url = toUrl(value);
-  const token = url?.searchParams.get("token")?.trim();
-  if (!url || !token || !TOKEN_PATTERN.test(token)) return null;
+  if (!url || !JOIN_PATH_PATTERN.test(url.pathname)) return null;
+
+  const token = url.searchParams.get("token")?.trim();
+  if (!token || !TOKEN_PATTERN.test(token)) return null;
 
   const save = url.searchParams.get("save")?.trim() || null;
   return { token, save };

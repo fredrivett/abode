@@ -31,6 +31,12 @@ describe("parseInviteLinkInput", () => {
     ).toEqual({ token: TOKEN, save: "x" });
   });
 
+  it("allows a trailing slash on the join path", () => {
+    expect(
+      parseInviteLinkInput(`https://www.abode.fyi/join/?token=${TOKEN}`),
+    ).toEqual({ token: TOKEN, save: null });
+  });
+
   it("ignores a fragment after the query", () => {
     expect(
       parseInviteLinkInput(`https://www.abode.fyi/join?token=${TOKEN}#top`),
@@ -69,6 +75,14 @@ describe("parseInviteLinkInput", () => {
       "https://www.abode.fyi/join?token=abc%20def",
     ],
     ["a different page", "https://www.abode.fyi/login"],
+    [
+      "a token on a different page",
+      `https://www.abode.fyi/login?token=${TOKEN}`,
+    ],
+    [
+      "a token on a page ending in join",
+      `https://example.com/rejoin?token=${TOKEN}`,
+    ],
   ])("rejects %s", (_label, input) => {
     expect(parseInviteLinkInput(input)).toBeNull();
   });
