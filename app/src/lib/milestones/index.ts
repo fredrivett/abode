@@ -63,7 +63,8 @@ export const MILESTONE_CONFIG: Record<
   },
   scan_first_document: {
     label: "Scan your first document",
-    // Opens the scanner straight away (see DashboardActionOnLoad)
+    // Opens the scanner straight away (see DashboardActionOnLoad); the
+    // checklist swaps in the scanning help page where there's no camera
     destination: "/dashboard?action=scan",
   },
   add_first_book: {
