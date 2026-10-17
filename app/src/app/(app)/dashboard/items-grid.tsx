@@ -1,8 +1,7 @@
 "use client";
 
-import { Home, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef } from "react";
-import { AbodeLogo } from "@/components/abode-logo";
 import { MasonryGrid } from "@/components/masonry/masonry-grid";
 import { Button } from "@/components/ui/button";
 import { useGridDensity } from "@/hooks/use-grid-density";
@@ -16,8 +15,8 @@ import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useCardFrame } from "@/lib/items/use-card-frame";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { Item } from "@/lib/types/item";
-import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
+import { DashboardEmptyState } from "./dashboard-empty-state";
 import { ItemCard } from "./item-card";
 import {
   ItemCardSkeleton,
@@ -194,34 +193,7 @@ export function ItemsGrid({
             </div>
           </div>
         ) : (
-          // Empty state for no items at all
-          <div className="flex min-h-[calc(100vh-18rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
-            <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-              <Home className="size-14 text-muted-foreground" />
-              <div className="space-y-2">
-                <h2 className="font-semibold font-serif text-3xl">
-                  Welcome home
-                </h2>
-                <p className="text-base text-muted-foreground">
-                  Drag and drop an image anywhere on this page to upload your
-                  first item to{" "}
-                  <span className="inline-flex items-baseline">
-                    <span className="sr-only">Abode</span>
-                    <AbodeLogo
-                      className="ml-1 h-[0.8em] w-auto text-muted-foreground"
-                      aria-hidden
-                    />
-                  </span>
-                  . We'll analyze it automatically so it's easy to search and
-                  organize later.
-                </p>
-                <div className="mx-auto my-4 h-px w-36 bg-border" />
-                <p className="text-muted-foreground text-xs">
-                  JPG, PNG, GIF, or WEBP up to {MAX_IMAGE_UPLOAD_LABEL}
-                </p>
-              </div>
-            </div>
-          </div>
+          <DashboardEmptyState />
         )
       ) : (
         <div

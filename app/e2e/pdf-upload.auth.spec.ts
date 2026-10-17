@@ -47,10 +47,12 @@ test.describe("PDF upload", () => {
     const uploads = await stubStorageUploads(page);
     await page.goto("/dashboard");
     await page.getByRole("button", { name: "Add item" }).click();
-    await expect(page.getByText("PDFs up to 25MB")).toBeVisible();
+    // Scoped to the dialog: an empty dashboard has its own upload picker
+    const dialog = page.getByRole("dialog", { name: "Add Item" });
+    await expect(dialog.getByText("PDFs up to 25MB")).toBeVisible();
 
     const saved = pdfSaved(page);
-    await page
+    await dialog
       .locator("input[type=file][accept*='application/pdf']")
       .setInputFiles(PDF);
     expect((await saved).status()).toBe(201);
@@ -120,6 +122,7 @@ test.describe("PDF upload", () => {
     await page.getByRole("button", { name: "Add item" }).click();
 
     await page
+      .getByRole("dialog", { name: "Add Item" })
       .locator("input[type=file][accept*='application/pdf']")
       .setInputFiles({ ...PDF, buffer: Buffer.alloc(25 * 1024 * 1024 + 1) });
     await expect(

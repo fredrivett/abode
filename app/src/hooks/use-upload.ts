@@ -26,7 +26,8 @@ export type FileUploadSource =
   | "dialog_picker"
   | "dialog_drop"
   | "dashboard_drop"
-  | "dashboard_paste";
+  | "dashboard_paste"
+  | "empty_state_picker";
 
 interface UseUploadReturn {
   handleUrlSubmit: (url: string) => Promise<boolean>;
