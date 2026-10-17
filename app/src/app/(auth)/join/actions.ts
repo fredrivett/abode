@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { isCanonicalUuid } from "@/lib/pagination";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAppBaseUrl } from "@/lib/url";
 import { validateUsername } from "@/lib/username";
@@ -104,6 +105,19 @@ export async function signupWithInvite(
     },
     "Signup with invite successful - metadata stored",
   );
+
+  // Supabase answers an already-registered email with a placeholder user that
+  // has no identities; only a real new account starts the signup funnel
+  if (data.user && data.user.identities?.length !== 0) {
+    getPostHogClient()?.capture({
+      distinctId: data.user.id,
+      event: "signup_started",
+      properties: {
+        invite_origin: invite.origin,
+        has_save_item: saveItemId !== null,
+      },
+    });
+  }
 
   return {
     success: true,
