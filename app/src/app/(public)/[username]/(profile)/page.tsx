@@ -7,12 +7,8 @@ import { InvitedSection } from "@/components/user/invited-section";
 import { ProfileHeader } from "@/components/user/profile-header";
 import db from "@/lib/db";
 import { getDisplayName } from "@/lib/get-display-name";
-import {
-  deriveRoomThumbnails,
-  ROOM_THUMBNAIL_LIMIT,
-  roomThumbnailItemSelect,
-  roomThumbnailItemWhere,
-} from "@/lib/rooms/room-thumbnails";
+import { listPublicRooms } from "@/lib/rooms/public-rooms";
+import { deriveRoomThumbnails } from "@/lib/rooms/room-thumbnails";
 import { publicContentSeo } from "@/lib/seo/indexing";
 
 type Props = {
@@ -74,33 +70,6 @@ const getUser = cache(async (username: string) => {
   });
 });
 
-const getPublicRooms = cache(async (userId: string) => {
-  return db.room.findMany({
-    where: {
-      userId,
-      visibility: "public",
-      slug: { not: null },
-    },
-    select: {
-      id: true,
-      name: true,
-      emoji: true,
-      slug: true,
-      type: true,
-      _count: {
-        select: { roomItems: true },
-      },
-      roomItems: {
-        where: { item: roomThumbnailItemWhere },
-        orderBy: { addedAt: "desc" },
-        take: ROOM_THUMBNAIL_LIMIT,
-        select: { item: { select: roomThumbnailItemSelect } },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-});
-
 export async function generateMetadata({ params }: Props) {
   const { username: rawUsername } = await params;
   const username = parseUsername(rawUsername);
@@ -143,7 +112,7 @@ export default async function ProfilePage({ params }: Props) {
     notFound();
   }
 
-  const publicRooms = await getPublicRooms(user.id);
+  const publicRooms = await listPublicRooms(user.id);
 
   return (
     <>

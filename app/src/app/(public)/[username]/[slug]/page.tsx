@@ -72,25 +72,28 @@ const getRoom = cache(async (userId: string, slug: string) => {
   });
 });
 
+/**
+ * The room at this URL and its owner, or null when either doesn't exist or the
+ * viewer may not see it. The page and its metadata both go through this, so a
+ * private room can't leak its name through the <title>.
+ */
+const getViewableRoom = cache(async (rawUsername: string, slug: string) => {
+  const username = parseUsername(rawUsername);
+  if (!username) return null;
+  const user = await getUser(username);
+  if (!user) return null;
+  const room = await getRoom(user.id, slug);
+  if (!room) return null;
+  const currentUser = await getAuthenticatedUser();
+  if (!canViewRoom({ room, viewerId: currentUser?.id ?? null })) return null;
+  return { username, user, room, currentUser };
+});
+
 export async function generateMetadata({ params }: Props) {
   const { username: rawUsername, slug } = await params;
-  const username = parseUsername(rawUsername);
-
-  if (!username) {
-    return { title: "User not found" };
-  }
-
-  const user = await getUser(username);
-
-  if (!user) {
-    return { title: "User not found" };
-  }
-
-  const room = await getRoom(user.id, slug);
-
-  if (!room) {
-    return { title: "Room not found" };
-  }
+  const viewable = await getViewableRoom(rawUsername, slug);
+  if (!viewable) return { title: "Room not found" };
+  const { username, user, room } = viewable;
 
   return {
     title: `${room.name} | @${user.username} | abode`,
@@ -105,32 +108,10 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function RoomPage({ params }: Props) {
   const { username: rawUsername, slug } = await params;
-  const username = parseUsername(rawUsername);
-
-  // Only match URLs with @ prefix (e.g., /@fred/room, not /fred/room)
-  if (!username) {
-    notFound();
-  }
-
-  // Get the user by username
-  const user = await getUser(username);
-  if (!user) {
-    notFound();
-  }
-
-  // Get the room by user + slug
-  const room = await getRoom(user.id, slug);
-  if (!room) {
-    notFound();
-  }
-
-  // Get current user for header (uses cached fetcher)
-  const currentUser = await getAuthenticatedUser();
+  const viewable = await getViewableRoom(rawUsername, slug);
+  if (!viewable) notFound();
+  const { user, room, currentUser } = viewable;
   const isOwner = currentUser?.id === room.userId;
-
-  if (!canViewRoom({ room, viewerId: currentUser?.id ?? null })) {
-    notFound();
-  }
 
   const PAGE_SIZE = 100;
 
