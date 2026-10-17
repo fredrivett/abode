@@ -162,8 +162,8 @@ vi.mock("@/lib/http/safe-fetch", async (importOriginal) => {
   };
 });
 
-type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
 
 type Ids = Awaited<ReturnType<typeof seed>>;
 
@@ -191,6 +191,22 @@ const EXEMPT: Record<string, string> = {
 const victimItem = (ids: Ids) => ({ id: ids.victim.privateItemId });
 
 const CASES: Case[] = [
+  // CORS preflights
+  {
+    route: "v1/embed/rooms/[roomId]",
+    method: "OPTIONS",
+    name: "preflight the victim's room embed",
+    params: (ids) => ({ roomId: ids.victim.privateRoomId }),
+  },
+  { route: "v1/items/from-url", method: "OPTIONS", name: "preflight a save" },
+  { route: "v1/items/notes", method: "OPTIONS", name: "preflight a note" },
+  {
+    route: "v1/items/[id]/instagram-enrich",
+    method: "OPTIONS",
+    name: "preflight enriching the victim's item",
+    params: victimItem,
+  },
+
   // Admin — a non-admin gets nothing
   { route: "v1/admin/stats", method: "GET", name: "read global stats" },
   { route: "v1/admin/users", method: "GET", name: "list users" },
@@ -896,6 +912,72 @@ async function seed() {
     data: { userId: victimId, source: "literal", error: `${CANARY}-import` },
   });
 
+  const documentItem = await write.item.create({
+    data: {
+      userId: victimId,
+      kind: "document",
+      processingStatus: "completed",
+      sourceType: "upload",
+      fileKey: `${victimId}/page-1.jpg`,
+      title: `${CANARY}-document-title`,
+      documentPages: {
+        create: {
+          position: 0,
+          fileKey: `${victimId}/page-1.jpg`,
+          originalFileKey: `${victimId}/page-1.jpg`,
+          width: 10,
+          height: 10,
+        },
+      },
+      mediaAnalyses: {
+        create: { userId: victimId, fileKey: `${victimId}/page-1.jpg` },
+      },
+    },
+  });
+  await write.item.create({
+    data: {
+      userId: victimId,
+      kind: "twitter",
+      processingStatus: "completed",
+      sourceType: "url",
+      title: `${CANARY}-tweet-title`,
+      twitterDetails: {
+        create: { tweetId: "1", authorUsername: "someone" },
+      },
+    },
+  });
+  await write.item.create({
+    data: {
+      userId: victimId,
+      kind: "book",
+      processingStatus: "completed",
+      sourceType: "url",
+      title: `${CANARY}-book-title`,
+      bookDetails: { create: {} },
+    },
+  });
+  await write.activityLog.create({
+    data: {
+      userId: victimId,
+      type: "item_view",
+      metadata: { itemId: documentItem.id },
+    },
+  });
+  await write.userMilestone.create({
+    data: { userId: victimId, type: "complete_profile" },
+  });
+  await write.usageDaily.create({
+    data: { userId: victimId, day: new Date(), bucket: "search", count: 1 },
+  });
+  await write.dataExportPart.create({
+    data: {
+      exportId: dataExport.id,
+      position: 1,
+      fileKey: `${victimId}/${dataExport.id}.zip`,
+      sizeBytes: BigInt(1),
+    },
+  });
+
   const attackerItem = await write.item.create({
     data: {
       userId: attackerId,
@@ -945,59 +1027,82 @@ async function seed() {
   };
 }
 
+type Db = Awaited<typeof import("@/lib/db")>["write"];
+
+/** Models holding nothing any one user owns, so outside the victim snapshot */
+const SNAPSHOT_EXEMPT: Record<string, string> = {
+  VisualEmbeddingStats: "global CLIP statistics, not owned by any user",
+  WaitlistEntry: "pre-signup emails, not owned by any user",
+};
+
+/** Every row the victim owns, per model — "covers every model" pins the set */
+function victimRows(db: Db, userId: string) {
+  const ownItem = { item: { userId } };
+  return {
+    User: () => db.user.findMany({ where: { id: userId } }),
+    Item: () => db.item.findMany({ where: { userId } }),
+    ItemLocation: () => db.itemLocation.findMany({ where: { userId } }),
+    ItemVisualVector: () => db.itemVisualVector.findMany({ where: { userId } }),
+    ItemTextVector: () => db.itemTextVector.findMany({ where: { userId } }),
+    ItemMediaAnalysis: () =>
+      db.itemMediaAnalysis.findMany({ where: { userId } }),
+    ItemArticleDetails: () =>
+      db.itemArticleDetails.findMany({ where: ownItem }),
+    ItemDocumentPage: () => db.itemDocumentPage.findMany({ where: ownItem }),
+    ItemImageDetails: () => db.itemImageDetails.findMany({ where: ownItem }),
+    ItemTwitterDetails: () =>
+      db.itemTwitterDetails.findMany({ where: ownItem }),
+    ItemInstagramDetails: () =>
+      db.itemInstagramDetails.findMany({ where: ownItem }),
+    ItemVideoDetails: () => db.itemVideoDetails.findMany({ where: ownItem }),
+    ItemProductDetails: () =>
+      db.itemProductDetails.findMany({ where: ownItem }),
+    ItemBookDetails: () => db.itemBookDetails.findMany({ where: ownItem }),
+    ItemNoteDetails: () => db.itemNoteDetails.findMany({ where: ownItem }),
+    NoteDraft: () => db.noteDraft.findMany({ where: { userId } }),
+    Room: () => db.room.findMany({ where: { userId } }),
+    // The victim's rooms' contents, and the victim's items in anyone's room
+    RoomItem: () =>
+      db.roomItem.findMany({
+        where: { OR: [{ room: { userId } }, { item: { userId } }] },
+      }),
+    RoomEmbedReferrer: () =>
+      db.roomEmbedReferrer.findMany({ where: { room: { userId } } }),
+    ArticleHighlight: () => db.articleHighlight.findMany({ where: { userId } }),
+    ActivityLog: () => db.activityLog.findMany({ where: { userId } }),
+    UserMilestone: () => db.userMilestone.findMany({ where: { userId } }),
+    Invite: () =>
+      db.invite.findMany({
+        where: { OR: [{ inviterId: userId }, { acceptedByUserId: userId }] },
+      }),
+    UsageDaily: () => db.usageDaily.findMany({ where: { userId } }),
+    PersonalAccessToken: () =>
+      db.personalAccessToken.findMany({ where: { userId } }),
+    ItemImport: () => db.itemImport.findMany({ where: { userId } }),
+    DataExport: () => db.dataExport.findMany({ where: { userId } }),
+    DataExportPart: () =>
+      db.dataExportPart.findMany({ where: { export: { userId } } }),
+  } satisfies Record<string, () => Promise<unknown[]>>;
+}
+
+const serialize = (value: unknown) =>
+  JSON.stringify(value, (_key, v) =>
+    typeof v === "bigint" ? v.toString() : v,
+  );
+
 /** Everything the victim owns, serialized — any change is a cross-user write */
 async function snapshotVictim(ids: Ids) {
   const { write } = await import("@/lib/db");
-  const userId = ids.victim.userId;
-  const rooms = await write.room.findMany({
-    where: { userId },
-    include: { roomItems: { orderBy: { itemId: "asc" } } },
-    orderBy: { id: "asc" },
-  });
-  const state = {
-    user: await write.user.findUnique({ where: { id: userId } }),
-    items: await write.item.findMany({
-      where: { userId },
-      include: {
-        imageDetails: true,
-        noteDetails: true,
-        articleDetails: true,
-        locations: true,
-      },
-      orderBy: { id: "asc" },
-    }),
-    rooms,
-    // Membership of the victim's items in anyone's room
-    memberships: await write.roomItem.findMany({
-      where: { item: { userId } },
-      orderBy: { id: "asc" },
-    }),
-    highlights: await write.articleHighlight.findMany({
-      where: { userId },
-      orderBy: { id: "asc" },
-    }),
-    tokens: await write.personalAccessToken.findMany({
-      where: { userId },
-      orderBy: { id: "asc" },
-    }),
-    draft: await write.noteDraft.findUnique({ where: { userId } }),
-    invites: await write.invite.findMany({
-      where: { inviterId: userId },
-      orderBy: { id: "asc" },
-    }),
-    exports: await write.dataExport.findMany({
-      where: { userId },
-      orderBy: { id: "asc" },
-    }),
-    imports: await write.itemImport.findMany({
-      where: { userId },
-      orderBy: { id: "asc" },
-    }),
-    storageOps: h.state.storageOps.filter((op) => op.includes(userId)),
-  };
-  return JSON.stringify(state, (_key, value) =>
-    typeof value === "bigint" ? value.toString() : value,
+  const state: Record<string, string[]> = {};
+  for (const [model, rows] of Object.entries(
+    victimRows(write, ids.victim.userId),
+  )) {
+    state[model] = (await rows()).map(serialize).sort();
+  }
+  state.storageOps = h.state.storageOps.filter((op) =>
+    op.includes(ids.victim.userId),
   );
+  return JSON.stringify(state);
 }
 
 function leakedCanaries(text: string): string[] {
@@ -1033,6 +1138,39 @@ describe("cross-user isolation", () => {
     expect(missing).toEqual([]);
   });
 
+  it("snapshots every model the victim could own", async () => {
+    const { Prisma } = await import("@prisma/client");
+    const { write } = await import("@/lib/db");
+    const covered = new Set([
+      ...Object.keys(victimRows(write, ids.victim.userId)),
+      ...Object.keys(SNAPSHOT_EXEMPT),
+    ]);
+    const missing = Prisma.dmmf.datamodel.models
+      .map((model) => model.name)
+      .filter((name) => !covered.has(name));
+    expect(missing).toEqual([]);
+  });
+
+  it("seeds a row in every snapshotted model it can", async () => {
+    const { write } = await import("@/lib/db");
+    const empty: string[] = [];
+    for (const [model, rows] of Object.entries(
+      victimRows(write, ids.victim.userId),
+    )) {
+      if ((await rows()).length === 0) empty.push(model);
+    }
+    // Rows these hold need pgvector or provider payloads; creation is still caught
+    expect(empty.sort()).toEqual(
+      [
+        "ItemInstagramDetails",
+        "ItemProductDetails",
+        "ItemTextVector",
+        "ItemVideoDetails",
+        "ItemVisualVector",
+      ].sort(),
+    );
+  });
+
   it("detects the victim's content when the victim asks (harness self-check)", async () => {
     h.state.viewer = { id: ids.victim.userId, email: ids.victim.email };
     const own = CASES.find((c) => c.name === "read the victim's private item");
@@ -1040,6 +1178,9 @@ describe("cross-user isolation", () => {
     const { status, text } = await call(own, ids);
     expect(status).toBe(200);
     expect(leakedCanaries(text)).toContain(`${CANARY}-private-title`);
+    // The victim's own read logs activity in the background; start clean
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await reseed();
   });
 
   for (const viewer of ["attacker", "anonymous"] as const) {
