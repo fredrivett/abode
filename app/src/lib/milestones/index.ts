@@ -56,8 +56,10 @@ export const MILESTONE_CONFIG: Record<
   },
   write_first_note: {
     label: "Write your first note",
-    // The note composer sits at the top of the dashboard grid
+    // The note composer sits at the top of the dashboard grid, which only
+    // renders once there's an item in it
     destination: "/dashboard",
+    conditional: "has_item",
   },
   scan_first_document: {
     label: "Scan your first document",
