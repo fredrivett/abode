@@ -101,11 +101,10 @@ export function AddToRoomPopover({
         );
         onRoomsChange([...currentRooms, response.room]);
 
-        // Track item added to room event
+        // Not the room name: rooms can be private and their names are content
         posthog.capture("item_added_to_room", {
           item_id: itemId,
           room_id: room.id,
-          room_name: room.name,
         });
 
         toast.success(`Added to ${room.name}`);
