@@ -16,6 +16,8 @@ type ErrorInfo = {
   title: string;
   description: string;
   primaryCta?: "waitlist";
+  // Invite failures offer trying another invite link; email-verification ones don't
+  isInviteError?: true;
 };
 
 const errorMessages: Record<string, ErrorInfo> = {
@@ -35,17 +37,20 @@ const errorMessages: Record<string, ErrorInfo> = {
   INVALID_TOKEN: {
     title: "invalid invite",
     description: "the invite token is invalid or doesn't exist.",
+    isInviteError: true,
   },
   INVITE_USED: {
     title: "you've already joined",
     description:
       "this invite was used to create your account. try logging in instead.",
+    isInviteError: true,
   },
   INVITE_EXPIRED: {
     title: "invite expired",
     description:
       "your invite expired before you could verify your email. ask the person who invited you for a new one.",
     primaryCta: "waitlist",
+    isInviteError: true,
   },
 };
 
@@ -91,15 +96,17 @@ export default async function AuthErrorPage({ searchParams }: Props) {
               <Button asChild size="lg" className="w-full">
                 <Link href="/login">go to login</Link>
               </Button>
-              <p className="text-gray-500 text-sm dark:text-gray-400">
-                or{" "}
-                <Link
-                  href="/join"
-                  className="font-medium text-gray-900 hover:underline dark:text-gray-100"
-                >
-                  use a different invite link
-                </Link>
-              </p>
+              {error.isInviteError && (
+                <p className="text-gray-500 text-sm dark:text-gray-400">
+                  or{" "}
+                  <Link
+                    href="/join"
+                    className="font-medium text-gray-900 hover:underline dark:text-gray-100"
+                  >
+                    use a different invite link
+                  </Link>
+                </p>
+              )}
             </>
           )}
         </div>
