@@ -9,6 +9,7 @@ import {
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
+import { viewableRoomItemsWhere } from "@/lib/rooms/room-access";
 import { getAppBaseUrl } from "@/lib/url";
 
 const log = createLogger("api/v1/embed/rooms/[roomId]");
@@ -93,8 +94,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         emoji: true,
         slug: true,
         filters: true,
+        // Count only what an anonymous viewer can see, or the count reveals
+        // that items excluded from public rooms exist
         _count: {
-          select: { roomItems: true },
+          select: {
+            roomItems: {
+              where: viewableRoomItemsWhere({ roomId, isOwner: false }),
+            },
+          },
         },
         user: {
           select: {
@@ -125,7 +132,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Fetch room items for preview
     const roomItems = await db.roomItem.findMany({
-      where: { roomId },
+      where: viewableRoomItemsWhere({ roomId, isOwner: false }),
       take: limit,
       orderBy: { addedAt: "desc" },
       select: {
@@ -137,36 +144,32 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             fileKey: true,
             coverFileKey: true,
             meta: true,
-            excludeFromPublicRooms: true,
           },
         },
       },
     });
 
-    // Filter out items excluded from public rooms and build response
-    const items = roomItems
-      .filter((ri) => !ri.item.excludeFromPublicRooms)
-      .map((ri) => {
-        const meta = ri.item.meta as Record<string, unknown> | null;
-        const isArticleOrWebpage =
-          ri.item.kind === "article" || ri.item.kind === "webpage";
+    const items = roomItems.map((ri) => {
+      const meta = ri.item.meta as Record<string, unknown> | null;
+      const isArticleOrWebpage =
+        ri.item.kind === "article" || ri.item.kind === "webpage";
 
-        // Build image URL using the proxy endpoint
-        const imageFileKey = isArticleOrWebpage
-          ? ri.item.coverFileKey
-          : ri.item.fileKey;
+      // Build image URL using the proxy endpoint
+      const imageFileKey = isArticleOrWebpage
+        ? ri.item.coverFileKey
+        : ri.item.fileKey;
 
-        return {
-          id: ri.item.id,
-          kind: ri.item.kind,
-          title: ri.item.title,
-          imageUrl: imageFileKey
-            ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
-            : null,
-          width: isArticleOrWebpage ? 16 : ((meta?.width as number) ?? 1),
-          height: isArticleOrWebpage ? 9 : ((meta?.height as number) ?? 1),
-        };
-      });
+      return {
+        id: ri.item.id,
+        kind: ri.item.kind,
+        title: ri.item.title,
+        imageUrl: imageFileKey
+          ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
+          : null,
+        width: isArticleOrWebpage ? 16 : ((meta?.width as number) ?? 1),
+        height: isArticleOrWebpage ? 9 : ((meta?.height as number) ?? 1),
+      };
+    });
 
     // Construct the room URL
     const baseUrl = getAppBaseUrl();
