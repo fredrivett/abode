@@ -29,19 +29,23 @@ test.describe("Login page", () => {
 });
 
 test.describe("Join page (invite-based signup)", () => {
-  test("should display enter code form when no token provided", async ({
+  test("should explain invite links and offer the waitlist when no token provided", async ({
     page,
   }) => {
     await page.goto("/join");
 
-    // Check heading for enter code form
     await expect(
-      page.getByRole("heading", { name: /enter your invite code/i }),
+      page.getByRole("heading", { name: /join abode/i }),
     ).toBeVisible();
 
-    // Check form elements exist
-    await expect(page.getByLabel(/invite code/i)).toBeVisible();
+    // Fallback for pasting the invite link
+    await expect(page.getByLabel(/invite link/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /continue/i })).toBeVisible();
+
+    // No invite: join the waitlist right here
+    await expect(
+      page.getByRole("button", { name: /join waitlist/i }),
+    ).toBeVisible();
 
     // Check link to login
     await expect(page.getByRole("link", { name: /login/i })).toBeVisible();
