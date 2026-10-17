@@ -13,7 +13,9 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/admin/auth", () => ({ hasFullAdminAccess: mockFullAdmin }));
 vi.mock("@/lib/invites", () => ({ createWaitlistInvite: mockCreateInvite }));
-vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
+vi.mock("@/lib/email", () => ({
+  sendEmail: vi.fn(async () => ({ success: true, id: "email" })),
+}));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 
@@ -42,6 +44,21 @@ describe("POST /api/v1/admin/waitlist/invite", () => {
 
     expect(res.status).toBe(403);
     expect(mockCreateInvite).not.toHaveBeenCalled();
+  });
+
+  it("lets a full admin (AAL2) invite", async () => {
+    mockFullAdmin.mockResolvedValue(true);
+    mockCreateInvite.mockResolvedValue({
+      success: true,
+      invite: { id: "invite", email: "waiting@example.com", token: "token" },
+    });
+
+    const res = await invite();
+
+    expect(res.status).toBe(200);
+    expect(mockCreateInvite).toHaveBeenCalledWith(
+      "0f8fad5b-d9cb-469f-a165-70867728950e",
+    );
   });
 
   it("refuses a signed-out caller", async () => {
