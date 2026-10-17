@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { useScannerAvailable } from "@/components/scanner/scanner-entry";
 import { Button } from "@/components/ui/button";
 import { CountBadge } from "@/components/ui/count-badge";
 import {
@@ -18,19 +19,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  type MilestoneConfig,
-  useMilestoneStore,
-} from "@/stores/milestone-store";
+import { refreshMilestones, useMilestoneStore } from "@/stores/milestone-store";
+import { useUserStore } from "@/stores/user-store";
 
 import { ChecklistItem } from "./checklist-item";
 
-type MilestonesResponse = {
-  completed: Array<{ type: MilestoneType; completedAt: string }>;
-  pending: MilestoneType[];
-  hasArticle: boolean;
-  config: Record<MilestoneType, MilestoneConfig>;
-};
+const SCANNING_HELP_PATH = "/help/scanning";
 
 type ChecklistPopoverProps = {
   /** "icon" renders as icon button with tooltip, "menu-item" renders as dropdown menu item style */
@@ -40,36 +34,43 @@ type ChecklistPopoverProps = {
 export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const scannerAvailable = useScannerAvailable();
 
-  const { completed, pending, config, isLoaded, setMilestones } =
-    useMilestoneStore();
+  const userId = useUserStore((state) => state.userId);
+  const milestones = useMilestoneStore();
+  // Never show a previous user's checklist (the store outlives sign-out)
+  const isCurrent =
+    milestones.userId !== undefined && milestones.userId === userId;
+  const completed = isCurrent ? milestones.completed : [];
+  const pending = isCurrent ? milestones.pending : [];
+  const config = isCurrent ? milestones.config : null;
 
+  // Loads the remaining-tasks badge
   useEffect(() => {
-    async function fetchMilestones() {
-      try {
-        const response = await fetch("/api/v1/user/milestones");
-        if (!response.ok) return;
+    if (userId && !isCurrent) void refreshMilestones(userId);
+  }, [userId, isCurrent]);
 
-        const data: MilestonesResponse = await response.json();
-        setMilestones(
-          data.completed,
-          data.pending,
-          data.hasArticle,
-          data.config,
-        );
-      } catch {
-        // Silently fail - checklist is non-critical
-      }
-    }
-
-    if (!isLoaded) {
-      void fetchMilestones();
-    }
-  }, [isLoaded, setMilestones]);
+  // Re-fetch on open: tasks gated on what the user has saved, and ones
+  // completed server-side (e.g. a book recognised after saving), only show up
+  // in a fresh status. The last known list stays up until it arrives.
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      if (open && userId) void refreshMilestones(userId);
+    },
+    [userId],
+  );
 
   const handleNavigate = useCallback(() => {
     setIsOpen(false);
   }, []);
+
+  // The scan link opens the camera, so where there isn't one, explain
+  // scanning instead of linking to a dashboard that does nothing
+  const destinationFor = (type: MilestoneType, destination: string) =>
+    type === "scan_first_document" && !scannerAvailable
+      ? SCANNING_HELP_PATH
+      : destination;
 
   const pendingCount = pending.length;
 
@@ -136,7 +137,7 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
     );
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       {trigger}
 
       <PopoverContent align="end" className="w-72 p-2">
@@ -187,7 +188,10 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
                     key={milestone.type}
                     type={milestone.type}
                     label={itemConfig.label}
-                    destination={itemConfig.destination}
+                    destination={destinationFor(
+                      milestone.type,
+                      itemConfig.destination,
+                    )}
                     isCompleted={true}
                     completedAt={milestone.completedAt}
                     onNavigate={handleNavigate}
@@ -217,7 +221,7 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
                     key={type}
                     type={type}
                     label={itemConfig.label}
-                    destination={itemConfig.destination}
+                    destination={destinationFor(type, itemConfig.destination)}
                     isCompleted={false}
                     onNavigate={handleNavigate}
                   />
