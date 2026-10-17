@@ -11,6 +11,7 @@ import { cache } from "react";
 import db from "@/lib/db";
 import { canViewItem } from "@/lib/items/access";
 import { isCanonicalUuid } from "@/lib/pagination";
+import { publicRoomItemsWhere } from "@/lib/rooms/room-access";
 
 /** Strip the required `@` prefix from a route username, or return null. */
 export function parseOgUsername(rawUsername: string): string | null {
@@ -102,7 +103,7 @@ export const getOgRoom = cache(
         name: true,
         emoji: true,
         visibility: true,
-        _count: { select: { roomItems: true } },
+        _count: { select: { roomItems: { where: publicRoomItemsWhere } } },
       },
     });
     // Share-time render is anonymous: private/unlisted rooms fall back.
