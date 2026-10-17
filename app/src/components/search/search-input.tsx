@@ -22,6 +22,7 @@ import {
 } from "@/lib/search/types";
 import { useFilterSuggestions } from "@/lib/search/use-filter-suggestions";
 import { cn } from "@/lib/utils";
+import { useSearchFocusStore } from "@/stores/search-focus-store";
 import { DateRangePicker } from "./date-range-picker";
 import { FilterChips } from "./filter-chip";
 import { FilterDropdown } from "./filter-dropdown";
@@ -37,7 +38,10 @@ type SearchInputProps = {
   className?: string;
   /** When true, input and filters are disabled (view-only mode). */
   disabled?: boolean;
-  /** When true, registers cmd+shift+k to focus this input and shows the shortcut hint. */
+  /**
+   * Marks the page's main search: registers cmd+shift+k to focus it, shows the
+   * shortcut hint and answers `useSearchFocusStore` filter-prompt requests.
+   */
   focusShortcut?: boolean;
 };
 
@@ -327,6 +331,17 @@ export function SearchInput({
     }
     inputRef.current?.focus();
   }, [value, onChange]);
+
+  // A filter-prompt request (e.g. the checklist's "Search your abode" deep
+  // link) behaves like tapping the filter button: focus and open the @ list
+  const filterPromptRequested = useSearchFocusStore(
+    (state) => state.filterPromptRequested,
+  );
+  useEffect(() => {
+    if (!focusShortcut || disabled || !filterPromptRequested) return;
+    useSearchFocusStore.getState().clearFilterPromptRequest();
+    handleFilterButtonClick();
+  }, [focusShortcut, disabled, filterPromptRequested, handleFilterButtonClick]);
 
   const handleCloseDropdown = useCallback(() => {
     // Remove the incomplete filter syntax

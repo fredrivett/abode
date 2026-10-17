@@ -4,6 +4,7 @@ import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Filter, SearchState } from "@/lib/search/types";
+import { useSearchFocusStore } from "@/stores/search-focus-store";
 import { SearchInput } from "./search-input";
 
 const filters: Filter[] = [
@@ -169,4 +170,32 @@ describe("SearchInput shortcut hint", () => {
       expect(hintKeys()).toEqual([expected, "⇧", "K"]);
     },
   );
+});
+
+describe("SearchInput filter-prompt request", () => {
+  afterEach(() =>
+    useSearchFocusStore.setState({ filterPromptRequested: false }),
+  );
+
+  it("focuses the main search, opens the @ list and clears the request", () => {
+    useSearchFocusStore.getState().requestFilterPrompt();
+    const { onChange } = renderGlobal({ query: "", filters: [] });
+    expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
+    expect(onChange).toHaveBeenCalledWith({ query: "@", filters: [] });
+    expect(useSearchFocusStore.getState().filterPromptRequested).toBe(false);
+  });
+
+  it("answers a request made after it mounted", () => {
+    const { onChange } = renderGlobal({ query: "beach", filters });
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => useSearchFocusStore.getState().requestFilterPrompt());
+    expect(onChange).toHaveBeenCalledWith({ query: "beach @", filters });
+  });
+
+  it("leaves the request for the main search when it isn't one", () => {
+    useSearchFocusStore.getState().requestFilterPrompt();
+    const { onChange } = renderInput({ query: "", filters: [] });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(useSearchFocusStore.getState().filterPromptRequested).toBe(true);
+  });
 });
