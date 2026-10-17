@@ -3,8 +3,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type MilestoneConfig,
+  refreshMilestones,
   useMilestoneStore,
 } from "@/stores/milestone-store";
+import { useUserStore } from "@/stores/user-store";
 import { ChecklistPopover } from "./checklist-popover";
 
 const config: Partial<Record<MilestoneType, MilestoneConfig>> = {
@@ -40,12 +42,13 @@ const withCamera = () =>
 
 beforeEach(() => {
   useMilestoneStore.setState({
+    userId: undefined,
     completed: [],
     pending: [],
     hasArticle: false,
-    isLoaded: false,
     config: null,
   });
+  useUserStore.setState({ userId: "u1" });
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -104,6 +107,81 @@ describe("ChecklistPopover", () => {
     const { completed, pending } = useMilestoneStore.getState();
     expect(completed.map((m) => m.type)).toEqual(["upload_first_image"]);
     expect(pending).toEqual(["create_first_room"]);
+  });
+
+  // Sign-out/sign-in are soft navigations, so the store outlives them
+  it("replaces, never shows or merges, the previous user's checklist", async () => {
+    respondWith({ pending: ["upload_first_image", "create_first_room"] });
+    await renderPopover();
+    act(() => useMilestoneStore.getState().markComplete("upload_first_image"));
+
+    expect(screen.getByLabelText("1 task remaining")).toBeInTheDocument();
+
+    respondWith({ pending: ["upload_first_image"] });
+    act(() => useUserStore.setState({ userId: "u2" }));
+    // Nothing of u1's while u2's milestones load
+    expect(screen.queryByLabelText(/remaining/)).not.toBeInTheDocument();
+    await act(async () => {});
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const { userId, completed, pending } = useMilestoneStore.getState();
+    expect(userId).toBe("u2");
+    expect(completed).toEqual([]);
+    expect(pending).toEqual(["upload_first_image"]);
+  });
+
+  it("applies an earlier response when a later refresh fails", async () => {
+    let resolveFirst: (response: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+
+    const first = refreshMilestones("u1");
+    await refreshMilestones("u1");
+    resolveFirst(
+      new Response(
+        JSON.stringify({
+          completed: [],
+          pending: ["upload_first_image"],
+          hasArticle: false,
+          config,
+        }),
+      ),
+    );
+    await first;
+
+    expect(useMilestoneStore.getState().pending).toEqual([
+      "upload_first_image",
+    ]);
+  });
+
+  it("drops a response older than one already applied", async () => {
+    let resolveFirst: (response: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    respondWith({ pending: ["create_first_room"] });
+
+    const first = refreshMilestones("u1");
+    await refreshMilestones("u1");
+    resolveFirst(
+      new Response(
+        JSON.stringify({
+          completed: [],
+          pending: ["upload_first_image"],
+          hasArticle: false,
+          config,
+        }),
+      ),
+    );
+    await first;
+
+    expect(useMilestoneStore.getState().pending).toEqual(["create_first_room"]);
   });
 
   it("links the scan task to the scanner where there's a camera", async () => {

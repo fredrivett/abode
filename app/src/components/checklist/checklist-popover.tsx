@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { refreshMilestones, useMilestoneStore } from "@/stores/milestone-store";
+import { useUserStore } from "@/stores/user-store";
 
 import { ChecklistItem } from "./checklist-item";
 
@@ -35,20 +36,30 @@ export function ChecklistPopover({ variant = "icon" }: ChecklistPopoverProps) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const scannerAvailable = useScannerAvailable();
 
-  const { completed, pending, config, isLoaded } = useMilestoneStore();
+  const userId = useUserStore((state) => state.userId);
+  const milestones = useMilestoneStore();
+  // Never show a previous user's checklist (the store outlives sign-out)
+  const isCurrent =
+    milestones.userId !== undefined && milestones.userId === userId;
+  const completed = isCurrent ? milestones.completed : [];
+  const pending = isCurrent ? milestones.pending : [];
+  const config = isCurrent ? milestones.config : null;
 
   // Loads the remaining-tasks badge
   useEffect(() => {
-    if (!isLoaded) void refreshMilestones();
-  }, [isLoaded]);
+    if (userId && !isCurrent) void refreshMilestones(userId);
+  }, [userId, isCurrent]);
 
   // Re-fetch on open: tasks gated on what the user has saved, and ones
   // completed server-side (e.g. a book recognised after saving), only show up
   // in a fresh status. The last known list stays up until it arrives.
-  const handleOpenChange = useCallback((open: boolean) => {
-    setIsOpen(open);
-    if (open) void refreshMilestones();
-  }, []);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      if (open && userId) void refreshMilestones(userId);
+    },
+    [userId],
+  );
 
   const handleNavigate = useCallback(() => {
     setIsOpen(false);

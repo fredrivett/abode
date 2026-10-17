@@ -23,48 +23,48 @@ type MilestonesResponse = {
 };
 
 type MilestoneState = {
+  /** Whose milestones these are; undefined = not loaded yet */
+  userId: string | undefined;
   completed: CompletedMilestone[];
   pending: MilestoneType[];
   hasArticle: boolean;
-  isLoaded: boolean;
   config: Record<MilestoneType, MilestoneConfig> | null;
 
-  setMilestones: (
-    completed: CompletedMilestone[],
-    pending: MilestoneType[],
-    hasArticle: boolean,
-    config: Record<MilestoneType, MilestoneConfig>,
-  ) => void;
+  setMilestones: (data: MilestonesResponse & { userId: string }) => void;
 
   markComplete: (type: MilestoneType) => void;
 };
 
 /**
  * Manages onboarding milestone progress -- which milestones have been completed,
- * which are still pending, and their display configuration.
+ * which are still pending, and their display configuration. Keyed by user: the
+ * store outlives sign-out/sign-in (soft navigations), so another user's
+ * milestones replace the last user's rather than merging into them.
  */
 export const useMilestoneStore = create<MilestoneState>((set) => ({
+  userId: undefined,
   completed: [],
   pending: [],
   hasArticle: false,
-  isLoaded: false,
   config: null,
 
-  // Milestones never un-complete, so a completion already shown here (marked
-  // optimistically) survives a server response that predates its write
-  setMilestones: (completed, pending, hasArticle, config) =>
+  // Milestones never un-complete, so for the same user a completion already
+  // shown here (marked optimistically) survives a server response that
+  // predates its write
+  setMilestones: ({ userId, completed, pending, hasArticle, config }) =>
     set((state) => {
       const serverCompleted = new Set(completed.map((m) => m.type));
-      const localOnly = state.completed.filter(
-        (m) => !serverCompleted.has(m.type),
-      );
+      const localOnly =
+        state.userId === userId
+          ? state.completed.filter((m) => !serverCompleted.has(m.type))
+          : [];
       const localTypes = new Set(localOnly.map((m) => m.type));
       return {
+        userId,
         completed: [...completed, ...localOnly],
         pending: pending.filter((type) => !localTypes.has(type)),
         hasArticle,
         config,
-        isLoaded: true,
       };
     }),
 
@@ -88,28 +88,24 @@ export const useMilestoneStore = create<MilestoneState>((set) => ({
     }),
 }));
 
-let latestRefresh = 0;
+let lastStartedRefresh = 0;
+let lastAppliedRefresh = 0;
 
 /**
- * Fetches the user's milestones into the store. Safe to call repeatedly (e.g.
- * each time the checklist opens): only the latest call's response is applied,
- * and a failure leaves what's shown in place — the checklist is non-critical.
+ * Fetches the signed-in user's milestones into the store. Safe to call
+ * repeatedly (e.g. each time the checklist opens): a response older than one
+ * already applied is dropped, and a failure leaves what's shown in place —
+ * the checklist is non-critical.
  */
-export async function refreshMilestones(): Promise<void> {
-  const refresh = ++latestRefresh;
+export async function refreshMilestones(userId: string): Promise<void> {
+  const refresh = ++lastStartedRefresh;
   try {
     const response = await fetch("/api/v1/user/milestones");
     if (!response.ok) return;
     const data: MilestonesResponse = await response.json();
-    if (refresh !== latestRefresh) return;
-    useMilestoneStore
-      .getState()
-      .setMilestones(
-        data.completed,
-        data.pending,
-        data.hasArticle,
-        data.config,
-      );
+    if (refresh < lastAppliedRefresh) return;
+    lastAppliedRefresh = refresh;
+    useMilestoneStore.getState().setMilestones({ ...data, userId });
   } catch {
     // Keep showing the last known state
   }
