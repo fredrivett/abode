@@ -61,7 +61,7 @@ export const MILESTONE_CONFIG: Record<
   },
   scan_first_document: {
     label: "Scan your first document",
-    // Opens the scanner straight away (see OpenScannerOnLoad)
+    // Opens the scanner straight away (see DashboardActionOnLoad)
     destination: "/dashboard?action=scan",
   },
   add_first_book: {
@@ -80,7 +80,8 @@ export const MILESTONE_CONFIG: Record<
   },
   search_items: {
     label: "Search your abode",
-    destination: "/dashboard?focus=search&prefix=@",
+    // Focuses the search with its @ filter list open
+    destination: "/dashboard?action=search",
   },
   add_first_tag: {
     label: "Add your first tag",
