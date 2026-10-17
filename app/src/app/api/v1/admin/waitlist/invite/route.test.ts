@@ -12,7 +12,10 @@ vi.mock("@/lib/supabase/server", () => ({
   getUserWithMfa: mockGetUser,
 }));
 vi.mock("@/lib/admin/auth", () => ({ hasFullAdminAccess: mockFullAdmin }));
-vi.mock("@/lib/invites", () => ({ createWaitlistInvite: mockCreateInvite }));
+vi.mock("@/lib/invites", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/invites")>()),
+  createWaitlistInvite: mockCreateInvite,
+}));
 vi.mock("@/lib/email", () => ({
   sendEmail: vi.fn(async () => ({ success: true, id: "email" })),
 }));
