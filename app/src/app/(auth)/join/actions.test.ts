@@ -97,16 +97,22 @@ describe("signupWithInvite analytics", () => {
     expect(m.capture).not.toHaveBeenCalled();
   });
 
-  it("doesn't capture for an already-registered email's placeholder user", async () => {
-    m.signUp.mockResolvedValue({
-      data: { user: { id: "placeholder", identities: [] } },
-      error: null,
-    });
+  it.each([
+    ["an empty", []],
+    ["a missing", undefined],
+  ])(
+    "doesn't capture for a user with %s identities list",
+    async (_label, identities) => {
+      m.signUp.mockResolvedValue({
+        data: { user: { id: "placeholder", identities } },
+        error: null,
+      });
 
-    await signupWithInvite({}, signupForm());
+      await signupWithInvite({}, signupForm());
 
-    expect(m.capture).not.toHaveBeenCalled();
-  });
+      expect(m.capture).not.toHaveBeenCalled();
+    },
+  );
 
   it("doesn't capture when the invite or username is rejected", async () => {
     m.validateInviteToken.mockResolvedValue({

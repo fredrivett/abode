@@ -108,7 +108,7 @@ export async function signupWithInvite(
 
   // Supabase answers an already-registered email with a placeholder user that
   // has no identities; only a real new account starts the signup funnel
-  if (data.user && data.user.identities?.length !== 0) {
+  if (data.user && (data.user.identities?.length ?? 0) > 0) {
     getPostHogClient()?.capture({
       distinctId: data.user.id,
       event: "signup_started",
