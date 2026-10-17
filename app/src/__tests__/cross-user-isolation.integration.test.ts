@@ -24,6 +24,22 @@ import { NextRequest } from "next/server";
 const CANARY = "XVICTIMSECRETX";
 
 const h = vi.hoisted(() => {
+  // Same behaviour locally (where .env holds real keys) and in CI: no optional
+  // third-party service is configured, so nothing leaves the process, except
+  // Trigger.dev, whose SDK is mocked, so export/import paths still run
+  for (const key of [
+    "OPENAI_API_KEY",
+    "REPLICATE_API_TOKEN",
+    "GOOGLE_CLOUD_CREDENTIALS",
+    "JEV_API_KEY",
+    "MAPBOX_ACCESS_TOKEN",
+    "RESEND_API_KEY",
+    "NEXT_PUBLIC_POSTHOG_KEY",
+  ]) {
+    delete process.env[key];
+  }
+  process.env.TRIGGER_SECRET_KEY = "tr_test_isolation";
+
   const state = {
     viewer: null as { id: string; email: string } | null,
     storageOps: [] as string[],
@@ -1206,10 +1222,10 @@ describe("cross-user isolation", () => {
             await reseed();
             expect.fail(`${testCase.name} changed the victim's data`);
           }
-          expect(
-            status,
-            `response: ${text}\nerrors: ${JSON.stringify(h.state.errors, Object.getOwnPropertyNames(h.state.errors[0] ?? {}))}`,
-          ).toBeLessThan(500);
+          // A crash can hide a code path from the sweep; 503 is the deliberate
+          // "optional service not configured" answer, not a crash
+          const crashed = status >= 500 && status !== 503;
+          expect(crashed, `response (${status}): ${text}`).toBe(false);
         });
       }
     });
