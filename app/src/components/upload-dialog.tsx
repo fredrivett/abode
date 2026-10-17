@@ -50,6 +50,9 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const scannerAvailable = useScannerAvailable();
   const saveScannedDocument = useSaveScannedDocument();
+  const focusUrl = useCommandPaletteStore(
+    (state) => state.uploadDialogFocusUrl,
+  );
   const scannerOpen = useCommandPaletteStore((state) => state.scannerOpen);
   const setScannerOpen = useCommandPaletteStore(
     (state) => state.setScannerOpen,
@@ -61,16 +64,17 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     onOpenChange(false);
   }, [onOpenChange]);
 
-  // Autofocus input only on desktop
+  // Autofocus the URL input on desktop, or anywhere when opened to paste a link
+  // (on touch it would otherwise pop the keyboard over the file options)
   useEffect(() => {
-    if (open && isDesktop) {
+    if (open && (isDesktop || focusUrl)) {
       // Small delay to ensure dialog is mounted
       const timeout = setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
       return () => clearTimeout(timeout);
     }
-  }, [open, isDesktop]);
+  }, [open, isDesktop, focusUrl]);
 
   const {
     handleUrlSubmit,
