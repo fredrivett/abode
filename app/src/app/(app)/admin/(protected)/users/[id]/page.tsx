@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteUserButton } from "@/app/(app)/admin/_components/delete-user-button";
+import { InviteAllocationEditor } from "@/app/(app)/admin/_components/invite-allocation-editor";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,10 @@ import {
 } from "@/lib/admin/usage-stats";
 import db from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
+import { getInviteUsage } from "@/lib/invites";
 import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
 import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
+import { setInviteAllocationAsAdmin } from "../../actions";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -284,9 +287,10 @@ export default async function AdminUserDetailPage({
     notFound();
   }
 
-  const [dailyActivity, usageBreakdown] = await Promise.all([
+  const [dailyActivity, usageBreakdown, inviteUsage] = await Promise.all([
     getUserDailyActivity(id, 14),
     getUserUsageBreakdown(id),
+    getInviteUsage(id),
   ]);
 
   const replaysUrl = getPostHogPersonReplaysUrl(user.id);
@@ -418,6 +422,14 @@ export default async function AdminUserDetailPage({
                   <p className="font-medium text-sm">{user._count.rooms}</p>
                 </div>
               </div>
+
+              {inviteUsage && (
+                <InviteAllocationEditor
+                  userId={user.id}
+                  initialUsage={inviteUsage}
+                  saveAllocation={setInviteAllocationAsAdmin}
+                />
+              )}
 
               <div className="flex items-center gap-3">
                 <HardDrive className="size-4 text-muted-foreground" />

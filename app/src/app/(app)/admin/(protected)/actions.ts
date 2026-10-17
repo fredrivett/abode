@@ -6,8 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import {
+  MAX_INVITE_ALLOCATION,
+  parseInviteAllocation,
+} from "@/lib/admin/invite-allocation";
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
 import db from "@/lib/db";
+import { getInviteUsage, type InviteUsage } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
@@ -185,5 +190,86 @@ export async function reprocessIssueGroupAsAdmin(
   } catch (error) {
     log.error({ error, groupKey }, "Failed to reprocess issue group");
     return { error: "Failed to reprocess. Please try again." };
+  }
+}
+
+// Fresh usage after a save (an invite may have been sent meanwhile). The
+// update already committed, so a failed refresh falls back to computing it
+// from the pre-save read rather than reporting the save as failed
+async function usageAfterSave({
+  userId,
+  before,
+  value,
+}: {
+  userId: string;
+  before: InviteUsage;
+  value: number;
+}): Promise<InviteUsage> {
+  try {
+    const fresh = await getInviteUsage(userId);
+    if (fresh) return fresh;
+  } catch (error) {
+    log.warn({ error, userId }, "Failed to refresh invite usage after save");
+  }
+  return {
+    allocation: value,
+    used: before.used,
+    available: Math.max(0, value - before.used),
+  };
+}
+
+export type SetInviteAllocationResult =
+  | { error: string }
+  | { success: true; usage: InviteUsage };
+
+/**
+ * Set how many invites a user has (their total allocation, used + available).
+ * Admin + MFA gated. Lowering it below what's already used just leaves them
+ * with none available; sent invites are untouched.
+ */
+export async function setInviteAllocationAsAdmin({
+  userId,
+  allocation,
+}: {
+  userId: string;
+  allocation: number;
+}): Promise<SetInviteAllocationResult> {
+  const supabase = await createClient();
+  const isAdmin = await hasFullAdminAccess(supabase);
+  if (!isAdmin) return { error: "Unauthorized: Admin access required" };
+
+  const value = parseInviteAllocation(allocation);
+  if (value === null) {
+    return {
+      error: `Enter a whole number from 0 to ${MAX_INVITE_ALLOCATION}`,
+    };
+  }
+
+  try {
+    // Read usage before writing, so a successful update never reports failure
+    // because a follow-up read failed
+    const before = await getInviteUsage(userId);
+    if (!before) return { error: "User not found" };
+
+    await db.user.update({
+      where: { id: userId },
+      data: { inviteAllocation: value },
+    });
+    log.info(
+      { userId, from: before.allocation, to: value },
+      "Admin set invite allocation",
+    );
+
+    revalidatePath(`/admin/users/${userId}`);
+    return {
+      success: true,
+      usage: await usageAfterSave({ userId, before, value }),
+    };
+  } catch (error) {
+    log.error({ error, userId }, "Failed to set invite allocation");
+    captureServerException(error, undefined, {
+      action: "setInviteAllocationAsAdmin",
+    });
+    return { error: "Failed to update invites. Please try again." };
   }
 }
