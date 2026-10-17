@@ -52,7 +52,7 @@ PostHog analytics and session replays are linked to the signed-in account and re
 
 - **Replays:** all on-screen text, input values, images and media, and link/image URLs.
 - **Click events:** a button's text and labels are kept only when they're UI copy written in this codebase (e.g. "Save", "Delete"); link targets are dropped.
-- **URLs:** search queries, links shared to `/save`, and the names of your own rooms (so private rooms never appear). Visits to other people's public rooms are recorded as-is.
+- **URLs:** search queries, links shared to `/save`, invite and sign-in link tokens, and the names of your own rooms (so private rooms never appear). Visits to other people's public rooms are recorded as-is.
 
 Set `NEXT_PUBLIC_SITE_URL` to your instance's public URL (e.g. `https://abode.example.com`) so emails, share links and embeds point at your instance rather than abode.fyi. It's inlined at build time, so set it before building. Self-hosted instances are kept out of search engines (`robots.txt` disallows all).
 

@@ -17,6 +17,21 @@ describe("maskContentInUrl", () => {
     ).toBe("/save?url=<masked>&title=<masked>");
   });
 
+  it("masks invite tokens and auth link token hashes", () => {
+    expect(
+      maskContentInUrl("https://abode.test/join?token=abc123&save=x", null),
+    ).toBe("https://abode.test/join?token=<masked>&save=x");
+    expect(
+      maskContentInUrl("/auth/confirm?token_hash=pkce_abc&type=email", null),
+    ).toBe("/auth/confirm?token_hash=<masked>&type=email");
+  });
+
+  it("doesn't mistake a param that merely contains a secret name", () => {
+    expect(maskContentInUrl("/x?mytoken=1&token_count=2", null)).toBe(
+      "/x?mytoken=1&token_count=2",
+    );
+  });
+
   it("doesn't mistake a param that merely ends with a content name", () => {
     expect(maskContentInUrl("/x?faq=1&subtitle=2", null)).toBe(
       "/x?faq=1&subtitle=2",
