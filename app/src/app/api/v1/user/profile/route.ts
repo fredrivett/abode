@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -24,7 +25,7 @@ const profileUpdateSchema = z.object({
   allowShareInvites: z.boolean().optional(),
 });
 
-export async function GET(_request: NextRequest) {
+async function handleGET(_request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -72,7 +73,7 @@ export async function GET(_request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -174,3 +175,6 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const PATCH = withViewer(handlePATCH);

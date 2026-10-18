@@ -1,6 +1,7 @@
 import type { ItemKind } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
@@ -32,7 +33,7 @@ export type SimilarImagesResponse = {
  * to least similar. Owner-scoped only (no shared/public access for now). Empty
  * when the item has no visual embedding or nothing clears the threshold.
  */
-export async function GET(
+async function handleGET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -131,3 +132,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withViewer(handleGET);

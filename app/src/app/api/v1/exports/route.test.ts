@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
   reserve: vi.fn(),
   findMany: vi.fn(),
   update: vi.fn(),
+  failExport: vi.fn(),
   capture: vi.fn(),
 }));
 
@@ -20,6 +21,9 @@ vi.mock("@/lib/trigger/item-runs", () => ({
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: m.trigger } }));
 vi.mock("@/lib/db", () => ({
   default: { dataExport: { findMany: m.findMany, update: m.update } },
+}));
+vi.mock("@/lib/jobs/start-failures", () => ({
+  failUnstartedExport: m.failExport,
 }));
 vi.mock("@/lib/export/reserve-data-export", () => ({
   reserveDataExport: m.reserve,
@@ -109,10 +113,9 @@ describe("POST /api/v1/exports", () => {
     m.trigger.mockRejectedValue(new Error("trigger down"));
 
     expect((await POST()).status).toBe(500);
-    expect(m.update).toHaveBeenCalledWith({
-      where: { id: "export-1" },
-      data: { status: "failed", error: "Couldn't start the export" },
-    });
+    // On the system connection: under RLS the user can't update their export
+    expect(m.failExport).toHaveBeenCalledWith("export-1");
+    expect(m.update).not.toHaveBeenCalled();
     expect(m.capture).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import {
   buildMcpServer,
@@ -53,4 +54,6 @@ async function handle(request: NextRequest): Promise<Response> {
   }
 }
 
-export { handle as DELETE, handle as GET, handle as POST };
+const framedHandle = withViewer(handle);
+
+export { framedHandle as DELETE, framedHandle as GET, framedHandle as POST };

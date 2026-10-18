@@ -5,6 +5,7 @@ import {
   EXPORTS_BUCKET,
   exportDownloadFilename,
 } from "@/lib/export/constants";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -26,7 +27,7 @@ function parsePartNumber(value: string | null): number | null {
   return /^[1-9]\d*$/.test(value) ? Number(value) : null;
 }
 
-export async function GET(
+async function handleGET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -121,3 +122,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withViewer(handleGET);

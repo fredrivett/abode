@@ -44,6 +44,9 @@ const h = vi.hoisted(() => {
     viewer: null as { id: string; email: string } | null,
     storageOps: [] as string[],
     emails: [] as string[],
+    // Fire-and-forget work routes start (`void logActivity(…)`), awaited
+    // before each reseed so nothing writes during the TRUNCATE
+    background: [] as Promise<unknown>[],
     errors: [] as unknown[],
   };
 
@@ -156,6 +159,44 @@ vi.mock("@/lib/posthog-server", () => ({
   captureServerException: (error: unknown) => h.state.errors.push(error),
   shutdownPostHog: async () => {},
 }));
+// The fire-and-forget calls routes make, tracked so reseeding can drain them
+vi.mock("@/lib/activity", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/activity")>();
+  return {
+    ...actual,
+    logActivity: (...args: Parameters<typeof actual.logActivity>) => {
+      const work = actual.logActivity(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
+vi.mock("@/lib/milestones", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/milestones")>();
+  return {
+    ...actual,
+    markMilestoneComplete: (
+      ...args: Parameters<typeof actual.markMilestoneComplete>
+    ) => {
+      const work = actual.markMilestoneComplete(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
+vi.mock("@/lib/embed-tracking", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/embed-tracking")>();
+  return {
+    ...actual,
+    trackEmbedReferrer: (
+      ...args: Parameters<typeof actual.trackEmbedReferrer>
+    ) => {
+      const work = actual.trackEmbedReferrer(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
 // Emails are captured, and checked for leaks like responses
 vi.mock("@/lib/email", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email")>()),
@@ -1129,14 +1170,41 @@ describe("cross-user isolation", () => {
   let ids: Ids;
   let baseline: string;
 
+  /**
+   * Routes fire off background writes (activity logs, milestones, embed
+   * referrers) that can still be running when a case returns, and truncating
+   * under them deadlocks. Await every tracked one, then — as a backstop for
+   * anything untracked — wait until no other connection has a transaction open.
+   */
+  async function waitForQuiescence() {
+    await Promise.allSettled(h.state.background.splice(0));
+    const { systemDb } = await import("@/lib/db");
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const [row] = await systemDb.$queryRaw<{ busy: number }[]>`
+        SELECT count(*)::int AS busy FROM pg_stat_activity
+        WHERE datname = current_database() AND pid <> pg_backend_pid()
+          AND xact_start IS NOT NULL`;
+      if (row.busy === 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("Database never went quiet before reseeding");
+  }
+
   async function reseed() {
+    await waitForQuiescence();
     await resetTestDatabase();
     h.state.storageOps = [];
     ids = await seed();
     baseline = await snapshotVictim(ids);
   }
 
-  beforeAll(reseed);
+  beforeAll(async () => {
+    // Routes run as the restricted abode_app role for their viewer: the sweep
+    // checks the database-enforced path, not just the app-code filters
+    vi.stubEnv("RLS_ENFORCED", "true");
+    await reseed();
+  });
+  afterAll(() => vi.unstubAllEnvs());
 
   afterEach(() => {
     h.state.viewer = null;
@@ -1152,6 +1220,22 @@ describe("cross-user isolation", () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it("runs every route method in a viewer frame", async () => {
+    const { isViewerFramed } = await import("@/lib/http/with-viewer");
+    const unframed: string[] = [];
+    for (const route of listRoutes()) {
+      for (const [method, handler] of Object.entries(
+        await loadHandlers(route),
+      )) {
+        if (!isViewerFramed(handler)) unframed.push(`${route} ${method}`);
+      }
+    }
+    expect(
+      unframed,
+      "Wrap the export: export const GET = withViewer(handleGET)",
+    ).toEqual([]);
   });
 
   it("snapshots every model the victim could own", async () => {
@@ -1241,6 +1325,29 @@ describe("cross-user isolation", () => {
       JSON.parse(text);
     expect(payload.items).toHaveLength(1);
     expect(payload.room.itemCount).toBe(1);
+  });
+
+  // Owner flows must keep working under RLS: the restricted role refuses
+  // anything a policy or a missing systemDb doesn't allow, which surfaces as a
+  // 500 here. The victim runs every case against their own data (mutations are
+  // expected), and the data is reseeded after each.
+  describe("as the owner, with row level security on", () => {
+    for (const testCase of CASES) {
+      it(`${testCase.method} ${testCase.route}: ${testCase.name}`, async () => {
+        h.state.viewer = { id: ids.victim.userId, email: ids.victim.email };
+        h.state.errors = [];
+        try {
+          const { status, text } = await call(testCase, ids);
+          const crashed = status >= 500 && status !== 503;
+          expect(
+            crashed,
+            `response (${status}): ${text}\nerrors: ${h.state.errors.map(String).join("\n")}`,
+          ).toBe(false);
+        } finally {
+          await reseed();
+        }
+      });
+    }
   });
 
   describe("MCP tools, called by another user", () => {

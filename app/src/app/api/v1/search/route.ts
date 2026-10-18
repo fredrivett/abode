@@ -7,6 +7,7 @@ import type {
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -401,7 +402,7 @@ function decodeCursor(cursor: string): CursorData | null {
  *
  * Requires at least one filter or query parameter.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const startTime = Date.now();
   const warnings: SearchWarning[] = [];
 
@@ -1114,3 +1115,5 @@ async function executeRankedSearch(
     total: resultItems.length,
   };
 }
+
+export const GET = withViewer(handleGET);

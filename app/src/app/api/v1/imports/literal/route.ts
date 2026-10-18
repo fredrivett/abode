@@ -5,9 +5,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { fetchLiteralBooks } from "@/lib/imports/literal/adapter";
 import { LiteralApiError } from "@/lib/imports/literal/client";
 import { serializeBook } from "@/lib/imports/payload";
+import { failUnstartedImport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
@@ -24,7 +26,7 @@ const bodySchema = z.union([
   z.object({ email: z.string().email(), password: z.string().min(1) }),
 ]);
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
   try {
     const auth = await authenticateRequest(request, { tokenScope: null });
     if (!auth) {
@@ -142,12 +144,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       // Enqueue failed — don't leave the row stuck `importing` (it would 409
       // every future attempt). Mark it failed so the user can retry.
-      await db.itemImport
-        .update({
-          where: { id: itemImport.id },
-          data: { status: "failed", error: "Couldn't start the import" },
-        })
-        .catch(() => {});
+      await failUnstartedImport(itemImport.id).catch((failError) =>
+        log.error({ error: failError }, "Couldn't fail an unstarted import"),
+      );
       throw error;
     }
 
@@ -172,3 +171,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

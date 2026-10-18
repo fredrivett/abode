@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { getAvailableInvites, revokeInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -13,7 +14,7 @@ type RouteParams = {
 /**
  * DELETE /api/v1/invites/:id - Revoke an invite
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -61,3 +62,5 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const DELETE = withViewer(handleDELETE);

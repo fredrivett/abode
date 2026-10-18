@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import {
   type AvailableFilterType,
   getAvailableFilters,
@@ -35,7 +36,7 @@ function isValidFilterType(value: string | null): value is AvailableFilterType {
  * - All values sorted alphabetically
  * - Location values deduplicated across all location fields
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -81,3 +82,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

@@ -7,6 +7,7 @@ import {
   documentFileKeys,
 } from "@/lib/documents/create-document-schema";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueueDocumentAnalysis } from "@/lib/items/enqueue-document-analysis";
@@ -26,7 +27,7 @@ const log = createLogger("api/v1/items/documents");
  * to storage: creates the `document` item and its pages, then enqueues OCR +
  * cover analysis. Counts one ingestion action per page.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -131,3 +132,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

@@ -62,6 +62,8 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
       RESEND_API_KEY: process.env.RESEND_API_KEY || "",
       LOCAL_SMTP_PORT: process.env.LOCAL_SMTP_PORT || "",
+      // CI sets this so e2e exercises API routes running as abode_app (RLS)
+      RLS_ENFORCED: process.env.RLS_ENFORCED || "",
     },
   },
 });

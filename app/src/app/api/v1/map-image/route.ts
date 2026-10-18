@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -64,7 +65,7 @@ function pickCanonicalLocation(
   return { latitude: canonical.latitude, longitude: canonical.longitude };
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const itemId = searchParams.get("itemId");
@@ -203,3 +204,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

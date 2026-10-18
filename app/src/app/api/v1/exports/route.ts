@@ -9,6 +9,8 @@ import {
   RECENT_EXPORTS_LIMIT,
   toDataExportSnapshot,
 } from "@/lib/export/snapshot";
+import { withViewer } from "@/lib/http/with-viewer";
+import { failUnstartedExport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -17,7 +19,7 @@ import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 const log = createLogger("api/v1/exports");
 
 /** The user's most recent exports, newest first — drives the settings page */
-export async function GET(): Promise<NextResponse> {
+async function handleGET(): Promise<NextResponse> {
   try {
     const supabase = await createClient();
     const {
@@ -49,7 +51,7 @@ export async function GET(): Promise<NextResponse> {
  * never a personal access token: an export is the whole library in one file.
  * One export at a time per user, and a few per day.
  */
-export async function POST(): Promise<NextResponse> {
+async function handlePOST(): Promise<NextResponse> {
   try {
     const supabase = await createClient();
     const {
@@ -95,12 +97,9 @@ export async function POST(): Promise<NextResponse> {
       });
     } catch (error) {
       // Never enqueued — fail it so it can't block the next request (409)
-      await db.dataExport
-        .update({
-          where: { id: created.id },
-          data: { status: "failed", error: "Couldn't start the export" },
-        })
-        .catch(() => {});
+      await failUnstartedExport(created.id).catch((failError) =>
+        log.error({ error: failError }, "Couldn't fail an unstarted export"),
+      );
       throw error;
     }
 
@@ -122,3 +121,6 @@ export async function POST(): Promise<NextResponse> {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

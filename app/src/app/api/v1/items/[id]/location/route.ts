@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -29,7 +30,7 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
   return true;
 }
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -166,7 +167,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+async function handleDELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -236,3 +237,6 @@ export async function DELETE(
     );
   }
 }
+
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

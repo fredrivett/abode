@@ -50,13 +50,17 @@ const fakeStorage = vi.hoisted(() => ({
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ storage: fakeStorage }),
 }));
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ storage: fakeStorage }),
-  getUserWithMfa: async () => ({
-    data: { user: { id: auth.userId } },
-    error: null,
-  }),
-}));
+vi.mock("@/lib/supabase/server", async () => {
+  const { recordViewer } = await import("@/lib/viewer-context");
+  return {
+    createClient: async () => ({ storage: fakeStorage }),
+    // Like the real helper, record the caller so RLS acts for them
+    getUserWithMfa: async () => {
+      recordViewer(auth.userId);
+      return { data: { user: { id: auth.userId } }, error: null };
+    },
+  };
+});
 vi.mock("./analyze-image", () => ({
   getSupabaseConfig: () => ({ url: "https://storage.test", key: "key" }),
   getMimeTypeFromFileKey: () => "image/jpeg",

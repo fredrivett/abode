@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -13,7 +14,7 @@ const onboardingSchema = z.object({
   lastName: z.string().optional(),
 });
 
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -71,3 +72,5 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+export const PATCH = withViewer(handlePATCH);

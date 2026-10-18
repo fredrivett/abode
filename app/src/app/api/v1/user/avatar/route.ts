@@ -2,6 +2,7 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
@@ -41,7 +42,7 @@ function getSupabaseAdmin() {
   return createSupabaseAdmin(url, key);
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE(_request: NextRequest) {
+async function handleDELETE(_request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -201,3 +202,6 @@ export async function DELETE(_request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

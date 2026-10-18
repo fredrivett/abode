@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db, { systemDb } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
@@ -20,7 +21,7 @@ type RouteParams = { params: Promise<{ id: string }> };
  * items. A private room is a 404 to non-owners, so its existence isn't
  * revealed.
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 /**
  * POST /api/v1/rooms/:id/items - Add an item to a manual room
  */
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function handlePOST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -216,7 +217,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/v1/rooms/:id/items - Remove an item from a manual room
  */
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -286,3 +287,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

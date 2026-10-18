@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { decodeCursor, parsePageSize } from "@/lib/pagination";
 import { listTokenSavedItems } from "@/lib/personal-access-tokens";
@@ -16,7 +17,7 @@ type RouteParams = {
  * newest first (`?cursor=` for the next page). Session-only: a token can't
  * list what tokens did.
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -58,3 +59,5 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

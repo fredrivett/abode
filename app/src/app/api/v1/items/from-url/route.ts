@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
 import { createItemFromUrl, InvalidUrlError } from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
@@ -12,11 +13,11 @@ const log = createLogger("api/v1/items/from-url");
 
 // Cross-origin preflight for the browser extension (and future first-party
 // clients). Bearer-authed, so no credentials are involved — see lib/http/cors.
-export function OPTIONS(request: NextRequest) {
+function handleOPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   return withCors(request, await handlePost(request));
 }
 
@@ -77,3 +78,6 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export const OPTIONS = withViewer(handleOPTIONS);
+export const POST = withViewer(handlePOST);

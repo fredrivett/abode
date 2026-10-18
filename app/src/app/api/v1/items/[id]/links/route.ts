@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { detectPlatform, normalizeUrl } from "@/lib/platforms";
 import { captureServerException } from "@/lib/posthog-server";
@@ -13,7 +14,7 @@ const log = createLogger("api/v1/items/[id]/links");
  * POST /api/v1/items/[id]/links
  * Add an external link to an item.
  */
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -125,7 +126,7 @@ export async function POST(
  * DELETE /api/v1/items/[id]/links
  * Remove an external link from an item.
  */
-export async function DELETE(
+async function handleDELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -211,3 +212,6 @@ export async function DELETE(
     );
   }
 }
+
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -9,7 +10,7 @@ const log = createLogger("api/v1/items/[id]/highlights");
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId } = await params;
     const supabase = await createClient();
@@ -66,7 +67,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function handlePOST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId } = await params;
     const supabase = await createClient();
@@ -173,3 +174,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

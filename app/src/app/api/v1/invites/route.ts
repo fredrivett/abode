@@ -4,6 +4,7 @@ import { z } from "zod";
 import db from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { getUserInviteEmail } from "@/lib/email/templates";
+import { withViewer } from "@/lib/http/with-viewer";
 import {
   createUserInvite,
   getAvailableInvites,
@@ -24,7 +25,7 @@ const sendInviteSchema = z.object({
 /**
  * GET /api/v1/invites - Get current user's invite status and sent invites
  */
-export async function GET() {
+async function handleGET() {
   try {
     const supabase = await createClient();
     const {
@@ -79,7 +80,7 @@ export async function GET() {
 /**
  * POST /api/v1/invites - Send an invite to an email address
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -235,3 +236,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

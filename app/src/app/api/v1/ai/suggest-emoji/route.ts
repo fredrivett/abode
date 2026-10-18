@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getOpenAiClient, isOpenAiConfigured } from "@/lib/embeddings";
 import { isValidEmoji } from "@/lib/emoji";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
@@ -12,7 +13,7 @@ const log = createLogger("api/v1/ai/suggest-emoji");
  * POST /api/v1/ai/suggest-emoji - Suggest an emoji for a room name
  * Rate limited: 30 req/min, 180 req/day
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -110,3 +111,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -10,7 +11,7 @@ const log = createLogger("api/v1/invites/validate");
  *
  * Returns invite details if valid, including origin and inviter info (if user invite)
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
@@ -68,3 +69,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

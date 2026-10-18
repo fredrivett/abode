@@ -142,6 +142,8 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci
       SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key-for-ci
+      # Request frames run as the restricted abode_app role (row level security)
+      RLS_ENFORCED: "true"
     defaults:
       run:
         working-directory: ./app
@@ -174,6 +176,10 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    env:
+      # API routes run as the restricted abode_app role (row level security),
+      # so e2e flows prove they still work under it
+      RLS_ENFORCED: "true"
     defaults:
       run:
         working-directory: ./app

@@ -7,6 +7,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db, { systemDb } from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
@@ -16,7 +17,7 @@ import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/retry");
 
-export async function POST(
+async function handlePOST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -219,3 +220,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

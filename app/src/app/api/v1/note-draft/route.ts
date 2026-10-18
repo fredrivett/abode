@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import {
   clearNoteDraft,
   getNoteDraft,
@@ -23,7 +24,7 @@ async function getUserId(): Promise<string | null> {
 }
 
 /** Returns the caller's saved composer draft, if any. */
-export async function GET() {
+async function handleGET() {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -46,7 +47,7 @@ export async function GET() {
  * Upserts the caller's composer draft. Uses POST (not PUT) so the composer can
  * also flush it via `navigator.sendBeacon`, which only issues POST requests.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
 }
 
 /** Clears the caller's composer draft (explicit "Clear"). */
-export async function DELETE() {
+async function handleDELETE() {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -100,3 +101,7 @@ export async function DELETE() {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

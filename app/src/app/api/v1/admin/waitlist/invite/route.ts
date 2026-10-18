@@ -3,6 +3,7 @@ import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createWaitlistInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -15,7 +16,7 @@ const log = createLogger("api/v1/admin/waitlist/invite");
  * POST /api/v1/admin/waitlist/invite
  * Send invite to a waitlist entry (admin only)
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Check if user is admin
     const supabase = await createClient();
@@ -101,3 +102,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);
