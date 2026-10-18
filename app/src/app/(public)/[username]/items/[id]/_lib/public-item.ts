@@ -12,6 +12,10 @@ import {
   itemAccessSelect,
 } from "@/lib/items/access";
 import {
+  publicLocationSelect,
+  toPublicLocation,
+} from "@/lib/items/public-location";
+import {
   EMPTY_ARTICLE_READ_STATE,
   mapPublicBookDetails,
   publicBookDetailsSelect,
@@ -103,20 +107,7 @@ const itemDetailSelect = {
       },
     },
   },
-  locations: {
-    select: {
-      id: true,
-      source: true,
-      latitude: true,
-      longitude: true,
-      neighborhood: true,
-      city: true,
-      region: true,
-      country: true,
-      countryCode: true,
-      formatted: true,
-    },
-  },
+  locations: { select: publicLocationSelect },
   imageDetails: {
     select: {
       objects: true,
@@ -284,7 +275,7 @@ export function toClientItem(item: ItemDetailPayload) {
     colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
     ocrText: item.imageDetails?.ocrText ?? null,
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
-    locations: item.locations,
+    locations: item.locations.map(toPublicLocation),
     articleDetails: item.articleDetails
       ? {
           ...item.articleDetails,

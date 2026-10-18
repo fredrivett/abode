@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import {
+  publicLocationSelect,
+  toPublicLocation,
+} from "@/lib/items/public-location";
+import {
   EMPTY_ARTICLE_READ_STATE,
   mapPublicBookDetails,
   publicBookDetailsSelect,
@@ -47,20 +51,7 @@ export const roomItemSelect = {
       userTags: true,
       // Presentation: a cover hidden on the grid card stays hidden in rooms
       coverHidden: true,
-      locations: {
-        select: {
-          id: true,
-          source: true,
-          latitude: true,
-          longitude: true,
-          neighborhood: true,
-          city: true,
-          region: true,
-          country: true,
-          countryCode: true,
-          formatted: true,
-        },
-      },
+      locations: { select: publicLocationSelect },
       imageDetails: {
         select: {
           objects: true,
@@ -157,7 +148,7 @@ export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
     ocrText: roomItem.item.imageDetails?.ocrText ?? null,
     captureDate: roomItem.item.imageDetails?.captureDate?.toISOString() ?? null,
     blurDataUrl: roomItem.item.imageDetails?.blurDataUrl ?? null,
-    locations: roomItem.item.locations,
+    locations: roomItem.item.locations.map(toPublicLocation),
     articleDetails: roomItem.item.articleDetails
       ? {
           ...roomItem.item.articleDetails,
