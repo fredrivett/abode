@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { currentViewerFrame, recordViewer } from "@/lib/viewer-context";
-import { withViewer } from "./with-viewer";
+import { isViewerFramed, withViewer } from "./with-viewer";
 
 describe("withViewer", () => {
   it("runs each call in its own frame, anonymous until the caller is recorded", async () => {
@@ -25,5 +25,17 @@ describe("withViewer", () => {
     });
 
     expect(await Promise.all([handler("a"), handler("b")])).toEqual(["a", "b"]);
+  });
+
+  it("frames synchronous handlers too (CORS preflights)", () => {
+    const preflight = withViewer(() => currentViewerFrame());
+    expect(preflight()).toEqual({ viewerId: null });
+  });
+
+  it("brands what it wraps, and nothing else", () => {
+    const plain = async () => new Response();
+    expect(isViewerFramed(withViewer(plain))).toBe(true);
+    expect(isViewerFramed(plain)).toBe(false);
+    expect(isViewerFramed(undefined)).toBe(false);
   });
 });

@@ -44,6 +44,9 @@ const h = vi.hoisted(() => {
     viewer: null as { id: string; email: string } | null,
     storageOps: [] as string[],
     emails: [] as string[],
+    // Fire-and-forget work routes start (`void logActivity(…)`), awaited
+    // before each reseed so nothing writes during the TRUNCATE
+    background: [] as Promise<unknown>[],
     errors: [] as unknown[],
   };
 
@@ -156,6 +159,44 @@ vi.mock("@/lib/posthog-server", () => ({
   captureServerException: (error: unknown) => h.state.errors.push(error),
   shutdownPostHog: async () => {},
 }));
+// The fire-and-forget calls routes make, tracked so reseeding can drain them
+vi.mock("@/lib/activity", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/activity")>();
+  return {
+    ...actual,
+    logActivity: (...args: Parameters<typeof actual.logActivity>) => {
+      const work = actual.logActivity(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
+vi.mock("@/lib/milestones", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/milestones")>();
+  return {
+    ...actual,
+    markMilestoneComplete: (
+      ...args: Parameters<typeof actual.markMilestoneComplete>
+    ) => {
+      const work = actual.markMilestoneComplete(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
+vi.mock("@/lib/embed-tracking", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/embed-tracking")>();
+  return {
+    ...actual,
+    trackEmbedReferrer: (
+      ...args: Parameters<typeof actual.trackEmbedReferrer>
+    ) => {
+      const work = actual.trackEmbedReferrer(...args);
+      h.state.background.push(work);
+      return work;
+    },
+  };
+});
 // Emails are captured, and checked for leaks like responses
 vi.mock("@/lib/email", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email")>()),
@@ -1130,11 +1171,13 @@ describe("cross-user isolation", () => {
   let baseline: string;
 
   /**
-   * Routes fire off background writes (activity logs, usage counters) that can
-   * still be running when a case returns. Truncating under them deadlocks, so
-   * wait until no other connection has a transaction open.
+   * Routes fire off background writes (activity logs, milestones, embed
+   * referrers) that can still be running when a case returns, and truncating
+   * under them deadlocks. Await every tracked one, then — as a backstop for
+   * anything untracked — wait until no other connection has a transaction open.
    */
   async function waitForQuiescence() {
+    await Promise.allSettled(h.state.background.splice(0));
     const { systemDb } = await import("@/lib/db");
     for (let attempt = 0; attempt < 100; attempt++) {
       const [row] = await systemDb.$queryRaw<{ busy: number }[]>`
