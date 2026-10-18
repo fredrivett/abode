@@ -1,0 +1,22 @@
+language js
+
+// RLS guardrail: `systemDb` / `systemRead` (@/lib/db) are the owner connection,
+// which bypasses row level security. Request code acting for a signed-in user
+// must use `db`, which runs as the restricted abode_app role for that user
+// inside a viewer frame. A query on the system connection sees every user's
+// rows, so each place that genuinely needs it (looking up a token before the
+// caller is known, "is this username taken?", spend counters, signup, admin,
+// public pages) is listed by path in the biome.json override for this plugin,
+// where adding one is a reviewed change. Background jobs (`trigger/**`) are
+// outside `src/**` and system by nature.
+//
+// Biome 2.2 can't suppress plugin diagnostics with `biome-ignore`, so a genuine
+// use must be allowlisted by path in that biome.json override.
+`$client.$member` as $use where {
+  $client <: or { `systemDb`, `systemRead` },
+  register_diagnostic(
+    span=$use,
+    message="`systemDb`/`systemRead` bypass row level security and see every user's rows. Acting for the signed-in user? Use `db` from @/lib/db. If this genuinely spans users or runs as the system, add the file to the no-unlisted-system-db override in biome.json.",
+    severity="error"
+  )
+}
