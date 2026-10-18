@@ -74,4 +74,38 @@ describe("failing an export or import whose job never started", () => {
       error: "Couldn't start the import",
     });
   });
+
+  it("leaves a job that did start alone, if the trigger call errors late", async () => {
+    const { systemDb } = await import("@/lib/db");
+    const { failUnstartedExport, failUnstartedImport } = await import(
+      "@/lib/jobs/start-failures"
+    );
+    const running = await systemDb.dataExport.create({
+      data: { userId, status: "exporting" },
+      select: { id: true },
+    });
+    const progressing = await systemDb.itemImport.create({
+      data: {
+        userId,
+        source: "literal",
+        status: "importing",
+        importedCount: 3,
+      },
+      select: { id: true },
+    });
+
+    await asOwner(async () => {
+      await failUnstartedExport(running.id);
+      await failUnstartedImport(progressing.id);
+    });
+
+    const exportRow = await systemDb.dataExport.findUniqueOrThrow({
+      where: { id: running.id },
+    });
+    const importRow = await systemDb.itemImport.findUniqueOrThrow({
+      where: { id: progressing.id },
+    });
+    expect(exportRow.status).toBe("exporting");
+    expect(importRow.status).toBe("importing");
+  });
 });
