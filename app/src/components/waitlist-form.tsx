@@ -1,10 +1,10 @@
 "use client";
 
 import { Check } from "lucide-react";
-import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { posthogVisitorId } from "@/lib/analytics/visitor-id";
 import { Card } from "./ui/card";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -26,7 +26,13 @@ export function WaitlistForm() {
       const response = await fetch("/api/v1/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        // The server records the join (so blocked analytics can't lose it),
+        // attached to this visit when PostHog is running
+        body: JSON.stringify({
+          email: email.trim(),
+          distinctId: posthogVisitorId(),
+          sourcePath: window.location.pathname,
+        }),
       });
 
       const data = await response.json();
@@ -39,11 +45,6 @@ export function WaitlistForm() {
 
       setFormState("success");
       setPosition(data.position);
-      // The page they joined from; PostHog also keeps the person's first-seen
-      // page ($initial_pathname) and full path history for funnels
-      posthog.capture("waitlist_joined", {
-        source_path: window.location.pathname,
-      });
     } catch {
       setFormState("error");
       setErrorMessage("Failed to join waitlist. Please try again.");

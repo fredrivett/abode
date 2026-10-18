@@ -20,6 +20,29 @@ describe("waitlistSchema", () => {
     expect(waitlistSchema.safeParse({ email: null }).success).toBe(false);
   });
 
+  it("accepts the visitor's PostHog id and the page they joined from", () => {
+    expect(
+      waitlistSchema.safeParse({
+        email: "a@b.com",
+        distinctId: "0192-anon",
+        sourcePath: "/compare/mymind",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("drops malformed analytics fields instead of failing the join", () => {
+    const parsed = waitlistSchema.safeParse({
+      email: "a@b.com",
+      distinctId: "x".repeat(201),
+      sourcePath: "https://evil.example",
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).toEqual({ email: "a@b.com" });
+    expect(
+      waitlistSchema.safeParse({ email: "a@b.com", distinctId: "" }).data,
+    ).toEqual({ email: "a@b.com" });
+  });
+
   it("rejects a non-string referralSource", () => {
     expect(
       waitlistSchema.safeParse({ email: "a@b.com", referralSource: 5 }).success,
