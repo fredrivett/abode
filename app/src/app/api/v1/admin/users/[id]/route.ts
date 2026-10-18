@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getUserDailyActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }
 
     // Get user details
-    const user = await db.user.findUnique({
+    const user = await systemDb.user.findUnique({
       where: { id },
       select: {
         id: true,

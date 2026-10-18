@@ -4,7 +4,7 @@
  * one is free. Server-only — client code imports the pure parser directly.
  */
 
-import { read } from "@/lib/db";
+import { systemRead } from "@/lib/db";
 import { validateUsername } from "./index";
 import { MAX_BASE_LENGTH, parseEmailToUsername } from "./parse-email";
 
@@ -14,7 +14,7 @@ const MAX_SUFFIX_ATTEMPTS = 999;
  * Checks if a username is available in the database.
  */
 async function isUsernameAvailable(username: string): Promise<boolean> {
-  const existing = await read.user.findFirst({
+  const existing = await systemRead.user.findFirst({
     where: {
       username: {
         equals: username,

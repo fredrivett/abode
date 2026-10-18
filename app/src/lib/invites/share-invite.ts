@@ -11,7 +11,7 @@
  * used by any other email.
  */
 
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import {
   EmailBlockedInTestError,
   isEmailConfigured,
@@ -79,7 +79,7 @@ const shareItemSelect = {
 
 async function findPublicItem(itemId: string) {
   if (!isCanonicalUuid(itemId)) return null;
-  const item = await db.item.findUnique({
+  const item = await systemDb.item.findUnique({
     where: { id: itemId },
     select: shareItemSelect,
   });
@@ -143,7 +143,7 @@ export async function requestShareInvite({
   }
   const normalizedEmail = normalizeEmail(email);
 
-  const existingUser = await db.user.findUnique({
+  const existingUser = await systemDb.user.findUnique({
     where: { email: normalizedEmail },
     select: { id: true },
   });
@@ -175,7 +175,7 @@ export async function requestShareInvite({
     );
   }
 
-  const alreadyWaiting = await db.waitlistEntry.findUnique({
+  const alreadyWaiting = await systemDb.waitlistEntry.findUnique({
     where: { email: normalizedEmail },
     select: { id: true },
   });
@@ -246,7 +246,7 @@ export async function saveSharedItemForNewUser({
     }
     // Idempotent: a replayed or concurrent signup completion (e.g. the
     // confirmation link opened twice) reuses the item it already saved
-    const existing = await db.item.findFirst({
+    const existing = await systemDb.item.findFirst({
       where: { userId, sourceUrl: shared.sourceUrl },
       select: { id: true },
     });

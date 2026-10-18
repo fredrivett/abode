@@ -12,7 +12,7 @@
  * (`hnsw.iterative_scan`), not a plain HNSW index.
  */
 
-import db from "@/lib/db";
+import db, { type DbClient } from "@/lib/db";
 import { VISUAL_EMBEDDING_MODEL } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
 
@@ -48,6 +48,11 @@ type FindSimilarImagesArgs = {
   userId: string;
   limit?: number;
   threshold?: number;
+  /**
+   * Connection to search on. Defaults to the caller's `db`; the admin
+   * inspector, which looks at other users' items, passes `systemDb`.
+   */
+  client?: DbClient;
 };
 
 /**
@@ -69,6 +74,7 @@ export async function findSimilarImages({
   userId,
   limit = SIMILAR_IMAGES_LIMIT,
   threshold,
+  client = db,
 }: FindSimilarImagesArgs): Promise<SimilarImageResult[]> {
   // An explicit threshold overrides both branches; otherwise each regime uses
   // its own calibrated default (centered scores live in a lower band than raw).
@@ -79,7 +85,9 @@ export async function findSimilarImages({
   // similarity. `mu` is the corpus centroid (0 rows ⇒ centering unavailable ⇒
   // raw fallback), applied identically to seed + candidates so the ranking is
   // always self-consistent within a query.
-  const rows = await db.$queryRaw<Array<{ id: string; similarity: number }>>`
+  const rows = await client.$queryRaw<
+    Array<{ id: string; similarity: number }>
+  >`
     WITH mu AS (
       SELECT "mean_embedding" AS v
       FROM "visual_embedding_stats"

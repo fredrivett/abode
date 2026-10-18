@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
 import { getUsersUsageToday } from "@/lib/admin/usage-stats";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
 import { parseSortParams, type SortState } from "@/lib/table-sort";
 import {
@@ -78,10 +78,10 @@ export default async function AdminUsersPage(props: {
     : {};
 
   // Get total count
-  const totalCount = await db.user.count({ where });
+  const totalCount = await systemDb.user.count({ where });
 
   // Get users
-  const users = await db.user.findMany({
+  const users = await systemDb.user.findMany({
     where,
     select: {
       id: true,
@@ -109,12 +109,12 @@ export default async function AdminUsersPage(props: {
 
   // Last activity (any tracked action) and last item added, per user on this page
   const [lastActivity, lastItems, usageToday] = await Promise.all([
-    db.activityLog.groupBy({
+    systemDb.activityLog.groupBy({
       by: ["userId"],
       where: { userId: { in: userIds } },
       _max: { createdAt: true },
     }),
-    db.item.groupBy({
+    systemDb.item.groupBy({
       by: ["userId"],
       where: { userId: { in: userIds } },
       _max: { createdAt: true },

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { read } from "@/lib/db";
+import { systemRead } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check database for existing username (case-insensitive)
-    const existing = await read.user.findFirst({
+    const existing = await systemRead.user.findFirst({
       where: {
         username: {
           equals: username,

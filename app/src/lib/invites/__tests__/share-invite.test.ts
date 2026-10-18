@@ -16,16 +16,18 @@ const mocks = vi.hoisted(() => ({
   getUserInviteEmail: vi.fn(() => ({ subject: "s", text: "t", html: "h" })),
 }));
 
-vi.mock("@/lib/db", () => ({
-  default: {
+vi.mock("@/lib/db", () => {
+  // Only the system connection: using the user's `db` here would be a bug
+  const client = {
     item: {
       findUnique: mocks.itemFindUnique,
       findFirst: mocks.itemFindFirst,
     },
     user: { findUnique: mocks.userFindUnique },
     waitlistEntry: { findUnique: mocks.waitlistFindUnique },
-  },
-}));
+  };
+  return { systemDb: client };
+});
 vi.mock("@/lib/invites", () => ({
   createUserInvite: mocks.createUserInvite,
   getAvailableInvites: mocks.getAvailableInvites,

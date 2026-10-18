@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import {
   DAILY_LIMITS,
   isUsageLimitsEnforced,
@@ -115,7 +115,7 @@ function evaluateUser(rows: UsageRow[], monthCostUsd: number): UserUsageToday {
 
 /** Today's per-bucket rows (counts + today's $) for the given scope. */
 async function selectTodayRows(where: Prisma.Sql): Promise<UsageRow[]> {
-  return db.$queryRaw<UsageRow[]>`
+  return systemDb.$queryRaw<UsageRow[]>`
     SELECT user_id, bucket, count, cost_usd::text AS cost_usd
     FROM usage_daily
     WHERE day = (now() AT TIME ZONE 'utc')::date
@@ -130,7 +130,9 @@ async function selectTodayRows(where: Prisma.Sql): Promise<UsageRow[]> {
 async function sumMonthCostByUser(
   where: Prisma.Sql,
 ): Promise<Map<string, number>> {
-  const rows = await db.$queryRaw<{ user_id: string; cost_usd: string }[]>`
+  const rows = await systemDb.$queryRaw<
+    { user_id: string; cost_usd: string }[]
+  >`
     SELECT user_id, COALESCE(SUM(cost_usd), 0)::text AS cost_usd
     FROM usage_daily
     WHERE day >= date_trunc('month', (now() AT TIME ZONE 'utc'))::date
@@ -288,7 +290,7 @@ export type DailyCost = {
  * `usage_daily(day)` index.
  */
 export async function getDailyCostTrend(days = 14): Promise<DailyCost[]> {
-  const rows = await db.$queryRaw<{ day: string; cost_usd: string }[]>`
+  const rows = await systemDb.$queryRaw<{ day: string; cost_usd: string }[]>`
     SELECT day::text AS day, COALESCE(SUM(cost_usd), 0)::text AS cost_usd
     FROM usage_daily
     WHERE day >= (now() AT TIME ZONE 'utc')::date - ${days - 1}::int
@@ -326,7 +328,9 @@ export type TopSpender = {
 export async function getTopSpendersThisMonth(
   limit = 10,
 ): Promise<TopSpender[]> {
-  const rows = await db.$queryRaw<{ user_id: string; cost_usd: string }[]>`
+  const rows = await systemDb.$queryRaw<
+    { user_id: string; cost_usd: string }[]
+  >`
     SELECT user_id, SUM(cost_usd)::text AS cost_usd
     FROM usage_daily
     WHERE day >= date_trunc('month', (now() AT TIME ZONE 'utc'))::date
@@ -337,7 +341,7 @@ export async function getTopSpendersThisMonth(
   `;
   if (rows.length === 0) return [];
 
-  const users = await db.user.findMany({
+  const users = await systemDb.user.findMany({
     where: { id: { in: rows.map((r) => r.user_id) } },
     select: {
       id: true,

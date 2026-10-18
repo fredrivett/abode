@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 
 export type VisualEmbeddingCoverage = {
   /** Total image items in the platform. */
@@ -17,8 +17,8 @@ export type VisualEmbeddingCoverage = {
  */
 export async function getVisualEmbeddingCoverage(): Promise<VisualEmbeddingCoverage> {
   const [imageItems, withEmbeddingsRows] = await Promise.all([
-    db.item.count({ where: { kind: "image" } }),
-    db.$queryRaw<Array<{ count: number }>>`
+    systemDb.item.count({ where: { kind: "image" } }),
+    systemDb.$queryRaw<Array<{ count: number }>>`
       SELECT COUNT(DISTINCT item_id)::int AS count FROM item_visual_vectors
     `,
   ]);

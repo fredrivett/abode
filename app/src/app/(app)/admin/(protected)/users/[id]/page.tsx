@@ -21,7 +21,7 @@ import {
   getUserUsageBreakdown,
   type UserUsageBreakdown,
 } from "@/lib/admin/usage-stats";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { formatMemberNumber } from "@/lib/format-member-number";
 import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
 import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
@@ -30,7 +30,7 @@ type PageParams = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: PageParams }) {
   const { id } = await params;
-  const user = await db.user.findUnique({
+  const user = await systemDb.user.findUnique({
     where: { id },
     select: { email: true, firstName: true, lastName: true },
   });
@@ -257,7 +257,7 @@ export default async function AdminUserDetailPage({
 }) {
   const { id } = await params;
 
-  const user = await db.user.findUnique({
+  const user = await systemDb.user.findUnique({
     where: { id },
     select: {
       id: true,
