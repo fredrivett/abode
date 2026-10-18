@@ -46,6 +46,8 @@ describe("contextual db client", () => {
   };
 
   describe("with RLS_ENFORCED off", () => {
+    beforeEach(() => vi.stubEnv("RLS_ENFORCED", "false"));
+
     it("is the owner connection even inside a frame", async () => {
       expect(await asViewer(alice, titles)).toEqual(["alice", "bob"]);
     });
@@ -65,6 +67,16 @@ describe("contextual db client", () => {
 
     it("leaves code outside any frame on the owner connection", async () => {
       expect(await titles()).toEqual(["alice", "bob"]);
+    });
+
+    it("restricts raw SQL too", async () => {
+      const { default: db } = await import("@/lib/db");
+      const [row] = await asViewer(
+        alice,
+        () =>
+          db.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM items`,
+      );
+      expect(row.n).toBe(1);
     });
 
     it("restricts the read client too", async () => {

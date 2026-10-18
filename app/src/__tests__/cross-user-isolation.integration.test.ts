@@ -1129,7 +1129,26 @@ describe("cross-user isolation", () => {
   let ids: Ids;
   let baseline: string;
 
+  /**
+   * Routes fire off background writes (activity logs, usage counters) that can
+   * still be running when a case returns. Truncating under them deadlocks, so
+   * wait until no other connection has a transaction open.
+   */
+  async function waitForQuiescence() {
+    const { systemDb } = await import("@/lib/db");
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const [row] = await systemDb.$queryRaw<{ busy: number }[]>`
+        SELECT count(*)::int AS busy FROM pg_stat_activity
+        WHERE datname = current_database() AND pid <> pg_backend_pid()
+          AND xact_start IS NOT NULL`;
+      if (row.busy === 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("Database never went quiet before reseeding");
+  }
+
   async function reseed() {
+    await waitForQuiescence();
     await resetTestDatabase();
     h.state.storageOps = [];
     ids = await seed();
