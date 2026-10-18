@@ -15,6 +15,7 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
+import { adjustUserCounters } from "@/lib/user-counters";
 
 const log = createLogger("api/v1/items/documents");
 
@@ -98,12 +99,10 @@ export async function POST(request: NextRequest) {
           height: page.height,
         })),
       });
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          itemCount: { increment: 1 },
-          ...(size > 0 && { storageUsedBytes: { increment: size } }),
-        },
+      await adjustUserCounters(tx, {
+        userId: user.id,
+        items: 1,
+        bytes: Math.max(size, 0),
       });
       return created;
     });

@@ -6,6 +6,9 @@ const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
   itemDelete: vi.fn(),
   userUpdate: vi.fn(),
+  adjustCounters: vi.fn(),
+  // The transaction the route runs its writes in, to check counters join it
+  tx: {} as Record<string, unknown>,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -18,8 +21,16 @@ vi.mock("@/lib/db", () => ({
   default: {
     item: { findUnique: m.findUnique },
     $transaction: (fn: (tx: unknown) => unknown) =>
-      fn({ item: { delete: m.itemDelete }, user: { update: m.userUpdate } }),
+      fn(
+        Object.assign(m.tx, {
+          item: { delete: m.itemDelete },
+          user: { update: m.userUpdate },
+        }),
+      ),
   },
+}));
+vi.mock("@/lib/user-counters", () => ({
+  adjustUserCounters: m.adjustCounters,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
@@ -64,12 +75,11 @@ describe("DELETE /api/v1/items", () => {
       `${USER}/p2.jpg`,
     ]);
     expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "doc-1" } });
-    expect(m.userUpdate).toHaveBeenCalledWith({
-      where: { id: USER },
-      data: {
-        itemCount: { decrement: 1 },
-        storageUsedBytes: { decrement: BigInt(1000) },
-      },
+    expect(m.adjustCounters.mock.calls[0][0]).toBe(m.tx);
+    expect(m.adjustCounters).toHaveBeenCalledWith(m.tx, {
+      userId: USER,
+      items: -1,
+      bytes: -BigInt(1000),
     });
   });
 
@@ -128,6 +138,12 @@ describe("DELETE /api/v1/items", () => {
     await call("url-1");
     expect(m.remove).not.toHaveBeenCalled();
     expect(m.itemDelete).toHaveBeenCalled();
+    // No stored bytes: only the item count moves
+    expect(m.adjustCounters).toHaveBeenCalledWith(m.tx, {
+      userId: USER,
+      items: -1,
+      bytes: 0,
+    });
   });
 
   it("refuses to delete someone else's item", async () => {

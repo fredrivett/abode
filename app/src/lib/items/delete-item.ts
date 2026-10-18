@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { collectItemFileKeys, itemFileKeysSelect } from "@/lib/item-storage";
 import { createLogger } from "@/lib/logger.server";
 import type { createClient } from "@/lib/supabase/server";
+import { adjustUserCounters } from "@/lib/user-counters";
 import { getFileSizeFromMeta } from "@/lib/utils";
 
 const log = createLogger("lib/items/delete-item");
@@ -44,12 +45,10 @@ export async function deleteOwnedItem({
   const fileSize = getFileSizeFromMeta(item.meta);
   await db.$transaction(async (tx) => {
     await tx.item.delete({ where: { id: itemId } });
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        itemCount: { decrement: 1 },
-        ...(fileSize > 0 && { storageUsedBytes: { decrement: fileSize } }),
-      },
+    await adjustUserCounters(tx, {
+      userId,
+      items: -1,
+      bytes: fileSize > 0 ? -fileSize : 0,
     });
   });
   return "deleted";
