@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import db from "@/lib/db";
+import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
 import { createWaitlistInvite } from "@/lib/invites";
@@ -27,12 +27,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dbUser = await db.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    });
-
-    if (!dbUser?.isAdmin) {
+    // Same bar as every other admin route: admin flag plus a completed 2FA
+    // challenge (AAL2), not the admin flag alone
+    if (!(await hasFullAdminAccess(supabase))) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 },

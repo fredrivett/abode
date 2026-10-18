@@ -15,6 +15,15 @@ export function canViewRoom({
 }
 
 /**
+ * Room items anyone but the owner may see — items opted out of public rooms
+ * never appear. Use it for public counts too, or a count reveals that hidden
+ * items exist.
+ */
+export const publicRoomItemsWhere = {
+  item: { excludeFromPublicRooms: false },
+} satisfies Prisma.RoomItemWhereInput;
+
+/**
  * Which of a room's items a viewer sees. Non-owners only get items that are
  * publicly viewable in it: one opted out of public rooms
  * (`excludeFromPublicRooms`) isn't viewable per `canViewItem`, so it must not
@@ -28,7 +37,5 @@ export function viewableRoomItemsWhere({
   roomId: string;
   isOwner: boolean;
 }): Prisma.RoomItemWhereInput {
-  return isOwner
-    ? { roomId }
-    : { roomId, item: { excludeFromPublicRooms: false } };
+  return isOwner ? { roomId } : { roomId, ...publicRoomItemsWhere };
 }
