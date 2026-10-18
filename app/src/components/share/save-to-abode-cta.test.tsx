@@ -6,8 +6,18 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();
   return { ...actual, api: { post } };
 });
-const { capture } = vi.hoisted(() => ({ capture: vi.fn() }));
-vi.mock("posthog-js", () => ({ default: { capture } }));
+const { capture, posthog } = vi.hoisted(() => {
+  const capture = vi.fn();
+  return {
+    capture,
+    posthog: {
+      __loaded: false,
+      capture,
+      get_distinct_id: () => "anon-reader-1",
+    },
+  };
+});
+vi.mock("posthog-js", () => ({ default: posthog }));
 
 import { ApiClientError } from "@/lib/api-client";
 import { SaveToAbodeCta } from "./save-to-abode-cta";
@@ -40,6 +50,7 @@ function submit(email = "reader@example.com") {
 const assign = vi.fn();
 
 beforeEach(() => {
+  posthog.__loaded = false;
   post.mockReset();
   assign.mockReset();
   vi.stubGlobal("location", { ...window.location, assign });
@@ -115,6 +126,21 @@ describe("SaveToAbodeCta", () => {
       itemId: ITEM_ID,
       email: "reader@example.com",
     });
+  });
+
+  it("sends the reader's PostHog id so a waitlist fallback joins their visit", async () => {
+    posthog.__loaded = true;
+    post.mockResolvedValue({ status: "waitlisted" });
+    renderSignedOut();
+    submit();
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/share-invites", {
+        itemId: ITEM_ID,
+        email: "reader@example.com",
+        distinctId: "anon-reader-1",
+      }),
+    );
   });
 
   it("records which placement the reader used", async () => {

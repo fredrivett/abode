@@ -8,6 +8,7 @@ import { AbodeLogo } from "@/components/abode-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
+import { posthogVisitorId } from "@/lib/analytics/visitor-id";
 import { ApiClientError, api } from "@/lib/api-client";
 import type { ShareInviteOutcome } from "@/lib/invites/share-invite";
 import { ROUTES } from "@/lib/routes";
@@ -105,6 +106,7 @@ export function SaveToAbodeCta({
       const outcome = await api.post<ResponseOutcome>("/api/v1/share-invites", {
         itemId,
         email: email.trim(),
+        distinctId: posthogVisitorId(),
       });
       posthog.capture("share_cta_submitted", {
         item_id: itemId,

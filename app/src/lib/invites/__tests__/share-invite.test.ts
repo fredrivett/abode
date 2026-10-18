@@ -186,6 +186,24 @@ describe("requestShareInvite", () => {
     });
   });
 
+  it("passes the reader's PostHog id on to the waitlist join", async () => {
+    mocks.createUserInvite.mockResolvedValue({
+      success: false,
+      code: "NO_INVITES_REMAINING",
+      error: "No invites",
+    });
+
+    await requestShareInvite({
+      itemId: ITEM_ID,
+      email: "reader@example.com",
+      distinctId: "anon-reader-1",
+    });
+
+    expect(mocks.joinWaitlist).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "share", distinctId: "anon-reader-1" }),
+    );
+  });
+
   it("waitlists without spending an invite when the sharer opted out", async () => {
     mocks.itemFindUnique.mockResolvedValue(
       sharedItem({

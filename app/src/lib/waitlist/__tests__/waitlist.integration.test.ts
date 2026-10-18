@@ -3,7 +3,7 @@ import { resetTestDatabase } from "@app/vitest.setup.db";
 
 const capture = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/posthog-server", () => ({
-  getPostHogClient: () => ({ capture }),
+  getPostHogClient: () => ({ captureImmediate: capture }),
   captureServerException: vi.fn(),
 }));
 
@@ -226,11 +226,24 @@ describe("Waitlist Integration", () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
       await joinWaitlist({ email: "not-an-email", source: "form" });
+      expect(capture).not.toHaveBeenCalled();
+
       await joinWaitlist({ email: "dupe@example.com", source: "form" });
       capture.mockReset();
       await joinWaitlist({ email: "dupe@example.com", source: "form" });
-
       expect(capture).not.toHaveBeenCalled();
+    });
+
+    it("still joins when recording the event fails", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+      capture.mockRejectedValueOnce(new Error("PostHog down"));
+
+      const result = await joinWaitlist({
+        email: "resilient@example.com",
+        source: "form",
+      });
+
+      expect(result).toEqual({ success: true, position: 1 });
     });
   });
 

@@ -171,16 +171,22 @@ export async function joinWaitlist({
     }
   }
 
-  getPostHogClient()?.capture({
-    distinctId: distinctId ?? `waitlist_${entry.id}`,
-    event: "waitlist_joined",
-    properties: {
-      source,
-      source_path: sourcePath,
-      // No browser visit to attach to, so don't create a person for it
-      ...(distinctId ? {} : { $process_person_profile: false }),
-    },
-  });
+  // Awaited so a short-lived function can't freeze before it's sent; a
+  // telemetry failure must never fail the join itself
+  try {
+    await getPostHogClient()?.captureImmediate({
+      distinctId: distinctId ?? `waitlist_${entry.id}`,
+      event: "waitlist_joined",
+      properties: {
+        source,
+        source_path: sourcePath,
+        // No browser visit to attach to, so don't create a person for it
+        ...(distinctId ? {} : { $process_person_profile: false }),
+      },
+    });
+  } catch (error) {
+    log.warn({ error }, "Failed to record waitlist_joined");
+  }
 
   return { success: true, position: entry.position ?? 0 };
 }

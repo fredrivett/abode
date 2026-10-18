@@ -30,16 +30,17 @@ describe("waitlistSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects a sourcePath that isn't a path, or an empty distinctId", () => {
+  it("drops malformed analytics fields instead of failing the join", () => {
+    const parsed = waitlistSchema.safeParse({
+      email: "a@b.com",
+      distinctId: "x".repeat(201),
+      sourcePath: "https://evil.example",
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).toEqual({ email: "a@b.com" });
     expect(
-      waitlistSchema.safeParse({
-        email: "a@b.com",
-        sourcePath: "https://evil.example",
-      }).success,
-    ).toBe(false);
-    expect(
-      waitlistSchema.safeParse({ email: "a@b.com", distinctId: "" }).success,
-    ).toBe(false);
+      waitlistSchema.safeParse({ email: "a@b.com", distinctId: "" }).data,
+    ).toEqual({ email: "a@b.com" });
   });
 
   it("rejects a non-string referralSource", () => {

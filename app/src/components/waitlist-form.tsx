@@ -1,10 +1,10 @@
 "use client";
 
 import { Check } from "lucide-react";
-import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
+import { posthogVisitorId } from "@/lib/analytics/visitor-id";
 import { Card } from "./ui/card";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -30,7 +30,7 @@ export function WaitlistForm() {
         // attached to this visit when PostHog is running
         body: JSON.stringify({
           email: email.trim(),
-          distinctId: posthog.__loaded ? posthog.get_distinct_id() : undefined,
+          distinctId: posthogVisitorId(),
           sourcePath: window.location.pathname,
         }),
       });
