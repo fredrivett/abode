@@ -21,6 +21,18 @@ export async function startTestDatabase(): Promise<string> {
 
   const connectionString = container.getConnectionUri();
 
+  // Supabase's PostgREST roles, so migrations run against the same role
+  // landscape as production and tests can assert they never gain access
+  await container.exec([
+    "psql",
+    "-U",
+    "test_user",
+    "-d",
+    "test_db",
+    "-c",
+    "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE authenticator NOINHERIT LOGIN; GRANT anon, authenticated TO authenticator;",
+  ]);
+
   // Run Prisma migrations
   execSync("bunx prisma migrate deploy", {
     stdio: "inherit",

@@ -1,5 +1,7 @@
 /// <reference types="vitest/globals" />
 
+import { SYSTEM_ONLY_TABLES } from "./rls-tables";
+
 /**
  * Guardrail: every application table must have row level security enabled
  * (default-deny), matching the hardening in the enable_rls migrations. The app
@@ -47,13 +49,6 @@ describe("row level security coverage", () => {
 
   it("every table has policies for the restricted abode_app role", async () => {
     const { read } = await import("@/lib/db");
-    // Deliberately unreachable by abode_app: Prisma's ledger and the
-    // pre-signup waitlist are only ever touched by system code
-    const SYSTEM_ONLY_TABLES = new Set([
-      "_prisma_migrations",
-      "waitlist_entries",
-    ]);
-
     const tables = await read.$queryRaw<
       { tablename: string; policies: number }[]
     >`
@@ -74,7 +69,7 @@ describe("row level security coverage", () => {
       withoutPolicies,
       `Tables abode_app can't reach: ${withoutPolicies.join(", ")}. Add owner ` +
         "policies `TO abode_app` in the table's migration (see " +
-        "20261018170000_abode_app_rls), or list it as system-only here.",
+        "20261018170000_abode_app_rls), or list it in ./rls-tables.ts.",
     ).toEqual([]);
   });
 
@@ -86,13 +81,19 @@ describe("row level security coverage", () => {
       FROM pg_roles WHERE rolname = 'abode_app'`;
     expect(role).toEqual({ bypass: false, superuser: false, login: false });
 
-    const exposedTo = await read.$queryRaw<{ member: string }[]>`
-      SELECT m.rolname AS member FROM pg_auth_members am
-      JOIN pg_roles r ON r.oid = am.roleid
-      JOIN pg_roles m ON m.oid = am.member
-      WHERE r.rolname = 'abode_app'
-        AND m.rolname IN ('anon', 'authenticated', 'authenticator')
-    `;
+    // Checked transitively (pg_has_role), and the roles must exist (the test
+    // database creates them as Supabase does), so this can't pass vacuously
+    const postgrestRoles = await read.$queryRaw<
+      { role: string; reaches: boolean }[]
+    >`SELECT rolname AS role, pg_has_role(rolname, 'abode_app', 'MEMBER') AS reaches
+      FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'authenticator')
+      ORDER BY rolname`;
+    expect(postgrestRoles.map((r) => r.role)).toEqual([
+      "anon",
+      "authenticated",
+      "authenticator",
+    ]);
+    const exposedTo = postgrestRoles.filter((r) => r.reaches);
     expect(exposedTo).toEqual([]);
   });
 });

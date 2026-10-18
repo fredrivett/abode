@@ -1,6 +1,7 @@
 /// <reference types="vitest/globals" />
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
+import { SHARED_TABLES, SYSTEM_ONLY_TABLES } from "./rls-tables";
 
 /**
  * The restricted `abode_app` role (abode_app_rls migration) must only ever see
@@ -9,11 +10,6 @@ import { resetTestDatabase } from "@app/vitest.setup.db";
  * then query every table unfiltered and must get nothing back, and writes that
  * reach across users must fail.
  */
-
-// Tables abode_app can never read: system-only, or Prisma's ledger
-const SYSTEM_ONLY_TABLES = new Set(["_prisma_migrations", "waitlist_entries"]);
-// Readable by every viewer: holds no user data
-const SHARED_TABLES = new Set(["visual_embedding_stats"]);
 
 type Seeded = Awaited<ReturnType<typeof seed>>;
 
@@ -297,6 +293,34 @@ describe("abode_app row level security", () => {
       for (const [name, attempt] of Object.entries(attempts)) {
         await expect(attempt, name).rejects.toThrow();
       }
+    });
+  });
+
+  describe("system-written tables", () => {
+    it("are read-only or append-only even for their owner", async () => {
+      const { forViewer } = await import("@/lib/db-viewer");
+      const owner = forViewer(ids.ownerId);
+
+      // Spend-cap counters: a user can't reset their own limits
+      expect(
+        (await owner.usageDaily.updateMany({ data: { count: 0 } })).count,
+      ).toBe(0);
+      expect((await owner.usageDaily.deleteMany({})).count).toBe(0);
+      // Activity is append-only
+      expect((await owner.activityLog.deleteMany({})).count).toBe(0);
+      await owner.activityLog.create({
+        data: { userId: ids.ownerId, type: "item_view" },
+      });
+      // Imports/exports: started by the user, then owned by the job
+      expect(
+        (await owner.dataExport.updateMany({ data: { status: "failed" } }))
+          .count,
+      ).toBe(0);
+      expect((await owner.dataExport.deleteMany({})).count).toBe(0);
+      expect(
+        (await owner.itemImport.updateMany({ data: { status: "failed" } }))
+          .count,
+      ).toBe(0);
     });
   });
 
