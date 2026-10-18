@@ -224,7 +224,7 @@ describe("buildExportArchive", () => {
     // abode.json: header, profile, rooms, items newest-added first
     expect(json).toMatchObject({
       format: "abode-export",
-      version: 1,
+      version: 2,
       exportedAt: EXPORTED_AT.toISOString(),
       instance: INSTANCE,
       profile: { email: user.email, username: "reader", bio: "I save things" },

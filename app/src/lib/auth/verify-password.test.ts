@@ -28,6 +28,7 @@ describe("verifyPassword", () => {
 
     expect(await verifyPassword(CREDENTIALS)).toBe(true);
 
+    expect(mockSignIn).toHaveBeenCalledWith(CREDENTIALS);
     expect(mockCreateClient).toHaveBeenCalledWith(
       "http://supabase.test",
       "anon",
@@ -40,6 +41,7 @@ describe("verifyPassword", () => {
   it("resolves false for wrong credentials", async () => {
     mockSignIn.mockResolvedValue({ error: { status: 400 } });
     expect(await verifyPassword(CREDENTIALS)).toBe(false);
+    expect(mockSignIn).toHaveBeenCalledWith(CREDENTIALS);
     expect(mockSignOut).not.toHaveBeenCalled();
   });
 
