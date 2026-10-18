@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createLogger } from "@/lib/logger.server";
 import { needsMFAChallenge } from "@/lib/mfa";
+import { recordViewer } from "@/lib/viewer-context";
 
 const log = createLogger("lib/supabase/server");
 
@@ -87,5 +88,7 @@ export async function getUserWithMfa(supabase: SupabaseClient) {
     return { data: { user: null }, error: result.error };
   }
 
+  // The rest of the request acts for this user (row level security)
+  recordViewer(user.id);
   return result;
 }

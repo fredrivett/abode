@@ -41,8 +41,9 @@ vi.mock("@supabase/supabase-js", () => ({
   },
 }));
 
+// Token lookup runs on the system connection (before the caller is known)
 vi.mock("@/lib/db", () => ({
-  default: {
+  systemDb: {
     personalAccessToken: {
       findUnique: mockFindUnique,
       updateMany: mockUpdateMany,
@@ -56,6 +57,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+import { currentViewerFrame, runInViewerFrame } from "@/lib/viewer-context";
 import { authenticateRequest } from "./authenticate-request";
 import { hashPersonalAccessToken } from "./personal-access-token";
 
@@ -156,6 +158,31 @@ describe("authenticateRequest", () => {
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
     expect(mockBearerGetUser).not.toHaveBeenCalled();
+  });
+
+  it("records the authenticated caller as the request's viewer", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+
+    const viewer = await runInViewerFrame(async () => {
+      await authenticateRequest(request(), SESSION_ONLY);
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(viewer).toBe("u_cookie");
+  });
+
+  it("leaves the request anonymous when authentication fails", async () => {
+    mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    const viewer = await runInViewerFrame(async () => {
+      await authenticateRequest(request(), SESSION_ONLY);
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(viewer).toBeNull();
   });
 
   it("rejects an AAL1 cookie session for a user with a verified MFA factor", async () => {

@@ -8,6 +8,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ getAll: () => [], set: () => {} }),
 }));
 
+import { currentViewerFrame, runInViewerFrame } from "@/lib/viewer-context";
 import { getUserWithMfa } from "./server";
 
 type FakeClientOptions = {
@@ -103,5 +104,29 @@ describe("getUserWithMfa", () => {
     );
 
     expect(result.data.user).toBeNull();
+  });
+});
+
+describe("getUserWithMfa viewer recording", () => {
+  it("records a fully authenticated user as the request's viewer", async () => {
+    const viewer = await runInViewerFrame(async () => {
+      await getUserWithMfa(fakeClient({ user: { id: "u1" } }));
+      return currentViewerFrame()?.viewerId;
+    });
+    expect(viewer).toBe("u1");
+  });
+
+  it("leaves the request anonymous while a 2FA challenge is pending", async () => {
+    const viewer = await runInViewerFrame(async () => {
+      await getUserWithMfa(
+        fakeClient({
+          user: { id: "u1" },
+          currentLevel: "aal1",
+          verifiedFactor: true,
+        }),
+      );
+      return currentViewerFrame()?.viewerId;
+    });
+    expect(viewer).toBeNull();
   });
 });

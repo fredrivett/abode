@@ -6,11 +6,12 @@ import {
   isPersonalAccessTokenFormat,
 } from "@/lib/auth/personal-access-token";
 import { hasTokenScope, type TokenScope } from "@/lib/auth/token-scopes";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { needsMFAChallenge } from "@/lib/mfa";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { recordViewer } from "@/lib/viewer-context";
 
 const log = createLogger("lib/auth/authenticate-request");
 
@@ -55,6 +56,16 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  * concern).
  */
 export async function authenticateRequest(
+  request: NextRequest,
+  options: AuthenticateRequestOptions,
+): Promise<AuthenticatedRequest | null> {
+  const caller = await resolveCaller(request, options);
+  // The rest of the request acts for this user (row level security)
+  if (caller) recordViewer(caller.user.id);
+  return caller;
+}
+
+async function resolveCaller(
   request: NextRequest,
   { tokenScope }: AuthenticateRequestOptions,
 ): Promise<AuthenticatedRequest | null> {
@@ -121,7 +132,9 @@ async function resolvePersonalAccessToken(
 ): Promise<{ user: User; tokenId: string } | null> {
   const tokenHash = hashPersonalAccessToken(token);
 
-  const record = await db.personalAccessToken.findUnique({
+  // System connection: the token is how we learn who the caller is, so this
+  // runs before there's a viewer to restrict to
+  const record = await systemDb.personalAccessToken.findUnique({
     where: { tokenHash },
     select: {
       id: true,
@@ -188,7 +201,7 @@ function touchLastUsed(id: string, lastUsedAt: Date | null): void {
   const cutoffMs = Date.now() - LAST_USED_THROTTLE_MS;
   if (lastUsedAt && lastUsedAt.getTime() >= cutoffMs) return;
 
-  void db.personalAccessToken
+  void systemDb.personalAccessToken
     .updateMany({
       where: {
         id,
