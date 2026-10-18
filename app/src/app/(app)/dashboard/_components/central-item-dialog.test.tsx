@@ -492,4 +492,19 @@ describe("CentralItemDialog — sensitive items", () => {
     expect(screen.getByTestId("unlock")).toBeInTheDocument();
     expect(screen.queryByTestId("body")).not.toBeInTheDocument();
   });
+
+  it("swaps an open sensitive item for the prompt once its window lapses", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: unlocked };
+    const { rerender } = renderWith([redacted]);
+    expect(screen.getByTestId("body")).toBeInTheDocument();
+
+    // A refetch (focus, invalidation) after the window comes back locked
+    useItemReturn = { data: unlocked, isError: true, error: lockedError };
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={[redacted]} />,
+    );
+    expect(screen.getByTestId("unlock")).toBeInTheDocument();
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
+  });
 });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, isSensitiveLockedError } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import type { Item } from "@/lib/types/item";
 
 /**
@@ -29,9 +29,8 @@ export function useItem(itemId: string | null, enabled = true) {
   return useQuery<Item>({
     queryKey: itemQueryKey(itemId ?? ""),
     queryFn: () => api.get(`/api/v1/items/${itemId}`),
+    // The app-wide policy doesn't retry a 4xx, so a locked 403 goes straight
+    // to the password prompt
     enabled: enabled && itemId !== null,
-    // A locked item needs the password, not another try
-    retry: (failureCount, error) =>
-      !isSensitiveLockedError(error) && failureCount < 3,
   });
 }

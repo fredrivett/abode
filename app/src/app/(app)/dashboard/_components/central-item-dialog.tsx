@@ -97,7 +97,11 @@ export function CentralItemDialog({
   const lastResolved =
     lastResolvedRef.current?.id === openItemId ? lastResolvedRef.current : null;
   const resolved =
-    inList ?? fromInitial ?? (hasFetched ? fetched : null) ?? lastResolved;
+    inList ??
+    fromInitial ??
+    (hasFetched ? fetched : null) ??
+    // Once the server says it's locked, the prompt replaces the last copy too
+    (fetchLocked ? null : lastResolved);
   lastResolvedRef.current = resolved;
 
   // A sensitive item asks for the password before it opens
@@ -186,6 +190,8 @@ export function CentralItemDialog({
   if (open && isLocked) {
     return (
       <SensitiveUnlockDialog
+        // Remount per item so a check still in flight for one can't open another
+        key={openItemId}
         open
         onUnlocked={() => void refetch()}
         onCancel={() => closeItem?.()}

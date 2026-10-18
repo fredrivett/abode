@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogOrDrawer,
@@ -51,6 +51,20 @@ export function SensitiveUnlockDialog({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  // A check that resolves after the prompt was cancelled or closed must not
+  // go on to open the item
+  const activeRef = useRef(true);
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, []);
+
+  const cancel = () => {
+    activeRef.current = false;
+    onCancel();
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,12 +73,13 @@ export function SensitiveUnlockDialog({
     setError(null);
     try {
       await unlock(password);
+      if (!activeRef.current) return;
       setPassword("");
       onUnlocked();
     } catch (unlockError) {
-      setError(errorMessage(unlockError));
+      if (activeRef.current) setError(errorMessage(unlockError));
     } finally {
-      setIsChecking(false);
+      if (activeRef.current) setIsChecking(false);
     }
   };
 
@@ -72,7 +87,7 @@ export function SensitiveUnlockDialog({
     <DialogOrDrawer
       open={open}
       onOpenChange={(next) => {
-        if (!next) onCancel();
+        if (!next) cancel();
       }}
     >
       <DialogOrDrawerContent className="sm:max-w-sm">
@@ -111,12 +126,7 @@ export function SensitiveUnlockDialog({
           </DialogOrDrawerBody>
 
           <DialogOrDrawerFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isChecking}
-            >
+            <Button type="button" variant="outline" onClick={cancel}>
               Cancel
             </Button>
             <Button type="submit" disabled={isChecking || !password}>

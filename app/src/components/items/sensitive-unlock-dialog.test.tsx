@@ -76,6 +76,23 @@ describe("SensitiveUnlockDialog", () => {
     expect(onUnlocked).not.toHaveBeenCalled();
   });
 
+  it("never opens the item when cancelled mid-check", async () => {
+    let finish: () => void = () => {};
+    const unlock = vi.fn(
+      () => new Promise<void>((resolve) => (finish = () => resolve())),
+    );
+    const { onUnlocked, onCancel } = renderDialog(unlock);
+
+    submit("hunter2");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    finish();
+
+    await waitFor(() => expect(unlock).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onUnlocked).not.toHaveBeenCalled();
+  });
+
   it("cancels", () => {
     const { onCancel } = renderDialog(vi.fn());
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
