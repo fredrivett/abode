@@ -35,6 +35,13 @@ describe("getCardFrame", () => {
     ).toEqual({ width: 9, height: 16 });
   });
 
+  it("keeps a redacted book's padded cover-shaped tile", () => {
+    const meta = { coverWidth: 400, coverHeight: 600 };
+    expect(
+      getCardFrame(item({ kind: "book", redacted: true, meta }), CONTEXT),
+    ).toEqual(getCardFrame(item({ kind: "book", meta }), CONTEXT));
+  });
+
   it("gives a dimensionless redacted item a page or 4:3 tile", () => {
     // A redacted note has no content to estimate its height from
     expect(

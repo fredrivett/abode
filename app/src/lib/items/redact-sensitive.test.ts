@@ -8,7 +8,7 @@ function fullItem(overrides: Partial<Item> = {}): Item {
     id: "item-1",
     kind: "document",
     processingStatus: "completed",
-    processingError: null,
+    processingError: "download_failed",
     fileKey: "user/page-1.jpg",
     coverFileKey: "user/cover.jpg",
     faviconFileKey: "user/favicon.png",
@@ -119,15 +119,48 @@ describe("redactSensitiveItem", () => {
     ]) {
       expect(serialized).not.toContain(secret);
     }
+    // Structured content the string scan can't see
+    expect(redacted.colors).toEqual([]);
+    expect(redacted.locations).toEqual([]);
+    expect(redacted.objects).toEqual([]);
+    expect(redacted.processingError).toBeNull();
     expect(redacted.coverHidden).toBe(false);
     expect(redacted.sharedAt).toBeNull();
   });
 
+  it("keeps a book's cover dimensions and the upload-time LQIP", () => {
+    const redacted = redactSensitiveItem(
+      fullItem({
+        kind: "book",
+        meta: {
+          coverWidth: 400,
+          coverHeight: 600,
+          blurDataUrl: "data:image/jpeg;base64,BBBB",
+          isbn: "secret-isbn",
+        },
+      }),
+    );
+    expect(redacted.meta).toEqual({
+      coverWidth: 400,
+      coverHeight: 600,
+      blurDataUrl: "data:image/jpeg;base64,BBBB",
+    });
+  });
+
   it("drops non-numeric meta rather than passing it through", () => {
     const redacted = redactSensitiveItem(
-      fullItem({ meta: { width: "800", height: 1100 } }),
+      fullItem({
+        meta: {
+          width: "800",
+          height: 1100,
+          blurDataUrl: "https://tracker.example/pixel.png",
+        },
+      }),
     );
-    expect(redacted.meta).toBeNull();
+    expect(redacted.meta).toEqual({ height: 1100 });
+    expect(redactSensitiveItem(fullItem({ meta: { title: "x" } })).meta).toBe(
+      null,
+    );
   });
 
   it("keeps caller-specific extras such as a search match", () => {

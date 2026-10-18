@@ -302,7 +302,13 @@ function RedactedItemCard({ item }: { item: Item }) {
   const { setOpen } = useItemDetailDialog(item.id);
   return (
     <SensitiveItemTile
-      blurDataUrl={item.blurDataUrl}
+      // Analysis's LQIP, else the one captured client-side at upload
+      blurDataUrl={
+        item.blurDataUrl ??
+        (typeof item.meta?.blurDataUrl === "string"
+          ? item.meta.blurDataUrl
+          : null)
+      }
       onOpen={() => setOpen(true)}
     />
   );

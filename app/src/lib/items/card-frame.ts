@@ -46,6 +46,8 @@ export function getCardFrame(
   // A redacted sensitive item keeps only its cover dimensions (when it has
   // any); otherwise a page-shaped tile for documents, 4:3 for everything else
   if (item.redacted) {
+    // A book keeps its padded cover-shaped tile
+    if (item.kind === "book") return getBookTileFrame(item.meta);
     const width = metaNumber(meta, "width");
     const height = metaNumber(meta, "height");
     if (width && height) return { width, height };

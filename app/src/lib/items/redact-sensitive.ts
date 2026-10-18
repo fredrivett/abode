@@ -3,14 +3,13 @@ import { isSensitive } from "./privacy";
 
 /**
  * Fields a sensitive item keeps in list views (grid, search, rooms): enough to
- * place a blurred tile — its kind icon, its slot on the timeline and its
- * masonry aspect ratio — and nothing about what it is.
+ * place a blurred tile — its kind, its slot on the timeline, its masonry
+ * aspect ratio and its LQIP — and nothing about what it is.
  */
 type ListSafeKey =
   | "id"
   | "kind"
   | "processingStatus"
-  | "processingError"
   | "createdAt"
   | "addedAt"
   | "blurDataUrl"
@@ -20,18 +19,35 @@ type ListSafeKey =
 // compile here until it's either redacted below or deliberately listed as safe
 type RedactedFields = { [K in Exclude<keyof Item, ListSafeKey>]-?: Item[K] };
 
-/** Keep only the dimensions the masonry grid needs to size the tile. */
+// What a tile may keep of `meta`: the dimensions the masonry grid sizes it
+// from (a book's cover is stored separately) and the upload-time LQIP the
+// tile blurs before analysis has stored one
+const LAYOUT_META_NUMBERS = [
+  "width",
+  "height",
+  "coverWidth",
+  "coverHeight",
+] as const;
+
 function layoutMeta(meta: Item["meta"]): Item["meta"] {
   if (!meta) return null;
-  const { width, height } = meta;
-  return typeof width === "number" && typeof height === "number"
-    ? { width, height }
-    : null;
+  const kept: Record<string, unknown> = {};
+  for (const key of LAYOUT_META_NUMBERS) {
+    if (typeof meta[key] === "number") kept[key] = meta[key];
+  }
+  if (
+    typeof meta.blurDataUrl === "string" &&
+    meta.blurDataUrl.startsWith("data:image/")
+  ) {
+    kept.blurDataUrl = meta.blurDataUrl;
+  }
+  return Object.keys(kept).length > 0 ? kept : null;
 }
 
 function redactedFields(item: Item): RedactedFields {
   return {
     redacted: true,
+    processingError: null,
     fileKey: null,
     coverFileKey: null,
     faviconFileKey: null,
