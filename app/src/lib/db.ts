@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import type { ITXClientDenyList } from "@prisma/client/runtime/library";
 import { isDevelopment } from "@/env";
 import { connectionRetryExtension } from "@/lib/db-retry";
+import { forViewer, viewerTransaction } from "@/lib/db-viewer";
+import { currentViewerFrame, isRlsEnforced } from "@/lib/viewer-context";
 
 /**
  * Primary prisma client (write) and optional read-replica client.
@@ -49,7 +51,7 @@ function createWriteClient() {
   }).$extends(connectionRetryExtension());
 }
 
-type DbClient = ReturnType<typeof createWriteClient>;
+export type DbClient = ReturnType<typeof createWriteClient>;
 
 /**
  * The `tx` handed to `write.$transaction(async (tx) => …)`. Use this (not
@@ -92,18 +94,85 @@ function getReadClient(): DbClient {
   return globalForPrisma.prismaRead;
 }
 
-// Export getter proxies that lazily initialize
-const write = new Proxy({} as DbClient, {
+type RestrictedClient = ReturnType<typeof forViewer>;
+const restrictedClients = new WeakMap<
+  DbClient,
+  Map<string | null, RestrictedClient>
+>();
+
+/** One restricted client per (connection, viewer), reused across requests */
+function restrictedClient(
+  base: DbClient,
+  viewerId: string | null,
+): RestrictedClient {
+  let byViewer = restrictedClients.get(base);
+  if (!byViewer) {
+    byViewer = new Map();
+    restrictedClients.set(base, byViewer);
+  }
+  let client = byViewer.get(viewerId);
+  if (!client) {
+    client = forViewer(viewerId, base);
+    byViewer.set(viewerId, client);
+  }
+  return client;
+}
+
+/**
+ * The client for whoever the current code is acting for. Inside a request
+ * frame (see `@/lib/viewer-context`) with RLS_ENFORCED on, every query runs as
+ * the restricted abode_app role, so the database itself refuses other users'
+ * rows — and a frame whose viewer was never recorded is anonymous and sees
+ * nothing. Outside a frame (background jobs, scripts), or with the flag off,
+ * it's the owner connection, exactly as before.
+ */
+function contextual(getBase: () => DbClient): DbClient {
+  return new Proxy({} as DbClient, {
+    get(_, prop) {
+      const base = getBase();
+      const frame = currentViewerFrame();
+      if (!frame || !isRlsEnforced()) return Reflect.get(base, prop);
+
+      if (prop === "$transaction") {
+        return (arg: unknown) => {
+          if (typeof arg !== "function") {
+            throw new Error(
+              "Batch $transaction([...]) isn't supported for a viewer; use $transaction(async (tx) => …)",
+            );
+          }
+          return viewerTransaction({
+            viewerId: frame.viewerId,
+            base,
+            run: arg as (tx: DbTransactionClient) => Promise<unknown>,
+          });
+        };
+      }
+      return Reflect.get(restrictedClient(base, frame.viewerId), prop);
+    },
+  });
+}
+
+/** Lazily initialised owner connections — these bypass row level security */
+const ownerWrite = new Proxy({} as DbClient, {
   get(_, prop) {
     return Reflect.get(getWriteClient(), prop);
   },
 });
 
-const read = new Proxy({} as DbClient, {
+const ownerRead = new Proxy({} as DbClient, {
   get(_, prop) {
     return Reflect.get(getReadClient(), prop);
   },
 });
 
-export { read, write };
+const write = contextual(getWriteClient);
+const read = contextual(getReadClient);
+
+/**
+ * The owner connection, always — it bypasses row level security. Only for
+ * work that genuinely spans users or runs as the system (background jobs,
+ * admin, signup, public pages, cross-user checks like "is this username
+ * taken?"). Everything acting for a signed-in user uses `db`.
+ */
+export { ownerRead as systemRead, ownerWrite as systemDb, read, write };
 export default write;
