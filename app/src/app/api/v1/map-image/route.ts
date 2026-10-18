@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
-import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -99,12 +98,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Access control matching canViewItem (owner, shared via link, or in a
-    // public room and not excluded). Anonymous callers only reach the shared /
-    // public-room grants. The same query loads the stored locations so
-    // client-supplied coordinates are never used.
+    // Owner only: a map pins the exact coordinates, and visitors only ever get
+    // city-level locations (see publicLocationSelect). The same query loads the
+    // stored locations so client-supplied coordinates are never used.
+    if (!user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
     const item = await prisma.item.findFirst({
-      where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
+      where: { id: itemId, userId: user.id },
       select: {
         id: true,
         locations: {
@@ -180,7 +181,8 @@ export async function GET(request: NextRequest) {
     // Only cache in production, not in development
     const cacheControl = isDevelopment
       ? "no-cache, no-store, must-revalidate"
-      : "public, max-age=86400, s-maxage=86400";
+      : // Never the shared cache: the URL alone would serve an owner's map to anyone
+        "private, max-age=86400";
 
     return new NextResponse(imageBuffer, {
       status: 200,
