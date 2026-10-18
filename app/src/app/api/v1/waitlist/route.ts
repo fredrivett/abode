@@ -35,9 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const { email, referralSource } = parsed.data;
+    const { email, referralSource, distinctId, sourcePath } = parsed.data;
 
-    const result = await joinWaitlist(email, referralSource);
+    const result = await joinWaitlist({
+      email,
+      referralSource,
+      source: "form",
+      distinctId,
+      sourcePath,
+    });
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });

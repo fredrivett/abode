@@ -179,10 +179,11 @@ describe("requestShareInvite", () => {
     });
 
     expect(await request()).toEqual({ status: "waitlisted" });
-    expect(mocks.joinWaitlist).toHaveBeenCalledWith(
-      "reader@example.com",
-      "share:@fred",
-    );
+    expect(mocks.joinWaitlist).toHaveBeenCalledWith({
+      email: "reader@example.com",
+      referralSource: "share:@fred",
+      source: "share",
+    });
   });
 
   it("waitlists without spending an invite when the sharer opted out", async () => {

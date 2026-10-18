@@ -7,6 +7,7 @@ import {
   isValidEmail,
 } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 import type { adminNotificationTask } from "../../../trigger/admin-notification";
 
 const log = createLogger("lib/waitlist");
@@ -15,13 +16,29 @@ export type WaitlistResult =
   | { success: true; position: number }
   | { success: false; error: string };
 
+/** Where a waitlist join came from: the waitlist form, or a shared item's save button */
+export type WaitlistJoinSource = "form" | "share";
+
 /**
- * Add an email to the waitlist
+ * Add an email to the waitlist.
+ *
+ * Records `waitlist_joined` server-side so a join is counted even when the
+ * visitor blocks analytics. Pass the browser's PostHog `distinctId` to attach
+ * it to their visit (and its funnel); without one it's a personless event.
  */
-export async function joinWaitlist(
-  email: string,
-  referralSource?: string,
-): Promise<WaitlistResult> {
+export async function joinWaitlist({
+  email,
+  referralSource,
+  source,
+  distinctId,
+  sourcePath,
+}: {
+  email: string;
+  referralSource?: string;
+  source: WaitlistJoinSource;
+  distinctId?: string;
+  sourcePath?: string;
+}): Promise<WaitlistResult> {
   // Validate email format
   if (!isValidEmail(email)) {
     return { success: false, error: "Please enter a valid email address" };
@@ -153,6 +170,17 @@ export async function joinWaitlist(
       );
     }
   }
+
+  getPostHogClient()?.capture({
+    distinctId: distinctId ?? `waitlist_${entry.id}`,
+    event: "waitlist_joined",
+    properties: {
+      source,
+      source_path: sourcePath,
+      // No browser visit to attach to, so don't create a person for it
+      ...(distinctId ? {} : { $process_person_profile: false }),
+    },
+  });
 
   return { success: true, position: entry.position ?? 0 };
 }

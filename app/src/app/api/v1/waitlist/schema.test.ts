@@ -20,6 +20,28 @@ describe("waitlistSchema", () => {
     expect(waitlistSchema.safeParse({ email: null }).success).toBe(false);
   });
 
+  it("accepts the visitor's PostHog id and the page they joined from", () => {
+    expect(
+      waitlistSchema.safeParse({
+        email: "a@b.com",
+        distinctId: "0192-anon",
+        sourcePath: "/compare/mymind",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a sourcePath that isn't a path, or an empty distinctId", () => {
+    expect(
+      waitlistSchema.safeParse({
+        email: "a@b.com",
+        sourcePath: "https://evil.example",
+      }).success,
+    ).toBe(false);
+    expect(
+      waitlistSchema.safeParse({ email: "a@b.com", distinctId: "" }).success,
+    ).toBe(false);
+  });
+
   it("rejects a non-string referralSource", () => {
     expect(
       waitlistSchema.safeParse({ email: "a@b.com", referralSource: 5 }).success,

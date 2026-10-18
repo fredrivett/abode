@@ -181,10 +181,11 @@ export async function requestShareInvite({
   });
   if (alreadyWaiting) return { status: "waitlisted" };
 
-  const waitlist = await joinWaitlist(
-    normalizedEmail,
-    shareReferralSource(sharer.username),
-  );
+  const waitlist = await joinWaitlist({
+    email: normalizedEmail,
+    referralSource: shareReferralSource(sharer.username),
+    source: "share",
+  });
   if (!waitlist.success) {
     return { status: "invalid_email", error: waitlist.error };
   }
