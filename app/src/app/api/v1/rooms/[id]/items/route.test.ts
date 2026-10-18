@@ -11,12 +11,14 @@ vi.mock("@/lib/supabase/server", () => ({
   getUserWithMfa: mockGetUser,
 }));
 
-vi.mock("@/lib/db", () => ({
-  default: {
+vi.mock("@/lib/db", () => {
+  // Same fake client whichever connection the code asks for
+  const client = {
     room: { findUnique: mockFindRoom },
     roomItem: { findMany: mockFindItems },
-  },
-}));
+  };
+  return { default: client, systemDb: client };
+});
 
 // Serialization is covered by room-item-query's own tests; here we pin that
 // the route uses the shared select + serializer (so loaded-more items match

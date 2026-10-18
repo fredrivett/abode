@@ -5,7 +5,7 @@ import type { classifyUrlTask } from "@app/trigger/classify-url";
 import type { Prisma } from "@prisma/client";
 import { tasks } from "@trigger.dev/sdk";
 import { triggerRunsUrl } from "@/lib/admin/trigger-dashboard";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { itemRunTags } from "@/lib/items/run-tags";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -120,7 +120,7 @@ async function reprocessHealGroup(
   spec: IssueSpec,
   config: HealConfig,
 ): Promise<ReprocessResult> {
-  const items = await db.item.findMany({
+  const items = await systemDb.item.findMany({
     where: config.eligibility
       ? { AND: [spec.where, config.eligibility] }
       : spec.where,
@@ -194,7 +194,7 @@ export async function reprocessIssueGroup(
   const heal = HEAL_CONFIG[spec.repair];
   if (heal) return reprocessHealGroup(spec, heal);
 
-  const items = await db.item.findMany({
+  const items = await systemDb.item.findMany({
     where: { AND: [spec.where, REPROCESSABLE] },
     orderBy: { updatedAt: "desc" },
     take: REPROCESS_LIMIT,
@@ -216,7 +216,7 @@ export async function reprocessIssueGroup(
   const isError = spec.severity === "error";
 
   if (isError) {
-    await db.item.updateMany({
+    await systemDb.item.updateMany({
       where: { id: { in: targetIds } },
       data: {
         processingStatus: "processing",
@@ -282,7 +282,7 @@ export async function reprocessIssueGroup(
   // so they resurface in the card and stay retryable. (Completed items were
   // never flipped, so nothing to restore.)
   if (isError && failedIds.length > 0) {
-    await db.item.updateMany({
+    await systemDb.item.updateMany({
       where: { id: { in: failedIds } },
       // Stamp the reason so a failed enqueue reads as `enqueue_failed`, not a
       // bare "unknown" (mirrors createItemFromUrl and the retry route).

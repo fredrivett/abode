@@ -16,16 +16,18 @@ const mocks = vi.hoisted(() => ({
   getUserInviteEmail: vi.fn(() => ({ subject: "s", text: "t", html: "h" })),
 }));
 
-vi.mock("@/lib/db", () => ({
-  default: {
+vi.mock("@/lib/db", () => {
+  // Same fake client whichever connection the code asks for
+  const client = {
     item: {
       findUnique: mocks.itemFindUnique,
       findFirst: mocks.itemFindFirst,
     },
     user: { findUnique: mocks.userFindUnique },
     waitlistEntry: { findUnique: mocks.waitlistFindUnique },
-  },
-}));
+  };
+  return { default: client, systemDb: client };
+});
 vi.mock("@/lib/invites", () => ({
   createUserInvite: mocks.createUserInvite,
   getAvailableInvites: mocks.getAvailableInvites,

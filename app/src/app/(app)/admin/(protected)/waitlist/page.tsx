@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { WaitlistTable } from "../../_components/waitlist-table";
 
 const PAGE_SIZE = 20;
@@ -19,10 +19,10 @@ export default async function AdminWaitlistPage(props: {
   const page = Math.max(1, Number.parseInt(searchParams.page || "1", 10));
 
   // Get total count
-  const totalCount = await db.waitlistEntry.count();
+  const totalCount = await systemDb.waitlistEntry.count();
 
   // Get waitlist entries with their invite status
-  const entries = await db.waitlistEntry.findMany({
+  const entries = await systemDb.waitlistEntry.findMany({
     orderBy: { createdAt: "asc" },
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
@@ -70,12 +70,12 @@ export default async function AdminWaitlistPage(props: {
 
   // Get stats
   const [waitingCount, invitedCount, joinedCount] = await Promise.all([
-    db.waitlistEntry.count({
+    systemDb.waitlistEntry.count({
       where: {
         invites: { none: {} },
       },
     }),
-    db.waitlistEntry.count({
+    systemDb.waitlistEntry.count({
       where: {
         invites: {
           some: {
@@ -85,7 +85,7 @@ export default async function AdminWaitlistPage(props: {
         },
       },
     }),
-    db.waitlistEntry.count({
+    systemDb.waitlistEntry.count({
       where: {
         invites: {
           some: {

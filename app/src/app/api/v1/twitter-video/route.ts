@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { read as prisma } from "@/lib/db";
+import { systemRead } from "@/lib/db";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -251,7 +251,7 @@ export async function GET(request: NextRequest) {
   //    access-controlled to match canViewItem (owner, shared via link, or in a
   //    public room and not excluded). Anonymous callers only reach the shared /
   //    public-room grants.
-  const item = await prisma.item.findFirst({
+  const item = await systemRead.item.findFirst({
     where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
     select: { id: true, twitterDetails: { select: { media: true } } },
   });

@@ -10,7 +10,11 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
   getUserWithMfa: () => m.getUser(),
 }));
-vi.mock("@/lib/db", () => ({ default: { item: { findFirst: m.findFirst } } }));
+vi.mock("@/lib/db", () => {
+  // Same fake client whichever connection the code asks for
+  const client = { item: { findFirst: m.findFirst } };
+  return { default: client, systemDb: client };
+});
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: m.capture }));
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),

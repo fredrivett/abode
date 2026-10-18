@@ -23,7 +23,7 @@
  * importing the `server-only` `@/env.server`, which would break those imports.
  */
 
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 
@@ -256,7 +256,7 @@ export async function incrementDailyCount(
 ): Promise<number> {
   // Whole actions only, at least one — a weight is a count, never a discount
   const amount = Math.max(1, Math.ceil(weight));
-  const rows = await db.$queryRaw<{ count: number }[]>`
+  const rows = await systemDb.$queryRaw<{ count: number }[]>`
     INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
     VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, ${amount}, now())
     ON CONFLICT (user_id, day, bucket)
@@ -276,7 +276,7 @@ export async function getDailyCount(
   userId: string,
   bucket: UsageBucket,
 ): Promise<number> {
-  const rows = await db.$queryRaw<{ count: number }[]>`
+  const rows = await systemDb.$queryRaw<{ count: number }[]>`
     SELECT count FROM usage_daily
     WHERE user_id = ${userId}::uuid
       AND day = (now() AT TIME ZONE 'utc')::date
@@ -358,7 +358,7 @@ export async function reserveBackgroundSlot(
   if (!isUsageLimitsEnforced()) {
     // Shadow: count unconditionally (never blocks), still returning the day so a
     // rollback targets the right row.
-    const rows = await db.$queryRaw<{ day: string }[]>`
+    const rows = await systemDb.$queryRaw<{ day: string }[]>`
       INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
       VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
       ON CONFLICT (user_id, day, bucket)
@@ -368,7 +368,7 @@ export async function reserveBackgroundSlot(
     return { reserved: true, day: rows[0]?.day ?? null };
   }
   const backgroundLimit = backgroundLimitFor(bucket);
-  const rows = await db.$queryRaw<{ day: string }[]>`
+  const rows = await systemDb.$queryRaw<{ day: string }[]>`
     INSERT INTO usage_daily (user_id, day, bucket, count, updated_at)
     VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 1, now())
     ON CONFLICT (user_id, day, bucket)
@@ -394,7 +394,7 @@ export async function releaseBackgroundSlot(
   day: string,
 ): Promise<void> {
   try {
-    await db.$executeRaw`
+    await systemDb.$executeRaw`
       UPDATE usage_daily
       SET count = GREATEST(count - 1, 0), updated_at = now()
       WHERE user_id = ${userId}::uuid
@@ -684,7 +684,7 @@ export async function accrueUsageCost(
   if (!Number.isFinite(costUsd) || costUsd <= 0) return;
 
   try {
-    await db.$executeRaw`
+    await systemDb.$executeRaw`
       INSERT INTO usage_daily (user_id, day, bucket, count, cost_usd, updated_at)
       VALUES (${userId}::uuid, (now() AT TIME ZONE 'utc')::date, ${bucket}, 0, ${costUsd}::numeric, now())
       ON CONFLICT (user_id, day, bucket)
@@ -711,7 +711,7 @@ export type UserDailyBudget = {
 export async function assertUserDailyBudget(
   userId: string,
 ): Promise<UserDailyBudget> {
-  const rows = await db.$queryRaw<{ sum: string }[]>`
+  const rows = await systemDb.$queryRaw<{ sum: string }[]>`
     SELECT COALESCE(SUM(cost_usd), 0)::text AS sum
     FROM usage_daily
     WHERE user_id = ${userId}::uuid
@@ -744,7 +744,7 @@ export type UserMonthlyBudget = {
 export async function assertUserMonthlyBudget(
   userId: string,
 ): Promise<UserMonthlyBudget> {
-  const rows = await db.$queryRaw<{ sum: string }[]>`
+  const rows = await systemDb.$queryRaw<{ sum: string }[]>`
     SELECT COALESCE(SUM(cost_usd), 0)::text AS sum
     FROM usage_daily
     WHERE user_id = ${userId}::uuid
@@ -804,7 +804,7 @@ async function systemSpendTodayUsd(): Promise<number> {
     return systemSpendCache.spentUsd;
   }
 
-  const rows = await db.$queryRaw<{ sum: string }[]>`
+  const rows = await systemDb.$queryRaw<{ sum: string }[]>`
     SELECT COALESCE(SUM(cost_usd), 0)::text AS sum
     FROM usage_daily
     WHERE day = (now() AT TIME ZONE 'utc')::date

@@ -32,15 +32,17 @@ vi.mock("@/lib/admin/auth", () => ({
 
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
 
-vi.mock("@/lib/db", () => ({
-  default: {
+vi.mock("@/lib/db", () => {
+  // Same fake client whichever connection the code asks for
+  const client = {
     item: {
       findUnique: mockItemFindUnique,
       update: mockItemUpdate,
       updateMany: mockItemUpdateMany,
     },
-  },
-}));
+  };
+  return { default: client, systemDb: client };
+});
 
 vi.mock("@trigger.dev/sdk", () => ({
   tasks: { trigger: mockTrigger },

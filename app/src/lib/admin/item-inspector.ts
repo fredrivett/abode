@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import {
   findSimilarImages,
   SIMILAR_IMAGE_MIN_SIMILARITY_CENTERED,
@@ -17,7 +17,7 @@ import type { TwitterMedia } from "@/lib/types/item";
  * presence is read from `embeddingModel` (non-null ⟺ an embedding was stored).
  */
 export async function getItemInspection(id: string) {
-  return db.item.findUnique({
+  return systemDb.item.findUnique({
     where: { id },
     select: {
       id: true,
@@ -245,7 +245,7 @@ export async function getSimilarImagesForInspector({
   });
   if (matches.length === 0) return [];
 
-  const rows = await db.item.findMany({
+  const rows = await systemDb.item.findMany({
     where: { id: { in: matches.map((m) => m.id) }, userId },
     select: {
       id: true,

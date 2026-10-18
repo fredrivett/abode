@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import db, { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
@@ -29,7 +29,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     } = await getUserWithMfa(supabase);
     const viewerId = user?.id ?? null;
 
-    const room = await db.room.findUnique({
+    // Public rooms are listed to anyone, so this reads on the system connection
+    // and gates access itself (canViewRoom + viewableRoomItemsWhere)
+    const room = await systemDb.room.findUnique({
       where: { id },
       select: { id: true, userId: true, visibility: true },
     });
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     // Get room items with their associated items
-    const roomItems = await db.roomItem.findMany({
+    const roomItems = await systemDb.roomItem.findMany({
       where: viewableRoomItemsWhere({ roomId: room.id, isOwner }),
       take: limit + 1, // Get one extra to determine if there are more
       ...(cursor && {

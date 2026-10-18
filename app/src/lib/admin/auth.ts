@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { getAAL } from "@/lib/mfa";
 
 export type AdminAccessResult = {
@@ -30,7 +30,7 @@ export async function checkAdminAccess(
   }
 
   // Check if user is admin in database
-  const dbUser = await db.user.findUnique({
+  const dbUser = await systemDb.user.findUnique({
     where: { id: user.id },
     select: { isAdmin: true },
   });
@@ -71,7 +71,7 @@ export async function hasFullAdminAccess(
  * Use this for sending notifications to all admins.
  */
 export async function getAllAdminEmails(): Promise<string[]> {
-  const admins = await db.user.findMany({
+  const admins = await systemDb.user.findMany({
     where: { isAdmin: true },
     select: { email: true },
   });

@@ -1,5 +1,5 @@
 import type { Invite, InviteOrigin, User } from "@prisma/client";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { getAppBaseUrl } from "@/lib/url";
 import { normalizeEmail, validateEmail } from "./email-validation";
@@ -23,7 +23,7 @@ export {
  * Available = allocation - (accepted + active pending)
  */
 export async function getAvailableInvites(userId: string): Promise<number> {
-  const user = await db.user.findUnique({
+  const user = await systemDb.user.findUnique({
     where: { id: userId },
     select: { inviteAllocation: true },
   });
@@ -32,7 +32,7 @@ export async function getAvailableInvites(userId: string): Promise<number> {
 
   // Count invites that are "used" (accepted or still active/pending)
   // Note: joined_elsewhere doesn't count as "used" since user didn't join via this invite
-  const usedInvites = await db.invite.count({
+  const usedInvites = await systemDb.invite.count({
     where: {
       inviterId: userId,
       OR: [
@@ -93,7 +93,7 @@ export type CreateInviteResult =
 export async function validateInviteToken(
   token: string,
 ): Promise<InviteValidationResult> {
-  const invite = await db.invite.findUnique({
+  const invite = await systemDb.invite.findUnique({
     where: { token },
     include: {
       inviter: {
@@ -174,7 +174,7 @@ export async function createUserInvite(
   }
 
   // Use transaction to prevent race conditions
-  return db.$transaction(async (tx) => {
+  return systemDb.$transaction(async (tx) => {
     // Lock the inviter's row so concurrent invites (e.g. several readers of a
     // shared link at once) serialize on the allocation check below instead of
     // each seeing the same free slot
@@ -297,7 +297,7 @@ export async function acceptInvite(
 ): Promise<AcceptInviteResult> {
   log.info({ token: `${token.substring(0, 8)}...` }, "acceptInvite called");
 
-  const invite = await db.invite.findUnique({
+  const invite = await systemDb.invite.findUnique({
     where: { token },
   });
 
@@ -360,7 +360,7 @@ export async function acceptInvite(
   // retires the rest, and the loser then re-reads the now-consumed rows so its
   // claim matches 0. The pre-read above is only for precise error codes; this
   // guarded write is the source of truth for single-use.
-  const updatedInvite = await db.$transaction(async (tx) => {
+  const updatedInvite = await systemDb.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM invites WHERE email = ${normalizedEmail} FOR UPDATE`;
 
     const claim = await tx.invite.updateMany({
@@ -415,7 +415,7 @@ export async function acceptInvite(
  * Get user's sent invites with status
  */
 export async function getUserInvites(userId: string) {
-  const invites = await db.invite.findMany({
+  const invites = await systemDb.invite.findMany({
     where: { inviterId: userId },
     orderBy: { createdAt: "desc" },
   });
@@ -427,7 +427,7 @@ export async function getUserInvites(userId: string) {
 
   const users =
     acceptedUserIds.length > 0
-      ? await db.user.findMany({
+      ? await systemDb.user.findMany({
           where: { id: { in: acceptedUserIds } },
           select: {
             id: true,
@@ -498,7 +498,7 @@ export async function revokeInvite(
   userId: string,
 ): Promise<RevokeInviteResult> {
   // Find the invite and check ownership
-  const invite = await db.invite.findUnique({
+  const invite = await systemDb.invite.findUnique({
     where: { id: inviteId },
     select: {
       id: true,
@@ -534,7 +534,7 @@ export async function revokeInvite(
   }
 
   // Delete the invite
-  await db.invite.delete({
+  await systemDb.invite.delete({
     where: { id: inviteId },
   });
 
@@ -548,7 +548,7 @@ export async function createWaitlistInvite(
   waitlistEntryId: string,
 ): Promise<CreateInviteResult> {
   // Get the waitlist entry
-  const entry = await db.waitlistEntry.findUnique({
+  const entry = await systemDb.waitlistEntry.findUnique({
     where: { id: waitlistEntryId },
     include: {
       invites: {
@@ -589,7 +589,7 @@ export async function createWaitlistInvite(
   }
 
   // Check if email already has an account
-  const existingUser = await db.user.findUnique({
+  const existingUser = await systemDb.user.findUnique({
     where: { email: entry.email },
   });
 
@@ -602,7 +602,7 @@ export async function createWaitlistInvite(
   }
 
   // Create the invite
-  const invite = await db.invite.create({
+  const invite = await systemDb.invite.create({
     data: {
       email: entry.email,
       token: generateInviteToken(),

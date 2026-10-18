@@ -26,9 +26,11 @@ vi.mock("@/lib/supabase/server", () => ({
   getUserWithMfa: () => mockGetUser(),
 }));
 
-vi.mock("@/lib/db", () => ({
-  read: { item: { findFirst: mockItemFindFirst } },
-}));
+vi.mock("@/lib/db", () => {
+  // Same fake client whichever connection the code asks for
+  const client = { item: { findFirst: mockItemFindFirst } };
+  return { read: client, systemRead: client };
+});
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: mockCheckRateLimit,

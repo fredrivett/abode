@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
       : {};
 
     // Get total count
-    const totalCount = await db.user.count({ where });
+    const totalCount = await systemDb.user.count({ where });
 
     // Get users with aggregated counts
-    const users = await db.user.findMany({
+    const users = await systemDb.user.findMany({
       where,
       select: {
         id: true,

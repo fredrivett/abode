@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import type { DocumentPagesResponse } from "@/lib/documents/document-pages";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
@@ -26,7 +26,7 @@ export async function GET(
       data: { user },
     } = await getUserWithMfa(supabase);
 
-    const item = await db.item.findFirst({
+    const item = await systemDb.item.findFirst({
       where: { id, kind: "document", ...itemViewableWhere(user?.id ?? null) },
       select: {
         documentPages: {

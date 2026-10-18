@@ -3,7 +3,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { InvitesTable } from "../../_components/invites-table";
 
 const PAGE_SIZE = 20;
@@ -57,10 +57,10 @@ export default async function AdminInvitesPage(props: {
   }
 
   // Get total count
-  const totalCount = await db.invite.count({ where });
+  const totalCount = await systemDb.invite.count({ where });
 
   // Get invites with related data
-  const invites = await db.invite.findMany({
+  const invites = await systemDb.invite.findMany({
     where,
     select: {
       id: true,
@@ -142,22 +142,22 @@ export default async function AdminInvitesPage(props: {
     waitlistOriginCount,
     adminOriginCount,
   ] = await Promise.all([
-    db.invite.count({
+    systemDb.invite.count({
       where: { status: "pending", expiresAt: { gt: new Date() } },
     }),
-    db.invite.count({
+    systemDb.invite.count({
       where: { status: "accepted" },
     }),
-    db.invite.count({
+    systemDb.invite.count({
       where: { status: "pending", expiresAt: { lte: new Date() } },
     }),
-    db.invite.count({
+    systemDb.invite.count({
       where: { origin: "user" },
     }),
-    db.invite.count({
+    systemDb.invite.count({
       where: { origin: "waitlist" },
     }),
-    db.invite.count({
+    systemDb.invite.count({
       where: { origin: "admin" },
     }),
   ]);
