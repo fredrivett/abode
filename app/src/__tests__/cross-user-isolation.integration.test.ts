@@ -1136,7 +1136,13 @@ describe("cross-user isolation", () => {
     baseline = await snapshotVictim(ids);
   }
 
-  beforeAll(reseed);
+  beforeAll(async () => {
+    // Routes run as the restricted abode_app role for their viewer: the sweep
+    // checks the database-enforced path, not just the app-code filters
+    vi.stubEnv("RLS_ENFORCED", "true");
+    await reseed();
+  });
+  afterAll(() => vi.unstubAllEnvs());
 
   afterEach(() => {
     h.state.viewer = null;
@@ -1152,6 +1158,22 @@ describe("cross-user isolation", () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it("runs every route method in a viewer frame", async () => {
+    const { isViewerFramed } = await import("@/lib/http/with-viewer");
+    const unframed: string[] = [];
+    for (const route of listRoutes()) {
+      for (const [method, handler] of Object.entries(
+        await loadHandlers(route),
+      )) {
+        if (!isViewerFramed(handler)) unframed.push(`${route} ${method}`);
+      }
+    }
+    expect(
+      unframed,
+      "Wrap the export: export const GET = withViewer(handleGET)",
+    ).toEqual([]);
   });
 
   it("snapshots every model the victim could own", async () => {
@@ -1241,6 +1263,29 @@ describe("cross-user isolation", () => {
       JSON.parse(text);
     expect(payload.items).toHaveLength(1);
     expect(payload.room.itemCount).toBe(1);
+  });
+
+  // Owner flows must keep working under RLS: the restricted role refuses
+  // anything a policy or a missing systemDb doesn't allow, which surfaces as a
+  // 500 here. The victim runs every case against their own data (mutations are
+  // expected), and the data is reseeded after each.
+  describe("as the owner, with row level security on", () => {
+    for (const testCase of CASES) {
+      it(`${testCase.method} ${testCase.route}: ${testCase.name}`, async () => {
+        h.state.viewer = { id: ids.victim.userId, email: ids.victim.email };
+        h.state.errors = [];
+        try {
+          const { status, text } = await call(testCase, ids);
+          const crashed = status >= 500 && status !== 503;
+          expect(
+            crashed,
+            `response (${status}): ${text}\nerrors: ${h.state.errors.map(String).join("\n")}`,
+          ).toBe(false);
+        } finally {
+          await reseed();
+        }
+      });
+    }
   });
 
   describe("MCP tools, called by another user", () => {
