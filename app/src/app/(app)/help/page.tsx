@@ -39,6 +39,10 @@ export default function HelpPage() {
             searchable documents
           </li>
           <li>
+            <Link href="/help/privacy">Item privacy</Link> — Keep items out of
+            public rooms, or mark them sensitive
+          </li>
+          <li>
             <Link href="/help/highlights">Highlighting articles</Link> —
             Highlight the best parts of articles and share them
           </li>
