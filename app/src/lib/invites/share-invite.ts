@@ -127,9 +127,12 @@ function displayName(user: {
 export async function requestShareInvite({
   itemId,
   email,
+  distinctId,
 }: {
   itemId: string;
   email: string;
+  /** The reader's PostHog id, so a waitlist fallback joins their visit */
+  distinctId?: string;
 }): Promise<ShareInviteOutcome> {
   const item = await findPublicItem(itemId);
   if (!item) return { status: "unavailable" };
@@ -181,10 +184,12 @@ export async function requestShareInvite({
   });
   if (alreadyWaiting) return { status: "waitlisted" };
 
-  const waitlist = await joinWaitlist(
-    normalizedEmail,
-    shareReferralSource(sharer.username),
-  );
+  const waitlist = await joinWaitlist({
+    email: normalizedEmail,
+    referralSource: shareReferralSource(sharer.username),
+    source: "share",
+    distinctId,
+  });
   if (!waitlist.success) {
     return { status: "invalid_email", error: waitlist.error };
   }

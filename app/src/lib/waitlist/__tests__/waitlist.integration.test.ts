@@ -1,18 +1,28 @@
 /// <reference types="vitest/globals" />
 import { resetTestDatabase } from "@app/vitest.setup.db";
 
+const capture = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/posthog-server", () => ({
+  getPostHogClient: () => ({ captureImmediate: capture }),
+  captureServerException: vi.fn(),
+}));
+
 // Email mock is provided globally by vitest.setup.db.ts
 
 describe("Waitlist Integration", () => {
   beforeEach(async () => {
     await resetTestDatabase();
+    capture.mockReset();
   });
 
   describe("joinWaitlist", () => {
     it("adds valid email to waitlist with position", async () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      const result = await joinWaitlist("test@example.com");
+      const result = await joinWaitlist({
+        email: "test@example.com",
+        source: "form",
+      });
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -23,9 +33,18 @@ describe("Waitlist Integration", () => {
     it("assigns sequential positions", async () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      const result1 = await joinWaitlist("first@example.com");
-      const result2 = await joinWaitlist("second@example.com");
-      const result3 = await joinWaitlist("third@example.com");
+      const result1 = await joinWaitlist({
+        email: "first@example.com",
+        source: "form",
+      });
+      const result2 = await joinWaitlist({
+        email: "second@example.com",
+        source: "form",
+      });
+      const result3 = await joinWaitlist({
+        email: "third@example.com",
+        source: "form",
+      });
 
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);
@@ -41,7 +60,10 @@ describe("Waitlist Integration", () => {
     it("rejects invalid email format", async () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      const result = await joinWaitlist("not-an-email");
+      const result = await joinWaitlist({
+        email: "not-an-email",
+        source: "form",
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -52,7 +74,10 @@ describe("Waitlist Integration", () => {
     it("rejects disposable email domains", async () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      const result = await joinWaitlist("test@mailinator.com");
+      const result = await joinWaitlist({
+        email: "test@mailinator.com",
+        source: "form",
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -63,8 +88,11 @@ describe("Waitlist Integration", () => {
     it("rejects duplicate email", async () => {
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      await joinWaitlist("duplicate@example.com");
-      const result = await joinWaitlist("duplicate@example.com");
+      await joinWaitlist({ email: "duplicate@example.com", source: "form" });
+      const result = await joinWaitlist({
+        email: "duplicate@example.com",
+        source: "form",
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -83,7 +111,10 @@ describe("Waitlist Integration", () => {
         },
       });
 
-      const result = await joinWaitlist("existing@example.com");
+      const result = await joinWaitlist({
+        email: "existing@example.com",
+        source: "form",
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -105,7 +136,10 @@ describe("Waitlist Integration", () => {
         },
       });
 
-      const result = await joinWaitlist("invited@example.com");
+      const result = await joinWaitlist({
+        email: "invited@example.com",
+        source: "form",
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -117,7 +151,11 @@ describe("Waitlist Integration", () => {
       const { read } = await import("@/lib/db");
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      await joinWaitlist("referred@example.com", "twitter");
+      await joinWaitlist({
+        email: "referred@example.com",
+        referralSource: "twitter",
+        source: "form",
+      });
 
       const entry = await read.waitlistEntry.findUnique({
         where: { email: "referred@example.com" },
@@ -130,7 +168,7 @@ describe("Waitlist Integration", () => {
       const { read } = await import("@/lib/db");
       const { joinWaitlist } = await import("@/lib/waitlist");
 
-      await joinWaitlist("Test@EXAMPLE.com");
+      await joinWaitlist({ email: "Test@EXAMPLE.com", source: "form" });
 
       const entry = await read.waitlistEntry.findUnique({
         where: { email: "test@example.com" },
@@ -140,13 +178,82 @@ describe("Waitlist Integration", () => {
     });
   });
 
+  describe("waitlist_joined tracking", () => {
+    it("records the join against the visitor's PostHog id", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+
+      await joinWaitlist({
+        email: "tracked@example.com",
+        source: "form",
+        distinctId: "anon-visitor-1",
+        sourcePath: "/compare/mymind",
+      });
+
+      expect(capture).toHaveBeenCalledTimes(1);
+      expect(capture).toHaveBeenCalledWith({
+        distinctId: "anon-visitor-1",
+        event: "waitlist_joined",
+        properties: { source: "form", source_path: "/compare/mymind" },
+      });
+    });
+
+    it("still records a join without a visitor id, as a personless event", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+
+      await joinWaitlist({ email: "blocked@example.com", source: "share" });
+
+      expect(capture).toHaveBeenCalledTimes(1);
+      const [{ distinctId, event, properties }] = capture.mock.calls[0];
+      expect(event).toBe("waitlist_joined");
+      expect(distinctId).toMatch(/^waitlist_/);
+      expect(properties).toMatchObject({
+        source: "share",
+        $process_person_profile: false,
+      });
+    });
+
+    it("never sends the email address", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+
+      await joinWaitlist({ email: "private@example.com", source: "form" });
+
+      expect(JSON.stringify(capture.mock.calls)).not.toContain(
+        "private@example.com",
+      );
+    });
+
+    it("doesn't record a rejected join", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+
+      await joinWaitlist({ email: "not-an-email", source: "form" });
+      expect(capture).not.toHaveBeenCalled();
+
+      await joinWaitlist({ email: "dupe@example.com", source: "form" });
+      capture.mockReset();
+      await joinWaitlist({ email: "dupe@example.com", source: "form" });
+      expect(capture).not.toHaveBeenCalled();
+    });
+
+    it("still joins when recording the event fails", async () => {
+      const { joinWaitlist } = await import("@/lib/waitlist");
+      capture.mockRejectedValueOnce(new Error("PostHog down"));
+
+      const result = await joinWaitlist({
+        email: "resilient@example.com",
+        source: "form",
+      });
+
+      expect(result).toEqual({ success: true, position: 1 });
+    });
+  });
+
   describe("getWaitlistStats", () => {
     it("returns total count", async () => {
       const { joinWaitlist, getWaitlistStats } = await import("@/lib/waitlist");
 
-      await joinWaitlist("one@example.com");
-      await joinWaitlist("two@example.com");
-      await joinWaitlist("three@example.com");
+      await joinWaitlist({ email: "one@example.com", source: "form" });
+      await joinWaitlist({ email: "two@example.com", source: "form" });
+      await joinWaitlist({ email: "three@example.com", source: "form" });
 
       const stats = await getWaitlistStats();
 

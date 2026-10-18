@@ -179,9 +179,28 @@ describe("requestShareInvite", () => {
     });
 
     expect(await request()).toEqual({ status: "waitlisted" });
+    expect(mocks.joinWaitlist).toHaveBeenCalledWith({
+      email: "reader@example.com",
+      referralSource: "share:@fred",
+      source: "share",
+    });
+  });
+
+  it("passes the reader's PostHog id on to the waitlist join", async () => {
+    mocks.createUserInvite.mockResolvedValue({
+      success: false,
+      code: "NO_INVITES_REMAINING",
+      error: "No invites",
+    });
+
+    await requestShareInvite({
+      itemId: ITEM_ID,
+      email: "reader@example.com",
+      distinctId: "anon-reader-1",
+    });
+
     expect(mocks.joinWaitlist).toHaveBeenCalledWith(
-      "reader@example.com",
-      "share:@fred",
+      expect.objectContaining({ source: "share", distinctId: "anon-reader-1" }),
     );
   });
 
