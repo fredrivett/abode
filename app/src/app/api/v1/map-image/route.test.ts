@@ -212,10 +212,10 @@ describe("GET /api/v1/map-image", () => {
     });
   });
 
-  it("keeps the map out of the shared cache", async () => {
+  it("never lets a cache keep the map", async () => {
     const res = await GET(makeRequest({ itemId: ITEM_ID }));
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toMatch(/^private/);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("returns 503 when Mapbox is not configured", async () => {

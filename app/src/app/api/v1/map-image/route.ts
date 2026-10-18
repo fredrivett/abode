@@ -181,8 +181,9 @@ export async function GET(request: NextRequest) {
     // Only cache in production, not in development
     const cacheControl = isDevelopment
       ? "no-cache, no-store, must-revalidate"
-      : // Never the shared cache: the URL alone would serve an owner's map to anyone
-        "private, max-age=86400";
+      : // Not even the browser cache: the map pins an exact location, and a
+        // cached copy would outlive sign-out on a shared device
+        "no-store";
 
     return new NextResponse(imageBuffer, {
       status: 200,

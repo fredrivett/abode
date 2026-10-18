@@ -4,8 +4,9 @@ import { resetTestDatabase } from "@app/vitest.setup.db";
 
 vi.mock("@/lib/user", () => ({ getAuthenticatedUser: async () => null }));
 
-// Visitors get city-level locations only: exact coordinates, neighborhood and
-// the formatted street address never leave the server on public pages
+// On public pages visitors get city-level locations only: exact coordinates,
+// neighborhood and the formatted street address never reach them. The owner
+// viewing their own public item or room still sees everything.
 describe("public item locations", () => {
   let itemId: string;
 
@@ -53,6 +54,13 @@ describe("public item locations", () => {
     });
   });
 
+  const PRECISE = /51\.5007|-0\.1246|Westminster|Example Street/;
+  const precise = {
+    latitude: 51.5007,
+    longitude: -0.1246,
+    neighborhood: "Westminster",
+    formatted: "1 Example Street, London",
+  };
   const coarse = {
     latitude: null,
     longitude: null,
@@ -73,13 +81,13 @@ describe("public item locations", () => {
       id: itemId,
     });
     if (!loaded) throw new Error("shared item should load");
-    expect(toClientItem(loaded.item).locations).toEqual([
-      expect.objectContaining(coarse),
-    ]);
-    // Never even fetched
-    expect(JSON.stringify(loaded.item)).not.toMatch(
-      /51\.5007|Westminster|Example Street/,
-    );
+
+    const visitor = toClientItem(loaded.item, { isOwner: false });
+    expect(visitor.locations).toEqual([expect.objectContaining(coarse)]);
+    expect(JSON.stringify(visitor)).not.toMatch(PRECISE);
+
+    const owner = toClientItem(loaded.item, { isOwner: true });
+    expect(owner.locations).toEqual([expect.objectContaining(precise)]);
   });
 
   test("public room grids", async () => {
@@ -88,11 +96,18 @@ describe("public item locations", () => {
       "@/lib/rooms/room-item-query"
     );
     const rows = await read.roomItem.findMany({ select: roomItemSelect });
-    expect(rows.map(toClientRoomItem).map((item) => item.locations)).toEqual([
+
+    const visitor = rows.map((row) =>
+      toClientRoomItem(row, { isOwner: false }),
+    );
+    expect(visitor.map((item) => item.locations)).toEqual([
       [expect.objectContaining(coarse)],
     ]);
-    expect(JSON.stringify(rows)).not.toMatch(
-      /51\.5007|Westminster|Example Street/,
-    );
+    expect(JSON.stringify(visitor)).not.toMatch(PRECISE);
+
+    const owner = rows.map((row) => toClientRoomItem(row, { isOwner: true }));
+    expect(owner.map((item) => item.locations)).toEqual([
+      [expect.objectContaining(precise)],
+    ]);
   });
 });

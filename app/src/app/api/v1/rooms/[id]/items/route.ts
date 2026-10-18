@@ -67,7 +67,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const nextCursor = hasMore ? items[items.length - 1]?.id : null;
 
     return NextResponse.json({
-      items: items.map(toClientRoomItem),
+      items: items.map((row) => toClientRoomItem(row, { isOwner })),
       nextCursor,
       hasMore,
     });

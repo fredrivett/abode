@@ -102,7 +102,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Dominant-colour extraction, palette bar + colour search
 - pgvector text embeddings blended into search
 - Similar images (CLIP visual embeddings, mean-centered)
-- Location (auto + manual) + map thumbnails (Mapbox) — visitors to shared items and public rooms see only the city, never the exact spot
+- Location (auto + manual) + map thumbnails (Mapbox) — visitors to shared items and public rooms see only city, region and country, never the exact spot
 - Rooms (manual + smart collections)
 - Public rooms, profiles + room embedding
 - Article highlighting (with per-highlight notes) + shareable highlight links with quote cards

@@ -59,7 +59,7 @@ export default async function SharedHighlightPage({ params }: Props) {
 
   return (
     <ItemDetailView
-      item={toClientItem(item)}
+      item={toClientItem(item, { isOwner })}
       owner={{
         username: user.username,
         firstName: user.firstName,

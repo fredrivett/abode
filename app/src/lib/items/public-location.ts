@@ -1,31 +1,38 @@
 import type { Prisma } from "@prisma/client";
 import type { ItemLocation } from "@/lib/types/item";
 
-/**
- * The location fields a visitor may see: city, region and country. Exact
- * coordinates, neighborhood and the formatted street address stay with the
- * owner, so a shared photo doesn't reveal where someone lives.
- */
-export const publicLocationSelect = {
+export const itemLocationSelect = {
   id: true,
   source: true,
+  latitude: true,
+  longitude: true,
+  neighborhood: true,
   city: true,
   region: true,
   country: true,
   countryCode: true,
+  formatted: true,
 } satisfies Prisma.ItemLocationSelect;
 
-type PublicLocationRow = Prisma.ItemLocationGetPayload<{
-  select: typeof publicLocationSelect;
-}>;
-
-/** A public location in the shared client shape, with the precise fields empty */
-export function toPublicLocation(location: PublicLocationRow): ItemLocation {
-  return {
+/**
+ * What a viewer may see of an item's locations: everything for its owner, but
+ * only city, region and country for anyone else. Exact coordinates, the
+ * neighborhood and the formatted street address would let a shared photo
+ * reveal where someone lives.
+ */
+export function locationsForViewer({
+  locations,
+  isOwner,
+}: {
+  locations: ItemLocation[];
+  isOwner: boolean;
+}): ItemLocation[] {
+  if (isOwner) return locations;
+  return locations.map((location) => ({
     ...location,
     latitude: null,
     longitude: null,
     neighborhood: null,
     formatted: null,
-  };
+  }));
 }

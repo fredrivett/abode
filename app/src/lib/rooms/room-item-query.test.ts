@@ -40,11 +40,14 @@ function row(item: Partial<RoomItemRow["item"]>): RoomItemRow {
 
 describe("toClientRoomItem", () => {
   it("carries the card's hidden-cover setting", () => {
-    expect(toClientRoomItem(row({ coverHidden: true })).coverHidden).toBe(true);
+    expect(
+      toClientRoomItem(row({ coverHidden: true }), { isOwner: false })
+        .coverHidden,
+    ).toBe(true);
   });
 
   it("leaves absent details null", () => {
-    const item = toClientRoomItem(row({}));
+    const item = toClientRoomItem(row({}), { isOwner: false });
     expect(item).toMatchObject({
       articleDetails: null,
       twitterDetails: null,
@@ -57,7 +60,7 @@ describe("toClientRoomItem", () => {
   });
 
   it("flattens the row and serializes dates", () => {
-    const item = toClientRoomItem(row({}));
+    const item = toClientRoomItem(row({}), { isOwner: false });
     expect(item).toMatchObject({
       roomItemId: "room-item-1",
       id: "item-1",
@@ -93,6 +96,7 @@ describe("toClientRoomItem", () => {
           inReplyToText: null,
         },
       }),
+      { isOwner: false },
     );
     expect(tweet.twitterDetails).toMatchObject({
       text: "hello",
@@ -102,6 +106,7 @@ describe("toClientRoomItem", () => {
 
     const note = toClientRoomItem(
       row({ kind: "note", noteDetails: { content: "body" } }),
+      { isOwner: false },
     );
     expect(note.noteDetails).toEqual({ content: "body" });
   });
@@ -118,6 +123,7 @@ describe("toClientRoomItem", () => {
           content: null,
         },
       }),
+      { isOwner: false },
     );
     expect(article.articleDetails).toMatchObject({
       readAt: null,
@@ -143,6 +149,7 @@ describe("toClientRoomItem", () => {
           coverMediaIndex: 0,
         },
       }),
+      { isOwner: false },
     );
     expect(instagram.instagramDetails).toMatchObject({
       caption: "cap",
@@ -163,6 +170,7 @@ describe("toClientRoomItem", () => {
           thumbnailUrl: "t",
         },
       }),
+      { isOwner: false },
     );
     expect(video.videoDetails).toMatchObject({ videoId: "v", duration: 60 });
 
@@ -179,6 +187,7 @@ describe("toClientRoomItem", () => {
           coverImageIndex: 0,
         },
       }),
+      { isOwner: false },
     );
     expect(product.productDetails).toMatchObject({
       brand: "B",
@@ -204,6 +213,7 @@ describe("toClientRoomItem", () => {
           review: null,
         },
       }),
+      { isOwner: false },
     );
     expect(book.bookDetails).toMatchObject({
       authors: ["Author"],
