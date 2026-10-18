@@ -9,6 +9,7 @@ import { withViewer } from "@/lib/http/with-viewer";
 import { fetchLiteralBooks } from "@/lib/imports/literal/adapter";
 import { LiteralApiError } from "@/lib/imports/literal/client";
 import { serializeBook } from "@/lib/imports/payload";
+import { failUnstartedImport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
@@ -143,12 +144,9 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       // Enqueue failed — don't leave the row stuck `importing` (it would 409
       // every future attempt). Mark it failed so the user can retry.
-      await db.itemImport
-        .update({
-          where: { id: itemImport.id },
-          data: { status: "failed", error: "Couldn't start the import" },
-        })
-        .catch(() => {});
+      await failUnstartedImport(itemImport.id).catch((failError) =>
+        log.error({ error: failError }, "Couldn't fail an unstarted import"),
+      );
       throw error;
     }
 

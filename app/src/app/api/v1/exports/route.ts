@@ -10,6 +10,7 @@ import {
   toDataExportSnapshot,
 } from "@/lib/export/snapshot";
 import { withViewer } from "@/lib/http/with-viewer";
+import { failUnstartedExport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -96,12 +97,9 @@ async function handlePOST(): Promise<NextResponse> {
       });
     } catch (error) {
       // Never enqueued — fail it so it can't block the next request (409)
-      await db.dataExport
-        .update({
-          where: { id: created.id },
-          data: { status: "failed", error: "Couldn't start the export" },
-        })
-        .catch(() => {});
+      await failUnstartedExport(created.id).catch((failError) =>
+        log.error({ error: failError }, "Couldn't fail an unstarted export"),
+      );
       throw error;
     }
 

@@ -8,6 +8,7 @@ const isTriggerConfigured = vi.hoisted(() => vi.fn());
 const batchTrigger = vi.hoisted(() => vi.fn());
 const findFirst = vi.hoisted(() => vi.fn());
 const create = vi.hoisted(() => vi.fn());
+const failUnstartedImport = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/http/safe-fetch", () => ({ safeFetch: vi.fn() }));
 vi.mock("@/lib/auth/authenticate-request", () => ({ authenticateRequest }));
@@ -17,6 +18,7 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger } }));
 vi.mock("@/lib/db", () => ({
   default: { itemImport: { findFirst, create } },
 }));
+vi.mock("@/lib/jobs/start-failures", () => ({ failUnstartedImport }));
 vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => null,
   captureServerException: vi.fn(),
@@ -125,5 +127,17 @@ describe("POST /api/v1/imports/literal", () => {
     expect(runs).toHaveLength(1);
     expect(runs[0].payload).toMatchObject({ userId: "u1", importId: "imp1" });
     expect(runs[0].payload.books).toHaveLength(2);
+  });
+
+  it("fails the import if it can't be enqueued, so it won't block the next one", async () => {
+    fetchLiteralBooks.mockResolvedValue([book()]);
+    batchTrigger.mockRejectedValue(new Error("trigger down"));
+    failUnstartedImport.mockResolvedValue(undefined);
+
+    const res = await POST(req({ token: "t" }));
+
+    expect(res.status).toBe(500);
+    // On the system connection: under RLS the user can't update their import
+    expect(failUnstartedImport).toHaveBeenCalledWith("imp1");
   });
 });
