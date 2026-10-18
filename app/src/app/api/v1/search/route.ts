@@ -1115,7 +1115,14 @@ async function executeRankedSearch(
     resultItems.push(
       redactSensitiveItem({
         ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
-        match: { reasons },
+        // A sensitive item's OCR snippet is its content; only reasons echoing
+        // the query or filters come back for it
+        match: {
+          reasons:
+            item.privacy === "sensitive"
+              ? reasons.filter((reason) => reason.field !== "ocrText")
+              : reasons,
+        },
       }),
     );
   }

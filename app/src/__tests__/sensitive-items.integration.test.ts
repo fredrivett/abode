@@ -90,6 +90,9 @@ beforeAll(async () => {
       tags: [SECRET.toLowerCase()],
       privacy: "sensitive",
       meta: { width: 800, height: 1100, originalName: `${SECRET}.pdf` },
+      imageDetails: {
+        create: { ocrText: `Closing balance ${SECRET} account 0042` },
+      },
     },
   });
   const standard = await write.item.create({
@@ -183,6 +186,17 @@ describe("sensitive items", () => {
     expect(text).not.toContain(`${SECRET} statement`);
     expect(text).not.toContain(`${SECRET} notes`);
     expect(text).not.toContain(`${SECRET}-page`);
+  });
+
+  it("never echoes a sensitive item's OCR text in search match reasons", async () => {
+    const { status, text } = await getJson("v1/search", {
+      query: { q: "closing balance" },
+    });
+
+    expect(status).toBe(200);
+    expect(listed(text).map((i) => i.id)).toContain(ids.sensitive);
+    expect(text).not.toContain(SECRET);
+    expect(text).not.toContain("0042");
   });
 
   it("shows in the owner's room as a redacted placeholder", async () => {
