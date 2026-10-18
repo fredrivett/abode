@@ -42,6 +42,14 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
+
+const cookieJar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { value: cookieJar.get(name) } : undefined,
+  }),
+}));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/logger.server", () => ({
@@ -59,7 +67,10 @@ vi.mock("@/lib/milestones/conditions", () => ({
 vi.mock("@/lib/twitter/cover", () => ({ resolveTweetCoverFileKey: vi.fn() }));
 vi.mock("@/lib/items/delete-item", () => ({ deleteOwnedItem: vi.fn() }));
 
-import { SENSITIVE_UNLOCK_COOKIE } from "@/lib/items/sensitive-unlock";
+import {
+  createUnlockToken,
+  SENSITIVE_UNLOCK_COOKIE,
+} from "@/lib/items/sensitive-unlock";
 import { PATCH } from "./route";
 
 function patch(body: unknown) {
@@ -172,7 +183,11 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
       const res = await patch({ privacy });
 
       expect(res.status).toBe(200);
-      expect(mockItemUpdate.mock.calls[0][0].data).toEqual({ privacy });
+      // Mirrored into the superseded column until the follow-up drops it
+      expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
+        privacy,
+        excludeFromPublicRooms: true,
+      });
       expect(syncCalls()).toHaveLength(1);
     },
   );
@@ -185,6 +200,59 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
 
     expect(res.status).toBe(200);
     expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
+  });
+
+  it("redacts a locked owner's edit of a sensitive item", async () => {
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "image",
+      privacy: "sensitive",
+      userTags: [],
+    });
+    mockItemUpdate.mockResolvedValue({
+      id: "item-1",
+      privacy: "sensitive",
+      title: "Bank statement",
+    });
+
+    const res = await patch({ notes: "edited" });
+
+    expect(res.status).toBe(200);
+    // The edit applies; only the response is withheld
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({ notes: "edited" });
+    expect(await res.json()).toMatchObject({ redacted: true, title: null });
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)).toBeUndefined();
+  });
+
+  it("returns an unlocked owner's sensitive edit and restarts the window", async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    cookieJar.set(
+      SENSITIVE_UNLOCK_COOKIE,
+      createUnlockToken({
+        userId: "owner",
+        expiresAt: Date.now() + 60_000,
+        secret: "service-role",
+      }),
+    );
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "image",
+      privacy: "sensitive",
+      userTags: [],
+    });
+    mockItemUpdate.mockResolvedValue({
+      id: "item-1",
+      privacy: "sensitive",
+      title: "Bank statement",
+    });
+
+    const res = await patch({ notes: "edited" });
+
+    expect(await res.json()).toMatchObject({ title: "Bank statement" });
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
+    cookieJar.clear();
   });
 
   it("does not re-sync rooms when privacy is unchanged", async () => {

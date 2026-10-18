@@ -6,8 +6,9 @@ import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
-import { isSensitive } from "@/lib/items/privacy";
+import { allowsPublicRooms, isSensitive } from "@/lib/items/privacy";
 import { itemSelect, transformItem } from "@/lib/items/query";
+import { redactSensitiveItem } from "@/lib/items/redact-sensitive";
 import {
   isSensitiveUnlocked,
   sensitiveLockedResponse,
@@ -199,7 +200,12 @@ export async function PATCH(
     const updatedItem = await db.item.update({
       where: { id },
       data: {
-        ...(privacy !== undefined && { privacy }),
+        ...(privacy !== undefined && {
+          privacy,
+          // Mirrored into the superseded column until it's dropped, so the
+          // follow-up migration can tell an old build's write from ours
+          excludeFromPublicRooms: !allowsPublicRooms(privacy),
+        }),
         ...(userTags !== undefined && { userTags }),
         // Mark the title as user-owned so re-analysis won't overwrite it
         ...(title !== undefined && { title, titleEditedByUser: true }),
@@ -412,12 +418,19 @@ export async function PATCH(
       void markMilestoneComplete(user.id, "add_first_tag");
     }
 
-    const response = NextResponse.json(transformItem(updatedItem));
-    // Marking an item sensitive while viewing it counts as unlocking it, so the
-    // open dialog keeps loading its images
-    if (privacyChanged && isSensitive(updatedItem.privacy)) {
-      setSensitiveUnlockCookie({ response, userId: user.id });
-    }
+    const updated = transformItem(updatedItem);
+    if (!isSensitive(updatedItem.privacy)) return NextResponse.json(updated);
+
+    // A sensitive item's content only goes back to an unlocked owner — marking
+    // it sensitive while viewing it counts as unlocking it, so the open dialog
+    // keeps loading its images. A locked edit still applies; its response is
+    // the redacted placeholder.
+    const unlocked = privacyChanged || (await isSensitiveUnlocked(user.id));
+    const response = NextResponse.json(
+      unlocked ? updated : redactSensitiveItem(updated),
+      { headers: { "Cache-Control": "no-store" } },
+    );
+    if (unlocked) setSensitiveUnlockCookie({ response, userId: user.id });
     return response;
   } catch (error) {
     log.error({ error }, "Item update error");
