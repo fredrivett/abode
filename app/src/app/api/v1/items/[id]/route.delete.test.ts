@@ -7,6 +7,8 @@ const m = vi.hoisted(() => ({
   itemDelete: vi.fn(),
   userUpdate: vi.fn(),
   adjustCounters: vi.fn(),
+  // The transaction the route runs its writes in, to check counters join it
+  tx: {} as Record<string, unknown>,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -19,7 +21,12 @@ vi.mock("@/lib/db", () => ({
   default: {
     item: { findUnique: m.findUnique },
     $transaction: (fn: (tx: unknown) => unknown) =>
-      fn({ item: { delete: m.itemDelete }, user: { update: m.userUpdate } }),
+      fn(
+        Object.assign(m.tx, {
+          item: { delete: m.itemDelete },
+          user: { update: m.userUpdate },
+        }),
+      ),
   },
 }));
 vi.mock("@/lib/user-counters", () => ({
@@ -62,7 +69,8 @@ describe("DELETE /api/v1/items/[id]", () => {
       `${USER}/p1-c.jpg`,
     ]);
     expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "doc-1" } });
-    expect(m.adjustCounters).toHaveBeenCalledWith(expect.anything(), {
+    expect(m.adjustCounters.mock.calls[0][0]).toBe(m.tx);
+    expect(m.adjustCounters).toHaveBeenCalledWith(m.tx, {
       userId: USER,
       items: -1,
       bytes: -BigInt(500),

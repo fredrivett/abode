@@ -54,6 +54,33 @@ describe("adjustUserCounters", () => {
     });
   });
 
+  it("rolls the item write back when the counter adjustment fails", async () => {
+    const { systemDb } = await import("@/lib/db");
+    const { viewerTransaction } = await import("@/lib/db-viewer");
+    const { adjustUserCounters } = await import("@/lib/user-counters");
+    const before = await counters(alice);
+    const itemsBefore = await systemDb.item.count({ where: { userId: alice } });
+
+    await expect(
+      viewerTransaction({
+        base: systemDb,
+        viewerId: alice,
+        run: async (tx) => {
+          await tx.item.create({
+            data: { userId: alice, kind: "note", sourceType: "compose" },
+          });
+          // Refused (not alice's counters), after the item insert
+          await adjustUserCounters(tx, { userId: bob, items: 1, bytes: 1 });
+        },
+      }),
+    ).rejects.toThrow(/own viewer's counters/);
+
+    expect(await systemDb.item.count({ where: { userId: alice } })).toBe(
+      itemsBefore,
+    );
+    expect(await counters(alice)).toEqual(before);
+  });
+
   it("refuses a user's request adjusting someone else's counters", async () => {
     const { systemDb } = await import("@/lib/db");
     const { viewerTransaction } = await import("@/lib/db-viewer");
