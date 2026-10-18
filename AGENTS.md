@@ -322,7 +322,7 @@ bun run prisma:migrate --name your_migration_name
 - **Never run `prisma migrate reset`** — this destroys all data.
 - **Never run `prisma db push`** — this bypasses migration history and can cause drift.
 - **Never manually create migration folders/files** — `prisma:migrate` creates properly timestamped folders and SQL files.
-- **Every new table must enable RLS (default-deny)** — add `ALTER TABLE "<table>" ENABLE ROW LEVEL SECURITY;` in the same migration (Prisma can't express RLS in the schema, so use `prisma migrate dev --create-only` then add the SQL). Without it the table is reachable by the anon/authenticated Supabase roles. Enforced by the `rls-coverage` integration test.
+- **Every new table must enable RLS (default-deny)** — add `ALTER TABLE "<table>" ENABLE ROW LEVEL SECURITY;` in the same migration (Prisma can't express RLS in the schema, so use `prisma migrate dev --create-only` then add the SQL). Without it the table is reachable by the anon/authenticated Supabase roles. It also needs owner policies `TO abode_app` (the restricted role whose policies only match the viewer's own rows — copy the pattern in `20261018170000_abode_app_rls`), or an explicit system-only listing. Both enforced by the `rls-coverage` integration test; `rls-policies.integration.test.ts` checks the owner/other-user/anonymous behaviour.
 
 If a migration cannot be generated from schema changes (extremely rare), discuss with the team before manually writing SQL.
 
