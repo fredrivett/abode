@@ -14,6 +14,7 @@ const { capture, posthog } = vi.hoisted(() => {
       __loaded: false,
       capture,
       get_distinct_id: () => "anon-reader-1",
+      has_opted_out_capturing: () => false,
     },
   };
 });

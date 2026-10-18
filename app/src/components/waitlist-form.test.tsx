@@ -5,6 +5,7 @@ const posthog = vi.hoisted(() => ({
   __loaded: true,
   capture: vi.fn(),
   get_distinct_id: vi.fn(() => "anon-visitor-1"),
+  has_opted_out_capturing: vi.fn(() => false),
 }));
 vi.mock("posthog-js", () => ({ default: posthog }));
 
