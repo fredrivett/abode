@@ -20,6 +20,14 @@ vi.mock("@/lib/logger.server", () => ({
 
 vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://www.abode.fyi" }));
 
+const cookieJar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { value: cookieJar.get(name) } : undefined,
+  }),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
   // Route auth goes through getUserWithMfa; pass through to the mocked getUser
@@ -38,6 +46,10 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitHeaders: () => ({ "Retry-After": "60" }),
 }));
 
+import {
+  createUnlockToken,
+  SENSITIVE_UNLOCK_COOKIE,
+} from "@/lib/items/sensitive-unlock";
 import { GET } from "./route";
 
 const ITEM_ID = "item_1";
@@ -56,9 +68,12 @@ const itemWithVariant = (src: string = TWIMG_URL) => ({
 
 // Grants matching itemViewableWhere / canViewItem: shared via link, or in a
 // public room and not excluded from public rooms.
-const sharedGrant = { sharedAt: { not: null } };
+const sharedGrant = {
+  sharedAt: { not: null },
+  privacy: { not: "sensitive" },
+};
 const publicRoomGrant = {
-  excludeFromPublicRooms: false,
+  privacy: "standard",
   roomItems: { some: { room: { visibility: "public" } } },
 };
 
@@ -123,6 +138,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("GET /api/v1/twitter-video — same-origin gate", () => {
@@ -207,6 +226,44 @@ describe("GET /api/v1/twitter-video — same-origin gate", () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(403);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/twitter-video — sensitive items", () => {
+  const unlock = () =>
+    cookieJar.set(
+      SENSITIVE_UNLOCK_COOKIE,
+      createUnlockToken({
+        userId: "user-1",
+        expiresAt: Date.now() + 60_000,
+        secret: "service-role",
+      }),
+    );
+
+  beforeEach(() => {
+    cookieJar.clear();
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    mockItemFindFirst.mockResolvedValue({
+      ...itemWithVariant(),
+      privacy: "sensitive",
+    });
+  });
+
+  it("locks a sensitive item's video until the owner unlocks", async () => {
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("never lets any cache keep an unlocked sensitive video", async () => {
+    unlock();
+    const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
   });
 });
 

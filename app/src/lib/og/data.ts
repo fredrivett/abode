@@ -10,6 +10,7 @@
 import { cache } from "react";
 import db from "@/lib/db";
 import { canViewItem } from "@/lib/items/access";
+import { publicRoomEligibleWhere } from "@/lib/items/privacy";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { publicRoomItemsWhere } from "@/lib/rooms/room-access";
 
@@ -56,11 +57,11 @@ export const getOgProfile = cache(
         where: { userId: user.id, visibility: "public", slug: { not: null } },
       }),
       // Items visible on the public profile = items in the user's public rooms
-      // and not excluded from public rooms.
+      // whose privacy level allows public rooms.
       db.item.count({
         where: {
           userId: user.id,
-          excludeFromPublicRooms: false,
+          ...publicRoomEligibleWhere,
           roomItems: { some: { room: { visibility: "public" } } },
         },
       }),
@@ -148,7 +149,7 @@ export const getOgItem = cache(
         fileKey: true,
         userId: true,
         sharedAt: true,
-        excludeFromPublicRooms: true,
+        privacy: true,
         roomItems: { select: { room: { select: { visibility: true } } } },
       },
     });
@@ -206,7 +207,7 @@ export const getOgHighlight = cache(
             title: true,
             userId: true,
             sharedAt: true,
-            excludeFromPublicRooms: true,
+            privacy: true,
             roomItems: { select: { room: { select: { visibility: true } } } },
             articleDetails: { select: { domain: true } },
           },

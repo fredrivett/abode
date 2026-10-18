@@ -37,7 +37,7 @@ export async function getItemInspection(id: string) {
       userTags: true,
       notes: true,
       externalLinks: true,
-      excludeFromPublicRooms: true,
+      privacy: true,
       sharedAt: true,
       lastReassignedAt: true,
       createdAt: true,

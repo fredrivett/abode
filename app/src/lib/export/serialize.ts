@@ -10,7 +10,9 @@ import type {
 
 /** Identifies the archive format; bump `EXPORT_FORMAT_VERSION` on breaking changes */
 export const EXPORT_FORMAT = "abode-export";
-export const EXPORT_FORMAT_VERSION = 1;
+// 2: items carry `privacy` (standard | unlisted | sensitive) in place of
+// `excludeFromPublicRooms`
+export const EXPORT_FORMAT_VERSION = 2;
 
 // Item.meta keys worth keeping: what the file was, not how we render it
 const EXPORTED_META_KEYS = [

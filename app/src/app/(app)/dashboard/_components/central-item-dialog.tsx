@@ -1,13 +1,16 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { SensitiveUnlockDialog } from "@/components/items/sensitive-unlock-dialog";
+import { isSensitiveLockedError } from "@/lib/api-client";
 import { debugTrace } from "@/lib/debug/trace";
 import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { getProxyImageUrl } from "@/lib/image-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
-import { useItem } from "@/lib/items/use-item";
+import { itemQueryKey, useItem } from "@/lib/items/use-item";
 import type { Item } from "@/lib/types/item";
 import { formatBytes, getFileSizeFromMeta } from "@/lib/utils";
 import { ItemDetailBody, ItemDialogFrame } from "../item-card";
@@ -62,16 +65,31 @@ export function CentralItemDialog({
   // Resolve the open item: from the loaded list, the SSR deep-link item, or —
   // for an item outside all of those (a "similar images" click to a filtered-
   // out item) — a by-id fetch.
-  const inList = openItemId
+  // A sensitive item's list / deep-link copy is a redacted placeholder, so it
+  // never resolves the dialog — its content only comes from the by-id fetch,
+  // which stays locked until the owner enters their password.
+  const listCopy = openItemId
     ? (items.find((item) => item.id === openItemId) ?? null)
     : null;
+  const inList = listCopy && !listCopy.redacted ? listCopy : null;
   const fromInitial =
-    initialItem && initialItem.id === openItemId ? initialItem : null;
+    initialItem && initialItem.id === openItemId && !initialItem.redacted
+      ? initialItem
+      : null;
   // The by-id endpoint is owner-scoped, so only the owner can resolve an item
   // that isn't already in the list; a non-owner's off-grid open (e.g. a
   // deep-linked room item beyond page one) can't be fetched, so don't try.
   const needsFetch = openItemId !== null && !inList && !fromInitial && canEdit;
-  const { data: fetched, isError } = useItem(openItemId, needsFetch);
+  const {
+    data: fetched,
+    isError,
+    error: fetchError,
+    refetch,
+  } = useItem(openItemId, needsFetch);
+  // React Query keeps a query's last data when a refetch fails, so a cached
+  // sensitive copy must never resolve once the server says it's locked
+  const fetchLocked = isSensitiveLockedError(fetchError);
+  const hasFetched = !!fetched && fetched.id === openItemId && !fetchLocked;
   // An edit can drop the open item out of the list mid-dialog (marking a book
   // read under a `@status:reading` search). Keep showing the last copy while
   // the by-id fetch catches up, rather than unmounting the dialog under the user.
@@ -81,19 +99,46 @@ export function CentralItemDialog({
   const resolved =
     inList ??
     fromInitial ??
-    (fetched && fetched.id === openItemId ? fetched : null) ??
-    lastResolved;
+    (hasFetched ? fetched : null) ??
+    // Once the server says it's locked, the prompt replaces the last copy too
+    (fetchLocked ? null : lastResolved);
   lastResolvedRef.current = resolved;
+
+  // A sensitive item asks for the password before it opens
+  const isLocked = needsFetch && !resolved && fetchLocked;
 
   // The by-id fetch failed (deleted item, network, or not the viewer's to see)
   // — close rather than sit on the loading skeleton forever.
   const closeItem = itemDialog?.closeItem;
   useEffect(() => {
-    if (needsFetch && isError) {
+    if (needsFetch && isError && !isLocked && !hasFetched) {
       toast.error("Couldn't open that item");
       closeItem?.();
     }
-  }, [needsFetch, isError, closeItem]);
+  }, [needsFetch, isError, isLocked, hasFetched, closeItem]);
+
+  // Once a sensitive item closes — or the dialog unmounts with it open (e.g.
+  // navigating away) — drop its content from the query cache so reopening it
+  // asks for the password again rather than showing a cached copy
+  const queryClient = useQueryClient();
+  const openSensitiveIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = openSensitiveIdRef.current;
+    if (previous && previous !== openItemId) {
+      queryClient.removeQueries({ queryKey: itemQueryKey(previous) });
+    }
+    openSensitiveIdRef.current =
+      resolved && resolved.privacy === "sensitive" ? resolved.id : null;
+  }, [openItemId, resolved, queryClient]);
+  useEffect(
+    () => () => {
+      const openSensitiveId = openSensitiveIdRef.current;
+      if (openSensitiveId) {
+        queryClient.removeQueries({ queryKey: itemQueryKey(openSensitiveId) });
+      }
+    },
+    [queryClient],
+  );
 
   const open = openItemId !== null;
 
@@ -141,6 +186,18 @@ export function CentralItemDialog({
       fetchError: isError,
     },
   });
+
+  if (open && isLocked) {
+    return (
+      <SensitiveUnlockDialog
+        // Remount per item so a check still in flight for one can't open another
+        key={openItemId}
+        open
+        onUnlocked={() => void refetch()}
+        onCancel={() => closeItem?.()}
+      />
+    );
+  }
 
   return (
     <AnimatePresence>

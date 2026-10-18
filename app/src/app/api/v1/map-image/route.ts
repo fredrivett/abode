@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
 import { read as prisma } from "@/lib/db";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  markSensitiveResponse,
+  sensitiveGate,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -108,6 +113,7 @@ export async function GET(request: NextRequest) {
       where: { id: itemId, userId: user.id },
       select: {
         id: true,
+        privacy: true,
         locations: {
           where: { latitude: { not: null }, longitude: { not: null } },
           select: { source: true, latitude: true, longitude: true },
@@ -118,6 +124,12 @@ export async function GET(request: NextRequest) {
     if (!item) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    const locked = await sensitiveGate({
+      privacy: item.privacy,
+      userId: user.id,
+    });
+    if (locked) return locked;
 
     const coordinates = pickCanonicalLocation(item.locations);
     if (!coordinates) {
@@ -185,13 +197,16 @@ export async function GET(request: NextRequest) {
         // cached copy would outlive sign-out on a shared device
         "no-store";
 
-    return new NextResponse(imageBuffer, {
+    const mapResponse = new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
         "Cache-Control": cacheControl,
       },
     });
+    return isSensitive(item.privacy)
+      ? markSensitiveResponse({ response: mapResponse, userId: user.id })
+      : mapResponse;
   } catch (error) {
     log.error({ error }, "Map image fetch error");
     captureServerException(error, undefined, {

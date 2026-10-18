@@ -551,9 +551,7 @@ export default async function AdminItemInspectorPage({
                 {fmt(item.lastReassignedAt) ?? <Empty />}
               </Row>
               <Row label="sharedAt">{fmt(item.sharedAt) ?? <Empty />}</Row>
-              <Row label="excludeFromPublicRooms">
-                <Bool value={item.excludeFromPublicRooms} />
-              </Row>
+              <Row label="privacy">{item.privacy}</Row>
               <Row label="rooms">
                 {item.roomItems.length === 0 ? (
                   <Empty />

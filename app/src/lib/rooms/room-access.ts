@@ -1,4 +1,5 @@
 import type { Prisma, RoomVisibility } from "@prisma/client";
+import { publicRoomEligibleWhere } from "@/lib/items/privacy";
 
 /**
  * Whether `viewerId` (null for a signed-out visitor) may view a room: its
@@ -15,18 +16,18 @@ export function canViewRoom({
 }
 
 /**
- * Room items anyone but the owner may see — items opted out of public rooms
- * never appear. Use it for public counts too, or a count reveals that hidden
- * items exist.
+ * Room items anyone but the owner may see — items whose privacy level keeps
+ * them out of public rooms never appear. Use it for public counts too, or a
+ * count reveals that hidden items exist.
  */
 export const publicRoomItemsWhere = {
-  item: { excludeFromPublicRooms: false },
+  item: publicRoomEligibleWhere,
 } satisfies Prisma.RoomItemWhereInput;
 
 /**
  * Which of a room's items a viewer sees. Non-owners only get items that are
- * publicly viewable in it: one opted out of public rooms
- * (`excludeFromPublicRooms`) isn't viewable per `canViewItem`, so it must not
+ * publicly viewable in it: one whose privacy level keeps it out of public
+ * rooms isn't viewable per `canViewItem`, so it must not
  * appear — otherwise its now-public reading data leaks. Shared by the room
  * page and its Load more API so pagination can't widen what a page shows.
  */

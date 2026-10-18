@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { articleReadingSchema } from "@/lib/items/article-reading-status";
 import { bookReadingSchema } from "@/lib/items/book-reading-status";
+import { ITEM_PRIVACY_LEVELS } from "@/lib/items/privacy";
 import {
   MAX_USER_TAG_LENGTH,
   MAX_USER_TAGS,
@@ -16,7 +17,7 @@ export const MAX_ITEM_TITLE_LENGTH = 1000;
 // accepting it would let a caller point their item at another user's files.
 export const itemPatchSchema = z.object({
   title: z.string().trim().min(1).max(MAX_ITEM_TITLE_LENGTH).optional(),
-  excludeFromPublicRooms: z.boolean().optional(),
+  privacy: z.enum(ITEM_PRIVACY_LEVELS).optional(),
   notes: z.string().nullable().optional(),
   shared: z.boolean().optional(),
   sharedHighlights: z.boolean().optional(),

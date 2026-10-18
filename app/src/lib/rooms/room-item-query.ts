@@ -8,6 +8,7 @@ import {
   mapPublicBookDetails,
   publicBookDetailsSelect,
 } from "@/lib/items/query";
+import { redactSensitiveItem } from "@/lib/items/redact-sensitive";
 import {
   mapTwitterDetails,
   twitterDetailsSelect,
@@ -51,6 +52,8 @@ export const roomItemSelect = {
       userTags: true,
       // Presentation: a cover hidden on the grid card stays hidden in rooms
       coverHidden: true,
+      // Only the owner sees sensitive items here, as a redacted blurred tile
+      privacy: true,
       locations: { select: itemLocationSelect },
       imageDetails: {
         select: {
@@ -126,7 +129,7 @@ export function toClientRoomItem(
   roomItem: RoomItemRow,
   { isOwner }: { isOwner: boolean },
 ): RoomItem {
-  return {
+  return redactSensitiveItem({
     roomItemId: roomItem.id,
     addedAt: roomItem.addedAt.toISOString(),
     id: roomItem.item.id,
@@ -145,6 +148,7 @@ export function toClientRoomItem(
     tags: roomItem.item.tags,
     userTags: roomItem.item.userTags,
     coverHidden: roomItem.item.coverHidden,
+    privacy: roomItem.item.privacy,
     notes: null, // Notes are private, not exposed on public room pages
     objects: roomItem.item.imageDetails?.objects ?? [],
     colors: (roomItem.item.imageDetails?.colors as ImageColor[]) ?? [],
@@ -214,5 +218,5 @@ export function toClientRoomItem(
     noteDetails: roomItem.item.noteDetails
       ? ({ content: roomItem.item.noteDetails.content } satisfies NoteDetails)
       : null,
-  };
+  });
 }

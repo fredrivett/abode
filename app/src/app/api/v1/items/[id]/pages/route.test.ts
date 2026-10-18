@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -32,11 +32,22 @@ vi.mock("@/lib/db", () => {
   return { default: via("db"), systemDb: via("systemDb") };
 });
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: m.capture }));
+const cookieJar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { value: cookieJar.get(name) } : undefined,
+  }),
+}));
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
 }));
 
 import { itemViewableWhere } from "@/lib/items/access";
+import {
+  createUnlockToken,
+  SENSITIVE_UNLOCK_COOKIE,
+} from "@/lib/items/sensitive-unlock";
 import { GET } from "./route";
 
 const call = (id: string) =>
@@ -52,7 +63,12 @@ const pages = [
 beforeEach(() => {
   vi.clearAllMocks();
   connections.length = 0;
+  cookieJar.clear();
   m.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("GET /api/v1/items/[id]/pages", () => {
@@ -63,13 +79,17 @@ describe("GET /api/v1/items/[id]/pages", () => {
   });
 
   it("returns the document's pages in order", async () => {
-    m.findFirst.mockResolvedValue({ documentPages: pages });
+    m.findFirst.mockResolvedValue({
+      privacy: "standard",
+      documentPages: pages,
+    });
     const res = await call("doc-1");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ pages });
     expect(m.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         select: {
+          privacy: true,
           documentPages: expect.objectContaining({
             orderBy: { position: "asc" },
           }),
@@ -97,6 +117,39 @@ describe("GET /api/v1/items/[id]/pages", () => {
       kind: "document",
       ...itemViewableWhere(null),
     });
+  });
+
+  it("locks a sensitive document's pages until the owner unlocks", async () => {
+    m.findFirst.mockResolvedValue({
+      privacy: "sensitive",
+      documentPages: pages,
+    });
+    const res = await call("doc-1");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "sensitive_locked" });
+  });
+
+  it("serves an unlocked owner's sensitive pages uncached, restarting the window", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
+    cookieJar.set(
+      SENSITIVE_UNLOCK_COOKIE,
+      createUnlockToken({
+        userId: "user-1",
+        expiresAt: Date.now() + 60_000,
+        secret: "service-role",
+      }),
+    );
+    m.findFirst.mockResolvedValue({
+      privacy: "sensitive",
+      documentPages: pages,
+    });
+
+    const res = await call("doc-1");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ pages });
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
   });
 
   it("is a 404 for a missing, private or non-document item", async () => {

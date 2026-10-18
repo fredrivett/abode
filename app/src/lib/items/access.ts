@@ -2,7 +2,13 @@
  * Access control for viewing items outside of an explicit room context.
  */
 
-import type { Prisma, RoomVisibility } from "@prisma/client";
+import type { ItemPrivacy, Prisma, RoomVisibility } from "@prisma/client";
+import {
+  allowsPublicRooms,
+  allowsShareLink,
+  publicRoomEligibleWhere,
+  shareLinkEligibleWhere,
+} from "./privacy";
 
 /**
  * Prisma select fragment with the minimal fields needed to decide item
@@ -11,7 +17,7 @@ import type { Prisma, RoomVisibility } from "@prisma/client";
 export const itemAccessSelect = {
   userId: true,
   sharedAt: true,
-  excludeFromPublicRooms: true,
+  privacy: true,
   roomItems: {
     select: {
       room: {
@@ -27,7 +33,7 @@ export const itemAccessSelect = {
 export type ItemAccessInput = {
   userId: string;
   sharedAt: Date | null;
-  excludeFromPublicRooms: boolean;
+  privacy: ItemPrivacy;
   roomItems: { room: { visibility: RoomVisibility } }[];
 };
 
@@ -36,8 +42,10 @@ export type ItemAccessInput = {
  *
  * Three independent grants:
  * 1. The owner can always view it.
- * 2. It has been directly shared via link (`sharedAt` is set).
- * 3. It lives in at least one public room and isn't excluded from public rooms.
+ * 2. It has been directly shared via link (`sharedAt` is set) and isn't
+ *    sensitive — a sensitive item's link is paused, not cleared.
+ * 3. It lives in at least one public room and its privacy level allows public
+ *    rooms (`standard`).
  */
 export function canViewItem(
   item: ItemAccessInput,
@@ -50,8 +58,8 @@ export function canViewItem(
 
   return (
     isOwner ||
-    item.sharedAt !== null ||
-    (inPublicRoom && !item.excludeFromPublicRooms)
+    (item.sharedAt !== null && allowsShareLink(item.privacy)) ||
+    (inPublicRoom && allowsPublicRooms(item.privacy))
   );
 }
 
@@ -66,9 +74,12 @@ export function canViewItem(
 export function itemViewableWhere(
   viewerId: string | null,
 ): Prisma.ItemWhereInput {
-  const sharedGrant: Prisma.ItemWhereInput = { sharedAt: { not: null } };
+  const sharedGrant: Prisma.ItemWhereInput = {
+    sharedAt: { not: null },
+    ...shareLinkEligibleWhere,
+  };
   const publicRoomGrant: Prisma.ItemWhereInput = {
-    excludeFromPublicRooms: false,
+    ...publicRoomEligibleWhere,
     roomItems: { some: { room: { visibility: "public" } } },
   };
 

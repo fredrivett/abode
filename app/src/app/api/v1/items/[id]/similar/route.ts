@@ -1,6 +1,11 @@
 import type { ItemKind } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  markSensitiveResponse,
+  sensitiveGate,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
@@ -62,12 +67,18 @@ export async function GET(
     // Confirm the source item exists and belongs to the caller before searching.
     const source = await db.item.findUnique({
       where: { id, userId: user.id },
-      select: { id: true },
+      select: { id: true, privacy: true },
     });
 
     if (!source) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
+
+    const locked = await sensitiveGate({
+      privacy: source.privacy,
+      userId: user.id,
+    });
+    if (locked) return locked;
 
     const matches = await findSimilarImages({ itemId: id, userId: user.id });
 
@@ -75,7 +86,13 @@ export async function GET(
     // similarity ordering (findMany doesn't guarantee order). The thumbnail and
     // its LQIP follow the cover — see resolveSimilarImageCover.
     const rows = await db.item.findMany({
-      where: { id: { in: matches.map((m) => m.id) }, userId: user.id },
+      // Sensitive matches are left out: a strip of thumbnails can't be blurred
+      // one by one, and its titles would leak them
+      where: {
+        id: { in: matches.map((m) => m.id) },
+        userId: user.id,
+        privacy: { not: "sensitive" },
+      },
       select: {
         id: true,
         fileKey: true,
@@ -117,9 +134,13 @@ export async function GET(
       properties: { itemId: id, count: items.length },
     });
 
-    return NextResponse.json({ items } satisfies SimilarImagesResponse, {
-      headers: getRateLimitHeaders(rateLimit, "similarImages"),
-    });
+    const response = NextResponse.json(
+      { items } satisfies SimilarImagesResponse,
+      { headers: getRateLimitHeaders(rateLimit, "similarImages") },
+    );
+    return isSensitive(source.privacy)
+      ? markSensitiveResponse({ response, userId: user.id })
+      : response;
   } catch (error) {
     log.error({ error }, "Similar images lookup failed");
     captureServerException(error, undefined, {

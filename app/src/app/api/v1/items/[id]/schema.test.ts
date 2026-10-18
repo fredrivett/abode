@@ -46,17 +46,18 @@ describe("itemPatchSchema", () => {
     });
   });
 
-  describe("excludeFromPublicRooms", () => {
-    it("accepts booleans and rejects anything else", () => {
-      expect(
-        itemPatchSchema.safeParse({ excludeFromPublicRooms: true }).success,
-      ).toBe(true);
-      expect(
-        itemPatchSchema.safeParse({ excludeFromPublicRooms: "yes" }).success,
-      ).toBe(false);
-      expect(
-        itemPatchSchema.safeParse({ excludeFromPublicRooms: null }).success,
-      ).toBe(false);
+  describe("privacy", () => {
+    it.each(["standard", "unlisted", "sensitive"])("accepts %s", (privacy) => {
+      expect(itemPatchSchema.safeParse({ privacy }).success).toBe(true);
+    });
+
+    it.each(["private", true, null])("rejects %s", (privacy) => {
+      expect(itemPatchSchema.safeParse({ privacy }).success).toBe(false);
+    });
+
+    it("strips the superseded excludeFromPublicRooms field", () => {
+      const parsed = itemPatchSchema.parse({ excludeFromPublicRooms: true });
+      expect(parsed).not.toHaveProperty("excludeFromPublicRooms");
     });
   });
 

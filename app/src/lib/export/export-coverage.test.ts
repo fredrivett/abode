@@ -57,6 +57,7 @@ const EXCLUDED_FIELDS: Record<string, string> = {
   "Item.processingStatus": "capture pipeline state",
   "Item.processingStartedAt": "capture pipeline state",
   "Item.processingError": "capture pipeline state",
+  "Item.excludeFromPublicRooms": "superseded by privacy; dropped after rollout",
   "Item.captureLevel": "capture pipeline state",
   "Item.lastReassignedAt": "rate-limit bookkeeping",
   "Item.personalAccessTokenId":

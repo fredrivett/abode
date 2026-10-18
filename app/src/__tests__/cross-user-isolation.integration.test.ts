@@ -112,6 +112,12 @@ const h = vi.hoisted(() => {
   const adminClient = () => ({
     storage,
     auth: {
+      // The sensitive-unlock password check: every guess is wrong
+      signInWithPassword: async () => ({
+        data: { session: null, user: null },
+        error: { status: 400, message: "Invalid login credentials" },
+      }),
+      signOut: async () => ({ error: null }),
       admin: {
         getUserById: async () => ({ data: { user: null }, error: null }),
         deleteUser: async () => ({ data: null, error: null }),
@@ -621,6 +627,12 @@ const CASES: Case[] = [
     query: () => ({ q: CANARY }),
   },
   {
+    route: "v1/sensitive-unlock",
+    method: "POST",
+    name: "guess a password to unlock sensitive items",
+    body: () => ({ password: "guess" }),
+  },
+  {
     route: "v1/share-invites",
     method: "POST",
     name: "request a share invite for the victim's private item",
@@ -866,7 +878,7 @@ async function seed() {
       sourceType: "upload",
       fileKey: excludedFileKey,
       title: `${CANARY}-excluded-title`,
-      excludeFromPublicRooms: true,
+      privacy: "unlisted",
     },
   });
 

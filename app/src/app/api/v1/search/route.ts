@@ -1,12 +1,14 @@
 import type {
   CaptureSource,
   ItemKind,
+  ItemPrivacy,
   Prisma,
   ProcessingStatus,
   SourceType,
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { redactSensitiveItem } from "@/lib/items/redact-sensitive";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -81,6 +83,7 @@ type RawItemRow = {
   source_type: string | null;
   source_url: string | null;
   capture_source: string | null;
+  privacy: string;
   title: string | null;
   description: string | null;
   tags: string[];
@@ -200,6 +203,7 @@ function transformRawItemToItem(
     sourceType: row.source_type as SourceType | null,
     sourceUrl: row.source_url,
     captureSource: row.capture_source as CaptureSource | null,
+    privacy: row.privacy as ItemPrivacy,
     title: row.title,
     description: row.description,
     tags: row.tags || [],
@@ -635,6 +639,7 @@ async function executeFiltersOnlySearch(
       items.source_type,
       items.source_url,
       items.capture_source,
+      items.privacy,
       items.title,
       items.description,
       items.tags,
@@ -820,10 +825,13 @@ async function executeFiltersOnlySearch(
   };
 
   // Transform raw items to SearchItem format
-  const resultItems: SearchItem[] = pageItems.map((item) => ({
-    ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
-    match: { reasons: buildMatchReasons(item.id) },
-  }));
+  // Sensitive items still match, but come back as blurred-tile placeholders
+  const resultItems: SearchItem[] = pageItems.map((item) =>
+    redactSensitiveItem({
+      ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
+      match: { reasons: buildMatchReasons(item.id) },
+    }),
+  );
 
   // Generate cursor for next page
   let nextCursor: string | undefined;
@@ -903,6 +911,7 @@ async function executeRankedSearch(
       i.source_type,
       i.source_url,
       i.capture_source,
+      i.privacy,
       i.title,
       i.description,
       i.tags,
@@ -1103,10 +1112,19 @@ async function executeRankedSearch(
       }
     }
 
-    resultItems.push({
-      ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
-      match: { reasons },
-    });
+    resultItems.push(
+      redactSensitiveItem({
+        ...transformRawItemToItem(item, locationsByItemId.get(item.id) || []),
+        // A sensitive item's OCR snippet is its content; only reasons echoing
+        // the query or filters come back for it
+        match: {
+          reasons:
+            item.privacy === "sensitive"
+              ? reasons.filter((reason) => reason.field !== "ocrText")
+              : reasons,
+        },
+      }),
+    );
   }
 
   return {

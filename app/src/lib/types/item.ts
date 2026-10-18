@@ -10,6 +10,7 @@ import type {
   BookReadingStatus,
   CaptureSource,
   ItemKind,
+  ItemPrivacy,
   ItemLocation as PrismaItemLocation,
   ProcessingErrorReason,
   ProcessingStatus,
@@ -241,7 +242,11 @@ export type Item = {
   bookDetails: BookDetails | null;
   noteDetails: NoteDetails | null;
   // Optional fields (not always present)
-  excludeFromPublicRooms?: boolean;
+  // Privacy ladder level (see @/lib/items/privacy); absent = standard
+  privacy?: ItemPrivacy;
+  // Set on a sensitive item's list-view placeholder: content stripped until
+  // the owner unlocks it (see @/lib/items/redact-sensitive)
+  redacted?: boolean;
   // Presentation: when true, the grid card hides the cover and renders as text
   coverHidden?: boolean;
   // Direct sharing: non-null sharedAt ⟺ viewable via direct link.

@@ -25,7 +25,13 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/user", () => ({ getAuthenticatedUser: getUser }));
 vi.mock("@/lib/invites/share-invite", () => ({ shareInvitesOpen }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+}));
 
+import { redirect } from "next/navigation";
 import {
   getSaveCtaState,
   getSharedHighlight,
@@ -44,7 +50,7 @@ function makeItem(overrides: Record<string, unknown> = {}) {
     userId: OWNER_ID,
     sharedAt: new Date(),
     sharedHighlights: false,
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     roomItems: [],
     ...overrides,
   } as unknown as Parameters<typeof getSharedHighlight>[0]["item"];
@@ -105,6 +111,21 @@ describe("loadPublicItem", () => {
     expect(
       await loadPublicItem({ rawUsername: "@fred", id: ITEM_ID }),
     ).toBeNull();
+  });
+  it("returns null for a shared sensitive item (its link is paused)", async () => {
+    itemFindUnique.mockResolvedValue(makeItem({ privacy: "sensitive" }));
+    expect(
+      await loadPublicItem({ rawUsername: "@fred", id: ITEM_ID }),
+    ).toBeNull();
+  });
+
+  it("sends the owner of a sensitive item to its gated dashboard dialog", async () => {
+    getUser.mockResolvedValue({ id: OWNER_ID });
+    itemFindUnique.mockResolvedValue(makeItem({ privacy: "sensitive" }));
+    await expect(
+      loadPublicItem({ rawUsername: "@fred", id: ITEM_ID }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith(`/dashboard?item=${ITEM_ID}`);
   });
 });
 

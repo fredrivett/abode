@@ -79,6 +79,10 @@ export const RATE_LIMITS = {
     maxRequests: 60,
     windowMs: 60 * 1000, // 1 minute - proxied paid Mapbox static images
   },
+  sensitiveUnlock: {
+    maxRequests: 5,
+    windowMs: 60 * 1000, // 1 minute - password attempts to open sensitive items
+  },
 } as const;
 
 export type RateLimitEndpoint = keyof typeof RATE_LIMITS;

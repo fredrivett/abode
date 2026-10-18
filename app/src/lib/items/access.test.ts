@@ -5,15 +5,17 @@ import {
   type ItemAccessInput,
   itemViewableWhere,
 } from "./access";
+import { ITEM_PRIVACY_LEVELS } from "./privacy";
 
 const OWNER = "owner-id";
+const PRIVACY = ITEM_PRIVACY_LEVELS;
 const OTHER = "other-id";
 
 function makeItem(overrides: Partial<ItemAccessInput> = {}): ItemAccessInput {
   return {
     userId: OWNER,
     sharedAt: null,
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     roomItems: [],
     ...overrides,
   };
@@ -28,11 +30,8 @@ describe("canViewItem", () => {
     expect(canViewItem(makeItem(), OWNER)).toBe(true);
   });
 
-  test("owner can view a private, excluded item", () => {
-    const item = makeItem({
-      excludeFromPublicRooms: true,
-      roomItems: inRooms("private"),
-    });
+  test.each(PRIVACY)("owner can always view a %s item", (privacy) => {
+    const item = makeItem({ privacy, roomItems: inRooms("private") });
     expect(canViewItem(item, OWNER)).toBe(true);
   });
 
@@ -55,21 +54,42 @@ describe("canViewItem", () => {
     expect(canViewItem(item, OTHER)).toBe(true);
   });
 
-  test("non-owner cannot view a public-room item excluded from public rooms", () => {
+  test.each([
+    ["standard", true],
+    ["unlisted", false],
+    ["sensitive", false],
+  ] as const)(
+    "non-owner can view a public-room %s item: %s",
+    (privacy, expected) => {
+      const item = makeItem({ privacy, roomItems: inRooms("public") });
+      expect(canViewItem(item, OTHER)).toBe(expected);
+    },
+  );
+
+  test.each([
+    ["standard", true],
+    ["unlisted", true],
+    ["sensitive", false],
+  ] as const)(
+    "non-owner can follow a share link to a %s item: %s",
+    (privacy, expected) => {
+      const item = makeItem({
+        sharedAt: new Date(),
+        privacy,
+        roomItems: inRooms("private"),
+      });
+      expect(canViewItem(item, OTHER)).toBe(expected);
+    },
+  );
+
+  test("a sensitive item in a public room with a share link stays owner-only", () => {
     const item = makeItem({
-      excludeFromPublicRooms: true,
+      sharedAt: new Date(),
+      privacy: "sensitive",
       roomItems: inRooms("public"),
     });
     expect(canViewItem(item, OTHER)).toBe(false);
-  });
-
-  test("direct share overrides excludeFromPublicRooms and private rooms", () => {
-    const item = makeItem({
-      sharedAt: new Date(),
-      excludeFromPublicRooms: true,
-      roomItems: inRooms("private"),
-    });
-    expect(canViewItem(item, OTHER)).toBe(true);
+    expect(canViewItem(item, null)).toBe(false);
   });
 
   describe("signed-out viewer (viewerId null)", () => {
@@ -95,9 +115,12 @@ describe("canViewItem", () => {
 });
 
 describe("itemViewableWhere", () => {
-  const sharedGrant = { sharedAt: { not: null } };
+  const sharedGrant = {
+    sharedAt: { not: null },
+    privacy: { not: "sensitive" },
+  };
   const publicRoomGrant = {
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     roomItems: { some: { room: { visibility: "public" } } },
   };
 
@@ -113,12 +136,13 @@ describe("itemViewableWhere", () => {
     });
   });
 
-  test("public-room grant excludes items opted out of public rooms", () => {
-    // Mirrors canViewItem: an excluded item must not be reachable via the
-    // public-room grant.
-    expect(itemViewableWhere(null).OR).toContainEqual(
-      expect.objectContaining({ excludeFromPublicRooms: false }),
-    );
+  test("grants never admit an item canViewItem denies", () => {
+    // Mirrors canViewItem: only standard items are reachable via a public
+    // room, and a sensitive item's share link is paused.
+    expect(itemViewableWhere(null).OR).toEqual([
+      expect.objectContaining({ privacy: { not: "sensitive" } }),
+      expect.objectContaining({ privacy: "standard" }),
+    ]);
   });
 });
 

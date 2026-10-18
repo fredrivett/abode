@@ -28,7 +28,7 @@ Tap **Save** when you're done, or **Cancel** to discard the scan.
 
 Saved documents appear in your <Abode /> like any other item, with a badge showing how many pages they have. Open one and swipe, use the on-screen arrows, or press ← and → to page through it.
 
-Scans are often personal, so documents are kept **out of public rooms** by default: adding one to a public room won't show it there. To show a document in your public rooms, open it and turn off **Exclude from public rooms**.
+Scans are often personal, so documents are kept **out of public rooms** by default: adding one to a public room won't show it there. To show a document in your public rooms, open it and set **Privacy** to **Default**. For something more private, set it to **Sensitive** instead: it's blurred on your screen and needs your password to open (see [Item privacy](/help/privacy)).
 
 The text on each page is read automatically once the document has finished processing, so you can find it by searching for words in it. Where its text can be read, the document is also named from it (who it's from, what it is and its date, e.g. "Energy bill, March 2026"), so searching for the sender's name finds it too. Otherwise it's named from how the first page looks. Rename it any time; your title is kept if the document is processed again. To see only your documents, filter with `@type:document`.
 

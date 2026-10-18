@@ -110,6 +110,7 @@ describe("POST /api/v1/items/documents/pdf", () => {
           captureSource: "web",
           userId: USER,
           processingStatus: "processing",
+          privacy: "unlisted",
           excludeFromPublicRooms: true,
         },
       }),

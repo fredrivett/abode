@@ -4,6 +4,7 @@ import type {
   ItemImageDetails,
   ItemKind,
   ItemLocation,
+  ItemPrivacy,
 } from "@prisma/client";
 import type { Filter } from "../search/types";
 import { itemMatchesRoom } from "./room-matcher";
@@ -122,7 +123,7 @@ function createTestItem(
     userTags?: string[];
     sourceType?: string | null;
     createdAt?: Date;
-    excludeFromPublicRooms?: boolean;
+    privacy?: ItemPrivacy;
     imageDetails?: ItemImageDetails | null;
     bookDetails?: ItemBookDetails | null;
     articleDetails?: ItemArticleDetails | null;
@@ -145,7 +146,7 @@ function createTestItem(
     description: null,
     tags: overrides.tags ?? [],
     userTags: overrides.userTags ?? [],
-    excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
+    privacy: overrides.privacy ?? "standard",
     imageDetails: overrides.imageDetails ?? null,
     bookDetails: overrides.bookDetails ?? null,
     articleDetails: overrides.articleDetails ?? null,
@@ -230,27 +231,28 @@ describe("itemMatchesRoom", () => {
       expect(itemMatchesRoom(item, room)).toBe(false);
     });
 
-    it("returns false for items excluded from public rooms when room is public", () => {
-      const item = createTestItem({
-        excludeFromPublicRooms: true,
-        kind: "image",
-      });
+    it.each([
+      ["standard", true],
+      ["unlisted", false],
+      ["sensitive", false],
+    ] as const)("a public room matches a %s item: %s", (privacy, expected) => {
+      const item = createTestItem({ privacy, kind: "image" });
       const room = createTestRoom([createFilter("type", "image")], {
         visibility: "public",
       });
-      expect(itemMatchesRoom(item, room)).toBe(false);
+      expect(itemMatchesRoom(item, room)).toBe(expected);
     });
 
-    it("returns true for items excluded from public rooms when room is private", () => {
-      const item = createTestItem({
-        excludeFromPublicRooms: true,
-        kind: "image",
-      });
-      const room = createTestRoom([createFilter("type", "image")], {
-        visibility: "private",
-      });
-      expect(itemMatchesRoom(item, room)).toBe(true);
-    });
+    it.each(["standard", "unlisted", "sensitive"] as const)(
+      "a private room matches a %s item",
+      (privacy) => {
+        const item = createTestItem({ privacy, kind: "image" });
+        const room = createTestRoom([createFilter("type", "image")], {
+          visibility: "private",
+        });
+        expect(itemMatchesRoom(item, room)).toBe(true);
+      },
+    );
   });
 
   describe("type filter", () => {

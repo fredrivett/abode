@@ -36,10 +36,10 @@ describe("viewableRoomItemsWhere", () => {
     });
   });
 
-  it("gives others only items not excluded from public rooms", () => {
+  it("gives others only items whose privacy level allows public rooms", () => {
     expect(viewableRoomItemsWhere({ roomId: "r", isOwner: false })).toEqual({
       roomId: "r",
-      item: { excludeFromPublicRooms: false },
+      item: { privacy: "standard" },
     });
   });
 });

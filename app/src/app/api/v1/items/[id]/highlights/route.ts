@@ -1,5 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  markSensitiveResponse,
+  sensitiveGate,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -28,12 +33,18 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         id: itemId,
         userId: user.id,
       },
-      select: { id: true },
+      select: { id: true, privacy: true },
     });
 
     if (!item) {
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
+
+    const locked = await sensitiveGate({
+      privacy: item.privacy,
+      userId: user.id,
+    });
+    if (locked) return locked;
 
     const highlights = await db.articleHighlight.findMany({
       where: {
@@ -53,7 +64,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    return NextResponse.json(highlights);
+    const response = NextResponse.json(highlights);
+    return isSensitive(item.privacy)
+      ? markSensitiveResponse({ response, userId: user.id })
+      : response;
   } catch (error) {
     log.error({ error }, "Highlights fetch error");
     captureServerException(error, undefined, {

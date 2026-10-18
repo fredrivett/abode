@@ -17,6 +17,9 @@ export function itemQueryKey(itemId: string) {
  * Used to resolve an open item that isn't in the loaded grid list — e.g. a
  * "similar images" click to an item that's filtered out or beyond page one —
  * so the shared detail dialog can render it without depending on a grid card.
+ * Also the only way a sensitive item's content reaches the client: lists carry
+ * a redacted placeholder, and this fetch fails with a sensitive-locked error
+ * (see `isSensitiveLockedError`) until the owner unlocks.
  *
  * @param itemId - The item to fetch, or null when there's nothing open.
  * @param enabled - Pass `false` to defer the fetch (e.g. the item is already
@@ -26,6 +29,8 @@ export function useItem(itemId: string | null, enabled = true) {
   return useQuery<Item>({
     queryKey: itemQueryKey(itemId ?? ""),
     queryFn: () => api.get(`/api/v1/items/${itemId}`),
+    // The app-wide policy doesn't retry a 4xx, so a locked 403 goes straight
+    // to the password prompt
     enabled: enabled && itemId !== null,
   });
 }

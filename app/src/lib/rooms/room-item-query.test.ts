@@ -24,6 +24,7 @@ function row(item: Partial<RoomItemRow["item"]>): RoomItemRow {
       tags: [],
       userTags: [],
       coverHidden: false,
+      privacy: "standard",
       locations: [],
       imageDetails: null,
       articleDetails: null,
@@ -218,6 +219,24 @@ describe("toClientRoomItem", () => {
     expect(book.bookDetails).toMatchObject({
       authors: ["Author"],
       pageCount: 200,
+    });
+  });
+
+  it("redacts a sensitive item to a blurred-tile placeholder", () => {
+    const item = toClientRoomItem(
+      row({
+        privacy: "sensitive",
+        title: "Bank statement",
+        fileKey: "u/p.jpg",
+      }),
+      // Only the owner ever sees a sensitive item in a room
+      { isOwner: true },
+    );
+    expect(item).toMatchObject({
+      roomItemId: "room-item-1",
+      redacted: true,
+      title: null,
+      fileKey: null,
     });
   });
 });

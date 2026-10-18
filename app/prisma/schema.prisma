@@ -140,6 +140,14 @@ enum RoomType {
   manual
 }
 
+// A ladder, declared in order: each level includes the restrictions of the ones
+// before it, so "the stricter of two levels" is a plain enum comparison.
+enum ItemPrivacy {
+  standard // can appear in public rooms and be shared by link
+  unlisted // kept out of public rooms; can still be shared by link
+  sensitive // owner-only (share link paused), blurred, password to open
+}
+
 enum RoomVisibility {
   private
   public
@@ -270,7 +278,15 @@ model Item {
   // createdAt (which stays the truthful row-creation time).
   addedAt DateTime @default(now()) @map("added_at")
 
-  // Smart rooms
+  // Who beyond the owner can see this item, and how it shows to the owner
+  // (see ItemPrivacy)
+  privacy ItemPrivacy @default(standard)
+
+  // Superseded by `privacy`; never read. Kept until the deploy that introduced
+  // `privacy` is live (the build migrates before new code serves traffic), and
+  // written alongside it (= privacy != standard) meanwhile, so the follow-up
+  // migration can re-sync rows an old build changed after the backfill, then
+  // drop it.
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
   // Presentation: hide the cover image on the grid card (renders as a text card)

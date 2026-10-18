@@ -43,6 +43,18 @@ export function getCardFrame(
   { columnWidth, rootRemPx, cardRootPx, measure }: CardFrameContext,
 ): FrameAspect {
   const meta = item.meta ?? {};
+  // A redacted sensitive item keeps only its cover dimensions (when it has
+  // any); otherwise a page-shaped tile for documents, 4:3 for everything else
+  if (item.redacted) {
+    // A book keeps its padded cover-shaped tile
+    if (item.kind === "book") return getBookTileFrame(item.meta);
+    const width = metaNumber(meta, "width");
+    const height = metaNumber(meta, "height");
+    if (width && height) return { width, height };
+    return item.kind === "document"
+      ? { width: 3, height: 4 }
+      : { width: 4, height: 3 };
+  }
   switch (item.kind) {
     case "twitter": {
       const details = item.twitterDetails;

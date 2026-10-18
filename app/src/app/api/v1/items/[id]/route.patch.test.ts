@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // P1 regression guard: changing a book's reading status must re-sync smart-room
 // (incl. auto book shelf) membership. Reading-status writes weren't in
@@ -42,6 +42,14 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
+
+const cookieJar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { value: cookieJar.get(name) } : undefined,
+  }),
+}));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/logger.server", () => ({
@@ -59,6 +67,10 @@ vi.mock("@/lib/milestones/conditions", () => ({
 vi.mock("@/lib/twitter/cover", () => ({ resolveTweetCoverFileKey: vi.fn() }));
 vi.mock("@/lib/items/delete-item", () => ({ deleteOwnedItem: vi.fn() }));
 
+import {
+  createUnlockToken,
+  SENSITIVE_UNLOCK_COOKIE,
+} from "@/lib/items/sensitive-unlock";
 import { PATCH } from "./route";
 
 function patch(body: unknown) {
@@ -71,6 +83,11 @@ function patch(body: unknown) {
     { params: Promise.resolve({ id: "item-1" }) },
   );
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  cookieJar.clear();
+});
 
 const syncCalls = () =>
   mockTrigger.mock.calls.filter((c) => c[0] === "sync-item-to-rooms");
@@ -89,7 +106,7 @@ describe("PATCH /api/v1/items/:id — room sync on reading-status change", () =>
       userId: "owner",
       kind: "book",
       sourceType: "url",
-      excludeFromPublicRooms: false,
+      privacy: "standard",
       tags: [],
       userTags: [],
       sharedAt: null,
@@ -108,7 +125,7 @@ describe("PATCH /api/v1/items/:id — room sync on reading-status change", () =>
       userId: "owner",
       kind: "book",
       sourceType: "url",
-      excludeFromPublicRooms: false,
+      privacy: "standard",
       tags: [],
       userTags: [],
       sharedAt: null,
@@ -131,7 +148,7 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
       userId: "owner",
       kind: "image",
       sourceType: "upload",
-      excludeFromPublicRooms: false,
+      privacy: "standard",
       tags: [],
       userTags: [],
       sharedAt: null,
@@ -165,13 +182,97 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
     expect(mockItemUpdate).not.toHaveBeenCalled();
   });
 
-  it("re-syncs rooms when excludeFromPublicRooms changes", async () => {
+  it.each(["unlisted", "sensitive"] as const)(
+    "writes privacy %s and re-syncs rooms",
+    async (privacy) => {
+      const res = await patch({ privacy });
+
+      expect(res.status).toBe(200);
+      // Mirrored into the superseded column until the follow-up drops it
+      expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
+        privacy,
+        excludeFromPublicRooms: true,
+      });
+      expect(syncCalls()).toHaveLength(1);
+    },
+  );
+
+  it("unlocks sensitive items when marking the open item sensitive", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
+    mockItemUpdate.mockResolvedValue({ id: "item-1", privacy: "sensitive" });
+
+    const res = await patch({ privacy: "sensitive" });
+
+    expect(res.status).toBe(200);
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
+  });
+
+  it("redacts a locked owner's edit of a sensitive item", async () => {
+    // No cookie is locked without ever reading the signing secret
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "image",
+      privacy: "sensitive",
+      userTags: [],
+    });
+    mockItemUpdate.mockResolvedValue({
+      id: "item-1",
+      privacy: "sensitive",
+      title: "Bank statement",
+    });
+
+    const res = await patch({ notes: "edited" });
+
+    expect(res.status).toBe(200);
+    // The edit applies; only the response is withheld
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({ notes: "edited" });
+    expect(await res.json()).toMatchObject({ redacted: true, title: null });
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)).toBeUndefined();
+  });
+
+  it("returns an unlocked owner's sensitive edit and restarts the window", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
+    cookieJar.set(
+      SENSITIVE_UNLOCK_COOKIE,
+      createUnlockToken({
+        userId: "owner",
+        expiresAt: Date.now() + 60_000,
+        secret: "service-role",
+      }),
+    );
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "image",
+      privacy: "sensitive",
+      userTags: [],
+    });
+    mockItemUpdate.mockResolvedValue({
+      id: "item-1",
+      privacy: "sensitive",
+      title: "Bank statement",
+    });
+
+    const res = await patch({ notes: "edited" });
+
+    expect(await res.json()).toMatchObject({ title: "Bank statement" });
+    expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
+  });
+
+  it("does not re-sync rooms when privacy is unchanged", async () => {
+    const res = await patch({ privacy: "standard" });
+
+    expect(res.status).toBe(200);
+    expect(syncCalls()).toHaveLength(0);
+  });
+
+  it("ignores the superseded excludeFromPublicRooms field", async () => {
     const res = await patch({ excludeFromPublicRooms: true });
 
     expect(res.status).toBe(200);
-    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
-      excludeFromPublicRooms: true,
-    });
-    expect(syncCalls()).toHaveLength(1);
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({});
+    expect(syncCalls()).toHaveLength(0);
   });
 });

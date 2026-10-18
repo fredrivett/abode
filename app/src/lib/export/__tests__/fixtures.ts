@@ -19,7 +19,7 @@ export function itemRow(overrides: Partial<ExportItemRow> = {}): ExportItemRow {
     addedAt: at,
     createdAt: at,
     updatedAt: at,
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     coverHidden: false,
     externalLinks: [],
     sharedAt: null,

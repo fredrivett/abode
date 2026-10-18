@@ -4,12 +4,14 @@ import db from "@/lib/db";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { getNoteDraft } from "@/lib/items/note-draft";
+import { isSensitive, SENSITIVE_ITEM_LABEL } from "@/lib/items/privacy";
 import {
   ITEM_TIMELINE_ORDER_BY,
   itemSelect,
   itemTimelineCursor,
   transformItem,
 } from "@/lib/items/query";
+import { redactSensitiveItem } from "@/lib/items/redact-sensitive";
 import {
   DEFAULT_PAGE_SIZE,
   encodeCursor,
@@ -69,9 +71,10 @@ export async function generateMetadata({
   });
   if (!openItemRaw) return {};
 
-  const name = decodeHtmlEntities(
-    getItemDisplayName(transformItem(openItemRaw)),
-  );
+  // Matches the client: a sensitive item's title never reaches the tab
+  const name = isSensitive(openItemRaw.privacy)
+    ? SENSITIVE_ITEM_LABEL
+    : decodeHtmlEntities(getItemDisplayName(transformItem(openItemRaw)));
   return { title: `${name} | ${APP_NAME}` };
 }
 
@@ -131,8 +134,13 @@ export default async function DashboardPage({
     initialCursor = encodeCursor(itemTimelineCursor(lastItem));
   }
 
-  const itemsForClient = pageItems.map(transformItem);
-  const initialOpenItem = openItemRaw ? transformItem(openItemRaw) : null;
+  const itemsForClient = pageItems.map((item) =>
+    redactSensitiveItem(transformItem(item)),
+  );
+  // A sensitive deep-linked item opens behind the unlock prompt like any other
+  const initialOpenItem = openItemRaw
+    ? redactSensitiveItem(transformItem(openItemRaw))
+    : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6">

@@ -70,6 +70,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **PDF upload:** Upload, drop or paste a PDF (up to 25MB), or save a link to one, and it becomes a searchable document: pages are rendered for the document viewer (with [MuPDF](https://mupdf.com)), the original is kept for download, and each page's embedded text is used directly, so only scanned pages are OCR'd (up to 30 per document). Titled from its text like a scan.
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
+- **Item privacy:** Each item can be shared freely (Default), kept out of public rooms, or marked **Sensitive** — blurred everywhere it appears (grid, search, rooms), owner-only, and opened only after re-entering your password (unlocked for 2 minutes). Sensitive items are still analysed and searchable, and remain readable via your MCP token and data export.
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based), plus auto-generated book shelves (Want to read / Reading / Read) that appear once you have books and stay in sync as you update reading status.
 - **MCP server:** Connect Claude, Cursor and other AI assistants to search and read your library (`/api/mcp`, read-only), with a personal access token that has read access.
 - **Access tokens:** Personal access tokens with independent permissions: read your library (for MCP), save new items (for scripts or an iOS Shortcut), or both.
@@ -104,6 +105,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Similar images (CLIP visual embeddings, mean-centered)
 - Location (auto + manual) + map thumbnails (Mapbox) — visitors to shared items and public rooms see only city, region and country, never the exact spot
 - Rooms (manual + smart collections)
+- Item privacy levels, incl. sensitive items (blurred, owner-only, password to open)
 - Public rooms, profiles + room embedding
 - Article highlighting (with per-highlight notes) + shareable highlight links with quote cards
 - "Save to your abode" on shared pages: signed-in readers save the link straight to their library; signed-out readers join with the sharer's invite (or, when none are available, the waitlist), and joining with an invite saves the shared link to their new abode

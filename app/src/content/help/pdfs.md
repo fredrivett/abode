@@ -22,7 +22,7 @@ The text in your PDF becomes searchable, so you can find it by any word in it:
 - Pages with real text (most PDFs made on a computer) are read directly.
 - Pages that are pictures of paper, like a scanned letter, are read the same way as scans. Up to **30** of these pages are read per document, and they count towards your daily limit like scanned pages. If a PDF has more, or you've reached your limit for the day, the rest stay viewable but aren't found by search, and the document tells you how many.
 
-Like scans, the document is named from its text (who it's from, what it is and its date) when that can be read. Otherwise it keeps its file name. Rename it any time. PDFs are kept **out of public rooms** by default, as they're often personal. To show one in your public rooms, open it and turn off **Exclude from public rooms**.
+Like scans, the document is named from its text (who it's from, what it is and its date) when that can be read. Otherwise it keeps its file name. Rename it any time. PDFs are kept **out of public rooms** by default, as they're often personal. To show one in your public rooms, open it and set **Privacy** to **Default**. For something more private, set it to **Sensitive** instead: it's blurred on your screen and needs your password to open (see [Item privacy](/help/privacy)).
 
 ## Troubleshooting
 
