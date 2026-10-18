@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
   itemDelete: vi.fn(),
   userUpdate: vi.fn(),
+  adjustCounters: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -20,6 +21,9 @@ vi.mock("@/lib/db", () => ({
     $transaction: (fn: (tx: unknown) => unknown) =>
       fn({ item: { delete: m.itemDelete }, user: { update: m.userUpdate } }),
   },
+}));
+vi.mock("@/lib/user-counters", () => ({
+  adjustUserCounters: m.adjustCounters,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
@@ -64,12 +68,10 @@ describe("DELETE /api/v1/items", () => {
       `${USER}/p2.jpg`,
     ]);
     expect(m.itemDelete).toHaveBeenCalledWith({ where: { id: "doc-1" } });
-    expect(m.userUpdate).toHaveBeenCalledWith({
-      where: { id: USER },
-      data: {
-        itemCount: { decrement: 1 },
-        storageUsedBytes: { decrement: BigInt(1000) },
-      },
+    expect(m.adjustCounters).toHaveBeenCalledWith(expect.anything(), {
+      userId: USER,
+      items: -1,
+      bytes: -BigInt(1000),
     });
   });
 

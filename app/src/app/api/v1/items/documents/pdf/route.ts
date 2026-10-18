@@ -14,6 +14,7 @@ import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { PDF_MIME_TYPE } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
+import { adjustUserCounters } from "@/lib/user-counters";
 
 const log = createLogger("api/v1/items/documents/pdf");
 
@@ -72,13 +73,7 @@ export async function POST(request: NextRequest) {
         },
         select: { id: true, kind: true, processingStatus: true },
       });
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          itemCount: { increment: 1 },
-          storageUsedBytes: { increment: size },
-        },
-      });
+      await adjustUserCounters(tx, { userId: user.id, items: 1, bytes: size });
       return created;
     });
 

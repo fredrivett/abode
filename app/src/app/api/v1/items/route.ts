@@ -20,6 +20,7 @@ import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
+import { adjustUserCounters } from "@/lib/user-counters";
 import { getFileSizeFromMeta } from "@/lib/utils";
 
 const log = createLogger("api/v1/items");
@@ -179,12 +180,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Update user's storage usage and item count
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          itemCount: { increment: 1 },
-          ...(fileSize > 0 && { storageUsedBytes: { increment: fileSize } }),
-        },
+      await adjustUserCounters(tx, {
+        userId: user.id,
+        items: 1,
+        bytes: fileSize > 0 ? fileSize : 0,
       });
 
       return newItem;

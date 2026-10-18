@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
   guard: vi.fn(),
   itemCreate: vi.fn(),
   userUpdate: vi.fn(),
+  adjustCounters: vi.fn(),
   enqueue: vi.fn(),
   logActivity: vi.fn(),
 }));
@@ -28,6 +29,9 @@ vi.mock("@/lib/db", () => ({
     $transaction: (fn: (tx: unknown) => unknown) =>
       fn({ item: { create: m.itemCreate }, user: { update: m.userUpdate } }),
   },
+}));
+vi.mock("@/lib/user-counters", () => ({
+  adjustUserCounters: m.adjustCounters,
 }));
 
 import { POST } from "./route";
@@ -120,12 +124,10 @@ describe("POST /api/v1/items/documents/pdf", () => {
 
   it("accounts the PDF's bytes and the new item", async () => {
     await call(body());
-    expect(m.userUpdate).toHaveBeenCalledWith({
-      where: { id: USER },
-      data: {
-        itemCount: { increment: 1 },
-        storageUsedBytes: { increment: 120_000 },
-      },
+    expect(m.adjustCounters).toHaveBeenCalledWith(expect.anything(), {
+      userId: USER,
+      items: 1,
+      bytes: 120_000,
     });
   });
 
