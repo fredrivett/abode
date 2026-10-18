@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { ConsoleMessage, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { getE2EPrisma } from "./db";
@@ -71,6 +72,14 @@ export async function signupViaInvite(
   page.on("pageerror", onPageError);
 
   try {
+    // Each signup is a different visitor. Without a client IP every e2e
+    // request lands in one shared rate-limit bucket, and parallel workers'
+    // username checks (20/min per IP) can exhaust it, so the availability
+    // check 429s and never shows "available"
+    await page.context().setExtraHTTPHeaders({
+      "x-forwarded-for": `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`,
+    });
+
     // Clean up any leftover state from failed retries
     await deleteUserByEmail(credentials.email);
     await clearMailbox(credentials.email);
