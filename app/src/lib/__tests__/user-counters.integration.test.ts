@@ -111,6 +111,26 @@ describe("adjustUserCounters", () => {
     ).rejects.toThrow(/permission denied/);
   });
 
+  it("clamps at zero rather than failing when counters have drifted", async () => {
+    const { systemDb } = await import("@/lib/db");
+    const { viewerTransaction } = await import("@/lib/db-viewer");
+    const { adjustUserCounters } = await import("@/lib/user-counters");
+    const before = await counters(alice);
+
+    await viewerTransaction({
+      base: systemDb,
+      viewerId: alice,
+      run: (tx) =>
+        adjustUserCounters(tx, {
+          userId: alice,
+          items: -(before.items + 5),
+          bytes: -(before.bytes + 5000),
+        }),
+    });
+
+    expect(await counters(alice)).toEqual({ items: 0, bytes: 0 });
+  });
+
   it("lets background jobs on the owner connection adjust anyone", async () => {
     const { systemDb } = await import("@/lib/db");
     const { adjustUserCounters } = await import("@/lib/user-counters");

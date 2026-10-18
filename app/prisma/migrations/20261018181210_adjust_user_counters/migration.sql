@@ -25,9 +25,12 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  -- Clamped at zero: counters can drift (the daily reconcile corrects them),
+  -- and a delete must never fail because a count would go negative
+  -- (users_item_count_non_negative)
   UPDATE public.users
-  SET item_count = item_count + item_delta,
-      storage_used_bytes = storage_used_bytes + bytes_delta,
+  SET item_count = GREATEST(item_count + item_delta, 0),
+      storage_used_bytes = GREATEST(storage_used_bytes + bytes_delta, 0),
       updated_at = now()
   WHERE id = target;
 END $$;
