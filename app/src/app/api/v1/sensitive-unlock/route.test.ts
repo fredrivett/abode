@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGetUser, mockVerifyPassword, mockCapture } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
@@ -38,11 +38,15 @@ function post(body: unknown) {
   );
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("POST /api/v1/sensitive-unlock", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearRateLimit(USER.id);
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     mockGetUser.mockResolvedValue({ data: { user: USER }, error: null });
   });
 

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createUnlockToken,
   hasSensitiveUnlock,
@@ -64,14 +64,10 @@ describe("sensitive unlock tokens", () => {
 
 describe("hasSensitiveUnlock", () => {
   it("is locked without a cookie, even where the signing secret is unset", () => {
-    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    try {
-      expect(hasSensitiveUnlock({ cookieValue: undefined, userId: USER })).toBe(
-        false,
-      );
-    } finally {
-      if (secret !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = secret;
-    }
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    expect(hasSensitiveUnlock({ cookieValue: undefined, userId: USER })).toBe(
+      false,
+    );
+    vi.unstubAllEnvs();
   });
 });

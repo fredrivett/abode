@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -67,6 +67,10 @@ beforeEach(() => {
   m.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("GET /api/v1/items/[id]/pages", () => {
   it("reads on the system connection, gating access itself", async () => {
     m.findFirst.mockResolvedValue({ documentPages: pages });
@@ -126,7 +130,7 @@ describe("GET /api/v1/items/[id]/pages", () => {
   });
 
   it("serves an unlocked owner's sensitive pages uncached, restarting the window", async () => {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     cookieJar.set(
       SENSITIVE_UNLOCK_COOKIE,
       createUnlockToken({
@@ -143,6 +147,7 @@ describe("GET /api/v1/items/[id]/pages", () => {
     const res = await call("doc-1");
 
     expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ pages });
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
   });

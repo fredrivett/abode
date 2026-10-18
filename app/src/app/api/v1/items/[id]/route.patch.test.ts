@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // P1 regression guard: changing a book's reading status must re-sync smart-room
 // (incl. auto book shelf) membership. Reading-status writes weren't in
@@ -83,6 +83,11 @@ function patch(body: unknown) {
     { params: Promise.resolve({ id: "item-1" }) },
   );
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  cookieJar.clear();
+});
 
 const syncCalls = () =>
   mockTrigger.mock.calls.filter((c) => c[0] === "sync-item-to-rooms");
@@ -193,7 +198,7 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
   );
 
   it("unlocks sensitive items when marking the open item sensitive", async () => {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     mockItemUpdate.mockResolvedValue({ id: "item-1", privacy: "sensitive" });
 
     const res = await patch({ privacy: "sensitive" });
@@ -203,6 +208,8 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
   });
 
   it("redacts a locked owner's edit of a sensitive item", async () => {
+    // No cookie is locked without ever reading the signing secret
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     mockItemFind.mockResolvedValue({
       id: "item-1",
       userId: "owner",
@@ -226,7 +233,7 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
   });
 
   it("returns an unlocked owner's sensitive edit and restarts the window", async () => {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     cookieJar.set(
       SENSITIVE_UNLOCK_COOKIE,
       createUnlockToken({
@@ -252,7 +259,6 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
 
     expect(await res.json()).toMatchObject({ title: "Bank statement" });
     expect(res.cookies.get(SENSITIVE_UNLOCK_COOKIE)?.maxAge).toBe(120);
-    cookieJar.clear();
   });
 
   it("does not re-sync rooms when privacy is unchanged", async () => {

@@ -140,6 +140,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("GET /api/v1/twitter-video — same-origin gate", () => {
   it("proxies a Sec-Fetch-Site: same-origin request", async () => {
     const res = await GET(makeRequest({ headers: SAME_ORIGIN }));
@@ -238,7 +242,7 @@ describe("GET /api/v1/twitter-video — sensitive items", () => {
 
   beforeEach(() => {
     cookieJar.clear();
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     mockGetUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,

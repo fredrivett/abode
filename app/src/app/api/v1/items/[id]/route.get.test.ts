@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGetUser, mockItemFind, cookieJar } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
@@ -63,11 +63,15 @@ function unlock() {
   );
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("GET /api/v1/items/:id — sensitive items", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cookieJar.clear();
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
     mockGetUser.mockResolvedValue({ data: { user: { id: OWNER } } });
   });
 
