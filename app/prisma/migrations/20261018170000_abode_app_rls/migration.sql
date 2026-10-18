@@ -13,16 +13,30 @@
 --
 -- Self-hosters: the migration user needs CREATEROLE (Supabase's `postgres` has it).
 
--- Role (cluster-global, so guarded for shadow/test databases that already have it)
+-- Role. Roles are cluster-global, so shadow/test databases may already have
+-- it: reuse it only if it's still exactly this restricted role, and fail the
+-- migration otherwise. A role that could log in, bypass RLS or inherit another
+-- role's privileges (a table owner's, say) would defeat every policy below.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'abode_app') THEN
     CREATE ROLE abode_app NOLOGIN NOBYPASSRLS;
+  ELSIF EXISTS (
+    SELECT 1 FROM pg_roles
+    WHERE rolname = 'abode_app' AND (rolsuper OR rolbypassrls OR rolcanlogin)
+  ) OR EXISTS (
+    SELECT 1 FROM pg_auth_members am
+    JOIN pg_roles r ON r.oid = am.member
+    WHERE r.rolname = 'abode_app'
+  ) THEN
+    RAISE EXCEPTION 'abode_app exists but is not a restricted, memberless NOLOGIN NOBYPASSRLS role';
   END IF;
-END $$;
 
--- The app's login role switches to it per transaction (set_config('role', …))
-GRANT abode_app TO CURRENT_USER;
+  -- The app's login role switches to it per transaction (set_config('role', …)).
+  -- Granted by name: Supabase's supautils crashes the backend on
+  -- `GRANT … TO CURRENT_USER`.
+  EXECUTE format('GRANT abode_app TO %I', current_user);
+END $$;
 
 -- Helpers live outside `public`, which PostgREST exposes
 CREATE SCHEMA IF NOT EXISTS abode;
@@ -53,7 +67,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO abode_app
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO abode_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO abode_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO abode_app;
-REVOKE ALL ON public."_prisma_migrations" FROM abode_app;
+-- Guarded: Prisma's shadow database has no ledger table
+DO $$
+BEGIN
+  IF to_regclass('public._prisma_migrations') IS NOT NULL THEN
+    REVOKE ALL ON public."_prisma_migrations" FROM abode_app;
+  END IF;
+END $$;
 
 -- Users: your own row only, and only the columns you may change yourself.
 -- Admin flag, email, counters, invite allocation, origin, referral and member
@@ -82,23 +102,30 @@ CREATE POLICY abode_owner ON public.rooms FOR ALL TO abode_app
 CREATE POLICY abode_owner ON public.note_drafts FOR ALL TO abode_app
   USING (user_id = (SELECT abode.viewer_id()))
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
-CREATE POLICY abode_owner ON public.activity_logs FOR ALL TO abode_app
-  USING (user_id = (SELECT abode.viewer_id()))
+-- Append-only: users can log their own activity but not edit or erase it
+CREATE POLICY abode_owner_read ON public.activity_logs FOR SELECT TO abode_app
+  USING (user_id = (SELECT abode.viewer_id()));
+CREATE POLICY abode_owner_insert ON public.activity_logs FOR INSERT TO abode_app
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
 CREATE POLICY abode_owner ON public.user_milestones FOR ALL TO abode_app
   USING (user_id = (SELECT abode.viewer_id()))
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
-CREATE POLICY abode_owner ON public.usage_daily FOR ALL TO abode_app
-  USING (user_id = (SELECT abode.viewer_id()))
-  WITH CHECK (user_id = (SELECT abode.viewer_id()));
+-- Read-only: these are the spend caps' counters, written by system code, so a
+-- user can never reset their own limits
+CREATE POLICY abode_owner_read ON public.usage_daily FOR SELECT TO abode_app
+  USING (user_id = (SELECT abode.viewer_id()));
 CREATE POLICY abode_owner ON public.personal_access_tokens FOR ALL TO abode_app
   USING (user_id = (SELECT abode.viewer_id()))
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
-CREATE POLICY abode_owner ON public.item_imports FOR ALL TO abode_app
-  USING (user_id = (SELECT abode.viewer_id()))
+-- Imports and exports: the user starts one and reads its progress; the
+-- background job that runs it owns every later update and the cleanup
+CREATE POLICY abode_owner_read ON public.item_imports FOR SELECT TO abode_app
+  USING (user_id = (SELECT abode.viewer_id()));
+CREATE POLICY abode_owner_insert ON public.item_imports FOR INSERT TO abode_app
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
-CREATE POLICY abode_owner ON public.data_exports FOR ALL TO abode_app
-  USING (user_id = (SELECT abode.viewer_id()))
+CREATE POLICY abode_owner_read ON public.data_exports FOR SELECT TO abode_app
+  USING (user_id = (SELECT abode.viewer_id()));
+CREATE POLICY abode_owner_insert ON public.data_exports FOR INSERT TO abode_app
   WITH CHECK (user_id = (SELECT abode.viewer_id()));
 
 -- Owned by a user AND attached to an item: both must be the viewer's, so a row
