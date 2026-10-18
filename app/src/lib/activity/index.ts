@@ -1,5 +1,5 @@
 import type { ActivityType, Prisma } from "@prisma/client";
-import db from "@/lib/db";
+import db, { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 
 const log = createLogger("activity");
@@ -52,7 +52,7 @@ export async function getUserDailyActivity(
   startDate.setDate(startDate.getDate() - days);
   startDate.setHours(0, 0, 0, 0);
 
-  const logs = await db.activityLog.findMany({
+  const logs = await systemDb.activityLog.findMany({
     where: {
       userId,
       createdAt: { gte: startDate },
@@ -150,7 +150,7 @@ export async function getUserActivityOverview(
   startDate.setDate(startDate.getDate() - days);
   startDate.setHours(0, 0, 0, 0);
 
-  const logs = await db.activityLog.findMany({
+  const logs = await systemDb.activityLog.findMany({
     where: {
       userId,
       createdAt: { gte: startDate },
@@ -198,7 +198,7 @@ export async function getGlobalDailyActivity(
   startDate.setDate(startDate.getDate() - days);
   startDate.setHours(0, 0, 0, 0);
 
-  const logs = await db.activityLog.findMany({
+  const logs = await systemDb.activityLog.findMany({
     where: {
       createdAt: { gte: startDate },
     },

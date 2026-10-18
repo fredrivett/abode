@@ -6,14 +6,30 @@ const m = vi.hoisted(() => ({
   capture: vi.fn(),
 }));
 
+const connections = vi.hoisted(() => [] as string[]);
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
   getUserWithMfa: () => m.getUser(),
 }));
 vi.mock("@/lib/db", () => {
-  // Same fake client whichever connection the code asks for
   const client = { item: { findFirst: m.findFirst } };
-  return { default: client, systemDb: client };
+  // Each connection records itself, so tests can assert which one was used
+  const via = (name: string) =>
+    new Proxy(client, {
+      get: (models, model: string) =>
+        new Proxy(models[model as keyof typeof models], {
+          get:
+            (ops, op: string) =>
+            (...args: unknown[]) => {
+              connections.push(name);
+              return (ops as Record<string, (...a: unknown[]) => unknown>)[op](
+                ...args,
+              );
+            },
+        }),
+    });
+  return { default: via("db"), systemDb: via("systemDb") };
 });
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: m.capture }));
 vi.mock("@/lib/logger.server", () => ({
@@ -35,10 +51,17 @@ const pages = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  connections.length = 0;
   m.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
 });
 
 describe("GET /api/v1/items/[id]/pages", () => {
+  it("reads on the system connection, gating access itself", async () => {
+    m.findFirst.mockResolvedValue({ documentPages: pages });
+    await call("doc-1");
+    expect(connections).toEqual(["systemDb"]);
+  });
+
   it("returns the document's pages in order", async () => {
     m.findFirst.mockResolvedValue({ documentPages: pages });
     const res = await call("doc-1");

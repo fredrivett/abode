@@ -6,18 +6,34 @@ const { mockGetUser, mockFindRoom, mockFindItems } = vi.hoisted(() => ({
   mockFindItems: vi.fn(),
 }));
 
+const connections = vi.hoisted(() => [] as string[]);
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
   getUserWithMfa: mockGetUser,
 }));
 
 vi.mock("@/lib/db", () => {
-  // Same fake client whichever connection the code asks for
   const client = {
     room: { findUnique: mockFindRoom },
     roomItem: { findMany: mockFindItems },
   };
-  return { default: client, systemDb: client };
+  // Each connection records itself, so tests can assert which one was used
+  const via = (name: string) =>
+    new Proxy(client, {
+      get: (models, model: string) =>
+        new Proxy(models[model as keyof typeof models], {
+          get:
+            (ops, op: string) =>
+            (...args: unknown[]) => {
+              connections.push(name);
+              return (ops as Record<string, (...a: unknown[]) => unknown>)[op](
+                ...args,
+              );
+            },
+        }),
+    });
+  return { default: via("db"), systemDb: via("systemDb") };
 });
 
 // Serialization is covered by room-item-query's own tests; here we pin that
@@ -63,7 +79,15 @@ function roomIs(visibility: "public" | "private") {
 describe("GET /api/v1/rooms/:id/items", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    connections.length = 0;
     mockFindItems.mockResolvedValue([{ id: "ri-1" }, { id: "ri-2" }]);
+  });
+
+  it("lists on the system connection, gating access itself", async () => {
+    signedInAs(null);
+    roomIs("public");
+    await get();
+    expect(connections).toEqual(["systemDb", "systemDb"]);
   });
 
   it("gives the owner every item of their private room", async () => {

@@ -20,6 +20,8 @@ const {
   mockHasFullAdminAccess: vi.fn(),
 }));
 
+const connections = vi.hoisted(() => [] as string[]);
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
   // Route auth goes through getUserWithMfa; pass through to the mocked getUser
@@ -33,7 +35,6 @@ vi.mock("@/lib/admin/auth", () => ({
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: mockGuard }));
 
 vi.mock("@/lib/db", () => {
-  // Same fake client whichever connection the code asks for
   const client = {
     item: {
       findUnique: mockItemFindUnique,
@@ -41,7 +42,22 @@ vi.mock("@/lib/db", () => {
       updateMany: mockItemUpdateMany,
     },
   };
-  return { default: client, systemDb: client };
+  // Each connection records itself, so tests can assert which one was used
+  const via = (name: string) =>
+    new Proxy(client, {
+      get: (models, model: string) =>
+        new Proxy(models[model as keyof typeof models], {
+          get:
+            (ops, op: string) =>
+            (...args: unknown[]) => {
+              connections.push(name);
+              return (ops as Record<string, (...a: unknown[]) => unknown>)[op](
+                ...args,
+              );
+            },
+        }),
+    });
+  return { default: via("db"), systemDb: via("systemDb") };
 });
 
 vi.mock("@trigger.dev/sdk", () => ({
@@ -105,6 +121,7 @@ const okGuard = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  connections.length = 0;
   mockGetUser.mockResolvedValue({
     data: { user: { id: "user_1" } },
     error: null,
@@ -196,6 +213,8 @@ describe("POST /api/v1/items/[id]/retry", () => {
         },
       );
       expect(mockItemUpdate).not.toHaveBeenCalled();
+      // A user's own retry stays on their connection
+      expect(connections).not.toContain("systemDb");
     });
 
     it("claims a failed image item and re-triggers analyze-image", async () => {
@@ -350,6 +369,9 @@ describe("POST /api/v1/items/[id]/retry", () => {
           tags: [itemTag(ITEM_ID), userTag("owner_2")],
         },
       );
+      // Someone else's item: the admin reads and writes on the system connection
+      expect(connections.length).toBeGreaterThan(0);
+      expect(connections).not.toContain("db");
     });
 
     it("reverts a completed item back to completed on trigger error", async () => {

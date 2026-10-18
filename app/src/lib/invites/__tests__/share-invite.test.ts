@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db", () => {
-  // Same fake client whichever connection the code asks for
+  // Only the system connection: using the user's `db` here would be a bug
   const client = {
     item: {
       findUnique: mocks.itemFindUnique,
@@ -26,7 +26,7 @@ vi.mock("@/lib/db", () => {
     user: { findUnique: mocks.userFindUnique },
     waitlistEntry: { findUnique: mocks.waitlistFindUnique },
   };
-  return { default: client, systemDb: client };
+  return { systemDb: client };
 });
 vi.mock("@/lib/invites", () => ({
   createUserInvite: mocks.createUserInvite,

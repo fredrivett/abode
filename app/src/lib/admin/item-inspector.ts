@@ -242,6 +242,8 @@ export async function getSimilarImagesForInspector({
     userId,
     limit: SIMILAR_INSPECTOR_LIMIT,
     threshold: -2, // below the [-1, 1] range so nothing is filtered out
+    // Admins inspect other users' items, so search on the system connection
+    client: systemDb,
   });
   if (matches.length === 0) return [];
 
