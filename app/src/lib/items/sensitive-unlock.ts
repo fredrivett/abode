@@ -87,6 +87,8 @@ export function hasSensitiveUnlock({
   cookieValue: string | undefined;
   userId: string;
 }): boolean {
+  // No cookie is simply locked — no need to touch the signing secret
+  if (!cookieValue) return false;
   return isValidUnlockToken({
     token: cookieValue,
     userId,

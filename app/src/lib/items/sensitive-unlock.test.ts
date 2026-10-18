@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { createUnlockToken, isValidUnlockToken } from "./sensitive-unlock";
+import {
+  createUnlockToken,
+  hasSensitiveUnlock,
+  isValidUnlockToken,
+} from "./sensitive-unlock";
 
 const SECRET = "service-role-secret";
 const USER = "user-1";
@@ -55,5 +59,19 @@ describe("sensitive unlock tokens", () => {
     `${USER}.${NOW + 60_000}.`,
   ])("rejects a malformed token %s", (malformed) => {
     expect(valid(malformed)).toBe(false);
+  });
+});
+
+describe("hasSensitiveUnlock", () => {
+  it("is locked without a cookie, even where the signing secret is unset", () => {
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      expect(hasSensitiveUnlock({ cookieValue: undefined, userId: USER })).toBe(
+        false,
+      );
+    } finally {
+      if (secret !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = secret;
+    }
   });
 });
