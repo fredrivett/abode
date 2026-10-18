@@ -2,7 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { systemDb } from "@/lib/db";
 import type { DocumentPagesResponse } from "@/lib/documents/document-pages";
 import { itemViewableWhere } from "@/lib/items/access";
-import { sensitiveGate } from "@/lib/items/sensitive-unlock";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  markSensitiveResponse,
+  sensitiveGate,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -51,7 +55,11 @@ export async function GET(
     if (locked) return locked;
 
     const body: DocumentPagesResponse = { pages: item.documentPages };
-    return NextResponse.json(body);
+    const response = NextResponse.json(body);
+    // Only the unlocked owner gets here for a sensitive document
+    return isSensitive(item.privacy) && user
+      ? markSensitiveResponse({ response, userId: user.id })
+      : response;
   } catch (error) {
     log.error({ error }, "Document pages fetch error");
     captureServerException(error, undefined, {

@@ -1,7 +1,11 @@
 import type { ItemKind } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { sensitiveGate } from "@/lib/items/sensitive-unlock";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  markSensitiveResponse,
+  sensitiveGate,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
@@ -130,9 +134,13 @@ export async function GET(
       properties: { itemId: id, count: items.length },
     });
 
-    return NextResponse.json({ items } satisfies SimilarImagesResponse, {
-      headers: getRateLimitHeaders(rateLimit, "similarImages"),
-    });
+    const response = NextResponse.json(
+      { items } satisfies SimilarImagesResponse,
+      { headers: getRateLimitHeaders(rateLimit, "similarImages") },
+    );
+    return isSensitive(source.privacy)
+      ? markSensitiveResponse({ response, userId: user.id })
+      : response;
   } catch (error) {
     log.error({ error }, "Similar images lookup failed");
     captureServerException(error, undefined, {

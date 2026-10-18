@@ -137,6 +137,22 @@ export function sensitiveLockedResponse(): NextResponse {
 }
 
 /**
+ * For a sensitive item's successful content response: keep it out of every
+ * cache and restart the unlock window, so viewing keeps it unlocked.
+ */
+export function markSensitiveResponse({
+  response,
+  userId,
+}: {
+  response: NextResponse;
+  userId: string;
+}): NextResponse {
+  response.headers.set("Cache-Control", "private, no-store");
+  setSensitiveUnlockCookie({ response, userId });
+  return response;
+}
+
+/**
  * For routes serving an item's content: the locked 403 when the item is
  * sensitive and `userId` hasn't unlocked sensitive items, otherwise null.
  */
