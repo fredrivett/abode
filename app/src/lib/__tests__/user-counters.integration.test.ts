@@ -139,7 +139,9 @@ describe("adjustUserCounters", () => {
 
     for (const change of [
       { items: -100, bytes: 0 },
+      { items: 2, bytes: 0 },
       { items: 1, bytes: -(2 * 1024 ** 3) },
+      { items: 1, bytes: -(1024 ** 3) - 1 },
     ]) {
       await expect(
         viewerTransaction({
@@ -150,6 +152,18 @@ describe("adjustUserCounters", () => {
       ).rejects.toThrow(/one item at a time/);
     }
     expect(await counters(alice)).toEqual(before);
+
+    // Exactly at the limit is allowed
+    await viewerTransaction({
+      base: systemDb,
+      viewerId: alice,
+      run: (tx) =>
+        adjustUserCounters(tx, { userId: alice, items: 1, bytes: 1024 ** 3 }),
+    });
+    expect(await counters(alice)).toEqual({
+      items: before.items + 1,
+      bytes: before.bytes + 1024 ** 3,
+    });
   });
 
   it("lets background jobs on the owner connection adjust anyone", async () => {
