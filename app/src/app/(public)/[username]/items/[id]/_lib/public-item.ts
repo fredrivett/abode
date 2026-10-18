@@ -3,6 +3,7 @@
  * (which renders the same item, focused on one highlight).
  */
 import type { Prisma } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 import db from "@/lib/db";
 import { shareInvitesOpen } from "@/lib/invites/share-invite";
@@ -11,6 +12,7 @@ import {
   canViewItemHighlights,
   itemAccessSelect,
 } from "@/lib/items/access";
+import { isSensitive } from "@/lib/items/privacy";
 import {
   itemLocationSelect,
   locationsForViewer,
@@ -21,6 +23,7 @@ import {
   publicBookDetailsSelect,
 } from "@/lib/items/query";
 import { isCanonicalUuid } from "@/lib/pagination";
+import { ROUTES } from "@/lib/routes";
 import {
   mapTwitterDetails,
   twitterDetailsSelect,
@@ -90,7 +93,7 @@ const itemDetailSelect = {
   tags: true,
   userTags: true,
   sharedHighlights: true,
-  // Access-control fields (userId, sharedAt, excludeFromPublicRooms, roomItems)
+  // Access-control fields (userId, sharedAt, privacy, roomItems)
   ...itemAccessSelect,
   // Room context for the optional ?room= breadcrumb. We override the
   // itemAccessSelect.roomItems with a richer select that also includes
@@ -344,6 +347,9 @@ export type PublicItem = {
  * Resolve a public item route to its owner and item, or null when the URL is
  * malformed, the item isn't the named user's, or the viewer can't see it.
  * Callers 404 on null (never 403) so existence isn't confirmed to non-viewers.
+ *
+ * Only the owner can reach a sensitive item here; they're sent to its dashboard
+ * dialog, which asks for their password before showing it.
  */
 export async function loadPublicItem({
   rawUsername,
@@ -367,12 +373,12 @@ export async function loadPublicItem({
   const viewerId = currentUser?.id ?? null;
   if (!canViewItem(item, viewerId)) return null;
 
-  return {
-    user,
-    item,
-    viewerId,
-    isOwner: viewerId !== null && viewerId === item.userId,
-  };
+  const isOwner = viewerId !== null && viewerId === item.userId;
+  if (isOwner && isSensitive(item.privacy)) {
+    redirect(`${ROUTES.DASHBOARD}?item=${item.id}`);
+  }
+
+  return { user, item, viewerId, isOwner };
 }
 
 export type SaveCtaState = { isSignedIn: boolean; invitesOpen: boolean };

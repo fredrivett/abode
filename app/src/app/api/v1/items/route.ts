@@ -14,6 +14,7 @@ import {
   itemTimelineCursorWhere,
   transformItem,
 } from "@/lib/items/query";
+import { redactSensitiveItem } from "@/lib/items/redact-sensitive";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
@@ -89,7 +90,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform items for client
-    const transformedItems = pageItems.map(transformItem);
+    const transformedItems = pageItems.map((item) =>
+      redactSensitiveItem(transformItem(item)),
+    );
 
     return NextResponse.json({
       items: transformedItems,

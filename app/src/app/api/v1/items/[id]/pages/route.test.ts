@@ -32,6 +32,9 @@ vi.mock("@/lib/db", () => {
   return { default: via("db"), systemDb: via("systemDb") };
 });
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: m.capture }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
 }));
@@ -63,13 +66,17 @@ describe("GET /api/v1/items/[id]/pages", () => {
   });
 
   it("returns the document's pages in order", async () => {
-    m.findFirst.mockResolvedValue({ documentPages: pages });
+    m.findFirst.mockResolvedValue({
+      privacy: "standard",
+      documentPages: pages,
+    });
     const res = await call("doc-1");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ pages });
     expect(m.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         select: {
+          privacy: true,
           documentPages: expect.objectContaining({
             orderBy: { position: "asc" },
           }),
@@ -97,6 +104,16 @@ describe("GET /api/v1/items/[id]/pages", () => {
       kind: "document",
       ...itemViewableWhere(null),
     });
+  });
+
+  it("locks a sensitive document's pages until the owner unlocks", async () => {
+    m.findFirst.mockResolvedValue({
+      privacy: "sensitive",
+      documentPages: pages,
+    });
+    const res = await call("doc-1");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "sensitive_locked" });
   });
 
   it("is a 404 for a missing, private or non-document item", async () => {

@@ -30,7 +30,7 @@ describe("Room Service Integration", () => {
       kind?: "image" | "article";
       tags?: string[];
       sourceType?: "upload" | "url";
-      excludeFromPublicRooms?: boolean;
+      privacy?: "standard" | "unlisted" | "sensitive";
     } = {},
   ) => {
     const { write } = await import("@/lib/db");
@@ -40,7 +40,7 @@ describe("Room Service Integration", () => {
         kind: overrides.kind ?? "image",
         sourceType: overrides.sourceType ?? "upload",
         tags: overrides.tags ?? [],
-        excludeFromPublicRooms: overrides.excludeFromPublicRooms ?? false,
+        privacy: overrides.privacy ?? "standard",
       },
     });
   };
@@ -242,6 +242,42 @@ describe("Room Service Integration", () => {
   });
 
   describe("syncItemToRooms", () => {
+    it.each([
+      ["standard", ["private", "public"]],
+      ["unlisted", ["private"]],
+      ["sensitive", ["private"]],
+    ] as const)(
+      "places a %s item only in %j matching rooms",
+      async (privacy, expected) => {
+        const user = await createTestUser();
+        const { read } = await import("@/lib/db");
+        const { syncItemToRooms } = await import("@/lib/rooms/room-service");
+        const filters = [{ type: "tag", value: "travel", negated: false }];
+        const privateRoom = await createTestRoom(user.id, { filters });
+        const publicRoom = await createTestRoom(user.id, {
+          filters,
+          visibility: "public",
+        });
+        const item = await createTestItem(user.id, {
+          tags: ["travel"],
+          privacy,
+        });
+
+        await syncItemToRooms(item.id, user.id);
+
+        const roomItems = await read.roomItem.findMany({
+          where: { itemId: item.id },
+        });
+        const visibilityByRoom = {
+          [privateRoom.id]: "private",
+          [publicRoom.id]: "public",
+        };
+        expect(
+          roomItems.map((ri) => visibilityByRoom[ri.roomId]).sort(),
+        ).toEqual([...expected].sort());
+      },
+    );
+
     it("adds item to matching rooms", async () => {
       const user = await createTestUser();
       const { read } = await import("@/lib/db");

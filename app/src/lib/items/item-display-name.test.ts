@@ -5,6 +5,14 @@ import { getItemDisplayName } from "./item-display-name";
 const item = (overrides: Partial<Item>): Item => overrides as Item;
 
 describe("getItemDisplayName", () => {
+  it("shows a neutral label for a redacted sensitive item", () => {
+    expect(
+      getItemDisplayName(
+        item({ title: null, redacted: true, privacy: "sensitive" }),
+      ),
+    ).toBe("Sensitive item");
+  });
+
   it("uses the title when present", () => {
     expect(getItemDisplayName(item({ title: "My Item" }))).toBe("My Item");
   });

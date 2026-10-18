@@ -26,6 +26,25 @@ const ratio = ({ width, height }: { width: number; height: number }) =>
   height / width;
 
 describe("getCardFrame", () => {
+  it("sizes a redacted sensitive item from its cover dimensions alone", () => {
+    expect(
+      getCardFrame(
+        item({ kind: "image", redacted: true, meta: { width: 9, height: 16 } }),
+        CONTEXT,
+      ),
+    ).toEqual({ width: 9, height: 16 });
+  });
+
+  it("gives a dimensionless redacted item a page or 4:3 tile", () => {
+    // A redacted note has no content to estimate its height from
+    expect(
+      getCardFrame(item({ kind: "document", redacted: true }), CONTEXT),
+    ).toEqual({ width: 3, height: 4 });
+    expect(
+      getCardFrame(item({ kind: "note", redacted: true }), CONTEXT),
+    ).toEqual({ width: 4, height: 3 });
+  });
+
   it("uses an image's dimensions, or 3:4 without them", () => {
     expect(
       getCardFrame(item({ meta: { width: 800, height: 600 } }), CONTEXT),

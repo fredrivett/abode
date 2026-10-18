@@ -2,6 +2,12 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
+import { isSensitive } from "@/lib/items/privacy";
+import {
+  isSensitiveUnlocked,
+  sensitiveLockedResponse,
+  setSensitiveUnlockCookie,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -22,6 +28,10 @@ const CACHE_CONTROL = "public, max-age=3600, s-maxage=3600";
 // An image only its owner can see must never enter the shared cache — it's
 // keyed by URL alone, so a cached copy would serve to anyone holding the URL
 const CACHE_CONTROL_OWNER_ONLY = "private, max-age=3600";
+
+// A sensitive item's files: never stored, so a relocked image can't be pulled
+// back out of the browser cache
+const CACHE_CONTROL_SENSITIVE = "private, no-store";
 
 // Cache 404s briefly to avoid hammering DB for missing images
 const CACHE_CONTROL_NOT_FOUND = "public, max-age=60, s-maxage=300";
@@ -49,7 +59,8 @@ type RouteParams = {
  *
  * Access rules:
  * 1. Authenticated users can access their own images
- * 2. Anyone can access images that are in public rooms (unless excludeFromPublicRooms is true)
+ * 2. Anyone can access images of items viewable per `canViewItem` (shared by
+ *    link, or in a public room), subject to the item's privacy level
  *
  * Query params for image transforms (requires Supabase Pro):
  * - w: width in pixels
@@ -104,7 +115,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Allow access if the viewer owns the item, it's been directly shared,
-    // or it lives in a public room (and isn't excluded from public rooms).
+    // or it lives in a public room — as its privacy level allows.
     if (!canViewItem(item, user?.id ?? null)) {
       return NextResponse.json(
         { message: "Access denied" },
@@ -113,6 +124,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           headers: { "Cache-Control": CACHE_CONTROL_FORBIDDEN },
         },
       );
+    }
+
+    // Only the owner gets this far for a sensitive item (canViewItem), and
+    // only while they've unlocked sensitive items
+    const sensitive = isSensitive(item.privacy);
+    if (sensitive && !(user && (await isSensitiveUnlocked(user.id)))) {
+      return sensitiveLockedResponse();
     }
 
     // Fetch the image using admin client (bypasses RLS)
@@ -150,16 +168,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const contentType =
       data.type || (transform ? "image/webp" : inferContentType(fileKey));
 
-    // Return the image with appropriate headers
-    return new NextResponse(data, {
+    const response = new NextResponse(data, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": canViewItem(item, null)
-          ? CACHE_CONTROL
-          : CACHE_CONTROL_OWNER_ONLY,
+        "Cache-Control": sensitive
+          ? CACHE_CONTROL_SENSITIVE
+          : canViewItem(item, null)
+            ? CACHE_CONTROL
+            : CACHE_CONTROL_OWNER_ONLY,
       },
     });
+    // Viewing a sensitive item's images keeps it unlocked (e.g. scrolling a
+    // long document past the window)
+    if (sensitive && user) {
+      setSensitiveUnlockCookie({ response, userId: user.id });
+    }
+    return response;
   } catch (error) {
     log.error({ error }, "Image proxy error");
     captureServerException(error, undefined, {

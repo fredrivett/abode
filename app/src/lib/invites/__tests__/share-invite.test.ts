@@ -74,7 +74,7 @@ function sharedItem(overrides: Record<string, unknown> = {}) {
     sourceUrl: "https://example.com/good-design",
     userId: SHARER_ID,
     sharedAt: new Date(),
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     roomItems: [],
     user: {
       id: SHARER_ID,

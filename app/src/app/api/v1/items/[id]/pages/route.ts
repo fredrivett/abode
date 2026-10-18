@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { systemDb } from "@/lib/db";
 import type { DocumentPagesResponse } from "@/lib/documents/document-pages";
 import { itemViewableWhere } from "@/lib/items/access";
+import { sensitiveGate } from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -29,6 +30,7 @@ export async function GET(
     const item = await systemDb.item.findFirst({
       where: { id, kind: "document", ...itemViewableWhere(user?.id ?? null) },
       select: {
+        privacy: true,
         documentPages: {
           orderBy: { position: "asc" },
           select: { position: true, fileKey: true, width: true, height: true },
@@ -41,6 +43,12 @@ export async function GET(
         { status: 404 },
       );
     }
+
+    const locked = await sensitiveGate({
+      privacy: item.privacy,
+      userId: user?.id ?? null,
+    });
+    if (locked) return locked;
 
     const body: DocumentPagesResponse = { pages: item.documentPages };
     return NextResponse.json(body);

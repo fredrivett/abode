@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { publicRoomEligibleWhere } from "@/lib/items/privacy";
 import { resolveSimilarImageCover } from "@/lib/search/similar-image-cover";
 
 /** A single item preview shown on a room card: proxy URL + optional LQIP */
@@ -18,7 +19,7 @@ export const ROOM_THUMBNAIL_LIMIT = 4;
  * fall back to `fileKey`.
  */
 export const roomThumbnailItemWhere = {
-  excludeFromPublicRooms: false,
+  ...publicRoomEligibleWhere,
   coverHidden: false,
   OR: [{ fileKey: { not: null } }, { coverFileKey: { not: null } }],
 } satisfies Prisma.ItemWhereInput;

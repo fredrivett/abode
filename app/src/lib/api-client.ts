@@ -1,3 +1,4 @@
+import { SENSITIVE_LOCKED_CODE } from "./items/privacy";
 import { createClient } from "./supabase/client";
 import { DAILY_LIMIT_REACHED_CODE } from "./usage-limits.shared";
 
@@ -27,6 +28,15 @@ export class ApiClientError extends Error {
 export function isDailyLimitError(error: unknown): error is ApiClientError {
   return (
     error instanceof ApiClientError && error.code === DAILY_LIMIT_REACHED_CODE
+  );
+}
+
+/** True when a sensitive item was requested before the owner unlocked it. */
+export function isSensitiveLockedError(
+  error: unknown,
+): error is ApiClientError {
+  return (
+    error instanceof ApiClientError && error.code === SENSITIVE_LOCKED_CODE
   );
 }
 

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           processingStatus: "processing",
           // Like scans, PDFs are often personal (statements, contracts): keep
           // them out of public rooms unless the owner opts one in
-          excludeFromPublicRooms: true,
+          privacy: "unlisted",
         },
         select: { id: true, kind: true, processingStatus: true },
       });

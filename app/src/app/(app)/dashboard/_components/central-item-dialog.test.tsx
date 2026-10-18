@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiClientError } from "@/lib/api-client";
 import { resetTrace } from "@/lib/debug/test-utils";
 import { getTraceEvents } from "@/lib/debug/trace";
 import type { Item } from "@/lib/types/item";
@@ -63,13 +64,43 @@ vi.mock("../item-dialog-context", () => ({
   useItemDialog: () => ({ ...dialogState, closeItem }),
 }));
 
-let useItemReturn: { data: Item | undefined; isError?: boolean } = {
+let useItemReturn: {
+  data: Item | undefined;
+  isError?: boolean;
+  error?: unknown;
+} = {
   data: undefined,
 };
+const refetch = vi.fn();
 vi.mock("@/lib/items/use-item", () => ({
   // Respect `enabled` so a gated-off fetch (e.g. a non-owner) returns nothing.
   useItem: (_id: string | null, enabled: boolean) =>
-    enabled ? useItemReturn : { data: undefined },
+    enabled ? { ...useItemReturn, refetch } : { data: undefined, refetch },
+  itemQueryKey: (id: string) => ["items", id, "detail"],
+}));
+
+const removeQueries = vi.fn();
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({ removeQueries }),
+}));
+
+vi.mock("@/components/items/sensitive-unlock-dialog", () => ({
+  SensitiveUnlockDialog: ({
+    onUnlocked,
+    onCancel,
+  }: {
+    onUnlocked: () => void;
+    onCancel: () => void;
+  }) => (
+    <div data-testid="unlock">
+      <button type="button" onClick={onUnlocked}>
+        unlock
+      </button>
+      <button type="button" onClick={onCancel}>
+        cancel
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -107,6 +138,8 @@ function renderDialog(props?: { canEdit?: boolean; initialItem?: Item }) {
 
 beforeEach(() => {
   closeItem.mockClear();
+  refetch.mockClear();
+  removeQueries.mockClear();
   dialogState = { openItemId: null, openItemSeed: null };
   useItemReturn = { data: undefined };
 });
@@ -340,5 +373,102 @@ describe("CentralItemDialog debug trace", () => {
     });
     // Still showing the last copy, so the dialog doesn't exit
     expect(change?.data).not.toHaveProperty("hasContent");
+  });
+});
+
+describe("CentralItemDialog — sensitive items", () => {
+  const lockedError = new ApiClientError({
+    message: "Sensitive item is locked",
+    status: 403,
+    code: "sensitive_locked",
+  });
+  const redacted = {
+    id: "s",
+    title: null,
+    kind: "document",
+    privacy: "sensitive",
+    redacted: true,
+  } as unknown as Item;
+  const unlocked = {
+    id: "s",
+    title: "Bank statement",
+    kind: "document",
+    privacy: "sensitive",
+    fileKey: "fs",
+    coverFileKey: null,
+  } as unknown as Item;
+
+  function renderWith(list: Item[], initialItem?: Item) {
+    return render(
+      <CentralItemDialog
+        onItemRenamed={() => {}}
+        canEdit
+        items={list}
+        initialItem={initialItem}
+      />,
+    );
+  }
+
+  it("never opens the redacted list copy; asks for the password instead", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: undefined, isError: true, error: lockedError };
+    renderWith([redacted]);
+
+    expect(screen.getByTestId("unlock")).toBeInTheDocument();
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
+    // Locked isn't a failure: no "couldn't open" close
+    expect(closeItem).not.toHaveBeenCalled();
+  });
+
+  it("treats a redacted deep-link item the same way", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: undefined, isError: true, error: lockedError };
+    renderWith([], redacted);
+    expect(screen.getByTestId("unlock")).toBeInTheDocument();
+  });
+
+  it("refetches the item once unlocked", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: undefined, isError: true, error: lockedError };
+    renderWith([redacted]);
+
+    fireEvent.click(screen.getByText("unlock"));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("closes the item when the prompt is cancelled", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: undefined, isError: true, error: lockedError };
+    renderWith([redacted]);
+
+    fireEvent.click(screen.getByText("cancel"));
+    expect(closeItem).toHaveBeenCalledOnce();
+  });
+
+  it("shows the fetched content when already unlocked", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: unlocked };
+    renderWith([redacted]);
+
+    expect(screen.queryByTestId("unlock")).not.toBeInTheDocument();
+    expect(screen.getByTestId("body")).toHaveAttribute(
+      "data-title",
+      "Bank statement",
+    );
+  });
+
+  it("drops the sensitive item from the query cache once it closes", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: unlocked };
+    const { rerender } = renderWith([redacted]);
+    expect(removeQueries).not.toHaveBeenCalled();
+
+    dialogState = { openItemId: null };
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={[redacted]} />,
+    );
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: ["items", "s", "detail"],
+    });
   });
 });

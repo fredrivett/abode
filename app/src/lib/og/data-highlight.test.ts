@@ -24,7 +24,7 @@ function highlightRow(item: Record<string, unknown> = {}) {
       title: "Good design",
       userId: OWNER_ID,
       sharedAt: new Date(),
-      excludeFromPublicRooms: false,
+      privacy: "standard",
       roomItems: [],
       articleDetails: { domain: "example.com" },
       ...item,

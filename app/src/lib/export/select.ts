@@ -72,7 +72,7 @@ export const exportItemSelect = {
   addedAt: true,
   createdAt: true,
   updatedAt: true,
-  excludeFromPublicRooms: true,
+  privacy: true,
   coverHidden: true,
   externalLinks: true,
   sharedAt: true,

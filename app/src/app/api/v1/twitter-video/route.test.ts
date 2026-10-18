@@ -56,9 +56,12 @@ const itemWithVariant = (src: string = TWIMG_URL) => ({
 
 // Grants matching itemViewableWhere / canViewItem: shared via link, or in a
 // public room and not excluded from public rooms.
-const sharedGrant = { sharedAt: { not: null } };
+const sharedGrant = {
+  sharedAt: { not: null },
+  privacy: { not: "sensitive" },
+};
 const publicRoomGrant = {
-  excludeFromPublicRooms: false,
+  privacy: "standard",
   roomItems: { some: { room: { visibility: "public" } } },
 };
 

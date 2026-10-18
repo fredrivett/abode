@@ -6,7 +6,13 @@ import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
+import { isSensitive } from "@/lib/items/privacy";
 import { itemSelect, transformItem } from "@/lib/items/query";
+import {
+  isSensitiveUnlocked,
+  sensitiveLockedResponse,
+  setSensitiveUnlockCookie,
+} from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import {
@@ -51,6 +57,11 @@ export async function GET(
       return NextResponse.json({ message: "Item not found" }, { status: 404 });
     }
 
+    const sensitive = isSensitive(item.privacy);
+    if (sensitive && !(await isSensitiveUnlocked(user.id))) {
+      return sensitiveLockedResponse();
+    }
+
     // Log activity (fire-and-forget)
     void logActivity(user.id, "item_view", { itemId: id });
 
@@ -71,7 +82,14 @@ export async function GET(
       void markMilestoneComplete(user.id, "see_ai_analysis");
     }
 
-    return NextResponse.json(transformItem(item));
+    if (!sensitive) return NextResponse.json(transformItem(item));
+
+    // Opening a sensitive item restarts the unlock window; keep it out of caches
+    const response = NextResponse.json(transformItem(item), {
+      headers: { "Cache-Control": "no-store" },
+    });
+    setSensitiveUnlockCookie({ response, userId: user.id });
+    return response;
   } catch (error) {
     log.error({ error }, "Item fetch error");
     captureServerException(error, undefined, {
@@ -107,7 +125,7 @@ export async function PATCH(
     }
     const {
       title,
-      excludeFromPublicRooms,
+      privacy,
       notes,
       shared,
       sharedHighlights,
@@ -150,6 +168,10 @@ export async function PATCH(
       );
     }
 
+    // Privacy decides public-room membership, so a change must re-sync rooms
+    const privacyChanged =
+      privacy !== undefined && privacy !== existingItem.privacy;
+
     // Track if filter-relevant fields changed for room sync. Compare tag arrays
     // by value since array equality check would always fail
     const userTagsChanged =
@@ -169,8 +191,7 @@ export async function PATCH(
     // requires re-running enrichment and pruning stale detail rows, which the
     // dedicated reassign endpoint (POST /api/v1/items/[id]/reassign) handles.
     const filterRelevantFieldsChanged =
-      (excludeFromPublicRooms !== undefined &&
-        excludeFromPublicRooms !== existingItem.excludeFromPublicRooms) ||
+      privacyChanged ||
       userTagsChanged ||
       bookStatusChanged ||
       articleReadChanged;
@@ -178,7 +199,7 @@ export async function PATCH(
     const updatedItem = await db.item.update({
       where: { id },
       data: {
-        ...(excludeFromPublicRooms !== undefined && { excludeFromPublicRooms }),
+        ...(privacy !== undefined && { privacy }),
         ...(userTags !== undefined && { userTags }),
         // Mark the title as user-owned so re-analysis won't overwrite it
         ...(title !== undefined && { title, titleEditedByUser: true }),
@@ -391,7 +412,13 @@ export async function PATCH(
       void markMilestoneComplete(user.id, "add_first_tag");
     }
 
-    return NextResponse.json(transformItem(updatedItem));
+    const response = NextResponse.json(transformItem(updatedItem));
+    // Marking an item sensitive while viewing it counts as unlocking it, so the
+    // open dialog keeps loading its images
+    if (privacyChanged && isSensitive(updatedItem.privacy)) {
+      setSensitiveUnlockCookie({ response, userId: user.id });
+    }
+    return response;
   } catch (error) {
     log.error({ error }, "Item update error");
     captureServerException(error, undefined, {

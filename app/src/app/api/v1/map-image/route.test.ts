@@ -15,6 +15,9 @@ const {
 }));
 
 vi.mock("@/env", () => ({ isDevelopment: false }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
@@ -208,6 +211,18 @@ describe("GET /api/v1/map-image", () => {
       expect(mockItemFindFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: ITEM_ID, userId: "user_1" } }),
       );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("locks a sensitive item's map until the owner unlocks", async () => {
+      mockItemFindFirst.mockResolvedValue({
+        id: ITEM_ID,
+        privacy: "sensitive",
+        locations: [{ source: "exif", latitude: DB_LAT, longitude: DB_LNG }],
+      });
+      const res = await GET(makeRequest({ itemId: ITEM_ID }));
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "sensitive_locked" });
       expect(mockFetch).not.toHaveBeenCalled();
     });
   });

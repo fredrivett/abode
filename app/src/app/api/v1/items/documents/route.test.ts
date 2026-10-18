@@ -162,7 +162,7 @@ describe("POST /api/v1/items/documents", () => {
     await call({ pages: [page(1)] });
     expect(m.itemCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ excludeFromPublicRooms: true }),
+        data: expect.objectContaining({ privacy: "unlisted" }),
       }),
     );
   });

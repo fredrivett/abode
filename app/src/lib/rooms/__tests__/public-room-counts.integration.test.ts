@@ -2,8 +2,8 @@
 
 import { resetTestDatabase } from "@app/vitest.setup.db";
 
-// A visitor's view of a public room must not count items its owner excluded
-// from public rooms, or the count reveals that hidden items exist
+// A visitor's view of a public room must not count items whose privacy level
+// keeps them out of public rooms, or the count reveals that hidden items exist
 describe("public room item counts", () => {
   let userId: string;
 
@@ -14,18 +14,22 @@ describe("public room item counts", () => {
     await write.user.create({
       data: { id: userId, email: "counts@example.com", username: "counter" },
     });
-    const item = (excludeFromPublicRooms: boolean) =>
+    const item = (privacy: "standard" | "unlisted" | "sensitive") =>
       write.item.create({
         data: {
           userId,
           kind: "note",
           sourceType: "compose",
           processingStatus: "completed",
-          excludeFromPublicRooms,
+          privacy,
         },
         select: { id: true },
       });
-    const [visible, hidden] = await Promise.all([item(false), item(true)]);
+    const [visible, unlisted, sensitive] = await Promise.all([
+      item("standard"),
+      item("unlisted"),
+      item("sensitive"),
+    ]);
     await write.room.create({
       data: {
         userId,
@@ -33,7 +37,13 @@ describe("public room item counts", () => {
         slug: "public",
         type: "manual",
         visibility: "public",
-        roomItems: { create: [{ itemId: visible.id }, { itemId: hidden.id }] },
+        roomItems: {
+          create: [
+            { itemId: visible.id },
+            { itemId: unlisted.id },
+            { itemId: sensitive.id },
+          ],
+        },
       },
     });
   });

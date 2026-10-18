@@ -6,6 +6,7 @@
  */
 
 import { ItemKind, SourceType } from "@prisma/client";
+import { allowsPublicRooms } from "../items/privacy";
 import {
   normalizeColorFilterValue,
   type StatusValue,
@@ -285,8 +286,7 @@ export function itemMatchesRoom(
   item: ItemWithDetails,
   room: RoomWithFilters,
 ): boolean {
-  // Check exclude flag for public rooms
-  if (room.visibility === "public" && item.excludeFromPublicRooms) {
+  if (room.visibility === "public" && !allowsPublicRooms(item.privacy)) {
     return false;
   }
 

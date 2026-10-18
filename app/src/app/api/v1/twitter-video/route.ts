@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemRead } from "@/lib/db";
 import { itemViewableWhere } from "@/lib/items/access";
+import { sensitiveGate } from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import {
   checkRateLimit,
@@ -253,12 +254,22 @@ export async function GET(request: NextRequest) {
   //    public-room grants.
   const item = await systemRead.item.findFirst({
     where: { id: itemId, ...itemViewableWhere(user?.id ?? null) },
-    select: { id: true, twitterDetails: { select: { media: true } } },
+    select: {
+      id: true,
+      privacy: true,
+      twitterDetails: { select: { media: true } },
+    },
   });
 
   if (!item) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
+
+  const locked = await sensitiveGate({
+    privacy: item.privacy,
+    userId: user?.id ?? null,
+  });
+  if (locked) return locked;
 
   // 5. Confirm the requested url is one of this item's stored variants, so a
   //    valid item id can't proxy an arbitrary twimg URL.

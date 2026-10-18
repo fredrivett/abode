@@ -110,7 +110,7 @@ describe("transformItem", () => {
     tags: [],
     userTags: [],
     notes: null,
-    excludeFromPublicRooms: false,
+    privacy: "standard",
     coverHidden: false,
     sharedAt: null,
     sharedHighlights: false,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProcessingStatus } from "@prisma/client";
+import type { ItemPrivacy, ProcessingStatus } from "@prisma/client";
 import {
   AlertCircle,
   BookOpen,
@@ -53,6 +53,8 @@ import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
+import { PrivacySelector } from "@/components/items/privacy-selector";
+import { SensitiveItemTile } from "@/components/items/sensitive-item-tile";
 import { NoteCard } from "@/components/note/note-card";
 import { NoteDetailPlaceholder } from "@/components/note/note-detail-placeholder";
 import { ProductDetailView } from "@/components/product/product-detail-view";
@@ -115,6 +117,11 @@ import { captureSourceLabel } from "@/lib/items/capture-source";
 import { downloadFileName } from "@/lib/items/download-file-name";
 import { hasKindSpecificCardContent } from "@/lib/items/kind-specific-card-content";
 import { shouldShowMissingFile } from "@/lib/items/missing-file";
+import {
+  allowsShareLink,
+  isSensitive,
+  SENSITIVE_ITEM_LABEL,
+} from "@/lib/items/privacy";
 import { getProcessingErrorCopy } from "@/lib/items/processing-error-copy";
 import { supportsSimilarImages } from "@/lib/items/similar-images-support";
 import {
@@ -155,6 +162,12 @@ import { useItemDetailDialog, useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
 
 const log = createLogger("dashboard/item-card");
+
+const PRIVACY_TOASTS: Record<ItemPrivacy, string> = {
+  standard: "Privacy set to default",
+  unlisted: "Kept out of public rooms",
+  sensitive: "Marked as sensitive",
+};
 
 // Sizing for the detail dialog's main image. Shared with the loading skeleton
 // (ItemDialogSkeletonBody) so the seed image and the resolved image occupy the
@@ -278,7 +291,24 @@ type ItemCardProps = {
  * swipe-to-dismiss on touch devices, editing (name, tags, notes, links, location,
  * privacy), room membership, and deletion.
  */
-export function ItemCard({
+export function ItemCard(props: ItemCardProps) {
+  // A sensitive item reaches lists redacted: a blurred tile that opens behind
+  // the password prompt, never the full card
+  if (props.item.redacted) return <RedactedItemCard item={props.item} />;
+  return <FullItemCard {...props} />;
+}
+
+function RedactedItemCard({ item }: { item: Item }) {
+  const { setOpen } = useItemDetailDialog(item.id);
+  return (
+    <SensitiveItemTile
+      blurDataUrl={item.blurDataUrl}
+      onOpen={() => setOpen(true)}
+    />
+  );
+}
+
+function FullItemCard({
   item,
   name,
   size,
@@ -1437,10 +1467,10 @@ export function ItemDetailBody({
   const [fullQualityUrl, setFullQualityUrl] = useState<string | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isDescriptionClamped, setIsDescriptionClamped] = useState(false);
-  const [excludeFromPublicRooms, setExcludeFromPublicRooms] = useState(
-    item.excludeFromPublicRooms ?? false,
+  const [privacy, setPrivacy] = useState<ItemPrivacy>(
+    item.privacy ?? "standard",
   );
-  const [isSavingExclude, setIsSavingExclude] = useState(false);
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
   const [coverHidden, setCoverHidden] = useState(item.coverHidden ?? false);
   const [isSavingCover, setIsSavingCover] = useState(false);
   const [isShared, setIsShared] = useState(item.sharedAt != null);
@@ -1504,8 +1534,13 @@ export function ItemDetailBody({
   );
   const reportItemTitle = itemDialog?.reportItemTitle;
   useEffect(() => {
-    reportItemTitle?.({ id: item.id, title: decodeHtmlEntities(name) });
-  }, [reportItemTitle, item.id, name]);
+    // A sensitive item's real title stays out of the tab (and browser history)
+    // even once unlocked
+    const title = isSensitive(privacy)
+      ? SENSITIVE_ITEM_LABEL
+      : decodeHtmlEntities(name);
+    reportItemTitle?.({ id: item.id, title });
+  }, [reportItemTitle, item.id, name, privacy]);
 
   // Progressive loading: load full quality image when dialog opens
   useEffect(() => {
@@ -1623,29 +1658,27 @@ export function ItemDetailBody({
     }
   };
 
-  const handleExcludeToggle = async () => {
-    const newValue = !excludeFromPublicRooms;
-    setIsSavingExclude(true);
+  const handlePrivacyChange = async (newPrivacy: ItemPrivacy) => {
+    const previous = privacy;
+    setIsSavingPrivacy(true);
     try {
-      await api.patch(`/api/v1/items/${item.id}`, {
-        excludeFromPublicRooms: newValue,
-      });
-      setExcludeFromPublicRooms(newValue);
+      await api.patch(`/api/v1/items/${item.id}`, { privacy: newPrivacy });
+      setPrivacy(newPrivacy);
 
-      // Track item privacy change
       posthog.capture("item_privacy_updated", {
         item_id: item.id,
-        exclude_from_public: newValue,
+        from: previous,
+        to: newPrivacy,
       });
 
-      toast.success(
-        newValue ? "Excluded from public rooms" : "Included in public rooms",
-      );
+      // Refetch so the grid card blurs / unblurs immediately
+      invalidateItems();
+      toast.success(PRIVACY_TOASTS[newPrivacy]);
     } catch (error) {
-      log.error({ error }, "Exclude toggle error");
-      toast.error("Failed to update setting");
+      log.error({ error }, "Privacy update error");
+      toast.error("Failed to update privacy");
     } finally {
-      setIsSavingExclude(false);
+      setIsSavingPrivacy(false);
     }
   };
 
@@ -1671,6 +1704,8 @@ export function ItemDetailBody({
       setIsSavingCover(false);
     }
   };
+
+  const shareLinkPaused = !allowsShareLink(privacy);
 
   const shareUrl = username
     ? `${getAppBaseUrl()}/@${username}/items/${item.id}`
@@ -3160,15 +3195,18 @@ export function ItemDetailBody({
                   id={`${toggleId}-share`}
                   checked={isShared}
                   onCheckedChange={handleShareToggle}
-                  disabled={isSavingShare}
+                  disabled={isSavingShare || shareLinkPaused}
                 />
               </label>
               <p className="text-muted-foreground text-xs">
-                When enabled, anyone with the link can view this item, even if
-                it isn't in a public room.
+                {shareLinkPaused
+                  ? isShared
+                    ? "Paused while sensitive — the link won't open until you change the privacy level."
+                    : "Sensitive items can't be shared."
+                  : "When enabled, anyone with the link can view this item, even if it isn't in a public room."}
               </p>
 
-              {isShared && (
+              {isShared && !shareLinkPaused && (
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center gap-2">
                     <input
@@ -3222,23 +3260,11 @@ export function ItemDetailBody({
               <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
                 Privacy
               </h3>
-              <label
-                htmlFor={`${toggleId}-exclude`}
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="text-gray-600 dark:text-gray-400">
-                  Exclude from public rooms
-                </span>
-                <Switch
-                  id={`${toggleId}-exclude`}
-                  checked={excludeFromPublicRooms}
-                  onCheckedChange={handleExcludeToggle}
-                  disabled={isSavingExclude}
-                />
-              </label>
-              <p className="text-muted-foreground text-xs">
-                When enabled, this item won't appear in public dynamic rooms
-              </p>
+              <PrivacySelector
+                value={privacy}
+                onChange={handlePrivacyChange}
+                disabled={isSavingPrivacy}
+              />
             </div>
           )}
 

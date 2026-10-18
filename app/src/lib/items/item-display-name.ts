@@ -1,4 +1,5 @@
 import { noteDisplayName } from "@/lib/items/note-title";
+import { SENSITIVE_ITEM_LABEL } from "@/lib/items/privacy";
 import type { Item } from "@/lib/types/item";
 
 /**
@@ -7,9 +8,12 @@ import type { Item } from "@/lib/types/item";
  *
  * `item.title` is the single source of truth; the fallbacks cover items whose
  * title hasn't resolved yet: a processing URL shows its domain, a title-less
- * note shows its first line, and everything else shows "Untitled".
+ * note shows its first line, and everything else shows "Untitled". A redacted
+ * (locked sensitive) item shows a neutral label.
  */
 export function getItemDisplayName(item: Item): string {
+  if (item.redacted) return SENSITIVE_ITEM_LABEL;
+
   const isProcessingUrl =
     item.sourceType === "url" && item.processingStatus === "processing";
 

@@ -105,7 +105,7 @@ describe("GET /api/v1/rooms/:id/items", () => {
     const res = await get("?cursor=ri-9");
     expect(res.status).toBe(200);
     expect(mockFindItems.mock.calls[0][0]).toMatchObject({
-      where: { roomId: "room-1", item: { excludeFromPublicRooms: false } },
+      where: { roomId: "room-1", item: { privacy: "standard" } },
       cursor: { id: "ri-9" },
     });
   });
@@ -116,7 +116,7 @@ describe("GET /api/v1/rooms/:id/items", () => {
     await get();
     expect(mockFindItems.mock.calls[0][0].where).toEqual({
       roomId: "room-1",
-      item: { excludeFromPublicRooms: false },
+      item: { privacy: "standard" },
     });
   });
 
