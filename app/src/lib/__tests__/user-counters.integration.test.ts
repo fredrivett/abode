@@ -115,20 +115,41 @@ describe("adjustUserCounters", () => {
     const { systemDb } = await import("@/lib/db");
     const { viewerTransaction } = await import("@/lib/db-viewer");
     const { adjustUserCounters } = await import("@/lib/user-counters");
-    const before = await counters(alice);
+    // Drift alice's counters down to nothing (as the reconcile job could)
+    await systemDb.user.update({
+      where: { id: alice },
+      data: { itemCount: 0, storageUsedBytes: BigInt(100) },
+    });
 
     await viewerTransaction({
       base: systemDb,
       viewerId: alice,
       run: (tx) =>
-        adjustUserCounters(tx, {
-          userId: alice,
-          items: -(before.items + 5),
-          bytes: -(before.bytes + 5000),
-        }),
+        adjustUserCounters(tx, { userId: alice, items: -1, bytes: -5000 }),
     });
 
     expect(await counters(alice)).toEqual({ items: 0, bytes: 0 });
+  });
+
+  it("only lets a user's request move one item's worth at a time", async () => {
+    const { systemDb } = await import("@/lib/db");
+    const { viewerTransaction } = await import("@/lib/db-viewer");
+    const { adjustUserCounters } = await import("@/lib/user-counters");
+    const before = await counters(alice);
+
+    for (const change of [
+      { items: -100, bytes: 0 },
+      { items: 1, bytes: -(2 * 1024 ** 3) },
+    ]) {
+      await expect(
+        viewerTransaction({
+          base: systemDb,
+          viewerId: alice,
+          run: (tx) => adjustUserCounters(tx, { userId: alice, ...change }),
+        }),
+      ).rejects.toThrow(/one item at a time/);
+    }
+    expect(await counters(alice)).toEqual(before);
   });
 
   it("lets background jobs on the owner connection adjust anyone", async () => {
