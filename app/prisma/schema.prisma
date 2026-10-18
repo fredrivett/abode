@@ -282,9 +282,11 @@ model Item {
   // (see ItemPrivacy)
   privacy ItemPrivacy @default(standard)
 
-  // Superseded by `privacy` (true = unlisted); never read or written. Kept until
-  // the deploy that introduced `privacy` is live, then dropped by a follow-up
-  // migration — the build migrates before new code serves traffic.
+  // Superseded by `privacy`; never read. Kept until the deploy that introduced
+  // `privacy` is live (the build migrates before new code serves traffic), and
+  // written alongside it (= privacy != standard) meanwhile, so the follow-up
+  // migration can re-sync rows an old build changed after the backfill, then
+  // drop it.
   excludeFromPublicRooms Boolean @default(false) @map("exclude_from_public_rooms")
 
   // Presentation: hide the cover image on the grid card (renders as a text card)

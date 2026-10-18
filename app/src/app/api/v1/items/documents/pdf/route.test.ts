@@ -111,6 +111,7 @@ describe("POST /api/v1/items/documents/pdf", () => {
           userId: USER,
           processingStatus: "processing",
           privacy: "unlisted",
+          excludeFromPublicRooms: true,
         },
       }),
     );

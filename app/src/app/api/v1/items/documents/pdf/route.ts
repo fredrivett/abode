@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
           // Like scans, PDFs are often personal (statements, contracts): keep
           // them out of public rooms unless the owner opts one in
           privacy: "unlisted",
+          // Mirrored into the superseded column until it's dropped
+          excludeFromPublicRooms: true,
         },
         select: { id: true, kind: true, processingStatus: true },
       });
