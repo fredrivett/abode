@@ -1,6 +1,7 @@
 import type { MilestoneType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -18,7 +19,7 @@ const log = createLogger("api/v1/user/milestones");
  * GET /api/v1/user/milestones
  * Returns the user's milestone status
  */
-export async function GET() {
+async function handleGET() {
   try {
     const supabase = await createClient();
     const {
@@ -61,7 +62,7 @@ const markCompleteSchema = z.object({
  * POST /api/v1/user/milestones
  * Marks a milestone as complete
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -94,3 +95,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

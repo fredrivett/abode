@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import { preflight, withCors } from "@/lib/http/cors";
+import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
 import { createNote } from "@/lib/items/create-note";
 import { clearNoteDraft } from "@/lib/items/note-draft";
@@ -11,7 +12,7 @@ import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 const log = createLogger("api/v1/items/notes");
 
 // Cross-origin preflight for the browser extension's "save selection as note".
-export function OPTIONS(request: NextRequest) {
+function handleOPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
@@ -22,7 +23,7 @@ export function OPTIONS(request: NextRequest) {
  * the extension, so there's no URL fetch or background classification — the
  * item is created synchronously and marked completed.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   return withCors(request, await handlePost(request));
 }
 
@@ -93,3 +94,6 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export const OPTIONS = withViewer(handleOPTIONS);
+export const POST = withViewer(handlePOST);

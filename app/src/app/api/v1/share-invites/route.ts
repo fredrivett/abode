@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { requestShareInvite } from "@/lib/invites/share-invite";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -17,7 +18,7 @@ const log = createLogger("api/share-invites");
  * invite. Rate limited per IP, since each request can spend one of the
  * sharer's invites.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const clientIp = getClientIp(request.headers);
     const rateLimit = checkRateLimit(clientIp, "shareInvite");
@@ -65,3 +66,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

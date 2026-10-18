@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
@@ -19,7 +20,7 @@ const log = createLogger("api/v1/rooms");
  * Query params:
  *   - type: Filter by room type ('smart' | 'manual')
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/v1/rooms - Create a new room
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -184,3 +185,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

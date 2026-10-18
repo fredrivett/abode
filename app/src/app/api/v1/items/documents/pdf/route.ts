@@ -6,6 +6,7 @@ import {
   titleFromFileName,
 } from "@/lib/documents/create-pdf-document-schema";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueuePdfImport } from "@/lib/items/enqueue-pdf-import";
@@ -26,7 +27,7 @@ const log = createLogger("api/v1/items/documents/pdf");
  * ingestion action; the import counts each scanned page it OCRs (see
  * import-pdf), since the page count isn't known until the PDF is opened.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -97,3 +98,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

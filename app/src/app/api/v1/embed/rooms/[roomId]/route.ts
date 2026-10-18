@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { systemDb } from "@/lib/db";
 import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -33,7 +34,7 @@ type RouteParams = { params: Promise<{ roomId: string }> };
 /**
  * OPTIONS /api/v1/embed/rooms/:roomId - CORS preflight
  */
-export async function OPTIONS() {
+async function handleOPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: CORS_HEADERS,
@@ -45,7 +46,7 @@ export async function OPTIONS() {
  *
  * Returns room metadata, owner info, and up to 12 item thumbnails for public rooms only.
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {
     const { roomId } = await params;
 
@@ -213,3 +214,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const OPTIONS = withViewer(handleOPTIONS);
+export const GET = withViewer(handleGET);

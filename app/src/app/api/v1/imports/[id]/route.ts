@@ -2,13 +2,14 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 
 const log = createLogger("api/imports/[id]");
 
 /** Poll a single import's status + counts (owner-scoped). Drives the progress UI. */
-export async function GET(
+async function handleGET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -54,3 +55,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withViewer(handleGET);

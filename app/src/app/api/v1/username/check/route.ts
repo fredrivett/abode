@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemRead } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -22,7 +23,7 @@ const log = createLogger("api/v1/username/check");
  * - { available: true }
  * - { available: false, error: "...", suggestion?: "..." }
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const username = request.nextUrl.searchParams.get("username");
 
@@ -92,3 +93,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

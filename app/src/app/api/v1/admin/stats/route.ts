@@ -3,6 +3,7 @@ import { getGlobalDailyActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
 import { systemDb } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +13,7 @@ const log = createLogger("api/v1/admin/stats");
 /**
  * GET /api/v1/admin/stats - Get global stats and activity overview
  */
-export async function GET() {
+async function handleGET() {
   try {
     const supabase = await createClient();
 
@@ -70,3 +71,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

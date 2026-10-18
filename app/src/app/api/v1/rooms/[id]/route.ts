@@ -2,6 +2,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
@@ -16,7 +17,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 /**
  * GET /api/v1/rooms/:id - Get a single room by ID
  */
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -76,7 +77,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 /**
  * PATCH /api/v1/rooms/:id - Update a room
  */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+async function handlePATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -219,7 +220,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/v1/rooms/:id - Delete a room
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -286,3 +287,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const PATCH = withViewer(handlePATCH);
+export const DELETE = withViewer(handleDELETE);

@@ -1,12 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/stats");
 
-export async function GET(_request: NextRequest) {
+async function handleGET(_request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -39,3 +40,5 @@ export async function GET(_request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

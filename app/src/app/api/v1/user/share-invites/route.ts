@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { getAvailableInvites } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -12,7 +13,7 @@ const log = createLogger("api/v1/user/share-invites");
  * Whether readers of the user's shared links can join with their invites, and
  * how many invites they have left. Toggled via PATCH /api/v1/user/profile.
  */
-export async function GET() {
+async function handleGET() {
   try {
     const supabase = await createClient();
     const {
@@ -49,3 +50,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

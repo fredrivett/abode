@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { systemDb } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +13,7 @@ const PAGE_SIZE = 20;
 /**
  * GET /api/v1/admin/users - List all users with stats
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -102,3 +103,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);

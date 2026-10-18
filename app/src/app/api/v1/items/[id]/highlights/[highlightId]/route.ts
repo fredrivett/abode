@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
@@ -8,7 +9,7 @@ const log = createLogger("api/v1/items/[id]/highlights/[highlightId]");
 
 type RouteParams = { params: Promise<{ id: string; highlightId: string }> };
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+async function handlePATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId, highlightId } = await params;
     const supabase = await createClient();
@@ -90,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId, highlightId } = await params;
     const supabase = await createClient();
@@ -146,3 +147,6 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+export const PATCH = withViewer(handlePATCH);
+export const DELETE = withViewer(handleDELETE);

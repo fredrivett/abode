@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemDb } from "@/lib/db";
 import type { DocumentPagesResponse } from "@/lib/documents/document-pages";
+import { withViewer } from "@/lib/http/with-viewer";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -15,7 +16,7 @@ const log = createLogger("api/v1/items/[id]/pages");
  * Viewable on the same terms as the item's images: the owner, a shared link,
  * or a public room.
  */
-export async function GET(
+async function handleGET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -55,3 +56,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withViewer(handleGET);

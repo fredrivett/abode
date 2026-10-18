@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemRead } from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -194,7 +195,7 @@ async function fetchAllowlisted(
  * a rate limit, no blind redirect following, a response size cap, and an
  * upstream timeout.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   // 1. First-party gate (primary control). Reject cross-site embeds and bare
   //    curl/script hits before doing any work or touching the upstream.
   if (!isFirstPartyRequest(request)) {
@@ -343,3 +344,5 @@ export async function GET(request: NextRequest) {
     headers: responseHeaders,
   });
 }
+
+export const GET = withViewer(handleGET);

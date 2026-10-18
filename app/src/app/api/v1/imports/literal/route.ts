@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { withViewer } from "@/lib/http/with-viewer";
 import { fetchLiteralBooks } from "@/lib/imports/literal/adapter";
 import { LiteralApiError } from "@/lib/imports/literal/client";
 import { serializeBook } from "@/lib/imports/payload";
@@ -24,7 +25,7 @@ const bodySchema = z.union([
   z.object({ email: z.string().email(), password: z.string().min(1) }),
 ]);
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
   try {
     const auth = await authenticateRequest(request, { tokenScope: null });
     if (!auth) {
@@ -172,3 +173,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { captureServerException } from "@/lib/posthog-server";
 import {
   checkRateLimit,
@@ -12,7 +13,7 @@ import { waitlistSchema } from "./schema";
  * POST /api/v1/waitlist
  * Add email to waitlist
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Rate limit by IP address
     const clientIp = getClientIp(request.headers);
@@ -62,3 +63,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

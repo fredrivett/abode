@@ -4,6 +4,7 @@ import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import { preflight, withCors } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -14,13 +15,13 @@ import { instagramEnrichSchema } from "./schema";
 const log = createLogger("api/v1/items/[id]/instagram-enrich");
 
 // Cross-origin preflight for the browser extension (bearer-authed — see cors).
-export function OPTIONS(request: NextRequest) {
+function handleOPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(request: NextRequest, ctx: Ctx) {
+async function handlePOST(request: NextRequest, ctx: Ctx) {
   return withCors(request, await handlePost(request, ctx));
 }
 
@@ -150,3 +151,6 @@ async function handlePost(
     );
   }
 }
+
+export const OPTIONS = withViewer(handleOPTIONS);
+export const POST = withViewer(handlePOST);

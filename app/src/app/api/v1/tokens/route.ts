@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { TOKEN_SCOPES, type TokenScope } from "@/lib/auth/token-scopes";
+import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import {
   createPersonalAccessToken,
@@ -39,7 +40,7 @@ const createTokenSchema = z.object({
 /**
  * GET /api/v1/tokens - List the current user's active personal access tokens
  */
-export async function GET() {
+async function handleGET() {
   try {
     const supabase = await createClient();
     const {
@@ -67,7 +68,7 @@ export async function GET() {
  * POST /api/v1/tokens - Mint a new personal access token. The raw token is
  * returned once in the response and never again.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -135,3 +136,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);

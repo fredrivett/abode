@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { isItemSource } from "@/lib/items/capture-source";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
@@ -33,7 +34,7 @@ const allowedKinds = new Set(["image", "article", "webpage"]);
  * Supports cursor-based pagination with optional `cursor` and `limit` query params.
  * Returns { items, cursor, hasMore, total } for paginated requests.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -263,3 +264,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const GET = withViewer(handleGET);
+export const POST = withViewer(handlePOST);
+export const DELETE = withViewer(handleDELETE);

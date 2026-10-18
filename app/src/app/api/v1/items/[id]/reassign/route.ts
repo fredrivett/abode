@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
+import { withViewer } from "@/lib/http/with-viewer";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimDailyReassign } from "@/lib/items/reassign-claim";
@@ -21,7 +22,7 @@ const log = createLogger("api/v1/items/[id]/reassign");
  * detail data is rebuilt and stale detail rows are pruned. Only web-family
  * reassignments are allowed (see item-kind-reassignment).
  */
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -162,3 +163,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withViewer(handlePOST);

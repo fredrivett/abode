@@ -1,5 +1,6 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { withViewer } from "@/lib/http/with-viewer";
 import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
@@ -56,7 +57,7 @@ type RouteParams = {
  * - h: height in pixels
  * - q: quality (1-100, default 80)
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {
     // fileKey comes URL-encoded, decode it (e.g., "userId%2Ffilename.jpg" -> "userId/filename.jpg")
     const { fileKey: encodedFileKey } = await params;
@@ -187,3 +188,5 @@ function inferContentType(fileKey: string): string {
   };
   return contentTypes[ext || ""] || "application/octet-stream";
 }
+
+export const GET = withViewer(handleGET);
