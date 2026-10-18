@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { BLUR_HEALABLE_KINDS } from "@/lib/items/blur-healable-kinds";
 import { STUCK_ITEM_THRESHOLD_MS } from "@/lib/items/reap-stuck-items";
 
@@ -171,8 +171,8 @@ export async function getProcessingIssues(): Promise<IssueGroup[]> {
   return Promise.all(
     issueSpecs().map(async ({ where, ...group }) => {
       const [count, items] = await Promise.all([
-        db.item.count({ where }),
-        db.item.findMany({
+        systemDb.item.count({ where }),
+        systemDb.item.findMany({
           where,
           orderBy: { updatedAt: "desc" },
           take: SAMPLE_LIMIT,

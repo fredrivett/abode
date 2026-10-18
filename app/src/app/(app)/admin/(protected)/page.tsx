@@ -4,7 +4,7 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { getGlobalDailyActivity } from "@/lib/activity";
 import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
 import { getGlobalUsageToday } from "@/lib/admin/usage-stats";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { cn, formatUsd } from "@/lib/utils";
 import { ActivityChart } from "../_components/activity-chart";
 import { ActivityHeatmap } from "../_components/activity-heatmap";
@@ -24,10 +24,10 @@ export default async function AdminPage() {
     embeddings,
     usage,
   ] = await Promise.all([
-    db.user.count(),
-    db.item.count(),
-    db.room.count(),
-    db.user.aggregate({
+    systemDb.user.count(),
+    systemDb.item.count(),
+    systemDb.room.count(),
+    systemDb.user.aggregate({
       _sum: { storageUsedBytes: true },
     }),
     getVisualEmbeddingCoverage(),

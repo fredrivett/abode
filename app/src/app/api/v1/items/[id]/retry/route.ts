@@ -5,7 +5,7 @@ import type { importPdfTask } from "@app/trigger/import-pdf";
 import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import db from "@/lib/db";
+import db, { systemDb } from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
@@ -33,9 +33,12 @@ export async function POST(
     }
 
     const isAdmin = await hasFullAdminAccess(supabase);
+    // Admins retry anyone's item, so they need the system connection; everyone
+    // else stays on their own rows
+    const client = isAdmin ? systemDb : db;
 
     // Admins can retry any item; other users can only retry their own.
-    const item = await db.item.findUnique({
+    const item = await client.item.findUnique({
       where: isAdmin ? { id } : { id, userId: user.id },
       select: {
         id: true,
@@ -96,7 +99,7 @@ export async function POST(
         });
       }
     } else {
-      await db.item.update({
+      await client.item.update({
         where: { id },
         data: {
           processingStatus: "processing",
@@ -115,7 +118,7 @@ export async function POST(
     // `processingError` stamps a reason when reverting to `failed` (enqueue
     // failure) so it doesn't render as a bare "unknown".
     const revert = (processingError?: ProcessingErrorReason) =>
-      db.item.update({
+      client.item.update({
         where: { id },
         data: {
           processingStatus: previousStatus,

@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { normalizeReferrerUrl } from "@/lib/referrer";
 
@@ -15,7 +15,7 @@ export async function trackEmbedReferrer(
   if (!normalized) return;
 
   try {
-    await db.roomEmbedReferrer.upsert({
+    await systemDb.roomEmbedReferrer.upsert({
       where: {
         roomId_referrerUrl: {
           roomId,

@@ -1,5 +1,5 @@
 import { tasks } from "@trigger.dev/sdk";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { EmailBlockedInTestError, sendEmail } from "@/lib/email";
 import { getWaitlistConfirmationEmail } from "@/lib/email/templates";
 import {
@@ -38,7 +38,7 @@ export async function joinWaitlist(
   const normalizedEmail = email.toLowerCase().trim();
 
   // Check if already on waitlist
-  const existing = await db.waitlistEntry.findUnique({
+  const existing = await systemDb.waitlistEntry.findUnique({
     where: { email: normalizedEmail },
   });
 
@@ -50,7 +50,7 @@ export async function joinWaitlist(
   }
 
   // Check if already a user
-  const existingUser = await db.user.findUnique({
+  const existingUser = await systemDb.user.findUnique({
     where: { email: normalizedEmail },
     select: { id: true },
   });
@@ -63,7 +63,7 @@ export async function joinWaitlist(
   }
 
   // Check if there's already an active invite for this email
-  const existingInvite = await db.invite.findFirst({
+  const existingInvite = await systemDb.invite.findFirst({
     where: {
       email: normalizedEmail,
       acceptedAt: null,
@@ -80,7 +80,7 @@ export async function joinWaitlist(
   }
 
   // Create waitlist entry with position assignment in a transaction
-  const entry = await db.$transaction(async (tx) => {
+  const entry = await systemDb.$transaction(async (tx) => {
     // Get current max position
     const maxPosition = await tx.waitlistEntry.aggregate({
       _max: { position: true },
@@ -162,8 +162,8 @@ export async function joinWaitlist(
  */
 export async function getWaitlistStats() {
   const [total, recentSignups] = await Promise.all([
-    db.waitlistEntry.count(),
-    db.waitlistEntry.count({
+    systemDb.waitlistEntry.count(),
+    systemDb.waitlistEntry.count({
       where: {
         createdAt: {
           gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days

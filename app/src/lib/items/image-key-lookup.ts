@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { itemAccessSelect } from "./access";
@@ -58,7 +58,7 @@ export async function findItemOwningImageKey(fileKey: string) {
   ) {
     return null;
   }
-  return db.item.findFirst({
+  return systemDb.item.findFirst({
     where: { AND: [{ userId: ownerId }, itemOwningImageKeyWhere(fileKey)] },
     select: { id: true, ...itemAccessSelect },
   });

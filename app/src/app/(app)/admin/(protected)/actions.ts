@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { reprocessIssueGroup } from "@/lib/admin/reprocess-issues";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
@@ -62,7 +62,7 @@ export async function deleteUserAsAdmin(
   }
 
   // Verify the user exists
-  const userToDelete = await db.user.findUnique({
+  const userToDelete = await systemDb.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, username: true },
   });
@@ -75,17 +75,17 @@ export async function deleteUserAsAdmin(
 
   try {
     // Delete all user's items first (CASCADE will handle locations, vectors, details, room items)
-    await db.item.deleteMany({
+    await systemDb.item.deleteMany({
       where: { userId },
     });
 
     // Delete all user's rooms
-    await db.room.deleteMany({
+    await systemDb.room.deleteMany({
       where: { userId },
     });
 
     // Delete the user record from the database
-    await db.user.delete({
+    await systemDb.user.delete({
       where: { id: userId },
     });
 

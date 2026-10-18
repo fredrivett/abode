@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import { systemDb } from "@/lib/db";
 import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
 import { createLogger } from "@/lib/logger.server";
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const limit = 12;
 
     // Fetch room with owner info - only if public
-    const room = await db.room.findFirst({
+    const room = await systemDb.room.findFirst({
       where: {
         id: roomId,
         visibility: "public",
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     void trackEmbedReferrer(roomId, referrer);
 
     // Fetch room items for preview
-    const roomItems = await db.roomItem.findMany({
+    const roomItems = await systemDb.roomItem.findMany({
       where: viewableRoomItemsWhere({ roomId, isOwner: false }),
       take: limit,
       orderBy: { addedAt: "desc" },
