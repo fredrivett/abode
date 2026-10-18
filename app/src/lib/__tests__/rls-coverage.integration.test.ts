@@ -44,4 +44,55 @@ describe("row level security coverage", () => {
         "SECURITY;), or add a justified exemption to RLS_EXEMPT_TABLES.",
     ).toEqual([]);
   });
+
+  it("every table has policies for the restricted abode_app role", async () => {
+    const { read } = await import("@/lib/db");
+    // Deliberately unreachable by abode_app: Prisma's ledger and the
+    // pre-signup waitlist are only ever touched by system code
+    const SYSTEM_ONLY_TABLES = new Set([
+      "_prisma_migrations",
+      "waitlist_entries",
+    ]);
+
+    const tables = await read.$queryRaw<
+      { tablename: string; policies: number }[]
+    >`
+      SELECT c.relname AS tablename,
+        (SELECT count(*)::int FROM pg_policies p
+          WHERE p.schemaname = 'public' AND p.tablename = c.relname
+            AND 'abode_app' = ANY (p.roles)) AS policies
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r'
+      ORDER BY c.relname
+    `;
+    const withoutPolicies = tables
+      .filter((t) => !SYSTEM_ONLY_TABLES.has(t.tablename) && t.policies === 0)
+      .map((t) => t.tablename);
+
+    expect(
+      withoutPolicies,
+      `Tables abode_app can't reach: ${withoutPolicies.join(", ")}. Add owner ` +
+        "policies `TO abode_app` in the table's migration (see " +
+        "20261018170000_abode_app_rls), or list it as system-only here.",
+    ).toEqual([]);
+  });
+
+  it("abode_app can't bypass RLS and isn't reachable from PostgREST", async () => {
+    const { read } = await import("@/lib/db");
+    const [role] = await read.$queryRaw<
+      { bypass: boolean; superuser: boolean; login: boolean }[]
+    >`SELECT rolbypassrls AS bypass, rolsuper AS superuser, rolcanlogin AS login
+      FROM pg_roles WHERE rolname = 'abode_app'`;
+    expect(role).toEqual({ bypass: false, superuser: false, login: false });
+
+    const exposedTo = await read.$queryRaw<{ member: string }[]>`
+      SELECT m.rolname AS member FROM pg_auth_members am
+      JOIN pg_roles r ON r.oid = am.roleid
+      JOIN pg_roles m ON m.oid = am.member
+      WHERE r.rolname = 'abode_app'
+        AND m.rolname IN ('anon', 'authenticated', 'authenticator')
+    `;
+    expect(exposedTo).toEqual([]);
+  });
 });
