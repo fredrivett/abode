@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import {
+  itemLocationSelect,
+  locationsForViewer,
+} from "@/lib/items/public-location";
+import {
   EMPTY_ARTICLE_READ_STATE,
   mapPublicBookDetails,
   publicBookDetailsSelect,
@@ -47,20 +51,7 @@ export const roomItemSelect = {
       userTags: true,
       // Presentation: a cover hidden on the grid card stays hidden in rooms
       coverHidden: true,
-      locations: {
-        select: {
-          id: true,
-          source: true,
-          latitude: true,
-          longitude: true,
-          neighborhood: true,
-          city: true,
-          region: true,
-          country: true,
-          countryCode: true,
-          formatted: true,
-        },
-      },
+      locations: { select: itemLocationSelect },
       imageDetails: {
         select: {
           objects: true,
@@ -131,7 +122,10 @@ export type RoomItemRow = Prisma.RoomItemGetPayload<{
 }>;
 
 /** Serialize a room item row for the client (dates as ISO strings). */
-export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
+export function toClientRoomItem(
+  roomItem: RoomItemRow,
+  { isOwner }: { isOwner: boolean },
+): RoomItem {
   return {
     roomItemId: roomItem.id,
     addedAt: roomItem.addedAt.toISOString(),
@@ -157,7 +151,10 @@ export function toClientRoomItem(roomItem: RoomItemRow): RoomItem {
     ocrText: roomItem.item.imageDetails?.ocrText ?? null,
     captureDate: roomItem.item.imageDetails?.captureDate?.toISOString() ?? null,
     blurDataUrl: roomItem.item.imageDetails?.blurDataUrl ?? null,
-    locations: roomItem.item.locations,
+    locations: locationsForViewer({
+      locations: roomItem.item.locations,
+      isOwner,
+    }),
     articleDetails: roomItem.item.articleDetails
       ? {
           ...roomItem.item.articleDetails,

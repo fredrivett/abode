@@ -71,7 +71,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
 
   return (
     <ItemDetailView
-      item={toClientItem(item)}
+      item={toClientItem(item, { isOwner })}
       owner={{
         username: user.username,
         firstName: user.firstName,

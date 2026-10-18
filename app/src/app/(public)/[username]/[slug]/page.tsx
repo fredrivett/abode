@@ -154,7 +154,9 @@ export default async function RoomPage({ params }: Props) {
     itemCount,
   };
 
-  const itemsForClient = paginatedRoomItems.map(toClientRoomItem);
+  const itemsForClient = paginatedRoomItems.map((row) =>
+    toClientRoomItem(row, { isOwner }),
+  );
 
   return (
     <RoomPageClient

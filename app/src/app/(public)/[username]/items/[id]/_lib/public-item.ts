@@ -12,6 +12,10 @@ import {
   itemAccessSelect,
 } from "@/lib/items/access";
 import {
+  itemLocationSelect,
+  locationsForViewer,
+} from "@/lib/items/public-location";
+import {
   EMPTY_ARTICLE_READ_STATE,
   mapPublicBookDetails,
   publicBookDetailsSelect,
@@ -103,20 +107,7 @@ const itemDetailSelect = {
       },
     },
   },
-  locations: {
-    select: {
-      id: true,
-      source: true,
-      latitude: true,
-      longitude: true,
-      neighborhood: true,
-      city: true,
-      region: true,
-      country: true,
-      countryCode: true,
-      formatted: true,
-    },
-  },
+  locations: { select: itemLocationSelect },
   imageDetails: {
     select: {
       objects: true,
@@ -263,7 +254,10 @@ export async function getSharedHighlight({
 }
 
 /** Convert the DB item into the client shape. NEVER exposes notes. */
-export function toClientItem(item: ItemDetailPayload) {
+export function toClientItem(
+  item: ItemDetailPayload,
+  { isOwner }: { isOwner: boolean },
+) {
   return {
     id: item.id,
     kind: item.kind,
@@ -284,7 +278,7 @@ export function toClientItem(item: ItemDetailPayload) {
     colors: (item.imageDetails?.colors as ImageColor[]) ?? [],
     ocrText: item.imageDetails?.ocrText ?? null,
     captureDate: item.imageDetails?.captureDate?.toISOString() ?? null,
-    locations: item.locations,
+    locations: locationsForViewer({ locations: item.locations, isOwner }),
     articleDetails: item.articleDetails
       ? {
           ...item.articleDetails,

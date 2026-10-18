@@ -48,14 +48,6 @@ const ITEM_ID = "item_1";
 const DB_LAT = 47.6205;
 const DB_LNG = -122.3493;
 
-// Grants matching itemViewableWhere / canViewItem: shared via link, or in a
-// public room and not excluded from public rooms.
-const sharedGrant = { sharedAt: { not: null } };
-const publicRoomGrant = {
-  excludeFromPublicRooms: false,
-  roomItems: { some: { room: { visibility: "public" } } },
-};
-
 const mockFetch = vi.fn();
 
 function makeRequest(
@@ -201,39 +193,29 @@ describe("GET /api/v1/map-image", () => {
   });
 
   describe("access control", () => {
-    it("allows an unauthenticated request for a public-room item", async () => {
+    it("refuses anyone signed out, even for a shared or public-room item", async () => {
       mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
-      const res = await GET(makeRequest({ itemId: ITEM_ID }));
-      expect(res.status).toBe(200);
-      expect(mockItemFindFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: ITEM_ID, OR: [sharedGrant, publicRoomGrant] },
-        }),
-      );
-    });
-
-    it("returns 401 for an unauthenticated request to a private item", async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
-      mockItemFindFirst.mockResolvedValue(null);
       const res = await GET(makeRequest({ itemId: ITEM_ID }));
       expect(res.status).toBe(401);
+      expect(mockItemFindFirst).not.toHaveBeenCalled();
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it("returns 401 for an authenticated non-owner of a private item", async () => {
+    it("only looks up the caller's own item, so a non-owner gets 401", async () => {
       mockItemFindFirst.mockResolvedValue(null);
       const res = await GET(makeRequest({ itemId: ITEM_ID }));
       expect(res.status).toBe(401);
       expect(mockItemFindFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            id: ITEM_ID,
-            OR: [{ userId: "user_1" }, sharedGrant, publicRoomGrant],
-          },
-        }),
+        expect.objectContaining({ where: { id: ITEM_ID, userId: "user_1" } }),
       );
       expect(mockFetch).not.toHaveBeenCalled();
     });
+  });
+
+  it("never lets a cache keep the map", async () => {
+    const res = await GET(makeRequest({ itemId: ITEM_ID }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("returns 503 when Mapbox is not configured", async () => {
