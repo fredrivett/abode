@@ -9,7 +9,7 @@ import { runInViewerFrame } from "@/lib/viewer-context";
  * the caller once they've authenticated them. With RLS_ENFORCED on, every `db`
  * query in the frame then runs as the restricted abode_app role for that user
  * — and before authentication (or if it fails) as an anonymous viewer that
- * sees nothing.
+ * sees no user-owned rows (shared tables stay readable).
  */
 export function withViewer<Args extends unknown[], Result>(
   handler: (...args: Args) => Promise<Result>,

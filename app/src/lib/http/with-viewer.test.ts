@@ -15,4 +15,15 @@ describe("withViewer", () => {
     expect(await handler(null)).toEqual({ before: null, after: null });
     expect(currentViewerFrame()).toBeUndefined();
   });
+
+  it("keeps overlapping requests apart", async () => {
+    const handler = withViewer(async (viewerId: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      recordViewer(viewerId);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(await Promise.all([handler("a"), handler("b")])).toEqual(["a", "b"]);
+  });
 });

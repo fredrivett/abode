@@ -14,10 +14,18 @@ export function runInViewerFrame<T>(run: () => T): T {
   return frames.run({ viewerId: null }, run);
 }
 
-/** Record the authenticated user for the current frame, if there is one */
+/**
+ * Record the authenticated user for the current frame, if there is one. A
+ * frame acts for one user: recording someone else later would switch whose
+ * rows the rest of the request can touch, so it throws instead.
+ */
 export function recordViewer(viewerId: string): void {
   const frame = frames.getStore();
-  if (frame) frame.viewerId = viewerId;
+  if (!frame) return;
+  if (frame.viewerId !== null && frame.viewerId !== viewerId) {
+    throw new Error("A request frame can't switch to a different viewer");
+  }
+  frame.viewerId = viewerId;
 }
 
 /** The current frame, or undefined outside any request frame (background jobs, scripts) */

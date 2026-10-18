@@ -12,10 +12,18 @@ language js
 //
 // Biome 2.2 can't suppress plugin diagnostics with `biome-ignore`, so a genuine
 // use must be allowlisted by path in that biome.json override.
-`$client.$member` as $use where {
-  $client <: or { `systemDb`, `systemRead` },
+// Matches every reference, not just `systemDb.x` (passing it as a value or
+// assigning it would otherwise slip past), and the import itself, which also
+// catches importing it under an alias.
+or {
+  `import { $imports } from "@/lib/db"` where {
+    $imports <: r".*\b(?:systemDb|systemRead)\b.*"
+  },
+  `systemDb`,
+  `systemRead`
+} as $ref where {
   register_diagnostic(
-    span=$use,
+    span=$ref,
     message="`systemDb`/`systemRead` bypass row level security and see every user's rows. Acting for the signed-in user? Use `db` from @/lib/db. If this genuinely spans users or runs as the system, add the file to the no-unlisted-system-db override in biome.json.",
     severity="error"
   )

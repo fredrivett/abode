@@ -84,6 +84,21 @@ describe("contextual db client", () => {
       expect(seen).toEqual(["alice"]);
     });
 
+    it("passes transaction options through", async () => {
+      const { default: db } = await import("@/lib/db");
+      const level = await asViewer(alice, () =>
+        db.$transaction(
+          async (tx) => {
+            const [row] = await tx.$queryRaw<{ level: string }[]>`
+              SELECT current_setting('transaction_isolation') AS level`;
+            return row.level;
+          },
+          { isolationLevel: "Serializable" },
+        ),
+      );
+      expect(level).toBe("serializable");
+    });
+
     it("refuses batch transactions rather than running them unrestricted", async () => {
       const { default: db } = await import("@/lib/db");
       await expect(

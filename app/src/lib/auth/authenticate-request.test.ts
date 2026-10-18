@@ -185,6 +185,42 @@ describe("authenticateRequest", () => {
     expect(viewer).toBeNull();
   });
 
+  it("leaves the request anonymous while the cookie session owes its MFA challenge", async () => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+    mockCookieAAL.mockResolvedValue({
+      data: { currentLevel: "aal1", nextLevel: "aal2" },
+      error: null,
+    });
+    mockCookieListFactors.mockResolvedValue({
+      data: { totp: [{ status: "verified" }] },
+      error: null,
+    });
+
+    const viewer = await runInViewerFrame(async () => {
+      await authenticateRequest(request(), SESSION_ONLY);
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(viewer).toBeNull();
+  });
+
+  it("records a bearer token's user as the request's viewer", async () => {
+    mockBearerGetUser.mockResolvedValue({
+      data: { user: { id: "u_bearer" } },
+      error: null,
+    });
+
+    const viewer = await runInViewerFrame(async () => {
+      await authenticateRequest(request("Bearer token-abc"), SESSION_ONLY);
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(viewer).toBe("u_bearer");
+  });
+
   it("rejects an AAL1 cookie session for a user with a verified MFA factor", async () => {
     mockCookieGetUser.mockResolvedValue({
       data: { user: { id: "u_cookie" } },
@@ -419,6 +455,18 @@ describe("authenticateRequest — personal access tokens", () => {
     // The Supabase-token and cookie paths are never touched
     expect(mockBearerGetUser).not.toHaveBeenCalled();
     expect(mockCookieGetUser).not.toHaveBeenCalled();
+  });
+
+  it("records the token's user as the request's viewer", async () => {
+    mockFindUnique.mockResolvedValue(patRecord());
+    withUser();
+
+    const viewer = await runInViewerFrame(async () => {
+      await authenticateRequest(request(`Bearer ${PAT}`), READ);
+      return currentViewerFrame()?.viewerId;
+    });
+
+    expect(viewer).toBe("u_pat");
   });
 
   it("bumps last_used_at when stale, via an atomic conditional updateMany", async () => {

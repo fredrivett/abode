@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
-import type { DbClient, DbTransactionClient } from "@/lib/db";
+import type {
+  DbClient,
+  DbTransactionClient,
+  TransactionOptions,
+} from "@/lib/db";
 
 /**
  * The restricted role created in the abode_app_rls migration: it can't bypass
@@ -27,7 +31,8 @@ function setViewer(
  *
  * Use `viewerTransaction` for multi-statement work; calling `$transaction` on
  * this client isn't supported. Request code doesn't call this directly — the
- * default `db` client switches to it inside a viewer frame (see `@/lib/db`).
+ * default `db` client switches to it inside a viewer frame when RLS_ENFORCED
+ * is on (see `@/lib/db`).
  */
 export function forViewer(viewerId: string | null, base: DbClient) {
   return base.$extends({
@@ -53,13 +58,15 @@ export function viewerTransaction<T>({
   viewerId,
   run,
   base,
+  options,
 }: {
   viewerId: string | null;
   run: (tx: DbTransactionClient) => Promise<T>;
   base: DbClient;
+  options?: TransactionOptions;
 }): Promise<T> {
   return base.$transaction(async (tx) => {
     await setViewer(tx, viewerId);
     return run(tx);
-  });
+  }, options);
 }

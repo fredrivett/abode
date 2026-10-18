@@ -37,6 +37,16 @@ describe("viewer frames", () => {
     expect(await Promise.all([request("a"), request("b")])).toEqual(["a", "b"]);
   });
 
+  it("can't be switched to a different viewer once recorded", async () => {
+    await runInViewerFrame(async () => {
+      recordViewer("user-1");
+      // Re-recording the same user (two auth helpers in one request) is fine
+      recordViewer("user-1");
+      expect(() => recordViewer("user-2")).toThrow(/different viewer/);
+      expect(currentViewerFrame()?.viewerId).toBe("user-1");
+    });
+  });
+
   it("don't exist outside a request, where recording is a no-op", () => {
     recordViewer("user-1");
     expect(currentViewerFrame()).toBeUndefined();

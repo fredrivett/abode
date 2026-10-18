@@ -3,7 +3,11 @@ import type { ITXClientDenyList } from "@prisma/client/runtime/library";
 import { isDevelopment } from "@/env";
 import { connectionRetryExtension } from "@/lib/db-retry";
 import { forViewer, viewerTransaction } from "@/lib/db-viewer";
-import { currentViewerFrame, isRlsEnforced } from "@/lib/viewer-context";
+import {
+  currentViewerFrame,
+  isRlsEnforced,
+  type ViewerFrame,
+} from "@/lib/viewer-context";
 
 /**
  * Primary prisma client (write) and optional read-replica client.
@@ -60,6 +64,9 @@ export type DbClient = ReturnType<typeof createWriteClient>;
  */
 export type DbTransactionClient = Omit<DbClient, ITXClientDenyList>;
 
+/** Options accepted by an interactive `$transaction(fn, options)` */
+export type TransactionOptions = Parameters<DbClient["$transaction"]>[1];
+
 function createReadClient() {
   const readReplicaUrl = process.env.READ_REPLICA_DATABASE_URL?.trim();
   const primaryUrl = process.env.DATABASE_URL;
@@ -95,25 +102,28 @@ function getReadClient(): DbClient {
 }
 
 type RestrictedClient = ReturnType<typeof forViewer>;
-const restrictedClients = new WeakMap<
-  DbClient,
-  Map<string | null, RestrictedClient>
->();
+type FrameClients = {
+  viewerId: string | null;
+  byBase: Map<DbClient, RestrictedClient>;
+};
+// Kept on the request's frame, so they're collected with the request
+const frameClients = new WeakMap<ViewerFrame, FrameClients>();
 
-/** One restricted client per (connection, viewer), reused across requests */
+/** The frame's restricted client for `base`, built once per request */
 function restrictedClient(
+  frame: ViewerFrame,
   base: DbClient,
-  viewerId: string | null,
 ): RestrictedClient {
-  let byViewer = restrictedClients.get(base);
-  if (!byViewer) {
-    byViewer = new Map();
-    restrictedClients.set(base, byViewer);
+  let clients = frameClients.get(frame);
+  // The viewer goes from anonymous to the authenticated user once per request
+  if (!clients || clients.viewerId !== frame.viewerId) {
+    clients = { viewerId: frame.viewerId, byBase: new Map() };
+    frameClients.set(frame, clients);
   }
-  let client = byViewer.get(viewerId);
+  let client = clients.byBase.get(base);
   if (!client) {
-    client = forViewer(viewerId, base);
-    byViewer.set(viewerId, client);
+    client = forViewer(frame.viewerId, base);
+    clients.byBase.set(base, client);
   }
   return client;
 }
@@ -134,7 +144,7 @@ function contextual(getBase: () => DbClient): DbClient {
       if (!frame || !isRlsEnforced()) return Reflect.get(base, prop);
 
       if (prop === "$transaction") {
-        return (arg: unknown) => {
+        return (arg: unknown, options?: TransactionOptions) => {
           if (typeof arg !== "function") {
             throw new Error(
               "Batch $transaction([...]) isn't supported for a viewer; use $transaction(async (tx) => …)",
@@ -144,10 +154,11 @@ function contextual(getBase: () => DbClient): DbClient {
             viewerId: frame.viewerId,
             base,
             run: arg as (tx: DbTransactionClient) => Promise<unknown>,
+            options,
           });
         };
       }
-      return Reflect.get(restrictedClient(base, frame.viewerId), prop);
+      return Reflect.get(restrictedClient(frame, base), prop);
     },
   });
 }
