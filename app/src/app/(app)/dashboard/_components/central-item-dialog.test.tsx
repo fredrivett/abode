@@ -471,4 +471,25 @@ describe("CentralItemDialog — sensitive items", () => {
       queryKey: ["items", "s", "detail"],
     });
   });
+
+  it("drops the sensitive item from the query cache when the dialog unmounts", () => {
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: unlocked };
+    const { unmount } = renderWith([redacted]);
+
+    unmount();
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: ["items", "s", "detail"],
+    });
+  });
+
+  it("asks for the password rather than show a cached copy once locked", () => {
+    // React Query keeps the last data when the refetch comes back locked
+    dialogState = { openItemId: "s" };
+    useItemReturn = { data: unlocked, isError: true, error: lockedError };
+    renderWith([redacted]);
+
+    expect(screen.getByTestId("unlock")).toBeInTheDocument();
+    expect(screen.queryByTestId("body")).not.toBeInTheDocument();
+  });
 });

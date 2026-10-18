@@ -86,7 +86,10 @@ export function CentralItemDialog({
     error: fetchError,
     refetch,
   } = useItem(openItemId, needsFetch);
-  const hasFetched = !!fetched && fetched.id === openItemId;
+  // React Query keeps a query's last data when a refetch fails, so a cached
+  // sensitive copy must never resolve once the server says it's locked
+  const fetchLocked = isSensitiveLockedError(fetchError);
+  const hasFetched = !!fetched && fetched.id === openItemId && !fetchLocked;
   // An edit can drop the open item out of the list mid-dialog (marking a book
   // read under a `@status:reading` search). Keep showing the last copy while
   // the by-id fetch catches up, rather than unmounting the dialog under the user.
@@ -94,15 +97,11 @@ export function CentralItemDialog({
   const lastResolved =
     lastResolvedRef.current?.id === openItemId ? lastResolvedRef.current : null;
   const resolved =
-    inList ??
-    fromInitial ??
-    (fetched && fetched.id === openItemId ? fetched : null) ??
-    lastResolved;
+    inList ?? fromInitial ?? (hasFetched ? fetched : null) ?? lastResolved;
   lastResolvedRef.current = resolved;
 
   // A sensitive item asks for the password before it opens
-  const isLocked =
-    needsFetch && !resolved && isSensitiveLockedError(fetchError);
+  const isLocked = needsFetch && !resolved && fetchLocked;
 
   // The by-id fetch failed (deleted item, network, or not the viewer's to see)
   // — close rather than sit on the loading skeleton forever.
@@ -114,8 +113,9 @@ export function CentralItemDialog({
     }
   }, [needsFetch, isError, isLocked, hasFetched, closeItem]);
 
-  // Once a sensitive item closes, drop its content from the query cache so
-  // reopening it asks for the password again rather than showing a cached copy
+  // Once a sensitive item closes — or the dialog unmounts with it open (e.g.
+  // navigating away) — drop its content from the query cache so reopening it
+  // asks for the password again rather than showing a cached copy
   const queryClient = useQueryClient();
   const openSensitiveIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -126,6 +126,15 @@ export function CentralItemDialog({
     openSensitiveIdRef.current =
       resolved && resolved.privacy === "sensitive" ? resolved.id : null;
   }, [openItemId, resolved, queryClient]);
+  useEffect(
+    () => () => {
+      const openSensitiveId = openSensitiveIdRef.current;
+      if (openSensitiveId) {
+        queryClient.removeQueries({ queryKey: itemQueryKey(openSensitiveId) });
+      }
+    },
+    [queryClient],
+  );
 
   const open = openItemId !== null;
 
