@@ -147,10 +147,12 @@ async function publicTables(): Promise<string[]> {
 /** Rows per table that `viewerId` can see, querying each with no filter at all */
 async function visibleCounts(viewerId: string | null) {
   const { viewerTransaction } = await import("@/lib/db-viewer");
+  const { systemDb } = await import("@/lib/db");
   const tables = (await publicTables()).filter(
     (table) => !SYSTEM_ONLY_TABLES.has(table),
   );
   return viewerTransaction({
+    base: systemDb,
     viewerId,
     run: async (tx) => {
       const counts: Record<string, number> = {};
@@ -207,14 +209,17 @@ describe("abode_app row level security", () => {
 
   it("never lets the role read system-only tables", async () => {
     const { viewerTransaction } = await import("@/lib/db-viewer");
+    const { systemDb } = await import("@/lib/db");
     await expect(
       viewerTransaction({
+        base: systemDb,
         viewerId: ids.ownerId,
         run: (tx) =>
           tx.$queryRaw`SELECT count(*) FROM public."_prisma_migrations"`,
       }),
     ).rejects.toThrow(/permission denied/);
     const waitlist = await viewerTransaction({
+      base: systemDb,
       viewerId: ids.ownerId,
       run: (tx) => tx.waitlistEntry.count(),
     });
@@ -224,8 +229,9 @@ describe("abode_app row level security", () => {
   describe("writes across users", () => {
     it("can't change or delete another user's rows", async () => {
       const { forViewer } = await import("@/lib/db-viewer");
+      const { systemDb } = await import("@/lib/db");
       const { write } = await import("@/lib/db");
-      const stranger = forViewer(ids.strangerId);
+      const stranger = forViewer(ids.strangerId, systemDb);
 
       expect(
         (
@@ -252,7 +258,8 @@ describe("abode_app row level security", () => {
 
     it("can't create rows owned by, or hung off, another user", async () => {
       const { forViewer } = await import("@/lib/db-viewer");
-      const stranger = forViewer(ids.strangerId);
+      const { systemDb } = await import("@/lib/db");
+      const stranger = forViewer(ids.strangerId, systemDb);
       const ownRoom = await stranger.room.create({
         data: {
           userId: ids.strangerId,
@@ -310,7 +317,8 @@ describe("abode_app row level security", () => {
   describe("system-written tables", () => {
     it("are read-only or append-only even for their owner", async () => {
       const { forViewer } = await import("@/lib/db-viewer");
-      const owner = forViewer(ids.ownerId);
+      const { systemDb } = await import("@/lib/db");
+      const owner = forViewer(ids.ownerId, systemDb);
 
       // Spend-cap counters: a user can't reset their own limits
       expect(
@@ -338,7 +346,8 @@ describe("abode_app row level security", () => {
   describe("the viewer's own data", () => {
     it("works normally, relations included", async () => {
       const { forViewer } = await import("@/lib/db-viewer");
-      const owner = forViewer(ids.ownerId);
+      const { systemDb } = await import("@/lib/db");
+      const owner = forViewer(ids.ownerId, systemDb);
 
       const items = await owner.item.findMany({
         include: { noteDetails: true, roomItems: true, locations: true },
@@ -366,7 +375,8 @@ describe("abode_app row level security", () => {
 
     it("can edit profile fields but not privileged ones", async () => {
       const { forViewer } = await import("@/lib/db-viewer");
-      const owner = forViewer(ids.ownerId);
+      const { systemDb } = await import("@/lib/db");
+      const owner = forViewer(ids.ownerId, systemDb);
 
       await owner.user.update({
         where: { id: ids.ownerId },

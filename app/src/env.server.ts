@@ -69,6 +69,13 @@ export const envSchema = z.object({
   // safety; this entry just validates/documents the flag at build time.
   USAGE_LIMITS_ENFORCED: z.string().optional(),
 
+  // Database-enforced user isolation. "true" runs request code as the
+  // restricted abode_app role (row level security) for the signed-in user;
+  // anything else keeps the owner connection. Off by default while request
+  // paths move over. Read by `isRlsEnforced()` (viewer-context.ts) directly from
+  // process.env; this entry just validates/documents it.
+  RLS_ENFORCED: z.string().optional(),
+
   // Dollar-denominated daily backstops. Both optional and env-overridable so prod
   // can raise a cap without a deploy; absent/blank/≤0 falls back to the compiled
   // default (see `perUserDailyUsdLimit()` / `systemDailyUsdLimit()` in

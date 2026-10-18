@@ -116,6 +116,17 @@
       "plugins": ["./biome/no-raw-json-ld.grit"]
     },
     {
+      "includes": [
+        "src/**",
+        "!src/lib/db.ts",
+        "!src/lib/auth/authenticate-request.ts",
+        "!src/**/*.test.ts",
+        "!src/**/*.test.tsx",
+        "!src/**/__tests__/**"
+      ],
+      "plugins": ["./biome/no-unlisted-system-db.grit"]
+    },
+    {
       "includes": ["src/**/*.tsx"],
       "plugins": ["./biome/no-render-platform-detection.grit"]
     },
