@@ -3,28 +3,28 @@ import { describe, expect, it, vi } from "vitest";
 import { PrivacySelector } from "./privacy-selector";
 
 describe("PrivacySelector", () => {
-  it("lists every level, least to most restrictive, marking the current one", () => {
+  it("is one labelled single-choice group, least to most restrictive", () => {
     render(<PrivacySelector value="unlisted" onChange={() => {}} />);
 
-    const buttons = screen.getAllByRole("button");
-    expect(buttons.map((b) => b.textContent)).toEqual([
+    expect(screen.getByRole("group", { name: "Privacy" })).toBeInTheDocument();
+    const radios = screen.getAllByRole("radio");
+    expect(radios.map((radio) => radio.closest("label")?.textContent)).toEqual([
       expect.stringContaining("Default"),
       expect.stringContaining("Keep out of public rooms"),
       expect.stringContaining("Sensitive"),
     ]);
-    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual([
-      "false",
-      "true",
-      "false",
-    ]);
+    expect(radios[0]).not.toBeChecked();
+    expect(radios[1]).toBeChecked();
+    expect(radios[2]).not.toBeChecked();
   });
 
   it("spells out public rooms and link sharing for every level", () => {
     render(<PrivacySelector value="standard" onChange={() => {}} />);
 
-    for (const button of screen.getAllByRole("button")) {
-      expect(button).toHaveTextContent(/public rooms/);
-      expect(button).toHaveTextContent(/shared by link/);
+    for (const radio of screen.getAllByRole("radio")) {
+      const option = radio.closest("label");
+      expect(option).toHaveTextContent(/public rooms/);
+      expect(option).toHaveTextContent(/shared by link/);
     }
   });
 
@@ -32,7 +32,7 @@ describe("PrivacySelector", () => {
     const onChange = vi.fn();
     render(<PrivacySelector value="standard" onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Sensitive/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Sensitive/ }));
     expect(onChange).toHaveBeenCalledWith("sensitive");
   });
 
@@ -40,14 +40,14 @@ describe("PrivacySelector", () => {
     const onChange = vi.fn();
     render(<PrivacySelector value="sensitive" onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Sensitive/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Sensitive/ }));
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("disables every option while saving", () => {
     render(<PrivacySelector value="standard" onChange={() => {}} disabled />);
-    for (const button of screen.getAllByRole("button")) {
-      expect(button).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio).toBeDisabled();
     }
   });
 });

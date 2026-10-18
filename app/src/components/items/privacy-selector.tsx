@@ -2,6 +2,7 @@
 
 import type { ItemPrivacy } from "@prisma/client";
 import { EyeOff, Globe, type LucideIcon, ShieldAlert } from "lucide-react";
+import { useId } from "react";
 import { ITEM_PRIVACY_LEVELS } from "@/lib/items/privacy";
 import { cn } from "@/lib/utils";
 
@@ -38,39 +39,50 @@ export function PrivacySelector({
   onChange,
   disabled = false,
 }: PrivacySelectorProps) {
+  const name = useId();
   return (
-    <div className="grid gap-2">
+    // Native radios: one labelled single-choice group for assistive tech, with
+    // arrow-key movement between levels
+    <fieldset className="grid gap-2" disabled={disabled}>
+      <legend className="sr-only">Privacy</legend>
       {ITEM_PRIVACY_LEVELS.map((level) => {
         const { label, description, icon: Icon } = OPTIONS[level];
         const selected = value === level;
         return (
-          <button
+          <label
             key={level}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => !selected && onChange(level)}
-            disabled={disabled}
             className={cn(
-              "flex items-start gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors",
+              "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
               selected
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-muted-foreground/50",
               disabled && "cursor-not-allowed opacity-50",
             )}
           >
+            <input
+              type="radio"
+              name={name}
+              value={level}
+              checked={selected}
+              onChange={() => onChange(level)}
+              className="sr-only"
+            />
             <Icon
+              aria-hidden="true"
               className={cn(
                 "mt-0.5 size-4 shrink-0",
                 selected ? "text-primary" : "text-muted-foreground",
               )}
             />
-            <div>
-              <div className="font-medium">{label}</div>
-              <div className="text-muted-foreground text-xs">{description}</div>
-            </div>
-          </button>
+            <span>
+              <span className="block font-medium">{label}</span>
+              <span className="block text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </label>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
