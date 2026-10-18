@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemRead } from "@/lib/db";
 import { itemViewableWhere } from "@/lib/items/access";
+import { isSensitive } from "@/lib/items/privacy";
 import { sensitiveGate } from "@/lib/items/sensitive-unlock";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -22,6 +23,7 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400, immutable";
 // browser could replay a cached first-party 200 to the embed without the gate
 // running. So make the fallback path uncacheable everywhere.
 const CACHE_CONTROL_FALLBACK = "no-store";
+const CACHE_CONTROL_SENSITIVE = "private, no-store";
 
 // Cap the bytes we'll proxy in a single upstream response. Comfortably covers a
 // standard (<=2:20) 1080p tweet video fetched in one open-ended range while
@@ -342,10 +344,16 @@ export async function GET(request: NextRequest) {
   // path fully shared-cacheable; when it's absent (gate fell back to
   // Origin/Referer, which Vary doesn't key on) make the response uncacheable so
   // no cache can replay a first-party 200 to a cross-site embed.
+  // A sensitive item's video is never stored anywhere: a cached copy would
+  // replay without the unlock check.
   const gatedOnSecFetchSite = request.headers.get("sec-fetch-site") !== null;
   responseHeaders.set(
     "Cache-Control",
-    gatedOnSecFetchSite ? CACHE_CONTROL : CACHE_CONTROL_FALLBACK,
+    isSensitive(item.privacy)
+      ? CACHE_CONTROL_SENSITIVE
+      : gatedOnSecFetchSite
+        ? CACHE_CONTROL
+        : CACHE_CONTROL_FALLBACK,
   );
   responseHeaders.set("Vary", "Sec-Fetch-Site");
 
