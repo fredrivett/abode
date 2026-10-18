@@ -193,6 +193,7 @@ describe("abode_app row level security", () => {
     );
     expect(leaked).toEqual([]);
     expect(counts.users).toBe(1);
+    for (const table of SHARED_TABLES) expect(counts[table], table).toBe(1);
   });
 
   it("shows an anonymous viewer nothing", async () => {
@@ -201,6 +202,7 @@ describe("abode_app row level security", () => {
       ([table, n]) => n > 0 && !SHARED_TABLES.has(table),
     );
     expect(leaked).toEqual([]);
+    for (const table of SHARED_TABLES) expect(counts[table], table).toBe(1);
   });
 
   it("never lets the role read system-only tables", async () => {
@@ -283,6 +285,15 @@ describe("abode_app row level security", () => {
             endOffset: 1,
             text: "x",
           },
+        }),
+        "activity logged as them": stranger.activityLog.create({
+          data: { userId: ids.ownerId, type: "item_view" },
+        }),
+        "an import for them": stranger.itemImport.create({
+          data: { userId: ids.ownerId, source: "literal" },
+        }),
+        "an export for them": stranger.dataExport.create({
+          data: { userId: ids.ownerId },
         }),
         "a detail row on their item": stranger.itemNoteDetails.upsert({
           where: { itemId: ids.itemId },
