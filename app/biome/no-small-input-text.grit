@@ -1,0 +1,29 @@
+language js
+
+// iOS Safari zooms the page into any focused text field whose font-size is
+// under 16px, and doesn't zoom back out. A field can be smaller on desktop,
+// but touch devices must get 16px: pair the small size with
+// `any-pointer-coarse:text-base` (e.g. `text-sm any-pointer-coarse:text-base`,
+// as in @/components/ui/input). A width breakpoint (`text-base lg:text-sm`)
+// is no substitute — iPads are lg-wide and still zoom. `any-pointer` rather
+// than `pointer` so an iPad with a trackpad attached still gets 16px.
+//
+// Matches raw fields and the cmdk / frimousse primitives wrapped in ui/:
+// <Input>/<Textarea> already carry the guard, and tailwind-merge keeps it when
+// a caller passes `text-sm`. Can't see sizes
+// inherited from a parent, or contenteditable roots (the note editor sets
+// its guard in note-prose.ts).
+or {
+  `<$tag $attrs />`,
+  `<$tag $attrs>$_</$tag>`
+} as $el where {
+  $tag <: or { `input`, `textarea`, `select`, `CommandPrimitive.Input`, `EmojiPickerPrimitive.Search` },
+  $attrs <: r"(?s).*(?:^|[\s\"'`{])(?:(?:sm|md|lg|xl|2xl):)?text-(?:xs|sm)(?:[\s\"'`}]|$).*",
+  not $attrs <: r"(?s).*any-pointer-coarse:text-(?:base|lg|xl|[2-9]xl|\[).*",
+  not $attrs <: r"(?s).*(?:^|\s)type=\"(?:hidden|file|range|checkbox|radio|color|button|submit|reset|image)\".*",
+  register_diagnostic(
+    span=$el,
+    message="Text fields under 16px make iOS Safari zoom in on focus. Add `any-pointer-coarse:text-base` alongside the small text size.",
+    severity="error"
+  )
+}

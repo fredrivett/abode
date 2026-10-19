@@ -404,7 +404,7 @@ export function BookReadingControls({
                   : saveProgressFromPage(Number(e.target.value))
               }
               onBlur={() => commitProgress.flush()}
-              className="w-16 rounded-md border bg-transparent px-2 py-1 text-right text-sm tabular-nums"
+              className="w-16 rounded-md border bg-transparent px-2 py-1 text-right any-pointer-coarse:text-base text-sm tabular-nums"
               aria-label="Reading progress value"
             />
           </div>

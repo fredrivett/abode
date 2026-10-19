@@ -2766,7 +2766,7 @@ export function ItemDetailBody({
                             }
                           }}
                           placeholder="Add a tag..."
-                          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
+                          className="h-8 flex-1 rounded-md border border-input bg-background px-2 any-pointer-coarse:text-base text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           // biome-ignore lint/a11y/noAutofocus: focus the input the user just revealed inside the modal dialog
                           autoFocus
                           disabled={isSavingUserTags}
@@ -3055,7 +3055,7 @@ export function ItemDetailBody({
                       }
                     }}
                     placeholder="Paste URL..."
-                    className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 lg:text-sm"
+                    className="h-8 flex-1 rounded-md border border-input bg-background px-2 any-pointer-coarse:text-base text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     // biome-ignore lint/a11y/noAutofocus: focus the input the user just revealed inside the modal dialog
                     autoFocus
                     disabled={isAddingLink}
@@ -3109,7 +3109,7 @@ export function ItemDetailBody({
                 value={notes}
                 onChange={(e) => handleNotesChange(e.target.value)}
                 placeholder="Add your notes..."
-                className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-gray-800"
+                className="min-h-[100px] w-full resize-y rounded-md border border-gray-200 bg-transparent px-3 py-2 any-pointer-coarse:text-base text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
               />
             </div>
           )}
@@ -3176,7 +3176,7 @@ export function ItemDetailBody({
                       readOnly
                       value={shareUrl ?? ""}
                       onFocus={(e) => e.currentTarget.select()}
-                      className="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-600 text-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+                      className="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 any-pointer-coarse:text-base text-gray-600 text-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
                     />
                     <Button
                       type="button"

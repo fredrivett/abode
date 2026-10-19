@@ -87,7 +87,7 @@ export function UsernameSettings({ currentUsername, changesUsed }: Props) {
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               disabled={!canChange}
-              className={`flex h-10 w-full rounded-md border bg-background py-2 pr-3 pl-7 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`flex h-10 w-full rounded-md border bg-background py-2 pr-3 pl-7 any-pointer-coarse:text-base text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${
                 usernameStatus.type === "available"
                   ? "border-green-500 focus:ring-green-500"
                   : usernameStatus.type === "invalid" ||
