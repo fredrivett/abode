@@ -18,6 +18,6 @@ Your books are also grouped into **Want to read**, **Reading** and **Read** shel
 
 The link opens a page with the book and your full review. Anything you haven't filled in is left out, so you can share a rating without a review, or a review without a rating.
 
-People who aren't on <Abode /> yet can save the book to their own <Abode /> from that page, joining with one of your invites. When you have none left, or if you turn this off from the share dialog or in **Settings → Invites**, they join the waitlist instead.
+Readers can save the book to their own <Abode /> from that page (when it was saved from a link). People who aren't on <Abode /> yet join with one of your invites; when you have none left, or if you turn this off from the share dialog or in **Settings → Invites**, they join the waitlist instead.
 
 Sharing a review turns on link sharing for the book, so anyone with the link can see it along with your status, dates, rating and review. Your reading progress and notes stay private. To stop sharing, turn off **Share via link** in the book's **Share** settings.

@@ -98,8 +98,19 @@ describe("book review page", () => {
   });
 
   it("hides the save CTA from the owner", async () => {
+    loadPublicItem.mockResolvedValue({
+      user,
+      item: { id: "item-1" },
+      viewerId: "owner-1",
+      isOwner: true,
+    });
     getSaveCtaState.mockResolvedValue(null);
     const { saveCta } = await rendered();
+    expect(getSaveCtaState).toHaveBeenCalledWith({
+      user,
+      viewerId: "owner-1",
+      isOwner: true,
+    });
     expect(saveCta).toBeFalsy();
   });
 

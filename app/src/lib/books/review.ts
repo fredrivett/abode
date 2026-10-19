@@ -109,9 +109,10 @@ const TITLE_STEPS = [
 ] as const;
 const LONG_TITLE = { maxChars: 64, fontSize: 40 } as const;
 const SOLO_TITLE_SCALE = 1.25; // No review: the title carries the card
-// The text column's width, and a serif glyph's average advance (in ems, with
-// slack for word wrap), to guess whether the title wraps
-const CARD_TEXT_WIDTH = 676;
+// The text column's width beside the widest (square) cover — 1040 inside the
+// padding, less the book and its gap — and a serif glyph's average advance (in
+// ems, with slack for word wrap), to guess whether the title wraps
+const CARD_TEXT_WIDTH = 652;
 const SERIF_ADVANCE = 0.52;
 
 const REVIEW_STEPS = [
