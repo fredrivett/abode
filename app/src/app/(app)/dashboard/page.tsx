@@ -16,7 +16,7 @@ import {
   isCanonicalUuid,
 } from "@/lib/pagination";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
-import { OpenScannerOnLoad } from "./open-scanner-on-load";
+import { DashboardActionOnLoad } from "./dashboard-action-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
 
@@ -86,10 +86,9 @@ export default async function DashboardPage({
   searchParams: Promise<{
     share?: string;
     item?: string | string[];
-    action?: string;
   }>;
 }) {
-  const { share, item: openItemParam, action } = await searchParams;
+  const { share, item: openItemParam } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
   const supabase = await createClient();
   const [, { data: userData }] = await Promise.all([
@@ -137,7 +136,7 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <ShareToast share={share} />
-      <OpenScannerOnLoad action={action} />
+      <DashboardActionOnLoad />
       <SearchableItemsGrid
         initialItems={itemsForClient}
         initialCursor={initialCursor}

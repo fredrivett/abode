@@ -60,21 +60,25 @@ describe("getMilestoneStatus", () => {
     const status = await getMilestoneStatus(user.id);
 
     expect(status.completed).toEqual([]);
-    expect(status.pending).toContain("write_first_note");
     expect(status.pending).toContain("add_first_book");
+    expect(status.pending).not.toContain("write_first_note");
     expect(status.pending).not.toContain("save_from_phone");
     expect(status.pending).not.toContain("create_first_room");
     expect(status.pending).not.toContain("invite_friend");
   });
 
-  test("offers saving from your phone once the user has an item", async () => {
-    const user = await createUser();
-    await createItems({ userId: user.id });
+  // The note composer only renders once the dashboard grid has an item
+  test.each(["save_from_phone", "write_first_note"] as const)(
+    "offers %s once the user has an item",
+    async (milestone) => {
+      const user = await createUser();
+      await createItems({ userId: user.id });
 
-    const status = await getMilestoneStatus(user.id);
+      const status = await getMilestoneStatus(user.id);
 
-    expect(status.pending).toContain("save_from_phone");
-  });
+      expect(status.pending).toContain(milestone);
+    },
+  );
 
   test.each([
     { milestone: "write_first_note", item: { kind: "note" } },

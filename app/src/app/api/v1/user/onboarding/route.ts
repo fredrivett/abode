@@ -4,6 +4,8 @@ import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
+import { markMilestoneComplete } from "@/lib/milestones";
+import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
@@ -46,8 +48,15 @@ async function handlePATCH(request: NextRequest) {
         onboardingCompletedAt: true,
         firstName: true,
         lastName: true,
+        avatarUrl: true,
       },
     });
+
+    // The welcome dialog uploads the avatar before the name is saved here, so
+    // the avatar route couldn't complete the profile — check again now
+    if (shouldCompleteProfile(updatedUser)) {
+      await markMilestoneComplete(user.id, "complete_profile");
+    }
 
     // Track onboarding completion
     const posthog = getPostHogClient();
