@@ -4,7 +4,10 @@
  */
 import type { Prisma } from "@prisma/client";
 import { cache } from "react";
+import { getBookCoverRatio, getStoredCoverColor } from "@/lib/book-cover";
+import { toBookReview } from "@/lib/books/review";
 import db from "@/lib/db";
+import { getProxyImageUrl } from "@/lib/image-url";
 import { shareInvitesOpen } from "@/lib/invites/share-invite";
 import {
   canViewItem,
@@ -393,4 +396,32 @@ export async function getSaveCtaState({
   if (isOwner) return null;
   if (viewerId) return { isSignedIn: true, invitesOpen: false };
   return { isSignedIn: false, invitesOpen: await shareInvitesOpen(user) };
+}
+
+/**
+ * The book (and its owner's review) for the public review page, or null when
+ * the item isn't a book. The review is the book's public reading data, so it's
+ * viewable whenever the book is.
+ */
+export function getPublicBookReview(item: ItemDetailPayload) {
+  if (item.kind !== "book" || !item.bookDetails) return null;
+  const book = mapPublicBookDetails(item.bookDetails);
+  return {
+    book: {
+      id: item.id,
+      title: item.title,
+      authors: book.authors,
+      publisher: book.publisher,
+      publishedAt: book.publishedAt,
+      pageCount: book.pageCount,
+      coverUrl: item.coverFileKey
+        ? getProxyImageUrl(item.coverFileKey, "detail")
+        : null,
+      coverRatio: getBookCoverRatio(item.meta),
+      coverColor: getStoredCoverColor(item.imageDetails?.colors),
+      sourceUrl: item.sourceUrl,
+      domain: book.domain,
+    },
+    review: toBookReview(book),
+  };
 }
