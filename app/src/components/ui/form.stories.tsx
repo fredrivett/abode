@@ -10,6 +10,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 function DefaultForm() {
   const form = useForm({
@@ -31,11 +32,7 @@ function DefaultForm() {
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <input
-                  placeholder="Enter username"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  {...field}
-                />
+                <Input placeholder="Enter username" {...field} />
               </FormControl>
               <FormDescription>
                 This is your public display name.

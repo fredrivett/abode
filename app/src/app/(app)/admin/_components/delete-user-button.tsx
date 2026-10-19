@@ -127,7 +127,7 @@ export function DeleteUserButton({ userId, userEmail }: DeleteUserButtonProps) {
             onChange={(e) => setEmailConfirmation(e.target.value)}
             placeholder="Enter email address"
             autoComplete="off"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 any-pointer-coarse:text-base text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 

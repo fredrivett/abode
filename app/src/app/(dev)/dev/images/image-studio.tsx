@@ -43,7 +43,7 @@ export function ImageStudio({
           aria-label="Image"
           value={active?.slug}
           onChange={(e) => router.push(`?design=${e.currentTarget.value}`)}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
+          className="h-8 rounded-md border bg-background px-2 any-pointer-coarse:text-base text-sm"
         >
           {designs.map((d) => (
             <option key={d.slug} value={d.slug}>

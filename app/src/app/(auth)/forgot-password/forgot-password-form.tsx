@@ -52,7 +52,7 @@ export function ForgotPasswordForm() {
             name="email"
             type="email"
             required
-            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
+            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 any-pointer-coarse:text-base text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
             placeholder="you@example.com"
           />
         </div>

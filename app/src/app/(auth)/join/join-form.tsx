@@ -103,7 +103,7 @@ export function JoinForm({
             value={email}
             readOnly
             disabled
-            className="flex h-10 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-500 text-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+            className="flex h-10 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 any-pointer-coarse:text-base text-gray-500 text-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
           />
         </div>
 
@@ -126,7 +126,7 @@ export function JoinForm({
               required
               value={username}
               onChange={handleUsernameChange}
-              className={`flex h-10 w-full rounded-md border bg-white py-2 pr-3 pl-7 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
+              className={`flex h-10 w-full rounded-md border bg-white py-2 pr-3 pl-7 any-pointer-coarse:text-base text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 dark:bg-gray-950 ${
                 usernameStatus.type === "available"
                   ? "border-green-500 focus:ring-green-500"
                   : usernameStatus.type === "invalid" ||
@@ -185,7 +185,7 @@ export function JoinForm({
             type="password"
             required
             minLength={6}
-            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
+            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 any-pointer-coarse:text-base text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:focus:ring-gray-100"
           />
         </div>
 

@@ -9,8 +9,8 @@
 /**
  * Root font-size for note prose, applied as an inline style (not a class) so
  * it deterministically beats prose-sm's own root size without `!important` —
- * which in turn lets the editor's `max-md:text-[1rem]!` iOS anti-zoom guard
- * win on small screens.
+ * which in turn lets the editor's `!important` iOS anti-zoom guard win on touch
+ * devices.
  *
  * The value is driven by `--note-prose-size` so a single prose class serves
  * every surface: contexts set the var to pick a size. The fallback is the grid
@@ -72,9 +72,11 @@ export const NOTE_PROSE_CLASS = NOTE_PROSE_PARTS.join(" ");
  * (not in note-editor) so the detail view's loading placeholder can match it
  * without pulling in the editor.
  *
- * `max-md:text-[1rem]` keeps the editor root at 16px on small screens —
- * prose-sm would drop it to 14px, which makes iOS Safari auto-zoom the UI on
- * focus.
+ * On touch devices the editor root is floored at 16px — anything smaller (the
+ * grid composer's 14px) makes iOS Safari auto-zoom the UI on focus. The max()
+ * repeats {@link NOTE_PROSE_FONT_SIZE} literally so Tailwind can see it, and
+ * keeps the detail view's larger size. A pointer query, not a width one: iPads
+ * are wide enough to miss `max-md:` and still zoom.
  */
 export const NOTE_EDITOR_CLASS =
-  "focus:outline-none min-h-[1.5rem] max-md:text-[1rem]!";
+  "focus:outline-none min-h-[1.5rem] any-pointer-coarse:text-[length:max(1rem,var(--note-prose-size,max(0.75rem,0.875em)))]!";

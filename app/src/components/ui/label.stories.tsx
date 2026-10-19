@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const meta = {
@@ -17,12 +18,7 @@ export const Default: Story = {
   render: () => (
     <div className="grid w-full max-w-sm items-center gap-1.5">
       <Label htmlFor="email">Email</Label>
-      <input
-        type="email"
-        id="email"
-        placeholder="Email"
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
+      <Input type="email" id="email" placeholder="Email" />
     </div>
   ),
 };
@@ -31,12 +27,7 @@ export const WithDescription: Story = {
   render: () => (
     <div className="grid w-full max-w-sm items-center gap-1.5">
       <Label htmlFor="password">Password</Label>
-      <input
-        type="password"
-        id="password"
-        placeholder="Password"
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
+      <Input type="password" id="password" placeholder="Password" />
       <p className="text-muted-foreground text-sm">
         Must be at least 8 characters
       </p>
