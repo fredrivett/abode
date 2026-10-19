@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
+import { BOOK_PAGE_EDGE_BG, BOOK_SPINE_HINGE_BG } from "@/lib/book-cover";
 import { cn } from "@/lib/utils";
 
 type BookCover3DProps = {
@@ -22,17 +23,6 @@ type BookCover3DProps = {
   /** LQIP placeholder for the cover, shown blurred while the image loads. */
   blurDataUrl?: string | null;
 };
-
-// Page fore-edge: striations under a light-to-shadow wash. Rendered on a
-// plane rotated away from the viewer, so the lines foreshorten with depth.
-const PAGE_EDGE_BG = [
-  "linear-gradient(to right, rgba(255,255,255,0.3), rgba(0,0,0,0) 25%, rgba(0,0,0,0.06) 60%, rgba(0,0,0,0.24))",
-  "repeating-linear-gradient(90deg, #f6f1e7 0px, #f6f1e7 2px, #cbc0a9 3px, #f6f1e7 4px)",
-].join(", ");
-
-// Spine hinge: shading at the spine edge, a highlight ridge, then the groove
-const SPINE_HINGE_BG =
-  "linear-gradient(to right, rgba(0,0,0,0.28), rgba(0,0,0,0.05) 3%, rgba(255,255,255,0.14) 4.5%, rgba(0,0,0,0.22) 7%, rgba(0,0,0,0) 10%)";
 
 /**
  * A faux-3D hardback: back cover + inset page block + front cover rotated
@@ -87,7 +77,7 @@ export function BookCover3D({
           board never peeks between cover and pages in the resting state */}
         <div
           className="absolute inset-y-[1.5%] left-[84%] w-[26%] origin-left [transform:rotateY(58deg)]"
-          style={{ background: PAGE_EDGE_BG }}
+          style={{ background: BOOK_PAGE_EDGE_BG }}
         />
 
         {/* Front cover, hinged at the spine and opening toward the viewer */}
@@ -112,7 +102,7 @@ export function BookCover3D({
             {/* Spine hinge groove down the left edge */}
             <div
               className="absolute inset-y-0 left-0 w-full"
-              style={{ background: SPINE_HINGE_BG }}
+              style={{ background: BOOK_SPINE_HINGE_BG }}
             />
             {/* Board edge catching the light at the fore-edge */}
             <div className="absolute inset-y-0 right-0 w-[2%] bg-gradient-to-l from-white/30 to-transparent" />

@@ -11,6 +11,17 @@ import type { ImageColor } from "@/lib/types/item";
 
 export const DEFAULT_BOOK_COVER_RATIO = 2 / 3;
 
+// Page fore-edge: striations under a light-to-shadow wash. The 3D cover renders
+// it on a plane rotated away from the viewer, so the lines foreshorten with depth
+export const BOOK_PAGE_EDGE_BG = [
+  "linear-gradient(to right, rgba(255,255,255,0.3), rgba(0,0,0,0) 25%, rgba(0,0,0,0.06) 60%, rgba(0,0,0,0.24))",
+  "repeating-linear-gradient(90deg, #f6f1e7 0px, #f6f1e7 2px, #cbc0a9 3px, #f6f1e7 4px)",
+].join(", ");
+
+// Spine hinge: shading at the spine edge, a highlight ridge, then the groove
+export const BOOK_SPINE_HINGE_BG =
+  "linear-gradient(to right, rgba(0,0,0,0.28), rgba(0,0,0,0.05) 3%, rgba(255,255,255,0.14) 4.5%, rgba(0,0,0,0.22) 7%, rgba(0,0,0,0) 10%)";
+
 // Clamp to portrait-ish shapes: narrower than 1:2 or wider than square is
 // almost certainly a bad scan (e.g. a banner stored as a cover), and
 // object-cover cropping beats a broken-looking book
@@ -31,11 +42,9 @@ export const BOOK_TILE_PADDING_Y = 0.22;
  * plausible portrait range. Falls back to 2:3 when dimensions are missing
  * or invalid.
  */
-export function getBookCoverRatio(
-  meta: Record<string, unknown> | null | undefined,
-): number {
-  const width = meta?.coverWidth;
-  const height = meta?.coverHeight;
+export function getBookCoverRatio(meta: unknown): number {
+  const width = isRecord(meta) ? meta.coverWidth : undefined;
+  const height = isRecord(meta) ? meta.coverHeight : undefined;
   if (
     typeof width !== "number" ||
     typeof height !== "number" ||
@@ -76,4 +85,21 @@ export function getDominantCoverColor(
 ): string | undefined {
   if (!colors || colors.length === 0) return undefined;
   return [...colors].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0]?.hex;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isImageColor(value: unknown): value is ImageColor {
+  return isRecord(value) && typeof value.hex === "string";
+}
+
+/**
+ * {@link getDominantCoverColor} straight from the stored `colors` JSON, for
+ * server code reading the raw column. Ignores malformed entries.
+ */
+export function getStoredCoverColor(colors: unknown): string | null {
+  const parsed = Array.isArray(colors) ? colors.filter(isImageColor) : [];
+  return getDominantCoverColor(parsed) ?? null;
 }

@@ -39,6 +39,35 @@ export function formatReadingDate(
   return format(date, "MMM d, yyyy");
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * {@link formatReadingDate} for anyone but the owner, in any timezone (public
+ * pages, share cards rendered on the server). A day date is stored as the
+ * instant the owner picked — local midnight from the calendar, or the moment
+ * they tapped Today — so reading it in another timezone can land on the wrong
+ * day. A calendar pick (whole minutes, no seconds) lies within ±12h of its
+ * date's UTC midnight, so it rounds to the nearest; a Today tap is a real
+ * moment, best read in UTC. Deterministic, so server and client agree.
+ */
+export function formatPublicReadingDate(
+  iso: string,
+  precision: DatePrecisionValue,
+): string {
+  if (precision !== "day") return formatReadingDate(iso, precision);
+  const date = new Date(iso);
+  const isCalendarPick =
+    date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0;
+  // Past noon UTC means the next day's midnight is nearer (noon itself stays)
+  const sinceMidnight =
+    date.getTime() - Math.floor(date.getTime() / DAY_MS) * DAY_MS;
+  const day =
+    isCalendarPick && sinceMidnight > DAY_MS / 2
+      ? new Date(date.getTime() + DAY_MS)
+      : date;
+  return `${MONTH_LABELS[day.getUTCMonth()]} ${day.getUTCDate()}, ${day.getUTCFullYear()}`;
+}
+
 // Truncate to the start of the period implied by precision, in UTC, so the
 // stored instant is stable regardless of caller timezone. Day precision is
 // never truncated here — it's passed through as the exact instant the caller
