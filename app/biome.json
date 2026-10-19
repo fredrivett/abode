@@ -3,7 +3,8 @@
   "plugins": [
     "./biome/no-hardcoded-ellipsis.grit",
     "./biome/no-stub.grit",
-    "./biome/no-mouse-down-tap.grit"
+    "./biome/no-mouse-down-tap.grit",
+    "./biome/no-small-input-text.grit"
   ],
   "vcs": {
     "enabled": true,
