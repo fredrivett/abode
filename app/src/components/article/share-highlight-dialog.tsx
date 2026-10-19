@@ -1,16 +1,17 @@
 "use client";
 
-import { Check, Link2, Quote, Share, Ticket, X } from "lucide-react";
+import { Link2, Quote, Share } from "lucide-react";
 import posthog from "posthog-js";
 import {
-  type ReactNode,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import { toast } from "sonner";
-import { AbodeLogo } from "@/components/abode-logo";
+  useCanNativeShare,
+  useShareActions,
+} from "@/components/share/share-actions";
+import {
+  SHARE_CARD_DOM_FONTS,
+  ShareCardLogo,
+  ShareCardPreview,
+} from "@/components/share/share-card-preview";
+import { ShareInvitesNote } from "@/components/share/share-invites-note";
 import { Button } from "@/components/ui/button";
 import {
   DialogOrDrawer,
@@ -21,24 +22,16 @@ import {
   DialogOrDrawerTitle,
 } from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
-import { reportCopyFailure } from "@/hooks/use-copy-to-clipboard";
-import { api } from "@/lib/api-client";
-import { copyToClipboard } from "@/lib/copy";
 import {
   formatHighlightQuote,
   highlightShareUrl,
   type ShareableHighlight,
 } from "@/lib/highlights/share";
-import { useShareInviteSettings } from "@/lib/invites/use-share-invite-settings";
-import { createLogger } from "@/lib/logger.client";
-import { OG_COLORS } from "@/lib/og/theme";
 import {
   HIGHLIGHT_CARD_SIZE,
   HighlightShareCard,
   type HighlightShareCardProps,
 } from "./highlight-share-card";
-
-const log = createLogger("share-highlight-dialog");
 
 type ShareHighlightDialogProps = {
   open: boolean;
@@ -52,133 +45,18 @@ type ShareHighlightDialogProps = {
   onShared: () => void;
 };
 
-type ShareMethod = "copy_link" | "copy_quote" | "native";
-
-const noopSubscribe = () => () => {};
-
-// Server snapshot is false so SSR and hydration agree; the browser answers
-// for real once mounted
-function useCanNativeShare() {
-  return useSyncExternalStore(
-    noopSubscribe,
-    () => typeof navigator.share === "function",
-    () => false,
-  );
-}
-
-const LOGO_HEIGHT = 30;
-
-/**
- * Renders the 1200x630 share card scaled down to the available width, so the
- * preview is pixel-for-pixel the image a chat app unfurls for the link.
- */
+/** The highlight's share card, scaled down to the available width. */
 export function HighlightCardPreview(
   props: Omit<HighlightShareCardProps, "fonts" | "logo">,
 ) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry.contentRect.width),
-    );
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-  const scale = width / HIGHLIGHT_CARD_SIZE.width;
-
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5 dark:ring-white/10"
-      style={{
-        aspectRatio: `${HIGHLIGHT_CARD_SIZE.width} / ${HIGHLIGHT_CARD_SIZE.height}`,
-        backgroundColor: OG_COLORS.bg,
-      }}
-    >
-      {width > 0 && (
-        <div
-          aria-hidden
-          className="absolute top-0 left-0 origin-top-left"
-          style={{ transform: `scale(${scale})` }}
-        >
-          <HighlightShareCard
-            {...props}
-            fonts={{
-              serif: "var(--font-hedvig-serif, serif)",
-              sans: "var(--font-geist-sans, sans-serif)",
-            }}
-            logo={
-              <AbodeLogo
-                aria-hidden
-                height={LOGO_HEIGHT}
-                width={(LOGO_HEIGHT * 158) / 50}
-                style={{ color: OG_COLORS.fg }}
-              />
-            }
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** A share button's icon: a tick once it worked, a cross if the copy failed */
-function CopyMethodIcon({
-  method,
-  copied,
-  failed,
-  idle,
-}: {
-  method: ShareMethod;
-  copied: ShareMethod | null;
-  failed: ShareMethod | null;
-  idle: ReactNode;
-}) {
-  if (copied === method) return <Check />;
-  if (failed === method) return <X className="text-destructive" />;
-  return idle;
-}
-
-/**
- * Whether readers of the link can join abode with one of the sharer's invites,
- * with a quick way to turn it off (also in Settings → Invites).
- */
-function ShareInvitesNote({ enabled }: { enabled: boolean }) {
-  const { settings, setAllowShareInvites, isSaving } = useShareInviteSettings({
-    enabled,
-  });
-  if (!settings) return null;
-
-  const { allowShareInvites, availableInvites } = settings;
-  const toggle = (
-    <button
-      type="button"
-      className="cursor-pointer underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-      disabled={isSaving}
-      onClick={() =>
-        setAllowShareInvites({
-          allow: !allowShareInvites,
-          source: "share_dialog",
-        })
-      }
-    >
-      {allowShareInvites ? "Turn off" : "Turn on"}
-    </button>
-  );
-
-  return (
-    <p className="-mt-3 flex flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs">
-      <Ticket className="size-3.5" />
-      {!allowShareInvites
-        ? "Readers can't join abode with your invites."
-        : availableInvites > 0
-          ? `Readers can join abode with one of your invites (${availableInvites} left).`
-          : "You're out of invites, so readers will join the waitlist."}{" "}
-      {toggle}
-    </p>
+    <ShareCardPreview size={HIGHLIGHT_CARD_SIZE}>
+      <HighlightShareCard
+        {...props}
+        fonts={SHARE_CARD_DOM_FONTS}
+        logo={<ShareCardLogo />}
+      />
+    </ShareCardPreview>
   );
 }
 
@@ -198,9 +76,23 @@ export function ShareHighlightDialog({
   onShared,
 }: ShareHighlightDialogProps) {
   const canNativeShare = useCanNativeShare();
-  const [pending, setPending] = useState<ShareMethod | null>(null);
-  const [copied, setCopied] = useState<ShareMethod | null>(null);
-  const [failed, setFailed] = useState<ShareMethod | null>(null);
+  const { busy, pending, methodIcon, copy, nativeShare } = useShareActions<
+    "copy_link" | "copy_quote"
+  >({
+    itemId: item.id,
+    isShared,
+    onShared,
+    source: "highlight",
+    sharingErrorMessage: "Couldn't turn on sharing for this article",
+    onSuccess: (method) => {
+      if (!highlight) return;
+      posthog.capture("highlight_shared", {
+        item_id: item.id,
+        highlight_id: highlight.id,
+        method,
+      });
+    },
+  });
 
   if (!highlight) return null;
 
@@ -214,99 +106,6 @@ export function ShareHighlightDialog({
     title: item.title,
     url,
   });
-
-  const ensureShared = async (): Promise<boolean> => {
-    if (isShared) return true;
-    try {
-      await api.patch(`/api/v1/items/${item.id}`, { shared: true });
-      posthog.capture("item_share_toggled", {
-        item_id: item.id,
-        shared: true,
-        source: "highlight",
-      });
-      onShared();
-      return true;
-    } catch (error) {
-      log.error({ error }, "Enable sharing for highlight error");
-      toast.error("Couldn't turn on sharing for this article");
-      return false;
-    }
-  };
-
-  const track = (method: ShareMethod) =>
-    posthog.capture("highlight_shared", {
-      item_id: item.id,
-      highlight_id: highlight.id,
-      method,
-    });
-
-  // The action runs straight away, in parallel with enabling sharing: the
-  // clipboard and share sheet need the click's user activation, which awaiting
-  // the request first would spend (Safari rejects them outright)
-  const run = async (
-    method: ShareMethod,
-    action: () => Promise<boolean>,
-    success?: string,
-  ) => {
-    setPending(method);
-    try {
-      const sharing = ensureShared();
-      const done = await action();
-      // Only claim success once the link works too, i.e. sharing is on
-      if (!(await sharing) || !done) return;
-      if (success) toast.success(success);
-      track(method);
-      setCopied(method);
-      setTimeout(() => setCopied((c) => (c === method ? null : c)), 2000);
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const copy = (method: ShareMethod, text: string, success: string) =>
-    run(
-      method,
-      async () => {
-        const result = await copyToClipboard(text);
-        if (!result.ok) {
-          reportCopyFailure({
-            reason: result.reason,
-            message: "Failed to copy",
-          });
-          setFailed(method);
-          setTimeout(() => setFailed((f) => (f === method ? null : f)), 2000);
-        }
-        return result.ok;
-      },
-      success,
-    );
-
-  const nativeShare = () =>
-    run("native", async () => {
-      try {
-        // The link goes in `url` only; repeating it in `text` makes some
-        // targets show it twice
-        await navigator.share({
-          title: item.title ?? undefined,
-          text: formatHighlightQuote({
-            text: highlight.text,
-            title: item.title,
-          }),
-          url,
-        });
-        return true;
-      } catch (error) {
-        // Dismissing the share sheet rejects with AbortError — not a failure
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return false;
-        }
-        log.error({ error }, "Native share error");
-        toast.error("Couldn't open the share sheet");
-        return false;
-      }
-    });
-
-  const busy = pending !== null;
 
   return (
     <DialogOrDrawer open={open} onOpenChange={onOpenChange}>
@@ -356,12 +155,7 @@ export function ShareHighlightDialog({
                 <IsLoading label="Sharing" />
               ) : (
                 <>
-                  <CopyMethodIcon
-                    method="copy_link"
-                    copied={copied}
-                    failed={failed}
-                    idle={<Link2 />}
-                  />
+                  {methodIcon("copy_link", <Link2 />)}
                   Copy link
                 </>
               )}
@@ -371,19 +165,25 @@ export function ShareHighlightDialog({
               disabled={busy}
               onClick={() => void copy("copy_quote", quote, "Quote copied")}
             >
-              <CopyMethodIcon
-                method="copy_quote"
-                copied={copied}
-                failed={failed}
-                idle={<Quote />}
-              />
+              {methodIcon("copy_quote", <Quote />)}
               Copy quote
             </Button>
             {canNativeShare && (
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => void nativeShare()}
+                onClick={() =>
+                  // The link goes in `url` only; repeating it in `text` makes
+                  // some targets show it twice
+                  void nativeShare({
+                    title: item.title ?? undefined,
+                    text: formatHighlightQuote({
+                      text: highlight.text,
+                      title: item.title,
+                    }),
+                    url,
+                  })
+                }
               >
                 <Share />
                 Share…
