@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BookDetails } from "@/lib/types/item";
 import { BookReadingControls } from "./book-reading-controls";
@@ -404,6 +405,7 @@ describe("BookReadingControls share", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Share review" }));
 
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
     expect(onShare).toHaveBeenCalledWith({
       status: "read",
       rating: 8,
@@ -422,6 +424,71 @@ describe("BookReadingControls share", () => {
         }),
       { timeout: 200 },
     );
+  });
+
+  it("waits for the review to save before sharing it", async () => {
+    let finishSave: () => void = () => {};
+    patch.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read" }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Loved it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() => expect(patch).toHaveBeenCalled());
+    expect(onShare).not.toHaveBeenCalled();
+    finishSave();
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
+  });
+
+  it("doesn't share a review that couldn't be saved", async () => {
+    patch.mockRejectedValue(new Error("offline"));
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read" }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Loved it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Failed to update review"),
+    );
+    expect(onShare).not.toHaveBeenCalled();
+  });
+
+  it("shares straight away when the review is already saved", async () => {
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read", review: "Saved." }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
+    expect(patch).not.toHaveBeenCalled();
   });
 
   it("labels it plain Share before there's a rating or review", () => {

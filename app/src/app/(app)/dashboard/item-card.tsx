@@ -2503,7 +2503,8 @@ export function ItemDetailBody({
                 onOpenChange={setIsShareReviewOpen}
                 book={{
                   id: item.id,
-                  title: item.title,
+                  // The live name, so a rename shows before the item refetches
+                  title: name,
                   authors: item.bookDetails.authors,
                   coverUrl: item.coverFileKey
                     ? getProxyImageUrl(item.coverFileKey, "grid")

@@ -252,19 +252,25 @@ export function BookReadingControls({
   // land after a newer one and overwrite the latest text in the DB — saves
   // always apply in the order they were queued. (Debounce coalesces bursts;
   // the chain guards the rarer case of two saves in flight on a slow network.)
-  const reviewSaveChain = useRef<Promise<void>>(Promise.resolve());
+  // Each link resolves to whether its save landed; the last one is what's in
+  // the DB, which sharing waits on.
+  const reviewSaveChain = useRef<Promise<boolean>>(Promise.resolve(true));
+  const savedReview = useRef(bookDetails.review ?? "");
   const commitReview = useDebouncedCallback((review: string) => {
     reviewSaveChain.current = reviewSaveChain.current
-      .catch(() => {})
+      .catch(() => false)
       .then(async () => {
         try {
           await api.patch(`/api/v1/items/${itemId}`, {
             bookReading: { review },
           });
+          savedReview.current = review;
           invalidateItems();
           posthog.capture("item_reading_review_updated", { item_id: itemId });
+          return true;
         } catch {
           toast.error("Failed to update review");
+          return false;
         }
       });
   }, 600);
@@ -301,11 +307,18 @@ export function BookReadingControls({
   const sliderMax = usePercentSlider ? 100 : hasPages;
   const sliderValue = usePercentSlider ? currentPercent : currentPage;
 
-  // Share what's on screen, and save a review still waiting on its debounce
-  // so the link's card matches it
-  const share = () => {
+  // Share what's on screen, once the review shown is saved: a link sent
+  // before a draft lands would show readers (and the card) the old review
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
+  const share = async () => {
     if (!onShare) return;
+    // Retry a draft whose last save failed, as well as one still debouncing
+    if (reviewDraft !== savedReview.current) commitReview(reviewDraft);
     commitReview.flush();
+    setIsPreparingShare(true);
+    const saved = await reviewSaveChain.current;
+    setIsPreparingShare(false);
+    if (!saved) return;
     onShare(toBookReview({ ...state, review: reviewDraft.trim() || null }));
   };
 
@@ -320,7 +333,8 @@ export function BookReadingControls({
             variant="ghost"
             size="sm"
             className="-my-1 h-7 px-2 text-muted-foreground text-xs"
-            onClick={share}
+            disabled={isPreparingShare}
+            onClick={() => void share()}
           >
             <Share className="size-3.5" />
             {state.rating !== null || reviewDraft.trim()
