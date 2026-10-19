@@ -8,8 +8,14 @@
  */
 
 import { cache } from "react";
+import { getBookCoverRatio, getStoredCoverColor } from "@/lib/book-cover";
+import { type BookReview, toBookReview } from "@/lib/books/review";
 import db from "@/lib/db";
-import { canViewItem } from "@/lib/items/access";
+import { canViewItem, itemAccessSelect } from "@/lib/items/access";
+import {
+  mapPublicBookDetails,
+  publicBookDetailsSelect,
+} from "@/lib/items/query";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { publicRoomItemsWhere } from "@/lib/rooms/room-access";
 
@@ -220,6 +226,65 @@ export const getOgHighlight = cache(
       text: highlight.text,
       itemTitle: highlight.item.title,
       domain: highlight.item.articleDetails?.domain ?? null,
+      ownerUsername: user.username ?? username,
+    };
+  },
+);
+
+export type OgBookReview = {
+  title: string;
+  authors: string[];
+  coverFileKey: string | null;
+  coverRatio: number;
+  coverColor: string | null;
+  review: BookReview;
+  ownerUsername: string;
+};
+
+/**
+ * A book review gets a real card only when the book is publicly viewable. The
+ * review is the book's public reading data (see mapPublicBookDetails), so it
+ * needs no grant beyond the item's own.
+ */
+export const getOgBookReview = cache(
+  async ({
+    username,
+    itemId,
+  }: {
+    username: string;
+    itemId: string;
+  }): Promise<OgBookReview | null> => {
+    if (!isCanonicalUuid(itemId)) return null;
+
+    const user = await db.user.findFirst({
+      where: { username: { equals: username, mode: "insensitive" } },
+      select: { id: true, username: true },
+    });
+    if (!user) return null;
+
+    const item = await db.item.findUnique({
+      where: { id: itemId },
+      select: {
+        kind: true,
+        title: true,
+        meta: true,
+        coverFileKey: true,
+        imageDetails: { select: { colors: true } },
+        bookDetails: { select: publicBookDetailsSelect },
+        ...itemAccessSelect,
+      },
+    });
+    if (!item || item.userId !== user.id || item.kind !== "book") return null;
+    if (!item.bookDetails || !canViewItem(item, null)) return null;
+
+    const book = mapPublicBookDetails(item.bookDetails);
+    return {
+      title: item.title ?? "Untitled",
+      authors: book.authors,
+      coverFileKey: item.coverFileKey,
+      coverRatio: getBookCoverRatio(item.meta),
+      coverColor: getStoredCoverColor(item.imageDetails?.colors),
+      review: toBookReview(book),
       ownerUsername: user.username ?? username,
     };
   },
