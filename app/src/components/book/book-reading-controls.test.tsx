@@ -380,3 +380,58 @@ describe("BookReadingControls progress persistence", () => {
     expect(screen.getByText("p.100 of 300")).toBeInTheDocument();
   });
 });
+
+describe("BookReadingControls share", () => {
+  it("hides Share unless the owner can share", () => {
+    renderControls({ status: "read" });
+    expect(
+      screen.queryByRole("button", { name: /Share/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shares the reading as it stands, including an unsaved review", async () => {
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read", rating: 8 }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "  Loved it.  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    expect(onShare).toHaveBeenCalledWith({
+      status: "read",
+      rating: 8,
+      review: "Loved it.",
+      startedAt: null,
+      startedAtPrecision: null,
+      finishedAt: null,
+      finishedAtPrecision: null,
+    });
+    // The debounced save is flushed so the shared card shows the new text
+    // (well inside the 600ms debounce, so only the flush can have sent it)
+    await waitFor(
+      () =>
+        expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+          bookReading: { review: "  Loved it.  " },
+        }),
+      { timeout: 200 },
+    );
+  });
+
+  it("labels it plain Share before there's a rating or review", () => {
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "reading" }}
+        onShare={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+  });
+});

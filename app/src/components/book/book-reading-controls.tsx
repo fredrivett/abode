@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Share,
   X,
 } from "lucide-react";
 import posthog from "posthog-js";
@@ -34,6 +35,7 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { type BookReview, toBookReview } from "@/lib/books/review";
 import {
   BOOK_READING_STATUS_LABELS,
   MAX_BOOK_REVIEW_LENGTH,
@@ -97,6 +99,8 @@ function toReadingState(book: BookDetails): ReadingState {
 type BookReadingControlsProps = {
   itemId: string;
   bookDetails: BookDetails;
+  /** Opens the share dialog with the reading data as it stands; omit to hide Share */
+  onShare?: (review: BookReview) => void;
   className?: string;
 };
 
@@ -109,6 +113,7 @@ type BookReadingControlsProps = {
 export function BookReadingControls({
   itemId,
   bookDetails,
+  onShare,
   className,
 }: BookReadingControlsProps) {
   const invalidateItems = useInvalidateItems();
@@ -296,11 +301,34 @@ export function BookReadingControls({
   const sliderMax = usePercentSlider ? 100 : hasPages;
   const sliderValue = usePercentSlider ? currentPercent : currentPage;
 
+  // Share what's on screen, and save a review still waiting on its debounce
+  // so the link's card matches it
+  const share = () => {
+    if (!onShare) return;
+    commitReview.flush();
+    onShare(toBookReview({ ...state, review: reviewDraft.trim() || null }));
+  };
+
   return (
     <div className={cn("space-y-3", className)}>
-      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-        Reading
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+          Reading
+        </h3>
+        {onShare && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-my-1 h-7 px-2 text-muted-foreground text-xs"
+            onClick={share}
+          >
+            <Share className="size-3.5" />
+            {state.rating !== null || reviewDraft.trim()
+              ? "Share review"
+              : "Share"}
+          </Button>
+        )}
+      </div>
 
       {/* Status */}
       <DropdownMenu>
