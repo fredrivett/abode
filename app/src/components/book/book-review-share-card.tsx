@@ -445,7 +445,8 @@ function StarIcon({ size, fill }: { size: number; fill: string }) {
       height={size}
       viewBox="0 0 24 24"
       aria-hidden
-      style={{ display: "flex" }}
+      // Never shrink to fit: the half star clips a full one in a half-width box
+      style={{ display: "flex", flexShrink: 0 }}
     >
       <path d={STAR_PATH} fill={fill} />
     </svg>
