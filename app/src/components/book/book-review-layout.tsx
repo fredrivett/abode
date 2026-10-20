@@ -3,6 +3,7 @@ import { ViewOnButton } from "@/components/ui/view-on-button";
 import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
+import { BookAuthors } from "./book-authors";
 import { BookCover3D } from "./book-cover-3d";
 
 export type BookReviewLayoutBook = {
@@ -59,7 +60,6 @@ export function BookReviewLayout({
   const title = book.title ?? "Untitled";
   const ratio = book.coverRatio ?? DEFAULT_BOOK_COVER_RATIO;
   const facts = bookFactsLine(book);
-  const authorLine = book.authors.length > 0 ? book.authors.join(", ") : null;
 
   return (
     <div
@@ -101,8 +101,10 @@ export function BookReviewLayout({
           <h1 className="text-balance font-serif text-4xl text-foreground leading-tight md:text-5xl">
             {title}
           </h1>
-          {authorLine && (
-            <p className="mt-3 text-lg text-muted-foreground">{authorLine}</p>
+          {book.authors.length > 0 && (
+            <p className="mt-3 text-lg text-muted-foreground">
+              <BookAuthors authors={book.authors} />
+            </p>
           )}
           {(facts || (book.sourceUrl && isValidUrl(book.sourceUrl))) && (
             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-3 md:justify-start">

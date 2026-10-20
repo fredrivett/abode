@@ -156,6 +156,17 @@ export function BookReviewShareCard({
                 color: OG_COLORS.muted,
               }}
             >
+              {/* Satori has no italic Geist, so "by" is slanted with a skew,
+                  which renders the same in next/og and the DOM preview */}
+              <span
+                style={{
+                  display: "flex",
+                  marginRight: "0.3em",
+                  transform: "skewX(-12deg)",
+                }}
+              >
+                by
+              </span>
               {authorLine}
             </div>
           )}

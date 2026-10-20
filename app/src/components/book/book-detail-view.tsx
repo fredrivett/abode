@@ -6,6 +6,7 @@ import { getProxyImageUrl } from "@/lib/image-url";
 import type { BookDetails } from "@/lib/types/item";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
+import { BookAuthors } from "./book-authors";
 import { BookCover3D } from "./book-cover-3d";
 
 type BookDetailViewProps = {
@@ -36,7 +37,6 @@ export function BookDetailView({
   className,
 }: BookDetailViewProps) {
   const { authors, domain } = bookDetails;
-  const authorLine = authors.length > 0 ? authors.join(", ") : null;
 
   return (
     <div
@@ -66,9 +66,9 @@ export function BookDetailView({
               {title}
             </h2>
           )}
-          {authorLine && (
+          {authors.length > 0 && (
             <p className="text-gray-500 text-sm dark:text-gray-400">
-              {authorLine}
+              <BookAuthors authors={authors} />
             </p>
           )}
         </div>

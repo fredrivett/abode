@@ -46,6 +46,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
 import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
+import { BookAuthors } from "@/components/book/book-authors";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
 import { BookReadingStatusBadge } from "@/components/book/book-reading-status-icon";
@@ -519,7 +520,6 @@ export function ItemCard({
   // Books without cover images get a placeholder card
   if (isBook && !previewUrl && !imageFileKey) {
     const bookAuthors = item.bookDetails?.authors ?? [];
-    const authorLine = bookAuthors.length > 0 ? bookAuthors.join(", ") : null;
     return (
       <>
         <button
@@ -540,12 +540,12 @@ export function ItemCard({
             >
               {itemName}
             </p>
-            {authorLine && (
+            {bookAuthors.length > 0 && (
               <p
                 className="line-clamp-1 text-gray-500 dark:text-gray-400"
                 style={{ fontSize: "0.75em", marginTop: "0.25em" }}
               >
-                {authorLine}
+                <BookAuthors authors={bookAuthors} />
               </p>
             )}
             {item.bookDetails?.domain && (
