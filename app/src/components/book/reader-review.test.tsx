@@ -44,7 +44,7 @@ describe("ReaderReview", () => {
     expect(
       screen.getByRole("img", { name: "Rated 3.5 out of 5" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Nov 2023 – Oct 19, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Nov 2023 – 19 Oct 2026")).toBeInTheDocument();
     expect(screen.getByText("Fascinating.")).toBeInTheDocument();
     expect(screen.getByText("And a little terrifying.")).toBeInTheDocument();
   });

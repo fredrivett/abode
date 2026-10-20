@@ -63,9 +63,7 @@ describe("BookReadingSummary", () => {
         }}
       />,
     );
-    expect(
-      screen.getByText(/Jul 1, 2026\s+–\s+Aug 1, 2026/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/1 Jul 2026\s+–\s+1 Aug 2026/)).toBeInTheDocument();
   });
 
   it("labels a lone finished date", () => {

@@ -139,7 +139,7 @@ describe("BookReadingControls date precision", () => {
       startedAt: "2024-03-05T12:00:00.000Z",
       startedAtPrecision: null,
     });
-    expect(screen.getByText("Mar 5, 2024")).toBeInTheDocument();
+    expect(screen.getByText("5 Mar 2024")).toBeInTheDocument();
     expect(screen.queryByText("Set date")).not.toBeInTheDocument();
   });
 
@@ -149,7 +149,7 @@ describe("BookReadingControls date precision", () => {
       startedAt: "2024-03-05T12:00:00.000Z",
       startedAtPrecision: null,
     });
-    fireEvent.click(screen.getByRole("button", { name: "Mar 5, 2024" }));
+    fireEvent.click(screen.getByRole("button", { name: "5 Mar 2024" }));
     expect(
       screen.getByRole("button", { name: /March 5th, 2024/ }),
     ).toHaveAttribute("data-selected-single", "true");

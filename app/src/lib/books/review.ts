@@ -73,7 +73,7 @@ export function readingDatesLabel(review: BookReview): string | null {
   return null;
 }
 
-/** "@fred · Read · Nov 2023 – Oct 19, 2026", skipping whatever's missing. */
+/** "@fred · Read · Nov 2023 – 19 Oct 2026", skipping whatever's missing. */
 export function bookReviewByline({
   username,
   review,

@@ -63,7 +63,7 @@ describe("reviewText", () => {
 
 describe("readingDatesLabel", () => {
   it("joins started and finished into a range", () => {
-    expect(readingDatesLabel(read)).toBe("Nov 2023 – Oct 19, 2026");
+    expect(readingDatesLabel(read)).toBe("Nov 2023 – 19 Oct 2026");
   });
 
   it("labels a lone date", () => {
@@ -71,7 +71,7 @@ describe("readingDatesLabel", () => {
       "Started Nov 2023",
     );
     expect(readingDatesLabel({ ...read, startedAt: null })).toBe(
-      "Finished Oct 19, 2026",
+      "Finished 19 Oct 2026",
     );
   });
 
@@ -95,7 +95,7 @@ describe("readingDatesLabel", () => {
 describe("bookReviewByline", () => {
   it("lists the reader, status and dates", () => {
     expect(bookReviewByline({ username: "fred", review: read })).toBe(
-      "@fred · Read · Nov 2023 – Oct 19, 2026",
+      "@fred · Read · Nov 2023 – 19 Oct 2026",
     );
   });
 

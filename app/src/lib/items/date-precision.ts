@@ -36,7 +36,7 @@ export function formatReadingDate(
   if (precision === "year") return String(date.getUTCFullYear());
   if (precision === "month")
     return `${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  return format(date, "MMM d, yyyy");
+  return format(date, "d MMM yyyy");
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,7 +65,7 @@ export function formatPublicReadingDate(
     isCalendarPick && sinceMidnight > DAY_MS / 2
       ? new Date(date.getTime() + DAY_MS)
       : date;
-  return `${MONTH_LABELS[day.getUTCMonth()]} ${day.getUTCDate()}, ${day.getUTCFullYear()}`;
+  return `${day.getUTCDate()} ${MONTH_LABELS[day.getUTCMonth()]} ${day.getUTCFullYear()}`;
 }
 
 // Truncate to the start of the period implied by precision, in UTC, so the
