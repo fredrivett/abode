@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { ViewOnButton } from "@/components/ui/view-on-button";
-import {
-  BOOK_SPINE_HINGE_BG,
-  DEFAULT_BOOK_COVER_RATIO,
-} from "@/lib/book-cover";
+import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import { isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 import { BookCover3D } from "./book-cover-3d";
@@ -82,19 +79,14 @@ export function BookReviewLayout({
           className="relative w-full"
           style={{ aspectRatio: ratio, containerType: "inline-size" }}
         >
-          {book.coverUrl ? (
-            <BookCover3D
-              src={book.coverUrl}
-              alt={`Cover of ${title}`}
-              coverColor={book.coverColor ?? undefined}
-            />
-          ) : (
-            <BlankBookCover
-              title={title}
-              author={book.authors[0] ?? null}
-              color={book.coverColor ?? null}
-            />
-          )}
+          <BookCover3D
+            src={book.coverUrl}
+            alt={`Cover of ${title}`}
+            coverColor={book.coverColor ?? undefined}
+            fallback={
+              <TypesetCover title={title} author={book.authors[0] ?? null} />
+            }
+          />
         </div>
       </div>
 
@@ -127,32 +119,22 @@ export function BookReviewLayout({
   );
 }
 
-/** A typeset board for a book saved without a cover image. */
-function BlankBookCover({
+/** The front of a book saved without a cover image: its title, typeset. */
+function TypesetCover({
   title,
   author,
-  color,
 }: {
   title: string;
   author: string | null;
-  color: string | null;
 }) {
   return (
-    <div
-      className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[3px] rounded-r-[6px] bg-neutral-800 px-[12%] text-center text-white/90 shadow-[14px_22px_44px_-10px_rgba(0,0,0,0.55)]"
-      style={{ backgroundColor: color ?? undefined }}
-    >
+    <div className="flex h-full w-full flex-col items-center justify-center px-[12%] text-center text-white/90">
       <span className="font-serif text-[12cqw] leading-tight">{title}</span>
       {author && (
         <span className="mt-[6cqw] border-white/30 border-t pt-[5cqw] text-[6.5cqw] text-white/70">
           {author}
         </span>
       )}
-      {/* Spine hinge groove down the left edge */}
-      <div
-        className="absolute inset-0"
-        style={{ background: BOOK_SPINE_HINGE_BG }}
-      />
     </div>
   );
 }

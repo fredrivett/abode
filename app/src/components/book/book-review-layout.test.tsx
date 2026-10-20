@@ -1,9 +1,20 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./book-cover-3d", () => ({
-  BookCover3D: ({ alt }: { alt: string }) => (
-    <div role="img" aria-label={alt} />
+  BookCover3D: ({
+    alt,
+    src,
+    fallback,
+  }: {
+    alt: string;
+    src: string | null;
+    fallback: ReactNode;
+  }) => (
+    <div role="img" aria-label={alt} data-src={src ?? ""}>
+      {!src && fallback}
+    </div>
   ),
 }));
 
@@ -69,7 +80,9 @@ describe("BookReviewLayout", () => {
         {null}
       </BookReviewLayout>,
     );
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Cover of Elon Musk" }),
+    ).toHaveAttribute("data-src", "");
     // Once as the heading, once on the typeset board
     expect(screen.getAllByText("Elon Musk")).toHaveLength(2);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
