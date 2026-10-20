@@ -91,7 +91,11 @@ export async function imageDataUri(url: string | null): Promise<string | null> {
       signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
     });
     const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || !type.startsWith("image/")) return null;
+    if (!res.ok || !type.startsWith("image/")) {
+      // Release the connection rather than leaving the body unread
+      await res.body?.cancel();
+      return null;
+    }
     const bytes = Buffer.from(await res.arrayBuffer());
     return `data:${type};base64,${bytes.toString("base64")}`;
   } catch {

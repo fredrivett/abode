@@ -45,6 +45,16 @@ describe("imageDataUri", () => {
     expect(await imageDataUri("https://abode.test/a.png")).toBeNull();
   });
 
+  it("releases a rejected response's body", async () => {
+    const response = new Response("<html>", {
+      headers: { "content-type": "text/html" },
+    });
+    stubFetch(response);
+    await imageDataUri("https://abode.test/a.png");
+    // A cancelled body can't be read; an unread one still could
+    await expect(response.text()).rejects.toThrow();
+  });
+
   it("is null when the fetch throws", async () => {
     stubFetch(new Error("offline"));
     expect(await imageDataUri("https://abode.test/a.png")).toBeNull();

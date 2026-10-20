@@ -33,7 +33,15 @@ describe("coverSlices", () => {
 
   it("joins each slice to the next with no gap", () => {
     for (let i = 1; i < slices.length; i++) {
-      expect(slices[i].quad[0][0]).toBeCloseTo(slices[i - 1].quad[1][0], 9);
+      const [topLeft, , , bottomLeft] = slices[i].quad;
+      const [, topRight, bottomRight] = slices[i - 1].quad;
+      for (const [a, b] of [
+        [topLeft, topRight],
+        [bottomLeft, bottomRight],
+      ]) {
+        expect(a[0]).toBeCloseTo(b[0], 9);
+        expect(a[1]).toBeCloseTo(b[1], 9);
+      }
     }
   });
 

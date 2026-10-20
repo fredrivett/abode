@@ -7,12 +7,19 @@ vi.mock("./book-cover-3d", () => ({
     alt,
     src,
     fallback,
+    coverColor,
   }: {
     alt: string;
     src: string | null;
     fallback: ReactNode;
+    coverColor?: string;
   }) => (
-    <div role="img" aria-label={alt} data-src={src ?? ""}>
+    <div
+      role="img"
+      aria-label={alt}
+      data-src={src ?? ""}
+      data-color={coverColor ?? ""}
+    >
       {!src && fallback}
     </div>
   ),
@@ -86,5 +93,16 @@ describe("BookReviewLayout", () => {
     // Once as the heading, once on the typeset board
     expect(screen.getAllByText("Elon Musk")).toHaveLength(2);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("gives a coverless book with no colour a dark board for its white type", () => {
+    render(
+      <BookReviewLayout book={{ ...book, coverUrl: null, coverColor: null }}>
+        {null}
+      </BookReviewLayout>,
+    );
+    expect(
+      screen.getByRole("img", { name: "Cover of Elon Musk" }),
+    ).toHaveAttribute("data-color", "#2a2a2a");
   });
 });

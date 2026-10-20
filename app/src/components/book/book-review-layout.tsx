@@ -29,6 +29,8 @@ type BookReviewLayoutProps = {
   className?: string;
 };
 
+const BLANK_BOARD = "#2a2a2a";
+
 /** "Simon & Schuster · 2023 · 688 pages", skipping whatever's missing. */
 export function bookFactsLine(
   book: Pick<BookReviewLayoutBook, "publisher" | "publishedAt" | "pageCount">,
@@ -82,7 +84,11 @@ export function BookReviewLayout({
           <BookCover3D
             src={book.coverUrl}
             alt={`Cover of ${title}`}
-            coverColor={book.coverColor ?? undefined}
+            // White type on a coverless board needs a dark one when there's
+            // no cover colour (the 3D book's own default is light)
+            coverColor={
+              book.coverColor ?? (book.coverUrl ? undefined : BLANK_BOARD)
+            }
             fallback={
               <TypesetCover title={title} author={book.authors[0] ?? null} />
             }

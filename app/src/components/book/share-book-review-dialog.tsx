@@ -23,6 +23,7 @@ import {
   DialogOrDrawerTitle,
 } from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
+import { useImageLoaded } from "@/hooks/use-image-loaded";
 import {
   type BookReview,
   bookReviewShareUrl,
@@ -69,11 +70,18 @@ export function BookReviewCardPreview({
 }) {
   // SVG ids are document-wide, so each preview gets its own
   const svgId = useId().replace(/[^a-zA-Z0-9-]/g, "");
+  // An SVG <image> never retries, so load the cover through a hidden <img>
+  // that does, and draw it once it's in (the board shows until then)
+  const { loaded, imgProps } = useImageLoaded(coverUrl);
   return (
     <ShareCardPreview size={BOOK_REVIEW_CARD_SIZE}>
+      {coverUrl && (
+        // biome-ignore lint/performance/noImgElement: hidden loader for the SVG cover, so it gets <Img>'s retries
+        <img {...imgProps} alt="" hidden />
+      )}
       <BookReviewShareCard
         {...props}
-        coverHref={coverUrl}
+        coverHref={loaded ? (imgProps.src ?? null) : null}
         svgId={`book-${svgId}`}
         fonts={SHARE_CARD_DOM_FONTS}
         logo={<ShareCardLogo />}
