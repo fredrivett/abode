@@ -4,6 +4,7 @@ import {
   AbodeWordmark,
   coverImageUrl,
   fallbackOgImage,
+  imageDataUri,
   OG_CONTENT_TYPE,
   OG_SIZE,
   ogImageResponse,
@@ -26,31 +27,21 @@ export default async function Image({
 
   if (!book) return fallbackOgImage();
 
-  const cover = coverImageUrl(book.coverFileKey, "grid");
+  // The card draws the cover inside an SVG, which can't fetch it itself
+  const cover = await imageDataUri(coverImageUrl(book.coverFileKey, "grid"));
+  // Called, not rendered as a component: satori only preloads the SVG cover
+  // image it can reach through plain elements
   return ogImageResponse(
-    <BookReviewShareCard
-      title={book.title}
-      authors={book.authors}
-      review={book.review}
-      ownerUsername={book.ownerUsername}
-      coverRatio={book.coverRatio}
-      coverColor={book.coverColor}
-      renderCover={
-        cover
-          ? ({ width, height }) => (
-              // biome-ignore lint/performance/noImgElement: next/og (satori) renders raw <img>; next/image is unavailable here
-              <img
-                src={cover}
-                width={width}
-                height={height}
-                alt=""
-                style={{ width, height, objectFit: "cover" }}
-              />
-            )
-          : null
-      }
-      fonts={{ serif: "Hedvig", sans: "Geist" }}
-      logo={<AbodeWordmark height={30} />}
-    />,
+    BookReviewShareCard({
+      title: book.title,
+      authors: book.authors,
+      review: book.review,
+      ownerUsername: book.ownerUsername,
+      coverRatio: book.coverRatio,
+      coverColor: book.coverColor,
+      coverHref: cover,
+      fonts: { serif: "Hedvig", sans: "Geist" },
+      logo: <AbodeWordmark height={30} />,
+    }),
   );
 }

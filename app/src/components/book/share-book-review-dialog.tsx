@@ -2,6 +2,7 @@
 
 import { Link2, Quote, Share } from "lucide-react";
 import posthog from "posthog-js";
+import { useId } from "react";
 import {
   useCanNativeShare,
   useShareActions,
@@ -21,7 +22,6 @@ import {
   DialogOrDrawerHeader,
   DialogOrDrawerTitle,
 } from "@/components/ui/dialog-or-drawer";
-import { Img } from "@/components/ui/img";
 import { IsLoading } from "@/components/ui/is-loading";
 import {
   type BookReview,
@@ -64,24 +64,17 @@ type ShareBookReviewDialogProps = {
 export function BookReviewCardPreview({
   coverUrl,
   ...props
-}: Omit<BookReviewShareCardProps, "fonts" | "logo" | "renderCover"> & {
+}: Omit<BookReviewShareCardProps, "fonts" | "logo" | "coverHref" | "svgId"> & {
   coverUrl: string | null;
 }) {
+  // SVG ids are document-wide, so each preview gets its own
+  const svgId = useId().replace(/[^a-zA-Z0-9-]/g, "");
   return (
     <ShareCardPreview size={BOOK_REVIEW_CARD_SIZE}>
       <BookReviewShareCard
         {...props}
-        renderCover={
-          coverUrl
-            ? ({ width, height }) => (
-                <Img
-                  src={coverUrl}
-                  alt=""
-                  style={{ width, height, objectFit: "cover" }}
-                />
-              )
-            : null
-        }
+        coverHref={coverUrl}
+        svgId={`book-${svgId}`}
         fonts={SHARE_CARD_DOM_FONTS}
         logo={<ShareCardLogo />}
       />

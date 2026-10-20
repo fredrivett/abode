@@ -15,11 +15,16 @@ vi.mock("@/lib/og/data", () => ({
   getOgBookReview: vi.fn(),
 }));
 
+vi.mock("@/components/book/book-review-share-card", () => ({
+  BookReviewShareCard: vi.fn(() => <div data-card="book-review" />),
+}));
+
 import { BookReviewShareCard } from "@/components/book/book-review-share-card";
 import { getOgBookReview } from "@/lib/og/data";
 import Image, { contentType } from "./opengraph-image";
 
 const mockGetOgBookReview = vi.mocked(getOgBookReview);
+const mockCard = vi.mocked(BookReviewShareCard);
 const mockImageResponse = vi.mocked(ImageResponse);
 
 const params = (username: string) =>
@@ -45,13 +50,23 @@ function renderedElement() {
 }
 
 describe("book review opengraph-image", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("declares a png content type", () => {
     expect(contentType).toBe("image/png");
   });
 
-  it("renders the review card for a viewable book", async () => {
+  it("renders the review card for a viewable book, cover inlined", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("jpg", { headers: { "content-type": "image/jpeg" } }),
+      ),
+    );
     mockGetOgBookReview.mockResolvedValue({
       title: "Elon Musk",
       authors: ["Walter Isaacson"],
@@ -69,19 +84,19 @@ describe("book review opengraph-image", () => {
       username: "fred",
       itemId: "item-1",
     });
-    const element = renderedElement();
-    expect(element.type).toBe(BookReviewShareCard);
-    expect(element.props).toMatchObject({
+    // Called directly (not rendered) so satori can preload the cover image
+    expect(renderedElement().props).toEqual({ "data-card": "book-review" });
+    expect(mockCard.mock.calls[0]?.[0]).toMatchObject({
       title: "Elon Musk",
       authors: ["Walter Isaacson"],
       review,
       ownerUsername: "fred",
       coverColor: "#1c1d22",
+      coverHref: "data:image/jpeg;base64,anBn",
     });
-    expect(element.props.renderCover).toEqual(expect.any(Function));
   });
 
-  it("draws a typeset board for a book without a cover", async () => {
+  it("draws a plain board for a book without a cover", async () => {
     mockGetOgBookReview.mockResolvedValue({
       title: "Dune",
       authors: [],
@@ -94,7 +109,7 @@ describe("book review opengraph-image", () => {
 
     await Image({ params: params("@fred") });
 
-    expect(renderedElement().props.renderCover).toBeNull();
+    expect(mockCard.mock.calls[0]?.[0].coverHref).toBeNull();
   });
 
   it("falls back to the branded card when the book isn't viewable", async () => {
@@ -102,13 +117,13 @@ describe("book review opengraph-image", () => {
 
     await Image({ params: params("@fred") });
 
-    expect(renderedElement().type).not.toBe(BookReviewShareCard);
+    expect(mockCard).not.toHaveBeenCalled();
   });
 
   it("falls back without querying when the username lacks an @", async () => {
     await Image({ params: params("fred") });
 
     expect(mockGetOgBookReview).not.toHaveBeenCalled();
-    expect(renderedElement().type).not.toBe(BookReviewShareCard);
+    expect(mockCard).not.toHaveBeenCalled();
   });
 });

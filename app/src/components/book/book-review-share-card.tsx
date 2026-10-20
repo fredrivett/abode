@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { DEFAULT_BOOK_COVER_RATIO } from "@/lib/book-cover";
 import {
-  BOOK_PAGE_EDGE_BG,
-  BOOK_SPINE_HINGE_BG,
-  DEFAULT_BOOK_COVER_RATIO,
-} from "@/lib/book-cover";
+  coverOverhang,
+  coverSlices,
+  pageSlices,
+  planeOutline,
+} from "@/lib/books/cover-perspective";
 import {
   type BookReview,
   bookReviewByline,
@@ -25,10 +27,8 @@ const STAR_PATH =
 
 // The book's box on the card: as tall as fits, unless a wide cover hits the
 // width cap first
-const BOOK_MAX_HEIGHT = 420;
+const BOOK_MAX_HEIGHT = 384;
 const BOOK_MAX_WIDTH = 300;
-// How far the page block and back board show past the front cover
-const BOOK_DEPTH = 16;
 const BLANK_BOARD = "#2a2a2a";
 
 export type BookReviewShareCardProps = {
@@ -41,11 +41,13 @@ export type BookReviewShareCardProps = {
   /** Dominant cover colour: tints the glow behind the book and a blank board */
   coverColor?: string | null;
   /**
-   * Draws the cover image at the given size, however the host can (a raw
-   * <img> in next/og, a retrying <Img> in the DOM); null for a book without
-   * one, which gets a typeset board instead
+   * The cover image, drawn into an SVG <image>: a data URI in next/og (whose
+   * SVG renderer can't fetch), any URL in the DOM; null for a book without
+   * one, which gets a plain board in its cover colour
    */
-  renderCover: ((size: { width: number; height: number }) => ReactNode) | null;
+  coverHref: string | null;
+  /** Prefix for the book's SVG ids, unique on the page */
+  svgId?: string;
   /** Font families: "Hedvig"/"Geist" in next/og, CSS vars in the DOM */
   fonts: { serif: string; sans: string };
   /** The abode wordmark, rendered however the host can draw it */
@@ -65,7 +67,8 @@ function bookSize(ratio: number) {
 /**
  * The 1200x630 share card for a book review. Inline styles only (flex layout,
  * no classes, no 3D transforms) so the exact same markup renders in next/og —
- * the real link unfurl — and in the DOM as the share dialog's preview. Every
+ * the real link unfurl — and in the DOM as the share dialog's preview. next/og
+ * must call it as a function (see cardBook) so its cover image loads. Every
  * part but the title is optional and the layout closes up around what's
  * missing.
  */
@@ -76,7 +79,8 @@ export function BookReviewShareCard({
   ownerUsername,
   coverRatio = DEFAULT_BOOK_COVER_RATIO,
   coverColor,
-  renderCover,
+  coverHref,
+  svgId = "book-review-card",
   fonts,
   logo,
 }: BookReviewShareCardProps) {
@@ -111,14 +115,14 @@ export function BookReviewShareCard({
           minHeight: 0,
         }}
       >
-        <CardBook
-          size={bookSize(coverRatio)}
-          coverColor={coverColor ?? null}
-          renderCover={renderCover}
-          title={title}
-          authors={authors}
-          serif={fonts.serif}
-        />
+        {/* Called, not rendered as a component: satori only preloads an SVG
+            <image> it can reach through plain elements */}
+        {cardBook({
+          size: bookSize(coverRatio),
+          coverColor: coverColor ?? null,
+          coverHref,
+          id: svgId,
+        })}
 
         <div
           style={{
@@ -207,172 +211,230 @@ export function BookReviewShareCard({
   );
 }
 
+type Point = [number, number];
+
+// BOOK_SPINE_HINGE_BG and BOOK_PAGE_EDGE_BG's wash (BookCover3D), as SVG stops
+const SPINE_STOPS = [
+  [0, "#000", 0.28],
+  [0.03, "#000", 0.05],
+  [0.045, "#fff", 0.14],
+  [0.07, "#000", 0.22],
+  [0.1, "#000", 0],
+] as const;
+const PAGE_WASH_STOPS = [
+  [0, "#fff", 0.3],
+  [0.25, "#000", 0],
+  [0.6, "#000", 0.06],
+  [1, "#000", 0.24],
+] as const;
+
+// Satori only takes intrinsic elements inside <svg>, so stops are built by a
+// plain function rather than a component
+function gradientStops(stops: readonly (readonly [number, string, number])[]) {
+  return stops.map(([offset, color, opacity]) => (
+    <stop
+      key={offset}
+      offset={offset}
+      stopColor={color}
+      stopOpacity={opacity}
+    />
+  ));
+}
+
 /**
- * The app's hardback, flattened for a renderer without 3D transforms: the
- * front board, with the page block and back board showing past its fore-edge.
+ * The app's 3D hardback (BookCover3D) at the same angle, for a renderer
+ * without 3D transforms. Drawn as SVG: the back board, then the page block and
+ * the turned front cover, the cover as thin slices each clipped to its exact
+ * projected outline and scaled by its depth.
  */
-function CardBook({
+function cardBook({
   size,
   coverColor,
-  renderCover,
-  title,
-  authors,
-  serif,
+  coverHref,
+  id,
 }: {
   size: { width: number; height: number };
   coverColor: string | null;
-  renderCover: BookReviewShareCardProps["renderCover"];
-  title: string;
-  authors: string[];
-  serif: string;
+  coverHref: string | null;
+  /** Prefix for the SVG's ids, unique per page */
+  id: string;
 }) {
   const { width, height } = size;
   const board = coverColor ?? BLANK_BOARD;
+  const overhang = coverOverhang(height);
+  // Below the book, for its contact shadow
+  const floor = height * 0.06;
+  const cover = coverSlices({ width, height });
+  const pages = pageSlices({ width, height });
+  const coverOutline = planeOutline(cover);
+  const pagesOutline = planeOutline(pages);
+  const points = (pts: Point[]) =>
+    pts
+      .map(([x, y]) => `${x.toFixed(2)},${(y + overhang).toFixed(2)}`)
+      .join(" ");
+  const url = (name: string) => `url(#${id}-${name})`;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        position: "relative",
-        flexShrink: 0,
-        width: width + BOOK_DEPTH,
-        height,
-      }}
+    <svg
+      width={width}
+      height={height + 2 * overhang + floor}
+      viewBox={`0 0 ${width} ${height + 2 * overhang + floor}`}
+      style={{ display: "flex", flexShrink: 0, overflow: "visible" }}
+      aria-hidden
     >
-      {/* Back board, in shadow behind the pages */}
-      <div
-        style={{
-          display: "flex",
-          position: "absolute",
-          left: BOOK_DEPTH,
-          top: 5,
-          width,
-          height: height - 10,
-          borderRadius: "2px 5px 5px 2px",
-          backgroundColor: board,
-          backgroundImage:
-            "linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.7))",
-          boxShadow: "8px 18px 40px rgba(0,0,0,0.55)",
-        }}
-      />
-      {/* Page block fore-edge */}
-      <div
-        style={{
-          display: "flex",
-          position: "absolute",
-          left: width - 8,
-          top: 8,
-          width: BOOK_DEPTH + 2,
-          height: height - 16,
-          backgroundImage: BOOK_PAGE_EDGE_BG,
-        }}
-      />
-      {/* Front board */}
-      <div
-        style={{
-          display: "flex",
-          position: "absolute",
-          left: 0,
-          top: 0,
-          width,
-          height,
-          overflow: "hidden",
-          borderRadius: "3px 6px 6px 3px",
-          backgroundColor: board,
-          boxShadow: "14px 22px 44px rgba(0,0,0,0.5)",
-        }}
-      >
-        {renderCover ? (
-          renderCover({ width, height })
-        ) : (
-          <BlankCover
+      <defs>
+        <filter
+          id={`${id}-shadow`}
+          x="-50%"
+          y="-50%"
+          width="200%"
+          height="200%"
+        >
+          <feGaussianBlur stdDeviation={10} />
+        </filter>
+        <filter id={`${id}-soft`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation={5} />
+        </filter>
+        <linearGradient id={`${id}-spine`} x1="0" y1="0" x2="1" y2="0">
+          {gradientStops(SPINE_STOPS)}
+        </linearGradient>
+        <linearGradient id={`${id}-edge`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset={0.97} stopColor="#fff" stopOpacity={0} />
+          <stop offset={1} stopColor="#fff" stopOpacity={0.3} />
+        </linearGradient>
+        <linearGradient id={`${id}-sheen`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset={0} stopColor="#fff" stopOpacity={0.12} />
+          <stop offset={0.6} stopColor="#fff" stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id={`${id}-pages`} x1="0" y1="0" x2="1" y2="0">
+          {gradientStops(PAGE_WASH_STOPS)}
+        </linearGradient>
+        {/* Defined once and reused: the cover is a data URI in next/og, and
+            a copy per slice would bloat the SVG past its parser's limits */}
+        {coverHref && (
+          <image
+            id={`${id}-cover`}
+            href={coverHref}
+            x={0}
+            y={0}
             width={width}
-            title={title}
-            authors={authors}
-            serif={serif}
+            height={height}
+            preserveAspectRatio="xMidYMid slice"
           />
         )}
-        {/* Spine hinge groove down the left edge */}
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width,
-            height,
-            backgroundImage: BOOK_SPINE_HINGE_BG,
-          }}
-        />
-        {/* Board edge catching the light, and a soft sheen */}
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width,
-            height,
-            backgroundImage:
-              "linear-gradient(to left, rgba(255,255,255,0.28), rgba(255,255,255,0) 2%), linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 60%)",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
+        <clipPath id={`${id}-back`}>
+          <rect x={0} y={overhang} width={width} height={height} rx={3} />
+        </clipPath>
+        {cover.map((slice, i) => (
+          <clipPath key={slice.from} id={`${id}-slice-${i}`}>
+            <polygon
+              // A hair wider than the slice so no seam shows between them
+              points={points(
+                i === cover.length - 1
+                  ? slice.quad
+                  : [
+                      slice.quad[0],
+                      [slice.quad[1][0] + 3, slice.quad[1][1]],
+                      [slice.quad[2][0] + 3, slice.quad[2][1]],
+                      slice.quad[3],
+                    ],
+              )}
+            />
+          </clipPath>
+        ))}
+      </defs>
 
-/** A typeset cover for a book saved without a cover image. */
-function BlankCover({
-  width,
-  title,
-  authors,
-  serif,
-}: {
-  width: number;
-  title: string;
-  authors: string[];
-  serif: string;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100%",
-        height: "100%",
-        padding: "0 12%",
-        textAlign: "center",
-        color: "rgba(255,255,255,0.92)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          fontFamily: serif,
-          fontSize: Math.round(width * 0.12),
-          lineHeight: 1.15,
-        }}
-      >
-        {truncateAtWord(title, 60)}
-      </div>
-      {authors.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            marginTop: 18,
-            paddingTop: 16,
-            borderTop: "1px solid rgba(255,255,255,0.3)",
-            fontSize: Math.round(width * 0.065),
-            color: "rgba(255,255,255,0.7)",
-          }}
-        >
-          {truncateAtWord(authors[0], 32)}
-        </div>
-      )}
-    </div>
+      {/* Contact shadow beneath the book */}
+      <ellipse
+        cx={width / 2}
+        cy={overhang + height + floor * 0.15}
+        rx={width * 0.42}
+        ry={floor * 0.45}
+        fill="#000"
+        fillOpacity={0.45}
+        filter={url("soft")}
+      />
+
+      {/* Back board, in shadow behind the pages */}
+      <rect
+        x={2}
+        y={overhang + 4}
+        width={width}
+        height={height}
+        rx={3}
+        fill="#000"
+        fillOpacity={0.35}
+        filter={url("soft")}
+      />
+      <g clipPath={url("back")}>
+        <rect x={0} y={overhang} width={width} height={height} fill={board} />
+        {coverHref && <use href={`#${id}-cover`} y={overhang} />}
+        <rect
+          x={0}
+          y={overhang}
+          width={width}
+          height={height}
+          fill="#000"
+          fillOpacity={0.5}
+        />
+      </g>
+
+      {/* Page block fore-edge, lined like page edges */}
+      <polygon points={points(pagesOutline)} fill="#f6f1e7" />
+      {pages
+        .filter((_, i) => i % 2 === 1)
+        .map((slice) => (
+          <line
+            key={slice.from}
+            x1={slice.quad[0][0]}
+            y1={slice.quad[0][1] + overhang}
+            x2={slice.quad[3][0]}
+            y2={slice.quad[3][1] + overhang}
+            stroke="#cbc0a9"
+            strokeWidth={0.5}
+          />
+        ))}
+      <polygon points={points(pagesOutline)} fill={url("pages")} />
+
+      {/* Shadow the turned cover casts */}
+      <polygon
+        points={points(coverOutline)}
+        transform="translate(6 8)"
+        fill="#000"
+        fillOpacity={0.45}
+        filter={url("shadow")}
+      />
+
+      {/* Front cover, slice by slice */}
+      {cover.map((slice, i) => (
+        <g key={slice.from} clipPath={url(`slice-${i}`)}>
+          <g
+            // Put the slice's flat column, scaled, at its projected spot
+            transform={`translate(${slice.left} ${overhang + slice.top}) scale(${slice.scaleX} ${slice.scaleY}) translate(${-slice.from} 0)`}
+          >
+            {/* resvg feathers an image at its clip's edge, so a backing
+                board would show through as seams; the overlap from the
+                slice before fills in instead */}
+            {coverHref ? (
+              <use href={`#${id}-cover`} />
+            ) : (
+              <rect
+                x={slice.from - 1}
+                y={0}
+                width={slice.width + 2}
+                height={height}
+                fill={board}
+              />
+            )}
+          </g>
+        </g>
+      ))}
+
+      {/* Spine hinge groove, board edge catching the light, and a sheen */}
+      <polygon points={points(coverOutline)} fill={url("spine")} />
+      <polygon points={points(coverOutline)} fill={url("edge")} />
+      <polygon points={points(coverOutline)} fill={url("sheen")} />
+    </svg>
   );
 }
 
