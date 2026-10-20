@@ -27,6 +27,7 @@ vi.mock("@/lib/user", () => ({ getAuthenticatedUser: getUser }));
 vi.mock("@/lib/invites/share-invite", () => ({ shareInvitesOpen }));
 
 import {
+  getPublicBookReview,
   getSaveCtaState,
   getSharedHighlight,
   getVisibleHighlights,
@@ -202,5 +203,66 @@ describe("getSaveCtaState", () => {
     expect(
       await getSaveCtaState({ user, viewerId: null, isOwner: false }),
     ).toEqual({ isSignedIn: false, invitesOpen: true });
+  });
+});
+
+describe("getPublicBookReview", () => {
+  const bookDetails = {
+    authors: ["Walter Isaacson"],
+    publisher: "Simon & Schuster",
+    publishedAt: new Date("2023-09-12T00:00:00.000Z"),
+    isbn: "9781982181284",
+    pageCount: 688,
+    domain: "example.com",
+    status: "read",
+    startedAt: new Date("2023-11-01T00:00:00.000Z"),
+    startedAtPrecision: "month",
+    finishedAt: null,
+    finishedAtPrecision: null,
+    rating: 7,
+    review: "Fascinating.",
+  };
+  const book = (overrides: Record<string, unknown> = {}) =>
+    makeItem({
+      kind: "book",
+      title: "Elon Musk",
+      meta: { coverWidth: 600, coverHeight: 900 },
+      coverFileKey: "covers/elon.jpg",
+      sourceUrl: "https://example.com/elon",
+      imageDetails: { colors: [{ hex: "#1c1d22", name: "black", score: 1 }] },
+      bookDetails,
+      ...overrides,
+    });
+
+  it("splits a book into the book and its owner's review", () => {
+    expect(getPublicBookReview(book())).toEqual({
+      book: {
+        id: ITEM_ID,
+        title: "Elon Musk",
+        authors: ["Walter Isaacson"],
+        publisher: "Simon & Schuster",
+        publishedAt: "2023-09-12T00:00:00.000Z",
+        pageCount: 688,
+        coverUrl: "/api/v1/images/covers%2Felon.jpg?w=1800&q=90",
+        coverRatio: 600 / 900,
+        coverColor: "#1c1d22",
+        sourceUrl: "https://example.com/elon",
+        domain: "example.com",
+      },
+      review: {
+        status: "read",
+        rating: 7,
+        review: "Fascinating.",
+        startedAt: "2023-11-01T00:00:00.000Z",
+        startedAtPrecision: "month",
+        finishedAt: null,
+        finishedAtPrecision: null,
+      },
+    });
+  });
+
+  it("is null for anything but a book", () => {
+    expect(getPublicBookReview(book({ kind: "article" }))).toBeNull();
+    expect(getPublicBookReview(book({ bookDetails: null }))).toBeNull();
   });
 });

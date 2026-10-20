@@ -6,6 +6,7 @@ import {
   getBookCoverRatio,
   getBookTileFrame,
   getDominantCoverColor,
+  getStoredCoverColor,
 } from "./book-cover";
 
 describe("getBookCoverRatio", () => {
@@ -97,5 +98,29 @@ describe("getDominantCoverColor", () => {
     expect(getDominantCoverColor([])).toBeUndefined();
     expect(getDominantCoverColor(null)).toBeUndefined();
     expect(getDominantCoverColor(undefined)).toBeUndefined();
+  });
+});
+
+describe("getStoredCoverColor", () => {
+  it("picks the dominant colour from the stored JSON", () => {
+    expect(
+      getStoredCoverColor([
+        { hex: "#111111", name: "black", score: 0.2 },
+        { hex: "#3b2f5c", name: "purple", score: 0.7 },
+      ]),
+    ).toBe("#3b2f5c");
+  });
+
+  it("ignores malformed entries and non-arrays", () => {
+    expect(getStoredCoverColor([{ name: "no hex" }, "red"])).toBeNull();
+    expect(getStoredCoverColor(null)).toBeNull();
+    expect(getStoredCoverColor({ hex: "#ffffff" })).toBeNull();
+  });
+});
+
+describe("getBookCoverRatio with stored meta", () => {
+  it("falls back for meta that isn't an object", () => {
+    expect(getBookCoverRatio("800x1200")).toBe(DEFAULT_BOOK_COVER_RATIO);
+    expect(getBookCoverRatio([800, 1200])).toBe(DEFAULT_BOOK_COVER_RATIO);
   });
 });

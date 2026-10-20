@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { endOfPrecision, startOfPrecision } from "./date-precision";
+import {
+  endOfPrecision,
+  formatPublicReadingDate,
+  startOfPrecision,
+} from "./date-precision";
 
 describe("startOfPrecision", () => {
   it("passes a day-precision date through unchanged", () => {
@@ -37,6 +41,44 @@ describe("endOfPrecision", () => {
   it("returns the end of Dec 31 for year precision", () => {
     expect(endOfPrecision(new Date(Date.UTC(2026, 0, 1)), "year")).toEqual(
       new Date(Date.UTC(2026, 11, 31, 23, 59, 59, 999)),
+    );
+  });
+});
+
+describe("formatPublicReadingDate", () => {
+  it("recovers a calendar pick made east of UTC (local midnight the day before in UTC)", () => {
+    // Oct 19 picked in London (BST): local midnight is 23:00 UTC on Oct 18
+    expect(formatPublicReadingDate("2026-10-18T23:00:00.000Z", "day")).toBe(
+      "19 Oct 2026",
+    );
+    // Oct 19 picked in Kolkata (UTC+5:30)
+    expect(formatPublicReadingDate("2026-10-18T18:30:00.000Z", "day")).toBe(
+      "19 Oct 2026",
+    );
+  });
+
+  it("recovers a calendar pick made west of UTC", () => {
+    // Oct 19 picked in San Francisco (PDT): local midnight is 07:00 UTC
+    expect(formatPublicReadingDate("2026-10-19T07:00:00.000Z", "day")).toBe(
+      "19 Oct 2026",
+    );
+    expect(formatPublicReadingDate("2026-10-19T12:00:00.000Z", "day")).toBe(
+      "19 Oct 2026",
+    );
+  });
+
+  it("reads a Today tap (a real moment) in UTC", () => {
+    expect(formatPublicReadingDate("2026-10-19T21:22:13.512Z", "day")).toBe(
+      "19 Oct 2026",
+    );
+  });
+
+  it("leaves month and year dates to formatReadingDate", () => {
+    expect(formatPublicReadingDate("2023-11-01T00:00:00.000Z", "month")).toBe(
+      "Nov 2023",
+    );
+    expect(formatPublicReadingDate("2023-01-01T00:00:00.000Z", "year")).toBe(
+      "2023",
     );
   });
 });

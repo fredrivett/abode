@@ -77,6 +77,32 @@ export function coverImageUrl(
   return absoluteUrl(getProxyImageUrl(fileKey, size));
 }
 
+const IMAGE_FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * Fetch one of our own images (an image-proxy URL) as a data URI, for drawing
+ * inside an SVG, which next/og renders without fetching. Null when there's no
+ * URL or it can't be loaded, so the card draws without it rather than failing.
+ */
+export async function imageDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
+    });
+    const type = res.headers.get("content-type") ?? "";
+    if (!res.ok || !type.startsWith("image/")) {
+      // Release the connection rather than leaving the body unread
+      await res.body?.cancel();
+      return null;
+    }
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return `data:${type};base64,${bytes.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** An avatar URL is only usable if it's already an absolute http(s) URL. */
 export function safeAvatarUrl(
   avatarUrl: string | null | undefined,

@@ -43,6 +43,10 @@ export default function HelpPage() {
             Highlight the best parts of articles and share them
           </li>
           <li>
+            <Link href="/help/book-reviews">Reviewing books</Link> — Track what
+            you read, rate and review books, and share your reviews
+          </li>
+          <li>
             <Link href="/help/saving-from-your-phone">
               Saving from your phone
             </Link>{" "}

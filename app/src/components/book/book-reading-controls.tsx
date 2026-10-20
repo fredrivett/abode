@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Share,
   X,
 } from "lucide-react";
 import posthog from "posthog-js";
@@ -34,6 +35,7 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api-client";
 import { useInvalidateItems } from "@/lib/api-hooks";
+import { type BookReview, toBookReview } from "@/lib/books/review";
 import {
   BOOK_READING_STATUS_LABELS,
   MAX_BOOK_REVIEW_LENGTH,
@@ -97,6 +99,8 @@ function toReadingState(book: BookDetails): ReadingState {
 type BookReadingControlsProps = {
   itemId: string;
   bookDetails: BookDetails;
+  /** Opens the share dialog with the reading data as it stands; omit to hide Share */
+  onShare?: (review: BookReview) => void;
   className?: string;
 };
 
@@ -109,6 +113,7 @@ type BookReadingControlsProps = {
 export function BookReadingControls({
   itemId,
   bookDetails,
+  onShare,
   className,
 }: BookReadingControlsProps) {
   const invalidateItems = useInvalidateItems();
@@ -247,19 +252,25 @@ export function BookReadingControls({
   // land after a newer one and overwrite the latest text in the DB — saves
   // always apply in the order they were queued. (Debounce coalesces bursts;
   // the chain guards the rarer case of two saves in flight on a slow network.)
-  const reviewSaveChain = useRef<Promise<void>>(Promise.resolve());
+  // Each link resolves to whether its save landed; the last one is what's in
+  // the DB, which sharing waits on.
+  const reviewSaveChain = useRef<Promise<boolean>>(Promise.resolve(true));
+  const savedReview = useRef(bookDetails.review ?? "");
   const commitReview = useDebouncedCallback((review: string) => {
     reviewSaveChain.current = reviewSaveChain.current
-      .catch(() => {})
+      .catch(() => false)
       .then(async () => {
         try {
           await api.patch(`/api/v1/items/${itemId}`, {
             bookReading: { review },
           });
+          savedReview.current = review;
           invalidateItems();
           posthog.capture("item_reading_review_updated", { item_id: itemId });
+          return true;
         } catch {
           toast.error("Failed to update review");
+          return false;
         }
       });
   }, 600);
@@ -296,11 +307,42 @@ export function BookReadingControls({
   const sliderMax = usePercentSlider ? 100 : hasPages;
   const sliderValue = usePercentSlider ? currentPercent : currentPage;
 
+  // Share what's on screen, once the review shown is saved: a link sent
+  // before a draft lands would show readers (and the card) the old review
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
+  const share = async () => {
+    if (!onShare) return;
+    // Retry a draft whose last save failed, as well as one still debouncing
+    if (reviewDraft !== savedReview.current) commitReview(reviewDraft);
+    commitReview.flush();
+    setIsPreparingShare(true);
+    const saved = await reviewSaveChain.current;
+    setIsPreparingShare(false);
+    if (!saved) return;
+    onShare(toBookReview({ ...state, review: reviewDraft.trim() || null }));
+  };
+
   return (
     <div className={cn("space-y-3", className)}>
-      <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
-        Reading
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-gray-700 text-sm dark:text-gray-300">
+          Reading
+        </h3>
+        {onShare && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-my-1 h-7 px-2 text-muted-foreground text-xs"
+            disabled={isPreparingShare}
+            onClick={() => void share()}
+          >
+            <Share className="size-3.5" />
+            {state.rating !== null || reviewDraft.trim()
+              ? "Share review"
+              : "Share"}
+          </Button>
+        )}
+      </div>
 
       {/* Status */}
       <DropdownMenu>

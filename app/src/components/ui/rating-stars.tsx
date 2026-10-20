@@ -92,6 +92,8 @@ type RatingStarsDisplayProps = {
   /** Rating on the /10 scale (half-star precision). */
   rating: number;
   className?: string;
+  /** Size classes for each star; defaults to size-4 */
+  starClassName?: string;
 };
 
 /**
@@ -102,6 +104,7 @@ type RatingStarsDisplayProps = {
 export function RatingStarsDisplay({
   rating,
   className,
+  starClassName = "size-4",
 }: RatingStarsDisplayProps) {
   return (
     <div
@@ -114,11 +117,14 @@ export function RatingStarsDisplay({
         const isHalf = !isFull && n * 2 - 1 === rating;
         return (
           <span key={n} className="relative inline-flex">
-            <Star className="size-4 text-gray-300 dark:text-gray-600" />
+            <Star
+              className={cn("text-gray-300 dark:text-gray-600", starClassName)}
+            />
             {(isFull || isHalf) && (
               <Star
                 className={cn(
-                  "absolute top-0 left-0 size-4 fill-yellow-400 text-yellow-400",
+                  "absolute top-0 left-0 fill-yellow-400 text-yellow-400",
+                  starClassName,
                   isHalf && "[clip-path:inset(0_50%_0_0)]",
                 )}
               />

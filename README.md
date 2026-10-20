@@ -71,6 +71,7 @@ Tune the thresholds to your own economics via `PER_USER_DAILY_USD`, `PER_USER_MO
 - **Gallery:** Dense masonry layout with hover actions, infinite scroll, and keyboard navigation.
 - **Search:** Full-text search across titles, descriptions, OCR text, and extracted article content, blended with pgvector semantic (text-embedding) search via reciprocal rank fusion. Quote a phrase (`"like this"`) to only match items containing that exact text in their title, description, notes, tags, OCR or scanned pages (not article content).
 - **Rooms:** Manual collections and smart rooms (dynamic, filter-based), plus auto-generated book shelves (Want to read / Reading / Read) that appear once you have books and stay in sync as you update reading status.
+- **Books:** Track each book's reading status, start/finish dates (to the day, month or year), a half-star rating and a review, then share the review as its own page, with a share card of the cover, rating and the start of the review.
 - **MCP server:** Connect Claude, Cursor and other AI assistants to search and read your library (`/api/mcp`, read-only), with a personal access token that has read access.
 - **Access tokens:** Personal access tokens with independent permissions: read your library (for MCP), save new items (for scripts or an iOS Shortcut), or both.
 - **Enrichment pipeline:** Automatic metadata extraction, article parsing (Mozilla Readability), OCR and auto-tagging (OpenAI; full-page document OCR via Google Cloud Vision when configured), and embedding generation — all via async Trigger.dev tasks.
@@ -106,6 +107,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Rooms (manual + smart collections)
 - Public rooms, profiles + room embedding
 - Article highlighting (with per-highlight notes) + shareable highlight links with quote cards
+- Book reviews (status, read dates, half-star ratings) + shareable review pages with cover cards
 - "Save to your abode" on shared pages: signed-in readers save the link straight to their library; signed-out readers join with the sharer's invite (or, when none are available, the waitlist), and joining with an invite saves the shared link to their new abode
 - Command palette (⌘K) + keyboard navigation
 - MCP server for AI assistants + scoped personal access tokens

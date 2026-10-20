@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BookDetails } from "@/lib/types/item";
 import { BookReadingControls } from "./book-reading-controls";
@@ -138,7 +139,7 @@ describe("BookReadingControls date precision", () => {
       startedAt: "2024-03-05T12:00:00.000Z",
       startedAtPrecision: null,
     });
-    expect(screen.getByText("Mar 5, 2024")).toBeInTheDocument();
+    expect(screen.getByText("5 Mar 2024")).toBeInTheDocument();
     expect(screen.queryByText("Set date")).not.toBeInTheDocument();
   });
 
@@ -148,7 +149,7 @@ describe("BookReadingControls date precision", () => {
       startedAt: "2024-03-05T12:00:00.000Z",
       startedAtPrecision: null,
     });
-    fireEvent.click(screen.getByRole("button", { name: "Mar 5, 2024" }));
+    fireEvent.click(screen.getByRole("button", { name: "5 Mar 2024" }));
     expect(
       screen.getByRole("button", { name: /March 5th, 2024/ }),
     ).toHaveAttribute("data-selected-single", "true");
@@ -378,5 +379,126 @@ describe("BookReadingControls progress persistence", () => {
     ).toBeInTheDocument();
     // ...and progress rolled back to the last server value (page 100)
     expect(screen.getByText("p.100 of 300")).toBeInTheDocument();
+  });
+});
+
+describe("BookReadingControls share", () => {
+  it("hides Share unless the owner can share", () => {
+    renderControls({ status: "read" });
+    expect(
+      screen.queryByRole("button", { name: /Share/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shares the reading as it stands, including an unsaved review", async () => {
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read", rating: 8 }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "  Loved it.  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
+    expect(onShare).toHaveBeenCalledWith({
+      status: "read",
+      rating: 8,
+      review: "Loved it.",
+      startedAt: null,
+      startedAtPrecision: null,
+      finishedAt: null,
+      finishedAtPrecision: null,
+    });
+    // The debounced save is flushed so the shared card shows the new text
+    // (well inside the 600ms debounce, so only the flush can have sent it)
+    await waitFor(
+      () =>
+        expect(patch).toHaveBeenCalledWith("/api/v1/items/item-1", {
+          bookReading: { review: "  Loved it.  " },
+        }),
+      { timeout: 200 },
+    );
+  });
+
+  it("waits for the review to save before sharing it", async () => {
+    let finishSave: () => void = () => {};
+    patch.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read" }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Loved it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() => expect(patch).toHaveBeenCalled());
+    expect(onShare).not.toHaveBeenCalled();
+    finishSave();
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
+  });
+
+  it("doesn't share a review that couldn't be saved", async () => {
+    patch.mockRejectedValue(new Error("offline"));
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read" }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review"), {
+      target: { value: "Loved it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Failed to update review"),
+    );
+    expect(onShare).not.toHaveBeenCalled();
+  });
+
+  it("shares straight away when the review is already saved", async () => {
+    const onShare = vi.fn();
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "read", review: "Saved." }}
+        onShare={onShare}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Share review" }));
+
+    await waitFor(() => expect(onShare).toHaveBeenCalled());
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("labels it plain Share before there's a rating or review", () => {
+    render(
+      <BookReadingControls
+        itemId="item-1"
+        bookDetails={{ ...baseBook, status: "reading" }}
+        onShare={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
   });
 });

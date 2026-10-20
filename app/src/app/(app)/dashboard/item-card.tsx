@@ -97,6 +97,7 @@ import {
   getBookCoverRatio,
   getDominantCoverColor,
 } from "@/lib/book-cover";
+import type { BookReview } from "@/lib/books/review";
 import { branchTitlePrefix } from "@/lib/branch-title";
 import { getCurrencySymbol } from "@/lib/currency";
 import { debugTrace } from "@/lib/debug/trace";
@@ -226,6 +227,14 @@ const ShareHighlightDialog = dynamic(
   () =>
     import("@/components/article/share-highlight-dialog").then(
       (m) => m.ShareHighlightDialog,
+    ),
+  { ssr: false },
+);
+
+const ShareBookReviewDialog = dynamic(
+  () =>
+    import("@/components/book/share-book-review-dialog").then(
+      (m) => m.ShareBookReviewDialog,
     ),
   { ssr: false },
 );
@@ -1460,6 +1469,8 @@ export function ItemDetailBody({
   const [sharingHighlight, setSharingHighlight] =
     useState<ShareableHighlight | null>(null);
   const [isShareHighlightOpen, setIsShareHighlightOpen] = useState(false);
+  const [sharingReview, setSharingReview] = useState<BookReview | null>(null);
+  const [isShareReviewOpen, setIsShareReviewOpen] = useState(false);
   const idCopy = useCopyToClipboard({
     successMessage: "Item ID copied",
     errorMessage: "Failed to copy ID",
@@ -1688,6 +1699,16 @@ export function ItemDetailBody({
           });
         }
       : null;
+
+  // Only the owner shares their review, and the link needs their username
+  const openShareReview =
+    canEdit && username
+      ? (review: BookReview) => {
+          setSharingReview(review);
+          setIsShareReviewOpen(true);
+          posthog.capture("book_review_share_opened", { item_id: item.id });
+        }
+      : undefined;
 
   const handleShareToggle = async () => {
     const newValue = !isShared;
@@ -2473,6 +2494,28 @@ export function ItemDetailBody({
               <BookReadingControls
                 itemId={item.id}
                 bookDetails={item.bookDetails}
+                onShare={openShareReview}
+              />
+            )}
+            {isBook && item.bookDetails && username && sharingReview && (
+              <ShareBookReviewDialog
+                open={isShareReviewOpen}
+                onOpenChange={setIsShareReviewOpen}
+                book={{
+                  id: item.id,
+                  // The live name, so a rename shows before the item refetches
+                  title: name,
+                  authors: item.bookDetails.authors,
+                  coverUrl: item.coverFileKey
+                    ? getProxyImageUrl(item.coverFileKey, "grid")
+                    : null,
+                  coverRatio: getBookCoverRatio(item.meta),
+                  coverColor: getDominantCoverColor(item.colors),
+                }}
+                review={sharingReview}
+                username={username}
+                isShared={isShared}
+                onShared={() => setIsShared(true)}
               />
             )}
 

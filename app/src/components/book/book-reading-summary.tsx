@@ -1,7 +1,7 @@
 import { BookReadingStatusIcon } from "@/components/book/book-reading-status-icon";
 import { RatingStarsDisplay } from "@/components/ui/rating-stars";
+import { readingDatesLabel } from "@/lib/books/review";
 import { BOOK_READING_STATUS_LABELS } from "@/lib/items/book-reading-status";
-import { formatReadingDate } from "@/lib/items/date-precision";
 import type { BookDetails } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 
@@ -9,23 +9,6 @@ type BookReadingSummaryProps = {
   bookDetails: BookDetails;
   className?: string;
 };
-
-// Combine started/finished into a single human label. Both → a range; one side
-// only → a labelled single date.
-function readDatesLabel(bookDetails: BookDetails): string | null {
-  const { startedAt, startedAtPrecision, finishedAt, finishedAtPrecision } =
-    bookDetails;
-  const started = startedAt
-    ? formatReadingDate(startedAt, startedAtPrecision ?? "day")
-    : null;
-  const finished = finishedAt
-    ? formatReadingDate(finishedAt, finishedAtPrecision ?? "day")
-    : null;
-  if (started && finished) return `${started} – ${finished}`;
-  if (finished) return `Finished ${finished}`;
-  if (started) return `Started ${started}`;
-  return null;
-}
 
 /**
  * Read-only display of a book's public reading data: status, rating, read
@@ -39,7 +22,7 @@ export function BookReadingSummary({
   className,
 }: BookReadingSummaryProps) {
   const { status, rating, review } = bookDetails;
-  const dateLabel = readDatesLabel(bookDetails);
+  const dateLabel = readingDatesLabel(bookDetails);
 
   const hasReadingData =
     status !== null || rating !== null || review !== null || dateLabel !== null;
