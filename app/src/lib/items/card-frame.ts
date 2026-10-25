@@ -2,6 +2,12 @@ import { getBookTileFrame } from "@/lib/book-cover";
 import { tweetPreviewText } from "@/lib/twitter/preview-text";
 import type { Item } from "@/lib/types/item";
 import {
+  articleBylineParts,
+  articleCoverAspect,
+  articleTeaser,
+  estimateArticleAspect,
+} from "./article-card-layout";
+import {
   estimateNoteAspect,
   estimateTweetAspect,
   type FrameAspect,
@@ -26,6 +32,15 @@ function dimensionsOf(value: Dimensions | undefined): FrameAspect | null {
   return value?.width && value?.height
     ? { width: value.width, height: value.height }
     : null;
+}
+
+function hostnameOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
 }
 
 function metaNumber(meta: Item["meta"], key: string): number | undefined {
@@ -85,8 +100,32 @@ export function getCardFrame(
       // Cover's ingested aspect ratio plus equal padding all round
       return getBookTileFrame(item.meta);
     case "article":
-    case "webpage":
-      return { width: 4, height: 3 };
+    case "webpage": {
+      const details = item.articleDetails;
+      // Mirrors articleCardMode: a visible cover renders the cover variant
+      const hasCover = !!item.coverFileKey && !item.coverHidden;
+      return estimateArticleAspect(
+        {
+          title: item.title,
+          // The teaser only shows on the coverless text card
+          teaser: hasCover
+            ? null
+            : articleTeaser({
+                title: item.title,
+                description: item.description,
+                content: details?.content,
+              }),
+          bylineParts: articleBylineParts({
+            author: details?.author,
+            domain: details?.domain ?? hostnameOf(item.sourceUrl),
+            publishedAt: details?.publishedAt,
+            readingTime: details?.readingTime,
+          }),
+          coverAspect: hasCover ? articleCoverAspect(item.meta) : null,
+        },
+        { columnWidthPx: columnWidth, cardRootPx, rootRemPx, measure },
+      );
+    }
     case "note":
       // Coverless text card: height follows the note's content
       return estimateNoteAspect(

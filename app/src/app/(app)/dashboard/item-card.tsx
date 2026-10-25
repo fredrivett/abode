@@ -601,11 +601,17 @@ export function ItemCard({
           <ProcessingOverlay status={item.processingStatus} />
           <ArticleCard
             title={itemName}
+            description={item.description}
             content={item.articleDetails?.content ?? null}
             domain={articleDomain ?? null}
             author={item.articleDetails?.author ?? null}
             publishedAt={item.articleDetails?.publishedAt ?? null}
             readingTime={item.articleDetails?.readingTime ?? null}
+            faviconUrl={
+              item.faviconFileKey
+                ? getProxyImageUrl(item.faviconFileKey, "full")
+                : null
+            }
             coverUrl={articleMode === "cover" ? previewUrl : null}
             coverBlurDataUrl={articleMode === "cover" ? blurDataUrl : null}
             onClick={handleOpenDetail}

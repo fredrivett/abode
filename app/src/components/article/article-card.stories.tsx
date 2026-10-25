@@ -51,21 +51,38 @@ export const NoReadingTime: Story = {
   },
 };
 
-// Images in the body are stripped from the grid teaser (should read as text only)
-export const BodyWithImages: Story = {
+// The publisher description wins over the body for the teaser
+export const WithDescription: Story = {
   args: {
     title: "Don't be a meat proxy",
-    content: `The web is increasingly a place where you are a meat proxy.
-
-![a large inline photo](https://example.com/photo.png)
-
-Some thoughts on why that's a problem, ferrying intent from one system to another and rarely serving your own goals.`,
-    domain: "gruhn.me",
+    description:
+      "Why so much of the modern web turns you into a courier for other systems' intent.",
+    content: SAMPLE,
+    domain: "www.gruhn.me",
     readingTime: 4,
   },
 };
 
-// No body: the title should drop to the bottom, by the footer (not strand at top)
+// Phone-width column: the byline wraps between parts instead of truncating
+export const Narrow: Story = {
+  args: {
+    title: "This Essay is 10% AI Generated | Andreessen Horowitz",
+    content: SAMPLE,
+    domain: "a16z.com",
+    author: "Alex Danco",
+    publishedAt: "2026-01-15T00:00:00.000Z",
+    readingTime: 9,
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ width: 180, height: 260 }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+// No teaser: the title should drop to the bottom, by the byline (not strand at top)
 export const NoContent: Story = {
   args: {
     title: "Don't be a meat proxy",
@@ -101,6 +118,26 @@ export const WithCover: Story = {
     readingTime: 4,
     coverUrl: COVER_SVG,
   },
+};
+
+// og:image-shaped cover in a phone-width column
+export const WithCoverNarrow: Story = {
+  args: {
+    title: "After Work, We'll Have Each Other",
+    content: SAMPLE,
+    domain: "www.asteriskmag.com",
+    author: "Clara Collier",
+    publishedAt: "2026-01-15T00:00:00.000Z",
+    readingTime: 14,
+    coverUrl: COVER_SVG,
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ width: 180, height: 230 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export const WithCoverLongTitle: Story = {
