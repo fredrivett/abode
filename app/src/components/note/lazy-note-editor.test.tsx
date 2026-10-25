@@ -24,8 +24,13 @@ describe("LazyNoteEditor", () => {
     expect(await screen.findByText("editor loaded")).toBeInTheDocument();
   });
 
-  it("shows the draft as text while the editor downloads", () => {
+  it("shows the draft as text while the editor downloads", async () => {
     render(<LazyNoteEditor content="# Groceries" onChange={() => {}} />);
+    // A fresh lazy always suspends on first render: the import is still pending
     expect(screen.getByText("# Groceries")).toBeInTheDocument();
+    expect(screen.queryByText("editor loaded")).toBeNull();
+    // ...and the editor replaces the draft once it arrives
+    expect(await screen.findByText("editor loaded")).toBeInTheDocument();
+    expect(screen.queryByText("# Groceries")).toBeNull();
   });
 });
