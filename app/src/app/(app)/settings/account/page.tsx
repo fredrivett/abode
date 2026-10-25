@@ -23,7 +23,7 @@ export default async function AccountSettingsPage({
 }: AccountSettingsPageProps) {
   const { email_changed } = await searchParams;
   const supabase = await createClient();
-  const { user, metadata } = await getOAuthMetadata(supabase);
+  const { user, metadata } = await getOAuthMetadata();
 
   if (!user) {
     redirect("/login");

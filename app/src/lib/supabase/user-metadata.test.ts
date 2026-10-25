@@ -6,6 +6,18 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ getAll: () => [], set: () => {} }),
 }));
 
+// getOAuthMetadata reads the request's cookie client, so hand it the mock
+const { client } = vi.hoisted(() => ({
+  client: { current: null as unknown },
+}));
+vi.mock("@supabase/ssr", () => ({ createServerClient: () => client.current }));
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+});
+afterEach(() => vi.unstubAllEnvs());
+
 function createMockSupabase(options: {
   claims?: Record<string, unknown>;
   user?: {
@@ -42,11 +54,16 @@ function createMockSupabase(options: {
   } as unknown as SupabaseClient;
 }
 
+function getOAuthMetadataFor(supabase: SupabaseClient) {
+  client.current = supabase;
+  return getOAuthMetadata();
+}
+
 describe("getOAuthMetadata", () => {
   it("returns the user for a session without MFA", async () => {
     const supabase = createMockSupabase({ user: { id: "u1" } });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.user?.id).toBe("u1");
   });
@@ -57,7 +74,7 @@ describe("getOAuthMetadata", () => {
       mfaPending: true,
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.user).toBeNull();
   });
@@ -67,7 +84,7 @@ describe("getOAuthMetadata", () => {
       claims: { email: "test@example.com" },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.email).toBe("test@example.com");
   });
@@ -78,7 +95,7 @@ describe("getOAuthMetadata", () => {
       user: { email: "user@example.com" },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.email).toBe("user@example.com");
   });
@@ -88,7 +105,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { first_name: "John" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.firstName).toBe("John");
   });
@@ -98,7 +115,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { given_name: "Jane" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.firstName).toBe("Jane");
   });
@@ -108,7 +125,7 @@ describe("getOAuthMetadata", () => {
       claims: { given_name: "Alice" },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.firstName).toBe("Alice");
   });
@@ -118,7 +135,7 @@ describe("getOAuthMetadata", () => {
       claims: { user_metadata: { given_name: "Bob" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.firstName).toBe("Bob");
   });
@@ -128,7 +145,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { last_name: "Doe" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.lastName).toBe("Doe");
   });
@@ -138,7 +155,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { family_name: "Smith" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.lastName).toBe("Smith");
   });
@@ -146,7 +163,7 @@ describe("getOAuthMetadata", () => {
   it("returns null for all fields when no data is available", async () => {
     const supabase = createMockSupabase({});
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata).toEqual({
       email: null,
@@ -161,7 +178,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { first_name: "" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.email).toBe(null);
     expect(result.metadata.firstName).toBe(null);
@@ -173,7 +190,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { first_name: "  John  " } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.email).toBe("test@example.com");
     expect(result.metadata.firstName).toBe("John");
@@ -185,7 +202,7 @@ describe("getOAuthMetadata", () => {
       user: { user_metadata: { first_name: "UserFirst" } },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.metadata.firstName).toBe("UserFirst");
   });
@@ -200,7 +217,7 @@ describe("getOAuthMetadata", () => {
       },
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.user).toEqual({
       id: "user-123",
@@ -219,7 +236,7 @@ describe("getOAuthMetadata", () => {
       user: null,
     });
 
-    const result = await getOAuthMetadata(supabase);
+    const result = await getOAuthMetadataFor(supabase);
 
     expect(result.user).toBe(null);
   });
