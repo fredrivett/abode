@@ -45,7 +45,8 @@ export async function handleTwitterArticle(
     data: {
       kind: "article",
       title: "Twitter Article",
-      description: "Twitter Article (content not available for preview)",
+      // No description: the grid card would show it as the teaser
+      description: null,
       meta: {
         twitterArticleId: articleId,
         originalUrl: url,
