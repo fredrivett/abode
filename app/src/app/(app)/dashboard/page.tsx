@@ -15,7 +15,7 @@ import {
   encodeCursor,
   isCanonicalUuid,
 } from "@/lib/pagination";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { getRequestUserWithMfa } from "@/lib/supabase/server";
 import { OpenScannerOnLoad } from "./open-scanner-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
@@ -57,10 +57,9 @@ export async function generateMetadata({
   const openItemId = resolveOpenItemId(item);
   if (!openItemId) return {};
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await getUserWithMfa(supabase);
+  } = await getRequestUserWithMfa();
   if (!user) return {};
 
   const openItemRaw = await fetchOpenItem({
@@ -91,13 +90,9 @@ export default async function DashboardPage({
 }) {
   const { share, item: openItemParam, action } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
-  const supabase = await createClient();
-  const [, { data: userData }] = await Promise.all([
-    supabase.auth.getClaims(),
-    getUserWithMfa(supabase),
-  ]);
-
-  const user = userData.user;
+  const {
+    data: { user },
+  } = await getRequestUserWithMfa();
 
   // Fetch only first page + 1 to check if there are more
   const fetchLimit = DEFAULT_PAGE_SIZE + 1;

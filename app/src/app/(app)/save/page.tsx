@@ -3,7 +3,7 @@ import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
 import { describeSharedValue, extractSharedUrl } from "@/lib/share-target";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { getRequestUserWithMfa } from "@/lib/supabase/server";
 import { SaveRedirect } from "./_components/save-redirect";
 
 const log = createLogger("save");
@@ -40,10 +40,9 @@ export default async function SavePage({
   const received = describeSharedValue(params);
   log.warn({ received }, "Share target opened without a parseable URL");
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await getUserWithMfa(supabase);
+  } = await getRequestUserWithMfa();
   if (user) {
     getPostHogClient()?.capture({
       distinctId: user.id,

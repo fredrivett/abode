@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getUserWithMfa } from "@/lib/supabase/server";
+import { getRequestClaims, getRequestUserWithMfa } from "@/lib/supabase/server";
 
 function getString(value: unknown): string | undefined {
   if (typeof value !== "string") return;
@@ -18,15 +18,16 @@ export type OAuthMetadata = {
  * Get OAuth metadata (email, firstName, lastName) from auth claims only.
  * Does NOT query the database - use this when you'll fetch DB data separately.
  * Returns null for user if not authenticated, including a session still
- * owing its MFA challenge (see getUserWithMfa).
+ * owing its MFA challenge (see getUserWithMfa). Resolved once per server
+ * render, so server components only (see getRequestUserWithMfa).
  */
-export async function getOAuthMetadata(supabase: SupabaseClient): Promise<{
+export async function getOAuthMetadata(): Promise<{
   user: Awaited<ReturnType<SupabaseClient["auth"]["getUser"]>>["data"]["user"];
   metadata: OAuthMetadata;
 }> {
   const [{ data: claims }, { data: userData }] = await Promise.all([
-    supabase.auth.getClaims(),
-    getUserWithMfa(supabase),
+    getRequestClaims(),
+    getRequestUserWithMfa(),
   ]);
 
   const claimsRecord = (claims?.claims ?? {}) as Record<string, unknown>;

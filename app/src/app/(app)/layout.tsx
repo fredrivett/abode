@@ -4,7 +4,7 @@ import { ExtensionDetector } from "@/components/extension/extension-detector";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { ROUTES } from "@/lib/routes";
 import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { getRequestUserWithMfa } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { robots: NO_INDEX_ROBOTS };
 
@@ -19,10 +19,9 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await getUserWithMfa(supabase);
+  } = await getRequestUserWithMfa();
 
   if (!user) {
     redirect(ROUTES.LOGIN);

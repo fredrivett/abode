@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { createLogger } from "@/lib/logger.server";
 import { needsMFAChallenge } from "@/lib/mfa";
 import { recordViewer } from "@/lib/viewer-context";
@@ -48,11 +49,39 @@ export async function createClient() {
  * challenge.
  */
 export async function getAuthUser() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await getUserWithMfa(supabase);
+  } = await getRequestUserWithMfa();
   return user;
+}
+
+// One Supabase Auth round trip per server render: a dashboard load resolves
+// the user in the (app) layout, the dashboard layout, the header and the page,
+// and each `getUser` (plus `getClaims` on symmetric-key projects) is a network
+// call made before any HTML reaches the browser
+const resolveRequestUser = cache(async () =>
+  getUserWithMfa(await createClient()),
+);
+const resolveRequestClaims = cache(async () =>
+  (await createClient()).auth.getClaims(),
+);
+
+/**
+ * {@link getUserWithMfa} for the cookie session, resolved once per server
+ * render (React `cache`) however many layouts, pages and components ask. For
+ * server components only: in a server action or route handler that signs in or
+ * out, call {@link getUserWithMfa} on that request's client instead.
+ */
+export async function getRequestUserWithMfa() {
+  const result = await resolveRequestUser();
+  // Recorded on every call: each caller may run in its own viewer frame
+  if (result.data.user) recordViewer(result.data.user.id);
+  return result;
+}
+
+/** The session's JWT claims, resolved once per server render (see {@link getRequestUserWithMfa}) */
+export function getRequestClaims() {
+  return resolveRequestClaims();
 }
 
 /**
