@@ -12,7 +12,7 @@
  * image paragraph's bottom margin is dropped to sit the caption just under it.
  */
 export const ARTICLE_PROSE_CLASS = [
-  "prose prose-base lg:prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif",
+  "prose prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:font-serif prose-li:font-serif prose-p:font-serif",
   "prose-figcaption:mt-2 prose-figcaption:font-serif prose-figcaption:leading-snug [&_p:has(+figcaption)]:mb-0 [&_p:has(+figcaption)_img]:mb-0",
   "[&_hr+p]:first-letter:float-left [&_hr+p]:first-letter:mt-[0.1em] [&_hr+p]:first-letter:mr-[0.08em] [&_hr+p]:first-letter:text-[3.5em] [&_hr+p]:first-letter:leading-[0.8] [&_hr+p]:first-letter:font-semibold",
 ].join(" ");
