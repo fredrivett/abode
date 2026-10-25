@@ -5,12 +5,14 @@ Save links to your <Abode /> from any app on your phone, straight from the share
 ## Android
 
 1. Open <Abode /> in Chrome and sign in.
-2. Tap the **⋮** menu, then **Add to Home screen** (or **Install app**) and confirm.
+2. Tap **Install** on the banner at the bottom of your <Abode />, or the **⋮** menu, then **Add to Home screen** (or **Install app**), and confirm.
 3. In any app, tap **Share** and pick <Abode /> from the list.
 
 The link is saved and you land on your <Abode /> with a confirmation. <Abode /> only shows up in the share sheet once it's installed, and may be under **More** the first time.
 
 ## iPhone and iPad
+
+Optionally, add <Abode /> to your home screen too: open it in Safari, tap **Share**, then **Add to Home Screen**. The Shortcut below works without it.
 
 iOS doesn't let web apps join the share sheet, so a Shortcut does the saving instead. Set it up once in the **Shortcuts** app:
 

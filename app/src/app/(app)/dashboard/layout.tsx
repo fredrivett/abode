@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { OnboardingWrapper } from "@/components/onboarding";
+import { InstallAppBanner } from "@/components/pwa/install-app-banner";
 import db from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
@@ -60,6 +61,7 @@ export default async function DashboardLayout({
             {children}
           </div>
         </div>
+        <InstallAppBanner />
       </DashboardDropzone>
     </OnboardingWrapper>
   );
