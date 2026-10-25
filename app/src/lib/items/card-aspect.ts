@@ -53,7 +53,7 @@ const ASPECT_STEP = 0.05;
 // covers residual font-metric slack (and fonts not yet loaded when we measure):
 // a small nudge that keeps fit-content from clipping without inflating heights
 // the way a large factor did. Applied to the width wraps are counted against.
-const WRAP_SAFETY = 0.95;
+export const WRAP_SAFETY = 0.95;
 
 // --- Note typography (see note-card.tsx + note-prose.ts) ---------------------
 // em values are relative to the card root (grid font-scale); rem floors are
@@ -127,7 +127,7 @@ function clamp(value: number, min: number, max: number): number {
  * (tweets) preserves them — measuring the real gap widths so indentation and
  * repeated spaces push wrapping the same way they do on screen.
  */
-function wrapLines(
+export function wrapLines(
   text: string,
   availWidth: number,
   measure: TextMeasurer,
@@ -186,7 +186,7 @@ function wrapLines(
 }
 
 /** Clamp + quantize a content height into a masonry frame aspect ratio. */
-function toFrameAspect(
+export function toFrameAspect(
   columnWidthPx: number,
   contentHeightPx: number,
   bounds: AspectBounds,
@@ -205,7 +205,7 @@ function toFrameAspect(
 // tracks the visible glyphs: emphasis/code markers, heading/quote/list markers
 // (a checklist's `[ ]`/`[x]` included — its checkbox sits in the bullet's
 // gutter), and link syntax (keep the link text, drop the URL).
-function stripInlineMarkdown(text: string): string {
+export function stripInlineMarkdown(text: string): string {
   // Block markers go first: a `*` bullet would otherwise lose its `*` to the
   // emphasis strip and keep its checklist marker
   return text
