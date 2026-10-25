@@ -12,7 +12,7 @@ The link is saved and you land on your <Abode /> with a confirmation. <Abode /> 
 
 ## iPhone and iPad
 
-To get <Abode /> on your home screen, open it in Safari, tap **Share**, then **Add to Home Screen**.
+Optionally, add <Abode /> to your home screen too: open it in Safari, tap **Share**, then **Add to Home Screen**. The Shortcut below works without it.
 
 iOS doesn't let web apps join the share sheet, so a Shortcut does the saving instead. Set it up once in the **Shortcuts** app:
 

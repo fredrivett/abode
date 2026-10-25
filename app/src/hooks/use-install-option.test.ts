@@ -15,6 +15,8 @@ function stubUserAgent(userAgent: string) {
 
 const IPHONE =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15";
+const IPAD =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15";
 const ANDROID = "Mozilla/5.0 (Linux; Android 15; Pixel 9) Chrome/140.0";
 
 describe("getInstallOption", () => {
@@ -51,6 +53,26 @@ describe("getInstallOption", () => {
     stubMedia(["(pointer: coarse)", "(display-mode: standalone)"]);
     stubUserAgent(IPHONE);
     expect(getInstallOption()).toBeNull();
+  });
+
+  it("offers nothing once added to the home screen on iOS", () => {
+    stubMedia(["(pointer: coarse)"]);
+    stubUserAgent(IPHONE);
+    vi.stubGlobal(
+      "navigator",
+      Object.assign(Object.create(navigator), { standalone: true }),
+    );
+    expect(getInstallOption()).toBeNull();
+  });
+
+  it("treats iPadOS, which reports a Mac user agent, as iOS", () => {
+    stubMedia(["(pointer: coarse)"]);
+    vi.stubGlobal("navigator", {
+      userAgent: IPAD,
+      platform: "MacIntel",
+      maxTouchPoints: 5,
+    });
+    expect(getInstallOption()).toBe("ios");
   });
 
   it("offers nothing on desktop", () => {

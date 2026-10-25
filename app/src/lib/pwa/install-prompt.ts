@@ -7,7 +7,7 @@
 export type InstallOutcome = "accepted" | "dismissed" | "unavailable";
 
 type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
+  prompt: () => Promise<{ outcome: "accepted" | "dismissed" }>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
@@ -60,7 +60,12 @@ export async function promptInstall(): Promise<InstallOutcome> {
   const event = deferredPrompt;
   if (!event) return "unavailable";
   setDeferredPrompt(null);
-  await event.prompt();
-  const { outcome } = await event.userChoice;
-  return outcome;
+  try {
+    await event.prompt();
+    const { outcome } = await event.userChoice;
+    return outcome;
+  } catch {
+    // e.g. called twice on one event
+    return "unavailable";
+  }
 }

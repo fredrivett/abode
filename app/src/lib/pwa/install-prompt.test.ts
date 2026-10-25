@@ -45,6 +45,7 @@ describe("install prompt", () => {
     const unsubscribe = subscribeInstallPrompt(listener);
     target.dispatchEvent(installPromptEvent("accepted"));
     unsubscribe();
+    target.dispatchEvent(installPromptEvent("accepted"));
     expect(listener).toHaveBeenCalledOnce();
   });
 
@@ -54,6 +55,13 @@ describe("install prompt", () => {
     await expect(promptInstall()).resolves.toBe("dismissed");
     expect(event.prompt).toHaveBeenCalledOnce();
     expect(hasInstallPrompt()).toBe(false);
+    await expect(promptInstall()).resolves.toBe("unavailable");
+  });
+
+  it("reports a prompt that fails to show as unavailable", async () => {
+    const event = installPromptEvent("accepted");
+    event.prompt.mockRejectedValue(new DOMException("already prompted"));
+    target.dispatchEvent(event);
     await expect(promptInstall()).resolves.toBe("unavailable");
   });
 

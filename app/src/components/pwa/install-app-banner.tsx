@@ -61,7 +61,7 @@ export function InstallAppBannerView({
           </p>
         ) : (
           <p className="text-muted-foreground">
-            Opens full screen and saves from the share sheet.
+            Once installed, it opens full screen and saves from the share sheet.
           </p>
         )}
       </div>

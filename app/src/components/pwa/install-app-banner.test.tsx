@@ -69,6 +69,7 @@ describe("InstallAppBanner", () => {
     render(<InstallAppBanner />);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("complementary")).toBeNull();
+    expect(localStorage.getItem(DISMISSED_AT_KEY)).not.toBeNull();
     expect(capture).toHaveBeenCalledWith("install_banner_dismissed", {
       option: "ios",
     });
