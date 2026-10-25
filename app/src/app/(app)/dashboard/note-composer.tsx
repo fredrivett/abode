@@ -10,7 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-import { NoteEditor } from "@/components/note/note-editor";
+import { LazyNoteEditor } from "@/components/note/lazy-note-editor";
 import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -213,7 +213,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
             Take a note…
           </span>
         )}
-        <NoteEditor
+        <LazyNoteEditor
           key={editorKey}
           content={editorContent}
           editable={!disabled}

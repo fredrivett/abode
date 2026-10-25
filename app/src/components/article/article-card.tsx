@@ -2,6 +2,7 @@
 
 import { FileText } from "lucide-react";
 import { useState } from "react";
+import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Img } from "@/components/ui/img";
 import { gridCardStyle } from "@/lib/grid-styles";
@@ -136,6 +137,7 @@ export function ArticleCard({
   coverBlurDataUrl,
   onClick,
 }: ArticleCardProps) {
+  const gridImageSizes = useGridImageSizes();
   const bylineParts = articleBylineParts({
     author,
     domain,
@@ -165,6 +167,7 @@ export function ArticleCard({
             alt={title ?? ""}
             blurDataUrl={coverBlurDataUrl}
             className="absolute inset-0 h-full w-full object-cover"
+            sizes={gridImageSizes}
           />
         </div>
       )}

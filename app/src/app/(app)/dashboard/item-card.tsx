@@ -55,6 +55,7 @@ import { DocumentDetailView } from "@/components/document/document-detail-view";
 import { PlatformIcon } from "@/components/icons/platform-icons";
 import { InstagramCard } from "@/components/instagram/instagram-card";
 import { InstagramDetailView } from "@/components/instagram/instagram-detail-view";
+import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { NoteCard } from "@/components/note/note-card";
 import { NoteDetailPlaceholder } from "@/components/note/note-detail-placeholder";
 import { ProductDetailView } from "@/components/product/product-detail-view";
@@ -298,6 +299,7 @@ export function ItemCard({
   onDeleted,
 }: ItemCardProps) {
   const invalidateItems = useInvalidateItems();
+  const gridImageSizes = useGridImageSizes();
   const [itemName, setItemName] = useState(name);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -978,6 +980,7 @@ export function ItemCard({
             alt={itemName}
             blurDataUrl={blurDataUrl}
             className="h-full w-full object-cover"
+            sizes={gridImageSizes}
           />
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">

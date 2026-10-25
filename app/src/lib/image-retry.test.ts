@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { imageSrcForAttempt, isRetryableImageSrc } from "./image-retry";
+import {
+  imageSrcForAttempt,
+  isRetryableImageSrc,
+  srcSetForAttempt,
+} from "./image-retry";
 
 describe("isRetryableImageSrc", () => {
   it.each([
@@ -39,6 +43,20 @@ describe("imageSrcForAttempt", () => {
   it("keeps the param ahead of a fragment so it's actually sent", () => {
     expect(imageSrcForAttempt({ src: "/a.svg?w=1#icon", attempt: 1 })).toBe(
       "/a.svg?w=1&retry=1#icon",
+    );
+  });
+});
+
+describe("srcSetForAttempt", () => {
+  const srcSet = "/a?w=400 400w, /a?w=800 800w";
+
+  it("leaves the first attempt untouched", () => {
+    expect(srcSetForAttempt({ srcSet, attempt: 0 })).toBe(srcSet);
+  });
+
+  it("busts each candidate and keeps its descriptor", () => {
+    expect(srcSetForAttempt({ srcSet, attempt: 2 })).toBe(
+      "/a?w=400&retry=2 400w, /a?w=800&retry=2 800w",
     );
   });
 });

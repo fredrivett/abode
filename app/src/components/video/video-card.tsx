@@ -2,6 +2,7 @@
 
 import { Play } from "lucide-react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
+import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { Img } from "@/components/ui/img";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -28,6 +29,7 @@ export function VideoCard({
   className,
 }: VideoCardProps) {
   const { platform, duration } = videoDetails;
+  const gridImageSizes = useGridImageSizes();
 
   // Prefer the downloaded cover (proxied); fall back to the platform's external
   // thumbnail when there's no local cover yet (e.g. seed data, or before
@@ -57,6 +59,7 @@ export function VideoCard({
               alt={title ?? "Video thumbnail"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"
+              sizes={gridImageSizes}
             />
             {/* Play button overlay */}
             <div className="absolute inset-0 flex items-center justify-center">

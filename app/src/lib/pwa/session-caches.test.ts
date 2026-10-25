@@ -112,4 +112,35 @@ describe("session caches", () => {
     expect(store.has("item-images")).toBe(false);
     expect(localStorage.getItem(OWNER_KEY)).toBeNull();
   });
+
+  describe("offline share queue", () => {
+    let postMessage: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      postMessage = vi.fn();
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: { controller: { postMessage } },
+      });
+    });
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, "serviceWorker");
+    });
+
+    it("is cleared on sign-out", async () => {
+      await releaseUserCaches();
+      expect(postMessage).toHaveBeenCalledWith({ type: "clear-share-queue" });
+    });
+
+    it("is cleared when another user signs in", async () => {
+      localStorage.setItem(OWNER_KEY, "user-a");
+      await claimUserCaches("user-b");
+      expect(postMessage).toHaveBeenCalledWith({ type: "clear-share-queue" });
+    });
+
+    it("is kept when the same user comes back", async () => {
+      localStorage.setItem(OWNER_KEY, "user-a");
+      await claimUserCaches("user-a");
+      expect(postMessage).not.toHaveBeenCalled();
+    });
+  });
 });

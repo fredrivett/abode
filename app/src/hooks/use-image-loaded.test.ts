@@ -98,6 +98,22 @@ describe("useImageLoaded retries", () => {
     expect(result.current.loaded).toBe(true);
   });
 
+  it("busts every srcset candidate on retry, since browsers load from srcset", () => {
+    const srcSet = "/img?w=400 400w, /img?w=800 800w";
+    const { result } = renderHook(() =>
+      useImageLoaded("/img?w=800", { srcSet }),
+    );
+    expect(result.current.imgProps.srcSet).toBe(srcSet);
+
+    act(() => {
+      result.current.imgProps.onError();
+    });
+    act(() => vi.advanceTimersByTime(firstDelay));
+    expect(result.current.imgProps.srcSet).toBe(
+      "/img?w=400&retry=1 400w, /img?w=800&retry=1 800w",
+    );
+  });
+
   it("gives up once the retries are spent", () => {
     const { result } = renderHook(() => useImageLoaded("/img"));
     for (const delay of IMAGE_RETRY_DELAYS_MS) {
