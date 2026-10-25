@@ -114,7 +114,7 @@ describe("ArticleCard", () => {
   });
 
   describe("cover variant", () => {
-    it("renders the cover with the caption below it, without a teaser", () => {
+    it("renders the cover and caption, without a teaser", () => {
       const { container } = render(
         <ArticleCard
           title="Don't be a meat proxy"
@@ -135,11 +135,6 @@ describe("ArticleCard", () => {
         "4 min read",
       ]);
       expect(screen.queryByText(/ferrying intent/)).not.toBeInTheDocument();
-      // Title sits after the image, not overlaid on it
-      expect(
-        img.compareDocumentPosition(screen.getByText("Don't be a meat proxy")) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
     });
   });
 

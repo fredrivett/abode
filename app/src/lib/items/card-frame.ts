@@ -13,6 +13,7 @@ import {
   type FrameAspect,
   type TextMeasurer,
 } from "./card-aspect";
+import { getItemDisplayName } from "./item-display-name";
 import { readAspectHint } from "./provisional-aspect";
 
 export type CardFrameContext = {
@@ -104,20 +105,22 @@ export function getCardFrame(
       const details = item.articleDetails;
       // Mirrors articleCardMode: a visible cover renders the cover variant
       const hasCover = !!item.coverFileKey && !item.coverHidden;
+      // The card renders the display name, which falls back when untitled
+      const title = getItemDisplayName(item);
       return estimateArticleAspect(
         {
-          title: item.title,
+          title,
           // The teaser only shows on the coverless text card
           teaser: hasCover
             ? null
             : articleTeaser({
-                title: item.title,
+                title,
                 description: item.description,
                 content: details?.content,
               }),
           bylineParts: articleBylineParts({
             author: details?.author,
-            domain: details?.domain ?? hostnameOf(item.sourceUrl),
+            domain: details?.domain || hostnameOf(item.sourceUrl),
             publishedAt: details?.publishedAt,
             readingTime: details?.readingTime,
           }),

@@ -59,6 +59,12 @@ describe("getCardFrame", () => {
     expect(ratio(hidden)).toBeLessThan(ratio(covered));
   });
 
+  it("sizes an untitled article for the rendered fallback name", () => {
+    expect(getCardFrame(item({ kind: "article" }), CONTEXT)).toEqual(
+      getCardFrame(item({ kind: "article", title: "Untitled" }), CONTEXT),
+    );
+  });
+
   it("grows a coverless article with its teaser", () => {
     const bare = getCardFrame(
       item({ kind: "article", title: "Title" }),

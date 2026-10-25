@@ -107,6 +107,10 @@ export const LongTitle: Story = {
 const COVER_SVG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23475569'/%3E%3Cstop offset='1' stop-color='%230f172a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='500' fill='url(%23g)'/%3E%3C/svg%3E";
 
+// Landscape og:image shape (1200×630), the most common article cover
+const OG_COVER_SVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'%3E%3Crect width='1200' height='630' fill='%23475569'/%3E%3C/svg%3E";
+
 export const WithCover: Story = {
   args: {
     title: "Don't be a meat proxy",
@@ -129,7 +133,7 @@ export const WithCoverNarrow: Story = {
     author: "Clara Collier",
     publishedAt: "2026-01-15T00:00:00.000Z",
     readingTime: 14,
-    coverUrl: COVER_SVG,
+    coverUrl: OG_COVER_SVG,
   },
   decorators: [
     (Story) => (

@@ -104,7 +104,10 @@ function Byline({
               gap: `${ARTICLE_BYLINE_ICON_GAP_EM}em`,
             }}
           >
-            {index === 0 && <BylineIcon faviconUrl={faviconUrl} />}
+            {index === 0 && (
+              // Keyed so a new favicon URL gets a fresh load attempt
+              <BylineIcon key={faviconUrl ?? ""} faviconUrl={faviconUrl} />
+            )}
             <span className="truncate">{part}</span>
           </li>
         ))}
@@ -172,7 +175,7 @@ export function ArticleCard({
           gap: `${ARTICLE_GAP_EM}em`,
         }}
       >
-        {title && (
+        {title?.trim() && (
           <p
             className="font-semibold font-serif text-foreground"
             style={{
