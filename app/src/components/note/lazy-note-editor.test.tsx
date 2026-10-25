@@ -23,4 +23,9 @@ describe("LazyNoteEditor", () => {
     );
     expect(await screen.findByText("editor loaded")).toBeInTheDocument();
   });
+
+  it("shows the draft as text while the editor downloads", () => {
+    render(<LazyNoteEditor content="# Groceries" onChange={() => {}} />);
+    expect(screen.getByText("# Groceries")).toBeInTheDocument();
+  });
 });
