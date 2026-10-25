@@ -20,6 +20,7 @@ import {
   masonryColumns,
 } from "@/lib/masonry/layout";
 import { coalesceFrame } from "@/lib/raf-coalesce";
+import { MasonryCellWidthContext } from "./masonry-cell-width";
 
 // Layout effect on the client so the first layout lands before paint (no
 // flash of an empty or unpositioned grid); a no-op on the server
@@ -172,7 +173,9 @@ export function MasonryGrid<T>({
               (shouldGrowIn?.(item) ?? false)
             }
           >
-            {renderItem(item)}
+            <MasonryCellWidthContext value={placement.width}>
+              {renderItem(item)}
+            </MasonryCellWidthContext>
           </MasonryCell>
         );
       })}

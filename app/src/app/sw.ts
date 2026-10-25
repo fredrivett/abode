@@ -13,6 +13,7 @@ import {
   Serwist,
 } from "serwist";
 import {
+  isClearShareQueueMessage,
   isReplayShareQueueMessage,
   QUEUED_SHARE_PAGE,
   queuedSaveRequest,
@@ -70,6 +71,12 @@ async function replayShares(queue: BackgroundSyncQueue): Promise<void> {
       // Rejecting tells Background Sync to try again later
       throw new Error("Queued share not saved yet");
     }
+  }
+}
+
+async function clearShares(queue: BackgroundSyncQueue): Promise<void> {
+  while (await queue.shiftRequest()) {
+    // Dropped unsent
   }
 }
 
@@ -236,5 +243,7 @@ serwist.addEventListeners();
 self.addEventListener("message", (event) => {
   if (isReplayShareQueueMessage(event.data)) {
     event.waitUntil(replayShares(shareQueue).catch(() => {}));
+  } else if (isClearShareQueueMessage(event.data)) {
+    event.waitUntil(clearShares(shareQueue));
   }
 });

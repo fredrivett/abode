@@ -1,3 +1,4 @@
+import { CLEAR_SHARE_QUEUE_MESSAGE } from "./share-queue";
 import { isUserScopedCache } from "./sw-caches";
 
 /** Who the service worker's user-scoped caches currently belong to */
@@ -41,6 +42,16 @@ export async function clearUserCaches(): Promise<boolean> {
   }
 }
 
+// Offline shares wait in the service worker for a connection, and replay with
+// whoever is signed in then — so they're dropped when the user changes
+function clearShareQueue() {
+  try {
+    navigator.serviceWorker?.controller?.postMessage(CLEAR_SHARE_QUEUE_MESSAGE);
+  } catch {
+    // No service worker: nothing queued
+  }
+}
+
 // Claims and releases run one at a time, in the order the user changed, so an
 // earlier one finishing late can't record a stale owner over the current one
 let pending: Promise<void> = Promise.resolve();
@@ -58,6 +69,7 @@ function inOrder(task: () => Promise<void>): Promise<void> {
 export function claimUserCaches(userId: string): Promise<void> {
   return inOrder(async () => {
     if (readOwner() === userId) return;
+    clearShareQueue();
     // Only recorded once cleared, so a failed clear is retried next load
     if (await clearUserCaches()) writeOwner(userId);
   });
@@ -67,6 +79,7 @@ export function claimUserCaches(userId: string): Promise<void> {
 export function releaseUserCaches(): Promise<void> {
   return inOrder(async () => {
     writeOwner(null);
+    clearShareQueue();
     await clearUserCaches();
   });
 }

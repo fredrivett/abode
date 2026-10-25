@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { GRID_IMAGE_SIZES, getProxyImageUrl } from "@/lib/image-url";
+import { GRID_IMAGE_FALLBACK_SIZES, getProxyImageUrl } from "@/lib/image-url";
 import { BlurImage } from "./blur-image";
 import { Img } from "./img";
 
@@ -8,10 +8,10 @@ const gridSrc = getProxyImageUrl("u/cover.jpg", "grid");
 
 describe("Img", () => {
   it("adds a srcset when given sizes for a resized proxy URL", () => {
-    render(<Img src={gridSrc} alt="cover" sizes={GRID_IMAGE_SIZES} />);
+    render(<Img src={gridSrc} alt="cover" sizes={GRID_IMAGE_FALLBACK_SIZES} />);
     const img = screen.getByRole("img");
     expect(img.getAttribute("srcset")).toContain("w=400&q=80 400w");
-    expect(img.getAttribute("sizes")).toBe(GRID_IMAGE_SIZES);
+    expect(img.getAttribute("sizes")).toBe(GRID_IMAGE_FALLBACK_SIZES);
   });
 
   it("renders a plain src without sizes", () => {
@@ -20,7 +20,9 @@ describe("Img", () => {
   });
 
   it("drops sizes when there's nothing to choose between", () => {
-    render(<Img src="blob:local" alt="cover" sizes={GRID_IMAGE_SIZES} />);
+    render(
+      <Img src="blob:local" alt="cover" sizes={GRID_IMAGE_FALLBACK_SIZES} />,
+    );
     const img = screen.getByRole("img");
     expect(img.hasAttribute("srcset")).toBe(false);
     expect(img.hasAttribute("sizes")).toBe(false);
@@ -34,9 +36,11 @@ describe("BlurImage", () => {
         src={gridSrc}
         alt="cover"
         blurDataUrl={null}
-        sizes={GRID_IMAGE_SIZES}
+        sizes={GRID_IMAGE_FALLBACK_SIZES}
       />,
     );
-    expect(screen.getByRole("img").getAttribute("srcset")).toContain("600w");
+    const img = screen.getByRole("img");
+    expect(img.getAttribute("srcset")).toContain("600w");
+    expect(img.getAttribute("sizes")).toBe(GRID_IMAGE_FALLBACK_SIZES);
   });
 });

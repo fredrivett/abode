@@ -15,22 +15,38 @@ export const REPLAY_SHARE_QUEUE_MESSAGE = {
   type: "replay-share-queue",
 } as const;
 
-export function isReplayShareQueueMessage(data: unknown): boolean {
+/**
+ * Sent when the signed-in user changes (see session-caches): queued saves
+ * replay with whoever's cookies are current, so one user's offline shares must
+ * never be left for the next account on the device
+ */
+export const CLEAR_SHARE_QUEUE_MESSAGE = { type: "clear-share-queue" } as const;
+
+function isMessage(data: unknown, type: string): boolean {
   return (
     typeof data === "object" &&
     data !== null &&
     "type" in data &&
-    data.type === REPLAY_SHARE_QUEUE_MESSAGE.type
+    data.type === type
   );
+}
+
+export function isReplayShareQueueMessage(data: unknown): boolean {
+  return isMessage(data, REPLAY_SHARE_QUEUE_MESSAGE.type);
+}
+
+export function isClearShareQueueMessage(data: unknown): boolean {
+  return isMessage(data, CLEAR_SHARE_QUEUE_MESSAGE.type);
 }
 
 /**
  * Whether a replayed save should stay queued: signed out (the session may have
- * expired while offline, so it's kept for the next sign-in) or a server error.
- * Anything else — saved, or rejected as invalid — is done with
+ * expired while offline, so it's kept for the next sign-in), rate limited (the
+ * daily save cap resets), or a server error. Anything else — saved, or
+ * rejected as invalid — is done with
  */
 export function shouldRetryReplayedSave(status: number): boolean {
-  return status === 401 || status >= 500;
+  return status === 401 || status === 429 || status >= 500;
 }
 
 /** The link a `/save` navigation shares, read the same way the page reads it */

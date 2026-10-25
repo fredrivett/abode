@@ -16,7 +16,7 @@ type ImgProps = Omit<ComponentProps<"img">, "src" | "srcSet" | "ref"> & {
  * directly when you also need the loaded state (e.g. a blur-up placeholder).
  *
  * Passing `sizes` opts a resized proxy URL into a `srcset` of smaller
- * renditions (see `proxyImageSrcSet`), e.g. `GRID_IMAGE_SIZES` for grid tiles.
+ * renditions (see `proxyImageSrcSet`), e.g. `useGridImageSizes()` for grid tiles.
  */
 export function Img({ src, alt, sizes, onLoad, onError, ...props }: ImgProps) {
   const srcSet = sizes && src ? proxyImageSrcSet(src) : undefined;

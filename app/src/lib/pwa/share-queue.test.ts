@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLEAR_SHARE_QUEUE_MESSAGE,
+  isClearShareQueueMessage,
   isReplayShareQueueMessage,
   queuedSaveRequest,
   REPLAY_SHARE_QUEUE_MESSAGE,
@@ -57,6 +59,12 @@ describe("isReplayShareQueueMessage", () => {
     expect(isReplayShareQueueMessage({ type: "SKIP_WAITING" })).toBe(false);
     expect(isReplayShareQueueMessage("replay-share-queue")).toBe(false);
     expect(isReplayShareQueueMessage(null)).toBe(false);
+    expect(isReplayShareQueueMessage(CLEAR_SHARE_QUEUE_MESSAGE)).toBe(false);
+  });
+
+  it("tells the clear message apart", () => {
+    expect(isClearShareQueueMessage(CLEAR_SHARE_QUEUE_MESSAGE)).toBe(true);
+    expect(isClearShareQueueMessage(REPLAY_SHARE_QUEUE_MESSAGE)).toBe(false);
   });
 });
 
@@ -66,6 +74,7 @@ describe("shouldRetryReplayedSave", () => {
     [200, false],
     [400, false],
     [401, true],
+    [429, true],
     [500, true],
     [503, true],
   ])("%s → %s", (status, expected) => {

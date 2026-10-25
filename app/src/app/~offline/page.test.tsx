@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import OfflinePage from "./page";
 
@@ -9,7 +9,10 @@ function stubLocation(hash: string) {
 }
 
 describe("OfflinePage", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it("reloads the page it stood in for once back online", () => {
     const location = stubLocation("");
@@ -38,5 +41,14 @@ describe("OfflinePage", () => {
     expect(postMessage).toHaveBeenCalledWith({ type: "replay-share-queue" });
     expect(location.replace).toHaveBeenCalledWith("/dashboard");
     expect(location.reload).not.toHaveBeenCalled();
+  });
+
+  it("stays put on Try again while still offline with a queued share", () => {
+    const location = stubLocation("#share-queued");
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    render(<OfflinePage />);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(location.replace).not.toHaveBeenCalled();
+    expect(screen.getByText(/link is saved for later/)).toBeInTheDocument();
   });
 });

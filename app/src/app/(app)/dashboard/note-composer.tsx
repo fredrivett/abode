@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import posthog from "posthog-js";
 import {
   type KeyboardEvent,
@@ -11,6 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { LazyNoteEditor } from "@/components/note/lazy-note-editor";
 import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
@@ -23,15 +23,6 @@ import { createLogger } from "@/lib/logger.client";
 import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("dashboard/note-composer");
-
-// Tiptap/ProseMirror is the heaviest code on the dashboard, so it loads after
-// hydration instead of in the first-load bundle. No visible change: the editor
-// never server-renders (`immediatelyRender: false`), so the composer shows its
-// placeholder until the editor mounts either way
-const NoteEditor = dynamic(
-  () => import("@/components/note/note-editor").then((m) => m.NoteEditor),
-  { ssr: false },
-);
 
 // Delay before an edit is persisted to the server draft
 const DRAFT_SAVE_DEBOUNCE_MS = 1000;
@@ -222,7 +213,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
             Take a note…
           </span>
         )}
-        <NoteEditor
+        <LazyNoteEditor
           key={editorKey}
           content={editorContent}
           editable={!disabled}

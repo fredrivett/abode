@@ -47,11 +47,10 @@ export function getProxyImageUrl(
 const SRCSET_WIDTHS = [400, 600] as const;
 
 /**
- * `sizes` for an image filling a dashboard grid column. `auto` lets browsers
- * that support it (lazy images, Chromium) use the laid-out width; the rest
- * fall back to roughly one of two phone columns, or a third of a wide screen
+ * `sizes` for a grid image whose cell width isn't known: picks the full grid
+ * rendition, as before srcsets (see `useGridImageSizes`)
  */
-export const GRID_IMAGE_SIZES = "auto, (max-width: 640px) 50vw, 33vw";
+export const GRID_IMAGE_FALLBACK_SIZES = `${SIZE_PRESETS.grid.w}px`;
 
 /**
  * A `srcset` for a resized image proxy URL: the URL's own width plus the

@@ -15,6 +15,8 @@ import { ROUTES } from "@/lib/routes";
  */
 function resume(shareQueued: boolean) {
   if (!shareQueued) return window.location.reload();
+  // Still offline: stay, so the "saved for later" note stays put
+  if (!navigator.onLine) return;
   navigator.serviceWorker?.controller?.postMessage(REPLAY_SHARE_QUEUE_MESSAGE);
   window.location.replace(ROUTES.DASHBOARD);
 }
