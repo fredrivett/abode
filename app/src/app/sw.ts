@@ -218,7 +218,10 @@ const serwist = new Serwist({
         plugins: [
           new ExpirationPlugin({
             maxEntries: 32,
-            maxAgeSeconds: DAY_SECONDS,
+            // Kept a week so an offline launch shows the last-loaded dashboard
+            // (with the offline banner) rather than the bare offline page.
+            // User-scoped: cleared when the signed-in user changes
+            maxAgeSeconds: 7 * DAY_SECONDS,
             purgeOnQuotaError: true,
           }),
         ],

@@ -41,7 +41,14 @@ export default function OfflinePage() {
             ? "Your link is saved for later. It'll be added to your abode once you're back online."
             : "This page will reload once you're back online."}
         </p>
-        <Button onClick={() => resume(shareQueued)}>Try again</Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button onClick={() => resume(shareQueued)}>Try again</Button>
+          {/* The service worker keeps the last-loaded dashboard for offline use;
+              when it has none this page simply comes back */}
+          <Button variant="outline" asChild>
+            <a href={ROUTES.DASHBOARD}>Open your saved abode</a>
+          </Button>
+        </div>
       </div>
     </div>
   );
