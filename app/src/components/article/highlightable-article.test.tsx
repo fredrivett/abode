@@ -85,6 +85,7 @@ function clearSelection() {
 const runTimers = () => act(() => vi.runAllTimers());
 const highlightButton = () =>
   screen.queryByRole("button", { name: "Highlight" });
+const selectionBar = () => screen.queryByTestId("highlight-selection-bar");
 
 /** Mouse drag-select from `paragraph`, released on `releaseTarget` */
 function mouseSelect({
@@ -127,6 +128,7 @@ describe("HighlightableArticle", () => {
     });
 
     expect(highlightButton()).toBeInTheDocument();
+    expect(selectionBar()).not.toBeInTheDocument();
   });
 
   it("waits for the mouse release instead of following the drag", () => {
@@ -238,6 +240,29 @@ describe("HighlightableArticle", () => {
     expect(highlightButton()).not.toBeInTheDocument();
     runTimers();
     expect(highlightButton()).toBeInTheDocument();
+  });
+
+  it("puts a touch selection's Highlight action in the bottom bar, clear of the iOS callout", () => {
+    render(<HighlightableArticle itemId="a" content={CONTENT} />);
+    const paragraph = screen.getByText(FIRST);
+    const text = textNodeOf(paragraph);
+
+    fireEvent.pointerDown(paragraph, { pointerType: "touch" });
+    selectText({
+      startNode: text,
+      startOffset: 6,
+      endNode: text,
+      endOffset: 15,
+    });
+    runTimers();
+
+    const bar = selectionBar();
+    expect(bar).toBeInTheDocument();
+    expect(bar).toContainElement(highlightButton());
+
+    clearSelection();
+    runTimers();
+    expect(selectionBar()).not.toBeInTheDocument();
   });
 
   it("ignores selections shorter than three characters", () => {
