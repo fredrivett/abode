@@ -46,8 +46,12 @@ type SelectionState = {
   startOffset: number;
   endOffset: number;
   anchorRect: DOMRect;
-  /** Touch selections get the native callout (Copy, Look Up…) above, so ours sits below */
-  side: "top" | "bottom";
+  /**
+   * Touch selections get the native callout (Copy, Look Up…), which iOS flips
+   * above or below the selection and web pages can't move, so their Highlight
+   * action sits in a bar pinned to the bottom of the screen instead
+   */
+  placement: "popover" | "bar";
 } | null;
 
 type ClickedHighlightState = {
@@ -116,7 +120,7 @@ export function HighlightableArticle({
   const pointerTypeRef = useRef("mouse");
   // A mouse drag-select reports once on release rather than on every change
   const mouseSelectingRef = useRef(false);
-  // Tapping the popover can collapse the selection (iOS) before the tap lands
+  // Tapping the popover or bar can collapse the selection (iOS) before the tap lands
   const pressingPopoverRef = useRef(false);
 
   const { data: highlights = [] } = useItemHighlights(itemId);
@@ -232,7 +236,7 @@ export function HighlightableArticle({
       startOffset: position.start,
       endOffset: position.end,
       anchorRect: range.getBoundingClientRect(),
-      side: pointerTypeRef.current === "mouse" ? "top" : "bottom",
+      placement: pointerTypeRef.current === "mouse" ? "popover" : "bar",
     });
   }, []);
 
@@ -371,6 +375,14 @@ export function HighlightableArticle({
     setSelection(null);
   }, []);
 
+  const handlePressSelectionAction = useCallback(() => {
+    pressingPopoverRef.current = true;
+  }, []);
+
+  const handleCancelSelectionAction = useCallback(() => {
+    pressingPopoverRef.current = false;
+  }, []);
+
   const handleCloseHighlightPopover = useCallback(() => {
     setClickedHighlight(null);
   }, []);
@@ -399,6 +411,19 @@ export function HighlightableArticle({
       toast.error("Failed to delete highlight");
     }
   }, [clickedHighlight, deleteHighlight]);
+
+  const highlightButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-2"
+      onClick={handleCreateHighlight}
+      disabled={createHighlight.isPending}
+    >
+      <Highlighter className="size-4" />
+      Highlight
+    </Button>
+  );
 
   return (
     <div ref={containerRef}>
@@ -429,7 +454,7 @@ export function HighlightableArticle({
       </div>
 
       <Popover
-        open={!!selection}
+        open={selection?.placement === "popover"}
         onOpenChange={(open) => !open && handleClosePopover()}
       >
         <PopoverAnchor
@@ -438,40 +463,38 @@ export function HighlightableArticle({
             left: selection
               ? selection.anchorRect.left + selection.anchorRect.width / 2
               : 0,
-            top: selection
-              ? selection.side === "top"
-                ? selection.anchorRect.top - 8
-                : selection.anchorRect.bottom + 16
-              : 0,
+            top: selection ? selection.anchorRect.top - 8 : 0,
             width: 0,
             height: 0,
           }}
         />
         <PopoverContent
-          side={selection?.side ?? "top"}
+          side="top"
           sideOffset={8}
           className="w-auto p-1"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
-          onPointerDown={() => {
-            pressingPopoverRef.current = true;
-          }}
-          onPointerCancel={() => {
-            pressingPopoverRef.current = false;
-          }}
+          onPointerDown={handlePressSelectionAction}
+          onPointerCancel={handleCancelSelectionAction}
         >
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2"
-            onClick={handleCreateHighlight}
-            disabled={createHighlight.isPending}
-          >
-            <Highlighter className="size-4" />
-            Highlight
-          </Button>
+          {highlightButton}
         </PopoverContent>
       </Popover>
+
+      {selection?.placement === "bar" && (
+        <div
+          data-testid="highlight-selection-bar"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
+          <div
+            className="fade-in-0 slide-in-from-bottom-2 pointer-events-auto animate-in rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg"
+            onPointerDown={handlePressSelectionAction}
+            onPointerCancel={handleCancelSelectionAction}
+          >
+            {highlightButton}
+          </div>
+        </div>
+      )}
 
       {/* Clicked highlight actions (share / delete) */}
       <Popover

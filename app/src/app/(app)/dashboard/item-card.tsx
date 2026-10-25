@@ -26,6 +26,7 @@ import {
   motion,
   type PanInfo,
   type Transition,
+  useDragControls,
   useMotionValue,
   useTransform,
 } from "motion/react";
@@ -1291,6 +1292,7 @@ export function ItemDialogFrame({
     watch: { open, isTouchDevice },
   });
   const dragY = useMotionValue(0);
+  const dragControls = useDragControls();
   const dragOpacity = useTransform(dragY, [0, 200], [1, 0.5]);
   const closingOpacity = useMotionValue(1);
   const combinedOpacity = useTransform(
@@ -1308,6 +1310,14 @@ export function ItemDialogFrame({
   };
 
   const handleDragStart = () => {
+    // A long-press selection dragged down is extending the selection, not dismissing
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      dragControls.cancel();
+      void animate(dragY, 0, { type: "spring", stiffness: 300, damping: 30 });
+      return;
+    }
+
     // Check if scrollable content is at top - if not, prevent drag
     const scrollContainer = scrollContainerRef.current;
     if (scrollContainer && scrollContainer.scrollTop > 0) {
@@ -1344,6 +1354,7 @@ export function ItemDialogFrame({
           exit={{ opacity: 0, transition: { duration: 0.1 } }}
           transition={{ duration: 0.2 }}
           drag={isTouchDevice ? "y" : false}
+          dragControls={dragControls}
           dragConstraints={{ top: 0 }}
           dragElastic={{ top: 0 }}
           onDragStart={handleDragStart}
