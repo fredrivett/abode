@@ -33,15 +33,53 @@ describe("getCardFrame", () => {
     expect(getCardFrame(item({}), CONTEXT)).toEqual({ width: 3, height: 4 });
   });
 
-  it("sizes articles and webpages 4:3", () => {
-    expect(getCardFrame(item({ kind: "article" }), CONTEXT)).toEqual({
-      width: 4,
-      height: 3,
-    });
-    expect(getCardFrame(item({ kind: "webpage" }), CONTEXT)).toEqual({
-      width: 4,
-      height: 3,
-    });
+  it("sizes a covered article as its cover band plus a caption", () => {
+    const covered = getCardFrame(
+      item({
+        kind: "article",
+        title: "Title",
+        coverFileKey: "u/cover.jpg",
+        meta: { coverWidth: 1000, coverHeight: 1000 },
+      }),
+      CONTEXT,
+    );
+    // Square cover alone would be 1:1; the caption makes it taller
+    expect(ratio(covered)).toBeGreaterThan(1);
+    // A hidden cover falls back to the (much shorter) text card
+    const hidden = getCardFrame(
+      item({
+        kind: "webpage",
+        title: "Title",
+        coverFileKey: "u/cover.jpg",
+        coverHidden: true,
+        meta: { coverWidth: 1000, coverHeight: 1000 },
+      }),
+      CONTEXT,
+    );
+    expect(ratio(hidden)).toBeLessThan(ratio(covered));
+  });
+
+  it("sizes an untitled article for the rendered fallback name", () => {
+    expect(getCardFrame(item({ kind: "article" }), CONTEXT)).toEqual(
+      getCardFrame(item({ kind: "article", title: "Untitled" }), CONTEXT),
+    );
+  });
+
+  it("grows a coverless article with its teaser", () => {
+    const bare = getCardFrame(
+      item({ kind: "article", title: "Title" }),
+      CONTEXT,
+    );
+    const withTeaser = getCardFrame(
+      item({
+        kind: "article",
+        title: "Title",
+        description:
+          "A publisher description long enough to wrap across a few lines of the card.",
+      }),
+      CONTEXT,
+    );
+    expect(ratio(withTeaser)).toBeGreaterThan(ratio(bare));
   });
 
   it("uses a video's thumbnail dimensions, or 16:9", () => {

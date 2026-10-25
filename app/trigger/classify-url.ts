@@ -681,7 +681,12 @@ export const classifyUrlTask = task({
       });
 
       // Download cover image if available
-      let coverResult: { fileKey: string; size: number } | null = null;
+      let coverResult: {
+        fileKey: string;
+        size: number;
+        width: number;
+        height: number;
+      } | null = null;
       if (metadata.ogImage) {
         logger.log("Downloading cover image", {
           itemId,
@@ -695,7 +700,12 @@ export const classifyUrlTask = task({
         );
 
         if (result.ok) {
-          coverResult = { fileKey: result.fileKey, size: result.size };
+          coverResult = {
+            fileKey: result.fileKey,
+            size: result.size,
+            width: result.width,
+            height: result.height,
+          };
           logger.log("Cover image stored", {
             itemId,
             coverFileKey: result.fileKey,
@@ -703,33 +713,31 @@ export const classifyUrlTask = task({
         }
       }
 
-      // Re-host the site favicon as the link-card fallback's visual anchor —
-      // only when there's no cover to show (the card only appears without one).
+      // Re-host the site favicon: the grid card's byline icon, and the
+      // link-card fallback's visual anchor when there's no cover.
       // Best-effort: an optional enhancement that must never fail capture.
       let faviconResult: { fileKey: string } | null = null;
-      if (!coverResult) {
-        try {
-          const faviconUrl = extractFaviconUrl(html, fetchUrl);
-          if (faviconUrl) {
-            const stored = await downloadAndStoreImage(
-              faviconUrl,
-              userId,
-              supabase,
-            );
-            if (stored.ok) {
-              faviconResult = { fileKey: stored.fileKey };
-              logger.log("Favicon stored", {
-                itemId,
-                faviconFileKey: stored.fileKey,
-              });
-            }
+      try {
+        const faviconUrl = extractFaviconUrl(html, fetchUrl);
+        if (faviconUrl) {
+          const stored = await downloadAndStoreImage(
+            faviconUrl,
+            userId,
+            supabase,
+          );
+          if (stored.ok) {
+            faviconResult = { fileKey: stored.fileKey };
+            logger.log("Favicon stored", {
+              itemId,
+              faviconFileKey: stored.fileKey,
+            });
           }
-        } catch (error) {
-          logger.warn("Favicon fetch failed; continuing without it", {
-            itemId,
-            error,
-          });
         }
+      } catch (error) {
+        logger.warn("Favicon fetch failed; continuing without it", {
+          itemId,
+          error,
+        });
       }
 
       // Update item with data and reconcile cover image storage
@@ -755,6 +763,13 @@ export const classifyUrlTask = task({
             meta: {
               originalName: metadata.title,
               ...(coverResult && { coverSize: coverResult.size }),
+              // Sizes the grid card's cover band (see articleCoverAspect)
+              ...(coverResult &&
+                coverResult.width > 0 &&
+                coverResult.height > 0 && {
+                  coverWidth: coverResult.width,
+                  coverHeight: coverResult.height,
+                }),
             },
           },
         });
