@@ -51,4 +51,12 @@ describe("OfflinePage", () => {
     expect(location.replace).not.toHaveBeenCalled();
     expect(screen.getByText(/link is saved for later/)).toBeInTheDocument();
   });
+
+  it("links to the saved dashboard", () => {
+    stubLocation("");
+    render(<OfflinePage />);
+    expect(
+      screen.getByRole("link", { name: "Open your saved abode" }),
+    ).toHaveAttribute("href", "/dashboard");
+  });
 });

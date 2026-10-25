@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ExtensionDetector } from "@/components/extension/extension-detector";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { ROUTES } from "@/lib/routes";
 import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
@@ -34,6 +35,7 @@ export default async function AppLayout({
 
   return (
     <>
+      <OfflineBanner />
       {children}
       <ExtensionDetector />
     </>
