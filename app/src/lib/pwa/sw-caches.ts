@@ -28,6 +28,28 @@ export function isNoStoreResponse(response: Response): boolean {
   );
 }
 
+/**
+ * Whether a cached image proxy response may still be served without asking
+ * the server. The proxy re-checks visibility on every request and lets
+ * browsers keep a viewable image for its `max-age`, so the service worker
+ * keeps to the same window: a `public` image (visible to anyone while shared)
+ * is re-fetched once that runs out, so unsharing takes effect as fast as it
+ * does for the browser cache. A `private` one is visible only to its owner,
+ * who can always see it, so it's served until it expires from the cache —
+ * which is cleared when the signed-in user changes.
+ */
+export function isCachedImageServable(
+  response: Response,
+  now: number,
+): boolean {
+  const cacheControl = response.headers.get("Cache-Control") ?? "";
+  if (/(^|,)\s*private\s*(,|$)/i.test(cacheControl)) return true;
+  const maxAge = /(?:^|,)\s*max-age=(\d+)/i.exec(cacheControl);
+  const fetchedAt = Date.parse(response.headers.get("Date") ?? "");
+  if (!maxAge || Number.isNaN(fetchedAt)) return false;
+  return now - fetchedAt < Number(maxAge[1]) * 1000;
+}
+
 // Caches that only ever hold public build output, kept across sign-out. Deny
 // by default: anything not listed (including a cache added later) is treated
 // as holding the signed-in user's data

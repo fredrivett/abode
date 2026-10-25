@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isCachedImageServable,
   isItemImagePath,
   isNoStoreResponse,
   isUserScopedCache,
@@ -58,5 +59,54 @@ describe("isNoStoreResponse", () => {
     [null, false],
   ])("%s → %s", (value, expected) => {
     expect(isNoStoreResponse(withCacheControl(value))).toBe(expected);
+  });
+});
+
+describe("isCachedImageServable", () => {
+  const fetchedAt = Date.parse("2026-10-25T12:00:00Z");
+  const cached = (
+    cacheControl: string,
+    date: string | null = "Sun, 25 Oct 2026 12:00:00 GMT",
+  ) =>
+    new Response("", {
+      headers: {
+        "Cache-Control": cacheControl,
+        ...(date ? { Date: date } : {}),
+      },
+    });
+  const HOUR = 60 * 60 * 1000;
+
+  it("serves an owner-only image whatever its age", () => {
+    expect(
+      isCachedImageServable(
+        cached("private, max-age=3600"),
+        fetchedAt + 30 * 24 * HOUR,
+      ),
+    ).toBe(true);
+  });
+
+  it("serves a public image within its max-age", () => {
+    expect(
+      isCachedImageServable(
+        cached("public, max-age=3600, s-maxage=3600"),
+        fetchedAt + HOUR / 2,
+      ),
+    ).toBe(true);
+  });
+
+  it("re-checks a public image once its max-age runs out", () => {
+    expect(
+      isCachedImageServable(
+        cached("public, max-age=3600, s-maxage=3600"),
+        fetchedAt + HOUR,
+      ),
+    ).toBe(false);
+  });
+
+  it("re-checks when the age can't be worked out", () => {
+    expect(
+      isCachedImageServable(cached("public, max-age=3600", null), fetchedAt),
+    ).toBe(false);
+    expect(isCachedImageServable(cached("public"), fetchedAt)).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ describe("session caches", () => {
 
   it("is a no-op without Cache Storage", async () => {
     vi.stubGlobal("caches", undefined);
-    await expect(clearUserCaches()).resolves.toBeUndefined();
+    await expect(clearUserCaches()).resolves.toBe(true);
   });
 
   it("swallows Cache Storage errors", async () => {
@@ -52,7 +52,39 @@ describe("session caches", () => {
         throw new Error("SecurityError");
       }),
     });
-    await expect(clearUserCaches()).resolves.toBeUndefined();
+    await expect(clearUserCaches()).resolves.toBe(false);
+  });
+
+  it("doesn't record the owner when clearing fails, so the next load retries", async () => {
+    localStorage.setItem(OWNER_KEY, "user-a");
+    vi.stubGlobal("caches", {
+      keys: vi.fn(async () => {
+        throw new Error("SecurityError");
+      }),
+    });
+    await claimUserCaches("user-b");
+    expect(localStorage.getItem(OWNER_KEY)).toBe("user-a");
+  });
+
+  it("applies claims in order, so a slow earlier one can't win", async () => {
+    let releaseFirstClear = () => {};
+    const firstClear = new Promise<void>((resolve) => {
+      releaseFirstClear = resolve;
+    });
+    const keys = vi
+      .fn<() => Promise<string[]>>()
+      .mockImplementationOnce(async () => {
+        await firstClear;
+        return [];
+      })
+      .mockResolvedValue([]);
+    vi.stubGlobal("caches", { keys, delete: vi.fn() });
+
+    const claimA = claimUserCaches("user-a");
+    const claimB = claimUserCaches("user-b");
+    releaseFirstClear();
+    await Promise.all([claimA, claimB]);
+    expect(localStorage.getItem(OWNER_KEY)).toBe("user-b");
   });
 
   it("clears and records the owner when caches have no known owner", async () => {

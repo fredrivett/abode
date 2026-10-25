@@ -26,17 +26,28 @@ function writeOwner(userId: string | null) {
  * worker serves these as offline / slow-network fallbacks, so leaving them
  * behind would show the last user's data to whoever uses the device next.
  */
-export async function clearUserCaches(): Promise<void> {
-  // Cache Storage only exists in secure contexts
-  if (typeof caches === "undefined") return;
+export async function clearUserCaches(): Promise<boolean> {
+  // Cache Storage only exists in secure contexts: nothing to clear
+  if (typeof caches === "undefined") return true;
   try {
     const names = await caches.keys();
     await Promise.all(
       names.filter(isUserScopedCache).map((name) => caches.delete(name)),
     );
+    return true;
   } catch {
     // Best effort: a failed clear must never break sign-in/out
+    return false;
   }
+}
+
+// Claims and releases run one at a time, in the order the user changed, so an
+// earlier one finishing late can't record a stale owner over the current one
+let pending: Promise<void> = Promise.resolve();
+
+function inOrder(task: () => Promise<void>): Promise<void> {
+  pending = pending.then(task, task);
+  return pending;
 }
 
 /**
@@ -44,14 +55,18 @@ export async function clearUserCaches(): Promise<void> {
  * when they belong to someone else (or to nobody known — caches from before
  * the owner was tracked, or from a sign-out that skipped `releaseUserCaches`).
  */
-export async function claimUserCaches(userId: string): Promise<void> {
-  if (readOwner() === userId) return;
-  await clearUserCaches();
-  writeOwner(userId);
+export function claimUserCaches(userId: string): Promise<void> {
+  return inOrder(async () => {
+    if (readOwner() === userId) return;
+    // Only recorded once cleared, so a failed clear is retried next load
+    if (await clearUserCaches()) writeOwner(userId);
+  });
 }
 
 /** Clears the user-scoped caches on sign-out */
-export async function releaseUserCaches(): Promise<void> {
-  writeOwner(null);
-  await clearUserCaches();
+export function releaseUserCaches(): Promise<void> {
+  return inOrder(async () => {
+    writeOwner(null);
+    await clearUserCaches();
+  });
 }

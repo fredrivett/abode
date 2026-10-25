@@ -12,6 +12,7 @@ import {
   Serwist,
 } from "serwist";
 import {
+  isCachedImageServable,
   isItemImagePath,
   isNoStoreResponse,
   SW_CACHE,
@@ -32,6 +33,14 @@ const respectNoStore: SerwistPlugin = {
     isNoStoreResponse(response) ? null : response,
 };
 
+// A cached image past its visibility window falls through to the network
+const imageVisibilityWindow: SerwistPlugin = {
+  cachedResponseWillBeUsed: async ({ cachedResponse }) =>
+    cachedResponse && isCachedImageServable(cachedResponse, Date.now())
+      ? cachedResponse
+      : null,
+};
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
@@ -40,7 +49,8 @@ const serwist = new Serwist({
   runtimeCaching: [
     // Ahead of the /api/ rule: item images are keyed by an immutable file key,
     // so a cached copy is served instantly instead of every tile waiting on
-    // the network first. Only 200s are cached, so a 403/404 isn't pinned.
+    // the network first — within the proxy's visibility window (see
+    // isCachedImageServable). Only 200s are cached, so a 403/404 isn't pinned.
     // User-scoped: cleared when the signed-in user changes (session-caches)
     {
       matcher: ({ url, sameOrigin }) =>
@@ -50,6 +60,7 @@ const serwist = new Serwist({
         plugins: [
           new CacheableResponsePlugin({ statuses: [200] }),
           respectNoStore,
+          imageVisibilityWindow,
           new ExpirationPlugin({
             maxEntries: 400,
             maxAgeSeconds: 30 * DAY_SECONDS,
@@ -65,6 +76,8 @@ const serwist = new Serwist({
         cacheName: SW_CACHE.api,
         networkTimeoutSeconds: 10,
         plugins: [
+          // A cacheWillUpdate plugin replaces the strategy's default 200-only check
+          new CacheableResponsePlugin({ statuses: [200] }),
           respectNoStore,
           new ExpirationPlugin({
             maxEntries: 64,
