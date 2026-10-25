@@ -5,6 +5,7 @@ import {
   IMAGE_RETRY_DELAYS_MS,
   imageSrcForAttempt,
   isRetryableImageSrc,
+  srcSetForAttempt,
 } from "@/lib/image-retry";
 
 /**
@@ -22,7 +23,10 @@ import {
  * `imgProps.onError` returns whether a retry was scheduled, so a caller with its
  * own fallback can run it only once retries are exhausted.
  */
-export function useImageLoaded(src: string | null | undefined) {
+export function useImageLoaded(
+  src: string | null | undefined,
+  { srcSet }: { srcSet?: string } = {},
+) {
   const [trackedSrc, setTrackedSrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -80,6 +84,8 @@ export function useImageLoaded(src: string | null | undefined) {
     loaded: !!src && loaded,
     imgProps: {
       src: src ? imageSrcForAttempt({ src, attempt }) : undefined,
+      // Browsers load from srcset over src, so retries bust every candidate
+      srcSet: srcSet ? srcSetForAttempt({ srcSet, attempt }) : undefined,
       ref,
       onLoad,
       onError,

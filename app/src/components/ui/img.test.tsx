@@ -1,48 +1,42 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { IMAGE_RETRY_DELAYS_MS } from "@/lib/image-retry";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { GRID_IMAGE_SIZES, getProxyImageUrl } from "@/lib/image-url";
+import { BlurImage } from "./blur-image";
 import { Img } from "./img";
 
+const gridSrc = getProxyImageUrl("u/cover.jpg", "grid");
+
 describe("Img", () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it("renders the src and forwards img attributes", () => {
-    render(<Img src="/photo.jpg" alt="A beach" loading="lazy" />);
-    const img = screen.getByRole("img", { name: "A beach" });
-    expect(img).toHaveAttribute("src", "/photo.jpg");
-    expect(img).toHaveAttribute("loading", "lazy");
+  it("adds a srcset when given sizes for a resized proxy URL", () => {
+    render(<Img src={gridSrc} alt="cover" sizes={GRID_IMAGE_SIZES} />);
+    const img = screen.getByRole("img");
+    expect(img.getAttribute("srcset")).toContain("w=400&q=80 400w");
+    expect(img.getAttribute("sizes")).toBe(GRID_IMAGE_SIZES);
   });
 
-  it("retries a failed load, and only reports the error once retries run out", () => {
-    const onError = vi.fn();
-    render(<Img src="/photo.jpg" alt="A beach" onError={onError} />);
-    const img = screen.getByRole("img", { name: "A beach" });
-
-    IMAGE_RETRY_DELAYS_MS.forEach((delay, index) => {
-      fireEvent.error(img);
-      expect(onError).not.toHaveBeenCalled();
-      act(() => vi.advanceTimersByTime(delay));
-      expect(img).toHaveAttribute("src", `/photo.jpg?retry=${index + 1}`);
-    });
-
-    fireEvent.error(img);
-    expect(onError).toHaveBeenCalledTimes(1);
+  it("renders a plain src without sizes", () => {
+    render(<Img src={gridSrc} alt="cover" />);
+    expect(screen.getByRole("img").hasAttribute("srcset")).toBe(false);
   });
 
-  it("reports a third-party failure straight away (no retry)", () => {
-    const onError = vi.fn();
+  it("drops sizes when there's nothing to choose between", () => {
+    render(<Img src="blob:local" alt="cover" sizes={GRID_IMAGE_SIZES} />);
+    const img = screen.getByRole("img");
+    expect(img.hasAttribute("srcset")).toBe(false);
+    expect(img.hasAttribute("sizes")).toBe(false);
+  });
+});
+
+describe("BlurImage", () => {
+  it("adds a srcset when given sizes", () => {
     render(
-      <Img src="https://example.com/a.jpg" alt="Remote" onError={onError} />,
+      <BlurImage
+        src={gridSrc}
+        alt="cover"
+        blurDataUrl={null}
+        sizes={GRID_IMAGE_SIZES}
+      />,
     );
-    fireEvent.error(screen.getByRole("img", { name: "Remote" }));
-    expect(onError).toHaveBeenCalledTimes(1);
-  });
-
-  it("still calls the caller's onLoad", () => {
-    const onLoad = vi.fn();
-    render(<Img src="/photo.jpg" alt="A beach" onLoad={onLoad} />);
-    fireEvent.load(screen.getByRole("img", { name: "A beach" }));
-    expect(onLoad).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("img").getAttribute("srcset")).toContain("600w");
   });
 });

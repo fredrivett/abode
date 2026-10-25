@@ -33,3 +33,23 @@ export function imageSrcForAttempt({
   const hash = hashIndex === -1 ? "" : src.slice(hashIndex);
   return `${url}${url.includes("?") ? "&" : "?"}retry=${attempt}${hash}`;
 }
+
+/** {@link imageSrcForAttempt} applied to each candidate of a `srcset` */
+export function srcSetForAttempt({
+  srcSet,
+  attempt,
+}: {
+  srcSet: string;
+  attempt: number;
+}): string {
+  if (attempt === 0) return srcSet;
+  return srcSet
+    .split(",")
+    .map((candidate) => {
+      const [url, ...descriptor] = candidate.trim().split(/\s+/);
+      return [imageSrcForAttempt({ src: url, attempt }), ...descriptor].join(
+        " ",
+      );
+    })
+    .join(", ");
+}

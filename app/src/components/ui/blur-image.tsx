@@ -2,6 +2,7 @@
 
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
+import { proxyImageSrcSet } from "@/lib/image-url";
 
 type BlurImageProps = {
   /** Full-quality image URL (proxy/blob). Renders nothing when null/undefined. */
@@ -12,6 +13,8 @@ type BlurImageProps = {
   /** Classes for the `<img>` itself (sizing, object-fit, hover transforms). */
   className?: string;
   loading?: "lazy" | "eager";
+  /** Opts a resized proxy URL into a `srcset` of smaller renditions (see `Img`) */
+  sizes?: string;
 };
 
 /**
@@ -27,13 +30,21 @@ export function BlurImage({
   blurDataUrl,
   className,
   loading,
+  sizes,
 }: BlurImageProps) {
-  const { loaded, imgProps } = useImageLoaded(src);
+  const srcSet = sizes && src ? proxyImageSrcSet(src) : undefined;
+  const { loaded, imgProps } = useImageLoaded(src, { srcSet });
   if (!src) return null;
   return (
     <>
       {/* biome-ignore lint/performance/noImgElement: proxy/blob URL for user-uploaded content */}
-      <img {...imgProps} alt={alt} className={className} loading={loading} />
+      <img
+        {...imgProps}
+        alt={alt}
+        className={className}
+        loading={loading}
+        sizes={srcSet ? sizes : undefined}
+      />
       {blurDataUrl && (
         <BlurPlaceholder blurDataUrl={blurDataUrl} visible={!loaded} />
       )}

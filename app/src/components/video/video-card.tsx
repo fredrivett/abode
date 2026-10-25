@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
 import { Img } from "@/components/ui/img";
 import { gridCardStyle } from "@/lib/grid-styles";
-import { getProxyImageUrl } from "@/lib/image-url";
+import { GRID_IMAGE_SIZES, getProxyImageUrl } from "@/lib/image-url";
 import type { VideoDetails } from "@/lib/types/item";
 import { cn, formatDuration } from "@/lib/utils";
 
@@ -57,6 +57,7 @@ export function VideoCard({
               alt={title ?? "Video thumbnail"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"
+              sizes={GRID_IMAGE_SIZES}
             />
             {/* Play button overlay */}
             <div className="absolute inset-0 flex items-center justify-center">

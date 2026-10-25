@@ -111,7 +111,7 @@ import {
 import { gridCardStyle } from "@/lib/grid-styles";
 import type { ShareableHighlight } from "@/lib/highlights/share";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
-import { getProxyImageUrl } from "@/lib/image-url";
+import { GRID_IMAGE_SIZES, getProxyImageUrl } from "@/lib/image-url";
 import { articleCardMode } from "@/lib/items/article-card-mode";
 import { shouldShowReadingStatusBadge } from "@/lib/items/book-reading-status";
 import { captureSourceLabel } from "@/lib/items/capture-source";
@@ -978,6 +978,7 @@ export function ItemCard({
             alt={itemName}
             blurDataUrl={blurDataUrl}
             className="h-full w-full object-cover"
+            sizes={GRID_IMAGE_SIZES}
           />
           {isProduct && item.productDetails?.price && (
             <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
