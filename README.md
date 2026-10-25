@@ -98,6 +98,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
 - PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)
 - Masonry gallery, full-text + semantic search, filters
+- Installable app (PWA): saves from the Android share sheet; phones get an install banner (the native prompt on Android, the Add to Home Screen steps on iOS)
 - Metadata extraction + article parsing (Mozilla Readability)
 - OCR + auto-tagging (OpenAI)
 - Dominant-colour extraction, palette bar + colour search
