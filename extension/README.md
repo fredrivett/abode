@@ -67,9 +67,9 @@ off untrusted PR runs, so artifacts come from `main` or a manual dispatch.)
 3. `chrome://extensions` → **Developer mode** → **Load unpacked** → the unzipped folder.
 
 Load-unpacked doesn't auto-update — re-download after a new build. No extra
-config: the build derives the Supabase URL and anon key (both public) from the
-existing `SUPABASE_PROJECT_REF` + `SUPABASE_ACCESS_TOKEN` secrets — the URL from
-the ref, the anon key via the Supabase Management API.
+config: the build derives the Supabase URL and publishable key (both public)
+from the existing `SUPABASE_PROJECT_REF` + `SUPABASE_ACCESS_TOKEN` secrets — the
+URL from the ref, the publishable key via the Supabase Management API.
 
 **Knowing if you're stale.** Each CI build bakes in its GitHub Actions run
 number and commit SHA (shown as `Build 234 · abc1234` in the popup footer and as

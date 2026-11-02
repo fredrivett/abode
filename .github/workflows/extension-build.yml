@@ -57,15 +57,17 @@ jobs:
 
       # Build + upload the artifact only on trusted runs — push to main or manual
       # dispatch — NEVER on pull_request. The build needs SUPABASE_ACCESS_TOKEN (a
-      # high-privilege management-API token) to fetch the public anon key, and a
+      # high-privilege management-API token) to fetch the publishable key, and a
       # pull_request runs PR-authored workflow code; keeping the token off that
       # path stops an untrusted PR from exfiltrating it. PRs still get the
       # typecheck + unit tests above.
       #
       # No extra config — both public values come from secrets that already exist:
       #   URL      = https://<SUPABASE_PROJECT_REF>.supabase.co
-      #   anon key = fetched from the Supabase Management API (public; the same key
-      #              the web app ships, never the service-role key).
+      #   key      = the project's publishable key (sb_publishable_…), fetched from
+      #              the Supabase Management API (public; the same key the web app
+      #              ships, never a secret key). Not the legacy JWT `anon` key: the
+      #              legacy keys are disabled, so a build shipping it can't sign in.
       - name: Resolve production env
         if: success() && github.event_name != 'pull_request'
         env:
@@ -79,12 +81,12 @@ jobs:
           ANON_KEY=$(curl -sf \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/api-keys" \
-            | jq -r '.[] | select(.name == "anon") | .api_key')
+            | jq -r 'first(.[] | select(.type == "publishable")) | .api_key')
           if [ -z "$ANON_KEY" ] || [ "$ANON_KEY" = "null" ]; then
-            echo "::error::Could not fetch the anon key from the Supabase Management API." >&2
+            echo "::error::Could not fetch a publishable key from the Supabase Management API." >&2
             exit 1
           fi
-          # No log-masking of the anon key: it's public and never printed (only
+          # No log-masking of the publishable key: it's public and never printed (only
           # written to the file below), and masking runtime-derived data trips a
           # Semgrep GHA rule while buying nothing here.
           {
