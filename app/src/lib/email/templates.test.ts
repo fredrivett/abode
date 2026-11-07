@@ -1,8 +1,63 @@
 import { describe, expect, test } from "vitest";
 import {
+  type AdminNotificationData,
   getAdminNotificationEmail,
   getDataExportReadyEmail,
+  getUserInviteEmail,
 } from "./templates";
+
+// user-controlled values (names, waitlist free text) must never become markup
+const INJECTED = '<a href="https://evil.example">x</a>';
+const ESCAPED = "&lt;a href=&quot;https://evil.example&quot;&gt;x&lt;/a&gt;";
+
+describe("html escaping of user-controlled values", () => {
+  test("invite email escapes the inviter's name", () => {
+    const { html, text } = getUserInviteEmail({
+      inviterName: INJECTED,
+      inviteToken: "token",
+    });
+
+    expect(html).not.toContain(INJECTED);
+    expect(html).toContain(`<p>${ESCAPED} thinks you'd love abode!</p>`);
+    // plain-text part is not html, so it keeps the name verbatim
+    expect(text).toContain(INJECTED);
+  });
+
+  test.each<AdminNotificationData>([
+    {
+      type: "waitlist_signup",
+      email: "person@example.com",
+      position: 1,
+      referralSource: INJECTED,
+    },
+    {
+      type: "user_invited",
+      inviterEmail: INJECTED,
+      inviterUsername: INJECTED,
+      inviteeEmail: INJECTED,
+    },
+    {
+      type: "account_created",
+      email: INJECTED,
+      username: INJECTED,
+      origin: "user",
+      inviterUsername: INJECTED,
+      inviterEmail: INJECTED,
+    },
+    {
+      type: "account_deleted",
+      email: INJECTED,
+      username: INJECTED,
+      deletedBy: "admin",
+      adminEmail: INJECTED,
+    },
+  ])("admin $type notification escapes user fields", (data) => {
+    const { html } = getAdminNotificationEmail(data);
+
+    expect(html).not.toContain('evil.example"');
+    expect(html).toContain(ESCAPED);
+  });
+});
 
 describe("getAdminNotificationEmail — waitlist_signup", () => {
   test("email address is a pre-filled mailto invite link", () => {
