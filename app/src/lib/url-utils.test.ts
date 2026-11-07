@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  getExtensionFromContentType,
   getHostname,
   getSafeRedirectPath,
   isImageUrl,
@@ -301,33 +300,5 @@ describe("getSafeRedirectPath", () => {
 
   it("falls back for an empty array", () => {
     expect(getSafeRedirectPath([])).toBe("/dashboard");
-  });
-});
-
-describe("getExtensionFromContentType", () => {
-  it("returns correct extension for common image types", () => {
-    expect(getExtensionFromContentType("image/jpeg")).toBe(".jpg");
-    expect(getExtensionFromContentType("image/png")).toBe(".png");
-    expect(getExtensionFromContentType("image/gif")).toBe(".gif");
-    expect(getExtensionFromContentType("image/webp")).toBe(".webp");
-    expect(getExtensionFromContentType("image/bmp")).toBe(".bmp");
-    expect(getExtensionFromContentType("image/svg+xml")).toBe(".svg");
-    expect(getExtensionFromContentType("image/x-icon")).toBe(".ico");
-  });
-
-  it("handles content type with charset", () => {
-    expect(getExtensionFromContentType("image/jpeg; charset=utf-8")).toBe(
-      ".jpg",
-    );
-    expect(getExtensionFromContentType("image/png; charset=utf-8")).toBe(
-      ".png",
-    );
-  });
-
-  it("defaults to .jpg for unknown types", () => {
-    expect(getExtensionFromContentType("application/octet-stream")).toBe(
-      ".jpg",
-    );
-    expect(getExtensionFromContentType("unknown/type")).toBe(".jpg");
   });
 });

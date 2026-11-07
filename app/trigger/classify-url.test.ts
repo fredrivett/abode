@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the server-side fetch, and does URL-based kind detection still win?
 const {
   mockSafeFetch,
+  mockUpload,
   mockItemUpdate,
   mockArticleUpsert,
   mockTrigger,
@@ -23,6 +24,7 @@ const {
   mockHandlePdfUrl,
 } = vi.hoisted(() => ({
   mockSafeFetch: vi.fn(),
+  mockUpload: vi.fn(),
   mockItemUpdate: vi.fn(),
   mockArticleUpsert: vi.fn(),
   mockTrigger: vi.fn(),
@@ -47,7 +49,7 @@ vi.mock("@trigger.dev/sdk", () => ({
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     storage: {
-      from: () => ({ upload: vi.fn().mockResolvedValue({ error: null }) }),
+      from: () => ({ upload: mockUpload }),
     },
   }),
 }));
@@ -138,15 +140,15 @@ const PNG_1x1 = Buffer.from(
   "base64",
 );
 
-function imageResponse(url: string) {
+function imageResponse(url: string, contentType = "image/png", body = PNG_1x1) {
   const headers = {
-    get: (k: string) => (k === "content-type" ? "image/png" : null),
+    get: (k: string) => (k === "content-type" ? contentType : null),
   };
   return {
     ok: true,
     headers,
     url,
-    arrayBuffer: async () => PNG_1x1,
+    arrayBuffer: async () => body,
   };
 }
 
@@ -161,6 +163,7 @@ beforeEach(() => {
   process.env.SUPABASE_URL = "https://test.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   mockMarkProcessingActive.mockResolvedValue(undefined);
+  mockUpload.mockResolvedValue({ error: null });
   mockItemUpdate.mockResolvedValue({});
   mockArticleUpsert.mockResolvedValue({});
   mockTrigger.mockResolvedValue({ id: "run_1" });
@@ -300,6 +303,27 @@ describe("classifyUrlTask — favicon re-hosting", () => {
     const { data } = mockItemUpdate.mock.calls[0][0];
     expect(data.kind).toBe("webpage");
     expect(data.faviconFileKey).toBeNull();
+  });
+
+  it("never stores an SVG favicon, even one image-size can parse", async () => {
+    // SVG is active content if served same-origin, and storage rejects it
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"></svg>',
+    );
+    mockSafeFetch.mockResolvedValue(
+      imageResponse("https://example.com/fav.svg", "image/svg+xml", svg),
+    );
+
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url: FAVICON_PAGE_URL,
+      html: FAVICON_PAGE_HTML,
+    });
+
+    const { data } = mockItemUpdate.mock.calls[0][0];
+    expect(data.faviconFileKey).toBeNull();
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 });
 
