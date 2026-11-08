@@ -1333,6 +1333,45 @@ describe("cross-user isolation", () => {
     expect(payload.room.itemCount).toBe(1);
   });
 
+  // The sweep can't see this one: the shared runs.retrieve mock returns null, and
+  // a leaked status/count carries no canary. With a genuine sync of the victim's
+  // room, only the owner check stands between the attacker and its status.
+  it("only lets a room's owner poll its filter re-sync", async () => {
+    const poll = CASES.find(
+      (c) => c.name === "poll a filter re-sync of the victim's room",
+    );
+    if (!poll) throw new Error("missing sync poll case");
+    const { runs } = await import("@trigger.dev/sdk");
+    const { roomTag } = await import("@/lib/items/run-tags");
+    const victimSync = {
+      taskIdentifier: "sync-room-items",
+      tags: [roomTag(ids.victim.privateRoomId)],
+      isCompleted: true,
+      isSuccess: true,
+    };
+    const retrieve = vi.mocked(runs.retrieve);
+
+    for (const viewer of [
+      { id: ids.attacker.userId, email: ids.attacker.email },
+      null,
+    ]) {
+      h.state.viewer = viewer;
+      retrieve.mockResolvedValueOnce(victimSync as never);
+      expect((await call(poll, ids)).status).not.toBe(200);
+      retrieve.mockReset();
+      retrieve.mockResolvedValue(null as never);
+    }
+
+    // control: the same run is readable by its owner, so the denial above is
+    // the owner check, not the fixture
+    h.state.viewer = { id: ids.victim.userId, email: ids.victim.email };
+    retrieve.mockResolvedValueOnce(victimSync as never);
+    const own = await call(poll, ids);
+    expect(own.status).toBe(200);
+    expect(JSON.parse(own.text)).toMatchObject({ status: "completed" });
+    h.state.viewer = null;
+  });
+
   // Owner flows must keep working under RLS: the restricted role refuses
   // anything a policy or a missing systemDb doesn't allow, which surfaces as a
   // 500 here. The victim runs every case against their own data (mutations are
