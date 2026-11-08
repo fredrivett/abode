@@ -174,4 +174,24 @@ describe("RoomPageClient — refresh after a filter save", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1 + 5);
   });
+
+  it("only gives up on consecutive errors: a pending poll resets the count", async () => {
+    const error = () => json({ message: "Internal server error" }, 500);
+    fetchMock.mockResolvedValueOnce(json({ id: "room-1", syncRunId: "run_1" }));
+    for (let i = 0; i < 4; i++) fetchMock.mockResolvedValueOnce(error());
+    fetchMock.mockResolvedValueOnce(json({ status: "pending" }));
+    for (let i = 0; i < 4; i++) fetchMock.mockResolvedValueOnce(error());
+    fetchMock
+      .mockResolvedValueOnce(json({ status: "completed", itemCount: 2 }))
+      .mockResolvedValueOnce(
+        json({ items: [{ id: "x" }], nextCursor: null, hasMore: false }),
+      );
+    renderPage();
+    await saveFilters();
+
+    // 8 errors in total, never 5 in a row
+    for (let i = 0; i < 10; i++) await tick();
+    expect(mockToast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("grid")).toHaveTextContent("x (2)");
+  });
 });

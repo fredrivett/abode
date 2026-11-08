@@ -64,7 +64,7 @@ describe("PATCH /api/v1/rooms/:id — filter re-sync", () => {
     );
   });
 
-  it("returns no sync run when the filters didn't change", async () => {
+  it("returns no sync run when the body has no filters", async () => {
     const res = await patch({ name: "Renamed" });
 
     expect(await res.json()).not.toHaveProperty("syncRunId");
