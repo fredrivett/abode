@@ -642,6 +642,12 @@ const CASES: Case[] = [
     name: "read the victim's room embed referrers",
     params: (ids) => ({ id: ids.victim.publicRoomId }),
   },
+  {
+    route: "v1/rooms/[id]/sync/[runId]",
+    method: "GET",
+    name: "poll a filter re-sync of the victim's room",
+    params: (ids) => ({ id: ids.victim.privateRoomId, runId: "run_test" }),
+  },
   { route: "v1/rooms", method: "GET", name: "list rooms" },
   {
     route: "v1/rooms",
