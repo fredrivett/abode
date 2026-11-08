@@ -22,4 +22,9 @@ describe("imageExtForContentType", () => {
     expect(imageExtForContentType("text/html")).toBeNull();
     expect(imageExtForContentType("")).toBeNull();
   });
+
+  it("rejects content-types that name Object.prototype members", () => {
+    expect(imageExtForContentType("__proto__")).toBeNull();
+    expect(imageExtForContentType("constructor")).toBeNull();
+  });
 });

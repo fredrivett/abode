@@ -33,6 +33,7 @@ import {
   ProcessingFailure,
   reasonFromStatus,
 } from "../src/lib/items/processing-error";
+import { imageExtForContentType } from "../src/lib/media/rehost-image";
 import { detectPlatform } from "../src/lib/platforms";
 import { captureServerException } from "../src/lib/posthog-server";
 import {
@@ -40,7 +41,6 @@ import {
   type ReadableSignals,
 } from "../src/lib/readable-signals";
 import { ensureBookRooms } from "../src/lib/rooms/auto-book-rooms";
-import { getExtensionFromContentType } from "../src/lib/url-utils";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
 import { handleInstagramUrl } from "./handle-instagram-url";
@@ -123,6 +123,7 @@ type ImageBuffer = {
   imageUrl: string;
   buffer: Buffer;
   contentType: string;
+  ext: string;
   width: number;
   height: number;
 };
@@ -155,11 +156,13 @@ async function fetchImageBuffer(imageUrl: string): Promise<ImageFetchResult> {
     }
 
     // Some sites (e.g. anti-bot pages) return 200 OK with an HTML error
-    // body. Trust the Content-Type header and reject anything that isn't
-    // declared as an image rather than uploading HTML/JSON as if it were.
+    // body. Trust the Content-Type header and reject anything that isn't a
+    // storable raster image — HTML/JSON, and SVG/ICO/BMP, which storage
+    // refuses (and SVG would be active content if ever served same-origin).
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().startsWith("image/")) {
-      logger.warn("Image fetch failed: non-image content-type", {
+    const ext = imageExtForContentType(contentType);
+    if (!ext) {
+      logger.warn("Image fetch failed: unsupported content-type", {
         imageUrl,
         contentType: contentType || "(none)",
       });
@@ -187,7 +190,7 @@ async function fetchImageBuffer(imageUrl: string): Promise<ImageFetchResult> {
       return { ok: false, reason: "unsupported_content" };
     }
 
-    return { ok: true, imageUrl, buffer, contentType, width, height };
+    return { ok: true, imageUrl, buffer, contentType, ext, width, height };
   } catch (error) {
     logger.error("Image fetch failed: network error", { imageUrl, error });
     return { ok: false, reason: classifyFailureReason(error) };
@@ -199,8 +202,7 @@ async function uploadImageBuffer(
   userId: string,
   supabase: SupabaseClient,
 ): Promise<StoredImage | null> {
-  const ext = getExtensionFromContentType(fetched.contentType);
-  const fileKey = `${userId}/${randomUUID()}${ext}`;
+  const fileKey = `${userId}/${randomUUID()}${fetched.ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("items")

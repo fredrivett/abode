@@ -1,8 +1,84 @@
 import { describe, expect, test } from "vitest";
 import {
+  type AdminNotificationData,
   getAdminNotificationEmail,
   getDataExportReadyEmail,
+  getUserInviteEmail,
 } from "./templates";
+
+// user-controlled values (names, waitlist free text) must never become markup
+const INJECTED = '<a href="https://evil.example">x</a>';
+const ESCAPED = "&lt;a href=&quot;https://evil.example&quot;&gt;x&lt;/a&gt;";
+
+describe("html escaping of user-controlled values", () => {
+  test("invite email escapes the inviter's name", () => {
+    const { html, text } = getUserInviteEmail({
+      inviterName: INJECTED,
+      inviteToken: "token",
+    });
+
+    expect(html).not.toContain(INJECTED);
+    expect(html).toContain(`<p>${ESCAPED} thinks you'd love abode!</p>`);
+    // plain-text part is not html, so it keeps the name verbatim
+    expect(text).toContain(INJECTED);
+  });
+
+  // a distinct marker per field, so each insertion site is checked on its own
+  const mark = (field: string) => `<b>${field}</b>`;
+  const escapedMark = (field: string) => `&lt;b&gt;${field}&lt;/b&gt;`;
+
+  test.each<{ data: AdminNotificationData; fields: string[] }>([
+    {
+      data: {
+        type: "waitlist_signup",
+        email: "person@example.com",
+        position: 1,
+        referralSource: mark("referralSource"),
+      },
+      fields: ["referralSource"],
+    },
+    {
+      data: {
+        type: "user_invited",
+        inviterEmail: mark("inviterEmail"),
+        inviterUsername: mark("inviterUsername"),
+        inviteeEmail: mark("inviteeEmail"),
+      },
+      fields: ["inviterEmail", "inviterUsername", "inviteeEmail"],
+    },
+    {
+      data: {
+        type: "account_created",
+        email: mark("email"),
+        username: mark("username"),
+        origin: "user",
+        inviterUsername: mark("inviterUsername"),
+        inviterEmail: mark("inviterEmail"),
+      },
+      fields: ["email", "username", "inviterUsername", "inviterEmail"],
+    },
+    {
+      data: {
+        type: "account_deleted",
+        email: mark("email"),
+        username: mark("username"),
+        deletedBy: "admin",
+        adminEmail: mark("adminEmail"),
+      },
+      fields: ["email", "username", "adminEmail"],
+    },
+  ])(
+    "admin $data.type notification escapes every user field",
+    ({ data, fields }) => {
+      const { html } = getAdminNotificationEmail(data);
+
+      expect(html).not.toContain("<b>");
+      for (const field of fields) {
+        expect(html).toContain(escapedMark(field));
+      }
+    },
+  );
+});
 
 describe("getAdminNotificationEmail — waitlist_signup", () => {
   test("email address is a pre-filled mailto invite link", () => {

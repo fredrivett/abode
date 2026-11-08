@@ -67,7 +67,7 @@ ${EMAIL_FOOTER}
     htmlLink("abode", websiteUrl),
   );
 
-  const html = `<p>${options.inviterName} thinks you'd love abode!</p>
+  const html = `<p>${escapeHtml(options.inviterName)} thinks you'd love abode!</p>
 
 <p>${descriptionWithLink}</p>
 
@@ -250,7 +250,7 @@ ${EMAIL_FOOTER}
 
 <p>
 <strong>email:</strong> ${htmlLink(data.email, inviteMailto)}<br>
-<strong>position:</strong> #${data.position}${data.referralSource ? `<br><strong>referral source:</strong> ${data.referralSource}` : ""}
+<strong>position:</strong> #${data.position}${data.referralSource ? `<br><strong>referral source:</strong> ${escapeHtml(data.referralSource)}` : ""}
 </p>
 
 ${htmlFooter()}`;
@@ -272,8 +272,8 @@ ${EMAIL_FOOTER}
       const html = `<p><strong>user invite sent</strong></p>
 
 <p>
-<strong>${data.inviterUsername}</strong> (${data.inviterEmail}) invited:<br>
-${data.inviteeEmail}
+<strong>${escapeHtml(data.inviterUsername)}</strong> (${escapeHtml(data.inviterEmail)}) invited:<br>
+${escapeHtml(data.inviteeEmail)}
 </p>
 
 ${htmlFooter()}`;
@@ -308,12 +308,12 @@ origin: ${data.origin}`;
       let html = `<p><strong>new account created</strong></p>
 
 <p>
-<strong>email:</strong> ${data.email}<br>
-<strong>username:</strong> ${data.username}<br>
-<strong>origin:</strong> ${data.origin}`;
+<strong>email:</strong> ${escapeHtml(data.email)}<br>
+<strong>username:</strong> ${escapeHtml(data.username)}<br>
+<strong>origin:</strong> ${escapeHtml(data.origin)}`;
 
       if (data.origin === "user" && data.inviterUsername) {
-        html += `<br><strong>invited by:</strong> ${data.inviterUsername} (${data.inviterEmail})`;
+        html += `<br><strong>invited by:</strong> ${escapeHtml(data.inviterUsername)} (${escapeHtml(data.inviterEmail ?? "")})`;
       }
 
       html += `</p>
@@ -346,12 +346,12 @@ deleted by: ${data.deletedBy}`;
       let html = `<p><strong>account deleted</strong></p>
 
 <p>
-<strong>email:</strong> ${data.email}<br>
-<strong>username:</strong> ${data.username}<br>
-<strong>deleted by:</strong> ${data.deletedBy}`;
+<strong>email:</strong> ${escapeHtml(data.email)}<br>
+<strong>username:</strong> ${escapeHtml(data.username)}<br>
+<strong>deleted by:</strong> ${escapeHtml(data.deletedBy)}`;
 
       if (data.deletedBy === "admin" && data.adminEmail) {
-        html += `<br><strong>admin:</strong> ${data.adminEmail}`;
+        html += `<br><strong>admin:</strong> ${escapeHtml(data.adminEmail)}`;
       }
 
       html += `</p>

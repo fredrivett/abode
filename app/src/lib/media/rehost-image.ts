@@ -9,20 +9,22 @@ import { parseMimeType } from "@/lib/url-utils";
 // persisted SVG (e.g. a malicious third-party image) becomes active content when
 // opened directly. These images come from arbitrary third-party pages, so this
 // allowlist is a real boundary, not a formality.
-const IMAGE_EXT_BY_CONTENT_TYPE: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/jpg": ".jpg",
-  "image/png": ".png",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-};
+// A Map, not an object literal: the key is a remote Content-Type header, and
+// an object lookup would resolve "__proto__"/"constructor" to truthy values.
+const IMAGE_EXT_BY_CONTENT_TYPE = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/gif", ".gif"],
+  ["image/webp", ".webp"],
+]);
 
 /**
  * Storage extension for a re-hostable image content-type, or null to reject it
  * (unsupported or unsafe, e.g. SVG). Exported for testing.
  */
 export function imageExtForContentType(contentType: string): string | null {
-  return IMAGE_EXT_BY_CONTENT_TYPE[parseMimeType(contentType)] ?? null;
+  return IMAGE_EXT_BY_CONTENT_TYPE.get(parseMimeType(contentType)) ?? null;
 }
 
 /**
