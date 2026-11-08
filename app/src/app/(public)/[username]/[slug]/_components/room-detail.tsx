@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CentralItemDialog } from "@/app/(app)/dashboard/_components/central-item-dialog";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
@@ -145,6 +145,12 @@ export function RoomDetail({
       setItemCount(refreshed.itemCount);
     }
   }
+  // Bumped per refreshed page, so a Load more started before it can't append
+  // the old listing's next page (and cursor) onto the new first page
+  const refreshGeneration = useRef(0);
+  useEffect(() => {
+    if (refreshed) refreshGeneration.current += 1;
+  }, [refreshed]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -163,12 +169,14 @@ export function RoomDetail({
     if (!hasMore || isLoadingMore || !cursor) return;
 
     setIsLoadingMore(true);
+    const generation = refreshGeneration.current;
     try {
       const response = await fetch(
         `/api/v1/rooms/${room.id}/items?cursor=${cursor}`,
       );
       if (response.ok) {
         const data = await response.json();
+        if (generation !== refreshGeneration.current) return;
         setItems((prev) => [...prev, ...data.items]);
         setCursor(data.nextCursor);
         setHasMore(data.hasMore);

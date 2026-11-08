@@ -214,4 +214,52 @@ describe("RoomDetail", () => {
     expect(screen.getByDisplayValue("Renamed")).toBeInTheDocument();
     fetchMock.mockRestore();
   });
+
+  it("drops a Load more response that lands after a refreshed page", async () => {
+    let resolveLoadMore: (res: Response) => void = () => {};
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveLoadMore = resolve;
+      }),
+    );
+    const props = {
+      room,
+      initialItems: [roomItem("a", "Alpha")],
+      initialCursor: "cursor-a",
+      initialHasMore: true,
+    };
+    const { rerender } = render(<RoomDetail {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    rerender(
+      <RoomDetail
+        {...props}
+        refreshed={{
+          items: [roomItem("c", "Gamma")],
+          cursor: null,
+          hasMore: false,
+          itemCount: 1,
+        }}
+      />,
+    );
+    // the old listing's second page arrives after the refresh
+    await act(async () => {
+      resolveLoadMore(
+        new Response(
+          JSON.stringify({
+            items: [roomItem("b", "Beta")],
+            nextCursor: "cursor-b",
+            hasMore: true,
+          }),
+        ),
+      );
+    });
+
+    expect(screen.getByTestId("item-c")).toBeInTheDocument();
+    expect(screen.queryByTestId("item-b")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load more" }),
+    ).not.toBeInTheDocument();
+    fetchMock.mockRestore();
+  });
 });
