@@ -8,7 +8,12 @@ import { FilterBadges } from "@/components/rooms/filter-badges";
 import { RoomHeaderFilters } from "@/components/rooms/room-header-filters";
 import type { Filter } from "@/lib/search/types";
 import type { Room, RoomItem } from "@/lib/types/room";
-import { RoomDetail } from "./room-detail";
+import { RoomDetail, type RoomItemsPage } from "./room-detail";
+
+// How often to check on a filter re-sync, and how many straight failed checks
+// before giving up so the toast doesn't spin forever
+const SYNC_POLL_INTERVAL_MS = 1500;
+const MAX_CONSECUTIVE_POLL_FAILURES = 5;
 
 type RoomOwner = {
   username: string | null;
@@ -55,9 +60,10 @@ export function RoomPageClient({
   roomOwner,
 }: RoomPageClientProps) {
   const [filters, setFilters] = useState<Filter[] | null>(room.filters);
-  const [items, setItems] = useState(initialItems);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [hasMore, setHasMore] = useState(initialHasMore);
+  // The pending membership re-sync after a filter save, and the page fetched
+  // once it finishes
+  const [syncRunId, setSyncRunId] = useState<string | null>(null);
+  const [refreshed, setRefreshed] = useState<RoomItemsPage | null>(null);
 
   // Track public room view (only once on mount)
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally tracking only on initial page load
@@ -84,26 +90,79 @@ export function RoomPageClient({
         throw new Error("Failed to save filters");
       }
 
+      const data: { syncRunId?: string } = await response.json();
       setFilters(newFilters);
+      setSyncRunId(data.syncRunId ?? null);
     },
     [room.id],
   );
 
-  const handleFiltersChanged = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/v1/rooms/${room.id}/items`);
-      if (response.ok) {
-        const data = await response.json();
-        setItems(data.items);
-        setCursor(data.nextCursor);
-        setHasMore(data.hasMore);
-      } else {
-        toast.error("Failed to refresh items");
+  // Membership re-syncs in the background after a filter save; poll the run,
+  // then load the room's new first page once it has finished
+  useEffect(() => {
+    if (!syncRunId) return;
+    let cancelled = false;
+    let settled = false;
+    let failures = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const toastId = toast.loading("Updating room");
+
+    const settle = (notify: () => void) => {
+      settled = true;
+      notify();
+      setSyncRunId(null);
+    };
+
+    const poll = async () => {
+      try {
+        const statusRes = await fetch(
+          `/api/v1/rooms/${room.id}/sync/${syncRunId}`,
+        );
+        if (!statusRes.ok) throw new Error("Sync status unavailable");
+        const sync: { status: string; itemCount?: number } =
+          await statusRes.json();
+        if (cancelled) return;
+
+        if (sync.status === "failed") {
+          settle(() => toast.error("Failed to update room", { id: toastId }));
+          return;
+        }
+        if (sync.status !== "completed") {
+          failures = 0;
+          timer = setTimeout(poll, SYNC_POLL_INTERVAL_MS);
+          return;
+        }
+
+        const itemsRes = await fetch(`/api/v1/rooms/${room.id}/items`);
+        if (!itemsRes.ok) throw new Error("Room items unavailable");
+        const page = await itemsRes.json();
+        if (cancelled) return;
+        setRefreshed({
+          items: page.items,
+          cursor: page.nextCursor,
+          hasMore: page.hasMore,
+          itemCount: sync.itemCount ?? page.items.length,
+        });
+        settle(() => toast.success("Room updated", { id: toastId }));
+      } catch {
+        if (cancelled) return;
+        failures += 1;
+        if (failures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          settle(() => toast.error("Failed to refresh items", { id: toastId }));
+          return;
+        }
+        timer = setTimeout(poll, SYNC_POLL_INTERVAL_MS);
       }
-    } catch {
-      toast.error("Failed to refresh items");
-    }
-  }, [room.id]);
+    };
+
+    timer = setTimeout(poll, SYNC_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      // Superseded by a newer save, or the page went away: drop the spinner
+      if (!settled) toast.dismiss(toastId);
+    };
+  }, [syncRunId, room.id]);
 
   // Build the center slot for the header
   const renderCenterSlot = () => {
@@ -116,7 +175,6 @@ export function RoomPageClient({
         <RoomHeaderFilters
           filters={filters}
           onSave={handleSaveFilters}
-          onFiltersChanged={handleFiltersChanged}
           canEdit
         />
       );
@@ -155,9 +213,10 @@ export function RoomPageClient({
       <div className="w-full px-4 py-8">
         <RoomDetail
           room={{ ...room, filters }}
-          initialItems={items}
-          initialCursor={cursor}
-          initialHasMore={hasMore}
+          initialItems={initialItems}
+          initialCursor={initialCursor}
+          initialHasMore={initialHasMore}
+          refreshed={refreshed}
           isOwner={isOwner}
           roomOwner={roomOwner}
         />

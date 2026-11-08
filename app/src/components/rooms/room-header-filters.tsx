@@ -22,8 +22,6 @@ type RoomHeaderFiltersProps = {
   filters: Filter[];
   /** Called when filters are saved */
   onSave: (filters: Filter[]) => Promise<void>;
-  /** Called after successful save to refresh items */
-  onFiltersChanged?: () => void;
   /** Whether the current user can edit filters */
   canEdit?: boolean;
 };
@@ -31,7 +29,6 @@ type RoomHeaderFiltersProps = {
 export function RoomHeaderFilters({
   filters,
   onSave,
-  onFiltersChanged,
   canEdit = true,
 }: RoomHeaderFiltersProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -72,13 +69,12 @@ export function RoomHeaderFilters({
       await onSave(searchState.filters);
       setIsEditing(false);
       toast.success("Filters saved");
-      onFiltersChanged?.();
     } catch {
       toast.error("Failed to save filters");
     } finally {
       setIsSaving(false);
     }
-  }, [searchState.filters, onSave, onFiltersChanged]);
+  }, [searchState.filters, onSave]);
 
   // View-only mode (visitor or not editing)
   if (!canEdit || !isEditing) {

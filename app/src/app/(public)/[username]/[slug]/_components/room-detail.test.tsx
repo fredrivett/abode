@@ -175,4 +175,43 @@ describe("RoomDetail", () => {
     );
     fetchMock.mockRestore();
   });
+
+  it("replaces the grid and count with a refreshed page, keeping a rename made since load", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    const props = {
+      room,
+      initialItems: [roomItem("a", "Alpha"), roomItem("b", "Beta")],
+      initialCursor: null,
+      initialHasMore: false,
+    };
+    const { rerender } = render(<RoomDetail {...props} />);
+
+    const input = screen.getByDisplayValue("My Room");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Renamed" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    // what the room page passes once a filter re-sync has finished
+    rerender(
+      <RoomDetail
+        {...props}
+        refreshed={{
+          items: [roomItem("c", "Gamma")],
+          cursor: null,
+          hasMore: false,
+          itemCount: 5,
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("item-a")).not.toBeInTheDocument();
+    expect(screen.getByTestId("item-c")).toBeInTheDocument();
+    expect(screen.getByText("5 items")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Renamed")).toBeInTheDocument();
+    fetchMock.mockRestore();
+  });
 });
