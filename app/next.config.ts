@@ -50,6 +50,10 @@ const nextConfig: NextConfig = {
   // (`.next-e2e`) and run alongside a normal `bun run dev` without fighting
   // over `.next/dev/lock`.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // The demo stack (`bun run demo:stack`) hides the dev tools button so it stays out of PR demo videos
+  ...(process.env.NEXT_DEV_INDICATORS === "false"
+    ? { devIndicators: false }
+    : {}),
   // Expose the build's git SHA to client + server so analytics/errors can be
   // linked back to the deploy that produced them.
   env: {

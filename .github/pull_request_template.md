@@ -10,6 +10,7 @@
 - [ ] User-facing or service change → docs updated (README features/roadmap/services, `.env.example`, in-app help, `CONTRIBUTING.md`, onboarding checklist), or N/A
 - [ ] New error paths report via `captureServerException` / the error boundary, or N/A
 - [ ] New behavior is covered by tests, or N/A
+- [ ] User-facing change → demo video attached (`record-pr-demo` skill); refactor through a user flow → parity run, or N/A
 - [ ] If this fixes a recurring defect, considered a guardrail via the `learn` skill, or N/A
 
 ## Notes

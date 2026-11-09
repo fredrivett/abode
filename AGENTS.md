@@ -29,6 +29,8 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | `bun run test:integration` | Integration tests (Testcontainers Postgres — requires Docker) | After DB / server-side changes |
 | `bun run test:all` | All vitest projects | Full vitest run |
 | `bun run test:e2e` | Playwright E2E (isolated Supabase — requires Docker) | After user-facing flow changes |
+| `bun run demo:stack` | Isolated Supabase + seeded test user + dev server for recording PR demos (requires Docker) | Recording a demo with the `record-pr-demo` skill |
+| `bun run demo:stop` | Stop the demo stack's Supabase containers | If a `demo:stack` run was killed without cleaning up |
 | `bun run test:coverage` | Vitest with coverage | Check coverage |
 | `bun run prisma:generate` | Generate Prisma client | After schema changes / fresh install |
 | `bun run prisma:format` | Format `prisma/schema.prisma` (CI checks it via `check:prisma-format`) | After schema edits (`check:fix` runs it too) |
@@ -200,14 +202,19 @@ Stories and tests do different jobs — they complement each other, neither repl
 
 When you make a styling/UI change, **visually verify it yourself — don't rely on `tsc`/tests passing.** The user sees changes live via the dev server, but you should confirm the result with a screenshot before calling it done.
 
-Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`):
+Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`). It's a pinned devDependency, so run the copy in `app/node_modules/.bin/` (first time on a machine: `app/node_modules/.bin/agent-browser install` for Chrome), and always pass `--session <checkout name>`: the default session is shared by every agent on the machine. From the repo root:
 
 ```bash
-agent-browser open http://localhost:${CONDUCTOR_PORT:-3300}
-agent-browser screenshot /tmp/check.png   # then Read the image to inspect it
+AB=app/node_modules/.bin/agent-browser
+$AB --session my-checkout open http://localhost:${CONDUCTOR_PORT:-3300}
+$AB --session my-checkout screenshot /tmp/check.png   # then Read the image to inspect it
 ```
 
-Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive. If `agent-browser` isn't installed: `npm install -g agent-browser && agent-browser install`.
+Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive.
+
+### PR demo videos
+
+**Every user-facing change ships with a demo video in its PR**, recorded with the `record-pr-demo` skill (`.agents/skills/record-pr-demo/`): a captioned recording of the flow on an isolated demo stack (`bun run demo:stack`), before and after where the old behaviour is quick to show, attached with `gh pr edit --attach` so it plays inline. For a refactor that runs through a user flow, record a parity run (the same flow on the base commit and the branch, with screenshot diffs) to prove nothing changed. Only ever record the demo stack's test data: the repo and its PR attachments are public.
 
 ### Debug trace (UX jank)
 

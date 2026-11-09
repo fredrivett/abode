@@ -23,15 +23,15 @@ All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conducto
 | +2     | Supabase DB (postgres)  | Active (E2E tests only)         |
 | +3     | Mailpit web UI          | Active (E2E tests only)         |
 | +4     | Mailpit SMTP            | Active (E2E tests only)         |
-| +5     | E2E test Next.js server | Active during `test:e2e` only   |
+| +5     | E2E / demo Next.js server | Active during `test:e2e` or `demo:stack` |
 | +6     | Studio                  | Excluded (`-x studio`)          |
 | +7     | Analytics               | Excluded (`-x logflare,vector`) |
 | +8     | Pooler                  | Disabled                        |
 | +9     | Edge Runtime            | Excluded (`-x edge-runtime`)    |
 
 - **+0** is always in use by the Conductor dev server
-- **+1 to +4** are used by the isolated Supabase instance started during E2E tests (`supabase-e2e/`)
-- **+5** is the shadow DB port in Supabase config (never bound at runtime), reused for the E2E test Next.js server
+- **+1 to +4** are used by the isolated Supabase instance started during E2E tests and `demo:stack` (`supabase-e2e/`), so the two can't run at once in one checkout
+- **+5** is the shadow DB port in Supabase config (never bound at runtime), reused for the E2E / demo Next.js server
 - **+6 to +9** are assigned in `config.toml` but services are excluded via `-x` flags and never bind
 
 ## Starting Supabase manually
@@ -43,6 +43,10 @@ If you need to start Supabase manually (outside of `bin/dev`):
 ```
 
 **Note:** This script includes a workaround for a [known Supabase bug](https://github.com/orgs/supabase/discussions/20753) where custom email templates fail to load due to a race condition. The script restarts the auth container after startup to ensure templates are loaded. This workaround can be removed once Supabase fixes the underlying issue.
+
+## Recording PR demos
+
+PRs with user-facing changes include a short demo video (see the `record-pr-demo` skill in `.agents/skills/`). Recording needs Docker, `ffmpeg` and `python3` on `PATH` (e.g. `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` on Debian/Ubuntu), GitHub CLI 2.99+ (for `gh pr edit --attach`) and agent-browser's Chrome, installed once with `app/node_modules/.bin/agent-browser install` (agent-browser itself is a devDependency). `bun run demo:stack` from `app/` starts an isolated stack with a seeded test user to record against, so videos never show your own data.
 
 ## Quality gate
 
