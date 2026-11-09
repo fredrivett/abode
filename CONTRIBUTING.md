@@ -44,6 +44,10 @@ If you need to start Supabase manually (outside of `bin/dev`):
 
 **Note:** This script includes a workaround for a [known Supabase bug](https://github.com/orgs/supabase/discussions/20753) where custom email templates fail to load due to a race condition. The script restarts the auth container after startup to ensure templates are loaded. This workaround can be removed once Supabase fixes the underlying issue.
 
+## Recording PR demos
+
+PRs with user-facing changes include a short demo video (see the `record-pr-demo` skill in `.agents/skills/`). Recording needs Docker, `ffmpeg` (`brew install ffmpeg`), GitHub CLI 2.99+ (for `gh pr edit --attach`) and agent-browser's Chrome, installed once with `app/node_modules/.bin/agent-browser install` (agent-browser itself is a devDependency). `bun run demo:stack` from `app/` starts an isolated stack with a seeded test user to record against, so videos never show your own data.
+
 ## Quality gate
 
 Run from the `app/` directory:

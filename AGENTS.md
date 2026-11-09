@@ -212,6 +212,10 @@ $AB --session my-checkout screenshot /tmp/check.png   # then Read the image to i
 
 Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive.
 
+### PR demo videos
+
+**Every user-facing change ships with a demo video in its PR**, recorded with the `record-pr-demo` skill (`.agents/skills/record-pr-demo/`): a captioned recording of the flow on an isolated demo stack (`bun run demo:stack`), before and after where the old behaviour is quick to show, attached with `gh pr edit --attach` so it plays inline. For a refactor that runs through a user flow, record a parity run (the same flow on the base commit and the branch, with screenshot diffs) to prove nothing changed. Only ever record the demo stack's test data: the repo and its PR attachments are public.
+
 ### Debug trace (UX jank)
 
 For jank (grid jumping, dialogs remounting, layout shifts), use the admin debug trace instead of guessing: open any page with `?debug=1` (admins; anyone in local dev) or toggle "Debug trace" in the admin account menu. A panel records a timeline of URL writes (with call stacks), React Query fetches/invalidations, masonry reflows (which frames moved, flashed blue), layout shifts (flashed red), slow frames, and dialog/grid mount/unmount/prop changes; "Copy" exports it as JSON. Code lives in `src/lib/debug/` + `src/components/debug/`. Instrument new suspect components with `useDebugLifecycle` / `debugTrace` (no-ops when tracing is off). When driving the app with `agent-browser`, read the trace via `window.__abodeDebugTrace.export().events` (and `.clear()` before reproducing) instead of the clipboard.

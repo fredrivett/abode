@@ -2,6 +2,9 @@
 /coverage
 supabase-e2e/supabase/config.toml
 
+# PR demo recordings (record-pr-demo skill)
+/.demos/
+
 # misc
 .DS_Store
 .supabase
