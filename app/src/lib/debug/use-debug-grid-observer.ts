@@ -140,6 +140,8 @@ export function useDebugGridObserver(): (node: HTMLElement | null) => void {
       childList: true,
       attributeFilter: ["style"],
     });
+    // Check a grid that's already settled when tracing turns on
+    timer = setTimeout(settle, SETTLE_MS);
 
     return () => {
       observer.disconnect();
