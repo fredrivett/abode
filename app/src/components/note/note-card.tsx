@@ -68,6 +68,9 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
             style={{ fontSize: NOTE_PROSE_FONT_SIZE }}
             options={{
               forceBlock: true,
+              // Keep the wrapper (and its prose class and font size) even when
+              // the note is a single paragraph
+              forceWrapper: true,
               overrides: { a: InlineText, input: TaskCheckbox },
             }}
           >

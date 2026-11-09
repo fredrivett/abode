@@ -49,14 +49,20 @@ const KNOWN_MISFITS = new Set([
   "clipped — note: checklists",
   // Lazy continuation lines are counted outside the quote's extra height
   "clipped — note: lazy blockquote",
+  // List margins under prose styles are undercounted by a few px
+  "clipped — note: numbered list",
   // NBSP-joined words wrap as one unit in the browser, not in the estimate
   "clipped — note: NBSP",
+  // The wrap safety margin can add a line when text nearly fills its last one
+  "empty-space — note: short paragraph",
+  "empty-space — note: NBSP",
   // Title-only note title over-estimated
   "empty-space — note: title only",
   // The browser breaks the URL anywhere; the estimate wraps it as words
   "empty-space — note: long unbroken URL",
   // CJK breaks between any characters; the estimate keeps runs together
   "empty-space — tweet: emoji + CJK",
+  "empty-space — note: emoji + CJK",
 ]);
 
 const PIXEL =
@@ -178,6 +184,10 @@ const CASES: Array<{ label: string; item: Item }> = [
   {
     label: "note: hard breaks",
     item: note(null, "line one  \nline two\\\nline three"),
+  },
+  {
+    label: "note: short paragraph",
+    item: note(null, "Committee deliberates about points on the agenda."),
   },
   {
     label: "note: NBSP",

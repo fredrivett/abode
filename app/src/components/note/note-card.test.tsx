@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { NoteCard } from "./note-card";
+import { NOTE_PROSE_FONT_SIZE } from "./note-prose";
 
 describe("NoteCard", () => {
   it("clamps the title as a heading when a body follows it", () => {
@@ -15,6 +16,17 @@ describe("NoteCard", () => {
     expect(
       screen.getByText("A long title with no body at all"),
     ).not.toHaveClass("line-clamp-2");
+  });
+
+  it("keeps the prose styles on a single-paragraph body", () => {
+    // markdown-to-jsx drops the wrapper (and its class and font size) around a
+    // lone block unless forced, so the text rendered larger than estimated
+    render(<NoteCard title={null} content="Just one paragraph." />);
+    const prose = screen
+      .getByText("Just one paragraph.")
+      .closest(".note-prose");
+    expect(prose).not.toBeNull();
+    expect(prose).toHaveStyle({ fontSize: NOTE_PROSE_FONT_SIZE });
   });
 
   it("shows the empty-note placeholder with no title or body", () => {
