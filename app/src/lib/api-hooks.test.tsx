@@ -9,6 +9,7 @@ import { createElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "./api-client";
 import {
+  CREATED_ITEM_RETRY_DELAYS_MS,
   ITEMS_QUERY_KEY,
   useItemsInfinite,
   useRevealCreatedItem,
@@ -76,7 +77,10 @@ describe("useRevealCreatedItem", () => {
   // The dashboard's full list, mounted, plus the reveal callback
   function setup({ showList = true }: { showList?: boolean } = {}) {
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      // Fresh initial data: no mount fetch, so every api.get is a reveal attempt
+      defaultOptions: {
+        queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      },
     });
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children);
@@ -108,6 +112,7 @@ describe("useRevealCreatedItem", () => {
 
     await reveal(() => result.current("new"));
 
+    // Two stale lists, then the one with the new item
     expect(api.get).toHaveBeenCalledTimes(3);
     expect(posthog.captureException).not.toHaveBeenCalled();
   });
@@ -118,6 +123,10 @@ describe("useRevealCreatedItem", () => {
 
     await reveal(() => result.current("new"));
 
+    // The first check plus one per retry
+    expect(api.get).toHaveBeenCalledTimes(
+      CREATED_ITEM_RETRY_DELAYS_MS.length + 1,
+    );
     expect(posthog.captureException).toHaveBeenCalledTimes(1);
   });
 

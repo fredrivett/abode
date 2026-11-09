@@ -11,7 +11,7 @@ const m = vi.hoisted(() => ({
   remove: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
-  invalidate: vi.fn(),
+  reveal: vi.fn(),
   preview: vi.fn(),
   isDailyLimitError: vi.fn(),
   capture: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock("@/stores/milestone-store", () => ({
   useMilestoneStore: { getState: () => ({ markComplete: m.markComplete }) },
 }));
 vi.mock("@/lib/api-hooks", () => ({
-  useRevealCreatedItem: () => m.invalidate,
+  useRevealCreatedItem: () => m.reveal,
 }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -109,7 +109,7 @@ describe("useSaveScannedDocument", () => {
     expect(body.pages[0].fileKey).not.toBe(body.pages[0].originalFileKey);
     expect(body.pages[1].originalFileKey).toBe(body.pages[1].fileKey);
     expect(m.success).toHaveBeenCalledWith("Document saved (2 pages)");
-    expect(m.invalidate).toHaveBeenCalled();
+    expect(m.reveal).toHaveBeenCalledWith("item-1");
     expect(m.markComplete).toHaveBeenCalledWith("scan_first_document");
   });
 
@@ -199,7 +199,7 @@ describe("useSaveScannedDocument", () => {
     m.pathname = "/rooms/abc";
     await save([page()]);
     expect(m.push).toHaveBeenCalledWith("/dashboard");
-    expect(m.invalidate).not.toHaveBeenCalled();
+    expect(m.reveal).not.toHaveBeenCalled();
   });
 
   it("requires a signed-in user", async () => {
