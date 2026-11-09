@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Conductor workspace setup. Runs once when a workspace is created.
+# Worktree setup. Runs once when a worktree is created (Orca's orca.yaml
+# `scripts.setup`, or Conductor's setup script).
 #
 # Steps:
 #   1. Symlink workspace .env.local from the root checkout's .env.local
@@ -9,11 +10,13 @@
 
 set -euo pipefail
 
+source "$(dirname "$0")/root-path.sh"
+
 # 1. Link workspace .env.local <- root checkout .env.local
-if [ -n "${CONDUCTOR_ROOT_PATH:-}" ] && [ -f "$CONDUCTOR_ROOT_PATH/.env.local" ]; then
-  ln -sf "$CONDUCTOR_ROOT_PATH/.env.local" .env.local
+if [ "$root_path" != "$(pwd)" ] && [ -f "$root_path/.env.local" ]; then
+  ln -sf "$root_path/.env.local" .env.local
 else
-  echo "Missing CONDUCTOR_ROOT_PATH/.env.local; skipping link"
+  echo "No .env.local in root checkout ($root_path); skipping link"
 fi
 
 # 2. Link app/.env <- workspace .env.local
