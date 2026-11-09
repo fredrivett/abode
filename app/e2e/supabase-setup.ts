@@ -101,7 +101,7 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:${basePort}"
-additional_redirect_urls = ["https://127.0.0.1:${basePort}", "http://localhost:${basePort}/auth/confirm", "http://127.0.0.1:${basePort}/auth/confirm"]
+additional_redirect_urls = ["https://127.0.0.1:${basePort}", "http://localhost:${basePort}/auth/confirm", "http://127.0.0.1:${basePort}/auth/confirm", "http://localhost:${basePort + 5}/auth/confirm", "http://127.0.0.1:${basePort + 5}/auth/confirm"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10

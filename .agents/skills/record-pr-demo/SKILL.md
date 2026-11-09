@@ -18,7 +18,8 @@ A reviewer should watch the video once, with no narration, and know what changed
 - **Docker** running (the demo stack runs its own Supabase).
 - `cd app && bun install`. agent-browser is a pinned devDependency; `demo.sh` calls that copy, not a global one.
 - **Chrome for agent-browser**, once per machine: `app/node_modules/.bin/agent-browser install` (add `--with-deps` on Linux).
-- **ffmpeg** on `PATH` (recording needs it): `brew install ffmpeg`.
+- **ffmpeg** on `PATH` (recording needs it): `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` on Debian/Ubuntu.
+- **python3** on `PATH` (`demo.sh` uses it to escape caption text and read agent-browser's JSON output).
 - **gh 2.99 or newer**, for `--attach` (`gh --version`).
 - For the general command reference: `app/node_modules/.bin/agent-browser skills get core`.
 
@@ -36,7 +37,7 @@ Run it in the background with the longest timeout available, and wait for `[demo
 - Background processing (Trigger.dev) doesn't run against it. Saved links stay unprocessed, so prefer fixtures that don't need enrichment (notes, rooms, settings), or say in a caption that the item would process in production.
 - Without a per-checkout `CONDUCTOR_PORT`, every checkout uses the same ports, so only one demo stack can run at a time.
 
-When you're done, stop it: end the background task (SIGTERM stops the dev server and Supabase), then run `bun run demo:stop` in case cleanup didn't run.
+When you're done, stop it: end the background task (SIGTERM stops the dev server and Supabase), then run `cd app && bun run demo:stop` in case cleanup didn't run.
 
 ## 2. Log in before recording
 
@@ -48,7 +49,7 @@ demo_login                      # 1440×900, light mode, test user, lands on /da
 ab open "$DEMO_URL/<start page>"
 ```
 
-For a dark-mode change, `ab set media dark` after logging in. `ab` is the pinned agent-browser, on a session named after this checkout (`AGENT_BROWSER_SESSION`): the default session is shared by every agent on the machine and can be taken over mid-take.
+For a dark-mode change, `ab set media dark` after logging in. `ab` is the pinned agent-browser, on a session unique to this checkout (`AGENT_BROWSER_SESSION`, derived from its path unless you set it): the default session is shared by every agent on the machine and can be taken over mid-take.
 
 Create fixtures through the app from the page (`ab eval "fetch('/api/...', { method: 'POST', ... })"`) or the UI, so each take starts from a known state.
 
@@ -71,7 +72,7 @@ Say which you picked and why, so the user can ask for another.
 1. Commit your work (a WIP commit is fine; never a bare `git stash`, the stash is shared with other checkouts).
 2. Check out the PR's base commit, so the only difference between the takes is the PR: `git checkout --detach "$(git merge-base origin/main HEAD)"` (for a stacked PR, the merge-base with the PR below it).
 3. Start the demo stack (step 1) on the base, log in, record the before take with `DEMO_TAKE=before`.
-4. `git checkout <branch>`. If `app/package.json`, `app/bun.lock` or `app/prisma/` differ from the base, run `bun install` / `bun run prisma:generate` and restart the stack (it starts empty, so re-create fixtures). Otherwise the dev server picks the change up; reload the page.
+4. `git checkout <branch>`. If `app/package.json`, `app/bun.lock` or `app/prisma/` differ from the base, run `cd app && bun install && bun run prisma:generate` and restart the stack (it starts empty, so re-create fixtures). Otherwise the dev server picks the change up; reload the page.
 5. Record the after take with `DEMO_TAKE=after`, using the same script.
 
 Prefix each take's captions with "❌ Before · " or "✅ After · " so a reviewer who skips ahead knows which code they're watching. For parity, use "Base · " and "This PR · ".
@@ -141,4 +142,4 @@ Then `gh pr view <number> --json body` to check every local path became a `githu
 
 - **Hidden file inputs:** uploads usually go through a hidden `<input type="file">`. `glide` to the visible button for the cursor, then `ab upload '<input selector>' <files>`.
 - **Clicks refuse to land under an overlay:** agent-browser won't click a covered element (a Next.js error overlay, an open dialog). Check `ab errors` and fix the page first.
-- **Login fails:** check the demo stack's output. A stack that was killed without cleanup can leave containers running: `bun run demo:stop`, then start it again.
+- **Login fails:** check the demo stack's output. A stack that was killed without cleanup can leave containers running: `cd app && bun run demo:stop`, then start it again.

@@ -110,6 +110,9 @@ async function main() {
         DATABASE_URL: status.DB_URL,
         DIRECT_URL: status.DB_URL,
         NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
+        // The app prefers these when set, so pin them too or a value from .env could point it elsewhere
+        SUPABASE_URL: status.API_URL,
+        READ_REPLICA_DATABASE_URL: "",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
         SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
         RESEND_API_KEY: "re_demo_placeholder_not_real",

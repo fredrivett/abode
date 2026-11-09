@@ -46,7 +46,7 @@ If you need to start Supabase manually (outside of `bin/dev`):
 
 ## Recording PR demos
 
-PRs with user-facing changes include a short demo video (see the `record-pr-demo` skill in `.agents/skills/`). Recording needs Docker, `ffmpeg` (`brew install ffmpeg`), GitHub CLI 2.99+ (for `gh pr edit --attach`) and agent-browser's Chrome, installed once with `app/node_modules/.bin/agent-browser install` (agent-browser itself is a devDependency). `bun run demo:stack` from `app/` starts an isolated stack with a seeded test user to record against, so videos never show your own data.
+PRs with user-facing changes include a short demo video (see the `record-pr-demo` skill in `.agents/skills/`). Recording needs Docker, `ffmpeg` and `python3` on `PATH` (e.g. `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` on Debian/Ubuntu), GitHub CLI 2.99+ (for `gh pr edit --attach`) and agent-browser's Chrome, installed once with `app/node_modules/.bin/agent-browser install` (agent-browser itself is a devDependency). `bun run demo:stack` from `app/` starts an isolated stack with a seeded test user to record against, so videos never show your own data.
 
 ## Quality gate
 

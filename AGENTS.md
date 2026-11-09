@@ -202,7 +202,7 @@ Stories and tests do different jobs — they complement each other, neither repl
 
 When you make a styling/UI change, **visually verify it yourself — don't rely on `tsc`/tests passing.** The user sees changes live via the dev server, but you should confirm the result with a screenshot before calling it done.
 
-Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`). It's a pinned devDependency, so run the copy in `app/node_modules/.bin/` (first time on a machine: `app/node_modules/.bin/agent-browser install` for Chrome), and always pass `--session <checkout name>`: the default session is shared by every agent on the machine.
+Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`). It's a pinned devDependency, so run the copy in `app/node_modules/.bin/` (first time on a machine: `app/node_modules/.bin/agent-browser install` for Chrome), and always pass `--session <checkout name>`: the default session is shared by every agent on the machine. From the repo root:
 
 ```bash
 AB=app/node_modules/.bin/agent-browser

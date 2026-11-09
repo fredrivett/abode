@@ -22,8 +22,9 @@
 
 _demo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-# A named session per checkout: the default agent-browser session is shared by every agent on the machine
-export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-demo-$(basename "$_demo_root")}"
+# A named session per checkout (name plus a hash of its full path, as checkouts of different repos can share
+# a directory name): the default agent-browser session is shared by every agent on the machine
+export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-demo-$(basename "$_demo_root")-$(printf '%s' "$_demo_root" | cksum | cut -d' ' -f1)}"
 DEMO_URL="${DEMO_URL:-http://localhost:$((${CONDUCTOR_PORT:-3300} + 5))}"
 DEMO_DIR="${DEMO_DIR:-$_demo_root/.demos}"
 DEMO_MAX_BYTES="${DEMO_MAX_BYTES:-9500000}"
@@ -34,7 +35,8 @@ mkdir -p "$DEMO_DIR"
 # The version pinned in app/package.json, not whatever is installed globally
 ab() {
   local bin="$_demo_root/app/node_modules/.bin/agent-browser"
-  if [ -x "$bin" ]; then "$bin" "$@"; else agent-browser "$@"; fi
+  [ -x "$bin" ] || { echo "ab: agent-browser isn't installed; run \`cd app && bun install\`" >&2; return 127; }
+  "$bin" "$@"
 }
 
 _js_string() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"; }
@@ -166,7 +168,7 @@ glide() {
   fi
   [ -n "$centre" ] || { echo "glide: $target isn't on screen; scroll to it with wheel_over first" >&2; return 1; }
   # shellcheck disable=SC2086 # two coordinates
-  ab mouse move $centre >/dev/null
+  ab mouse move $centre >/dev/null || return 1
   _demo_pointer=$centre
 }
 
@@ -176,7 +178,7 @@ wheel_over() {
   glide "$1" || return 1
   step=$(($2 / 6))
   for _ in 1 2 3 4 5 6; do
-    ab mouse wheel "$step" >/dev/null
+    ab mouse wheel "$step" >/dev/null || return 1
     sleep 0.06
   done
 }
@@ -230,7 +232,7 @@ stop_recording() {
     delete window.__demoClickRing;
   })()" >/dev/null
   ab --input-mode instant get url >/dev/null
-  _fit_video "$file"
+  _fit_video "$file" || return 1
   ffmpeg -v error -y -sseof -0.2 -i "$file" -frames:v 1 -update 1 "${file%.*}.png"
   echo "$file ($(($(wc -c <"$file") / 1024)) KB), last frame: ${file%.*}.png"
 }
