@@ -399,6 +399,15 @@ describe("layoutMasonry invariants", () => {
         `${key} sticks out of the container`,
       );
     });
+    // Columns sit one column-plus-gap apart, so no two share horizontal space
+    const columns = [...xByColumn.entries()].sort(([a], [b]) => a - b);
+    columns.slice(1).forEach(([column, x], i) => {
+      const [prevColumn, prevX] = columns[i];
+      check(
+        close(x - prevX, (column - prevColumn) * (columnWidth + gap)),
+        `column ${column} isn't spaced from column ${prevColumn}`,
+      );
+    });
     const tallest = Math.max(0, ...bottoms);
     check(
       close(layout.height, tallest > 0 ? tallest - gap : 0),
