@@ -200,14 +200,15 @@ Stories and tests do different jobs — they complement each other, neither repl
 
 When you make a styling/UI change, **visually verify it yourself — don't rely on `tsc`/tests passing.** The user sees changes live via the dev server, but you should confirm the result with a screenshot before calling it done.
 
-Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`):
+Use [`agent-browser`](https://github.com/vercel-labs/agent-browser) (headless, bundled Chrome — no extension needed) against the running dev server (port `${CONDUCTOR_PORT}`, falls back to `3300`). It's a pinned devDependency, so run the copy in `app/node_modules/.bin/` (first time on a machine: `app/node_modules/.bin/agent-browser install` for Chrome), and always pass `--session <checkout name>`: the default session is shared by every agent on the machine.
 
 ```bash
-agent-browser open http://localhost:${CONDUCTOR_PORT:-3300}
-agent-browser screenshot /tmp/check.png   # then Read the image to inspect it
+AB=app/node_modules/.bin/agent-browser
+$AB --session my-checkout open http://localhost:${CONDUCTOR_PORT:-3300}
+$AB --session my-checkout screenshot /tmp/check.png   # then Read the image to inspect it
 ```
 
-Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive. If `agent-browser` isn't installed: `npm install -g agent-browser && agent-browser install`.
+Add `--full` for the whole page. Check both light and dark mode, and a narrow viewport for anything layout-sensitive.
 
 ### Debug trace (UX jank)
 
