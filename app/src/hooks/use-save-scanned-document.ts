@@ -5,7 +5,7 @@ import posthog from "posthog-js";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { ApiClientError, api, isDailyLimitError } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRevealCreatedItem } from "@/lib/api-hooks";
 import type { CreateDocumentBody } from "@/lib/documents/create-document-schema";
 import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
@@ -41,7 +41,7 @@ async function coverBlur(page: FinishedScanPage): Promise<string | undefined> {
  */
 export function useSaveScannedDocument() {
   const supabase = useMemo(() => createClient(), []);
-  const invalidateItems = useInvalidateItems();
+  const revealCreatedItem = useRevealCreatedItem();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -109,7 +109,10 @@ export function useSaveScannedDocument() {
           ...(blurDataUrl ? { blurDataUrl } : {}),
         };
         requestSent = true;
-        await api.post("/api/v1/items/documents", body);
+        const created = await api.post<{ id: string }>(
+          "/api/v1/items/documents",
+          body,
+        );
 
         useMilestoneStore.getState().markComplete("scan_first_document");
         toast.success(
@@ -118,7 +121,7 @@ export function useSaveScannedDocument() {
             : `Document saved (${pageCount} pages)`,
         );
         if (pathname === "/" || pathname.startsWith("/dashboard")) {
-          invalidateItems();
+          void revealCreatedItem(created.id);
         } else {
           router.push("/dashboard");
         }
@@ -141,6 +144,6 @@ export function useSaveScannedDocument() {
         return false;
       }
     },
-    [supabase, invalidateItems, router, pathname],
+    [supabase, revealCreatedItem, router, pathname],
   );
 }

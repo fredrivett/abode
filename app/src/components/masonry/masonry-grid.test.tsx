@@ -177,6 +177,27 @@ describe("MasonryGrid", () => {
     expect(cell("new").style.height).toBe("100px");
   });
 
+  it("shows a grown-in item even when animation frames never run (hidden tab)", async () => {
+    // Background tabs pause rAF but still run timers
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    const grid = (items: Card[]) => (
+      <Grid
+        items={items}
+        animate
+        shouldGrowIn={(card) => card.fresh === true}
+      />
+    );
+    const row = [square("a"), square("b"), square("c")];
+    const { rerender } = render(grid(row));
+    rerender(grid([square("new", { fresh: true }), ...row]));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    expect(cell("new").style.height).toBe("100px");
+    expect(cell("new").style.opacity).toBe("1");
+  });
+
   it("doesn't grow in items present on the first layout", () => {
     render(
       <Grid

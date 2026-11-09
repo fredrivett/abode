@@ -9,7 +9,7 @@ const m = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   capture: vi.fn(),
-  invalidate: vi.fn(),
+  reveal: vi.fn(),
   markComplete: vi.fn(),
 }));
 
@@ -21,7 +21,9 @@ vi.mock("@/lib/api-client", () => ({
   api: { post: m.apiPost },
   isDailyLimitError: () => false,
 }));
-vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => m.invalidate }));
+vi.mock("@/lib/api-hooks", () => ({
+  useRevealCreatedItem: () => m.reveal,
+}));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: { getUser: m.getUser },
@@ -88,6 +90,7 @@ describe("useUpload with a PDF", () => {
     expect(m.toastSuccess).toHaveBeenCalledWith(
       "PDF added — reading its pages",
     );
+    expect(m.reveal).toHaveBeenCalledWith("item-1");
   });
 
   it("captures a pdf_uploaded event with where it came from", async () => {

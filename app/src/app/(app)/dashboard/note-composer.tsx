@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import { api } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { isBlankNote } from "@/lib/items/note-title";
 import { createLogger } from "@/lib/logger.client";
@@ -49,7 +49,7 @@ type NoteComposerProps = {
  * saved.
  */
 export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
-  const invalidateItems = useInvalidateItems();
+  const revealCreatedItem = useRevealCreatedItem();
   const initialContent = initialDraft ?? "";
   const [markdown, setMarkdown] = useState(initialContent);
   // The content the editor mounts with — the initial draft, reset to "" on
@@ -160,10 +160,12 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     setIsSaving(true);
     try {
       // Creating the note clears its server draft in the same request
-      await api.post("/api/v1/items/notes", { content: markdown });
+      const created = await api.post<{ id: string }>("/api/v1/items/notes", {
+        content: markdown,
+      });
       posthog.capture("note_created", { source: "composer" });
       useMilestoneStore.getState().markComplete("write_first_note");
-      invalidateItems();
+      void revealCreatedItem(created.id);
       resetComposer();
       clearConfirm.reset();
       toast.success("Note saved");
@@ -177,7 +179,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     isEmpty,
     isSaving,
     markdown,
-    invalidateItems,
+    revealCreatedItem,
     resetComposer,
     clearConfirm.reset,
   ]);

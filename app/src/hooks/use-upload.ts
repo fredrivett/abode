@@ -5,7 +5,7 @@ import posthog from "posthog-js";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api, isDailyLimitError } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
@@ -57,7 +57,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
-  const invalidateItems = useInvalidateItems();
+  const revealCreatedItem = useRevealCreatedItem();
   const [isUrlLoading, setIsUrlLoading] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(false);
 
@@ -78,11 +78,14 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
 
       setIsUrlLoading(true);
       try {
-        await api.post("/api/v1/items/from-url", { url });
+        const created = await api.post<{ id: string }>(
+          "/api/v1/items/from-url",
+          { url },
+        );
         toast.success("URL added — processing in background");
         useMilestoneStore.getState().markComplete("save_first_url");
         if (isOnDashboard) {
-          invalidateItems();
+          void revealCreatedItem(created.id);
         } else {
           router.push("/dashboard");
         }
@@ -100,7 +103,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         setIsUrlLoading(false);
       }
     },
-    [router, invalidateItems, onSuccess, onError, isOnDashboard],
+    [router, revealCreatedItem, onSuccess, onError, isOnDashboard],
   );
 
   const handleFileUpload = useCallback(
@@ -171,19 +174,20 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
           return false;
         }
 
+        let created: { id: string };
         try {
           if (isPdf) {
-            const item = await api.post<{ id: string }>(
+            created = await api.post<{ id: string }>(
               "/api/v1/items/documents/pdf",
               { fileKey: objectPath, originalName: file.name, size: file.size },
             );
             posthog.capture("pdf_uploaded", {
-              item_id: item.id,
+              item_id: created.id,
               file_size: file.size,
               source,
             });
           } else {
-            await api.post("/api/v1/items", {
+            created = await api.post<{ id: string }>("/api/v1/items", {
               kind: "image",
               fileKey: objectPath,
               meta: {
@@ -209,7 +213,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
           useMilestoneStore.getState().markComplete("upload_first_image");
         }
         if (isOnDashboard) {
-          invalidateItems();
+          void revealCreatedItem(created.id);
         } else {
           router.push("/dashboard");
         }
@@ -227,7 +231,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         setIsFileLoading(false);
       }
     },
-    [router, supabase, invalidateItems, onSuccess, onError, isOnDashboard],
+    [router, supabase, revealCreatedItem, onSuccess, onError, isOnDashboard],
   );
 
   return {

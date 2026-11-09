@@ -203,10 +203,12 @@ function MasonryCell({
     // Expand on the next frame so the collapsed state paints first and the
     // height transitions from zero
     const raf = requestAnimationFrame(() => setExpanded(true));
-    const done = setTimeout(
-      () => setGrowing(false),
-      MASONRY_TRANSITION_MS + 60,
-    );
+    // Expand here too: hidden tabs pause rAF, and this re-render cancels it,
+    // which would leave the cell collapsed and invisible until a reload
+    const done = setTimeout(() => {
+      setExpanded(true);
+      setGrowing(false);
+    }, MASONRY_TRANSITION_MS + 60);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(done);
