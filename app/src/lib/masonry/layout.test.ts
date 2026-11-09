@@ -314,3 +314,293 @@ describe("layoutMasonry", () => {
     });
   });
 });
+
+/**
+ * Random sequences of the edits the grid really sees, checking after every
+ * step the invariants a user notices: cards never overlap or leave holes, and
+ * an edit only moves the cards it has to. Edits mirror the app: pages append
+ * (replacing their loading skeletons), new items arrive at the top (below the
+ * pinned composer), any item can be deleted or change shape (processing
+ * finishing, an edit), and resizing or a density change relays out.
+ */
+describe("layoutMasonry invariants", () => {
+  const SEEDS = 300;
+  const STEPS = 40;
+  const GAP = 10;
+
+  // mulberry32: small seeded PRNG so a failure replays from its seed
+  function random(seed: number) {
+    let state = seed;
+    return () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  type Geometry = { columnCount: number; columnWidth: number; gap: number };
+  type Step =
+    | { type: "loadPage"; skeletons: number; added: number }
+    | { type: "insertTop" }
+    | { type: "delete"; key: string }
+    | { type: "reshape"; key: string }
+    | { type: "resize" };
+
+  const COMPOSER = "composer";
+
+  // Plain checks: `expect` per card per step is too slow for this many runs
+  function check(ok: boolean, message: string): void {
+    if (!ok) throw new Error(message);
+  }
+  const close = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+
+  function heightOf(frame: MasonryFrame, { columnWidth }: Geometry) {
+    return (columnWidth * frame.height) / frame.width;
+  }
+
+  /** Cards packed top-down per column, in list order, inside the container */
+  function checkStructure(
+    frames: readonly MasonryFrame[],
+    layout: MasonryLayout,
+    geometry: Geometry,
+  ) {
+    const { columnCount, columnWidth, gap } = geometry;
+    check(
+      layout.placements.map((p) => p.key).join() ===
+        frames.map((f) => f.key).join(),
+      "placements aren't the frames in order",
+    );
+    const bottoms = new Array<number>(columnCount).fill(0);
+    const xByColumn = new Map<number, number>();
+    const containerWidth = columnCount * columnWidth + (columnCount - 1) * gap;
+    layout.placements.forEach((placement, index) => {
+      const frame = frames[index];
+      const { key, column } = placement;
+      check(column >= 0 && column < columnCount, `${key} off the grid`);
+      if (frame.column !== undefined) {
+        const pinned = Math.min(Math.max(0, frame.column), columnCount - 1);
+        check(column === pinned, `${key} left its pinned column`);
+      }
+      check(placement.width === columnWidth, `${key} isn't column width`);
+      check(
+        close(placement.height, heightOf(frame, geometry)),
+        `${key} isn't its frame's aspect`,
+      );
+      // Directly below the previous card in its column: no overlap, no hole
+      check(close(placement.y, bottoms[column]), `${key} overlaps or gaps`);
+      bottoms[column] += placement.height + gap;
+      const x = xByColumn.get(column) ?? placement.x;
+      check(placement.x === x, `${key} is out of line with its column`);
+      xByColumn.set(column, x);
+      check(
+        placement.x >= -0.5 &&
+          placement.x + columnWidth <= containerWidth + 0.5,
+        `${key} sticks out of the container`,
+      );
+    });
+    const tallest = Math.max(0, ...bottoms);
+    check(
+      close(layout.height, tallest > 0 ? tallest - gap : 0),
+      "height isn't the tallest column",
+    );
+  }
+
+  /** Laid out exactly like `fresh`, a layout with no history (a reload) */
+  function checkSame(layout: MasonryLayout, fresh: MasonryLayout) {
+    layout.placements.forEach((p, index) => {
+      const q = fresh.placements[index];
+      check(
+        p.column === q.column && close(p.x, q.x) && close(p.y, q.y),
+        `${p.key} isn't where a reload puts it`,
+      );
+    });
+  }
+
+  /** Every card in `keys` kept its column and its y, shifted by `dy(key)` */
+  function checkKept(
+    before: MasonryLayout,
+    after: MasonryLayout,
+    keys: Iterable<string>,
+    dy: (key: string) => number = () => 0,
+  ) {
+    const was = new Map(before.placements.map((p) => [p.key, p]));
+    const now = new Map(after.placements.map((p) => [p.key, p]));
+    for (const key of keys) {
+      const [a, b] = [was.get(key), now.get(key)];
+      if (!a || !b) throw new Error(`${key} missing`);
+      check(b.column === a.column, `${key} changed column`);
+      check(close(b.y, a.y + dy(key)), `${key} moved ${b.y - a.y - dy(key)}px`);
+    }
+  }
+
+  /** Cards after `key` in its column move by `delta`; nothing else moves */
+  function checkColumnShift(
+    before: MasonryLayout,
+    after: MasonryLayout,
+    key: string,
+    delta: number,
+  ) {
+    const index = before.placements.findIndex((p) => p.key === key);
+    const { column } = before.placements[index];
+    const below = new Set(
+      before.placements
+        .slice(index + 1)
+        .filter((p) => p.column === column)
+        .map((p) => p.key),
+    );
+    checkKept(
+      before,
+      after,
+      after.placements.map((p) => p.key).filter((k) => k !== key),
+      (k) => (below.has(k) ? delta : 0),
+    );
+  }
+
+  function run(seed: number) {
+    const rand = random(seed);
+    const pick = <T>(values: readonly T[]) =>
+      values[Math.floor(rand() * values.length)];
+    let nextId = 0;
+    const frame = (prefix = "i"): MasonryFrame => ({
+      key: `${prefix}${nextId++}`,
+      width: 1,
+      // Short text cards to tall portraits
+      height: 0.3 + rand() * 2.7,
+    });
+    const randomGeometry = (): Geometry => ({
+      ...masonryColumns({
+        containerWidth: 200 + rand() * 1400,
+        minColumnWidth: pick([120, 180, 240, 320]),
+        gap: GAP,
+      }),
+      gap: GAP,
+    });
+
+    let geometry = randomGeometry();
+    const hasComposer = rand() < 0.5;
+    let frames: MasonryFrame[] = [
+      ...(hasComposer
+        ? [{ key: COMPOSER, width: 1, height: 1, column: 0 }]
+        : []),
+      ...Array.from({ length: Math.floor(rand() * 20) }, () => frame()),
+    ];
+    let layout = layoutMasonry({ frames, ...geometry });
+    const history: string[] = [];
+    checkStructure(frames, layout, geometry);
+
+    for (let step = 0; step < STEPS; step++) {
+      const items = frames.filter((f) => f.column === undefined);
+      const roll = rand();
+      const action: Step =
+        roll < 0.25
+          ? {
+              type: "loadPage",
+              skeletons: Math.floor(rand() * 6),
+              added: Math.floor(rand() * 12),
+            }
+          : roll < 0.45
+            ? { type: "insertTop" }
+            : roll < 0.65 && items.length > 0
+              ? { type: "delete", key: pick(items).key }
+              : roll < 0.9 && items.length > 0
+                ? { type: "reshape", key: pick(items).key }
+                : { type: "resize" };
+      history.push(JSON.stringify(action));
+
+      try {
+        const before = layout;
+        if (action.type === "loadPage") {
+          // Skeletons tease the page, then the page replaces them
+          const skeletons = Array.from({ length: action.skeletons }, () =>
+            frame("s"),
+          );
+          const withSkeletons = [...frames, ...skeletons];
+          const teased = layoutMasonry({
+            frames: withSkeletons,
+            ...geometry,
+            previous: before,
+          });
+          checkStructure(withSkeletons, teased, geometry);
+          checkKept(before, teased, before.columns.keys());
+          const added = Array.from({ length: action.added }, () => frame());
+          frames = [...frames, ...added];
+          layout = layoutMasonry({ frames, ...geometry, previous: teased });
+          checkStructure(frames, layout, geometry);
+          checkKept(before, layout, before.columns.keys());
+          // Each new card went into the shortest column at its turn
+          const bottoms = new Array<number>(geometry.columnCount).fill(0);
+          for (const placement of layout.placements) {
+            if (added.some((f) => f.key === placement.key)) {
+              check(
+                placement.y <= Math.min(...bottoms) + 0.5,
+                `${placement.key} skipped a shorter column`,
+              );
+            }
+            bottoms[placement.column] += placement.height + GAP;
+          }
+        } else if (action.type === "insertTop") {
+          const at = hasComposer ? 1 : 0;
+          frames = [...frames.slice(0, at), frame(), ...frames.slice(at)];
+          layout = layoutMasonry({ frames, ...geometry, previous: before });
+          checkStructure(frames, layout, geometry);
+          // Lands where a reload would put it
+          checkSame(layout, layoutMasonry({ frames, ...geometry }));
+        } else if (action.type === "delete") {
+          const removed = before.placements.find((p) => p.key === action.key);
+          frames = frames.filter((f) => f.key !== action.key);
+          layout = layoutMasonry({ frames, ...geometry, previous: before });
+          checkStructure(frames, layout, geometry);
+          checkColumnShift(
+            before,
+            layout,
+            action.key,
+            -((removed?.height ?? 0) + GAP),
+          );
+        } else if (action.type === "reshape") {
+          const old = frames.find((f) => f.key === action.key);
+          const reshaped = {
+            ...(old as MasonryFrame),
+            height: 0.3 + rand() * 2.7,
+          };
+          frames = frames.map((f) => (f.key === action.key ? reshaped : f));
+          layout = layoutMasonry({ frames, ...geometry, previous: before });
+          checkStructure(frames, layout, geometry);
+          checkColumnShift(
+            before,
+            layout,
+            action.key,
+            heightOf(reshaped, geometry) -
+              heightOf(old as MasonryFrame, geometry),
+          );
+        } else {
+          const resized = randomGeometry();
+          layout = layoutMasonry({ frames, ...resized, previous: before });
+          checkStructure(frames, layout, resized);
+          // A new column count reflows like a reload; the same count keeps columns
+          if (resized.columnCount !== geometry.columnCount) {
+            checkSame(layout, layoutMasonry({ frames, ...resized }));
+          } else {
+            // Heights scale with the column width, so only columns hold
+            for (const [key, column] of before.columns) {
+              check(
+                layout.columns.get(key) === column,
+                `${key} changed column`,
+              );
+            }
+          }
+          geometry = resized;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `seed ${seed}, after:\n  ${history.join("\n  ")}\n${message}`,
+        );
+      }
+    }
+  }
+
+  it("holds across random sequences of real grid edits", () => {
+    for (let seed = 1; seed <= SEEDS; seed++) run(seed);
+  });
+});
