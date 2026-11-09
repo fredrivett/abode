@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { getImagePreview } from "@/lib/image-preview";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
@@ -29,7 +29,7 @@ const log = createLogger("dashboard/upload-widget");
 export function UploadWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo(() => createClient(), []);
-  const invalidateItems = useInvalidateItems();
+  const revealCreatedItem = useRevealCreatedItem();
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -103,8 +103,9 @@ export function UploadWidget() {
         return;
       }
 
+      let created: { id: string };
       try {
-        await api.post("/api/v1/items", {
+        created = await api.post<{ id: string }>("/api/v1/items", {
           kind: "image",
           fileKey: objectPath,
           meta: {
@@ -136,7 +137,7 @@ export function UploadWidget() {
 
       toast.success("Upload complete");
       resetFile();
-      invalidateItems();
+      void revealCreatedItem(created.id);
     } catch (error) {
       log.error({ error }, "Upload error");
       posthog.captureException(error);

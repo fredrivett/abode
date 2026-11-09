@@ -21,7 +21,9 @@ vi.mock("@/lib/api-client", () => ({
   api: { post: m.apiPost },
   isDailyLimitError: () => false,
 }));
-vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => m.invalidate }));
+vi.mock("@/lib/api-hooks", () => ({
+  useRevealCreatedItem: () => m.invalidate,
+}));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: { getUser: m.getUser },

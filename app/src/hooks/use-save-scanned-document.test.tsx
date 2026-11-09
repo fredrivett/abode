@@ -31,7 +31,9 @@ vi.mock("posthog-js", () => ({ default: { captureException: m.capture } }));
 vi.mock("@/stores/milestone-store", () => ({
   useMilestoneStore: { getState: () => ({ markComplete: m.markComplete }) },
 }));
-vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => m.invalidate }));
+vi.mock("@/lib/api-hooks", () => ({
+  useRevealCreatedItem: () => m.invalidate,
+}));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: { getUser: m.getUser },

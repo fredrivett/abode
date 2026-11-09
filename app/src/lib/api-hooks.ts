@@ -11,6 +11,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import posthog from "posthog-js";
 import { useCallback } from "react";
 import { api } from "./api-client";
 import { itemQueryKey } from "./items/use-item";
@@ -32,6 +33,48 @@ export function useInvalidateItems() {
   return useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
   }, [queryClient]);
+}
+
+/** Waits before each re-check when a created item isn't in the list yet */
+export const CREATED_ITEM_RETRY_DELAYS_MS = [500, 1500, 4000];
+
+/**
+ * Returns a stable callback for after creating an item: refetches the items
+ * lists and re-checks until the new item is in the loaded full list, so the
+ * grid can't silently miss it until a reload — a refetch can fail, be
+ * superseded, or be answered stale (the service worker serves its cached copy
+ * when the network is slow). If it never shows up, reports it.
+ */
+export function useRevealCreatedItem() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (itemId: string): Promise<void> => {
+      for (let attempt = 0; ; attempt++) {
+        await queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
+        const list = queryClient
+          .getQueryCache()
+          .find<InfiniteData<ItemsPageResponse>>({
+            queryKey: ITEMS_QUERY_KEY,
+            exact: true,
+          });
+        // Nothing shows the full list (another page, or a search): its next
+        // mount fetches fresh
+        if (!list?.isActive()) return;
+        const pages = list.state.data?.pages ?? [];
+        if (pages.some((page) => page.items.some(({ id }) => id === itemId))) {
+          return;
+        }
+        const delay = CREATED_ITEM_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      posthog.captureException(
+        new Error("Created item missing from the items list"),
+        { itemId },
+      );
+    },
+    [queryClient],
+  );
 }
 
 // Response type for paginated items
