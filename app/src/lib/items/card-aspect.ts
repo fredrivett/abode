@@ -55,6 +55,9 @@ const ASPECT_STEP = 0.05;
 // the way a large factor did. Applied to the width wraps are counted against.
 export const WRAP_SAFETY = 0.95;
 
+// Text cards draw a 1px `border` inside their frame (border-box), top + bottom
+export const CARD_BORDER_Y_PX = 2;
+
 // --- Note typography (see note-card.tsx + note-prose.ts) ---------------------
 // em values are relative to the card root (grid font-scale); rem floors are
 // relative to the document root font size — both are passed in, never assumed.
@@ -454,7 +457,7 @@ export function estimateNoteAspect(
     NOTE_BODY_EM * cardRootPx,
   );
 
-  let height = 2 * padding;
+  let height = CARD_BORDER_Y_PX + 2 * padding;
 
   const trimmedTitle = title?.trim();
   const hasBody = body.trim().length > 0;
@@ -518,6 +521,7 @@ export function estimateTweetAspect(
     );
 
   const height =
+    CARD_BORDER_Y_PX +
     2 * padding +
     headerPx +
     TWEET_HEADER_GAP_REM * rootRemPx +
