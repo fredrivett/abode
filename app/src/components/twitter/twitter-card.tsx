@@ -81,6 +81,8 @@ export function TwitterCard({
         className,
       )}
       style={gridCardStyle}
+      // Text-only tweets are sized to their text
+      data-card-fit={!videoSrc && !previewImage ? "tweet" : undefined}
     >
       {/* Media preview area - grows to fill available space */}
       {shouldAutoplay && videoSrc ? (

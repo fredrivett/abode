@@ -157,6 +157,8 @@ export function ArticleCard({
         !coverUrl && "justify-end",
       )}
       style={gridCardStyle}
+      // Sized to its caption only without a cover (the cover absorbs slack)
+      data-card-fit={coverUrl ? undefined : "article"}
       onClick={onClick}
     >
       {coverUrl && (

@@ -14,11 +14,12 @@ export type HighlightRect = {
   height: number;
 };
 
-export type HighlightTone = "shift" | "move";
+export type HighlightTone = "shift" | "move" | "issue";
 
 const TONE_COLORS: Record<HighlightTone, string> = {
   shift: "rgba(239, 68, 68, 0.9)",
   move: "rgba(59, 130, 246, 0.9)",
+  issue: "rgba(245, 158, 11, 0.95)",
 };
 
 function getLayer(): HTMLElement {
