@@ -21,7 +21,7 @@ export const CARD_FIT_MIN_ASPECT: Record<CardFitKind, number> = {
 };
 
 export function isCardFitKind(value: string | null): value is CardFitKind {
-  return value !== null && value in CARD_FIT_MIN_ASPECT;
+  return value !== null && Object.hasOwn(CARD_FIT_MIN_ASPECT, value);
 }
 
 // Under the overflow fade's own 4px tolerance (`useIsOverflowing`), clipping
