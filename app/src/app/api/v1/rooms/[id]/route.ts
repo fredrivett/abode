@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
+import { roomTag, userTag } from "@/lib/items/run-tags";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
@@ -171,13 +172,16 @@ async function handlePATCH(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    // If filters changed, trigger re-sync
-    if (shouldSyncRoom) {
-      await tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
-        roomId: id,
-        userId: user.id,
-      });
-    }
+    // If filters changed, trigger re-sync. The run id goes back to the client,
+    // which polls it (rooms/[id]/sync/[runId]) to refresh the grid once done;
+    // the room tag is what that endpoint checks the run against.
+    const syncRun = shouldSyncRoom
+      ? await tasks.trigger<typeof syncRoomItemsTask>(
+          "sync-room-items",
+          { roomId: id, userId: user.id },
+          { tags: [roomTag(id), userTag(user.id)] },
+        )
+      : null;
 
     // Log activity (fire-and-forget)
     void logActivity(user.id, "room_update", { roomId: id });
@@ -204,6 +208,7 @@ async function handlePATCH(request: NextRequest, { params }: RouteParams) {
       ...updatedRoom,
       itemCount: updatedRoom._count.roomItems,
       _count: undefined,
+      ...(syncRun && { syncRunId: syncRun.id }),
     });
   } catch (error) {
     log.error({ error }, "Room update error");

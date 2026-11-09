@@ -13,6 +13,11 @@ export function itemTag(itemId: string): string {
   return `item_${itemId}`;
 }
 
+/** Tag identifying every run that syncs a given room's membership. */
+export function roomTag(roomId: string): string {
+  return `room_${roomId}`;
+}
+
 /** Tag identifying every run enqueued on behalf of a given user. */
 export function userTag(userId: string): string {
   return `user_${userId}`;

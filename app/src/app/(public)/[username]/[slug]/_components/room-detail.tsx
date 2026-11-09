@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CentralItemDialog } from "@/app/(app)/dashboard/_components/central-item-dialog";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
@@ -67,11 +67,21 @@ type RoomOwner = {
   avatarUrl: string | null;
 };
 
+/** A fresh first page of the room, replacing the grid (e.g. after a filter re-sync) */
+export type RoomItemsPage = {
+  items: RoomItem[];
+  cursor: string | null;
+  hasMore: boolean;
+  itemCount: number;
+};
+
 type RoomDetailProps = {
   room: Room;
   initialItems: RoomItem[];
   initialCursor: string | null;
   initialHasMore: boolean;
+  /** Replaces the loaded items and count each time a new page is passed */
+  refreshed?: RoomItemsPage | null;
   /** Whether the current user owns this room. Defaults to true for backwards compatibility. */
   isOwner?: boolean;
   /** Room owner info for display (only shown when not owner) */
@@ -96,6 +106,7 @@ export function RoomDetail({
   initialItems,
   initialCursor,
   initialHasMore,
+  refreshed = null,
   isOwner = true,
   roomOwner,
 }: RoomDetailProps) {
@@ -122,6 +133,24 @@ export function RoomDetail({
   const [itemCount, setItemCount] = useState(room.itemCount);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialHasMore);
+  // Apply a refreshed page during render rather than remounting, which would
+  // also discard local edits (name, emoji, visibility) made since page load
+  const [appliedRefresh, setAppliedRefresh] = useState(refreshed);
+  if (refreshed !== appliedRefresh) {
+    setAppliedRefresh(refreshed);
+    if (refreshed) {
+      setItems(refreshed.items);
+      setCursor(refreshed.cursor);
+      setHasMore(refreshed.hasMore);
+      setItemCount(refreshed.itemCount);
+    }
+  }
+  // Bumped per refreshed page, so a Load more started before it can't append
+  // the old listing's next page (and cursor) onto the new first page
+  const refreshGeneration = useRef(0);
+  useEffect(() => {
+    if (refreshed) refreshGeneration.current += 1;
+  }, [refreshed]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -140,12 +169,14 @@ export function RoomDetail({
     if (!hasMore || isLoadingMore || !cursor) return;
 
     setIsLoadingMore(true);
+    const generation = refreshGeneration.current;
     try {
       const response = await fetch(
         `/api/v1/rooms/${room.id}/items?cursor=${cursor}`,
       );
       if (response.ok) {
         const data = await response.json();
+        if (generation !== refreshGeneration.current) return;
         setItems((prev) => [...prev, ...data.items]);
         setCursor(data.nextCursor);
         setHasMore(data.hasMore);
