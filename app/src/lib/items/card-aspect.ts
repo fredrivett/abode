@@ -25,6 +25,7 @@ export type CardTextStyle = {
   px: number;
   weight?: number;
   family?: CardFontFamily;
+  italic?: boolean;
 };
 
 /** Measures the rendered width (px) of a single line of `text` in `style`. */
@@ -67,15 +68,27 @@ const NOTE_BODY_EM = 0.875;
 // never shorter than the real text (which would clip and show a false fade).
 const NOTE_BODY_LINE_HEIGHT = 1.72;
 const NOTE_HEADING_LINE_HEIGHT = 1.3; // prose-headings:leading-[1.25], rounded up
-const NOTE_BLOCK_GAP_EM = 0.4; // prose-p:my-[0.4em], collapsed between siblings
-const NOTE_LIST_ITEM_GAP_EM = 0.15; // prose-li:my-[0.15em]
+// Block margins (note-prose.ts), in each element's own em. Siblings' margins
+// collapse to the larger one; the body's first/last block has its own outer
+// margin zeroed, but a nested element's (a list's first item, a quote's
+// paragraph) still collapses through it and adds space at the edge.
+const NOTE_PARAGRAPH_MARGIN_EM = 0.4; // prose-p / prose-headings:my-[0.4em]
+const NOTE_LIST_MARGIN_EM = 0.4; // prose-ul / prose-ol:my-[0.4em]
+const NOTE_LIST_ITEM_MARGIN_EM = 0.15; // prose-li:my-[0.15em]
+const NOTE_QUOTE_MARGIN_EM = 0.5; // prose-blockquote:my-[0.5em]
+// List items wrap inside the list's indent (prose-sm ul/ol padding 1.5714em)
+// plus their own (li padding 0.4286em)
+const NOTE_LIST_INDENT_EM = 2;
+// Quotes wrap inside their padding (prose-sm 1.1111em) and a 0.25rem border,
+// and set their text in italic 500 between curly quote marks
+const NOTE_QUOTE_INDENT_EM = 1.1111;
+const NOTE_QUOTE_BORDER_REM = 0.25;
 // Fenced code renders as a padded <pre>: same font size as body, but a tighter
 // line-height (prose-sm pre is ~19px on 14px text) plus fixed vertical padding.
 const NOTE_CODE_LINE_HEIGHT = 1.36; // prose-sm pre line-height
 const NOTE_CODE_PADDING_EM = 0.7; // prose-sm pre padding-y, per side (~10px on 14px)
-// A blockquote carries its own margin + leading beyond the plain text lines
-// (measured ~0.6em on top); without it the last line clips behind the fade.
-const NOTE_BLOCKQUOTE_EXTRA_EM = 0.6;
+// prose-pre:my-[0.5em] on prose-sm's 0.857em code size, in body em
+const NOTE_CODE_MARGIN_EM = 0.43;
 // Heading sizes relative to body em (prose-h1..h6 in note-prose.ts).
 const NOTE_HEADING_SCALE: Record<number, number> = {
   1: 1.25,
@@ -215,6 +228,12 @@ export function stripInlineMarkdown(text: string): string {
 
 const ATX_HEADING = /^\s{0,3}(#{1,6})\s+/;
 const LIST_ITEM = /^\s{0,3}([-*+]|\d+\.)\s+/;
+
+/** A list's marker kind: `-`, `*` or `+` for bullets, `.` for numbered */
+function listMarker(line: string): string | null {
+  const marker = line.match(LIST_ITEM)?.[1];
+  return marker ? marker.replace(/^\d+/, "") : null;
+}
 const FENCE = /^\s{0,3}(```|~~~)/;
 // Markdown hard break: a source line ending in two+ spaces or a backslash
 // renders as a forced line break (<br>) rather than a collapsed soft wrap.
@@ -268,6 +287,7 @@ function toBlocks(markdown: string): NoteBlock[] {
   const blocks: NoteBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
+  let marker: string | null = null;
   let quote: string[] = [];
 
   const flushParagraph = () => {
@@ -284,6 +304,7 @@ function toBlocks(markdown: string): NoteBlock[] {
       blocks.push({ type: "list", items: list });
       list = [];
     }
+    marker = null;
   };
   const flushQuote = () => {
     if (quote.length) {
@@ -335,9 +356,13 @@ function toBlocks(markdown: string): NoteBlock[] {
       continue;
     }
 
-    if (LIST_ITEM.test(line)) {
+    const lineMarker = listMarker(line);
+    if (lineMarker) {
       flushParagraph();
       flushQuote();
+      // Switching marker (`-` to `*`, bullets to numbers) starts a new list
+      if (lineMarker !== marker) flushList();
+      marker = lineMarker;
       list.push(stripInlineMarkdown(line));
       continue;
     }
@@ -367,67 +392,103 @@ function toBlocks(markdown: string): NoteBlock[] {
 
 function estimateNoteBodyHeight(
   body: string,
-  availWidth: number,
-  bodyPx: number,
+  { availWidth, bodyPx, rootRemPx }: NoteBodyMetrics,
   measure: TextMeasurer,
 ): number {
-  const blocks = toBlocks(body);
-  let height = 0;
+  const lineHeight = bodyPx * NOTE_BODY_LINE_HEIGHT;
+  const linesOf = (segments: string[], width: number, style: CardTextStyle) =>
+    segments.reduce(
+      (total, segment) => total + wrapLines(segment, width, measure, style),
+      0,
+    );
 
-  blocks.forEach((block, index) => {
-    // Vertical margins between siblings collapse to ~one block gap.
-    if (index > 0) height += NOTE_BLOCK_GAP_EM * bodyPx;
+  // Each block's content height, its margin against siblings, and the margin
+  // a nested element still adds when the block is first or last
+  const boxes = toBlocks(body).map(
+    (block): { height: number; margin: number; edge: number } => {
+      switch (block.type) {
+        case "heading": {
+          const px = bodyPx * (NOTE_HEADING_SCALE[block.level] ?? 1);
+          const lines = wrapLines(block.text, availWidth, measure, {
+            px,
+            weight: 600,
+          });
+          return {
+            height: lines * px * NOTE_HEADING_LINE_HEIGHT,
+            margin: NOTE_PARAGRAPH_MARGIN_EM * px,
+            edge: 0,
+          };
+        }
+        case "code":
+          // Code doesn't wrap in prose; count raw lines at the tighter pre
+          // line-height, plus the <pre>'s fixed vertical padding.
+          return {
+            height:
+              2 * NOTE_CODE_PADDING_EM * bodyPx +
+              block.lines * bodyPx * NOTE_CODE_LINE_HEIGHT,
+            margin: NOTE_CODE_MARGIN_EM * bodyPx,
+            edge: 0,
+          };
+        case "list": {
+          const itemMargin = NOTE_LIST_ITEM_MARGIN_EM * bodyPx;
+          const width = Math.max(1, availWidth - NOTE_LIST_INDENT_EM * bodyPx);
+          const lines = linesOf(block.items, width, { px: bodyPx });
+          return {
+            height: lines * lineHeight + (block.items.length - 1) * itemMargin,
+            margin: Math.max(NOTE_LIST_MARGIN_EM * bodyPx, itemMargin),
+            edge: itemMargin,
+          };
+        }
+        case "blockquote": {
+          const width = Math.max(
+            1,
+            availWidth -
+              NOTE_QUOTE_INDENT_EM * bodyPx -
+              NOTE_QUOTE_BORDER_REM * rootRemPx,
+          );
+          const segments = block.segments.map(
+            (segment, index) =>
+              `${index === 0 ? "“" : ""}${segment}${index === block.segments.length - 1 ? "”" : ""}`,
+          );
+          const paragraphMargin = NOTE_PARAGRAPH_MARGIN_EM * bodyPx;
+          return {
+            height:
+              linesOf(segments, width, {
+                px: bodyPx,
+                weight: 500,
+                italic: true,
+              }) * lineHeight,
+            margin: Math.max(NOTE_QUOTE_MARGIN_EM * bodyPx, paragraphMargin),
+            edge: paragraphMargin,
+          };
+        }
+        default:
+          // Each hard-break segment wraps on its own and is at least one line.
+          return {
+            height:
+              linesOf(block.segments, availWidth, { px: bodyPx }) * lineHeight,
+            margin: NOTE_PARAGRAPH_MARGIN_EM * bodyPx,
+            edge: 0,
+          };
+      }
+    },
+  );
 
-    switch (block.type) {
-      case "heading": {
-        const px = bodyPx * (NOTE_HEADING_SCALE[block.level] ?? 1);
-        const lines = wrapLines(block.text, availWidth, measure, {
-          px,
-          weight: 600,
-        });
-        height += lines * px * NOTE_HEADING_LINE_HEIGHT;
-        break;
-      }
-      case "code":
-        // Code doesn't wrap in prose; count raw lines at the tighter pre
-        // line-height, plus the <pre>'s fixed vertical padding.
-        height +=
-          2 * NOTE_CODE_PADDING_EM * bodyPx +
-          block.lines * bodyPx * NOTE_CODE_LINE_HEIGHT;
-        break;
-      case "list":
-        block.items.forEach((item, itemIndex) => {
-          if (itemIndex > 0) height += NOTE_LIST_ITEM_GAP_EM * bodyPx;
-          const lines = wrapLines(item, availWidth, measure, { px: bodyPx });
-          height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
-        });
-        break;
-      case "blockquote": {
-        const lines = block.segments.reduce(
-          (total, segment) =>
-            total + wrapLines(segment, availWidth, measure, { px: bodyPx }),
-          0,
-        );
-        // Extra margin/leading beyond the text lines, else the last line clips.
-        height +=
-          lines * bodyPx * NOTE_BODY_LINE_HEIGHT +
-          NOTE_BLOCKQUOTE_EXTRA_EM * bodyPx;
-        break;
-      }
-      default: {
-        // Each hard-break segment wraps on its own and is at least one line.
-        const lines = block.segments.reduce(
-          (total, segment) =>
-            total + wrapLines(segment, availWidth, measure, { px: bodyPx }),
-          0,
-        );
-        height += lines * bodyPx * NOTE_BODY_LINE_HEIGHT;
-      }
-    }
-  });
-
-  return height;
+  return boxes.reduce(
+    (height, box, index) =>
+      height +
+      box.height +
+      (index === 0 ? box.edge : Math.max(boxes[index - 1].margin, box.margin)) +
+      (index === boxes.length - 1 ? box.edge : 0),
+    0,
+  );
 }
+
+type NoteBodyMetrics = {
+  availWidth: number;
+  bodyPx: number;
+  rootRemPx: number;
+};
 
 export type NoteAspectInput = { title: string | null; body: string };
 export type NoteAspectContext = {
@@ -478,7 +539,11 @@ export function estimateNoteAspect(
   }
 
   if (hasBody) {
-    height += estimateNoteBodyHeight(body, availWidth, bodyPx, measure);
+    height += estimateNoteBodyHeight(
+      body,
+      { availWidth, bodyPx, rootRemPx },
+      measure,
+    );
   } else if (!trimmedTitle) {
     // "Empty note" placeholder is a single line.
     height += bodyPx * NOTE_BODY_LINE_HEIGHT;

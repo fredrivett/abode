@@ -175,12 +175,10 @@ describe("estimateNoteAspect", () => {
   });
 
   it("sizes a checklist exactly like the same bullet list", () => {
-    // Each item just fits one line — the `[ ]` marker would tip it onto two if
-    // it were measured, but its checkbox sits in the bullet's gutter
-    const items = [
-      "abcd efgh ijkl mnop qrst uv",
-      "abcd efgh ijkl mnop qrst wx",
-    ];
+    // Each item just fits one line inside the list's indent — the `[ ]` marker
+    // would tip it onto two if it were measured, but its checkbox sits in the
+    // bullet's gutter
+    const items = ["abcd efgh ijkl mnop qr uv", "abcd efgh ijkl mnop qr wx"];
     const bullets = items.map((item) => `- ${item}`).join("\n");
     const checklist = items
       .map((item, index) => `- [${index ? "x" : " "}] ${item}`)
