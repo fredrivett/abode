@@ -175,6 +175,24 @@ describe("ports.sh", () => {
     expect(envFilePort(a, "extension")).toBeUndefined();
   });
 
+  test("under Conductor, keeps a hand-set ABODE_PORT", () => {
+    const a = addWorktree("a");
+    fs.writeFileSync(path.join(a, "app", ".env.local"), "ABODE_PORT=20555\n");
+
+    ports(a, "ensure", { CONDUCTOR_PORT: "55120" });
+
+    expect(envFilePort(a)).toBe("20555");
+  });
+
+  test("rejects an explicit ABODE_PORT getBasePort would reject", () => {
+    const a = addWorktree("a");
+    for (const value of ["abc", "0", "65527"]) {
+      expect(() => ports(a, "ensure", { ABODE_PORT: value })).toThrow(
+        /ABODE_PORT must be a port number up to 65526/,
+      );
+    }
+  });
+
   test("an explicit ABODE_PORT is used as is, without claiming a block", () => {
     const a = addWorktree("a");
     expect(ports(a, "ensure", { ABODE_PORT: "20555" })).toBe("20555");

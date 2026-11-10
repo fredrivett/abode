@@ -130,11 +130,16 @@ write_port() {
   mv "$file.tmp" "$file"
 }
 
-# Drop a managed ABODE_PORT, so it can't outrank the port this checkout should use
+# Drop the ABODE_PORT this script wrote (marker comment + value), so it can't
+# outrank the port this checkout should use. A hand-set ABODE_PORT is left alone.
 clear_port() {
   local file="$1"
-  [ -f "$file" ] && [ ! -L "$file" ] && grep -q '^ABODE_PORT=' "$file" || return 0
-  grep -v -e '^ABODE_PORT=' -e '^# ABODE_PORT:' "$file" >"$file.tmp" || true
+  [ -f "$file" ] && [ ! -L "$file" ] && grep -q '^# ABODE_PORT:' "$file" || return 0
+  awk '
+    /^# ABODE_PORT:/ { marker = 1; next }
+    marker && /^ABODE_PORT=/ { marker = 0; next }
+    { marker = 0; print }
+  ' "$file" >"$file.tmp"
   mv "$file.tmp" "$file"
 }
 
@@ -142,6 +147,11 @@ ensure() {
   # An explicit ABODE_PORT (e2e/demo servers, a manual override) is what the
   # app will use, so don't claim a block it would ignore
   if [ -n "${ABODE_PORT:-}" ]; then
+    # Same rule as getBasePort(): the whole +0..+9 block must be valid ports
+    if ! [[ "$ABODE_PORT" =~ ^[0-9]+$ ]] || [ "$ABODE_PORT" -lt 1 ] || [ "$ABODE_PORT" -gt $((65535 - BLOCK + 1)) ]; then
+      echo "ports.sh: ABODE_PORT must be a port number up to $((65535 - BLOCK + 1)), got \"$ABODE_PORT\"" >&2
+      return 1
+    fi
     echo "$ABODE_PORT"
     return 0
   fi
