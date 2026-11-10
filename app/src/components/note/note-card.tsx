@@ -50,6 +50,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
       type="button"
       className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-border bg-card text-left transition-colors hover:border-foreground/20"
       style={{ ...gridCardStyle, padding: "1.25em" }}
+      data-card-fit="note"
       onClick={onClick}
     >
       {/* Title as a clamped heading only when a body follows it */}
