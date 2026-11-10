@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Conductor workspace run command. Starts the app dev server.
+# Worktree run command (Orca Quick Command / Conductor Run). Starts the app dev server.
 #
 # First we make sure the shared local Supabase stack is up (step 0), then we run
 # two independent checks against it. The local Supabase DB is shared across all
@@ -23,6 +23,8 @@
 
 set -euo pipefail
 
+source "$(dirname "$0")/root-path.sh"
+
 cd app
 
 bold=$'\033[1m'
@@ -37,7 +39,7 @@ rule="━━━━━━━━━━━━━━━━━━━━━━━━�
 # Start from the root checkout (canonical branch) so a cold boot never seeds the
 # shared DB with this branch's unmerged migrations. Best-effort: on any failure
 # we continue and let the migrate check surface the P1001 banner.
-supabase_root="${CONDUCTOR_ROOT_PATH:-$(cd .. && pwd)}"
+supabase_root="$root_path"
 if command -v docker >/dev/null 2>&1; then
   # Require BOTH the db (what Prisma reaches) and auth containers up. If only one
   # survives, treat the stack as down so we fall through to the stop+start
