@@ -34,6 +34,20 @@ All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conducto
 - **+5** is the shadow DB port in Supabase config (never bound at runtime), reused for the E2E / demo Next.js server
 - **+6 to +9** are assigned in `config.toml` but services are excluded via `-x` flags and never bind
 
+## Amp orbs
+
+`.agents/setup` prepares an [Amp orb](https://ampcode.com/docs/orbs): it starts Docker, installs Bun and the Supabase CLI at CI's pinned versions, installs dependencies from the lockfile, generates the Prisma client, enables the git hooks and installs the test browsers. It writes no `.env.local`: unit tests need none, and integration tests need the same placeholder env vars as the CI `integration` job (their Postgres is a Testcontainers one, and Supabase is stubbed):
+
+```bash
+cd app
+DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder \
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key-for-ci \
+SUPABASE_SERVICE_ROLE_KEY=placeholder-service-role-key-for-ci \
+RLS_ENFORCED=true \
+bun run test:integration
+```
+
 ## Starting Supabase manually
 
 If you need to start Supabase manually (outside of `bin/dev`):

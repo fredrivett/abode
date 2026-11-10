@@ -22,6 +22,7 @@ gha-creds-*.json
 
 # ai coding
 .claude
+.amp/portals/
 
 # setup-wizard artifacts (leak internal project ids / dashboard links)
 *-setup-report.md
