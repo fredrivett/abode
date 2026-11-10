@@ -91,7 +91,7 @@ export const measureCardText: TextMeasurer = (text, style) => {
 
   context.font = font;
   const width = context.measureText(text).width;
-  if (!isFontLoaded(font, text)) return width;
+  if (!isFontLoaded(style, text)) return width;
   if (measureCache.size >= MAX_CACHE_ENTRIES) measureCache.clear();
   measureCache.set(cacheKey, width);
   return width;
@@ -107,28 +107,49 @@ const measureCache = new Map<string, number>();
 // which WebKit answers true for a face still loading, nor the `loadingdone`
 // event, which WebKit never fires.
 let fontEpoch = 0;
+let notifyScheduled = false;
 const fontListeners = new Set<() => void>();
 const loadedFonts = new Set<string>();
 const pendingFonts = new Set<string>();
 
-function isFontLoaded(font: string, text: string): boolean {
+// A web font is split into unicode-range faces; Latin-1 text is all in the
+// face that renders a space, so one load per weight + family covers it. Other
+// text loads the faces for its own glyphs.
+const BEYOND_LATIN_1 = /[\u{100}-\u{10ffff}]/u;
+
+function isFontLoaded(style: CardTextStyle, text: string): boolean {
   const fonts = document.fonts;
-  if (!fonts || loadedFonts.has(font)) return true;
-  if (!pendingFonts.has(font)) {
-    pendingFonts.add(font);
+  if (!fonts) return true;
+  // Faces don't depend on size, so loads are shared across densities
+  const font = fontFor({ ...style, px: 16 });
+  const latin = !BEYOND_LATIN_1.test(text);
+  const key = latin ? font : `${font} ${text}`;
+  if (loadedFonts.has(key)) return true;
+  if (!pendingFonts.has(key)) {
+    pendingFonts.add(key);
     // A font that fails to load stays pending, so it isn't retried on every
     // measure; its text keeps the fallback face's (real) widths
-    fonts.load(font, text).then(
+    fonts.load(font, latin ? " " : text).then(
       () => {
-        pendingFonts.delete(font);
-        loadedFonts.add(font);
-        fontEpoch++;
-        for (const listener of fontListeners) listener();
+        pendingFonts.delete(key);
+        loadedFonts.add(key);
+        notifyFontsLoaded();
       },
       () => {},
     );
   }
   return false;
+}
+
+// Loads settling together re-measure the grid once
+function notifyFontsLoaded() {
+  if (notifyScheduled) return;
+  notifyScheduled = true;
+  queueMicrotask(() => {
+    notifyScheduled = false;
+    fontEpoch++;
+    for (const listener of fontListeners) listener();
+  });
 }
 
 /** `useSyncExternalStore` source: changes whenever a measured font loads */
