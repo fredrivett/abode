@@ -60,6 +60,12 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "jsdom",
+          // Node 25+ enables its own localStorage by default, which shadows jsdom's and is undefined without --localstorage-file
+          execArgv: process.allowedNodeEnvironmentFlags.has(
+            "--experimental-webstorage",
+          )
+            ? ["--no-experimental-webstorage"]
+            : [],
           environmentOptions: {
             jsdom: { url: "http://localhost" },
           },
