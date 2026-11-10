@@ -121,6 +121,14 @@ jobs:
           set -o pipefail
           bun run test:coverage:unit 2>&1 | tee coverage.txt
 
+      - name: Run Storybook tests
+        run: bun run test:storybook
+        env:
+          # Placeholders: stories that save through the API client build a
+          # Supabase client, and stub fetch for the requests themselves
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci
+
       - name: Publish coverage to job summary
         if: ${{ always() }}
         shell: bash

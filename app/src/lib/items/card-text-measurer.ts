@@ -14,7 +14,7 @@ import type {
   TextMeasurer,
 } from "./card-aspect";
 
-// Generic fallbacks; the real families (Geist / Hedvig) are resolved from the
+// Generic fallbacks; the real families (page font / Hedvig) are resolved from the
 // DOM at runtime so measured widths match the rendered card.
 const FALLBACK_STACK: Record<CardFontFamily, string> = {
   sans: "ui-sans-serif, system-ui, -apple-system, sans-serif",
@@ -39,12 +39,14 @@ function getContext(): CanvasRenderingContext2D | null {
   return cachedContext;
 }
 
-// Read the concrete font family for a CSS `var(--font-*)` off the live DOM.
-// Canvas `ctx.font` can't resolve CSS vars, so we probe a hidden element.
-function readFamily(cssVar: string, fallback: string): string {
+// Read the concrete font family card text renders in off the live DOM, by
+// probing a hidden element styled like it: sans text inherits the page font,
+// serif text uses the `font-serif` class. (Tailwind's `@theme inline` emits no
+// `--font-*` variables to read, and canvas `ctx.font` can't resolve them.)
+function readFamily(className: string, fallback: string): string {
   try {
     const probe = document.createElement("span");
-    probe.style.fontFamily = `var(${cssVar})`;
+    probe.className = className;
     probe.style.position = "absolute";
     probe.style.visibility = "hidden";
     document.body.appendChild(probe);
@@ -62,8 +64,8 @@ function fontStack(): Record<CardFontFamily, string> {
   if (cachedStack) return cachedStack;
   if (typeof document === "undefined") return FALLBACK_STACK;
   cachedStack = {
-    sans: readFamily("--font-sans", FALLBACK_STACK.sans),
-    serif: readFamily("--font-serif", FALLBACK_STACK.serif),
+    sans: readFamily("", FALLBACK_STACK.sans),
+    serif: readFamily("font-serif", FALLBACK_STACK.serif),
   };
   return cachedStack;
 }
@@ -89,6 +91,7 @@ export const measureCardText: TextMeasurer = (text, style) => {
 
   context.font = font;
   const width = context.measureText(text).width;
+  if (!isFontLoaded(style, text)) return width;
   if (measureCache.size >= MAX_CACHE_ENTRIES) measureCache.clear();
   measureCache.set(cacheKey, width);
   return width;
@@ -96,3 +99,63 @@ export const measureCardText: TextMeasurer = (text, style) => {
 
 const MAX_CACHE_ENTRIES = 4000;
 const measureCache = new Map<string, number>();
+
+// Text measured before its web font has loaded is measured in a fallback face
+// (a card's serif title only requests Hedvig once it renders). So a font's
+// widths aren't cached until `fonts.load()` confirms it, after which the epoch
+// bumps and subscribers (`useCardFrame`) re-measure. Not `fonts.check()`,
+// which WebKit answers true for a face still loading, nor the `loadingdone`
+// event, which WebKit never fires.
+let fontEpoch = 0;
+let notifyScheduled = false;
+const fontListeners = new Set<() => void>();
+const loadedFonts = new Set<string>();
+const pendingFonts = new Set<string>();
+
+// A web font is split into unicode-range faces; Latin-1 text is all in the
+// face that renders a space, so one load per weight + family covers it. Other
+// text loads the faces for its own glyphs.
+const BEYOND_LATIN_1 = /[\u{100}-\u{10ffff}]/u;
+
+function isFontLoaded(style: CardTextStyle, text: string): boolean {
+  const fonts = document.fonts;
+  if (!fonts) return true;
+  // Faces don't depend on size, so loads are shared across densities
+  const font = fontFor({ ...style, px: 16 });
+  const latin = !BEYOND_LATIN_1.test(text);
+  const key = latin ? font : `${font} ${text}`;
+  if (loadedFonts.has(key)) return true;
+  if (!pendingFonts.has(key)) {
+    pendingFonts.add(key);
+    // A font that fails to load stays pending, so it isn't retried on every
+    // measure; its text keeps the fallback face's (real) widths
+    fonts.load(font, latin ? " " : text).then(
+      () => {
+        pendingFonts.delete(key);
+        loadedFonts.add(key);
+        notifyFontsLoaded();
+      },
+      () => {},
+    );
+  }
+  return false;
+}
+
+// Loads settling together re-measure the grid once
+function notifyFontsLoaded() {
+  if (notifyScheduled) return;
+  notifyScheduled = true;
+  queueMicrotask(() => {
+    notifyScheduled = false;
+    fontEpoch++;
+    for (const listener of fontListeners) listener();
+  });
+}
+
+/** `useSyncExternalStore` source: changes whenever a measured font loads */
+export function subscribeCardFonts(onChange: () => void): () => void {
+  fontListeners.add(onChange);
+  return () => fontListeners.delete(onChange);
+}
+
+export const getCardFontEpoch = () => fontEpoch;

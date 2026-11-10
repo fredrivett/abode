@@ -28,6 +28,7 @@ Run from the `./app` directory unless noted. `bun run check:fix` is the primary 
 | `bun run test` | Unit tests (vitest, jsdom) | After logic changes |
 | `bun run test:integration` | Integration tests (Testcontainers Postgres — requires Docker) | After DB / server-side changes |
 | `bun run test:all` | All vitest projects | Full vitest run |
+| `bun run test:storybook` | Story render + play tests in headless Chromium (vitest `storybook` project) | After component/story changes |
 | `bun run test:e2e` | Playwright E2E (isolated Supabase — requires Docker) | After user-facing flow changes |
 | `bun run demo:stack` | Isolated Supabase + seeded test user + dev server for recording PR demos (requires Docker) | Recording a demo with the `record-pr-demo` skill |
 | `bun run demo:stop` | Stop the demo stack's Supabase containers | If a `demo:stack` run was killed without cleaning up |

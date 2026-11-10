@@ -318,6 +318,9 @@ export const WithLinks: Story = {
       await waitFor(() => expect(openButton).toBeVisible());
       expect(open).not.toHaveBeenCalled();
 
+      // A second click on the same spot within 500ms is a double-click to
+      // ProseMirror, which skips `handleClick`; a real ⌘-click comes later
+      await new Promise((resolve) => setTimeout(resolve, 600));
       await user.keyboard("{Meta>}");
       await user.pointer({ keys: "[MouseLeft]", target: link, coords });
       await user.keyboard("{/Meta}");
