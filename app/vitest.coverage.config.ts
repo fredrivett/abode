@@ -26,6 +26,12 @@ export default defineConfig({
   test: {
     name: "unit",
     environment: "jsdom",
+    // Same as the unit project in vitest.config.ts: Node 25+ localStorage shadows jsdom's
+    execArgv: process.allowedNodeEnvironmentFlags.has(
+      "--experimental-webstorage",
+    )
+      ? ["--no-experimental-webstorage"]
+      : [],
     environmentOptions: {
       jsdom: { url: "http://localhost" },
     },
