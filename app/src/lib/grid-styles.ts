@@ -15,4 +15,9 @@ import type { CSSProperties } from "react";
 export const gridCardStyle: CSSProperties = {
   fontSize: "calc(var(--grid-font-scale, 1) * 1rem)",
   borderRadius: "var(--grid-border-radius, 8px)",
+  // Browsers' default (`auto`) differs on breaking before small kana and
+  // other Japanese non-starters: Chrome does, WebKit doesn't. Pinning one rule
+  // keeps a card's lines the same everywhere, which the text-card height
+  // estimates (`wrapLines`) rely on
+  lineBreak: "strict",
 };

@@ -56,13 +56,10 @@ const KNOWN_MISFITS = new Set([
   "clipped — note: lazy blockquote",
   // List margins under prose styles are undercounted by a few px
   "clipped — note: numbered list",
-  // NBSP-joined words wrap as one unit in the browser, not in the estimate
-  "clipped — note: NBSP",
-  "empty-space — note: NBSP",
-  // The browser breaks the URL anywhere; the estimate wraps it as words
+  // A word wider than the line overflows it in the browser; the estimate
+  // wraps it (a URL, or words joined by NBSPs)
   "empty-space — note: long unbroken URL",
-  // CJK breaks between any characters; the estimate keeps runs together
-  "empty-space — note: emoji + CJK",
+  "empty-space — note: NBSP",
 ]);
 
 const PIXEL =
