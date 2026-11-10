@@ -121,7 +121,8 @@ enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 site_url = "http://127.0.0.1:3300"
-# A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
+# URLs auth providers may redirect to after authentication: exact URLs, or globs. http://localhost:*/**
+# is deliberate: each worktree runs on its own port (scripts/workspace/ports.sh)
 additional_redirect_urls = ["https://127.0.0.1:3300", "http://localhost:3300/auth/confirm", "http://127.0.0.1:3300/auth/confirm", "http://localhost:*/**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

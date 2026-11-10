@@ -17,7 +17,7 @@ The document scanner's edge-detection code and model ([scanic](https://github.co
 Each checkout gets a block of 10 ports (`+0` to `+9`) from one base port:
 
 - **Root checkout:** `3300`.
-- **Worktrees (Orca, Claude Code, plain `git worktree`):** a block in `20000`–`21990`, claimed by `scripts/workspace/ports.sh` when setup or the run script runs, and written to `app/.env.local` / `extension/.env.local` as `ABODE_PORT`. Claims live in a register in the repo's shared `.git` dir, so worktrees never share a block; archiving or deleting a worktree frees it. `scripts/workspace/ports.sh list` shows every claim.
+- **Worktrees (Orca, Claude Code, plain `git worktree`):** a block in `20000`–`21990`, claimed by `scripts/workspace/ports.sh` when setup or the run script runs, and written to `app/.env.local` / `extension/.env.local` as `ABODE_PORT`. Claims live in a register in the repo's shared `.git` dir, so worktrees never share a block. Archiving a worktree frees its block straight away; a worktree deleted any other way is freed the next time any worktree claims a block. `scripts/workspace/ports.sh list` shows every claim.
 - **Conductor workspaces:** Conductor's own `CONDUCTOR_PORT`.
 
 Code reads the base port through `getBasePort()` (`app/src/lib/dev-port.ts`); in a shell, `scripts/workspace/ports.sh current` prints it.

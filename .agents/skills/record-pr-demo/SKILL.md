@@ -35,7 +35,7 @@ Run it in the background with the longest timeout available, and wait for `[demo
 - **Videos are public** (this repo is public, and attachments on public repos are viewable by anyone), so only ever record this stack: never the user's dev DB, prod, or a real account.
 - It's the same stack `bun run test:e2e` uses, so don't run e2e tests in this checkout while it's up.
 - Background processing (Trigger.dev) doesn't run against it. Saved links stay unprocessed, so prefer fixtures that don't need enrichment (notes, rooms, settings), or say in a caption that the item would process in production.
-- Each worktree has its own port block (`scripts/workspace/ports.sh`), so worktrees can run demo stacks side by side; checkouts without one (the root checkout) share `3300`'s.
+- Each worktree gets its own port block when setup or the run script runs (`scripts/workspace/ports.sh ensure`), so worktrees can run demo stacks side by side. Check with `scripts/workspace/ports.sh current` first: `3300` means no block yet (or the root checkout), so run `scripts/workspace/ports.sh ensure` before `bun run demo:stack`, or it shares the root checkout's ports.
 
 When you're done, stop it: end the background task (SIGTERM stops the dev server and Supabase), then run `cd app && bun run demo:stop` in case cleanup didn't run.
 
