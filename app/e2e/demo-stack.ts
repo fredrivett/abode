@@ -1,6 +1,6 @@
 /**
  * Isolated stack for recording PR demos (`.agents/skills/record-pr-demo`): the
- * e2e Supabase (own containers and ports, derived from CONDUCTOR_PORT), a seeded
+ * e2e Supabase (own containers and ports, derived from the base port), a seeded
  * test user and a dev server on its own port and build dir. Recordings never touch
  * the shared local DB or the dev server the user is watching, and only ever show
  * test data, which matters because demo videos are public.
@@ -12,6 +12,7 @@
  */
 import { type ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
+import { getBasePort } from "../src/lib/dev-port";
 import { createTestUser, TEST_USERS } from "./auth-helpers";
 import {
   createAdminClient,
@@ -24,7 +25,7 @@ import {
 const APP_DIR = path.resolve(__dirname, "..");
 const READY_TIMEOUT_MS = 180_000;
 
-const basePort = Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10);
+const basePort = getBasePort();
 // Same offsets as playwright.config.ts: +5 is the shadow DB port, never bound at runtime
 const serverPort = basePort + 5;
 const smtpPort = basePort + 4;
@@ -102,7 +103,7 @@ async function main() {
       stdio: "inherit",
       env: {
         ...process.env,
-        CONDUCTOR_PORT: String(serverPort),
+        ABODE_PORT: String(serverPort),
         // Own build dir so this server doesn't fight a running `bun run dev` or an
         // e2e run over `.next/dev/lock`
         NEXT_DIST_DIR: ".next-demo",

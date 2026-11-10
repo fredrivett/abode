@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bunx next dev --turbopack -p ${CONDUCTOR_PORT:-3300}",
+    "dev": "bunx next dev --turbopack -p $(bun ./scripts/port.ts)",
     "build": "next build --webpack",
     "postinstall": "bun scripts/copy-scanner-assets.ts",
-    "start": "next start -p ${CONDUCTOR_PORT:-3300}",
+    "start": "next start -p $(bun ./scripts/port.ts)",
     "lint": "bunx -p @biomejs/biome biome check",
     "lint:suppressions": "bash scripts/check-ts-suppressions.sh",
     "lint:all": "bunx concurrently --success=all -n biome,TS -c cyan,magenta \"bun run format\" \"bun run ts:check\"",

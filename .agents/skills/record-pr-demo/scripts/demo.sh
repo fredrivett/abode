@@ -15,7 +15,7 @@
 #   stop_recording                      save the video, shrink it under the upload limit, save its last frame
 #
 # Environment:
-#   DEMO_URL        demo stack base URL (default: http://localhost:$((CONDUCTOR_PORT or 3300) + 5))
+#   DEMO_URL        demo stack base URL (default: http://localhost:<this worktree's base port + 5>)
 #   DEMO_DIR        where recordings and checkpoints go (default: <repo>/.demos)
 #   DEMO_TAKE       name of the current take, e.g. before / after (used by checkpoint)
 #   DEMO_MAX_BYTES  upload limit to fit videos under (default 9.5 MB; GitHub's free-plan video limit is 10 MB)
@@ -25,7 +25,7 @@ _demo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 # A named session per checkout (name plus a hash of its full path, as checkouts of different repos can share
 # a directory name): the default agent-browser session is shared by every agent on the machine
 export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-demo-$(basename "$_demo_root")-$(printf '%s' "$_demo_root" | cksum | cut -d' ' -f1)}"
-DEMO_URL="${DEMO_URL:-http://localhost:$((${CONDUCTOR_PORT:-3300} + 5))}"
+DEMO_URL="${DEMO_URL:-http://localhost:$(($("$_demo_root/scripts/workspace/ports.sh" current) + 5))}"
 DEMO_DIR="${DEMO_DIR:-$_demo_root/.demos}"
 DEMO_MAX_BYTES="${DEMO_MAX_BYTES:-9500000}"
 DEMO_USER_EMAIL="${DEMO_USER_EMAIL:-e2e-user@test.local}"

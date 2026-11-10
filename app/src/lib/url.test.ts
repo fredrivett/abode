@@ -9,9 +9,10 @@ describe("getAppBaseUrl", () => {
   };
 
   beforeEach(() => {
-    // Strip vars these tests exercise so nothing ambient (e.g. Conductor's
-    // CONDUCTOR_PORT) leaks in and each test controls exactly what it sets
+    // Strip vars these tests exercise so nothing ambient (e.g. the worktree's
+    // ABODE_PORT or Conductor's CONDUCTOR_PORT) leaks in and each test controls exactly what it sets
     const clean: Record<string, string | undefined> = { ...originalEnv };
+    delete clean.ABODE_PORT;
     delete clean.CONDUCTOR_PORT;
     delete clean.VERCEL_URL;
     delete clean.VERCEL_ENV;
@@ -32,6 +33,11 @@ describe("getAppBaseUrl", () => {
   test("returns localhost in test", () => {
     setEnv({ NODE_ENV: "test" });
     expect(getAppBaseUrl()).toBe("http://localhost:3300");
+  });
+
+  test("uses the worktree's ABODE_PORT when provided", () => {
+    setEnv({ NODE_ENV: "development", ABODE_PORT: "20010" });
+    expect(getAppBaseUrl()).toBe("http://localhost:20010");
   });
 
   test("uses Conductor port when provided", () => {

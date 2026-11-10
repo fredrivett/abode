@@ -14,11 +14,17 @@ The document scanner's edge-detection code and model ([scanic](https://github.co
 
 ## Port allocation
 
-All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conductor). Each Conductor workspace gets 10 ports (`+0` to `+9`).
+Each checkout gets a block of 10 ports (`+0` to `+9`) from one base port:
+
+- **Root checkout:** `3300`.
+- **Worktrees (Orca, Claude Code, plain `git worktree`):** a block in `20000`–`21990`, claimed by `scripts/workspace/ports.sh` when setup or the run script runs, and written to `app/.env.local` / `extension/.env.local` as `ABODE_PORT`. Claims live in a register in the repo's shared `.git` dir, so worktrees never share a block; archiving or deleting a worktree frees it. `scripts/workspace/ports.sh list` shows every claim.
+- **Conductor workspaces:** Conductor's own `CONDUCTOR_PORT`.
+
+Code reads the base port through `getBasePort()` (`app/src/lib/dev-port.ts`); in a shell, `scripts/workspace/ports.sh current` prints it.
 
 | Offset | Service                 | Runtime Status                  |
 | ------ | ----------------------- | ------------------------------- |
-| +0     | Next.js dev server      | Active (Conductor `run` script) |
+| +0     | Next.js dev server      | Active (`bun run dev`)          |
 | +1     | Supabase API (kong)     | Active (E2E tests only)         |
 | +2     | Supabase DB (postgres)  | Active (E2E tests only)         |
 | +3     | Mailpit web UI          | Active (E2E tests only)         |
@@ -29,7 +35,7 @@ All ports are derived from `CONDUCTOR_PORT` (defaults to `3300` outside Conducto
 | +8     | Pooler                  | Disabled                        |
 | +9     | Edge Runtime            | Excluded (`-x edge-runtime`)    |
 
-- **+0** is always in use by the Conductor dev server
+- **+0** is the checkout's dev server
 - **+1 to +4** are used by the isolated Supabase instance started during E2E tests and `demo:stack` (`supabase-e2e/`), so the two can't run at once in one checkout
 - **+5** is the shadow DB port in Supabase config (never bound at runtime), reused for the E2E / demo Next.js server
 - **+6 to +9** are assigned in `config.toml` but services are excluded via `-x` flags and never bind

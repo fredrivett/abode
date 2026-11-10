@@ -1,9 +1,10 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { getBasePort } from "./src/lib/dev-port";
 
 const authFile = path.join(__dirname, "e2e/.auth/user.json");
 
-const basePort = Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10);
+const basePort = getBasePort();
 // Offset +5 is assigned to the shadow DB in config.toml (Prisma concept only, never bound at runtime)
 const e2eServerPort = basePort + 5;
 
@@ -50,7 +51,7 @@ export default defineConfig({
     url: `http://localhost:${e2eServerPort}`,
     reuseExistingServer: false,
     env: {
-      CONDUCTOR_PORT: String(e2eServerPort),
+      ABODE_PORT: String(e2eServerPort),
       // Own build dir so this server doesn't fight a running `bun run dev`
       // over `.next/dev/lock`
       NEXT_DIST_DIR: ".next-e2e",

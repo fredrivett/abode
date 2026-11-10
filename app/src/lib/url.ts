@@ -1,3 +1,5 @@
+import { getBasePort } from "./dev-port";
+
 /** The hosted abode instance — the default when no site URL is configured */
 export const HOSTED_APP_URL = "https://www.abode.fyi";
 
@@ -10,8 +12,7 @@ export const HOSTED_APP_URL = "https://www.abode.fyi";
  */
 export function getAppBaseUrl(): string {
   if (process.env.NODE_ENV !== "production") {
-    const port = process.env.CONDUCTOR_PORT ?? "3300";
-    return `http://localhost:${port}`;
+    return `http://localhost:${getBasePort()}`;
   }
 
   const isPreview =
