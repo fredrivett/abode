@@ -51,8 +51,34 @@ Most "always / never" rules live in the relevant sections below. In addition, **
 
 ## Git Commits
 
-- Commit only when the user asks — don't auto-commit after every change.
+- Commit only when the user asks — don't auto-commit after every change. Asking you to open a PR counts as asking you to commit and push to it, including the CI and review fixes in Pull Requests below.
 - When you do commit, split the work into **logical chunks**: one commit per coherent, self-contained change (e.g. schema/migration, then lib + tests, then API route, then UI) rather than a single catch-all commit. Each commit should build and pass checks on its own.
+
+## Pull Requests
+
+### Opening one
+
+- One concern per PR. Unrelated work (docs/tooling picked up along the way) goes in its own PR off `main`; work that depends on an open PR is stacked on its branch (`gh pr create --base <that-branch>`) and says so in the body.
+- Run `bun run check:fix` after your last edit, then commit in logical chunks (see Git Commits).
+- Title and body describe **this PR's actual diff** (`git diff <base>...HEAD`, where `<base>` is `origin/main` or the branch it's stacked on) — never reuse text from another PR.
+- The body follows `.github/pull_request_template.md`. Answer every checklist line: tick it with a reason or `N/A`; skipped tests or docs need the reason stated, not a silently unchecked box.
+- Under **Notes**, say what you verified and how, and what you didn't (e.g. "not run end to end", "CI covers X only").
+- User-facing change → attach a demo video (see PR demo videos below).
+- It's a public repo: nothing from Public repo above in the title, body or attachments.
+
+### After opening: see it through
+
+Opening the PR isn't the end of the task. Stay with it until CI is green and the review is handled.
+
+- **CI:** watch the checks (`gh pr checks <pr> --watch`). When one fails, read its log (`gh run view <run-id> --log-failed`):
+  - failure caused by this PR → fix it, push, and watch again. Fix the root cause; never add retries or skips to get green;
+  - failure unrelated to this PR (flaky test, infra, already failing on `main`) → don't fix it here. Report it back to the user with the evidence (failing test, log excerpt, whether `main` fails too).
+- **cubic review** (the AI reviewer; its review is a required check): wait for its comments (`gh api --paginate repos/{owner}/{repo}/pulls/<pr>/comments`). For each one:
+  - **agree** → fix it, push, reply saying what changed (and the commit), then resolve the thread;
+  - **clearly disagree** → reply to cubic explaining why, then resolve the thread;
+  - **unsure** → leave it open and ask the user, quoting the comment and saying what makes it unclear.
+- Reply with `gh api -X POST repos/{owner}/{repo}/pulls/<pr>/comments/<comment-id>/replies -f body='...'`. Resolve via GraphQL: find the thread whose first comment's `databaseId` is the comment id with `gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: <pr>) { reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId } } } } } } }'`, then `gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<id>"}) { thread { isResolved } } }'`.
+- Finish by reporting: CI status, each cubic comment and what you did with it, and anything waiting on the user.
 
 ## App URL
 
