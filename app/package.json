@@ -23,6 +23,7 @@
     "test:coverage:unit": "vitest --config vitest.coverage.config.ts --run --coverage",
     "test:integration": "vitest --project integration --run",
     "test:all": "vitest --run",
+    "test:storybook": "vitest --project storybook --run",
     "test:e2e": "bun ./e2e/run-e2e.ts",
     "test:e2e:ui": "bun ./e2e/run-e2e.ts --ui",
     "demo:stack": "bun ./e2e/demo-stack.ts",
