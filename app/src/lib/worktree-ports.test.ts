@@ -177,11 +177,14 @@ describe("ports.sh", () => {
 
   test("under Conductor, keeps a hand-set ABODE_PORT", () => {
     const a = addWorktree("a");
-    fs.writeFileSync(path.join(a, "app", ".env.local"), "ABODE_PORT=20555\n");
+    for (const dir of ["app", "extension"]) {
+      fs.writeFileSync(path.join(a, dir, ".env.local"), "ABODE_PORT=20555\n");
+    }
 
     ports(a, "ensure", { CONDUCTOR_PORT: "55120" });
 
     expect(envFilePort(a)).toBe("20555");
+    expect(envFilePort(a, "extension")).toBe("20555");
   });
 
   test("rejects an explicit ABODE_PORT getBasePort would reject", () => {
