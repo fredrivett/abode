@@ -17,6 +17,13 @@ describe("NoteDetailPlaceholder", () => {
     expect(screen.getByText("milk")).toBeInTheDocument();
   });
 
+  it("keeps the prose styles on a single-paragraph note", () => {
+    render(<NoteDetailPlaceholder content="Just one paragraph." canEdit />);
+    expect(
+      screen.getByText("Just one paragraph.").closest(".note-prose"),
+    ).not.toBeNull();
+  });
+
   it("reserves the editor's status footer only when the note is editable", () => {
     const { container, rerender } = render(
       <NoteDetailPlaceholder content="hi" canEdit />,

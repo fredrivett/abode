@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import {
   type AspectBounds,
+  CARD_BORDER_Y_PX,
   type FrameAspect,
   stripInlineMarkdown,
   type TextMeasurer,
@@ -242,7 +243,12 @@ export function estimateArticleCaptionHeight(
   }
 
   const content = blocks.reduce((total, height) => total + height, 0);
-  return 2 * padding + content + Math.max(0, blocks.length - 1) * gap;
+  return (
+    CARD_BORDER_Y_PX +
+    2 * padding +
+    content +
+    Math.max(0, blocks.length - 1) * gap
+  );
 }
 
 /** Frame for an article/webpage card: cover band (if any) + measured caption */
