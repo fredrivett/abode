@@ -1,6 +1,9 @@
 /** The root checkout's port, and every checkout's when nothing allocates one */
 export const DEFAULT_BASE_PORT = 3300;
 
+/** Highest base port whose whole block (+0 to +9) is a valid port */
+const MAX_BASE_PORT = 65535 - 9;
+
 /**
  * This checkout's base port: the dev server runs on it, and the e2e/demo stack on
  * the next nine (layout in CONTRIBUTING.md). ABODE_PORT comes from the worktree's
@@ -15,8 +18,10 @@ export function getBasePort(
     const value = env[name];
     if (value === undefined || value === "") continue;
     const port = Number(value);
-    if (!/^\d+$/.test(value) || port < 1 || port > 65535) {
-      throw new Error(`${name} must be a port number, got "${value}"`);
+    if (!/^\d+$/.test(value) || port < 1 || port > MAX_BASE_PORT) {
+      throw new Error(
+        `${name} must be a port number up to ${MAX_BASE_PORT}, got "${value}"`,
+      );
     }
     return port;
   }

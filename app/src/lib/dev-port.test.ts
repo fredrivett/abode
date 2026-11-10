@@ -20,13 +20,17 @@ describe("getBasePort", () => {
     );
   });
 
+  test("accepts the highest base port whose block fits", () => {
+    expect(getBasePort({ ABODE_PORT: "65526" })).toBe(65526);
+  });
+
   test("treats an empty value as unset", () => {
     expect(getBasePort({ ABODE_PORT: "", CONDUCTOR_PORT: "55120" })).toBe(
       55120,
     );
   });
 
-  test.each(["abc", "20010x", "0", "70000", "-1", "3.5"])(
+  test.each(["abc", "20010x", "0", "70000", "65527", "-1", "3.5"])(
     "rejects %s",
     (value) => {
       expect(() => getBasePort({ ABODE_PORT: value })).toThrow(
