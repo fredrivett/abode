@@ -8,6 +8,8 @@ const meta = {
   component: SortableTableHead,
   parameters: {
     layout: "centered",
+    // The head reads the sort from App Router search params
+    nextjs: { appDirectory: true },
   },
   decorators: [
     (Story) => (
