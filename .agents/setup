@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# Amp orb setup (https://ampcode.com/docs/orbs/customizing). Runs on a fresh orb
+# and again on top of a stale snapshot, so every step must be idempotent.
+#
+# Prepares: Docker daemon (Testcontainers integration tests, local Supabase for
+# E2E / demo stack / dev), Bun + Supabase CLI at CI's versions, app deps +
+# Prisma client, git hooks, browsers for Playwright and the repo-pinned
+# agent-browser.
+#
+# No .env.local: unit/integration/E2E tests don't need one (a copy of
+# .env.example would break them, its blank optional keys fail the env schema).
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+repo_root=$(pwd)
+
+# Same versions CI pins (.github/workflows/ci.yml)
+BUN_VERSION=1.3.5
+SUPABASE_CLI_VERSION=2.107.0
+
+step() {
+  echo
+  echo "==> $1"
+  step_started=$SECONDS
+}
+done_step() { echo "    ($((SECONDS - step_started))s)"; }
+
+step "Docker daemon"
+# Systemd owns it, so it keeps running after setup and in orbs restored from the
+# snapshot. The socket is handed to the orb user so the Supabase CLI and
+# Testcontainers can talk to it without sudo
+sudo install -d /etc/systemd/system/docker.socket.d
+socket_override=/etc/systemd/system/docker.socket.d/amp-orb.conf
+socket_conf=$'[Socket]\nSocketUser='"$(id -un)"
+if [ "$(sudo cat "$socket_override" 2>/dev/null)" != "$socket_conf" ]; then
+  printf '%s\n' "$socket_conf" | sudo tee "$socket_override" >/dev/null
+  sudo systemctl daemon-reload
+  sudo systemctl restart docker.socket
+fi
+sudo systemctl enable --now docker.socket docker.service
+docker info --format 'Docker {{.ServerVersion}}'
+done_step
+
+step "Bun ${BUN_VERSION}"
+# The orb image ships a newer Bun, which rewrites bun.lock on install (lockfile
+# churn that CI's pinned Bun then has to read, e.g. after `bun add`). Replace
+# it in place so agents, services and scripts all get the CI version
+if [ "$(bun --version 2>/dev/null || true)" != "$BUN_VERSION" ]; then
+  bun_tmp=$(mktemp -d)
+  curl -fsSL -o "$bun_tmp/bun.zip" \
+    "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
+  unzip -q "$bun_tmp/bun.zip" -d "$bun_tmp"
+  sudo install -m 0755 "$bun_tmp/bun-linux-x64/bun" "$(command -v bun || echo /usr/local/bin/bun)"
+  rm -rf "$bun_tmp"
+fi
+bun --version
+done_step
+
+step "Supabase CLI ${SUPABASE_CLI_VERSION}"
+if [ "$(supabase --version 2>/dev/null || true)" != "$SUPABASE_CLI_VERSION" ]; then
+  deb=$(mktemp --suffix=.deb)
+  curl -fsSL -o "$deb" \
+    "https://github.com/supabase/cli/releases/download/v${SUPABASE_CLI_VERSION}/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.deb"
+  sudo dpkg -i "$deb"
+  rm -f "$deb"
+fi
+supabase --version
+done_step
+
+step "Git hooks"
+git config core.hooksPath .githooks
+done_step
+
+cd "$repo_root/app"
+
+# Frozen, unlike scripts/workspace/setup.sh: a plain install rewrites bun.lock
+# (adds configVersion), leaving every orb with a dirty lockfile
+step "bun install"
+bun install --frozen-lockfile
+done_step
+
+# bun install doesn't regenerate the client when only schema.prisma changed, so
+# a snapshot refreshed after a schema change would otherwise keep a stale one
+step "Prisma client"
+bun run prisma:generate
+done_step
+
+step "Playwright Chromium (E2E + Storybook browser tests)"
+bunx playwright install chromium
+done_step
+
+step "agent-browser Chrome (repo-pinned copy)"
+node_modules/.bin/agent-browser install
+done_step
+
+echo
+echo "Setup complete in ${SECONDS}s"
