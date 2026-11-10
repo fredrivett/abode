@@ -91,6 +91,7 @@ export const measureCardText: TextMeasurer = (text, style) => {
 
   context.font = font;
   const width = context.measureText(text).width;
+  if (!isFontLoaded(font, text)) return width;
   if (measureCache.size >= MAX_CACHE_ENTRIES) measureCache.clear();
   measureCache.set(cacheKey, width);
   return width;
@@ -100,20 +101,37 @@ const MAX_CACHE_ENTRIES = 4000;
 const measureCache = new Map<string, number>();
 
 // Text measured before its web font has loaded is measured in a fallback face
-// (a card's serif title only requests Hedvig once it renders). Each time fonts
-// finish loading, drop the cached widths and bump the epoch, so subscribers
-// (`useCardFrame`) re-measure. Registered at import, before anything measures.
+// (a card's serif title only requests Hedvig once it renders). So a font's
+// widths aren't cached until `fonts.load()` confirms it, after which the epoch
+// bumps and subscribers (`useCardFrame`) re-measure. Not `fonts.check()`,
+// which WebKit answers true for a face still loading, nor the `loadingdone`
+// event, which WebKit never fires.
 let fontEpoch = 0;
 const fontListeners = new Set<() => void>();
-if (typeof document !== "undefined" && document.fonts) {
-  document.fonts.addEventListener("loadingdone", () => {
-    measureCache.clear();
-    fontEpoch++;
-    for (const listener of fontListeners) listener();
-  });
+const loadedFonts = new Set<string>();
+const pendingFonts = new Set<string>();
+
+function isFontLoaded(font: string, text: string): boolean {
+  const fonts = document.fonts;
+  if (!fonts || loadedFonts.has(font)) return true;
+  if (!pendingFonts.has(font)) {
+    pendingFonts.add(font);
+    // A font that fails to load stays pending, so it isn't retried on every
+    // measure; its text keeps the fallback face's (real) widths
+    fonts.load(font, text).then(
+      () => {
+        pendingFonts.delete(font);
+        loadedFonts.add(font);
+        fontEpoch++;
+        for (const listener of fontListeners) listener();
+      },
+      () => {},
+    );
+  }
+  return false;
 }
 
-/** `useSyncExternalStore` source: changes whenever web fonts finish loading */
+/** `useSyncExternalStore` source: changes whenever a measured font loads */
 export function subscribeCardFonts(onChange: () => void): () => void {
   fontListeners.add(onChange);
   return () => fontListeners.delete(onChange);
