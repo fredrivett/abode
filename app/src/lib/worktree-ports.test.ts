@@ -165,6 +165,24 @@ describe("ports.sh", () => {
     expect(ports(addWorktree("b"), "ensure")).toBe(String(FIRST));
   });
 
+  test("under Conductor, clears an ABODE_PORT that would outrank its port", () => {
+    const a = addWorktree("a");
+    ports(a, "ensure");
+    expect(envFilePort(a)).toBe(String(FIRST));
+
+    expect(ports(a, "ensure", { CONDUCTOR_PORT: "55120" })).toBe("55120");
+    expect(envFilePort(a)).toBeUndefined();
+    expect(envFilePort(a, "extension")).toBeUndefined();
+  });
+
+  test("an explicit ABODE_PORT is used as is, without claiming a block", () => {
+    const a = addWorktree("a");
+    expect(ports(a, "ensure", { ABODE_PORT: "20555" })).toBe("20555");
+    expect(envFilePort(a)).toBeUndefined();
+
+    expect(ports(addWorktree("b"), "ensure")).toBe(String(FIRST));
+  });
+
   test("fails loudly when every block is taken", () => {
     for (const name of ["a", "b", "c", "d"]) ports(addWorktree(name), "ensure");
 
@@ -185,16 +203,49 @@ describe("ports.sh", () => {
     expect(new Set(claimed).size).toBe(4);
   });
 
-  test("never writes through a symlinked .env.local", () => {
+  test("fails rather than write through a symlinked .env.local", () => {
     const a = addWorktree("a");
     const shared = path.join(root, "shared.env");
     fs.writeFileSync(shared, "SHARED=1\n");
     fs.symlinkSync(shared, path.join(a, "app", ".env.local"));
 
-    ports(a, "ensure");
-
+    expect(() => ports(a, "ensure")).toThrow(/is a symlink/);
     expect(fs.readFileSync(shared, "utf8")).toBe("SHARED=1\n");
   });
+
+  test("detects a busy port without lsof", async () => {
+    // A PATH with everything ports.sh uses except lsof
+    const bin = path.join(root, "bin");
+    fs.mkdirSync(bin);
+    const tools = ["git", "awk", "sed", "grep", "cat", "mkdir", "rm", "mv"];
+    for (const tool of [...tools, "sort", "dirname", "sleep", "tail"]) {
+      const target = execFileSync("/bin/sh", ["-c", `command -v ${tool}`], {
+        encoding: "utf8",
+      }).trim();
+      fs.symlinkSync(target, path.join(bin, tool));
+    }
+    const server = net.createServer();
+    await new Promise<void>((resolve) =>
+      server.listen(FIRST + 3, "127.0.0.1", resolve),
+    );
+    try {
+      const port = execFileSync("/bin/bash", [SCRIPT, "ensure"], {
+        cwd: addWorktree("a"),
+        env: scriptEnv({ PATH: bin }),
+        encoding: "utf8",
+      }).trim();
+      expect(port).toBe(String(FIRST + 10));
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  test("recovers a lock left without a pid", () => {
+    const commonDir = path.join(repo, ".git");
+    fs.mkdirSync(path.join(commonDir, "abode-ports.lock"));
+
+    expect(ports(addWorktree("a"), "ensure")).toBe(String(FIRST));
+  }, 20_000);
 
   test("current follows getBasePort's order", () => {
     const a = addWorktree("a");

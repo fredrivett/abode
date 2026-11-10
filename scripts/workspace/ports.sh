@@ -41,12 +41,13 @@ lock_acquire() {
   local tries=0 pid
   while ! mkdir "$lock" 2>/dev/null; do
     pid="$(cat "$lock/pid" 2>/dev/null || true)"
-    # A holder that died without releasing leaves its pid behind
-    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+    tries=$((tries + 1))
+    # A holder that died without releasing leaves its pid behind; one killed
+    # between mkdir and writing its pid leaves none (a live holder writes it at once)
+    if { [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; } || { [ -z "$pid" ] && [ "$tries" -ge 50 ]; }; then
       rm -rf "$lock"
       continue
     fi
-    tries=$((tries + 1))
     if [ "$tries" -ge 300 ]; then
       echo "ports.sh: timed out waiting for $lock" >&2
       exit 1
@@ -82,8 +83,16 @@ claimed_port() {
 }
 
 block_busy() {
-  command -v lsof >/dev/null 2>&1 || return 1
-  lsof -nP -iTCP:"$1-$(($1 + BLOCK - 1))" -sTCP:LISTEN -t >/dev/null 2>&1
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$1-$(($1 + BLOCK - 1))" -sTCP:LISTEN -t >/dev/null 2>&1
+    return
+  fi
+  # No lsof (some Linux images): try connecting to each port instead
+  local port
+  for ((port = $1; port < $1 + BLOCK; port++)); do
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && return 0
+  done
+  return 1
 }
 
 allocate() {
@@ -107,10 +116,11 @@ allocate() {
 write_port() {
   local file="$1" port="$2"
   [ -d "$(dirname "$file")" ] || return 0
-  # Never write through a symlink: it would change the root checkout's file
+  # Never write through a symlink: it would change the root checkout's file,
+  # and skipping it would leave the app on a different port than the claim
   if [ -L "$file" ]; then
-    echo "ports.sh: $file is a symlink; not writing ABODE_PORT into it" >&2
-    return 0
+    echo "ports.sh: $file is a symlink, so ABODE_PORT can't be set for this worktree. Remove it (it should be a plain file) and retry." >&2
+    return 1
   fi
   {
     [ -f "$file" ] && grep -v -e '^ABODE_PORT=' -e '^# ABODE_PORT:' "$file" || true
@@ -120,13 +130,25 @@ write_port() {
   mv "$file.tmp" "$file"
 }
 
+# Drop a managed ABODE_PORT, so it can't outrank the port this checkout should use
+clear_port() {
+  local file="$1"
+  [ -f "$file" ] && [ ! -L "$file" ] && grep -q '^ABODE_PORT=' "$file" || return 0
+  grep -v -e '^ABODE_PORT=' -e '^# ABODE_PORT:' "$file" >"$file.tmp" || true
+  mv "$file.tmp" "$file"
+}
+
 ensure() {
-  if [ -n "${CONDUCTOR_PORT:-}" ]; then
-    echo "$CONDUCTOR_PORT"
+  # An explicit ABODE_PORT (e2e/demo servers, a manual override) is what the
+  # app will use, so don't claim a block it would ignore
+  if [ -n "${ABODE_PORT:-}" ]; then
+    echo "$ABODE_PORT"
     return 0
   fi
-  if [ "$worktree" = "$primary" ]; then
-    echo "$DEFAULT_PORT"
+  if [ -n "${CONDUCTOR_PORT:-}" ] || [ "$worktree" = "$primary" ]; then
+    clear_port "$worktree/app/.env.local"
+    clear_port "$worktree/extension/.env.local"
+    echo "${CONDUCTOR_PORT:-$DEFAULT_PORT}"
     return 0
   fi
   lock_acquire
