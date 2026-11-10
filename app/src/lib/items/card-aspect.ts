@@ -49,14 +49,9 @@ export type AspectBounds = {
 // between clean stops.
 const ASPECT_STEP = 0.05;
 
-// Greedy wrapping (below) already models word boundaries exactly, so this only
-// covers residual font-metric slack (and fonts not yet loaded when we measure):
-// a small nudge that keeps fit-content from clipping without inflating heights
-// the way a large factor did. Applied to the width wraps are counted against.
-export const WRAP_SAFETY = 0.95;
-
-// Text cards draw a 1px `border` inside their frame (border-box), top + bottom
+// Text cards draw a 1px `border` inside their frame (border-box), each side
 export const CARD_BORDER_Y_PX = 2;
+export const CARD_BORDER_X_PX = 2;
 
 // --- Note typography (see note-card.tsx + note-prose.ts) ---------------------
 // em values are relative to the card root (grid font-scale); rem floors are
@@ -451,7 +446,10 @@ export function estimateNoteAspect(
   bounds: AspectBounds = NOTE_ASPECT_BOUNDS,
 ): FrameAspect {
   const padding = NOTE_PADDING_EM * cardRootPx;
-  const availWidth = Math.max(1, (columnWidthPx - 2 * padding) * WRAP_SAFETY);
+  const availWidth = Math.max(
+    1,
+    columnWidthPx - CARD_BORDER_X_PX - 2 * padding,
+  );
   const bodyPx = Math.max(
     NOTE_BODY_MIN_REM * rootRemPx,
     NOTE_BODY_EM * cardRootPx,
@@ -506,7 +504,10 @@ export function estimateTweetAspect(
   const padding = TWEET_PAD_REM * rootRemPx;
   const bodyPx = TWEET_BODY_REM * rootRemPx;
   const bodyLinePx = bodyPx * TWEET_BODY_LINE_HEIGHT;
-  const availWidth = Math.max(1, (columnWidthPx - 2 * padding) * WRAP_SAFETY);
+  const availWidth = Math.max(
+    1,
+    columnWidthPx - CARD_BORDER_X_PX - 2 * padding,
+  );
   // Header is the author row; the avatar (1.5rem) dominates its own text line.
   const headerPx = hasAvatar ? TWEET_AVATAR_REM * rootRemPx : bodyLinePx;
 

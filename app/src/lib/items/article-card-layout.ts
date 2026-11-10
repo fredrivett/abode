@@ -1,12 +1,12 @@
 import { format } from "date-fns";
 import {
   type AspectBounds,
+  CARD_BORDER_X_PX,
   CARD_BORDER_Y_PX,
   type FrameAspect,
   stripInlineMarkdown,
   type TextMeasurer,
   toFrameAspect,
-  WRAP_SAFETY,
   wrapLines,
 } from "./card-aspect";
 
@@ -211,7 +211,10 @@ export function estimateArticleCaptionHeight(
 ): number {
   const padding = ARTICLE_PADDING_EM * cardRootPx;
   const gap = ARTICLE_GAP_EM * cardRootPx;
-  const availWidth = Math.max(1, (columnWidthPx - 2 * padding) * WRAP_SAFETY);
+  const availWidth = Math.max(
+    1,
+    columnWidthPx - CARD_BORDER_X_PX - 2 * padding,
+  );
   const titlePx = Math.max(ARTICLE_TITLE_MIN_REM * rootRemPx, cardRootPx);
   const smallPx = Math.max(
     ARTICLE_SMALL_MIN_REM * rootRemPx,

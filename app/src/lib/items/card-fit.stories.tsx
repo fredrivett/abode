@@ -58,15 +58,10 @@ const KNOWN_MISFITS = new Set([
   "clipped — note: numbered list",
   // NBSP-joined words wrap as one unit in the browser, not in the estimate
   "clipped — note: NBSP",
-  // The wrap safety margin can add a line when text nearly fills its last one
-  "empty-space — note: short paragraph",
   "empty-space — note: NBSP",
-  // Title-only note title over-estimated
-  "empty-space — note: title only",
   // The browser breaks the URL anywhere; the estimate wraps it as words
   "empty-space — note: long unbroken URL",
   // CJK breaks between any characters; the estimate keeps runs together
-  "empty-space — tweet: emoji + CJK",
   "empty-space — note: emoji + CJK",
 ]);
 
