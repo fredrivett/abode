@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useRootFontSize } from "@/hooks/use-root-font-size";
 import type { MasonryGeometry } from "@/lib/masonry/layout";
 import type { Item } from "@/lib/types/item";
 import type { FrameAspect } from "./card-aspect";
 import { getCardFrame } from "./card-frame";
-import { measureCardText } from "./card-text-measurer";
+import {
+  getCardFontEpoch,
+  measureCardText,
+  subscribeCardFonts,
+} from "./card-text-measurer";
 
 /**
  * `getFrame` for a `MasonryGrid` of items: sizes each card with
@@ -20,6 +24,14 @@ export function useCardFrame(
   // calc(var(--grid-font-scale) * 1rem), so 1em on a card is fontScale × the
   // live root rem (not a hard-coded 16px — respects the user's font-size pref)
   const rootRemPx = useRootFontSize();
+  // A new callback once web fonts load, so the grid re-measures text it first
+  // measured in a fallback face
+  const fontEpoch = useSyncExternalStore(
+    subscribeCardFonts,
+    getCardFontEpoch,
+    () => 0,
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fontEpoch invalidates measurements
   return useCallback(
     (item, { columnWidth }) =>
       getCardFrame(item, {
@@ -28,6 +40,6 @@ export function useCardFrame(
         cardRootPx: fontScale * rootRemPx,
         measure: measureCardText,
       }),
-    [fontScale, rootRemPx],
+    [fontScale, rootRemPx, fontEpoch],
   );
 }

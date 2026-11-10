@@ -4,6 +4,7 @@ import {
   type ReactNode,
   useLayoutEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { expect, waitFor } from "storybook/test";
 import { ArticleCard } from "@/components/article/article-card";
@@ -14,7 +15,11 @@ import type { Item } from "@/lib/types/item";
 import { articleCoverAspect } from "./article-card-layout";
 import { type CardFitKind, cardFitIssue, isCardFitKind } from "./card-fit";
 import { getCardFrame } from "./card-frame";
-import { measureCardText } from "./card-text-measurer";
+import {
+  getCardFontEpoch,
+  measureCardText,
+  subscribeCardFonts,
+} from "./card-text-measurer";
 import { getItemDisplayName } from "./item-display-name";
 
 /**
@@ -355,6 +360,8 @@ function CardFitBench({ rootRemPx }: { rootRemPx: number }): ReactNode {
   // Estimates measure text with the real fonts, so wait for them (and for the
   // root size) before rendering anything
   const [ready, setReady] = useState(false);
+  // Like `useCardFrame`: re-measure once fonts the cards request finish loading
+  useSyncExternalStore(subscribeCardFonts, getCardFontEpoch, () => 0);
   useLayoutEffect(() => {
     const root = document.documentElement;
     const previous = root.style.fontSize;
@@ -422,7 +429,11 @@ async function expectAllFit(canvasElement: HTMLElement) {
       ),
     { timeout: 10_000 },
   );
-  expect(badFits(canvasElement)).toEqual([]);
+  // Serif titles only request their font once they render, so the fits settle
+  // after it loads and the bench re-measures
+  await waitFor(() => expect(badFits(canvasElement)).toEqual([]), {
+    timeout: 5_000,
+  });
 }
 
 const meta = {
