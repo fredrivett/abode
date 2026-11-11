@@ -220,16 +220,18 @@ export function wrapLines(
       // breaks between characters wherever it fills one
       if (lineWidth + gap > 0) lines++;
       graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
-      let line = "";
+      // Sum each character's width (measured once and cached) rather than
+      // re-measuring the growing line, which is quadratic
+      lineWidth = 0;
       for (const { segment } of graphemes.segment(word)) {
-        if (line !== "" && measure(line + segment, style) > availWidth) {
+        const advance = measure(segment, style);
+        if (lineWidth > 0 && lineWidth + advance > availWidth) {
           lines++;
-          line = segment;
+          lineWidth = advance;
         } else {
-          line += segment;
+          lineWidth += advance;
         }
       }
-      lineWidth = measure(line, style);
       continue;
     }
 
