@@ -102,6 +102,34 @@ export const measureCardText: TextMeasurer = (text, style) => {
   return width;
 };
 
+let cachedBreaksAfterSlash: boolean | undefined;
+
+// Ask the engine itself: a zero-width box wraps "a/b" onto two lines only if it
+// can break after the slash. No layout (SSR, jsdom) → no
+measureCardText.breaksAfterSlash = () => {
+  if (cachedBreaksAfterSlash !== undefined) return cachedBreaksAfterSlash;
+  if (typeof document === "undefined" || !document.body) return false;
+  const probe = document.createElement("div");
+  // Wrapping like card text (`gridCardStyle`), minus `overflow-wrap: anywhere`
+  Object.assign(probe.style, {
+    position: "absolute",
+    visibility: "hidden",
+    width: "0",
+    whiteSpace: "normal",
+    wordBreak: "normal",
+    overflowWrap: "normal",
+    lineBreak: "strict",
+  });
+  probe.textContent = "a/b";
+  document.body.appendChild(probe);
+  const split = probe.getBoundingClientRect().height;
+  probe.textContent = "ab";
+  const whole = probe.getBoundingClientRect().height;
+  probe.remove();
+  cachedBreaksAfterSlash = split > whole;
+  return cachedBreaksAfterSlash;
+};
+
 const MAX_CACHE_ENTRIES = 4000;
 const measureCache = new Map<string, number>();
 

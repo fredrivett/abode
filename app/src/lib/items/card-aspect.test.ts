@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  type CardTextStyle,
   estimateNoteAspect,
   estimateTweetAspect,
   NOTE_ASPECT_BOUNDS,
@@ -278,5 +279,20 @@ describe("wrapLines", () => {
     // small kana, so each joined pair needs a third line
     expect(wrapLines("aaaaaaaa (—bbbbbbbbb", 50, measure, { px: 10 })).toBe(3);
     expect(wrapLines("aaaaaaa a-ぁbbbbbbbb", 50, measure, { px: 10 })).toBe(3);
+  });
+
+  it("breaks after slashes only in engines that do, and not inside a number", () => {
+    const webkit: TextMeasurer = Object.assign(
+      (text: string, style: CardTextStyle) => measure(text, style),
+      { breaksAfterSlash: () => true },
+    );
+    // 10 characters a line: the path doesn't fit after "aaaaa", so Chromium
+    // moves it to its own line and breaks it between characters
+    const path = "aaaaa b/cccc/dddd";
+    expect(wrapLines(path, 50, measure, { px: 10 })).toBe(3);
+    // WebKit fills the first line up to "b/" instead
+    expect(wrapLines(path, 50, webkit, { px: 10 })).toBe(2);
+    // 1/2 is a number: no break after its slash
+    expect(wrapLines("aaaaa 1/23456789x", 50, webkit, { px: 10 })).toBe(3);
   });
 });

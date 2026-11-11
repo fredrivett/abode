@@ -212,6 +212,13 @@ const CASES: Array<{ label: string; item: Item }> = [
     ),
   },
   {
+    label: "note: URL mid-sentence",
+    item: note(
+      null,
+      "Read https://www.example.com/blog/2025/06/masonry/layouts/explained before the call on Friday",
+    ),
+  },
+  {
     label: "note: emoji + CJK",
     item: note(null, "今日はいい天気ですね 🌞🌞🌞 散歩に行きましょう 🚶‍♀️"),
   },
