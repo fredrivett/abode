@@ -164,7 +164,8 @@ function breakUnits(word: string): string[] {
  * Greedily packs words the way the browser does — fill a line until the next
  * word won't fit, then break — so a line that genuinely fits isn't over-counted
  * (which a whole-string width ÷ availWidth would do at word boundaries). A token
- * wider than the line (e.g. a long URL) breaks across multiple lines.
+ * wider than the line (e.g. a long URL) breaks between characters, as text
+ * cards' `overflow-wrap: anywhere` renders it.
  *
  * `collapse` matches the render's white-space handling: markdown (notes)
  * collapses runs of whitespace to a single space, while `whitespace-pre-wrap`
@@ -214,11 +215,21 @@ export function wrapLines(
     const wordWidth = measure(word, style);
 
     if (wordWidth > availWidth) {
-      // Long unbreakable token: break it across as many lines as it spans.
-      if (lineWidth > 0) lines++;
-      const spanned = Math.ceil(wordWidth / availWidth);
-      lines += spanned - 1;
-      lineWidth = wordWidth - (spanned - 1) * availWidth;
+      // Text cards set `overflow-wrap: anywhere` (`textCardStyle`), so a word
+      // wider than the line starts a new line, after any space before it, and
+      // breaks between characters wherever it fills one
+      if (lineWidth + gap > 0) lines++;
+      graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      let line = "";
+      for (const { segment } of graphemes.segment(word)) {
+        if (line !== "" && measure(line + segment, style) > availWidth) {
+          lines++;
+          line = segment;
+        } else {
+          line += segment;
+        }
+      }
+      lineWidth = measure(line, style);
       continue;
     }
 

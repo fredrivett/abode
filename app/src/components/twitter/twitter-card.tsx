@@ -8,7 +8,7 @@ import { Img } from "@/components/ui/img";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { gridCardStyle } from "@/lib/grid-styles";
+import { textCardStyle } from "@/lib/grid-styles";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -80,7 +80,7 @@ export function TwitterCard({
         "group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700",
         className,
       )}
-      style={gridCardStyle}
+      style={textCardStyle}
       // Text-only tweets are sized to their text (an empty one shows the X placeholder)
       data-card-fit={
         previewText && !videoSrc && !previewImage ? "tweet" : undefined

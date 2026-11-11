@@ -21,3 +21,14 @@ export const gridCardStyle: CSSProperties = {
   // estimates (`wrapLines`) rely on
   lineBreak: "strict",
 };
+
+/**
+ * {@link gridCardStyle} for the cards whose height is estimated from their
+ * text (notes, tweets, articles). A word wider than the line (a long URL or
+ * word) breaks to fit instead of overflowing, so it wraps by width as
+ * `wrapLines` counts it rather than being clipped at the card edge
+ */
+export const textCardStyle: CSSProperties = {
+  ...gridCardStyle,
+  overflowWrap: "anywhere",
+};
