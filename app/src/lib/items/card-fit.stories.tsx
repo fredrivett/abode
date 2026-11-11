@@ -49,15 +49,7 @@ const DENSITIES = [
  * listed fails. Keyed without widths so font-rendering differences between
  * platforms can't flake the check.
  */
-const KNOWN_MISFITS = new Set([
-  // NBSP-joined words wrap as one unit in the browser, not in the estimate
-  "clipped — note: NBSP",
-  "empty-space — note: NBSP",
-  // The browser breaks the URL anywhere; the estimate wraps it as words
-  "empty-space — note: long unbroken URL",
-  // CJK breaks between any characters; the estimate keeps runs together
-  "empty-space — note: emoji + CJK",
-]);
+const KNOWN_MISFITS = new Set<string>([]);
 
 const PIXEL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAIBRAA7";

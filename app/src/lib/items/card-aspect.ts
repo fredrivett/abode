@@ -125,13 +125,47 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+// CJK characters, emoji and flags can break on either side, even inside a
+// word (line-break classes ID and RI), except before closing punctuation,
+// small kana and other nonstarters, or after opening brackets (kinsoku, as
+// `line-break: strict` applies it), and never beside a non-breaking space
+const IDEOGRAPHIC =
+  "\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u3000-\\u303f\\uff00-\\uffef";
+const HAS_IDEOGRAPHIC = new RegExp(`[${IDEOGRAPHIC}]`, "u");
+const STARTS_IDEOGRAPHIC = new RegExp(`^[${IDEOGRAPHIC}]`, "u");
+const NO_BREAK_BEFORE =
+  /^[、。，．・：；？！ー〜〰゠‼⁇⁈⁉゛゜」』）】〕〉》｝］〙〗〟’”ゝゞヽヾ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶㇰ-ㇿｧ-ｯｰ…‥,.:;?!)\]}\u00a0\u2007\u202f]/u;
+const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{\u00a0\u2007\u202f]$/u;
+
+let graphemes: Intl.Segmenter | undefined;
+
+/** A word split where the browser may also break it: around CJK and emoji */
+function breakUnits(word: string): string[] {
+  if (!HAS_IDEOGRAPHIC.test(word)) return [word];
+  graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  const units: string[] = [];
+  let previous = "";
+  for (const { segment } of graphemes.segment(word)) {
+    const canBreak =
+      previous !== "" &&
+      (STARTS_IDEOGRAPHIC.test(segment) || STARTS_IDEOGRAPHIC.test(previous)) &&
+      !NO_BREAK_BEFORE.test(segment) &&
+      !NO_BREAK_AFTER.test(previous);
+    if (canBreak || units.length === 0) units.push(segment);
+    else units[units.length - 1] += segment;
+    previous = segment;
+  }
+  return units;
+}
+
 /**
  * How many visual lines `text` wraps to at `availWidth`. Blank → 1.
  *
  * Greedily packs words the way the browser does — fill a line until the next
  * word won't fit, then break — so a line that genuinely fits isn't over-counted
  * (which a whole-string width ÷ availWidth would do at word boundaries). A token
- * wider than the line (e.g. a long URL) breaks across multiple lines.
+ * wider than the line (e.g. a long URL) breaks between characters, as text
+ * cards' `overflow-wrap: anywhere` renders it.
  *
  * `collapse` matches the render's white-space handling: markdown (notes)
  * collapses runs of whitespace to a single space, while `whitespace-pre-wrap`
@@ -150,11 +184,14 @@ export function wrapLines(
   if (content.trim() === "") return 1;
 
   // Tokenize into words, each with the px width of the whitespace gap before it.
-  // Preserve mode breaks only at ASCII space/tab (matching pre-wrap), so a
-  // non-breaking space stays inside the measured word rather than a break point.
+  // Breaks only come at breakable spaces: collapse mode keeps non-breaking
+  // spaces inside the word, and preserve mode breaks only at ASCII space/tab
+  // (matching pre-wrap). CJK and emoji split a word further (`breakUnits`).
   const spaceWidth = measure(" ", style);
   const tokens: { gap: number; word: string }[] = [];
-  const wordPattern = collapse ? /(\s*)(\S+)/g : /([ \t]*)([^ \t]+)/g;
+  const wordPattern = collapse
+    ? /([^\S\u00a0\u2007\u202f]*)([\S\u00a0\u2007\u202f]+)/g
+    : /([ \t]*)([^ \t]+)/g;
   let match = wordPattern.exec(content);
   while (match !== null) {
     const whitespace = match[1];
@@ -165,7 +202,9 @@ export function wrapLines(
       : whitespace
         ? measure(whitespace, style)
         : 0;
-    tokens.push({ gap, word: match[2] });
+    breakUnits(match[2]).forEach((word, index) => {
+      tokens.push({ gap: index === 0 ? gap : 0, word });
+    });
     match = wordPattern.exec(content);
   }
 
@@ -176,11 +215,23 @@ export function wrapLines(
     const wordWidth = measure(word, style);
 
     if (wordWidth > availWidth) {
-      // Long unbreakable token: break it across as many lines as it spans.
-      if (lineWidth > 0) lines++;
-      const spanned = Math.ceil(wordWidth / availWidth);
-      lines += spanned - 1;
-      lineWidth = wordWidth - (spanned - 1) * availWidth;
+      // Text cards set `overflow-wrap: anywhere` (`textCardStyle`), so a word
+      // wider than the line starts a new line, after any space before it, and
+      // breaks between characters wherever it fills one
+      if (lineWidth + gap > 0) lines++;
+      graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      // Sum each character's width (measured once and cached) rather than
+      // re-measuring the growing line, which is quadratic
+      lineWidth = 0;
+      for (const { segment } of graphemes.segment(word)) {
+        const advance = measure(segment, style);
+        if (lineWidth > 0 && lineWidth + advance > availWidth) {
+          lines++;
+          lineWidth = advance;
+        } else {
+          lineWidth += advance;
+        }
+      }
       continue;
     }
 

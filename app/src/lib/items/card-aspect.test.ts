@@ -5,6 +5,7 @@ import {
   NOTE_ASPECT_BOUNDS,
   type TextMeasurer,
   TWEET_ASPECT_BOUNDS,
+  wrapLines,
 } from "./card-aspect";
 
 // Deterministic measurer: width proportional to length × font size. Roughly
@@ -249,6 +250,18 @@ describe("estimateTweetAspect", () => {
     const text = "word ".repeat(10);
     expect(tweetAspect(text, true).width).toBeLessThanOrEqual(
       tweetAspect(text, false).width,
+    );
+  });
+});
+
+describe("wrapLines", () => {
+  it("breaks a word wider than the line between characters", () => {
+    // 19 characters (95px) fit a 99px line, so 59 take 4 lines: the leftover
+    // space on each line adds up, which width ÷ line (2.98) misses
+    expect(wrapLines("a".repeat(59), 99, measure, { px: 10 })).toBe(4);
+    // It starts a new line, and the next word follows its last piece
+    expect(wrapLines(`see ${"a".repeat(30)} b`, 100, measure, { px: 10 })).toBe(
+      3,
     );
   });
 });
