@@ -125,16 +125,17 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-// CJK characters and emoji can break on either side, even inside a word
-// (line-break class ID), except before closing punctuation, small kana and
-// the like, or after opening brackets (kinsoku)
+// CJK characters, emoji and flags can break on either side, even inside a
+// word (line-break classes ID and RI), except before closing punctuation,
+// small kana and other nonstarters, or after opening brackets (kinsoku, as
+// `line-break: strict` applies it), and never beside a non-breaking space
 const IDEOGRAPHIC =
-  "\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Extended_Pictographic}\\u3000-\\u303f\\uff00-\\uffef";
+  "\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u3000-\\u303f\\uff00-\\uffef";
 const HAS_IDEOGRAPHIC = new RegExp(`[${IDEOGRAPHIC}]`, "u");
 const STARTS_IDEOGRAPHIC = new RegExp(`^[${IDEOGRAPHIC}]`, "u");
 const NO_BREAK_BEFORE =
-  /^[、。，．・：；？！ー」』）】〕〉》｝］〙〗〟’”ゝゞヽヾ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ…‥,.:;?!)\]}]/u;
-const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{]$/u;
+  /^[、。，．・：；？！ー〜〰゠‼⁇⁈⁉゛゜」』）】〕〉》｝］〙〗〟’”ゝゞヽヾ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶㇰ-ㇿｧ-ｯｰ…‥,.:;?!)\]}\u00a0\u2007\u202f]/u;
+const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{\u00a0\u2007\u202f]$/u;
 
 let graphemes: Intl.Segmenter | undefined;
 
