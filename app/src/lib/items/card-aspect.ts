@@ -253,9 +253,10 @@ type NoteBlock =
   | { type: "list"; items: string[] }
   | { type: "code"; lines: number }
   | { type: "paragraph"; segments: string[] }
-  | { type: "blockquote"; segments: string[] };
+  | { type: "blockquote"; paragraphs: string[][] };
 
 const BLOCKQUOTE = /^\s{0,3}>/;
+const BLANK_QUOTE_LINE = /^\s{0,3}>\s*$/;
 
 /**
  * Within a paragraph, soft line breaks collapse into one wrapped run, but hard
@@ -308,7 +309,19 @@ function toBlocks(markdown: string): NoteBlock[] {
   };
   const flushQuote = () => {
     if (quote.length) {
-      blocks.push({ type: "blockquote", segments: toParagraphSegments(quote) });
+      // A bare `>` line separates the quote's paragraphs
+      const paragraphs: string[][] = [[]];
+      for (const line of quote) {
+        if (BLANK_QUOTE_LINE.test(line)) paragraphs.push([]);
+        else paragraphs[paragraphs.length - 1].push(line);
+      }
+      const filled = paragraphs.filter((lines) => lines.length > 0);
+      if (filled.length > 0) {
+        blocks.push({
+          type: "blockquote",
+          paragraphs: filled.map(toParagraphSegments),
+        });
+      }
       quote = [];
     }
   };
@@ -446,18 +459,21 @@ function estimateNoteBodyHeight(
               NOTE_QUOTE_INDENT_EM * bodyPx -
               NOTE_QUOTE_BORDER_REM * rootRemPx,
           );
-          const segments = block.segments.map(
-            (segment, index) =>
-              `${index === 0 ? "“" : ""}${segment}${index === block.segments.length - 1 ? "”" : ""}`,
-          );
+          // Curly quote marks open the first paragraph and close the last
+          const last = block.paragraphs.length - 1;
+          const lines = block.paragraphs.reduce((total, segments, index) => {
+            const marked = segments.map(
+              (segment, segmentIndex) =>
+                `${index === 0 && segmentIndex === 0 ? "“" : ""}${segment}${index === last && segmentIndex === segments.length - 1 ? "”" : ""}`,
+            );
+            return (
+              total +
+              linesOf(marked, width, { px: bodyPx, weight: 500, italic: true })
+            );
+          }, 0);
           const paragraphMargin = NOTE_PARAGRAPH_MARGIN_EM * bodyPx;
           return {
-            height:
-              linesOf(segments, width, {
-                px: bodyPx,
-                weight: 500,
-                italic: true,
-              }) * lineHeight,
+            height: lines * lineHeight + last * paragraphMargin,
             margin: Math.max(NOTE_QUOTE_MARGIN_EM * bodyPx, paragraphMargin),
             edge: paragraphMargin,
           };

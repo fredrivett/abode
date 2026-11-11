@@ -168,6 +168,10 @@ const CASES: Array<{ label: string; item: Item }> = [
     item: note(null, `> ${LOREM}\ncontinues lazily here\n\nAfter.`),
   },
   {
+    label: "note: quote with two paragraphs",
+    item: note(null, `> ${LOREM}\n>\n> And a second paragraph.`),
+  },
+  {
     label: "note: checklists",
     item: note(null, "* [ ] first\n* [x] second\n- [ ] third\n- [x] fourth"),
   },
