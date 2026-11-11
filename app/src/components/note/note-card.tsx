@@ -3,7 +3,7 @@
 import Markdown from "markdown-to-jsx";
 import { type ReactNode, useRef } from "react";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { gridCardStyle } from "@/lib/grid-styles";
+import { textCardStyle } from "@/lib/grid-styles";
 import { NOTE_PROSE_CLASS, NOTE_PROSE_FONT_SIZE } from "./note-prose";
 import { TaskCheckbox } from "./task-checkbox";
 
@@ -49,7 +49,7 @@ export function NoteCard({ title, content, onClick }: NoteCardProps) {
     <button
       type="button"
       className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden border border-border bg-card text-left transition-colors hover:border-foreground/20"
-      style={{ ...gridCardStyle, padding: "1.25em" }}
+      style={{ ...textCardStyle, padding: "1.25em" }}
       data-card-fit="note"
       onClick={onClick}
     >

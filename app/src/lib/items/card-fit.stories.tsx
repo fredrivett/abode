@@ -49,12 +49,7 @@ const DENSITIES = [
  * listed fails. Keyed without widths so font-rendering differences between
  * platforms can't flake the check.
  */
-const KNOWN_MISFITS = new Set([
-  // A word wider than the line overflows it in the browser; the estimate
-  // wraps it (a URL, or words joined by NBSPs)
-  "empty-space — note: long unbroken URL",
-  "empty-space — note: NBSP",
-]);
+const KNOWN_MISFITS = new Set<string>([]);
 
 const PIXEL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAIBRAA7";

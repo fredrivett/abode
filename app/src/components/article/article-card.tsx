@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Img } from "@/components/ui/img";
-import { gridCardStyle } from "@/lib/grid-styles";
+import { textCardStyle } from "@/lib/grid-styles";
 import {
   ARTICLE_BYLINE_ICON_EM,
   ARTICLE_BYLINE_ICON_GAP_EM,
@@ -156,7 +156,7 @@ export function ArticleCard({
         // Coverless: the caption sits at the bottom if the frame runs tall
         !coverUrl && "justify-end",
       )}
-      style={gridCardStyle}
+      style={textCardStyle}
       // Sized to its caption only without a cover (the cover absorbs slack)
       data-card-fit={coverUrl ? undefined : "article"}
       onClick={onClick}
