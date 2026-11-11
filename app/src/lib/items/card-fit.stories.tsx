@@ -50,12 +50,6 @@ const DENSITIES = [
  * platforms can't flake the check.
  */
 const KNOWN_MISFITS = new Set([
-  // Checklist items render taller than bullets
-  "clipped — note: checklists",
-  // Lazy continuation lines are counted outside the quote's extra height
-  "clipped — note: lazy blockquote",
-  // List margins under prose styles are undercounted by a few px
-  "clipped — note: numbered list",
   // WebKit breaks a URL after each `/` and Chromium overflows it; the estimate
   // splits it by width, which fits WebKit and leaves room in Chromium
   "empty-space — note: long unbroken URL",
@@ -170,8 +164,16 @@ const CASES: Array<{ label: string; item: Item }> = [
     item: note(null, `> ${LOREM}\ncontinues lazily here\n\nAfter.`),
   },
   {
+    label: "note: quote with two paragraphs",
+    item: note(null, `> ${LOREM}\n>\n> And a second paragraph.`),
+  },
+  {
     label: "note: checklists",
     item: note(null, "* [ ] first\n* [x] second\n- [ ] third\n- [x] fourth"),
+  },
+  {
+    label: "note: paragraph + long bullets",
+    item: note(null, `Before the list.\n\n- ${LOREM}\n- A short one`),
   },
   {
     label: "note: numbered list",
