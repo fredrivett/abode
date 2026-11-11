@@ -70,8 +70,13 @@ function fontStack(): Record<CardFontFamily, string> {
   return cachedStack;
 }
 
-function fontFor({ px, weight = 400, family = "sans" }: CardTextStyle): string {
-  return `${weight} ${px}px ${fontStack()[family]}`;
+function fontFor({
+  px,
+  weight = 400,
+  family = "sans",
+  italic = false,
+}: CardTextStyle): string {
+  return `${italic ? "italic " : ""}${weight} ${px}px ${fontStack()[family]}`;
 }
 
 /**
