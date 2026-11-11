@@ -5,6 +5,7 @@ import {
   NOTE_ASPECT_BOUNDS,
   type TextMeasurer,
   TWEET_ASPECT_BOUNDS,
+  wrapLines,
 } from "./card-aspect";
 
 // Deterministic measurer: width proportional to length × font size. Roughly
@@ -51,7 +52,7 @@ describe("estimateNoteAspect", () => {
   });
 
   it("scales with the document root font size (accessibility)", () => {
-    const body = "a".repeat(100);
+    const body = "abcd ".repeat(20);
     // fontScale 1 → cardRootPx tracks the root rem
     const base = estimateNoteAspect(
       { title: null, body },
@@ -66,9 +67,9 @@ describe("estimateNoteAspect", () => {
   });
 
   it("grows taller (smaller aspect) as the body grows", () => {
-    const short = noteAspect(null, "a".repeat(40)).width;
-    const medium = noteAspect(null, "a".repeat(200)).width;
-    const long = noteAspect(null, "a".repeat(600)).width;
+    const short = noteAspect(null, "abcd ".repeat(8)).width;
+    const medium = noteAspect(null, "abcd ".repeat(40)).width;
+    const long = noteAspect(null, "abcd ".repeat(120)).width;
     expect(short).toBeGreaterThanOrEqual(medium);
     expect(medium).toBeGreaterThanOrEqual(long);
     // ...and the extremes actually differ, not all clamped to one value
@@ -90,15 +91,15 @@ describe("estimateNoteAspect", () => {
   });
 
   it("a title adds height (never makes the card shorter)", () => {
-    const body = "a".repeat(180);
+    const body = "abcd ".repeat(36);
     const withTitle = noteAspect("A meaningful title", body).width;
     const withoutTitle = noteAspect(null, body).width;
     expect(withTitle).toBeLessThanOrEqual(withoutTitle);
   });
 
   it("markdown headings are taller than the same text as a paragraph", () => {
-    const heading = noteAspect(null, `# ${"a".repeat(120)}`).width;
-    const paragraph = noteAspect(null, "a".repeat(120)).width;
+    const heading = noteAspect(null, `# ${"abcd ".repeat(24)}`).width;
+    const paragraph = noteAspect(null, "abcd ".repeat(24)).width;
     expect(heading).toBeLessThanOrEqual(paragraph);
   });
 
@@ -252,5 +253,21 @@ describe("estimateTweetAspect", () => {
     expect(tweetAspect(text, true).width).toBeLessThanOrEqual(
       tweetAspect(text, false).width,
     );
+  });
+});
+
+describe("wrapLines", () => {
+  // 20 characters per 100px line
+  const lines = (text: string) => wrapLines(text, 100, measure, { px: 10 });
+
+  it("gives a word wider than the line one line, which it overflows", () => {
+    expect(lines("a".repeat(60))).toBe(1);
+    expect(lines(`see ${"a".repeat(60)} ok`)).toBe(3);
+    expect(lines("went\u00a0to\u00a0".repeat(6))).toBe(1);
+  });
+
+  it("splits an over-wide word with break characters (a URL) by width", () => {
+    expect(lines("a/".repeat(30))).toBe(3);
+    expect(lines(`see ${"a-".repeat(30)}`)).toBe(4);
   });
 });

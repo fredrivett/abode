@@ -124,6 +124,12 @@ const NO_BREAK_BEFORE =
   /^[、。，．・：；？！ー〜〰゠‼⁇⁈⁉゛゜」』）】〕〉》｝］〙〗〟’”ゝゞヽヾ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶㇰ-ㇿｧ-ｯｰ…‥,.:;?!)\]}\u00a0\u2007\u202f]/u;
 const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{\u00a0\u2007\u202f]$/u;
 
+// A word that neither Chromium nor WebKit breaks inside: letters, digits,
+// NBSP-family spaces and punctuation both engines keep joined (not `/`, `-`,
+// dashes, `?`, `!` or `|`, which one or both break after)
+const NO_BREAK_WORD =
+  /^[\p{L}\p{M}\p{N}\u00a0\u2007\u202f.,:;'’"_@#&=*+%~()]+$/u;
+
 let graphemes: Intl.Segmenter | undefined;
 
 /** A word split where the browser may also break it: around CJK and emoji */
@@ -151,7 +157,8 @@ function breakUnits(word: string): string[] {
  * Greedily packs words the way the browser does — fill a line until the next
  * word won't fit, then break — so a line that genuinely fits isn't over-counted
  * (which a whole-string width ÷ availWidth would do at word boundaries). A token
- * wider than the line (e.g. a long URL) breaks across multiple lines.
+ * wider than the line (e.g. a long URL) takes one line and overflows it, as
+ * the browser renders it.
  *
  * `collapse` matches the render's white-space handling: markdown (notes)
  * collapses runs of whitespace to a single space, while `whitespace-pre-wrap`
@@ -199,9 +206,10 @@ export function wrapLines(
 
   for (const { gap, word } of tokens) {
     const wordWidth = measure(word, style);
-
-    if (wordWidth > availWidth) {
-      // Long unbreakable token: break it across as many lines as it spans.
+    if (wordWidth > availWidth && !NO_BREAK_WORD.test(word)) {
+      // Over-wide, with characters a browser may break after: WebKit breaks
+      // a URL after each `/`, Chromium overflows it. Splitting by width errs
+      // tall, so neither engine clips
       if (lineWidth > 0) lines++;
       const spanned = Math.ceil(wordWidth / availWidth);
       lines += spanned - 1;
@@ -210,7 +218,10 @@ export function wrapLines(
     }
 
     const withWord = lineWidth + gap + wordWidth;
-    if (withWord <= availWidth) {
+    // Any other word wider than the line isn't broken (cards keep the default
+    // overflow-wrap): it gets a line of its own and overflows it, clipped by
+    // the card, and the next word starts a new line
+    if (withWord <= availWidth || lineWidth === 0) {
       lineWidth = withWord;
     } else {
       lines++;

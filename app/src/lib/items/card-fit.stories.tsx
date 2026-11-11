@@ -56,10 +56,9 @@ const KNOWN_MISFITS = new Set([
   "clipped — note: lazy blockquote",
   // List margins under prose styles are undercounted by a few px
   "clipped — note: numbered list",
-  // A word wider than the line overflows it in the browser; the estimate
-  // wraps it (a URL, or words joined by NBSPs)
+  // WebKit breaks a URL after each `/` and Chromium overflows it; the estimate
+  // splits it by width, which fits WebKit and leaves room in Chromium
   "empty-space — note: long unbroken URL",
-  "empty-space — note: NBSP",
 ]);
 
 const PIXEL =
