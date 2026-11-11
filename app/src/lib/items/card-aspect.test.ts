@@ -264,6 +264,9 @@ describe("wrapLines", () => {
     expect(lines("a".repeat(60))).toBe(1);
     expect(lines(`see ${"a".repeat(60)} ok`)).toBe(3);
     expect(lines("went\u00a0to\u00a0".repeat(6))).toBe(1);
+    // After preserved leading spaces (pre-wrap) it wraps to the next line
+    const pre = `${" ".repeat(10)}${"a".repeat(30)}`;
+    expect(wrapLines(pre, 100, measure, { px: 10 }, false)).toBe(2);
   });
 
   it("splits an over-wide word with break characters (a URL) by width", () => {

@@ -219,9 +219,10 @@ export function wrapLines(
 
     const withWord = lineWidth + gap + wordWidth;
     // Any other word wider than the line isn't broken (cards keep the default
-    // overflow-wrap): it gets a line of its own and overflows it, clipped by
-    // the card, and the next word starts a new line
-    if (withWord <= availWidth || lineWidth === 0) {
+    // overflow-wrap): on an empty line it overflows it, clipped by the card,
+    // and the next word starts a new line. Preserved leading whitespace isn't
+    // an empty line: the browser breaks after it
+    if (withWord <= availWidth || lineWidth + gap === 0) {
       lineWidth = withWord;
     } else {
       lines++;
