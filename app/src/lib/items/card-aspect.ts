@@ -156,7 +156,7 @@ const DASH_BREAK =
 // Where an engine that breaks after slashes (WebKit, per UAX #14) breaks a URL
 // path: before a letter, or a digit unless it continues a number (1/2). It can
 // also break before some symbols; those stay joined, erring to a spare line
-const AFTER_SLASH = /(?<=\/)(?=\p{L})|(?<=(?:^|\D)\/)(?=\d)/u;
+const AFTER_SLASH = /(?<=\/)(?=\p{L})|(?<=(?:^|\P{Nd})\/)(?=\p{Nd})/u;
 
 let graphemes: Intl.Segmenter | undefined;
 
