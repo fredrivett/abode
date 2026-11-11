@@ -41,7 +41,20 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright({}),
-            instances: [{ browser: "chromium" }],
+            instances: [
+              { browser: "chromium" },
+              // The card-height estimates must match WebKit's line breaking
+              // too (Safari, every iOS browser). Opt-in (`test:storybook:webkit`)
+              // so other runs, and Storybook's test panel, need only Chromium
+              ...(process.env.STORYBOOK_WEBKIT
+                ? [
+                    {
+                      browser: "webkit" as const,
+                      include: ["src/lib/items/card-fit.stories.tsx"],
+                    },
+                  ]
+                : []),
+            ],
           },
           setupFiles: [".storybook/vitest.setup.ts"],
         },
