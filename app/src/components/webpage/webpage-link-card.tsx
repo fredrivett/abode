@@ -4,6 +4,8 @@ import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Img } from "@/components/ui/img";
+import { useFaviconTone } from "@/hooks/use-favicon-tone";
+import { FAVICON_BACKDROP_CLASS } from "@/lib/favicon-tone";
 import { getHostname, isValidUrl } from "@/lib/url-utils";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +72,7 @@ export function WebpageLinkCard({
   // new favicon isn't stuck on the monogram from a prior load error
   const [failedFaviconUrl, setFailedFaviconUrl] = useState<string | null>(null);
   const showFavicon = Boolean(faviconUrl) && faviconUrl !== failedFaviconUrl;
+  const faviconTone = useFaviconTone(faviconUrl);
 
   return (
     <div
@@ -79,7 +82,12 @@ export function WebpageLinkCard({
       )}
     >
       <div
-        className="flex size-20 items-center justify-center rounded-2xl shadow-sm"
+        // The tile doubles as the backdrop chip for an ink-only favicon
+        data-tone={(showFavicon && faviconTone) || undefined}
+        className={cn(
+          "flex size-20 items-center justify-center rounded-2xl shadow-sm",
+          FAVICON_BACKDROP_CLASS,
+        )}
         style={
           showFavicon
             ? undefined
