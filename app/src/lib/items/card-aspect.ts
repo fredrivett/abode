@@ -153,7 +153,21 @@ let graphemes: Intl.Segmenter | undefined;
  * CJK and emoji
  */
 function breakUnits(word: string): string[] {
-  return word.split(DASH_BREAK).flatMap(ideographicUnits);
+  const units: string[] = [];
+  for (const piece of word.split(DASH_BREAK)) {
+    // Kinsoku holds at dashes too: no break after an opening bracket (「—) or
+    // before small kana and other nonstarters (-ぁ, which WebKit keeps whole)
+    const previous = units.at(-1);
+    if (
+      previous !== undefined &&
+      (NO_BREAK_AFTER.test(previous) || NO_BREAK_BEFORE.test(piece))
+    ) {
+      units[units.length - 1] = previous + piece;
+    } else {
+      units.push(piece);
+    }
+  }
+  return units.flatMap(ideographicUnits);
 }
 
 function ideographicUnits(word: string): string[] {

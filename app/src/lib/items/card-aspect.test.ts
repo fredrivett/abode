@@ -274,5 +274,9 @@ describe("wrapLines", () => {
     // An en dash breaks before digits too, an em dash on either side
     expect(wrapLines("aaaaa bbb–1234567", 50, measure, { px: 10 })).toBe(2);
     expect(wrapLines("aaaaaa bb—ccccccccc", 50, measure, { px: 10 })).toBe(2);
+    // Kinsoku still holds: no break after an opening bracket, or before a
+    // small kana, so each joined pair needs a third line
+    expect(wrapLines("aaaaaaaa (—bbbbbbbbb", 50, measure, { px: 10 })).toBe(3);
+    expect(wrapLines("aaaaaaa a-ぁbbbbbbbb", 50, measure, { px: 10 })).toBe(3);
   });
 });
