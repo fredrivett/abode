@@ -65,12 +65,12 @@ Custom connectors on claude.ai (the website) aren't supported yet. They sign in 
 
 - **Search or browse** your items: by text, tag or kind, or your most recent saves
 - **Read an item** in full: article text, notes, highlights, product and book details
-- **See your highlights from a period**: every passage you highlighted between two dates, with your notes and the item each one is from
-- **See your reading from a period**: books you finished, started or made progress on, with their status, dates, rating and review
+- **See your highlights from a period**: passages you highlighted between two dates, with your notes and the item each one is from (up to 200 per request; the assistant is told when there are more)
+- **See your reading from a period**: books you finished (or marked as did not finish), started or made progress on, with their status, dates, rating and review
 - **List your tags and kinds**, to know what to filter by
 - **List your rooms**
 
-A book date you only know to the month or year (say, "finished in 2024") counts for a period only when the period covers that whole month or year. "This month" includes a book finished "this month", but "this week" doesn't, since it may have been earlier. Reading progress keeps only its latest update, so a book counts as progressed in a period only if that latest update falls inside it.
+A book date you only know to the month or year (say, "finished in 2024") counts for a period only when the period covers that whole month or year, or, for the current month or year, runs from its start through today. "This month" includes a book finished "this month", but "this week" doesn't, since it may have been earlier. Reading progress keeps only its latest update, so a book counts as progressed in a period only if that latest update falls inside it.
 
 ## Revoking access
 
