@@ -77,7 +77,21 @@ export function faviconTone(rgba: ArrayLike<number>): FaviconTone | null {
 
 // Favicons are tiny; a 32px sample keeps thin strokes while staying cheap
 const SAMPLE_PX = 32;
+// Entries are a URL and a tiny result, so the session's favicons never add up
+// to enough memory to evict
 const toneCache = new Map<string, Promise<FaviconTone | null>>();
+const settledTones = new Map<string, FaviconTone | null>();
+
+/**
+ * The tone of a favicon already measured this session (null: reads on both),
+ * or undefined when it hasn't been, so a remounted card paints its chip
+ * straight away instead of popping it in.
+ */
+export function settledFaviconTone(
+  src: string,
+): FaviconTone | null | undefined {
+  return settledTones.get(src);
+}
 
 /**
  * Load `src` and classify it, cached per URL. Resolves null when the pixels
@@ -112,5 +126,9 @@ export function loadFaviconTone(src: string): Promise<FaviconTone | null> {
     image.src = src;
   });
   toneCache.set(src, tone);
+  void tone.then((settled) => {
+    // A failed load dropped itself from the cache: leave it unsettled
+    if (toneCache.get(src) === tone) settledTones.set(src, settled);
+  });
   return tone;
 }

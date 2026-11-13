@@ -41,8 +41,8 @@ describe("faviconTone", () => {
   });
 
   it("measures perceived luminance, not the channel average", () => {
-    // Yellow averages to mid-grey per channel but is nearly as light as white
-    expect(faviconTone(icon({ count: 22, rgba: [255, 212, 0, 255] }))).toBe(
+    // Pure green is a dark grey by channel average but light by luminance
+    expect(faviconTone(icon({ count: 22, rgba: [0, 255, 0, 255] }))).toBe(
       "light",
     );
   });
