@@ -7,6 +7,9 @@ const {
   mockGetItem,
   mockListFilters,
   mockListRooms,
+  mockGetHighlights,
+  mockGetBookActivity,
+  mockGetArticleActivity,
   mockRateLimit,
   mockCapture,
   mockCaptureException,
@@ -16,6 +19,9 @@ const {
   mockGetItem: vi.fn(),
   mockListFilters: vi.fn(),
   mockListRooms: vi.fn(),
+  mockGetHighlights: vi.fn(),
+  mockGetBookActivity: vi.fn(),
+  mockGetArticleActivity: vi.fn(),
   mockRateLimit: vi.fn(),
   mockCapture: vi.fn(),
   mockCaptureException: vi.fn(),
@@ -25,12 +31,16 @@ vi.mock("@/lib/auth/authenticate-request", () => ({
   authenticateRequest: mockAuth,
 }));
 
-vi.mock("@/lib/mcp/tools", () => ({
-  MCP_MAX_LIMIT: 50,
+// Real range parsing and constants; the database-backed tools are stubbed
+vi.mock("@/lib/mcp/tools", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/mcp/tools")>()),
   getItems: mockGetItems,
   getItem: mockGetItem,
   listFilters: mockListFilters,
   listRooms: mockListRooms,
+  getHighlights: mockGetHighlights,
+  getBookActivity: mockGetBookActivity,
+  getArticleActivity: mockGetArticleActivity,
 }));
 
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: mockRateLimit }));
@@ -133,11 +143,14 @@ describe("/api/mcp auth", () => {
 });
 
 describe("/api/mcp tools", () => {
-  it("lists the four read-only tools", async () => {
+  it("lists only read-only tools", async () => {
     const { result } = await rpcResult(await POST(rpc("tools/list")));
     const tools: { name: string; annotations?: { readOnlyHint?: boolean } }[] =
       result.tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
+      "get_article_activity",
+      "get_book_activity",
+      "get_highlights",
       "get_item",
       "get_items",
       "list_filters",
@@ -213,6 +226,70 @@ describe("/api/mcp tools", () => {
     const missing = await callTool("get_item", { id: "nope" });
     expect(missing.isError).toBe(true);
     expect(missing.content[0]?.text).toBe("Item not found.");
+  });
+
+  it("get_highlights resolves the period for the caller, with an inclusive date-only end", async () => {
+    mockGetHighlights.mockResolvedValue({ highlights: [], hasMore: false });
+
+    await callTool("get_highlights", {
+      from: "2026-11-04",
+      to: "2026-11-11",
+      limit: 100,
+    });
+
+    expect(mockGetHighlights).toHaveBeenCalledWith("user_1", {
+      range: {
+        from: new Date("2026-11-04T00:00:00.000Z"),
+        to: new Date("2026-11-11T23:59:59.999Z"),
+      },
+      limit: 100,
+    });
+  });
+
+  it("get_book_activity passes the activity filter through for the caller", async () => {
+    mockGetBookActivity.mockResolvedValue({ books: [], hasMore: false });
+
+    await callTool("get_book_activity", {
+      from: "2026-11-01",
+      activity: ["finished"],
+    });
+
+    expect(mockGetBookActivity).toHaveBeenCalledWith("user_1", {
+      range: { from: new Date("2026-11-01T00:00:00.000Z"), to: null },
+      activities: ["finished"],
+      limit: undefined,
+    });
+  });
+
+  it("get_article_activity passes the activity filter through for the caller", async () => {
+    mockGetArticleActivity.mockResolvedValue({ articles: [], hasMore: false });
+
+    await callTool("get_article_activity", {
+      to: "2026-11-11",
+      activity: ["read"],
+      limit: 10,
+    });
+
+    expect(mockGetArticleActivity).toHaveBeenCalledWith("user_1", {
+      range: { from: null, to: new Date("2026-11-11T23:59:59.999Z") },
+      activities: ["read"],
+      limit: 10,
+    });
+  });
+
+  it("rejects an unusable date range as a tool error, before querying", async () => {
+    const inverted = await callTool("get_book_activity", {
+      from: "2026-11-30",
+      to: "2026-11-01",
+    });
+    const garbled = await callTool("get_highlights", { from: "last week" });
+
+    for (const result of [inverted, garbled]) {
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toContain("Invalid date range");
+    }
+    expect(mockGetBookActivity).not.toHaveBeenCalled();
+    expect(mockGetHighlights).not.toHaveBeenCalled();
   });
 
   it("list_filters and list_rooms are scoped to the caller", async () => {

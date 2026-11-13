@@ -1,6 +1,6 @@
 # Connecting AI assistants
 
-Let an AI assistant like Claude or Cursor search and read your <Abode />, so you can ask it about things you've saved ("what was that article on sourdough?", "find the chairs I saved last month"). <Abode /> runs an MCP server, the standard way assistants connect to apps. Access is read-only: an assistant can look things up, never change or delete anything.
+Let an AI assistant like Claude or Cursor search and read your <Abode />, so you can ask it about things you've saved ("what was that article on sourdough?", "find the chairs I saved last month") or what you've been reading ("what did I highlight this week?", "which books did I finish this month?", "what articles did I read last week?"). <Abode /> runs an MCP server, the standard way assistants connect to apps. Access is read-only: an assistant can look things up, never change or delete anything.
 
 ## 1. Create a token
 
@@ -65,8 +65,13 @@ Custom connectors on claude.ai (the website) aren't supported yet. They sign in 
 
 - **Search or browse** your items: by text, tag or kind, or your most recent saves
 - **Read an item** in full: article text, notes, highlights, product and book details
+- **See your highlights from a period**: passages you highlighted between two dates, with your notes and the item each one is from (up to 200 per request; the assistant is told when there are more)
+- **See your reading from a period**: books you finished (or marked as did not finish), started or made progress on, with their status, dates, rating and review
+- **See the articles you read in a period**: articles you marked as read or scrolled through, with how far you got
 - **List your tags and kinds**, to know what to filter by
 - **List your rooms**
+
+A book date you only know to the month or year (say, "finished in 2024") counts for a period only when the period covers that whole month or year, or, for the current month or year, runs from its start through today. "This month" includes a book finished "this month", but "this week" doesn't, since it may have been earlier. Reading progress keeps only its latest update, so a book or article counts as progressed in a period only if that latest update falls inside it. An article counts as read when you mark it read, not just when you open it.
 
 ## Revoking access
 
