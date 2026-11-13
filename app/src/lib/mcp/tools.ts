@@ -1,6 +1,13 @@
-import type { ItemKind, Prisma } from "@prisma/client";
+import type {
+  BookProgressUnit,
+  BookReadingStatus,
+  DatePrecision,
+  ItemKind,
+  Prisma,
+} from "@prisma/client";
 import db from "@/lib/db";
 import { getAvailableFilters } from "@/lib/items/available-filters";
+import { endOfPrecision } from "@/lib/items/date-precision";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { listUserRooms } from "@/lib/rooms";
@@ -11,6 +18,11 @@ import { getAppBaseUrl } from "@/lib/url";
 
 export const MCP_DEFAULT_LIMIT = 20;
 export const MCP_MAX_LIMIT = 50;
+
+// Activity rows (highlights, books) are small, and a period review wants all of
+// them in one call rather than a page of 20
+export const MCP_DEFAULT_ACTIVITY_LIMIT = 50;
+export const MCP_MAX_ACTIVITY_LIMIT = 200;
 
 // Article bodies are Markdown and occasionally book-length. ~15k tokens keeps a
 // single get_item comfortably inside client output caps (Claude Code truncates
@@ -233,8 +245,18 @@ export async function getItem(userId: string, id: string) {
   });
   if (!row) return null;
 
-  const username = await getUsername(userId);
-  const item = transformItem(row);
+  const [username, highlightRows] = await Promise.all([
+    getUsername(userId),
+    db.articleHighlight.findMany({
+      where: { itemId: id, userId },
+      orderBy: { startOffset: "asc" },
+      select: highlightSelect,
+    }),
+  ]);
+  const item = {
+    ...transformItem(row),
+    highlights: highlightRows.map(toHighlightFields),
+  };
   const article = item.articleDetails;
   const truncated = article?.content
     ? truncateToTokenBudget(article.content, MCP_MAX_ARTICLE_TOKENS)
@@ -254,6 +276,265 @@ export async function getItem(userId: string, id: string) {
     };
   }
   return { ...item, url: itemUrl(id, username) };
+}
+
+/** An activity tool's period, as resolved by {@link resolveDateRange}; null = unbounded */
+export type DateRange = { from: Date | null; to: Date | null };
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseDate(value: string | undefined): Date | null | undefined {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * Resolves an activity tool's `from`/`to` into instants, or null when either
+ * is unparseable or `from` is after `to`. Both ends are inclusive and
+ * optional: a date-only `to` (2026-11-30) covers that whole UTC day.
+ */
+export function resolveDateRange(params: {
+  from?: string;
+  to?: string;
+}): DateRange | null {
+  const from = parseDate(params.from);
+  let to = parseDate(params.to);
+  if (from === undefined || to === undefined) return null;
+  if (to && params.to && DATE_ONLY.test(params.to)) {
+    to = new Date(to.getTime() + DAY_MS - 1);
+  }
+  if (from && to && from > to) return null;
+  return { from, to };
+}
+
+function rangeWhere(range: DateRange): Prisma.DateTimeFilter {
+  return {
+    ...(range.from && { gte: range.from }),
+    ...(range.to && { lte: range.to }),
+  };
+}
+
+function clampActivityLimit(limit: number | undefined): number {
+  if (!limit || limit < 1) return MCP_DEFAULT_ACTIVITY_LIMIT;
+  return Math.min(limit, MCP_MAX_ACTIVITY_LIMIT);
+}
+
+const highlightSelect = {
+  id: true,
+  text: true,
+  note: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ArticleHighlightSelect;
+
+function toHighlightFields(
+  row: Prisma.ArticleHighlightGetPayload<{ select: typeof highlightSelect }>,
+) {
+  return {
+    id: row.id,
+    text: row.text,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export type McpHighlight = ReturnType<typeof toHighlightFields> & {
+  item: {
+    id: string;
+    url: string | null;
+    title: string | null;
+    kind: ItemKind | null;
+    sourceUrl: string | null;
+  };
+};
+
+/**
+ * The user's highlights made (created) in a period, across all their items,
+ * newest first, each with the item it's on. `hasMore` means the limit cut the
+ * period short.
+ */
+export async function getHighlights(
+  userId: string,
+  { range, limit }: { range: DateRange; limit?: number },
+): Promise<{ highlights: McpHighlight[]; hasMore: boolean }> {
+  const take = clampActivityLimit(limit);
+  const [username, rows] = await Promise.all([
+    getUsername(userId),
+    db.articleHighlight.findMany({
+      where: { userId, item: { userId }, createdAt: rangeWhere(range) },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      select: {
+        ...highlightSelect,
+        item: {
+          select: { id: true, title: true, kind: true, sourceUrl: true },
+        },
+      },
+    }),
+  ]);
+  return {
+    highlights: rows.slice(0, take).map((row) => ({
+      ...toHighlightFields(row),
+      item: { ...row.item, url: itemUrl(row.item.id, username) },
+    })),
+    hasMore: rows.length > take,
+  };
+}
+
+export const BOOK_ACTIVITIES = ["finished", "started", "progressed"] as const;
+export type BookActivity = (typeof BOOK_ACTIVITIES)[number];
+
+// Upper bound on candidate books per call. The DB pre-filter is exact for
+// day-precision dates; coarse ones are re-checked in memory, so the rows have
+// to come back first. Reaching it reports hasMore rather than dropping silently.
+const BOOK_CANDIDATE_CAP = 1000;
+
+/**
+ * Whether a started/finished date lies within the range. A month- or
+ * year-precision date only says "some time in that month/year", so it matches
+ * only when the range covers the whole period — clipped to now, since reading
+ * can't happen in the future (so "this month so far" still matches a date
+ * known only as this month).
+ */
+function readingDateInRange({
+  date,
+  precision,
+  range,
+}: {
+  date: Date | null;
+  precision: DatePrecision | null;
+  range: DateRange;
+}): boolean {
+  if (!date) return false;
+  if (range.from && date < range.from) return false;
+  if (!range.to) return true;
+  if (!precision || precision === "day") return date <= range.to;
+  const periodEnd = endOfPrecision(date, precision).getTime();
+  const latest = Math.min(periodEnd, Math.max(Date.now(), date.getTime()));
+  return latest <= range.to.getTime();
+}
+
+export type McpBookActivity = {
+  id: string;
+  url: string | null;
+  title: string | null;
+  authors: string[];
+  status: BookReadingStatus | null;
+  /** Which of the requested activities happened in the period */
+  activity: BookActivity[];
+  startedAt: string | null;
+  startedAtPrecision: DatePrecision | null;
+  finishedAt: string | null;
+  finishedAtPrecision: DatePrecision | null;
+  progressValue: number | null;
+  progressUnit: BookProgressUnit;
+  pageCount: number | null;
+  progressUpdatedAt: string | null;
+  /** Out of 5, in half stars (stored /10) */
+  ratingStars: number | null;
+  review: string | null;
+};
+
+/**
+ * The user's books with reading activity in a period: finished (incl. did
+ * not finish — `status` tells which), started, or progress updated. Most
+ * recent activity first.
+ */
+export async function getBookActivity(
+  userId: string,
+  {
+    range,
+    activities = [...BOOK_ACTIVITIES],
+    limit,
+  }: { range: DateRange; activities?: BookActivity[]; limit?: number },
+): Promise<{ books: McpBookActivity[]; hasMore: boolean }> {
+  const take = clampActivityLimit(limit);
+  // `not: null` keeps an unbounded range from matching untracked books
+  const inRange = { ...rangeWhere(range), not: null };
+  const columns = {
+    finished: { finishedAt: inRange },
+    started: { startedAt: inRange },
+    progressed: { progressUpdatedAt: inRange },
+  } satisfies Record<BookActivity, Prisma.ItemBookDetailsWhereInput>;
+
+  const [username, rows] = await Promise.all([
+    getUsername(userId),
+    db.itemBookDetails.findMany({
+      where: {
+        item: { userId },
+        OR: activities.map((activity) => columns[activity]),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: BOOK_CANDIDATE_CAP,
+      select: {
+        itemId: true,
+        authors: true,
+        pageCount: true,
+        status: true,
+        startedAt: true,
+        startedAtPrecision: true,
+        finishedAt: true,
+        finishedAtPrecision: true,
+        progressValue: true,
+        progressUnit: true,
+        progressUpdatedAt: true,
+        rating: true,
+        review: true,
+        item: { select: { title: true } },
+      },
+    }),
+  ]);
+
+  const matched = rows.flatMap((row) => {
+    const dates: Record<BookActivity, Date | null> = {
+      finished: row.finishedAt,
+      started: row.startedAt,
+      progressed: row.progressUpdatedAt,
+    };
+    const precisions: Record<BookActivity, DatePrecision | null> = {
+      finished: row.finishedAtPrecision,
+      started: row.startedAtPrecision,
+      progressed: null,
+    };
+    const activity = activities.filter((a) =>
+      readingDateInRange({ date: dates[a], precision: precisions[a], range }),
+    );
+    if (activity.length === 0) return [];
+    const latest = Math.max(...activity.map((a) => dates[a]?.getTime() ?? 0));
+    return [{ row, activity, latest }];
+  });
+  matched.sort(
+    (a, b) => b.latest - a.latest || b.row.itemId.localeCompare(a.row.itemId),
+  );
+
+  return {
+    books: matched.slice(0, take).map(({ row, activity }) => ({
+      id: row.itemId,
+      url: itemUrl(row.itemId, username),
+      title: row.item.title,
+      authors: row.authors,
+      status: row.status,
+      activity,
+      startedAt: row.startedAt?.toISOString() ?? null,
+      startedAtPrecision: row.startedAt
+        ? (row.startedAtPrecision ?? "day")
+        : null,
+      finishedAt: row.finishedAt?.toISOString() ?? null,
+      finishedAtPrecision: row.finishedAt
+        ? (row.finishedAtPrecision ?? "day")
+        : null,
+      progressValue: row.progressValue,
+      progressUnit: row.progressUnit,
+      pageCount: row.pageCount,
+      progressUpdatedAt: row.progressUpdatedAt?.toISOString() ?? null,
+      ratingStars: row.rating === null ? null : row.rating / 2,
+      review: row.review,
+    })),
+    hasMore: matched.length > take || rows.length === BOOK_CANDIDATE_CAP,
+  };
 }
 
 /** A user's distinct filterable values (tags, kinds, sources, …) for discovery. */

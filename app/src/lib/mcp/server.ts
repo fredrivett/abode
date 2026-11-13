@@ -7,11 +7,17 @@ import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
+  BOOK_ACTIVITIES,
+  getBookActivity,
+  getHighlights,
   getItem,
   getItems,
   listFilters,
   listRooms,
+  MCP_DEFAULT_ACTIVITY_LIMIT,
+  MCP_MAX_ACTIVITY_LIMIT,
   MCP_MAX_LIMIT,
+  resolveDateRange,
 } from "./tools";
 
 const log = createLogger("lib/mcp/server");
@@ -28,7 +34,11 @@ const SERVER_INFO = { name: "abode", version: "1.0.0" };
 
 const INSTRUCTIONS = `abode is the user's personal library of things they've saved: links, articles, images, videos, tweets, products, books, notes and scanned documents. Items can be grouped into rooms (collections).
 
-Use get_items to search (pass a query) or to browse recent saves (omit it). Use get_item for an item's full detail. Use list_filters to discover the tags and kinds the user actually has, and list_rooms for their rooms. Everything is read-only.`;
+Use get_items to search (pass a query) or to browse recent saves (omit it). Use get_item for an item's full detail. Use list_filters to discover the tags and kinds the user actually has, and list_rooms for their rooms.
+
+For what the user has been reading over a period (e.g. a weekly review), use get_highlights for the passages they highlighted and get_book_activity for books they finished, started or made progress on. Both take a from/to date range, so there's no need to fetch items one by one. get_items' since filters on when an item was saved, not when it was read.
+
+Everything is read-only.`;
 
 /**
  * Packs the authenticated caller into the SDK's AuthInfo, which the handler
@@ -148,7 +158,34 @@ const getItemsInput = z.object({
     .describe(`How many items to return (default 20, max ${MCP_MAX_LIMIT})`),
 });
 
-/** Builds the per-request MCP server for one caller: four read-only tools over their library */
+const dateRangeInput = {
+  from: z
+    .string()
+    .optional()
+    .describe(
+      "Start of the period, inclusive: an ISO date (2026-11-04, a UTC day) or a timestamp with offset. Omit for no lower bound.",
+    ),
+  to: z
+    .string()
+    .optional()
+    .describe(
+      "End of the period, inclusive: a date-only value covers that whole UTC day (2026-11-30 = through the end of 30 Nov). Omit for up to now.",
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MCP_MAX_ACTIVITY_LIMIT)
+    .optional()
+    .describe(
+      `How many to return (default ${MCP_DEFAULT_ACTIVITY_LIMIT}, max ${MCP_MAX_ACTIVITY_LIMIT}). hasMore: true means there are more in the period: raise the limit or narrow the range.`,
+    ),
+};
+
+const INVALID_RANGE =
+  "Invalid date range: from and to must be ISO dates or timestamps, with from not after to.";
+
+/** Builds the per-request MCP server for one caller: read-only tools over their library */
 export function buildMcpServer(caller: McpCaller): McpServer {
   const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS });
   const readOnly = { readOnlyHint: true, openWorldHint: false };
@@ -183,7 +220,7 @@ export function buildMcpServer(caller: McpCaller): McpServer {
     {
       title: "Get one saved item",
       description:
-        "Full detail for one of the user's items (by id from get_items): article text, product details, notes, highlights and more depending on its kind.",
+        "Full detail for one of the user's items (by id from get_items): article text, product details, book reading state, notes, highlights and more depending on its kind.",
       inputSchema: z.object({
         id: z.string().describe("The item's id, as returned by get_items"),
       }),
@@ -193,6 +230,54 @@ export function buildMcpServer(caller: McpCaller): McpServer {
       runTool(caller, "get_item", async () => {
         const item = await getItem(caller.userId, id);
         return item ? jsonResult(item) : errorResult("Item not found.");
+      }),
+  );
+
+  server.registerTool(
+    "get_highlights",
+    {
+      title: "Highlights made in a period",
+      description:
+        "Passages the user highlighted in a period, across all their items, newest first: each with its text, the user's note on it, when it was made, and the item it's from (title, kind, link). Filters on when the highlight was made, not when the item was saved.",
+      inputSchema: z.object(dateRangeInput),
+      annotations: readOnly,
+    },
+    ({ limit, ...dates }) =>
+      runTool(caller, "get_highlights", async () => {
+        const range = resolveDateRange(dates);
+        if (!range) return errorResult(INVALID_RANGE);
+        return jsonResult(await getHighlights(caller.userId, { range, limit }));
+      }),
+  );
+
+  server.registerTool(
+    "get_book_activity",
+    {
+      title: "Books read in a period",
+      description:
+        "Books the user finished, started or made progress on in a period, most recent activity first, with reading status, start/finish dates, progress, rating (ratingStars, out of 5) and review. Each book's activity lists which of these happened in the period. finished covers both read and did-not-finish (status dnf). A start/finish date known only to the month or year (its precision) matches only when the range covers that whole month or year (up to today), so it never counts toward a shorter period it may not fall in. progressed means the latest progress update was in the period; earlier updates aren't kept.",
+      inputSchema: z.object({
+        ...dateRangeInput,
+        activity: z
+          .array(z.enum(BOOK_ACTIVITIES))
+          .min(1)
+          .max(BOOK_ACTIVITIES.length)
+          .optional()
+          .describe("Only these kinds of activity (default: all three)"),
+      }),
+      annotations: readOnly,
+    },
+    ({ limit, activity, ...dates }) =>
+      runTool(caller, "get_book_activity", async () => {
+        const range = resolveDateRange(dates);
+        if (!range) return errorResult(INVALID_RANGE);
+        return jsonResult(
+          await getBookActivity(caller.userId, {
+            range,
+            activities: activity,
+            limit,
+          }),
+        );
       }),
   );
 

@@ -1016,7 +1016,17 @@ async function seed() {
       processingStatus: "completed",
       sourceType: "url",
       title: `${CANARY}-book-title`,
-      bookDetails: { create: {} },
+      // Reading activity, so the MCP activity tools have something to leak
+      bookDetails: {
+        create: {
+          status: "read",
+          startedAt: new Date(),
+          finishedAt: new Date(),
+          progressValue: 10,
+          progressUpdatedAt: new Date(),
+          review: `${CANARY}-book-review`,
+        },
+      },
     },
   });
   await write.activityLog.create({
@@ -1396,10 +1406,16 @@ describe("cross-user isolation", () => {
   });
 
   describe("MCP tools, called by another user", () => {
-    it("never return the victim's items, rooms or tags", async () => {
-      const { getItem, getItems, listFilters, listRooms } = await import(
-        "@/lib/mcp/tools"
-      );
+    it("never return the victim's items, rooms, tags, highlights or reading", async () => {
+      const {
+        getBookActivity,
+        getHighlights,
+        getItem,
+        getItems,
+        listFilters,
+        listRooms,
+      } = await import("@/lib/mcp/tools");
+      const allTime = { from: null, to: null };
       const attacker = ids.attacker.userId;
       const results = [
         await getItems(attacker, {}),
@@ -1409,8 +1425,22 @@ describe("cross-user isolation", () => {
         await getItem(attacker, ids.victim.sharedItemId),
         await listFilters(attacker),
         await listRooms(attacker),
+        await getHighlights(attacker, { range: allTime }),
+        await getBookActivity(attacker, { range: allTime }),
       ];
       expect(leakedCanaries(JSON.stringify(results))).toEqual([]);
+
+      // Control: the same calls do find the victim's own activity
+      const own = JSON.stringify([
+        await getHighlights(ids.victim.userId, { range: allTime }),
+        await getBookActivity(ids.victim.userId, { range: allTime }),
+      ]);
+      expect(leakedCanaries(own)).toEqual(
+        expect.arrayContaining([
+          `${CANARY}-highlight`,
+          `${CANARY}-book-review`,
+        ]),
+      );
     });
   });
 });
