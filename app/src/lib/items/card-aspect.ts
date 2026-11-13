@@ -137,10 +137,40 @@ const NO_BREAK_BEFORE =
   /^[、。，．・：；？！ー〜〰゠‼⁇⁈⁉゛゜」』）】〕〉》｝］〙〗〟’”ゝゞヽヾ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶㇰ-ㇿｧ-ｯｰ…‥,.:;?!)\]}\u00a0\u2007\u202f]/u;
 const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{\u00a0\u2007\u202f]$/u;
 
+// Where Chromium and WebKit both break inside a word at a dash: after a hyphen
+// before a letter, after an en dash before a letter or digit, and on either
+// side of an em dash (not between two). Never at the start of a word or beside
+// a non-breaking space. The engines disagree elsewhere (WebKit keeps `2025-06`
+// whole, Chromium keeps `-/` together), so those stay joined, erring to a
+// spare line rather than clipping
+const DASH_BREAK =
+  /(?<=\S[-‐])(?=\p{L})|(?<=\S–)(?=[\p{L}\p{Nd}])|(?<=[^\s—])(?=—)|(?<=—)(?=[\p{L}\p{Nd}])/u;
+
 let graphemes: Intl.Segmenter | undefined;
 
-/** A word split where the browser may also break it: around CJK and emoji */
+/**
+ * A word split where the browser may also break it: after dashes, and around
+ * CJK and emoji
+ */
 function breakUnits(word: string): string[] {
+  const units: string[] = [];
+  for (const piece of word.split(DASH_BREAK)) {
+    // Kinsoku holds at dashes too: no break after an opening bracket (「—) or
+    // before small kana and other nonstarters (-ぁ, which WebKit keeps whole)
+    const previous = units.at(-1);
+    if (
+      previous !== undefined &&
+      (NO_BREAK_AFTER.test(previous) || NO_BREAK_BEFORE.test(piece))
+    ) {
+      units[units.length - 1] = previous + piece;
+    } else {
+      units.push(piece);
+    }
+  }
+  return units.flatMap(ideographicUnits);
+}
+
+function ideographicUnits(word: string): string[] {
   if (!HAS_IDEOGRAPHIC.test(word)) return [word];
   graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
   const units: string[] = [];
@@ -186,7 +216,8 @@ export function wrapLines(
   // Tokenize into words, each with the px width of the whitespace gap before it.
   // Breaks only come at breakable spaces: collapse mode keeps non-breaking
   // spaces inside the word, and preserve mode breaks only at ASCII space/tab
-  // (matching pre-wrap). CJK and emoji split a word further (`breakUnits`).
+  // (matching pre-wrap). Dashes, CJK and emoji split a word further
+  // (`breakUnits`).
   const spaceWidth = measure(" ", style);
   const tokens: { gap: number; word: string }[] = [];
   const wordPattern = collapse

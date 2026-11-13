@@ -198,6 +198,20 @@ const CASES: Array<{ label: string; item: Item }> = [
     ),
   },
   {
+    label: "note: hyphenated URL",
+    item: note(
+      null,
+      "Read https://www.example.com/blog/2025/06/grid-layouts/explained before the call on Friday",
+    ),
+  },
+  {
+    label: "note: hyphens + dashes",
+    item: note(
+      null,
+      "A well-known, long-standing approach—one that re-examines state-of-the-art grids—runs 10–20 pages",
+    ),
+  },
+  {
     label: "note: emoji + CJK",
     item: note(null, "今日はいい天気ですね 🌞🌞🌞 散歩に行きましょう 🚶‍♀️"),
   },
