@@ -320,6 +320,12 @@ describe("resolveDateRange", () => {
   it("rejects an unparseable date or an inverted range", () => {
     expect(resolveDateRange({ from: "last week" })).toBeNull();
     expect(resolveDateRange({ to: "2026-13-45" })).toBeNull();
+    // Real calendar days only: Date would roll these over into March
+    expect(resolveDateRange({ from: "2026-02-30" })).toBeNull();
+    expect(resolveDateRange({ to: "2026-02-29T10:00:00Z" })).toBeNull();
+    expect(resolveDateRange({ to: "2028-02-29" })).not.toBeNull();
+    // ISO only, not whatever Date happens to parse
+    expect(resolveDateRange({ from: "Nov 4 2026" })).toBeNull();
     expect(
       resolveDateRange({ from: "2026-11-02", to: "2026-11-01" }),
     ).toBeNull();
@@ -444,7 +450,6 @@ describe("getBookActivity", () => {
     const inRange = {
       gte: new Date("2026-11-01T00:00:00Z"),
       lte: new Date("2026-11-11T23:59:59.999Z"),
-      not: null,
     };
     expect(mockBookFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -566,6 +571,68 @@ describe("getBookActivity", () => {
       review: "Loved it",
     });
     expect(result.books[0]?.startedAtPrecision).toBeNull();
+  });
+
+  it("treats an omitted end as now, so future-dated books don't count", async () => {
+    const rows = [
+      book({ itemId: "past", startedAt: new Date("2026-11-10T00:00:00Z") }),
+      book({ itemId: "future", startedAt: new Date("2026-12-01T00:00:00Z") }),
+      book({
+        itemId: "next-month",
+        startedAt: new Date("2026-12-01T00:00:00Z"),
+        startedAtPrecision: "month",
+      }),
+    ];
+    expect(await ids(range("2026-11-01T00:00:00Z", null), rows)).toEqual([
+      "past",
+    ]);
+    expect(mockBookFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              startedAt: {
+                gte: new Date("2026-11-01T00:00:00Z"),
+                lte: new Date("2026-11-11T12:00:00Z"),
+              },
+            },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("lists each activity once even when it's requested twice", async () => {
+    mockBookFindMany.mockResolvedValue([
+      book({ itemId: "b", finishedAt: new Date("2026-11-08T00:00:00Z") }),
+    ]);
+    const { books } = await getBookActivity(USER, {
+      range: lastWeek,
+      activities: ["finished", "finished"],
+    });
+    expect(books.map((b) => b.activity)).toEqual([["finished"]]);
+  });
+
+  it("ranks every candidate before the limit, and says no more when coarse ones drop out", async () => {
+    // DB order is arbitrary; the newest activity must still come first
+    mockBookFindMany.mockResolvedValue([
+      book({ itemId: "older", finishedAt: new Date("2026-11-05T00:00:00Z") }),
+      book({
+        itemId: "coarse",
+        finishedAt: new Date("2026-11-01T00:00:00Z"),
+        finishedAtPrecision: "month",
+      }),
+      book({ itemId: "newer", finishedAt: new Date("2026-11-09T00:00:00Z") }),
+    ]);
+    const result = await getBookActivity(USER, { range: lastWeek, limit: 2 });
+    expect(result.books.map((b) => b.id)).toEqual(["newer", "older"]);
+    expect(result.hasMore).toBe(false);
+    // Details load for the returned page only, still scoped to the caller
+    expect(mockBookFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { itemId: { in: ["newer", "older"] }, item: { userId: USER } },
+      }),
+    );
   });
 
   it("only reports the requested activities", async () => {

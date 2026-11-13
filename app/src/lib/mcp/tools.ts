@@ -282,12 +282,24 @@ export async function getItem(userId: string, id: string) {
 export type DateRange = { from: Date | null; to: Date | null };
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_PREFIX = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// null = omitted, undefined = invalid. Requires an ISO date or timestamp, and
+// rejects a calendar day that doesn't exist (2026-02-30), which `Date` would
+// otherwise roll over into March
 function parseDate(value: string | undefined): Date | null | undefined {
   if (!value) return null;
+  const match = ISO_DATE_PREFIX.exec(value);
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  if (!match || Number.isNaN(date.getTime())) return undefined;
+  const [year, month, day] = [match[1], match[2], match[3]].map(Number);
+  const calendar = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day ?? 0));
+  const exists =
+    calendar.getUTCFullYear() === year &&
+    calendar.getUTCMonth() === (month ?? 0) - 1 &&
+    calendar.getUTCDate() === day;
+  return exists ? date : undefined;
 }
 
 /**
@@ -387,11 +399,6 @@ export async function getHighlights(
 export const BOOK_ACTIVITIES = ["finished", "started", "progressed"] as const;
 export type BookActivity = (typeof BOOK_ACTIVITIES)[number];
 
-// Upper bound on candidate books per call. The DB pre-filter is exact for
-// day-precision dates; coarse ones are re-checked in memory, so the rows have
-// to come back first. Reaching it reports hasMore rather than dropping silently.
-const BOOK_CANDIDATE_CAP = 1000;
-
 /**
  * Whether a started/finished date lies within the range. A month- or
  * year-precision date only says "some time in that month/year", so it matches
@@ -402,19 +409,22 @@ const BOOK_CANDIDATE_CAP = 1000;
 function readingDateInRange({
   date,
   precision,
-  range,
+  from,
+  to,
+  now,
 }: {
   date: Date | null;
   precision: DatePrecision | null;
-  range: DateRange;
+  from: Date | null;
+  to: Date;
+  now: Date;
 }): boolean {
   if (!date) return false;
-  if (range.from && date < range.from) return false;
-  if (!range.to) return true;
-  if (!precision || precision === "day") return date <= range.to;
+  if (from && date < from) return false;
+  if (!precision || precision === "day") return date <= to;
   const periodEnd = endOfPrecision(date, precision).getTime();
-  const latest = Math.min(periodEnd, Math.max(Date.now(), date.getTime()));
-  return latest <= range.to.getTime();
+  const latest = Math.min(periodEnd, Math.max(now.getTime(), date.getTime()));
+  return latest <= to.getTime();
 }
 
 export type McpBookActivity = {
@@ -452,23 +462,71 @@ export async function getBookActivity(
   }: { range: DateRange; activities?: BookActivity[]; limit?: number },
 ): Promise<{ books: McpBookActivity[]; hasMore: boolean }> {
   const take = clampActivityLimit(limit);
-  // `not: null` keeps an unbounded range from matching untracked books
-  const inRange = { ...rangeWhere(range), not: null };
+  const requested = [...new Set(activities)];
+  // One instant for the whole call: an omitted `to` means up to now, so books
+  // dated in the future never count
+  const now = new Date();
+  const from = range.from;
+  const to = range.to ?? now;
+  const inRange = rangeWhere({ from, to });
   const columns = {
     finished: { finishedAt: inRange },
     started: { startedAt: inRange },
     progressed: { progressUpdatedAt: inRange },
   } satisfies Record<BookActivity, Prisma.ItemBookDetailsWhereInput>;
 
+  // Dates only, uncapped: the DB filter is exact for day precision but a
+  // superset for month/year ones, which are re-checked here. Ranking all
+  // candidates before cutting to the limit keeps both the order and hasMore exact
+  const candidates = await db.itemBookDetails.findMany({
+    where: {
+      item: { userId },
+      OR: requested.map((activity) => columns[activity]),
+    },
+    select: {
+      itemId: true,
+      startedAt: true,
+      startedAtPrecision: true,
+      finishedAt: true,
+      finishedAtPrecision: true,
+      progressUpdatedAt: true,
+    },
+  });
+
+  const matched = candidates.flatMap((row) => {
+    const dates: Record<BookActivity, Date | null> = {
+      finished: row.finishedAt,
+      started: row.startedAt,
+      progressed: row.progressUpdatedAt,
+    };
+    const precisions: Record<BookActivity, DatePrecision | null> = {
+      finished: row.finishedAtPrecision,
+      started: row.startedAtPrecision,
+      progressed: null,
+    };
+    const activity = requested.filter((a) =>
+      readingDateInRange({
+        date: dates[a],
+        precision: precisions[a],
+        from,
+        to,
+        now,
+      }),
+    );
+    if (activity.length === 0) return [];
+    const latest = Math.max(...activity.map((a) => dates[a]?.getTime() ?? 0));
+    return [{ itemId: row.itemId, activity, latest }];
+  });
+  matched.sort(
+    (a, b) => b.latest - a.latest || b.itemId.localeCompare(a.itemId),
+  );
+  const page = matched.slice(0, take);
+  if (page.length === 0) return { books: [], hasMore: false };
+
   const [username, rows] = await Promise.all([
     getUsername(userId),
     db.itemBookDetails.findMany({
-      where: {
-        item: { userId },
-        OR: activities.map((activity) => columns[activity]),
-      },
-      orderBy: { updatedAt: "desc" },
-      take: BOOK_CANDIDATE_CAP,
+      where: { itemId: { in: page.map((m) => m.itemId) }, item: { userId } },
       select: {
         itemId: true,
         authors: true,
@@ -487,53 +545,38 @@ export async function getBookActivity(
       },
     }),
   ]);
-
-  const matched = rows.flatMap((row) => {
-    const dates: Record<BookActivity, Date | null> = {
-      finished: row.finishedAt,
-      started: row.startedAt,
-      progressed: row.progressUpdatedAt,
-    };
-    const precisions: Record<BookActivity, DatePrecision | null> = {
-      finished: row.finishedAtPrecision,
-      started: row.startedAtPrecision,
-      progressed: null,
-    };
-    const activity = activities.filter((a) =>
-      readingDateInRange({ date: dates[a], precision: precisions[a], range }),
-    );
-    if (activity.length === 0) return [];
-    const latest = Math.max(...activity.map((a) => dates[a]?.getTime() ?? 0));
-    return [{ row, activity, latest }];
-  });
-  matched.sort(
-    (a, b) => b.latest - a.latest || b.row.itemId.localeCompare(a.row.itemId),
-  );
+  const byId = new Map(rows.map((row) => [row.itemId, row]));
 
   return {
-    books: matched.slice(0, take).map(({ row, activity }) => ({
-      id: row.itemId,
-      url: itemUrl(row.itemId, username),
-      title: row.item.title,
-      authors: row.authors,
-      status: row.status,
-      activity,
-      startedAt: row.startedAt?.toISOString() ?? null,
-      startedAtPrecision: row.startedAt
-        ? (row.startedAtPrecision ?? "day")
-        : null,
-      finishedAt: row.finishedAt?.toISOString() ?? null,
-      finishedAtPrecision: row.finishedAt
-        ? (row.finishedAtPrecision ?? "day")
-        : null,
-      progressValue: row.progressValue,
-      progressUnit: row.progressUnit,
-      pageCount: row.pageCount,
-      progressUpdatedAt: row.progressUpdatedAt?.toISOString() ?? null,
-      ratingStars: row.rating === null ? null : row.rating / 2,
-      review: row.review,
-    })),
-    hasMore: matched.length > take || rows.length === BOOK_CANDIDATE_CAP,
+    books: page.flatMap(({ itemId, activity }) => {
+      const row = byId.get(itemId);
+      if (!row) return [];
+      return [
+        {
+          id: row.itemId,
+          url: itemUrl(row.itemId, username),
+          title: row.item.title,
+          authors: row.authors,
+          status: row.status,
+          activity,
+          startedAt: row.startedAt?.toISOString() ?? null,
+          startedAtPrecision: row.startedAt
+            ? (row.startedAtPrecision ?? "day")
+            : null,
+          finishedAt: row.finishedAt?.toISOString() ?? null,
+          finishedAtPrecision: row.finishedAt
+            ? (row.finishedAtPrecision ?? "day")
+            : null,
+          progressValue: row.progressValue,
+          progressUnit: row.progressUnit,
+          pageCount: row.pageCount,
+          progressUpdatedAt: row.progressUpdatedAt?.toISOString() ?? null,
+          ratingStars: row.rating === null ? null : row.rating / 2,
+          review: row.review,
+        },
+      ];
+    }),
+    hasMore: matched.length > take,
   };
 }
 

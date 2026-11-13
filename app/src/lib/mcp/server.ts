@@ -163,7 +163,7 @@ const dateRangeInput = {
     .string()
     .optional()
     .describe(
-      "Start of the period, inclusive: an ISO date (2026-11-04, a UTC day) or a timestamp with offset. Omit for no lower bound.",
+      "Start of the period, inclusive: an ISO date (2026-11-04, a UTC day) or an ISO timestamp with offset. Omit for no lower bound.",
     ),
   to: z
     .string()
