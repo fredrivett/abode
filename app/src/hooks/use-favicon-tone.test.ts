@@ -47,10 +47,14 @@ describe("useFaviconTone", () => {
     expect(result.current).toBe("light");
   });
 
-  it("returns a tone measured earlier on the first render, without reloading", () => {
-    settled.set("a.png", "dark");
-    const { result } = renderHook(() => useFaviconTone("a.png"));
-    expect(result.current).toBe("dark");
-    expect(pending.size).toBe(0);
-  });
+  // null is a measured result (reads on both cards), not "unmeasured"
+  it.each(["dark", null] as const)(
+    "returns an earlier %s tone on the first render, without reloading",
+    (tone) => {
+      settled.set("a.png", tone);
+      const { result } = renderHook(() => useFaviconTone("a.png"));
+      expect(result.current).toBe(tone);
+      expect(pending.size).toBe(0);
+    },
+  );
 });
