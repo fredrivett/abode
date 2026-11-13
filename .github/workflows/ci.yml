@@ -105,15 +105,16 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('app/bun.lock') }}
+          # Its own key: E2E's Chromium-only cache would hit here without WebKit
+          key: ${{ runner.os }}-playwright-chromium-webkit-${{ hashFiles('app/bun.lock') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium webkit
 
       - name: Install Playwright deps (cached browsers)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: bunx playwright install-deps chromium
+        run: bunx playwright install-deps chromium webkit
 
       - name: Run tests with coverage
         shell: bash
@@ -128,6 +129,11 @@ jobs:
           # Supabase client, and stub fetch for the requests themselves
           NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci
+
+      # Grid/CardFit again in WebKit, whose line breaking differs from
+      # Chromium's: the card-height estimates must fit both
+      - name: Run CardFit stories in WebKit
+        run: bun run test:storybook:webkit
 
       - name: Publish coverage to job summary
         if: ${{ always() }}

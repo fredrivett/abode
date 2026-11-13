@@ -29,7 +29,14 @@ export type CardTextStyle = {
 };
 
 /** Measures the rendered width (px) of a single line of `text` in `style`. */
-export type TextMeasurer = (text: string, style: CardTextStyle) => number;
+export type TextMeasurer = {
+  (text: string, style: CardTextStyle): number;
+  /**
+   * Whether the browser can break a line after a slash, as in a URL path:
+   * WebKit can, Chromium can't. Absent → it can't.
+   */
+  breaksAfterSlash?: () => boolean;
+};
 
 /** Masonry frame dimensions — only their ratio (width/height) is used. */
 export type FrameAspect = { width: number; height: number };
@@ -146,13 +153,18 @@ const NO_BREAK_AFTER = /[「『（【〔〈《｛［〘〖〝‘“([{\u00a0\u20
 const DASH_BREAK =
   /(?<=\S[-‐])(?=\p{L})|(?<=\S–)(?=[\p{L}\p{Nd}])|(?<=[^\s—])(?=—)|(?<=—)(?=[\p{L}\p{Nd}])/u;
 
+// Where an engine that breaks after slashes (WebKit, per UAX #14) breaks a URL
+// path: before a letter, or a digit unless it continues a number (1/2). It can
+// also break before some symbols; those stay joined, erring to a spare line
+const AFTER_SLASH = /(?<=\/)(?=\p{L})|(?<=(?:^|\P{Nd})\/)(?=\p{Nd})/u;
+
 let graphemes: Intl.Segmenter | undefined;
 
 /**
- * A word split where the browser may also break it: after dashes, and around
- * CJK and emoji
+ * A word split where the browser may also break it: after dashes, around CJK
+ * and emoji, and after slashes in engines that break there
  */
-function breakUnits(word: string): string[] {
+function breakUnits(word: string, afterSlash: boolean): string[] {
   const units: string[] = [];
   for (const piece of word.split(DASH_BREAK)) {
     // Kinsoku holds at dashes too: no break after an opening bracket (「—) or
@@ -167,7 +179,9 @@ function breakUnits(word: string): string[] {
       units.push(piece);
     }
   }
-  return units.flatMap(ideographicUnits);
+  return (
+    afterSlash ? units.flatMap((unit) => unit.split(AFTER_SLASH)) : units
+  ).flatMap(ideographicUnits);
 }
 
 function ideographicUnits(word: string): string[] {
@@ -216,9 +230,10 @@ export function wrapLines(
   // Tokenize into words, each with the px width of the whitespace gap before it.
   // Breaks only come at breakable spaces: collapse mode keeps non-breaking
   // spaces inside the word, and preserve mode breaks only at ASCII space/tab
-  // (matching pre-wrap). Dashes, CJK and emoji split a word further
-  // (`breakUnits`).
+  // (matching pre-wrap). Dashes, CJK, emoji and, in some engines, slashes
+  // split a word further (`breakUnits`).
   const spaceWidth = measure(" ", style);
+  const afterSlash = measure.breaksAfterSlash?.() ?? false;
   const tokens: { gap: number; word: string }[] = [];
   const wordPattern = collapse
     ? /([^\S\u00a0\u2007\u202f]*)([\S\u00a0\u2007\u202f]+)/g
@@ -233,7 +248,7 @@ export function wrapLines(
       : whitespace
         ? measure(whitespace, style)
         : 0;
-    breakUnits(match[2]).forEach((word, index) => {
+    breakUnits(match[2], afterSlash).forEach((word, index) => {
       tokens.push({ gap: index === 0 ? gap : 0, word });
     });
     match = wordPattern.exec(content);

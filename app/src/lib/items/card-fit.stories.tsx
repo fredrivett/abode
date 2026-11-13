@@ -28,7 +28,8 @@ import { getItemDisplayName } from "./item-display-name";
  * frame `getCardFrame` reserves for it, by `cardFitIssue` — the same rule the
  * debug-trace grid check applies to real items. The estimators mirror card CSS
  * by hand, so this is what catches them drifting apart. Add a fixture for
- * every bad fit found in the wild (the grid check names them).
+ * every bad fit found in the wild (the grid check names them). CI runs it in
+ * Chromium and WebKit (`test:storybook:webkit`), which break lines differently.
  */
 
 const noop = () => {};
@@ -209,6 +210,13 @@ const CASES: Array<{ label: string; item: Item }> = [
     item: note(
       null,
       "A well-known, long-standing approach—one that re-examines state-of-the-art grids—runs 10–20 pages",
+    ),
+  },
+  {
+    label: "note: URL mid-sentence",
+    item: note(
+      null,
+      "Read https://www.example.com/blog/2025/06/masonry/layouts/explained before the call on Friday",
     ),
   },
   {
