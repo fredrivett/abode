@@ -427,6 +427,42 @@ function readingDateInRange({
   return latest <= to.getTime();
 }
 
+type ActivityDate = { date: Date | null; precision: DatePrecision | null };
+
+/**
+ * Keeps the candidates with a requested activity in the period and ranks them
+ * by their latest one, newest first. Callers fetch every candidate's dates
+ * before cutting to their limit, so both the order and hasMore stay exact.
+ */
+function rankByActivity<A extends string>({
+  candidates,
+  requested,
+  from,
+  to,
+  now,
+}: {
+  candidates: { itemId: string; dates: Record<A, ActivityDate> }[];
+  requested: A[];
+  from: Date | null;
+  to: Date;
+  now: Date;
+}): { itemId: string; activity: A[] }[] {
+  const matched = candidates.flatMap(({ itemId, dates }) => {
+    const activity = requested.filter((a) =>
+      readingDateInRange({ ...dates[a], from, to, now }),
+    );
+    if (activity.length === 0) return [];
+    const latest = Math.max(
+      ...activity.map((a) => dates[a].date?.getTime() ?? 0),
+    );
+    return [{ itemId, activity, latest }];
+  });
+  matched.sort(
+    (a, b) => b.latest - a.latest || b.itemId.localeCompare(a.itemId),
+  );
+  return matched.map(({ itemId, activity }) => ({ itemId, activity }));
+}
+
 export type McpBookActivity = {
   id: string;
   url: string | null;
@@ -493,33 +529,20 @@ export async function getBookActivity(
     },
   });
 
-  const matched = candidates.flatMap((row) => {
-    const dates: Record<BookActivity, Date | null> = {
-      finished: row.finishedAt,
-      started: row.startedAt,
-      progressed: row.progressUpdatedAt,
-    };
-    const precisions: Record<BookActivity, DatePrecision | null> = {
-      finished: row.finishedAtPrecision,
-      started: row.startedAtPrecision,
-      progressed: null,
-    };
-    const activity = requested.filter((a) =>
-      readingDateInRange({
-        date: dates[a],
-        precision: precisions[a],
-        from,
-        to,
-        now,
-      }),
-    );
-    if (activity.length === 0) return [];
-    const latest = Math.max(...activity.map((a) => dates[a]?.getTime() ?? 0));
-    return [{ itemId: row.itemId, activity, latest }];
+  const matched = rankByActivity({
+    candidates: candidates.map((row) => ({
+      itemId: row.itemId,
+      dates: {
+        finished: { date: row.finishedAt, precision: row.finishedAtPrecision },
+        started: { date: row.startedAt, precision: row.startedAtPrecision },
+        progressed: { date: row.progressUpdatedAt, precision: null },
+      },
+    })),
+    requested,
+    from,
+    to,
+    now,
   });
-  matched.sort(
-    (a, b) => b.latest - a.latest || b.itemId.localeCompare(a.itemId),
-  );
   const page = matched.slice(0, take);
   if (page.length === 0) return { books: [], hasMore: false };
 
@@ -573,6 +596,117 @@ export async function getBookActivity(
           progressUpdatedAt: row.progressUpdatedAt?.toISOString() ?? null,
           ratingStars: row.rating === null ? null : row.rating / 2,
           review: row.review,
+        },
+      ];
+    }),
+    hasMore: matched.length > take,
+  };
+}
+
+export const ARTICLE_ACTIVITIES = ["read", "progressed"] as const;
+export type ArticleActivity = (typeof ARTICLE_ACTIVITIES)[number];
+
+export type McpArticleActivity = {
+  id: string;
+  url: string | null;
+  title: string | null;
+  author: string | null;
+  domain: string | null;
+  sourceUrl: string | null;
+  /** Which of the requested activities happened in the period */
+  activity: ArticleActivity[];
+  /** When the user marked it read, or null if it's unread */
+  readAt: string | null;
+  /** How far they've scrolled, 0..100 */
+  progressPercent: number | null;
+  progressUpdatedAt: string | null;
+  readingTimeMinutes: number | null;
+};
+
+/**
+ * The user's articles with reading activity in a period: marked read, or
+ * scrolled (reading position saved). Most recent activity first.
+ */
+export async function getArticleActivity(
+  userId: string,
+  {
+    range,
+    activities = [...ARTICLE_ACTIVITIES],
+    limit,
+  }: { range: DateRange; activities?: ArticleActivity[]; limit?: number },
+): Promise<{ articles: McpArticleActivity[]; hasMore: boolean }> {
+  const take = clampActivityLimit(limit);
+  const requested = [...new Set(activities)];
+  const now = new Date();
+  const from = range.from;
+  const to = range.to ?? now;
+  const inRange = rangeWhere({ from, to });
+  const columns = {
+    read: { readAt: inRange },
+    progressed: { progressUpdatedAt: inRange },
+  } satisfies Record<ArticleActivity, Prisma.ItemArticleDetailsWhereInput>;
+
+  const candidates = await db.itemArticleDetails.findMany({
+    where: {
+      item: { userId },
+      OR: requested.map((activity) => columns[activity]),
+    },
+    select: { itemId: true, readAt: true, progressUpdatedAt: true },
+  });
+  const matched = rankByActivity({
+    candidates: candidates.map((row) => ({
+      itemId: row.itemId,
+      dates: {
+        read: { date: row.readAt, precision: null },
+        progressed: { date: row.progressUpdatedAt, precision: null },
+      },
+    })),
+    requested,
+    from,
+    to,
+    now,
+  });
+  const page = matched.slice(0, take);
+  if (page.length === 0) return { articles: [], hasMore: false };
+
+  const [username, rows] = await Promise.all([
+    getUsername(userId),
+    db.itemArticleDetails.findMany({
+      where: { itemId: { in: page.map((m) => m.itemId) }, item: { userId } },
+      select: {
+        itemId: true,
+        author: true,
+        domain: true,
+        readingTime: true,
+        readAt: true,
+        scrollProgress: true,
+        progressUpdatedAt: true,
+        item: { select: { title: true, sourceUrl: true } },
+      },
+    }),
+  ]);
+  const byId = new Map(rows.map((row) => [row.itemId, row]));
+
+  return {
+    articles: page.flatMap(({ itemId, activity }) => {
+      const row = byId.get(itemId);
+      if (!row) return [];
+      return [
+        {
+          id: row.itemId,
+          url: itemUrl(row.itemId, username),
+          title: row.item.title,
+          author: row.author,
+          domain: row.domain,
+          sourceUrl: row.item.sourceUrl,
+          activity,
+          readAt: row.readAt?.toISOString() ?? null,
+          progressPercent:
+            row.scrollProgress === null
+              ? null
+              : Math.round(row.scrollProgress * 100),
+          progressUpdatedAt: row.progressUpdatedAt?.toISOString() ?? null,
+          readingTimeMinutes: row.readingTime,
         },
       ];
     }),

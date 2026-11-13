@@ -9,6 +9,7 @@ const {
   mockListRooms,
   mockGetHighlights,
   mockGetBookActivity,
+  mockGetArticleActivity,
   mockRateLimit,
   mockCapture,
   mockCaptureException,
@@ -20,6 +21,7 @@ const {
   mockListRooms: vi.fn(),
   mockGetHighlights: vi.fn(),
   mockGetBookActivity: vi.fn(),
+  mockGetArticleActivity: vi.fn(),
   mockRateLimit: vi.fn(),
   mockCapture: vi.fn(),
   mockCaptureException: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock("@/lib/mcp/tools", async (importOriginal) => ({
   listRooms: mockListRooms,
   getHighlights: mockGetHighlights,
   getBookActivity: mockGetBookActivity,
+  getArticleActivity: mockGetArticleActivity,
 }));
 
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: mockRateLimit }));
@@ -145,6 +148,7 @@ describe("/api/mcp tools", () => {
     const tools: { name: string; annotations?: { readOnlyHint?: boolean } }[] =
       result.tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
+      "get_article_activity",
       "get_book_activity",
       "get_highlights",
       "get_item",
@@ -254,6 +258,22 @@ describe("/api/mcp tools", () => {
       range: { from: new Date("2026-11-01T00:00:00.000Z"), to: null },
       activities: ["finished"],
       limit: undefined,
+    });
+  });
+
+  it("get_article_activity passes the activity filter through for the caller", async () => {
+    mockGetArticleActivity.mockResolvedValue({ articles: [], hasMore: false });
+
+    await callTool("get_article_activity", {
+      to: "2026-11-11",
+      activity: ["read"],
+      limit: 10,
+    });
+
+    expect(mockGetArticleActivity).toHaveBeenCalledWith("user_1", {
+      range: { from: null, to: new Date("2026-11-11T23:59:59.999Z") },
+      activities: ["read"],
+      limit: 10,
     });
   });
 

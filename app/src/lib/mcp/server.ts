@@ -7,7 +7,9 @@ import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
+  ARTICLE_ACTIVITIES,
   BOOK_ACTIVITIES,
+  getArticleActivity,
   getBookActivity,
   getHighlights,
   getItem,
@@ -36,7 +38,7 @@ const INSTRUCTIONS = `abode is the user's personal library of things they've sav
 
 Use get_items to search (pass a query) or to browse recent saves (omit it). Use get_item for an item's full detail. Use list_filters to discover the tags and kinds the user actually has, and list_rooms for their rooms.
 
-For what the user has been reading over a period (e.g. a weekly review), use get_highlights for the passages they highlighted and get_book_activity for books they finished, started or made progress on. Both take a from/to date range, so there's no need to fetch items one by one. get_items' since filters on when an item was saved, not when it was read.
+For what the user has been reading over a period (e.g. a weekly review), use get_highlights for the passages they highlighted, get_book_activity for books they finished, started or made progress on, and get_article_activity for articles they read or scrolled through. All three take a from/to date range, so there's no need to fetch items one by one. get_items' since filters on when an item was saved, not when it was read.
 
 Everything is read-only.`;
 
@@ -273,6 +275,37 @@ export function buildMcpServer(caller: McpCaller): McpServer {
         if (!range) return errorResult(INVALID_RANGE);
         return jsonResult(
           await getBookActivity(caller.userId, {
+            range,
+            activities: activity,
+            limit,
+          }),
+        );
+      }),
+  );
+
+  server.registerTool(
+    "get_article_activity",
+    {
+      title: "Articles read in a period",
+      description:
+        "Articles the user marked as read or made progress on (scrolled through, saving their place) in a period, most recent activity first, with title, author, link, when they were marked read, how far they've scrolled (progressPercent) and reading time. Each article's activity lists which of these happened in the period. Read is a deliberate mark by the user; progressed only means they opened and scrolled it, not that they finished. progressed means the latest scroll was in the period; earlier ones aren't kept.",
+      inputSchema: z.object({
+        ...dateRangeInput,
+        activity: z
+          .array(z.enum(ARTICLE_ACTIVITIES))
+          .min(1)
+          .max(ARTICLE_ACTIVITIES.length)
+          .optional()
+          .describe("Only these kinds of activity (default: both)"),
+      }),
+      annotations: readOnly,
+    },
+    ({ limit, activity, ...dates }) =>
+      runTool(caller, "get_article_activity", async () => {
+        const range = resolveDateRange(dates);
+        if (!range) return errorResult(INVALID_RANGE);
+        return jsonResult(
+          await getArticleActivity(caller.userId, {
             range,
             activities: activity,
             limit,

@@ -867,7 +867,15 @@ async function seed() {
       sourceType: "url",
       sourceUrl: `https://example.com/${CANARY}-article`,
       title: `${CANARY}-article-title`,
-      articleDetails: { create: { content: `${CANARY}-article-body` } },
+      articleDetails: {
+        create: {
+          content: `${CANARY}-article-body`,
+          // Reading activity, so get_article_activity has something to leak
+          readAt: new Date(),
+          scrollProgress: 0.5,
+          progressUpdatedAt: new Date(),
+        },
+      },
     },
   });
   const highlight = await write.articleHighlight.create({
@@ -1408,6 +1416,7 @@ describe("cross-user isolation", () => {
   describe("MCP tools, called by another user", () => {
     it("never return the victim's items, rooms, tags, highlights or reading", async () => {
       const {
+        getArticleActivity,
         getBookActivity,
         getHighlights,
         getItem,
@@ -1427,6 +1436,7 @@ describe("cross-user isolation", () => {
         await listRooms(attacker),
         await getHighlights(attacker, { range: allTime }),
         await getBookActivity(attacker, { range: allTime }),
+        await getArticleActivity(attacker, { range: allTime }),
       ];
       expect(leakedCanaries(JSON.stringify(results))).toEqual([]);
 
@@ -1441,6 +1451,16 @@ describe("cross-user isolation", () => {
           `${CANARY}-book-review`,
         ]),
       );
+      const ownArticles = await getArticleActivity(ids.victim.userId, {
+        range: allTime,
+      });
+      expect(ownArticles.articles).toEqual([
+        expect.objectContaining({
+          title: `${CANARY}-article-title`,
+          activity: ["read", "progressed"],
+          progressPercent: 50,
+        }),
+      ]);
     });
   });
 });

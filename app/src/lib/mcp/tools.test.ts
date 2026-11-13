@@ -6,6 +6,7 @@ const {
   mockItemFindUnique,
   mockHighlightFindMany,
   mockBookFindMany,
+  mockArticleFindMany,
   mockRankedSearch,
 } = vi.hoisted(() => ({
   mockUserFindUnique: vi.fn(),
@@ -13,6 +14,7 @@ const {
   mockItemFindUnique: vi.fn(),
   mockHighlightFindMany: vi.fn(),
   mockBookFindMany: vi.fn(),
+  mockArticleFindMany: vi.fn(),
   mockRankedSearch: vi.fn(),
 }));
 
@@ -22,6 +24,7 @@ vi.mock("@/lib/db", () => ({
     item: { findMany: mockItemFindMany, findUnique: mockItemFindUnique },
     articleHighlight: { findMany: mockHighlightFindMany },
     itemBookDetails: { findMany: mockBookFindMany },
+    itemArticleDetails: { findMany: mockArticleFindMany },
   },
 }));
 vi.mock("@/lib/search/ranked-search", () => ({
@@ -39,6 +42,7 @@ vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://abode.test" }));
 
 import {
   type DateRange,
+  getArticleActivity,
   getBookActivity,
   getHighlights,
   getItem,
@@ -679,5 +683,139 @@ describe("truncateToTokenBudget", () => {
     const emoji = "😀".repeat(10);
     const cut = truncateToTokenBudget(emoji, 3);
     expect(cut).toBe("😀😀😀");
+  });
+});
+
+function article(over: Record<string, unknown> = {}) {
+  return {
+    itemId: "a1",
+    author: "Paul Graham",
+    domain: "paulgraham.com",
+    readingTime: 12,
+    readAt: null,
+    scrollProgress: null,
+    progressUpdatedAt: null,
+    item: { title: "How to Do Great Work", sourceUrl: "https://example.com" },
+    ...over,
+  };
+}
+
+describe("getArticleActivity", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T12:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const lastWeek = range("2026-11-04T00:00:00Z", "2026-11-11T23:59:59.999Z");
+
+  it("asks only for the caller's articles with a requested date in the period, up to now", async () => {
+    mockArticleFindMany.mockResolvedValue([]);
+    await getArticleActivity(USER, {
+      range: range("2026-11-01T00:00:00Z", null),
+      activities: ["read"],
+    });
+    expect(mockArticleFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          item: { userId: USER },
+          OR: [
+            {
+              readAt: {
+                gte: new Date("2026-11-01T00:00:00Z"),
+                lte: new Date("2026-11-11T12:00:00Z"),
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("ranks by latest in-range activity, reports which happened, and loads details for the page", async () => {
+    // First call: candidate dates; second: details for the page
+    mockArticleFindMany
+      .mockResolvedValueOnce([
+        // Read before the period, scrolled in it
+        article({
+          itemId: "reread",
+          readAt: new Date("2026-10-20T08:00:00Z"),
+          progressUpdatedAt: new Date("2026-11-06T08:00:00Z"),
+        }),
+        article({
+          itemId: "finished",
+          readAt: new Date("2026-11-09T21:00:00Z"),
+          progressUpdatedAt: new Date("2026-11-09T20:55:00Z"),
+        }),
+        // Future-dated read never counts
+        article({ itemId: "future", readAt: new Date("2026-11-20T00:00:00Z") }),
+      ])
+      .mockResolvedValueOnce([
+        article({
+          itemId: "reread",
+          readAt: new Date("2026-10-20T08:00:00Z"),
+          scrollProgress: 0.42,
+          progressUpdatedAt: new Date("2026-11-06T08:00:00Z"),
+        }),
+        article({
+          itemId: "finished",
+          readAt: new Date("2026-11-09T21:00:00Z"),
+          scrollProgress: 1,
+          progressUpdatedAt: new Date("2026-11-09T20:55:00Z"),
+        }),
+      ]);
+
+    const result = await getArticleActivity(USER, { range: lastWeek });
+
+    expect(mockArticleFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          itemId: { in: ["finished", "reread"] },
+          item: { userId: USER },
+        },
+      }),
+    );
+    expect(result.hasMore).toBe(false);
+    expect(result.articles.map((a) => [a.id, a.activity])).toEqual([
+      ["finished", ["read", "progressed"]],
+      ["reread", ["progressed"]],
+    ]);
+    expect(result.articles[1]).toEqual({
+      id: "reread",
+      url: "https://abode.test/@fred/items/reread",
+      title: "How to Do Great Work",
+      author: "Paul Graham",
+      domain: "paulgraham.com",
+      sourceUrl: "https://example.com",
+      activity: ["progressed"],
+      readAt: "2026-10-20T08:00:00.000Z",
+      progressPercent: 42,
+      progressUpdatedAt: "2026-11-06T08:00:00.000Z",
+      readingTimeMinutes: 12,
+    });
+  });
+
+  it("caps at the limit and says there are more, without a details query when nothing matches", async () => {
+    mockArticleFindMany.mockResolvedValueOnce(
+      ["a", "b", "c"].map((itemId, i) =>
+        article({ itemId, readAt: new Date(`2026-11-0${5 + i}T00:00:00Z`) }),
+      ),
+    );
+    mockArticleFindMany.mockResolvedValueOnce([
+      article({ itemId: "c" }),
+      article({ itemId: "b" }),
+    ]);
+    const capped = await getArticleActivity(USER, {
+      range: lastWeek,
+      limit: 2,
+    });
+    expect(capped.articles.map((a) => a.id)).toEqual(["c", "b"]);
+    expect(capped.hasMore).toBe(true);
+
+    mockArticleFindMany.mockReset();
+    mockArticleFindMany.mockResolvedValueOnce([]);
+    const empty = await getArticleActivity(USER, { range: lastWeek });
+    expect(empty).toEqual({ articles: [], hasMore: false });
+    expect(mockArticleFindMany).toHaveBeenCalledTimes(1);
   });
 });
