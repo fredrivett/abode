@@ -43,6 +43,14 @@ export function getProxyImageUrl(
   return `/api/v1/images/${encodeURIComponent(fileKey)}?${searchParams.toString()}`;
 }
 
+/** Room preview tiles in the embed API and the share dialog's live preview */
+const ROOM_PREVIEW = { w: 200, q: 75 } as const;
+
+/** Proxy URL for a room preview tile (resized even for GIFs: tiles are stills) */
+export function roomPreviewImageUrl(fileKey: string): string {
+  return `/api/v1/images/${encodeURIComponent(fileKey)}?w=${ROOM_PREVIEW.w}&q=${ROOM_PREVIEW.q}`;
+}
+
 /** Smaller widths offered alongside a resized proxy URL (see {@link proxyImageSrcSet}) */
 const SRCSET_WIDTHS = [400, 600] as const;
 
