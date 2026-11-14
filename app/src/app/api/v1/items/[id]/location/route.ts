@@ -13,7 +13,7 @@ import {
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { accrueUsageCost, guardDailyLimit } from "@/lib/usage-limits";
-import type { syncRoomItemsTask } from "../../../../../../../trigger/sync-room-items";
+import type { syncItemToRoomsTask } from "../../../../../../../trigger/sync-item-to-rooms";
 
 const log = createLogger("api/v1/items/[id]/location");
 
@@ -134,24 +134,19 @@ async function handlePOST(
 
     log.info({ itemId: id, location }, "Manual location set");
 
-    // Trigger room sync for rooms with location filters
+    // Only this item's location changed, so re-check just this item's rooms
     const roomsWithLocationFilter = await getSmartRoomsWithLocationFilter(
       user.id,
     );
     if (roomsWithLocationFilter.length > 0) {
       log.info(
         { itemId: id, roomCount: roomsWithLocationFilter.length },
-        "Triggering room sync for rooms with location filter",
+        "Triggering item-to-rooms sync for location change",
       );
-      await Promise.all(
-        roomsWithLocationFilter.map((room) =>
-          tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
-            roomId: room.id,
-            userId: user.id,
-            itemId: id,
-          }),
-        ),
-      );
+      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+        itemId: id,
+        userId: user.id,
+      });
     }
 
     return NextResponse.json(location);
@@ -205,24 +200,19 @@ async function handleDELETE(
 
     log.info({ itemId: id }, "Manual location override removed");
 
-    // Trigger room sync for rooms with location filters
+    // Only this item's location changed, so re-check just this item's rooms
     const roomsWithLocationFilter = await getSmartRoomsWithLocationFilter(
       user.id,
     );
     if (roomsWithLocationFilter.length > 0) {
       log.info(
         { itemId: id, roomCount: roomsWithLocationFilter.length },
-        "Triggering room sync for rooms with location filter",
+        "Triggering item-to-rooms sync for location change",
       );
-      await Promise.all(
-        roomsWithLocationFilter.map((room) =>
-          tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
-            roomId: room.id,
-            userId: user.id,
-            itemId: id,
-          }),
-        ),
-      );
+      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+        itemId: id,
+        userId: user.id,
+      });
     }
 
     return new NextResponse(null, { status: 204 });

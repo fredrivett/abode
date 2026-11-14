@@ -4,6 +4,7 @@ const {
   mockGetUser,
   mockItemFindUnique,
   mockUpsert,
+  mockDeleteMany,
   mockGuard,
   mockAccrue,
   mockReverseGeocode,
@@ -13,6 +14,7 @@ const {
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
   mockUpsert: vi.fn(),
+  mockDeleteMany: vi.fn(),
   mockGuard: vi.fn(),
   mockAccrue: vi.fn(),
   mockReverseGeocode: vi.fn(),
@@ -43,11 +45,12 @@ vi.mock("@/lib/rooms", () => ({
 vi.mock("@/lib/db", () => ({
   default: {
     item: { findUnique: mockItemFindUnique },
-    itemLocation: { upsert: mockUpsert },
+    itemLocation: { upsert: mockUpsert, deleteMany: mockDeleteMany },
   },
 }));
 
-vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn() } }));
+const { mockTrigger } = vi.hoisted(() => ({ mockTrigger: vi.fn() }));
+vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
 
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({
@@ -58,7 +61,7 @@ vi.mock("@/lib/logger.server", () => ({
   }),
 }));
 
-import { POST } from "./route";
+import { DELETE, POST } from "./route";
 
 const ITEM_ID = "item_1";
 const USER_ID = "user_1";
@@ -127,5 +130,54 @@ describe("POST /api/v1/items/[id]/location — Mapbox cost accrual", () => {
     expect(res.status).toBe(400);
     expect(mockReverseGeocode).not.toHaveBeenCalled();
     expect(mockAccrue).not.toHaveBeenCalled();
+  });
+});
+
+const sendLocationEdit = {
+  POST: () => call(VALID_BODY),
+  DELETE: () => {
+    const request = {} as Parameters<typeof DELETE>[0];
+    return DELETE(request, { params: Promise.resolve({ id: ITEM_ID }) });
+  },
+};
+
+describe.each([
+  ["POST", 200],
+  ["DELETE", 204],
+] as const)("%s /api/v1/items/[id]/location — room sync", (method, status) => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: USER_ID } },
+      error: null,
+    });
+    mockGuard.mockResolvedValue({ ok: true, check: { retryAfterSeconds: 60 } });
+    mockItemFindUnique.mockResolvedValue({ id: ITEM_ID, userId: USER_ID });
+    mockUpsert.mockResolvedValue({ id: "loc_1", source: "manual" });
+    mockDeleteMany.mockResolvedValue({ count: 1 });
+    mockReverseGeocode.mockResolvedValue({ city: "London" });
+    mockIsMapboxConfigured.mockReturnValue(false);
+  });
+
+  it("re-syncs only the edited item, once, however many location rooms exist", async () => {
+    mockGetSmartRooms.mockResolvedValue([{ id: "room_1" }, { id: "room_2" }]);
+
+    const res = await sendLocationEdit[method]();
+
+    expect(res.status).toBe(status);
+    expect(mockTrigger).toHaveBeenCalledTimes(1);
+    expect(mockTrigger).toHaveBeenCalledWith("sync-item-to-rooms", {
+      itemId: ITEM_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("skips the sync when no room filters on location", async () => {
+    mockGetSmartRooms.mockResolvedValue([]);
+
+    const res = await sendLocationEdit[method]();
+
+    expect(res.status).toBe(status);
+    expect(mockTrigger).not.toHaveBeenCalled();
   });
 });
