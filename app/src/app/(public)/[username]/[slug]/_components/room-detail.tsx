@@ -321,125 +321,119 @@ export function RoomDetail({
         }
       >
         {/* Header */}
-        <div className="mx-auto max-w-5xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="flex-1 space-y-2">
-              {isOwner && (
-                <Link
-                  href="/rooms"
-                  className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
-                >
-                  <ArrowLeft className="size-4" />
-                  Back to rooms
-                </Link>
-              )}
-              <div className="flex items-center gap-3">
-                {roomEmoji && (
-                  <span className="text-3xl" aria-hidden>
-                    {roomEmoji}
-                  </span>
-                )}
-                {isOwner ? (
-                  <EditableTitle
-                    value={roomName}
-                    onSubmit={handleNameSubmit}
-                    size="2xl"
-                    isSaving={isSavingName}
-                  />
-                ) : (
-                  <h1 className="font-semibold font-serif text-3xl">
-                    {roomName}
-                  </h1>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <span>
-                  {itemCount} {itemCount === 1 ? "item" : "items"}
-                </span>
-                {room.type === "smart" ? (
-                  <>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Sparkles className="size-3" />
-                      Dynamic
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Hand className="size-3" />
-                      Static
-                    </span>
-                  </>
-                )}
-                {roomVisibility === "public" && (
-                  <>
-                    <span>·</span>
-                    <Badge variant="secondary" className="text-xs">
-                      Public
-                    </Badge>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {isOwner ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <MoreHorizontal className="size-4" />
-                    <span className="sr-only">Room options</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
-                    <Share2 className="size-4" />
-                    Share room
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowEmbedStatsDialog(true)}
-                  >
-                    <BarChart3 className="size-4" />
-                    View embed stats
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleOpenEditDialog}>
-                    <Pencil className="size-4" />
-                    Edit room
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="size-4" />
-                    {isAutoShelf ? "Hide shelf" : "Delete room"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              roomOwner && <ProfileTag user={roomOwner} />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex-1 space-y-2">
+            {isOwner && (
+              <Link
+                href="/rooms"
+                className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" />
+                Back to rooms
+              </Link>
             )}
+            <div className="flex items-center gap-3">
+              {roomEmoji && (
+                <span className="text-3xl" aria-hidden>
+                  {roomEmoji}
+                </span>
+              )}
+              {isOwner ? (
+                <EditableTitle
+                  value={roomName}
+                  onSubmit={handleNameSubmit}
+                  size="2xl"
+                  isSaving={isSavingName}
+                />
+              ) : (
+                <h1 className="font-semibold font-serif text-3xl">
+                  {roomName}
+                </h1>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <span>
+                {itemCount} {itemCount === 1 ? "item" : "items"}
+              </span>
+              {room.type === "smart" ? (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <Sparkles className="size-3" />
+                    Dynamic
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <Hand className="size-3" />
+                    Static
+                  </span>
+                </>
+              )}
+              {roomVisibility === "public" && (
+                <>
+                  <span>·</span>
+                  <Badge variant="secondary" className="text-xs">
+                    Public
+                  </Badge>
+                </>
+              )}
+            </div>
           </div>
+
+          {isOwner ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="size-4" />
+                  <span className="sr-only">Room options</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                  <Share2 className="size-4" />
+                  Share room
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowEmbedStatsDialog(true)}>
+                  <BarChart3 className="size-4" />
+                  View embed stats
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleOpenEditDialog}>
+                  <Pencil className="size-4" />
+                  Edit room
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="size-4" />
+                  {isAutoShelf ? "Hide shelf" : "Delete room"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            roomOwner && <ProfileTag user={roomOwner} />
+          )}
         </div>
 
         {/* Items grid */}
         {items.length === 0 ? (
-          <div className="mx-auto max-w-5xl">
-            <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
-              <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-                <SearchX className="size-14 text-muted-foreground" />
-                <div className="space-y-2">
-                  <h2 className="font-semibold font-serif text-3xl">
-                    No items yet
-                  </h2>
-                  <p className="text-base text-muted-foreground">
-                    {room.type === "smart"
-                      ? "No items currently match this room's filters. Items will appear here automatically when they match."
-                      : "This room is empty. Add items to organize them here."}
-                  </p>
-                </div>
+          <div className="flex min-h-[calc(100vh-20rem)] w-full items-center justify-center rounded-xl border border-border border-dashed bg-muted/20 px-6 py-12 text-center">
+            <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
+              <SearchX className="size-14 text-muted-foreground" />
+              <div className="space-y-2">
+                <h2 className="font-semibold font-serif text-3xl">
+                  No items yet
+                </h2>
+                <p className="text-base text-muted-foreground">
+                  {room.type === "smart"
+                    ? "No items currently match this room's filters. Items will appear here automatically when they match."
+                    : "This room is empty. Add items to organize them here."}
+                </p>
               </div>
             </div>
           </div>
