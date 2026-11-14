@@ -45,7 +45,7 @@ export async function checkAdminAccess(
   }
 
   // Check MFA status
-  const aal = await getAAL(supabase);
+  const aal = await getAAL(supabase, user);
 
   return {
     isAdmin: true,

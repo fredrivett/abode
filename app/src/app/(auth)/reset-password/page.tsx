@@ -19,7 +19,7 @@ export default async function ResetPasswordPage() {
 
   // Supabase requires AAL2 to call updateUser when MFA is enabled.
   // Send AAL1 users with a verified factor through the MFA challenge first.
-  if (await needsMFAChallenge(supabase)) {
+  if (await needsMFAChallenge(supabase, user)) {
     redirect("/login/verify-mfa?next=/reset-password");
   }
 

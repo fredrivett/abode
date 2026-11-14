@@ -1,6 +1,11 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { describe, expect, it } from "vitest";
-import { getAAL, isMfaChallengePending, needsMFAChallenge } from "./index";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { describe, expect, it, vi } from "vitest";
+import {
+  getAAL,
+  getVerifiedTOTPFactor,
+  isMfaChallengePending,
+  needsMFAChallenge,
+} from "./index";
 
 // Supabase types AAL as open-ended and passes the JWT claim through unchecked,
 // so the fake accepts any string to exercise unknown levels
@@ -63,6 +68,38 @@ describe("getAAL", () => {
     });
   });
 
+  it.each([
+    // listFactors().data.totp holds only verified TOTP factors, so these match it
+    { factors: [{ factor_type: "totp", status: "verified" }], expected: true },
+    {
+      factors: [
+        { factor_type: "totp", status: "unverified" },
+        { factor_type: "phone", status: "verified" },
+      ],
+      expected: false,
+    },
+    { factors: undefined, expected: false },
+  ])(
+    "reads a verified user's factors without listing them: $factors → $expected",
+    async ({ factors, expected }) => {
+      const supabase = fakeClient({
+        currentLevel: "aal1",
+        nextLevel: "aal1",
+        // The listing disagrees, so a fallback to it fails the assertion
+        verifiedFactor: !expected,
+      });
+      const listFactors = vi.spyOn(supabase.auth.mfa, "listFactors");
+
+      const aal = await getAAL(supabase, {
+        id: "u1",
+        factors,
+      } as unknown as User);
+
+      expect(aal.hasVerifiedFactor).toBe(expected);
+      expect(listFactors).not.toHaveBeenCalled();
+    },
+  );
+
   it("normalises unrecognised levels to null", async () => {
     const aal = await getAAL(
       fakeClient({
@@ -74,6 +111,30 @@ describe("getAAL", () => {
 
     expect(aal.currentLevel).toBeNull();
     expect(aal.nextLevel).toBeNull();
+  });
+});
+
+describe("getVerifiedTOTPFactor", () => {
+  it("picks a verified user's verified TOTP factor without listing them", async () => {
+    const supabase = fakeClient({
+      currentLevel: "aal1",
+      nextLevel: "aal2",
+      verifiedFactor: true,
+    });
+    const listFactors = vi.spyOn(supabase.auth.mfa, "listFactors");
+    const user = {
+      id: "u1",
+      factors: [
+        { id: "f-pending", factor_type: "totp", status: "unverified" },
+        { id: "f-phone", factor_type: "phone", status: "verified" },
+        { id: "f-totp", factor_type: "totp", status: "verified" },
+      ],
+    } as unknown as User;
+
+    const factor = await getVerifiedTOTPFactor(supabase, user);
+
+    expect(factor?.id).toBe("f-totp");
+    expect(listFactors).not.toHaveBeenCalled();
   });
 });
 

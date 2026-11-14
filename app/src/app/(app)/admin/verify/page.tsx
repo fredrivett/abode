@@ -32,7 +32,7 @@ export default async function AdminVerifyPage() {
   }
 
   // Check AAL level
-  const aal = await getAAL(supabase);
+  const aal = await getAAL(supabase, user);
 
   // If already at aal2, redirect to admin dashboard
   if (aal.currentLevel === "aal2") {
@@ -45,7 +45,7 @@ export default async function AdminVerifyPage() {
   }
 
   // Get the verified factor for the challenge
-  const factor = await getVerifiedTOTPFactor(supabase);
+  const factor = await getVerifiedTOTPFactor(supabase, user);
   if (!factor) {
     redirect("/settings?setup=mfa");
   }
