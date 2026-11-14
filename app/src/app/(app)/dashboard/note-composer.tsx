@@ -64,12 +64,16 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const contentRef = useRef(initialContent);
   const savedContentRef = useRef(initialContent);
   const dirtyRef = useRef(false);
+  // The latest draft write, so a save can wait for it to land first
+  const draftWriteRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const isEmpty = isBlankNote(markdown);
 
   const persistDraft = useDebouncedCallback(async (value: string) => {
+    const write = api.post(DRAFT_ENDPOINT, { content: value });
+    draftWriteRef.current = write.catch(() => undefined);
     try {
-      await api.post(DRAFT_ENDPOINT, { content: value });
+      await write;
       savedContentRef.current = value;
       dirtyRef.current = false;
     } catch (error) {
@@ -158,8 +162,13 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const handleSave = useCallback(async () => {
     if (isEmpty || isSaving) return;
     setIsSaving(true);
+    // Creating the note clears its server draft, so a draft write landing after
+    // that would bring the saved text back as a draft: drop the pending one, stop
+    // a mid-save tab hide beaconing it, and let one already sent finish first
+    persistDraft.cancel();
+    dirtyRef.current = false;
+    await draftWriteRef.current;
     try {
-      // Creating the note clears its server draft in the same request
       const created = await api.post<{ id: string }>("/api/v1/items/notes", {
         content: markdown,
       });
@@ -172,6 +181,11 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     } catch (error) {
       log.error({ error }, "Note create error");
       toast.error("Failed to save note");
+      // The text stays in the composer, so resume autosaving it
+      if (contentRef.current !== savedContentRef.current) {
+        dirtyRef.current = true;
+        persistDraft(contentRef.current);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -179,6 +193,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     isEmpty,
     isSaving,
     markdown,
+    persistDraft,
     revealCreatedItem,
     resetComposer,
     clearConfirm.reset,
