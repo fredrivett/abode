@@ -158,6 +158,32 @@ describe("analyze-image integration", () => {
     });
   });
 
+  test("still falls back after the user picks another product image as the cover", async () => {
+    const { itemId, userId, fileKey } = await createItem("processing");
+    const { write } = await import("@/lib/db");
+    const otherImage = `${userId}/other.jpg`;
+    await write.item.update({
+      where: { id: itemId },
+      data: {
+        kind: "product",
+        coverFileKey: otherImage,
+        productDetails: {
+          create: { images: [{ fileKey }, { fileKey: otherImage }] },
+        },
+      },
+    });
+
+    await hooks.onFailure({
+      payload: { itemId, userId, fileKey, extraSourceText: "Trail Runner" },
+      error: new Error("Failed to download image"),
+    });
+
+    expect(tasks.trigger).toHaveBeenCalledWith(
+      "enrich-item",
+      expect.objectContaining({ sourceText: "Trail Runner" }),
+    );
+  });
+
   test("skips the text fallback for a cover a re-capture has replaced", async () => {
     const { itemId, userId } = await createItem("processing");
 
