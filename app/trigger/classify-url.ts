@@ -290,7 +290,7 @@ export const classifyUrlTask = task({
   retry: { maxAttempts: 2 },
   queue: { concurrencyLimit: 3 },
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
-  ...itemFailureHooks({ task: "classify-url", keepCompleted: false }),
+  ...itemFailureHooks("classify-url"),
   run: async (payload: ClassifyUrlPayload) => {
     const { itemId, userId, url, forcedKind, html: providedHtml } = payload;
 

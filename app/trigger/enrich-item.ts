@@ -28,9 +28,7 @@ export const enrichItemTask = task({
   id: "enrich-item",
   retry: { maxAttempts: 2 },
   maxDuration: 120,
-  // A re-enrichment (e.g. cover re-analysis after a swap) must not regress a
-  // completed item to failed
-  ...itemFailureHooks({ task: "enrich-item", keepCompleted: true }),
+  ...itemFailureHooks("enrich-item"),
   run: async (payload: EnrichItemPayload) => {
     const { itemId, userId, precomputedTags, sourceText } = payload;
 

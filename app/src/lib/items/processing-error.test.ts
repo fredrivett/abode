@@ -122,6 +122,13 @@ describe("isPermanentFailure", () => {
     expect(
       isPermanentFailure(new SsrfBlockedError("blocked_address", "blocked")),
     ).toBe(true);
+    // Classified source_unreachable, yet the same request is refused again
+    expect(
+      isPermanentFailure(new SafeFetchError("body_too_large", "too big")),
+    ).toBe(true);
+    expect(
+      isPermanentFailure(new SafeFetchError("too_many_redirects", "loop")),
+    ).toBe(true);
     expect(
       isPermanentFailure(new ProcessingFailure("unsupported_content")),
     ).toBe(true);

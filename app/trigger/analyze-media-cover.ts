@@ -51,7 +51,7 @@ export const analyzeMediaCoverTask = task({
   // visual embedding).
   queue: imageAnalysisQueue,
   maxDuration: 600,
-  ...itemFailureHooks({ task: "analyze-media-cover", keepCompleted: true }),
+  ...itemFailureHooks("analyze-media-cover"),
   run: async (payload: AnalyzeMediaCoverPayload) => {
     // Advance the reaper clock — this is a chained pipeline stage
     await markProcessingActive(payload.itemId);

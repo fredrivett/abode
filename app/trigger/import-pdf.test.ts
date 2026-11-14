@@ -329,16 +329,19 @@ describe("importPdfTask", () => {
     m.upload
       .mockResolvedValueOnce({ error: null })
       .mockResolvedValueOnce({ error: new Error("storage down") });
-    await expect(run()).rejects.toThrow(/Failed to upload page 2/);
+    const { error, retried } = await runToFailure();
+    expect(error).toEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/Failed to upload page 2/),
+      }),
+    );
     expect(m.remove).toHaveBeenCalledWith(
       m.upload.mock.calls.map(([key]) => key),
     );
     expect(m.createPages).not.toHaveBeenCalled();
     // Left processing for the retry, which can succeed
     expect(m.updateManyItems).not.toHaveBeenCalled();
-    expect(hooks.catchError({ error: new Error("storage down") })).toBe(
-      undefined,
-    );
+    expect(retried).toBe(true);
   });
 
   it("drops its pages if a concurrent attempt saved first", async () => {
@@ -416,7 +419,11 @@ describe("importPdfTask", () => {
 
     await hooks.onFailure({ payload: PAYLOAD, error });
     expect(m.updateManyItems).toHaveBeenCalledWith({
-      where: { id: "item-1", userId: "user-1" },
+      where: {
+        id: "item-1",
+        userId: "user-1",
+        processingStatus: { not: "completed" },
+      },
       data: { processingStatus: "failed", processingError: "file_unreadable" },
     });
     expect(m.capture).toHaveBeenCalledWith({

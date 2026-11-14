@@ -110,5 +110,8 @@ const PERMANENT_FAILURE_REASONS: ReadonlySet<ProcessingErrorReason> = new Set([
 
 /** Whether retrying the same work can't succeed, so the run should stop now. */
 export function isPermanentFailure(error: unknown): boolean {
+  // Every safe-fetch refusal (SSRF gate, redirect cap, oversized body) is
+  // deterministic; its timeouts and network failures aren't SafeFetchErrors
+  if (error instanceof SafeFetchError) return true;
   return PERMANENT_FAILURE_REASONS.has(classifyFailureReason(error));
 }

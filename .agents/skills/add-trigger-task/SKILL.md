@@ -30,7 +30,7 @@ export const myTask = task({
   // Work backing a user-visible item marks it failed once no retry is left,
   // and skips retrying failures that can't succeed (see trigger/AGENTS.md).
   // Other work reports in its own onFailure instead.
-  ...itemFailureHooks({ task: "my-task", keepCompleted: false }),
+  ...itemFailureHooks("my-task"),
   run: async (payload: MyTaskPayload) => {
     logger.log("Starting my-task", { itemId: payload.itemId });
     // ...work... — let errors throw so Trigger.dev retries

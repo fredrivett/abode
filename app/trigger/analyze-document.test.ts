@@ -294,7 +294,11 @@ describe("analyzeDocumentTask", () => {
       error: new Error("Failed to download page"),
     });
     expect(m.updateManyItems).toHaveBeenCalledWith({
-      where: { id: "item-1", userId: "user-1" },
+      where: {
+        id: "item-1",
+        userId: "user-1",
+        processingStatus: { not: "completed" },
+      },
       data: { processingStatus: "failed", processingError: "unknown" },
     });
   });

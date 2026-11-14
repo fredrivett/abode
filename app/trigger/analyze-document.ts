@@ -65,7 +65,7 @@ export const analyzeDocumentTask = task({
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 1800, // up to MAX_OCR_PAGES_PER_DOCUMENT OCR calls plus the cover analysis
-  ...itemFailureHooks({ task: "analyze-document", keepCompleted: false }),
+  ...itemFailureHooks("analyze-document"),
   run: async ({
     itemId,
     userId,

@@ -67,7 +67,10 @@ vi.mock("../src/lib/db", () => ({
   },
 }));
 
-vi.mock("../src/lib/http/safe-fetch", () => ({ safeFetch: mockSafeFetch }));
+vi.mock("../src/lib/http/safe-fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/http/safe-fetch")>()),
+  safeFetch: mockSafeFetch,
+}));
 
 vi.mock("../src/lib/items/mark-processing-active", () => ({
   markProcessingActive: mockMarkProcessingActive,
@@ -503,7 +506,11 @@ describe("classifyUrlTask — failures", () => {
     });
 
     expect(mockItemUpdateMany).toHaveBeenCalledWith({
-      where: { id: "item_1", userId: "user_1" },
+      where: {
+        id: "item_1",
+        userId: "user_1",
+        processingStatus: { not: "completed" },
+      },
       data: { processingStatus: "failed", processingError: "source_not_found" },
     });
   });

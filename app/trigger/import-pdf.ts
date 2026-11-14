@@ -43,10 +43,7 @@ type ImportPdfPayload = {
  * encrypted or over-long PDF fails without retrying (itemFailureHooks'
  * catchError), with a reason the UI explains.
  */
-const failureHooks = itemFailureHooks({
-  task: "import-pdf",
-  keepCompleted: false,
-});
+const failureHooks = itemFailureHooks("import-pdf");
 
 export const importPdfTask = task({
   id: "import-pdf",
