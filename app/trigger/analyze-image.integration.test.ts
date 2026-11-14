@@ -147,6 +147,22 @@ describe("analyze-image integration", () => {
     });
   });
 
+  test("skips the text fallback for a cover a re-capture has replaced", async () => {
+    const { itemId, userId } = await createItem("processing");
+
+    await hooks.onFailure({
+      payload: {
+        itemId,
+        userId,
+        fileKey: `${userId}/replaced.jpg`,
+        extraSourceText: "Dune Frank Herbert",
+      },
+      error: new Error("Failed to download image"),
+    });
+
+    expect(tasks.trigger).not.toHaveBeenCalled();
+  });
+
   test("a failed cover analysis never turns a completed item failed", async () => {
     // No stored bytes, so the download fails
     const { itemId, userId, fileKey } = await createItem("completed");
