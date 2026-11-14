@@ -33,19 +33,21 @@ function createMockSupabase(options: {
         data: { claims: options.claims ?? {} },
       }),
       getUser: vi.fn().mockResolvedValue({
-        data: { user: options.user ?? null },
+        data: {
+          user:
+            options.user && options.mfaPending
+              ? {
+                  ...options.user,
+                  factors: [{ factor_type: "totp", status: "verified" }],
+                }
+              : (options.user ?? null),
+        },
       }),
       mfa: {
         getAuthenticatorAssuranceLevel: vi.fn().mockResolvedValue({
           data: {
             currentLevel: "aal1",
             nextLevel: options.mfaPending ? "aal2" : "aal1",
-          },
-          error: null,
-        }),
-        listFactors: vi.fn().mockResolvedValue({
-          data: {
-            totp: options.mfaPending ? [{ status: "verified" }] : [],
           },
           error: null,
         }),
