@@ -92,6 +92,10 @@ function gateProblems(source: string): string[] {
     ) {
       // An arrow function can skip the gate in ways this scan doesn't read
       problems.push("generateMetadata isn't a function declaration");
+    } else if (ts.isExportDeclaration(statement) && !statement.isTypeOnly) {
+      // `export { load as generateMetadata }` and `export * from` can export an
+      // entry point without the `export function` this scan reads
+      problems.push("exports through an export list or re-export");
     }
   }
   if (!hasDefaultExport) {
@@ -176,6 +180,27 @@ describe("gateProblems", () => {
     [
       "a gate that is some other function",
       `import { somethingElse as requireAdmin } from "@/lib/admin/auth";
+       export default async function Page() {
+         await requireAdmin();
+         return null;
+       }`,
+    ],
+    [
+      "a generateMetadata exported through an export list",
+      `${IMPORT}
+       async function generateMetadata() {
+         return { title: await loadTitle() };
+       }
+       export { generateMetadata };
+       export default async function Page() {
+         await requireAdmin();
+         return null;
+       }`,
+    ],
+    [
+      "a generateMetadata re-exported from another module",
+      `${IMPORT}
+       export * from "./metadata";
        export default async function Page() {
          await requireAdmin();
          return null;
