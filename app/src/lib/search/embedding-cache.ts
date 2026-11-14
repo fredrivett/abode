@@ -15,6 +15,14 @@ const log = createLogger("lib/search/embedding-cache");
 const MAX_CACHED_QUERIES = 1000;
 const TTL_MS = 60 * 60 * 1000; // 1 hour (for memory management only)
 
+/**
+ * Deadline for embedding a search query. Search waits on the embedding before
+ * returning, so a slow OpenAI must not hold up the full-text results: past this
+ * the vector leg gives up and search falls back to text + OCR. A signal rather
+ * than the SDK's `timeout`, which stops counting once response headers arrive.
+ */
+export const QUERY_EMBEDDING_TIMEOUT_MS = 2_500;
+
 // Singleton cache instance
 const queryEmbeddingCache = new LRUCache<string, number[]>({
   max: MAX_CACHED_QUERIES,
@@ -44,7 +52,11 @@ export async function getQueryEmbedding(query: string): Promise<number[]> {
   // NOTE: search-side AI usage is intentionally not recorded here yet — this
   // path has no userId in scope and is LRU-cached (low volume). Deferred to a
   // follow-up that threads userId through the search stack.
-  const { embedding } = await generateTextEmbedding(normalized);
+  // No retries: a retry can't finish inside the deadline anyway
+  const { embedding } = await generateTextEmbedding(normalized, {
+    signal: AbortSignal.timeout(QUERY_EMBEDDING_TIMEOUT_MS),
+    maxRetries: 0,
+  });
 
   // Cache the result
   queryEmbeddingCache.set(normalized, embedding);

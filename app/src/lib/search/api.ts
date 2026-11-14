@@ -123,9 +123,14 @@ export class SearchError extends Error {
  *
  * @throws {SearchError} On rate limiting (429), unauthorized (401), or other HTTP errors.
  */
-export async function search(params: SearchParams): Promise<SearchResponse> {
+export async function search(
+  params: SearchParams,
+  signal?: AbortSignal,
+): Promise<SearchResponse> {
   const searchParams = buildSearchParams(params);
-  const response = await fetch(`/api/v1/search?${searchParams.toString()}`);
+  const response = await fetch(`/api/v1/search?${searchParams.toString()}`, {
+    signal,
+  });
 
   if (!response.ok) {
     if (response.status === 429) {
