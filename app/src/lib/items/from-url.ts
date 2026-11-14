@@ -7,6 +7,8 @@ import { provisionalUrlAspect } from "@/lib/items/provisional-aspect";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
+import { getHostAndPath } from "@/lib/url-utils";
 
 const log = createLogger("lib/items/from-url");
 
@@ -51,7 +53,9 @@ export class InvalidUrlError extends Error {}
  * Shared by the `/api/v1/items/from-url` route and the `/save` share target so
  * both paths behave identically. A classify-url enqueue failure marks the item
  * `failed` (surfacing a Retry in the UI) rather than failing the save — the
- * item is already persisted.
+ * item is already persisted. Without Trigger.dev configured nothing would ever
+ * classify it, so it's saved `completed` as a bare webpage (its link, titled
+ * with its host + path) instead.
  *
  * @throws {InvalidUrlError} when `url` is not a valid http(s) URL.
  */
@@ -90,17 +94,19 @@ export async function createItemFromUrl({
   // grid renders the processing card at its final shape and doesn't jump when
   // analysis completes. Unknowable kinds keep the grid's 4:3 default.
   const aspectHint = provisionalUrlAspect(parsedUrl.href);
+  const classify = isTriggerConfigured();
 
   const item = await db.item.create({
     data: {
-      kind: null,
+      kind: classify ? null : "webpage",
+      ...(classify ? {} : { title: getHostAndPath(parsedUrl.href) }),
       sourceType: "url",
       sourceUrl: parsedUrl.href,
       captureSource: source,
       personalAccessTokenId,
       userId,
-      processingStatus: "processing",
-      ...(aspectHint ? { meta: { aspectHint } } : {}),
+      processingStatus: classify ? "processing" : "completed",
+      ...(classify && aspectHint ? { meta: { aspectHint } } : {}),
     },
     select: {
       id: true,
@@ -114,31 +120,38 @@ export async function createItemFromUrl({
     },
   });
 
-  // A queueing hiccup must not fail the save; the item is already persisted.
-  try {
-    await enqueueUserProcessing<typeof classifyUrlTask>(
-      "classify-url",
-      {
-        itemId: item.id,
+  if (classify) {
+    // A queueing hiccup must not fail the save; the item is already persisted.
+    try {
+      await enqueueUserProcessing<typeof classifyUrlTask>(
+        "classify-url",
+        {
+          itemId: item.id,
+          userId,
+          url: parsedUrl.href,
+          ...(captured !== undefined ? { html: captured } : {}),
+        },
         userId,
-        url: parsedUrl.href,
-        ...(captured !== undefined ? { html: captured } : {}),
-      },
-      userId,
+      );
+    } catch (error) {
+      // Mark failed so the UI surfaces a Retry instead of spinning forever.
+      // Best-effort: the item is already persisted, so a failure here must not
+      // fail the save (which would error after a successful insert).
+      log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
+      // Report it — the enqueue call throwing is the one failure mode with no
+      // Trigger run to inspect afterwards, so without this we're blind to why.
+      captureServerException(error, userId, {
+        route: "createItemFromUrl",
+        stage: "trigger:classify-url",
+        itemId: item.id,
+      });
+      await markItemEnqueueFailed({ itemId: item.id, context: "classify-url" });
+    }
+  } else {
+    log.info(
+      { itemId: item.id },
+      "Trigger.dev not configured; saved URL without classification",
     );
-  } catch (error) {
-    // Mark failed so the UI surfaces a Retry instead of spinning forever.
-    // Best-effort: the item is already persisted, so a failure here must not
-    // fail the save (which would error after a successful insert).
-    log.warn({ error, itemId: item.id }, "Failed to trigger classify-url");
-    // Report it — the enqueue call throwing is the one failure mode with no
-    // Trigger run to inspect afterwards, so without this we're blind to why.
-    captureServerException(error, userId, {
-      route: "createItemFromUrl",
-      stage: "trigger:classify-url",
-      itemId: item.id,
-    });
-    await markItemEnqueueFailed({ itemId: item.id, context: "classify-url" });
   }
 
   getPostHogClient()?.capture({

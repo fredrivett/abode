@@ -48,6 +48,13 @@ vi.mock("@/stores/milestone-store", () => ({
 import { MAX_PDF_UPLOAD_BYTES } from "@/lib/uploads";
 import { useUpload } from "./use-upload";
 
+async function submitUrl(url: string) {
+  const { result } = renderHook(() => useUpload());
+  await act(async () => {
+    await result.current.handleUrlSubmit(url);
+  });
+}
+
 const pdf = (size = 2048, name = "Lease.pdf") => {
   const file = new File(["%PDF-1.7"], name, { type: "application/pdf" });
   Object.defineProperty(file, "size", { value: size });
@@ -130,6 +137,15 @@ describe("useUpload with a PDF", () => {
     );
   });
 
+  it("doesn't promise to read the pages of a PDF that was saved completed", async () => {
+    m.apiPost.mockResolvedValue({
+      id: "item-1",
+      processingStatus: "completed",
+    });
+    await uploadFile(pdf());
+    expect(m.toastSuccess).toHaveBeenCalledWith("PDF added");
+  });
+
   it("still saves an image through the image route", async () => {
     const image = new File(["x"], "photo.png", { type: "image/png" });
     expect(await uploadFile(image)).toBe(true);
@@ -138,5 +154,27 @@ describe("useUpload with a PDF", () => {
       expect.objectContaining({ kind: "image" }),
     );
     expect(m.markComplete).toHaveBeenCalledWith("upload_first_image");
+  });
+});
+
+describe("useUpload with a URL", () => {
+  it("says the link is processing when the save is still processing", async () => {
+    m.apiPost.mockResolvedValue({
+      id: "item-1",
+      processingStatus: "processing",
+    });
+    await submitUrl("https://example.com/a");
+    expect(m.toastSuccess).toHaveBeenCalledWith(
+      "URL added — processing in background",
+    );
+  });
+
+  it("doesn't promise background processing for a save that completed", async () => {
+    m.apiPost.mockResolvedValue({
+      id: "item-1",
+      processingStatus: "completed",
+    });
+    await submitUrl("https://example.com/a");
+    expect(m.toastSuccess).toHaveBeenCalledWith("URL saved");
   });
 });

@@ -10,8 +10,9 @@ const log = createLogger("lib/items/enqueue-image-analysis");
  * Enqueue image enrichment for a just-created item.
  *
  * The item is already persisted by the caller; enrichment is a separate
- * concern (graceful degradation — see AGENTS.md). If enqueuing fails
- * (Trigger.dev unconfigured or unreachable) we mark the item failed so the UI
+ * concern (graceful degradation — see AGENTS.md). Callers skip this when
+ * Trigger.dev isn't configured (the item is saved completed, unanalysed). If
+ * enqueuing fails (Trigger.dev unreachable) we mark the item failed so the UI
  * offers Retry, and never throw — capturing an item must not fail just because
  * enrichment couldn't be started.
  */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getHostAndPath,
   getHostname,
   getSafeRedirectPath,
   isImageUrl,
@@ -300,5 +301,30 @@ describe("getSafeRedirectPath", () => {
 
   it("falls back for an empty array", () => {
     expect(getSafeRedirectPath([])).toBe("/dashboard");
+  });
+});
+
+describe("getHostAndPath", () => {
+  it("joins the hostname and path, dropping scheme, query, hash and port", () => {
+    expect(
+      getHostAndPath("https://en.wikipedia.org:443/wiki/Bauhaus?x=1#History"),
+    ).toBe("en.wikipedia.org/wiki/Bauhaus");
+  });
+
+  it("is just the hostname for a root URL or a trailing slash", () => {
+    expect(getHostAndPath("https://example.com/")).toBe("example.com");
+    expect(getHostAndPath("https://example.com/blog/")).toBe(
+      "example.com/blog",
+    );
+  });
+
+  it("decodes percent-escapes in the path", () => {
+    expect(getHostAndPath("https://example.com/caf%C3%A9%20menu")).toBe(
+      "example.com/café menu",
+    );
+  });
+
+  it("returns the original string for a malformed URL", () => {
+    expect(getHostAndPath("not a url")).toBe("not a url");
   });
 });
