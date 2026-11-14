@@ -397,8 +397,23 @@ export const analyzeImageTask = task({
 async function enrichFromItemText({
   itemId,
   userId,
+  fileKey,
   extraSourceText,
 }: AnalyzeImagePayload) {
+  // A re-capture since this run was queued replaced the cover (and deleted the
+  // old one, often why this run failed); the newer run enriches the item
+  const item = await db.item.findFirst({
+    where: { id: itemId, userId },
+    select: { coverFileKey: true },
+  });
+  if (item?.coverFileKey !== fileKey) {
+    logger.log("Cover replaced since queued — skipping text fallback", {
+      itemId,
+      fileKey,
+    });
+    return;
+  }
+
   logger.log("Cover analysis failed — enriching from the item's text", {
     itemId,
   });
