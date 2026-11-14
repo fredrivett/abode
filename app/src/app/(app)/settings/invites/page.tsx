@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { getAvailableInvites, getUserInvites } from "@/lib/invites";
 import { getAuthUser } from "@/lib/supabase/server";
 import { InviteSettings } from "../_components/invite-settings";
 
 export default async function InvitesSettingsPage() {
+  await requireCompletedSignup();
   const user = await getAuthUser();
 
   if (!user) {

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import {
   dataExportSnapshotSelect,
@@ -11,6 +12,7 @@ import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { ExportSettings } from "../_components/export-settings";
 
 export default async function ExportSettingsPage() {
+  await requireCompletedSignup();
   const user = await getAuthUser();
   if (!user) {
     redirect(ROUTES.LOGIN);

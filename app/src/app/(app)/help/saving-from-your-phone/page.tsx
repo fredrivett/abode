@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { getAppBaseUrl } from "@/lib/url";
 import { MarkdownRenderer } from "../_components/markdown-renderer";
 
@@ -23,6 +24,7 @@ async function getSavingFromPhoneContent() {
  * install, iOS Shortcut), rendered from a Markdown file.
  */
 export default async function SavingFromPhoneHelpPage() {
+  await requireCompletedSignup();
   const content = await getSavingFromPhoneContent();
 
   return (

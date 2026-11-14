@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { APP_NAME } from "@/lib/app";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import { decodeHtmlEntities } from "@/lib/html-metadata";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
@@ -53,6 +54,7 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<{ item?: string | string[] }>;
 }): Promise<Metadata> {
+  await requireCompletedSignup();
   const { item } = await searchParams;
   const openItemId = resolveOpenItemId(item);
   if (!openItemId) return {};
@@ -88,6 +90,7 @@ export default async function DashboardPage({
     action?: string;
   }>;
 }) {
+  await requireCompletedSignup();
   const { share, item: openItemParam, action } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
   const {
