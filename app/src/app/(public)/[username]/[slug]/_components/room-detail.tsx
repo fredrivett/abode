@@ -57,7 +57,7 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { ProfileTag } from "@/components/user/profile-tag";
 import { useGridDensity } from "@/hooks/use-grid-density";
-import { useOnReplacedCachedItem } from "@/lib/api-hooks";
+import { isNewer, useOnReplacedCachedItem } from "@/lib/api-hooks";
 import { useCardFrame } from "@/lib/items/use-card-frame";
 import type { Item } from "@/lib/types/item";
 import type { Room, RoomItem } from "@/lib/types/room";
@@ -297,14 +297,15 @@ export function RoomDetail({
       prev.map((i) => (i.id === itemId ? { ...i, title } : i)),
     );
   };
-  // Edits saved from the dialog (read toggle, reading status) arrive as the
-  // updated item; keep the room's own fields (its addedAt is when the item
-  // joined the room, not the library)
+  // Edits saved from the dialog (read toggle, reading status, retry) arrive as
+  // the updated item; skip a copy older than the room's (an out-of-order save),
+  // and keep the room's own fields (its addedAt is when the item joined the
+  // room, not the library)
   useOnReplacedCachedItem(
     useCallback((updated: Item) => {
       setItems((prev) =>
         prev.map((i) =>
-          i.id === updated.id
+          i.id === updated.id && !isNewer(i, updated)
             ? { ...i, ...updated, roomItemId: i.roomItemId, addedAt: i.addedAt }
             : i,
         ),

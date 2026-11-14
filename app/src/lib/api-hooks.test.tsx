@@ -251,18 +251,24 @@ describe("item cache helpers", () => {
     expect(list()?.pages[0].total).toBe(10);
   });
 
-  it("hands a replaced item to lists kept outside the cache until they unmount", () => {
+  it("hands replaced and refreshed items to lists kept outside the cache until they unmount", async () => {
     const { hooks } = setup();
     const listener = vi.fn();
     const room = renderHook(() => useOnReplacedCachedItem(listener));
     const updated = item("z", "Not in any cache", "2026-01-02T00:00:00Z");
+    const refreshed = item("y", "Retried", "2026-01-02T00:00:00Z");
+    vi.mocked(api.get).mockResolvedValue({ items: [refreshed] });
 
     act(() => hooks.current.replace(updated));
-    expect(listener).toHaveBeenCalledWith(updated);
+    // Retry and reassign refresh by id rather than replacing a PATCH response
+    await act(async () => {
+      await hooks.current.refresh(["y"]);
+    });
+    expect(listener.mock.calls).toEqual([[updated], [refreshed]]);
 
     room.unmount();
     act(() => hooks.current.replace(item("z", "Again")));
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a cached copy written after the one arriving", () => {
