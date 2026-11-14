@@ -88,6 +88,43 @@ describe("backfillTextVectors", () => {
     expect(recordAiUsage).toHaveBeenCalledTimes(2);
   });
 
+  test("embeds notes from their title, body and manual tags, skips empty ones", async () => {
+    generateTextEmbedding.mockResolvedValue({
+      embedding: VECTOR,
+      totalTokens: 5,
+    });
+    const { write } = await import("@/lib/db");
+    const { id: userId } = await write.user.create({
+      data: { id: crypto.randomUUID(), email: "notes@example.com" },
+    });
+    const note = (title: string | null, content: string) =>
+      write.item.create({
+        data: {
+          userId,
+          kind: "note",
+          processingStatus: "completed",
+          title,
+          userTags: title ? ["baking"] : [],
+          noteDetails: { create: { content } },
+        },
+      });
+    const withText = await note("Weekend plans", "Pick up sourdough starter");
+    const bodyOnly = await note(null, "Call Grandma");
+    const empty = await note(null, "");
+
+    const result = await backfillTextVectors();
+
+    expect(result).toMatchObject({ total: 2, updated: 2, failed: 0 });
+    expect(generateTextEmbedding).toHaveBeenCalledTimes(2);
+    expect(generateTextEmbedding).toHaveBeenCalledWith(
+      "baking\n\nWeekend plans\n\nPick up sourdough starter",
+    );
+    expect(generateTextEmbedding).toHaveBeenCalledWith("Call Grandma");
+    expect(await vectorCount(withText.id)).toBe(1);
+    expect(await vectorCount(bodyOnly.id)).toBe(1);
+    expect(await vectorCount(empty.id)).toBe(0);
+  });
+
   test("reports failures and throws so retries re-run the still-missing rows", async () => {
     // A transient outage must not be masked as a skip — it surfaces for retry.
     generateTextEmbedding.mockRejectedValue(new Error("openai unavailable"));

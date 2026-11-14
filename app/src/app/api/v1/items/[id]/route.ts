@@ -7,6 +7,7 @@ import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
+import { enqueueNoteEmbedding } from "@/lib/items/note-embedding";
 import { itemSelect, transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
@@ -203,6 +204,16 @@ async function handlePATCH(
         create: { itemId: id, content },
         update: { content },
       });
+    }
+
+    // A note's semantic-search vector is built from its title, body and tags
+    if (
+      existingItem.kind === "note" &&
+      (content !== undefined ||
+        (title !== undefined && title !== existingItem.title) ||
+        userTagsChanged)
+    ) {
+      await enqueueNoteEmbedding({ itemId: id, userId: user.id });
     }
 
     // Update twitter cover media index, re-point coverFileKey to the selected
