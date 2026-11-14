@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fileNameTitle, MAX_PDF_UPLOAD_BYTES } from "@/lib/uploads";
+import { MAX_PDF_UPLOAD_BYTES } from "@/lib/uploads";
 
 /** Body of `POST /api/v1/items/documents/pdf`: a PDF the client has uploaded */
 export const createPdfDocumentSchema = z.object({
@@ -17,5 +17,10 @@ export type CreatePdfDocumentBody = z.infer<typeof createPdfDocumentSchema>;
 
 /** A starting title from the file name, shown until the document is described */
 export function titleFromFileName(name: string): string {
-  return fileNameTitle(name) ?? "Untitled PDF";
+  const title = name
+    .replace(/\.pdf$/i, "")
+    .replace(/_+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return title || "Untitled PDF";
 }
