@@ -249,6 +249,25 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect(mockTrigger).not.toHaveBeenCalled();
     });
 
+    it("completes a failed document as-is when Trigger.dev isn't configured", async () => {
+      mockTriggerConfigured.mockReturnValue(false);
+      mockItemFindUnique.mockResolvedValue({
+        ...failedImageItem,
+        kind: "document",
+        sourceFileKey: "user_1/lease.pdf",
+        fileKey: null,
+      });
+      const res = await call();
+      expect(res.status).toBe(200);
+      expect(mockItemUpdate).toHaveBeenCalledWith({
+        where: { id: ITEM_ID },
+        data: { processingStatus: "completed", processingError: null },
+      });
+      expect(mockItemUpdateMany).not.toHaveBeenCalled();
+      expect(mockGuard).not.toHaveBeenCalled();
+      expect(mockTrigger).not.toHaveBeenCalled();
+    });
+
     it("claims a failed URL item and re-triggers classify-url", async () => {
       const res = await call();
       expect(res.status).toBe(200);

@@ -197,10 +197,17 @@ describe("POST /api/v1/items/documents", () => {
 
   it("saves the scan completed, without enqueueing, when Trigger.dev isn't configured", async () => {
     m.triggerConfigured.mockReturnValue(false);
-    expect((await call({ pages: [page(1)] })).status).toBe(201);
-    expect(m.itemCreate.mock.calls[0][0].data.processingStatus).toBe(
-      "completed",
+    m.itemCreate.mockImplementation(
+      async ({ data }: { data: { processingStatus: string } }) => ({
+        id: "item-1",
+        kind: "document",
+        processingStatus: data.processingStatus,
+      }),
     );
+    const res = await call({ pages: [page(1)] });
+    expect(res.status).toBe(201);
+    // The client's toast reads the returned status
+    expect((await res.json()).processingStatus).toBe("completed");
     expect(m.enqueue).not.toHaveBeenCalled();
   });
 
