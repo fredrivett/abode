@@ -23,6 +23,7 @@ import {
   type IssueGroup,
 } from "@/lib/admin/processing-issues";
 import { REPROCESS_LIMIT } from "@/lib/admin/reprocess-issues";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { ReprocessButton } from "../../_components/reprocess-button";
 
 export const metadata = {
@@ -117,6 +118,8 @@ function IssueSection({ group }: { group: IssueGroup }) {
 }
 
 export default async function AdminProcessingPage() {
+  await requireAdmin();
+
   const groups = await getProcessingIssues();
   const errorTotal = groups
     .filter((g) => g.severity === "error")

@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type DailyActivityStats, getUserDailyActivity } from "@/lib/activity";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import {
   getUserUsageBreakdown,
   type UserUsageBreakdown,
@@ -29,6 +30,8 @@ import { cn, formatBytes, formatUsd, getUserInitials } from "@/lib/utils";
 type PageParams = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: PageParams }) {
+  await requireAdmin();
+
   const { id } = await params;
   const user = await systemDb.user.findUnique({
     where: { id },
@@ -255,6 +258,8 @@ export default async function AdminUserDetailPage({
 }: {
   params: PageParams;
 }) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const user = await systemDb.user.findUnique({

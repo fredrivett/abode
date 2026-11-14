@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { systemDb } from "@/lib/db";
 import { InvitesTable } from "../../_components/invites-table";
 
@@ -25,6 +26,8 @@ type SearchParams = Promise<{
 export default async function AdminInvitesPage(props: {
   searchParams: SearchParams;
 }) {
+  await requireAdmin();
+
   const searchParams = await props.searchParams;
   const page = Math.max(1, Number.parseInt(searchParams.page || "1", 10));
   const search = searchParams.search?.trim() || "";

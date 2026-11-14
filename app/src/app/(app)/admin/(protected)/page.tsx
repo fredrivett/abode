@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { getGlobalDailyActivity } from "@/lib/activity";
 import { getVisualEmbeddingCoverage } from "@/lib/admin/embedding-coverage";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { getGlobalUsageToday } from "@/lib/admin/usage-stats";
 import { systemDb } from "@/lib/db";
 import { cn, formatUsd } from "@/lib/utils";
@@ -15,6 +16,8 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
+  await requireAdmin();
+
   // Get aggregate counts
   const [
     userCount,
