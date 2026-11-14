@@ -1,6 +1,16 @@
 import type { ProcessingStatus } from "@prisma/client";
-import { describe, expect, it } from "vitest";
-import { detectProcessingChanges } from "./use-processing-poll";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "./api-client";
+import {
+  detectProcessingChanges,
+  pollDelayMs,
+  useProcessingPoll,
+} from "./use-processing-poll";
+
+vi.mock("./api-client", () => ({ api: { get: vi.fn() } }));
 
 type Item = {
   id: string;
@@ -97,5 +107,147 @@ describe("detectProcessingChanges", () => {
   it("returns no change for an empty response", () => {
     const result = detectProcessingChanges([], new Map());
     expect(result.changed).toBe(false);
+  });
+});
+
+describe("detectProcessingChanges (finished items)", () => {
+  it("reports a finished item once, not again while its card catches up", () => {
+    const lastSeen = new Map<string, string>([["a", "t1"]]);
+    const first = detectProcessingChanges(
+      [item("a", "completed", "t2")],
+      lastSeen,
+    );
+    const again = detectProcessingChanges(
+      [item("a", "completed", "t2")],
+      lastSeen,
+    );
+
+    expect(first.finished.map((i) => i.id)).toEqual(["a"]);
+    expect(again.changed).toBe(false);
+  });
+});
+
+describe("pollDelayMs", () => {
+  it("polls fast while an item is changing and backs off to once a minute", () => {
+    expect(pollDelayMs(0)).toBe(1500);
+    expect(pollDelayMs(60_000)).toBe(6000);
+    expect(pollDelayMs(60 * 60_000)).toBe(60_000);
+  });
+});
+
+describe("useProcessingPoll", () => {
+  const ids = (count: number) =>
+    Array.from({ length: count }, (_, i) => `item-${i}`);
+  const requestedIds = () =>
+    vi
+      .mocked(api.get)
+      .mock.calls.map(([url]) =>
+        decodeURIComponent(String(url).split("ids=")[1]).split(","),
+      );
+
+  function renderPoll(processingIds: string[]) {
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    const hook = renderHook((idList: string[]) => useProcessingPoll(idList), {
+      wrapper,
+      initialProps: processingIds,
+    });
+    return { ...hook, invalidate };
+  }
+
+  function setHidden(hidden: boolean) {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(api.get).mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    setHidden(false);
+  });
+
+  it("splits more than 50 processing items into batches the endpoint accepts", async () => {
+    vi.mocked(api.get).mockResolvedValue({ items: [] });
+    renderPoll(ids(120));
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const batches = requestedIds();
+    expect(batches.map((batch) => batch.length)).toEqual([50, 50, 20]);
+    expect(new Set(batches.flat()).size).toBe(120);
+  });
+
+  it("never starts a poll while the previous one is in flight", async () => {
+    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("backs off an item that stops changing", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      items: [item("item-0", "processing", "t1")],
+    });
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+    // Fixed 1.5s polling would be 1200 requests in 30 minutes; capped at one
+    // a minute once quiet it's a few dozen
+    expect(vi.mocked(api.get).mock.calls.length).toBeLessThan(80);
+    const callsBefore = vi.mocked(api.get).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(59_000);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(vi.mocked(api.get).mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it("doesn't poll while the tab is hidden, and catches up once it's visible", async () => {
+    vi.mocked(api.get).mockResolvedValue({ items: [] });
+    renderPoll(ids(1));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api.get).toHaveBeenCalledTimes(1);
+
+    setHidden(true);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(api.get).toHaveBeenCalledTimes(1);
+
+    setHidden(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes the list once when an item finishes, and again if it still shows processing", async () => {
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ items: [item("item-0", "processing", "t1")] })
+      .mockResolvedValue({ items: [item("item-0", "completed", "t2")] });
+    const { invalidate, rerender } = renderPoll(ids(1));
+    const listInvalidations = () =>
+      invalidate.mock.calls.filter(([f]) => f?.queryKey?.[0] === "items")
+        .length;
+
+    // Reported once, not on every poll while the refetch is in flight
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(listInvalidations()).toBe(1);
+
+    // The list still shows it processing (its refetch failed): reported again
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(listInvalidations()).toBe(2);
+
+    // Once the list shows it finished, it's no longer polled
+    rerender([]);
+    const calls = vi.mocked(api.get).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.get).toHaveBeenCalledTimes(calls);
   });
 });

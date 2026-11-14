@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
+import { MAX_ITEM_IDS_PER_REQUEST } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 
@@ -38,10 +39,10 @@ async function handleGET(request: NextRequest) {
       return NextResponse.json({ items: [] });
     }
 
-    // Limit to prevent abuse
-    if (ids.length > 50) {
+    // Limit to prevent abuse; the poll splits larger sets into batches
+    if (ids.length > MAX_ITEM_IDS_PER_REQUEST) {
       return NextResponse.json(
-        { message: "Maximum 50 items per request" },
+        { message: `Maximum ${MAX_ITEM_IDS_PER_REQUEST} items per request` },
         { status: 400 },
       );
     }

@@ -12,6 +12,18 @@ export type CursorData = {
   id: string;
 };
 
+/** Most item ids one by-id request may name (e.g. the processing status poll) */
+export const MAX_ITEM_IDS_PER_REQUEST = 50;
+
+/** Splits `values` into consecutive batches of at most `size` */
+export function chunk<T>(values: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < values.length; i += size) {
+    chunks.push(values.slice(i, i + size));
+  }
+  return chunks;
+}
+
 /**
  * Encodes cursor data to a base64url string for use in URLs.
  */
