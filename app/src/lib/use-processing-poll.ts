@@ -3,7 +3,7 @@
 import type { ProcessingStatus } from "@prisma/client";
 import { useEffect, useRef } from "react";
 import { api } from "./api-client";
-import { useInvalidateItems } from "./api-hooks";
+import { useRefreshCachedItems } from "./api-hooks";
 import { createLogger } from "./logger.client";
 import { chunk, MAX_ITEM_IDS_PER_REQUEST } from "./pagination";
 import { useInvalidateFilterOptions } from "./search/use-filter-options";
@@ -95,9 +95,11 @@ type PollSchedule = {
 
 /**
  * Hook that polls the server for progress on processing items.
- * Invalidates the items query when an item finishes (completed/failed) or is
+ * Refreshes an item in the cache when it finishes (completed/failed) or is
  * updated mid-processing (e.g. a URL is classified and rich data is saved),
- * so the grid can show the rich card as soon as the data exists.
+ * so the grid can show the rich card as soon as the data exists. Only the
+ * changed items are fetched; the whole list is refetched only as a fallback
+ * when that fetch fails.
  *
  * Each item backs off on its own ({@link pollDelayMs}), ids go out in batches
  * the status endpoint accepts, one poll runs at a time, and a hidden tab
@@ -106,7 +108,7 @@ type PollSchedule = {
  * @param processingItemIds - Array of item IDs that are currently in "processing" status
  */
 export function useProcessingPoll(processingItemIds: string[]) {
-  const invalidateItems = useInvalidateItems();
+  const refreshCachedItems = useRefreshCachedItems();
   const invalidateFilterOptions = useInvalidateFilterOptions();
   // Read by the poll loop, so a changed set doesn't restart it (and its backoff)
   const idsRef = useRef(processingItemIds);
@@ -188,6 +190,25 @@ export function useProcessingPoll(processingItemIds: string[]) {
           lastSeen,
         );
 
+        if (changed) {
+          const changedIds = [...finished, ...updated].map((i) => i.id);
+          log.info(
+            {
+              finishedIds: finished.map((i) => i.id),
+              updatedIds: updated.map((i) => i.id),
+            },
+            "Processing items changed, refreshing them",
+          );
+          // Not awaited: a hung fetch must not hold up the next status poll
+          void refreshCachedItems(changedIds).then((ok) => {
+            // Forget what was seen, so the next poll reports them again
+            if (!ok) for (const id of changedIds) lastSeen.set(id, "");
+          });
+          // Classification/analysis can introduce a new kind, source, tag, etc,
+          // so refresh the filter options that power the search autocomplete
+          invalidateFilterOptions();
+        }
+
         const now = Date.now();
         for (const item of updated) {
           const schedule = schedules.get(item.id);
@@ -199,27 +220,13 @@ export function useProcessingPoll(processingItemIds: string[]) {
             schedule.dueAt = now + pollDelayMs(now - schedule.changedAt);
           }
         }
-        // It leaves the set once the list shows it finished. If the list
-        // still shows it processing at the recheck (the refetch failed), it's
+        // It leaves the set once its card shows it finished. If the list
+        // still shows it processing at the recheck (the fetch failed), it's
         // reported again, as a first sighting
         for (const item of finished) {
           const schedule = schedules.get(item.id);
           if (schedule) schedule.dueAt = now + FINISHED_RECHECK_MS;
           lastSeen.delete(item.id);
-        }
-
-        if (changed) {
-          log.info(
-            {
-              finishedIds: finished.map((i) => i.id),
-              updatedIds: updated.map((i) => i.id),
-            },
-            "Processing items changed, invalidating query",
-          );
-          invalidateItems();
-          // Classification/analysis can introduce a new kind, source, tag, etc,
-          // so refresh the filter options that power the search autocomplete
-          invalidateFilterOptions();
         }
       } finally {
         inFlight = false;
@@ -237,5 +244,5 @@ export function useProcessingPoll(processingItemIds: string[]) {
       document.removeEventListener("visibilitychange", wake);
       wakeRef.current = () => {};
     };
-  }, [hasProcessingItems, invalidateItems, invalidateFilterOptions]);
+  }, [hasProcessingItems, refreshCachedItems, invalidateFilterOptions]);
 }

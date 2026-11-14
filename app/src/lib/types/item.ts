@@ -219,6 +219,8 @@ export type Item = {
   userTags: string[];
   notes: string | null;
   createdAt: string;
+  // Last write; orders two cached copies of the same item (newest wins)
+  updatedAt?: string;
   // Library-timeline date the dashboard sorts and the card's "added" label show
   // (see Item.addedAt in the schema); equals createdAt except for backdated imports
   addedAt: string;

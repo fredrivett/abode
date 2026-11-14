@@ -138,12 +138,14 @@ describe("pollDelayMs", () => {
 describe("useProcessingPoll", () => {
   const ids = (count: number) =>
     Array.from({ length: count }, (_, i) => `item-${i}`);
+
+  // `/status?ids=a,b` batches only
   const requestedIds = () =>
     vi
       .mocked(api.get)
-      .mock.calls.map(([url]) =>
-        decodeURIComponent(String(url).split("ids=")[1]).split(","),
-      );
+      .mock.calls.map(([url]) => String(url))
+      .filter((url) => url.includes("/status"))
+      .map((url) => decodeURIComponent(url.split("ids=")[1]).split(","));
 
   function renderPoll(processingIds: string[]) {
     const client = new QueryClient();
@@ -227,27 +229,81 @@ describe("useProcessingPoll", () => {
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("refreshes the list once when an item finishes, and again if it still shows processing", async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({ items: [item("item-0", "processing", "t1")] })
-      .mockResolvedValue({ items: [item("item-0", "completed", "t2")] });
+  it("fetches just a finished item, and again if the list still shows it processing", async () => {
+    const statuses = [
+      { items: [item("item-0", "processing", "t1")] },
+      { items: [item("item-0", "completed", "t2")] },
+    ];
+    vi.mocked(api.get).mockImplementation(async (url: string) =>
+      url.includes("/status")
+        ? statuses.length > 1
+          ? statuses.shift()
+          : statuses[0]
+        : { items: [] },
+    );
     const { invalidate, rerender } = renderPoll(ids(1));
-    const listInvalidations = () =>
-      invalidate.mock.calls.filter(([f]) => f?.queryKey?.[0] === "items")
-        .length;
+    const refreshes = () =>
+      vi
+        .mocked(api.get)
+        .mock.calls.map(([url]) => String(url))
+        .filter((url) => url.startsWith("/api/v1/items?ids="));
 
-    // Reported once, not on every poll while the refetch is in flight
+    // Fetched once, not on every poll
     await vi.advanceTimersByTimeAsync(9000);
-    expect(listInvalidations()).toBe(1);
+    expect(refreshes()).toEqual(["/api/v1/items?ids=item-0"]);
+    // Never the whole list
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["items"] });
 
-    // The list still shows it processing (its refetch failed): reported again
+    // Still listed as processing at the recheck: fetched again
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(listInvalidations()).toBe(2);
+    expect(refreshes()).toHaveLength(2);
 
     // Once the list shows it finished, it's no longer polled
     rerender([]);
     const calls = vi.mocked(api.get).mock.calls.length;
     await vi.advanceTimersByTimeAsync(60_000);
     expect(api.get).toHaveBeenCalledTimes(calls);
+  });
+
+  it("reports a change again when fetching the item failed", async () => {
+    let statusPolls = 0;
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes("/status")) {
+        statusPolls++;
+        return {
+          items: [
+            item("item-0", "processing", statusPolls === 1 ? "t1" : "t2"),
+          ],
+        };
+      }
+      throw new Error("offline");
+    });
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const refreshes = vi
+      .mocked(api.get)
+      .mock.calls.filter(([url]) =>
+        String(url).startsWith("/api/v1/items?ids="),
+      );
+    expect(refreshes.length).toBeGreaterThan(1);
+  });
+
+  it("keeps polling while fetching a changed item hangs", async () => {
+    let statusPolls = 0;
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (!url.includes("/status")) return new Promise(() => {});
+      statusPolls++;
+      return Promise.resolve({
+        items: [item("item-0", "processing", `t${statusPolls}`)],
+      });
+    });
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    // Changes every poll, so stays on the fast interval despite the hung fetch
+    expect(statusPolls).toBeGreaterThan(4);
   });
 });
