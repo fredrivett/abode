@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Button } from "@/components/ui/button";
+import { CardTag } from "@/components/ui/card-overlay";
 import { CopyButton, CopyStatusIcon } from "@/components/ui/copy-button";
 import { DateTime } from "@/components/ui/date-time";
 import {
@@ -987,18 +988,18 @@ export function ItemCard({
             sizes={gridImageSizes}
           />
           {isProduct && item.productDetails?.price && (
-            <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
+            <CardTag corner="bottom-left">
               {item.productDetails.currency
                 ? `${getCurrencySymbol(item.productDetails.currency)}${item.productDetails.price}`
                 : item.productDetails.price}
-            </div>
+            </CardTag>
           )}
           {cardPageCount !== null && cardPageCount > 1 && (
-            <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 font-medium text-white text-xs backdrop-blur-sm">
-              <Files className="size-3" aria-hidden="true" />
+            <CardTag corner="bottom-right">
+              <Files aria-hidden="true" />
               {cardPageCount}
               <span className="sr-only"> pages</span>
-            </div>
+            </CardTag>
           )}
         </motion.div>
       </div>

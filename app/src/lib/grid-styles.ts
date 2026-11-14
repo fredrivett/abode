@@ -22,6 +22,15 @@ export const gridCardStyle: CSSProperties = {
   lineBreak: "strict",
 };
 
+// Corner badge geometry (`CardCornerBadge`), in card em. Shared with the
+// article frame estimate, which keeps the title clear of the badge
+export const CARD_BADGE_OFFSET_EM = 0.5;
+export const CARD_BADGE_PADDING_EM = 0.375;
+export const CARD_BADGE_ICON_EM = 0.875;
+/** How far the corner badge reaches in from the card's top and right edges */
+export const CARD_BADGE_EXTENT_EM =
+  CARD_BADGE_OFFSET_EM + 2 * CARD_BADGE_PADDING_EM + CARD_BADGE_ICON_EM;
+
 /**
  * {@link gridCardStyle} for the cards whose height is estimated from their
  * text (notes, tweets, articles). A word wider than the line (a long URL or
