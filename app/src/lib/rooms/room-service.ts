@@ -6,7 +6,11 @@ import db from "@/lib/db";
 import type { Filter } from "@/lib/search/types";
 import { nameToSlug } from "@/lib/slug";
 import { itemMatchesRoom } from "./room-matcher";
-import type { ItemWithDetails, RoomWithFilters } from "./types";
+import {
+  type RoomMatchItem,
+  type RoomWithFilters,
+  roomMatchItemSelect,
+} from "./types";
 
 /** Maximum number of smart rooms per user */
 export const MAX_SMART_ROOMS_PER_USER = 5;
@@ -173,44 +177,34 @@ export async function canCreateSmartRoom(userId: string): Promise<boolean> {
 }
 
 /**
- * Load an item with all data needed for room matching.
+ * Load an item with the fields needed for room matching.
  */
 export async function loadItemWithDetails(
   itemId: string,
   userId: string,
-): Promise<ItemWithDetails | null> {
+): Promise<RoomMatchItem | null> {
   const item = await db.item.findUnique({
     where: {
       id: itemId,
       userId,
     },
-    include: {
-      imageDetails: true,
-      bookDetails: true,
-      articleDetails: true,
-      locations: true,
-    },
+    select: roomMatchItemSelect,
   });
 
   return item;
 }
 
 /**
- * Load all items for a user with details needed for room matching.
+ * Load all items for a user with the fields needed for room matching.
  */
 export async function loadUserItemsWithDetails(
   userId: string,
-): Promise<ItemWithDetails[]> {
+): Promise<RoomMatchItem[]> {
   const items = await db.item.findMany({
     where: {
       userId,
     },
-    include: {
-      imageDetails: true,
-      bookDetails: true,
-      articleDetails: true,
-      locations: true,
-    },
+    select: roomMatchItemSelect,
   });
 
   return items;

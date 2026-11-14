@@ -239,6 +239,29 @@ describe("Room Service Integration", () => {
 
       expect(items).toHaveLength(2);
     });
+
+    it("loads the fields the matcher reads, not heavy content", async () => {
+      const user = await createTestUser();
+      const { write } = await import("@/lib/db");
+      const { loadUserItemsWithDetails } = await import(
+        "@/lib/rooms/room-service"
+      );
+
+      const readAt = new Date("2024-05-01");
+      await write.item.create({
+        data: {
+          userId: user.id,
+          kind: "article",
+          title: "Long read",
+          articleDetails: { create: { content: "x".repeat(5000), readAt } },
+        },
+      });
+
+      const [item] = await loadUserItemsWithDetails(user.id);
+
+      expect(item.articleDetails).toEqual({ readAt });
+      expect(item).not.toHaveProperty("title");
+    });
   });
 
   describe("syncItemToRooms", () => {
