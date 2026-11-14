@@ -1045,24 +1045,12 @@ async function handleBookUrl(
     .filter(Boolean)
     .join(" ");
 
-  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+  await triggerEnrichment({
     itemId,
     userId,
-    sourceText: truncateToTokenLimit(sourceText, 8191),
+    sourceText,
+    coverFileKey: coverResult?.fileKey ?? null,
   });
-
-  // Trigger image analysis on cover for visual tagging and search
-  if (coverResult) {
-    await tasks.trigger<typeof analyzeImageTask>(
-      "analyze-image",
-      {
-        itemId,
-        userId,
-        fileKey: coverResult.fileKey,
-      },
-      { concurrencyKey: userId },
-    );
-  }
 
   return {
     success: true,
@@ -1297,24 +1285,7 @@ async function handleProductUrl(
     .filter(Boolean)
     .join(" ");
 
-  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
-    itemId,
-    userId,
-    sourceText: truncateToTokenLimit(sourceText, 8191),
-  });
-
-  // Trigger image analysis on cover image for visual tagging and search
-  if (coverFileKey) {
-    await tasks.trigger<typeof analyzeImageTask>(
-      "analyze-image",
-      {
-        itemId,
-        userId,
-        fileKey: coverFileKey,
-      },
-      { concurrencyKey: userId },
-    );
-  }
+  await triggerEnrichment({ itemId, userId, sourceText, coverFileKey });
 
   return {
     success: true,
@@ -1328,4 +1299,37 @@ async function handleProductUrl(
       imageCount: storedImages.length,
     },
   };
+}
+
+/**
+ * Queue a book or product's one enrichment (tags, text embedding, room sync).
+ * With a cover, analyze-image runs it and blends the item's text with the
+ * cover's objects/OCR, like analyze-media-cover for tweets — a second,
+ * text-only enrich queued beside it would race it for tags and the text vector
+ * and bill both. Without a cover, enrich from the text alone.
+ */
+async function triggerEnrichment({
+  itemId,
+  userId,
+  sourceText,
+  coverFileKey,
+}: {
+  itemId: string;
+  userId: string;
+  sourceText: string;
+  coverFileKey: string | null;
+}) {
+  if (coverFileKey) {
+    await tasks.trigger<typeof analyzeImageTask>(
+      "analyze-image",
+      { itemId, userId, fileKey: coverFileKey, extraSourceText: sourceText },
+      { concurrencyKey: userId },
+    );
+    return;
+  }
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+    itemId,
+    userId,
+    sourceText: truncateToTokenLimit(sourceText, 8191),
+  });
 }

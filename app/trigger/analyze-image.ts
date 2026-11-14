@@ -12,6 +12,10 @@ import {
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import { buildImageDetailsUpdate } from "../src/lib/image-analysis/image-details-write";
+import {
+  capturedFileKeysSelect,
+  collectCapturedFileKeys,
+} from "../src/lib/item-storage";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
@@ -24,6 +28,8 @@ type AnalyzeImagePayload = {
   itemId: string;
   userId: string;
   fileKey: string;
+  /** Item text (e.g. a book's title and description) blended into the enrichment sourceText. */
+  extraSourceText?: string;
 };
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -96,15 +102,25 @@ export function formatStorageError(error: unknown) {
  * generates CLIP visual embedding, then triggers enrich-item for tags +
  * text embedding + room sync.
  *
- * Marks the item as `failed` on error so the UI can show processing status.
+ * For a book or product cover this is the item's only enrichment: the item's
+ * text arrives as `extraSourceText` and is blended with the cover's objects/OCR,
+ * so no separate text-only enrich races it for tags and the text vector. The
+ * cover is an enhancement there, so once its analysis has failed for good the
+ * item is enriched from its text alone rather than left without tags.
+ *
+ * Marks a not-yet-completed item `failed` on error so the UI can show
+ * processing status; a reprocess must not regress a completed item.
  */
 export const analyzeImageTask = task({
   id: "analyze-image",
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
+  onFailure: async ({ payload }: { payload: AnalyzeImagePayload }) => {
+    if (payload.extraSourceText) await enrichFromItemText(payload);
+  },
   run: async (payload: AnalyzeImagePayload) => {
-    const { itemId, userId, fileKey } = payload;
+    const { itemId, userId, fileKey, extraSourceText } = payload;
 
     // Advance the reaper clock — first pipeline stage
     await markProcessingActive(itemId);
@@ -322,8 +338,14 @@ export const analyzeImageTask = task({
 
       logger.log("Image analysis complete", { itemId });
 
-      // Step 5: Trigger enrichment (tags, text embedding, room sync)
-      const sourceText = [...analysis.objects, analysis.ocrText]
+      // Step 5: Trigger enrichment (tags, text embedding, room sync). The
+      // cover's text goes first so a long item description is what the token
+      // limit cuts, not the cover's objects/OCR.
+      const sourceText = [
+        ...analysis.objects,
+        analysis.ocrText,
+        extraSourceText,
+      ]
         .filter(Boolean)
         .join(" ");
 
@@ -331,7 +353,9 @@ export const analyzeImageTask = task({
       await tasks.trigger<typeof enrichItemTask>("enrich-item", {
         itemId,
         userId,
-        precomputedTags: analysis.tags,
+        // With item text, tag from the blend so the title and description
+        // shape the tags too; a plain image's vision tags are already complete
+        ...(!extraSourceText && { precomputedTags: analysis.tags }),
         sourceText: truncateToTokenLimit(sourceText, EMBEDDING_TOKEN_LIMIT),
       });
 
@@ -357,12 +381,10 @@ export const analyzeImageTask = task({
         itemId,
       });
 
-      // Mark item as failed with a safe, user-facing reason code
-      await db.item.update({
-        where: {
-          id: itemId,
-          userId: userId, // Multi-tenant isolation
-        },
+      // Mark item as failed with a safe, user-facing reason code — unless it
+      // already completed (a reprocess must not regress it to failed)
+      await db.item.updateMany({
+        where: { id: itemId, userId, processingStatus: { not: "completed" } },
         data: {
           processingStatus: "failed",
           processingError: classifyFailureReason(error),
@@ -374,3 +396,42 @@ export const analyzeImageTask = task({
     }
   },
 });
+
+/**
+ * Enrich a book or product from its own text when its cover couldn't be
+ * analysed. enrich-item completes the item, so a failed cover doesn't strand an
+ * item whose title and description are fine.
+ */
+async function enrichFromItemText({
+  itemId,
+  userId,
+  fileKey,
+  extraSourceText,
+}: AnalyzeImagePayload) {
+  // A re-capture since this run was queued replaced the item's files (and
+  // deleted this cover, often why the run failed); the newer run enriches the
+  // item. A product cover swap keeps the image, so it still falls back here.
+  const item = await db.item.findFirst({
+    where: { id: itemId, userId },
+    select: capturedFileKeysSelect,
+  });
+  if (!item || !collectCapturedFileKeys(item).includes(fileKey)) {
+    logger.log("Item re-captured since queued — skipping text fallback", {
+      itemId,
+      fileKey,
+    });
+    return;
+  }
+
+  logger.log("Cover analysis failed — enriching from the item's text", {
+    itemId,
+  });
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+    itemId,
+    userId,
+    sourceText: truncateToTokenLimit(
+      extraSourceText ?? "",
+      EMBEDDING_TOKEN_LIMIT,
+    ),
+  });
+}
