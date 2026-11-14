@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
@@ -75,13 +76,11 @@ async function handleGET(_request: NextRequest) {
 
 async function handlePATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    // Writes to the profile need a completed signup (an invite claimed), not
+    // just a session; API routes aren't covered by the (app) page gate
+    const user = await getCompletedSignupUser(await createClient());
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

@@ -194,18 +194,25 @@ export type TextEmbeddingResult = {
  * Generate text embedding using OpenAI text-embedding-3-small
  * Returns a normalized 1536-dimensional vector plus the tokens billed, so
  * callers can record usage cost.
+ *
+ * @param requestOptions - Per-call overrides of the client's defaults (10 min
+ *   timeout, 2 retries), e.g. a short deadline for latency-sensitive callers.
  */
 export async function generateTextEmbedding(
   text: string,
+  requestOptions?: { signal?: AbortSignal; maxRetries?: number },
 ): Promise<TextEmbeddingResult> {
   try {
     log.info({ textLength: text.length }, "Generating text embedding");
 
-    const response = await getOpenAiClient().embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-      encoding_format: "float",
-    });
+    const response = await getOpenAiClient().embeddings.create(
+      {
+        model: "text-embedding-3-small",
+        input: text,
+        encoding_format: "float",
+      },
+      requestOptions,
+    );
 
     const embedding = response.data[0].embedding;
 

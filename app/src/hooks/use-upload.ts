@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProcessingStatus } from "@prisma/client";
 import { usePathname, useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useCallback, useMemo, useState } from "react";
@@ -15,6 +16,9 @@ import { DAILY_LIMIT_REACHED_MESSAGE } from "@/lib/usage-limits.shared";
 import { useMilestoneStore } from "@/stores/milestone-store";
 
 const log = createLogger("hooks/use-upload");
+
+/** What the create routes return that the toasts need */
+type CreatedItem = { id: string; processingStatus: ProcessingStatus };
 
 interface UseUploadOptions {
   onSuccess?: () => void;
@@ -78,11 +82,15 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
 
       setIsUrlLoading(true);
       try {
-        const created = await api.post<{ id: string }>(
-          "/api/v1/items/from-url",
-          { url },
+        const created = await api.post<CreatedItem>("/api/v1/items/from-url", {
+          url,
+        });
+        // A completed save means the instance has no background processing
+        toast.success(
+          created.processingStatus === "completed"
+            ? "URL saved"
+            : "URL added — processing in background",
         );
-        toast.success("URL added — processing in background");
         useMilestoneStore.getState().markComplete("save_first_url");
         if (isOnDashboard) {
           void revealCreatedItem(created.id);
@@ -174,10 +182,10 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
           return false;
         }
 
-        let created: { id: string };
+        let created: CreatedItem;
         try {
           if (isPdf) {
-            created = await api.post<{ id: string }>(
+            created = await api.post<CreatedItem>(
               "/api/v1/items/documents/pdf",
               { fileKey: objectPath, originalName: file.name, size: file.size },
             );
@@ -187,7 +195,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
               source,
             });
           } else {
-            created = await api.post<{ id: string }>("/api/v1/items", {
+            created = await api.post<CreatedItem>("/api/v1/items", {
               kind: "image",
               fileKey: objectPath,
               meta: {
@@ -207,7 +215,11 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
         }
 
         if (isPdf) {
-          toast.success("PDF added — reading its pages");
+          toast.success(
+            created.processingStatus === "completed"
+              ? "PDF added"
+              : "PDF added — reading its pages",
+          );
         } else {
           toast.success("Upload complete");
           useMilestoneStore.getState().markComplete("upload_first_image");

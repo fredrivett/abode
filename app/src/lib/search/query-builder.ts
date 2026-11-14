@@ -900,8 +900,9 @@ export function buildFilterConditions(
 
 /**
  * SQL requiring the regex at `$paramIndex` to match one of the item's text
- * fields — the ones full-text search covers (title, tags, description, notes)
- * plus user tags, OCR text and every scanned document page's OCR.
+ * fields — the ones full-text search covers (title, tags, user tags,
+ * description, notes, a note's body) plus OCR text and every scanned document
+ * page's OCR.
  */
 function buildPhraseCondition(alias: string, paramIndex: number): string {
   const pattern = `$${paramIndex}`;
@@ -910,6 +911,7 @@ function buildPhraseCondition(alias: string, paramIndex: number): string {
     OR ${alias}.description ~* ${pattern}
     OR ${alias}.notes ~* ${pattern}
     OR EXISTS (SELECT 1 FROM unnest(${alias}.tags || ${alias}.user_tags) AS tag WHERE tag ~* ${pattern})
+    OR EXISTS (SELECT 1 FROM item_note_details phrase_note WHERE phrase_note.item_id = ${alias}.id AND phrase_note.content ~* ${pattern})
     OR EXISTS (SELECT 1 FROM item_image_details phrase_iid WHERE phrase_iid.item_id = ${alias}.id AND phrase_iid.ocr_text ~* ${pattern})
     OR EXISTS (SELECT 1 FROM item_document_pages phrase_page WHERE phrase_page.item_id = ${alias}.id AND phrase_page.ocr_text ~* ${pattern})
   )`;

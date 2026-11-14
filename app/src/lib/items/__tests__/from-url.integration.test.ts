@@ -5,11 +5,17 @@ import { tasks } from "@trigger.dev/sdk";
 import { USER_ACTION_PRIORITY } from "@/lib/items/enqueue-user-processing";
 import { createItemFromUrl } from "@/lib/items/from-url";
 import { captureServerException } from "@/lib/posthog-server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 
 // Trigger.dev is an external service — mock it so we can force enqueue
 // success/failure. The item persistence goes through the real test database.
 vi.mock("@trigger.dev/sdk", () => ({
   tasks: { trigger: vi.fn() },
+}));
+
+// Configured by default; one test runs as an instance without Trigger.dev.
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: vi.fn(),
 }));
 
 // Stub PostHog so no network calls fire and we can assert the exception report.
@@ -27,6 +33,7 @@ describe("createItemFromUrl integration", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     vi.clearAllMocks();
+    vi.mocked(isTriggerConfigured).mockReturnValue(true);
   });
 
   const createUser = async () => {
@@ -43,7 +50,12 @@ describe("createItemFromUrl integration", () => {
     const { read } = await import("@/lib/db");
     return read.item.findUniqueOrThrow({
       where: { id: itemId },
-      select: { processingStatus: true, processingError: true },
+      select: {
+        processingStatus: true,
+        processingError: true,
+        kind: true,
+        title: true,
+      },
     });
   };
 
@@ -100,5 +112,27 @@ describe("createItemFromUrl integration", () => {
         itemId: item.id,
       }),
     );
+  });
+
+  test("saves a completed bare webpage, without enqueueing or reporting, when Trigger.dev isn't configured", async () => {
+    const user = await createUser();
+    vi.mocked(isTriggerConfigured).mockReturnValue(false);
+
+    const item = await createItemFromUrl({
+      userId: user.id,
+      url: "https://example.com/some/page",
+      source: "web",
+    });
+
+    // Nothing would ever classify it, so it must not sit processing or fail
+    expect(await readItem(item.id)).toMatchObject({
+      processingStatus: "completed",
+      processingError: null,
+      kind: "webpage",
+      title: "example.com/some/page",
+    });
+    expect(item.processingStatus).toBe("completed");
+    expect(vi.mocked(tasks.trigger)).not.toHaveBeenCalled();
+    expect(vi.mocked(captureServerException)).not.toHaveBeenCalled();
   });
 });

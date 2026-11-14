@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Factor, SupabaseClient, User } from "@supabase/supabase-js";
 
 export type MFAEnrollmentResult = {
   factorId: string;
@@ -154,23 +154,31 @@ export async function getMFAFactors(
     throw new Error(`Failed to list MFA factors: ${error.message}`);
   }
 
-  return data.totp.map((factor) => ({
+  return data.totp.map(toMFAFactor);
+}
+
+function toMFAFactor(factor: Factor): MFAFactor {
+  return {
     id: factor.id,
     friendlyName: factor.friendly_name ?? null,
     factorType: factor.factor_type as "totp" | "phone",
     status: factor.status as "unverified" | "verified",
     createdAt: factor.created_at,
     updatedAt: factor.updated_at,
-  }));
+  };
 }
 
 /**
- * Get the first verified TOTP factor (for login challenge)
+ * Get the first verified TOTP factor (for login challenge). `verifiedUser` as
+ * in {@link getAAL}.
  */
 export async function getVerifiedTOTPFactor(
   supabase: SupabaseClient,
+  verifiedUser?: User,
 ): Promise<MFAFactor | null> {
-  const factors = await getMFAFactors(supabase);
+  const factors = verifiedUser
+    ? verifiedTotpFactors(verifiedUser).map(toMFAFactor)
+    : await getMFAFactors(supabase);
   return (
     factors.find((f) => f.factorType === "totp" && f.status === "verified") ??
     null
@@ -194,29 +202,31 @@ export async function unenrollMFA(
 }
 
 /**
- * Get the current Authenticator Assurance Level (AAL)
+ * Get the current Authenticator Assurance Level (AAL).
+ *
+ * Pass `verifiedUser` when the caller already has the user the auth server
+ * returned for this session (`supabase.auth.getUser()`, or the
+ * `signInWithPassword` response): auth-js's `listFactors()` is another
+ * `getUser()` round trip read for `user.factors`, so the factors are taken
+ * from that user instead of fetched again. Never pass a user from
+ * `getSession()` — it comes from the cookie, which the client can edit (an
+ * emptied `factors` would skip the challenge).
  */
-export async function getAAL(supabase: SupabaseClient): Promise<AALInfo> {
+export async function getAAL(
+  supabase: SupabaseClient,
+  verifiedUser?: User,
+): Promise<AALInfo> {
   // Fetch AAL and factors in parallel to reduce API calls
-  const [aalResult, factorsResult] = await Promise.all([
+  const [aalResult, hasVerifiedFactor] = await Promise.all([
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-    supabase.auth.mfa.listFactors(),
+    verifiedUser
+      ? hasVerifiedTotpFactor(verifiedUser)
+      : fetchHasVerifiedTotpFactor(supabase),
   ]);
 
   if (aalResult.error) {
     throw new Error(`Failed to get AAL: ${aalResult.error.message}`);
   }
-
-  if (factorsResult.error) {
-    throw new Error(
-      `Failed to list MFA factors: ${factorsResult.error.message}`,
-    );
-  }
-
-  // Check if user has any verified factors
-  const hasVerifiedFactor = factorsResult.data.totp.some(
-    (f) => f.status === "verified",
-  );
 
   return {
     currentLevel: toKnownAal(aalResult.data.currentLevel),
@@ -225,13 +235,37 @@ export async function getAAL(supabase: SupabaseClient): Promise<AALInfo> {
   };
 }
 
+// The same set as `listFactors().data.totp`, which auth-js fills with the
+// verified TOTP entries of `user.factors`
+function verifiedTotpFactors(user: User): Factor[] {
+  return (user.factors ?? []).filter(
+    (f) => f.factor_type === "totp" && f.status === "verified",
+  );
+}
+
+function hasVerifiedTotpFactor(user: User): boolean {
+  return verifiedTotpFactors(user).length > 0;
+}
+
+async function fetchHasVerifiedTotpFactor(
+  supabase: SupabaseClient,
+): Promise<boolean> {
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) {
+    throw new Error(`Failed to list MFA factors: ${error.message}`);
+  }
+  return data.totp.some((f) => f.status === "verified");
+}
+
 /**
- * Check if user needs to complete MFA challenge (has factor but session isn't aal2)
+ * Check if user needs to complete MFA challenge (has factor but session isn't
+ * aal2). `verifiedUser` as in {@link getAAL}.
  */
 export async function needsMFAChallenge(
   supabase: SupabaseClient,
+  verifiedUser?: User,
 ): Promise<boolean> {
-  return isMfaChallengePending(await getAAL(supabase));
+  return isMfaChallengePending(await getAAL(supabase, verifiedUser));
 }
 
 /**

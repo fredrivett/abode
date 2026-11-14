@@ -12,12 +12,12 @@ import {
   VALID_STATUS_VALUES,
 } from "../search/query-builder";
 import type { Filter } from "../search/types";
-import type { ItemWithDetails, RoomWithFilters } from "./types";
+import type { RoomMatchItem, RoomWithFilters } from "./types";
 
 /**
  * Check if item kind matches filter value.
  */
-function matchesType(item: ItemWithDetails, value: string): boolean {
+function matchesType(item: RoomMatchItem, value: string): boolean {
   if (!item.kind) return false;
   return item.kind.toLowerCase() === value.toLowerCase();
 }
@@ -26,7 +26,7 @@ function matchesType(item: ItemWithDetails, value: string): boolean {
  * Check if item has a matching tag (case-insensitive).
  * Searches both auto-generated tags and user-added tags.
  */
-function matchesTag(item: ItemWithDetails, value: string): boolean {
+function matchesTag(item: RoomMatchItem, value: string): boolean {
   const lowerValue = value.toLowerCase();
   return (
     item.tags.some((tag) => tag.toLowerCase() === lowerValue) ||
@@ -37,7 +37,7 @@ function matchesTag(item: ItemWithDetails, value: string): boolean {
 /**
  * Check if item has a matching detected object (case-insensitive).
  */
-function matchesObject(item: ItemWithDetails, value: string): boolean {
+function matchesObject(item: RoomMatchItem, value: string): boolean {
   if (!item.imageDetails?.objects) return false;
   return item.imageDetails.objects.some(
     (obj) => obj.toLowerCase() === value.toLowerCase(),
@@ -47,7 +47,7 @@ function matchesObject(item: ItemWithDetails, value: string): boolean {
 /**
  * Check if item source type matches filter value.
  */
-function matchesSource(item: ItemWithDetails, value: string): boolean {
+function matchesSource(item: RoomMatchItem, value: string): boolean {
   if (!item.sourceType) return false;
   return item.sourceType.toLowerCase() === value.toLowerCase();
 }
@@ -57,8 +57,8 @@ function matchesSource(item: ItemWithDetails, value: string): boolean {
  * Uses manual override if exists, otherwise falls back to exif location.
  */
 function getEffectiveLocation(
-  item: ItemWithDetails,
-): ItemWithDetails["locations"][0] | null {
+  item: RoomMatchItem,
+): RoomMatchItem["locations"][0] | null {
   const manualLocation = item.locations.find((l) => l.source === "manual");
   const exifLocation = item.locations.find((l) => l.source === "exif");
   return manualLocation ?? exifLocation ?? null;
@@ -68,7 +68,7 @@ function getEffectiveLocation(
  * Check if item has a matching location (searches neighborhood, city, region, country).
  * Uses the effective location (manual override takes priority over exif).
  */
-function matchesLocation(item: ItemWithDetails, value: string): boolean {
+function matchesLocation(item: RoomMatchItem, value: string): boolean {
   const location = getEffectiveLocation(item);
   if (!location) return false;
 
@@ -85,7 +85,7 @@ function matchesLocation(item: ItemWithDetails, value: string): boolean {
  * Check if item has a matching color in its palette.
  * Normalizes color values (handles hex codes and color names).
  */
-function matchesColor(item: ItemWithDetails, value: string): boolean {
+function matchesColor(item: RoomMatchItem, value: string): boolean {
   if (!item.imageDetails?.colors) return false;
 
   const normalizedFilterColor = normalizeColorFilterValue(value);
@@ -102,7 +102,7 @@ function matchesColor(item: ItemWithDetails, value: string): boolean {
  * Get the effective date for date filtering.
  * Uses capture date if available, otherwise falls back to created at.
  */
-function getEffectiveDate(item: ItemWithDetails): Date {
+function getEffectiveDate(item: RoomMatchItem): Date {
   // Check for capture date in image details (from EXIF data)
   if (item.imageDetails?.captureDate) {
     return new Date(item.imageDetails.captureDate);
@@ -121,7 +121,7 @@ function getEffectiveDate(item: ItemWithDetails): Date {
  * For "after" and "before" operators, full datetime comparison is used,
  * which means the comparison happens in the local timezone of the server.
  */
-function matchesDateFilter(item: ItemWithDetails, filter: Filter): boolean {
+function matchesDateFilter(item: RoomMatchItem, filter: Filter): boolean {
   const itemDate = getEffectiveDate(item);
   const filterDate = new Date(filter.value);
   if (Number.isNaN(filterDate.getTime())) return true; // Invalid date = pass
@@ -166,7 +166,7 @@ const VALID_SOURCE_TYPES = Object.values(SourceType).map((s) =>
  *   - unread: an untracked readable item — an article with no read_at, or a book
  *     with no status set (want_to_read is a distinct intent, not unread).
  */
-function matchesStatus(item: ItemWithDetails, value: StatusValue): boolean {
+function matchesStatus(item: RoomMatchItem, value: StatusValue): boolean {
   const bookStatus = item.bookDetails?.status ?? null;
   const articleReadAt = item.articleDetails?.readAt ?? null;
 
@@ -205,7 +205,7 @@ function unhandledFilterType(_type: never): false {
  * Does not handle negation - that's applied at the filter level.
  */
 function matchesSingleValue(
-  item: ItemWithDetails,
+  item: RoomMatchItem,
   type: Filter["type"],
   value: string,
 ): boolean {
@@ -252,7 +252,7 @@ function matchesSingleValue(
  * Supports OR groups via pipe syntax (e.g., "image|article").
  * For pipe-separated values, returns true if ANY value matches.
  */
-function filterMatchesItem(item: ItemWithDetails, filter: Filter): boolean {
+function filterMatchesItem(item: RoomMatchItem, filter: Filter): boolean {
   let matches: boolean;
 
   // Date filters don't support pipe syntax
@@ -282,7 +282,7 @@ function filterMatchesItem(item: ItemWithDetails, filter: Filter): boolean {
  * @returns true if item matches all room filters
  */
 export function itemMatchesRoom(
-  item: ItemWithDetails,
+  item: RoomMatchItem,
   room: RoomWithFilters,
 ): boolean {
   // Check exclude flag for public rooms

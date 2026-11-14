@@ -11,8 +11,6 @@ import { syncRoomItems } from "../src/lib/rooms";
 type SyncRoomItemsPayload = {
   roomId: string;
   userId: string;
-  /** Optional: The item that triggered this sync (e.g., when item location was updated) */
-  itemId?: string;
 };
 
 export const syncRoomItemsTask = task({
@@ -25,9 +23,9 @@ export const syncRoomItemsTask = task({
     maxTimeoutInMs: 60000,
   },
   run: async (payload: SyncRoomItemsPayload) => {
-    const { roomId, userId, itemId } = payload;
+    const { roomId, userId } = payload;
 
-    logger.log("Starting room items sync", { roomId, userId, itemId });
+    logger.log("Starting room items sync", { roomId, userId });
 
     try {
       const result = await syncRoomItems(roomId, userId);
@@ -35,7 +33,6 @@ export const syncRoomItemsTask = task({
       logger.log("Room items sync complete", {
         roomId,
         userId,
-        itemId,
         addedItemIds: result.addedItemIds,
         removedItemIds: result.removedItemIds,
         added: result.added,
@@ -46,15 +43,13 @@ export const syncRoomItemsTask = task({
         success: true,
         roomId,
         userId,
-        itemId,
         ...result,
       };
     } catch (error) {
-      logger.error("Room items sync failed", { roomId, userId, itemId, error });
+      logger.error("Room items sync failed", { roomId, userId, error });
       captureServerException(error, userId, {
         task: "sync-room-items",
         roomId,
-        itemId,
       });
       throw error;
     }

@@ -66,13 +66,6 @@ const meta = {
   title: "Masonry/MasonryGrid",
   parameters: { layout: "padded" },
   tags: ["autodocs"],
-  decorators: [
-    (Story) => (
-      <div className="mx-auto max-w-3xl">
-        <Story />
-      </div>
-    ),
-  ],
 } satisfies Meta;
 
 export default meta;
@@ -82,7 +75,7 @@ export const Static: Story = {
   render: () => <Grid cards={makeCards(16)} animate={false} />,
 };
 
-// Fewer cards than columns: normal-width columns, centred
+// Fewer cards than columns: normal-width columns, left-aligned
 export const FewItems: Story = {
   render: () => <Grid cards={makeCards(2)} animate={false} />,
 };

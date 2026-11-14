@@ -152,3 +152,24 @@ export function getHostname(url: string): string {
     return url;
   }
 }
+
+/**
+ * A readable label for a URL: its hostname plus path, without the scheme,
+ * query, hash or a trailing slash (e.g. "en.wikipedia.org/wiki/Bauhaus").
+ * Returns the original string if parsing fails (malformed URL).
+ */
+export function getHostAndPath(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  let path = parsed.pathname.replace(/\/+$/, "");
+  try {
+    path = decodeURI(path);
+  } catch {
+    // Malformed escape; keep the path as written
+  }
+  return `${parsed.hostname}${path}`;
+}

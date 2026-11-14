@@ -5,6 +5,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { getUserAccountDeletionEmail } from "@/lib/email/templates";
@@ -12,7 +13,7 @@ import { validateEmail } from "@/lib/invites/email-validation";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { removeUserStorage } from "@/lib/storage-objects";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import {
   MAX_USERNAME_CHANGES,
   type PreviousUsername,
@@ -32,9 +33,7 @@ export async function changeUsername(
   formData: FormData,
 ): Promise<ChangeUsernameResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserWithMfa(supabase);
+  const user = await getCompletedSignupUser(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -146,9 +145,7 @@ export async function deleteAccount(
   formData: FormData,
 ): Promise<DeleteAccountResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserWithMfa(supabase);
+  const user = await getCompletedSignupUser(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };
@@ -285,9 +282,7 @@ export async function requestEmailChange(
   formData: FormData,
 ): Promise<RequestEmailChangeResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserWithMfa(supabase);
+  const user = await getCompletedSignupUser(supabase);
 
   if (!user) {
     return { error: "Unauthorized" };

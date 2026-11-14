@@ -1,7 +1,9 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { NewRoomForm } from "./_components/new-room-form";
 
 export default async function NewRoomPage() {
+  await requireCompletedSignup();
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <DashboardHeader showHomeLink />

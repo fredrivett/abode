@@ -15,6 +15,7 @@ import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { guardDailyLimit } from "@/lib/usage-limits";
 import { adjustUserCounters } from "@/lib/user-counters";
 
@@ -73,6 +74,8 @@ async function handlePOST(request: NextRequest) {
       ...(blurDataUrl ? { blurDataUrl } : {}),
     };
 
+    // Without Trigger.dev nothing would ever OCR the scan, so it's saved as-is
+    const analyze = isTriggerConfigured();
     const item = await db.$transaction(async (tx) => {
       const created = await tx.item.create({
         data: {
@@ -82,7 +85,7 @@ async function handlePOST(request: NextRequest) {
           sourceType: "upload",
           captureSource: "web",
           userId: user.id,
-          processingStatus: "processing",
+          processingStatus: analyze ? "processing" : "completed",
           // Scans are often personal (letters, bills, forms): keep them out
           // of public rooms unless the owner opts a document in
           excludeFromPublicRooms: true,
@@ -110,7 +113,14 @@ async function handlePOST(request: NextRequest) {
 
     // The document is committed; an enqueue failure marks it failed (Retry)
     // rather than failing the request
-    await enqueueDocumentAnalysis({ itemId: item.id, userId: user.id });
+    if (analyze) {
+      await enqueueDocumentAnalysis({ itemId: item.id, userId: user.id });
+    } else {
+      log.info(
+        { itemId: item.id },
+        "Trigger.dev not configured; saved document without analysis",
+      );
+    }
     void logActivity(user.id, "item_create", {
       itemId: item.id,
       kind: "document",

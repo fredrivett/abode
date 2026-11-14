@@ -1,8 +1,10 @@
 /**
- * Generate text embeddings for completed items that have tags but no text
- * vector. For each item, rebuild the embedding from its persisted tags and
- * upsert the vector — no source re-fetch, no vision, no tag re-generation, just
- * one cheap `text-embedding-3-small` call (billed usage recorded).
+ * Generate text embeddings for completed items that have tags (or are notes with
+ * text) but no text vector. For each item, rebuild the embedding from its
+ * persisted tags and upsert the vector — no source re-fetch, no vision, no tag
+ * re-generation, just one cheap `text-embedding-3-small` call (billed usage
+ * recorded). A note is embedded from its title, body and manual tags, exactly as
+ * embed-note does, so this also fills in notes saved before notes were embedded.
  *
  * This mirrors the text-embedding half of `enrich-item`, but rebuilds from the
  * item's stored `tags` alone: `sourceText` (OCR/objects/page text) isn't
@@ -28,6 +30,10 @@ import {
   isOpenAiConfigured,
   upsertTextVector,
 } from "@/lib/embeddings";
+import {
+  buildNoteEmbeddingText,
+  NOTE_WITH_TEXT,
+} from "@/lib/items/note-embedding";
 import { captureServerException } from "@/lib/posthog-server";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -67,16 +73,25 @@ export async function backfillTextVectors(
     return { total: 0, updated: 0, skipped: 0, failed: 0 };
   }
 
-  // Completed items with embeddable content (non-empty tags) but no text vector
-  // — the same predicate as the missing-text-vector issue group.
+  // Completed items with embeddable content (non-empty tags, or a note with
+  // text) but no text vector — the same predicate as the missing-text-vector
+  // issue group.
   const rows = await db.item.findMany({
     where: {
       processingStatus: "completed",
-      tags: { isEmpty: false },
+      OR: [{ tags: { isEmpty: false } }, NOTE_WITH_TEXT],
       textVectors: { none: {} },
       ...(itemIds?.length ? { id: { in: itemIds } } : {}),
     },
-    select: { id: true, userId: true, tags: true },
+    select: {
+      id: true,
+      userId: true,
+      kind: true,
+      tags: true,
+      title: true,
+      userTags: true,
+      noteDetails: { select: { content: true } },
+    },
   });
 
   logger.info(`Found ${rows.length} items to backfill text vectors`);
@@ -86,7 +101,14 @@ export async function backfillTextVectors(
   let failed = 0;
 
   for (const row of rows) {
-    const text = buildEmbeddingText(row.tags, undefined);
+    const text =
+      row.kind === "note"
+        ? buildNoteEmbeddingText({
+            title: row.title,
+            userTags: row.userTags,
+            content: row.noteDetails?.content,
+          })
+        : buildEmbeddingText(row.tags, undefined);
     if (!text) {
       // Guarded by the query, but stay defensive — nothing to embed
       skipped++;

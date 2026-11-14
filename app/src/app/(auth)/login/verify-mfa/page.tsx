@@ -29,7 +29,7 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
   const safeNext = getSafeRedirectPath(next);
 
   // Check AAL level
-  const aal = await getAAL(supabase);
+  const aal = await getAAL(supabase, user);
 
   // If already at aal2, redirect to next destination
   if (aal.currentLevel === "aal2") {
@@ -42,7 +42,7 @@ export default async function VerifyMFAPage({ searchParams }: Props) {
   }
 
   // Get the verified factor for the challenge
-  const factor = await getVerifiedTOTPFactor(supabase);
+  const factor = await getVerifiedTOTPFactor(supabase, user);
   if (!factor) {
     redirect(safeNext);
   }

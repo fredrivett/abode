@@ -56,7 +56,7 @@ export async function login(
   }
 
   // Check if user has MFA enabled and needs to complete challenge
-  const aal = await getAAL(supabase);
+  const aal = await getAAL(supabase, authData.user);
   if (isMfaChallengePending(aal)) {
     // User has MFA but hasn't completed the challenge yet — carry next through
     redirect(`/login/verify-mfa?next=${encodeURIComponent(safeNext)}`);

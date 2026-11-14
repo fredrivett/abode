@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { MarkdownRenderer } from "../_components/markdown-renderer";
 
 export const metadata = {
@@ -17,6 +18,7 @@ async function getHighlightsContent() {
  * Markdown file.
  */
 export default async function HighlightsHelpPage() {
+  await requireCompletedSignup();
   const highlightsContent = await getHighlightsContent();
 
   return (

@@ -200,7 +200,8 @@ export function RoomPageClient({
           avatarUrl={avatarUrl}
           availableInvites={availableInvites}
           signOutAction={signOutAction}
-          showHomeLink
+          // Owners get "Back to rooms" in the same spot, so the hint would duplicate it
+          showHomeLink={!isOwner}
           centerSlot={renderCenterSlot()}
         />
       ) : (

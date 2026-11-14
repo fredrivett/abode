@@ -5,26 +5,43 @@
  * Filters are stored directly as Filter[] in the rooms.filters JSONB column.
  */
 
-import type {
-  Item,
-  ItemArticleDetails,
-  ItemBookDetails,
-  ItemImageDetails,
-  ItemLocation,
-  Room,
-  RoomVisibility,
-} from "@prisma/client";
+import type { Prisma, Room, RoomVisibility } from "@prisma/client";
 import type { Filter } from "@/lib/search/types";
 
 /**
- * Item with all related data needed for room matching.
+ * The item fields the room matcher reads, and nothing else: syncing a room
+ * loads the user's whole library, so full rows (article bodies, OCR text,
+ * vision JSON, blur data URLs) would all land in memory. The matcher is typed
+ * against this select's payload, so reading a field it doesn't list fails tsc.
  */
-export type ItemWithDetails = Item & {
-  imageDetails: ItemImageDetails | null;
-  bookDetails: ItemBookDetails | null;
-  articleDetails: ItemArticleDetails | null;
-  locations: ItemLocation[];
-};
+export const roomMatchItemSelect = {
+  id: true,
+  kind: true,
+  sourceType: true,
+  tags: true,
+  userTags: true,
+  createdAt: true,
+  excludeFromPublicRooms: true,
+  imageDetails: { select: { objects: true, colors: true, captureDate: true } },
+  bookDetails: { select: { status: true } },
+  articleDetails: { select: { readAt: true } },
+  locations: {
+    select: {
+      source: true,
+      neighborhood: true,
+      city: true,
+      region: true,
+      country: true,
+    },
+  },
+} satisfies Prisma.ItemSelect;
+
+/**
+ * Item with the data needed for room matching.
+ */
+export type RoomMatchItem = Prisma.ItemGetPayload<{
+  select: typeof roomMatchItemSelect;
+}>;
 
 /**
  * Room with typed filters (Filter[] stored as JSONB).

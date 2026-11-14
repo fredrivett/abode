@@ -19,17 +19,24 @@ type FakeClientOptions = {
 };
 
 // Minimal stand-in for the cookie Supabase client: just the auth surface
-// getUserWithMfa / needsMFAChallenge touch.
+// getUserWithMfa / needsMFAChallenge touch. No mfa.listFactors: factors come
+// off getUser's user, as listFactors would cost another GET /user — calling it
+// fails closed here
 function fakeClient({
   user,
   currentLevel = "aal1",
   verifiedFactor = false,
   mfaThrows = false,
 }: FakeClientOptions): SupabaseClient {
-  const totp = verifiedFactor ? [{ status: "verified" }] : [];
+  const factors = verifiedFactor
+    ? [{ factor_type: "totp", status: "verified" }]
+    : [];
   return {
     auth: {
-      getUser: async () => ({ data: { user }, error: null }),
+      getUser: async () => ({
+        data: { user: user && { ...user, factors } },
+        error: null,
+      }),
       mfa: {
         getAuthenticatorAssuranceLevel: async () => {
           if (mfaThrows) throw new Error("supabase unavailable");
@@ -38,7 +45,6 @@ function fakeClient({
             error: null,
           };
         },
-        listFactors: async () => ({ data: { totp }, error: null }),
       },
     },
   } as unknown as SupabaseClient;
@@ -50,7 +56,7 @@ describe("getUserWithMfa", () => {
       fakeClient({ user: { id: "u1" }, currentLevel: "aal1" }),
     );
 
-    expect(result.data.user).toEqual({ id: "u1" });
+    expect(result.data.user?.id).toBe("u1");
   });
 
   it("returns the user when a verified factor exists and the session is AAL2", async () => {
@@ -62,7 +68,7 @@ describe("getUserWithMfa", () => {
       }),
     );
 
-    expect(result.data.user).toEqual({ id: "u1" });
+    expect(result.data.user?.id).toBe("u1");
   });
 
   it("nulls the user when a verified factor exists but the session is AAL1", async () => {

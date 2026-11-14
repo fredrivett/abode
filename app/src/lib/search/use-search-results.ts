@@ -189,14 +189,18 @@ export function useSearchResults(searchState: SearchState) {
 
   const query = useInfiniteQuery({
     queryKey: searchResultsQueryKey(debouncedParams),
-    queryFn: async ({ pageParam }) => {
+    // Passing `signal` lets React Query abort a search the user has typed past
+    queryFn: async ({ pageParam, signal }) => {
       const key = JSON.stringify(debouncedParams);
       const shouldToast = pageParam === null && toastedKeyRef.current !== key;
       try {
-        const response = await search({
-          ...debouncedParams,
-          ...(pageParam ? { cursor: pageParam } : {}),
-        });
+        const response = await search(
+          {
+            ...debouncedParams,
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+          signal,
+        );
         if (shouldToast && response.invalidFilters?.length) {
           toastedKeyRef.current = key;
           showInvalidFiltersToast(response.invalidFilters);

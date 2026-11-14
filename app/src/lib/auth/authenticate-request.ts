@@ -94,13 +94,15 @@ async function resolveCaller(
   // API call with that cookie would otherwise bypass the 2FA the user opted into.
   // Fail closed if the MFA lookup itself errors — a transient Supabase failure
   // must not serve a user who may still owe a challenge (a 401, not a 500).
-  const mfaIncomplete = await needsMFAChallenge(supabase).catch((error) => {
-    log.warn(
-      { userId: user.id, error },
-      "MFA state check failed; failing closed",
-    );
-    return true;
-  });
+  const mfaIncomplete = await needsMFAChallenge(supabase, user).catch(
+    (error) => {
+      log.warn(
+        { userId: user.id, error },
+        "MFA state check failed; failing closed",
+      );
+      return true;
+    },
+  );
   if (mfaIncomplete) {
     log.warn(
       { userId: user.id },

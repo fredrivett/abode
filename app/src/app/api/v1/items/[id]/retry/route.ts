@@ -13,6 +13,9 @@ import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
+import { fileNameTitle } from "@/lib/uploads";
+import { getHostAndPath } from "@/lib/url-utils";
 import { guardDailyLimit } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/retry");
@@ -51,6 +54,8 @@ async function handlePOST(
         sourceFileKey: true,
         sourceType: true,
         sourceUrl: true,
+        title: true,
+        meta: true,
       },
     });
 
@@ -88,6 +93,48 @@ async function handlePOST(
         { message: "Cannot retry this item type" },
         { status: 400 },
       );
+    }
+
+    // Without Trigger.dev nothing can rerun it, so finish the item as it stands
+    // (a never-classified URL as a bare webpage) instead of failing the retry
+    if (!isTriggerConfigured()) {
+      // Analysis would have titled an image; fall back to its file name
+      const originalName =
+        item.kind === "image" &&
+        !item.title &&
+        item.meta &&
+        typeof item.meta === "object" &&
+        "originalName" in item.meta &&
+        typeof item.meta.originalName === "string"
+          ? item.meta.originalName
+          : null;
+      const isUnclassifiedUrl =
+        item.sourceType === "url" && !item.kind && !!item.sourceUrl;
+      const bareTitle = originalName
+        ? fileNameTitle(originalName)
+        : isUnclassifiedUrl && !item.title && item.sourceUrl
+          ? getHostAndPath(item.sourceUrl)
+          : null;
+      await client.item.update({
+        where: { id },
+        data: {
+          processingStatus: "completed",
+          processingError: null,
+          ...(item.sourceType === "url" && !item.kind
+            ? { kind: "webpage" as const }
+            : {}),
+          ...(bareTitle ? { title: bareTitle } : {}),
+        },
+      });
+      log.info(
+        { itemId: id },
+        "Trigger.dev not configured; completed item without processing",
+      );
+      return NextResponse.json({
+        success: true,
+        message: "Item saved without processing",
+        processingStatus: "completed",
+      });
     }
 
     if (!isAdmin) {

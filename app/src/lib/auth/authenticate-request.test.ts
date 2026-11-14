@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockCookieGetUser,
   mockCookieAAL,
-  mockCookieListFactors,
   mockBearerGetUser,
   mockCreateSupabaseClient,
   mockFindUnique,
@@ -14,7 +13,6 @@ const {
 } = vi.hoisted(() => ({
   mockCookieGetUser: vi.fn(),
   mockCookieAAL: vi.fn(),
-  mockCookieListFactors: vi.fn(),
   mockBearerGetUser: vi.fn(),
   mockCreateSupabaseClient: vi.fn(),
   mockFindUnique: vi.fn(),
@@ -22,13 +20,14 @@ const {
   mockAdminGetUserById: vi.fn(),
 }));
 
+// No mfa.listFactors: the cookie path reads factors off getUser's user, as
+// listFactors would cost another GET /user — calling it fails closed here
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
       getUser: mockCookieGetUser,
       mfa: {
         getAuthenticatorAssuranceLevel: mockCookieAAL,
-        listFactors: mockCookieListFactors,
       },
     },
   }),
@@ -83,6 +82,11 @@ function request(authorization?: string) {
   } as unknown as Parameters<typeof authenticateRequest>[0];
 }
 
+const COOKIE_USER_WITH_MFA = {
+  id: "u_cookie",
+  factors: [{ factor_type: "totp", status: "verified" }],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateMany.mockResolvedValue({ count: 1 });
@@ -91,7 +95,6 @@ beforeEach(() => {
     data: { currentLevel: "aal1", nextLevel: "aal1" },
     error: null,
   });
-  mockCookieListFactors.mockResolvedValue({ data: { totp: [] }, error: null });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
 });
@@ -187,15 +190,11 @@ describe("authenticateRequest", () => {
 
   it("leaves the request anonymous while the cookie session owes its MFA challenge", async () => {
     mockCookieGetUser.mockResolvedValue({
-      data: { user: { id: "u_cookie" } },
+      data: { user: COOKIE_USER_WITH_MFA },
       error: null,
     });
     mockCookieAAL.mockResolvedValue({
       data: { currentLevel: "aal1", nextLevel: "aal2" },
-      error: null,
-    });
-    mockCookieListFactors.mockResolvedValue({
-      data: { totp: [{ status: "verified" }] },
       error: null,
     });
 
@@ -223,15 +222,11 @@ describe("authenticateRequest", () => {
 
   it("rejects an AAL1 cookie session for a user with a verified MFA factor", async () => {
     mockCookieGetUser.mockResolvedValue({
-      data: { user: { id: "u_cookie" } },
+      data: { user: COOKIE_USER_WITH_MFA },
       error: null,
     });
     mockCookieAAL.mockResolvedValue({
       data: { currentLevel: "aal1", nextLevel: "aal2" },
-      error: null,
-    });
-    mockCookieListFactors.mockResolvedValue({
-      data: { totp: [{ status: "verified" }] },
       error: null,
     });
 
@@ -244,21 +239,17 @@ describe("authenticateRequest", () => {
 
   it("accepts an AAL2 cookie session for a user with a verified MFA factor", async () => {
     mockCookieGetUser.mockResolvedValue({
-      data: { user: { id: "u_cookie" } },
+      data: { user: COOKIE_USER_WITH_MFA },
       error: null,
     });
     mockCookieAAL.mockResolvedValue({
       data: { currentLevel: "aal2", nextLevel: "aal2" },
       error: null,
     });
-    mockCookieListFactors.mockResolvedValue({
-      data: { totp: [{ status: "verified" }] },
-      error: null,
-    });
 
     const result = await authenticateRequest(request(), SESSION_ONLY);
 
-    expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
+    expect(result).toEqual({ user: COOKIE_USER_WITH_MFA, method: "cookie" });
   });
 
   it("fails closed: rejects the cookie session when the MFA lookup errors", async () => {

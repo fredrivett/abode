@@ -9,7 +9,7 @@ import type { Filter } from "../search/types";
 import { itemMatchesRoom } from "./room-matcher";
 import {
   hasValidFilters,
-  type ItemWithDetails,
+  type RoomMatchItem,
   type RoomWithFilters,
 } from "./types";
 
@@ -128,7 +128,7 @@ function createTestItem(
     articleDetails?: ItemArticleDetails | null;
     locations?: ItemLocation[];
   } = {},
-): ItemWithDetails {
+): RoomMatchItem {
   return {
     id: overrides.id ?? "test-item-id",
     userId: overrides.userId ?? "test-user-id",
@@ -150,7 +150,7 @@ function createTestItem(
     bookDetails: overrides.bookDetails ?? null,
     articleDetails: overrides.articleDetails ?? null,
     locations: overrides.locations ?? [],
-  } as ItemWithDetails;
+  } as RoomMatchItem;
 }
 
 /**

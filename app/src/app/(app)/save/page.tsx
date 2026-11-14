@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
@@ -26,6 +27,7 @@ export default async function SavePage({
     title?: string | string[];
   }>;
 }) {
+  await requireCompletedSignup();
   const params = await searchParams;
   const sharedUrl = extractSharedUrl(params);
 
