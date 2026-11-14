@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserWithMfa = vi.hoisted(() => vi.fn());
 const update = vi.hoisted(() => vi.fn());
+const hasCompletedSignup = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
   getUserWithMfa,
 }));
 vi.mock("@/lib/db", () => ({ default: { user: { update } } }));
+vi.mock("@/lib/auth/has-completed-signup", () => ({ hasCompletedSignup }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/milestones", () => ({ markMilestoneComplete: vi.fn() }));
@@ -20,6 +22,25 @@ import { PATCH } from "./route";
 
 const patch = (body: unknown) =>
   PATCH({ json: () => Promise.resolve(body) } as NextRequest);
+
+beforeEach(() => {
+  hasCompletedSignup.mockReset().mockResolvedValue(true);
+});
+
+describe("PATCH /api/v1/user/profile — signup gate", () => {
+  it("401 for a signed-in account that hasn't completed signup", async () => {
+    getUserWithMfa.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    });
+    hasCompletedSignup.mockResolvedValue(false);
+    update.mockReset();
+
+    expect((await patch({ bio: "hi" })).status).toBe(401);
+    expect(hasCompletedSignup).toHaveBeenCalledWith("u1");
+    expect(update).not.toHaveBeenCalled();
+  });
+});
 
 describe("PATCH /api/v1/user/profile — allowSearchIndexing", () => {
   beforeEach(() => {
