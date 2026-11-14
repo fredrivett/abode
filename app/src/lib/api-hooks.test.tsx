@@ -12,6 +12,9 @@ import {
   CREATED_ITEM_RETRY_DELAYS_MS,
   ITEMS_QUERY_KEY,
   useItemsInfinite,
+  useRefreshCachedItems,
+  useRemoveCachedItem,
+  useReplaceCachedItem,
   useRevealCreatedItem,
   useUpdateCachedItemTitle,
 } from "./api-hooks";
@@ -91,7 +94,13 @@ describe("useRevealCreatedItem", () => {
     const { result } = renderHook(showList ? withList : useRevealCreatedItem, {
       wrapper,
     });
-    return result;
+    const listedIds = () =>
+      client
+        .getQueryData<InfiniteData<{ items: Item[]; total?: number }>>(
+          ITEMS_QUERY_KEY,
+        )
+        ?.pages.flatMap((p) => p.items.map((i) => i.id));
+    return { result, client, listedIds };
   }
 
   async function reveal(run: () => Promise<void>) {
@@ -103,39 +112,185 @@ describe("useRevealCreatedItem", () => {
     });
   }
 
-  it("refetches until a stale list includes the new item", async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce(page("old"))
-      .mockResolvedValueOnce(page("old"))
-      .mockResolvedValue(page("new", "old"));
-    const result = setup();
+  it("fetches just the new item and puts it first in the list", async () => {
+    vi.mocked(api.get).mockResolvedValue({ items: [makeItem("new", "new")] });
+    const { result, client, listedIds } = setup();
 
     await reveal(() => result.current("new"));
 
-    // Two stale lists, then the one with the new item
-    expect(api.get).toHaveBeenCalledTimes(3);
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledWith("/api/v1/items?ids=new");
+    expect(listedIds()).toEqual(["new", "old"]);
+    expect(
+      client.getQueryData<InfiniteData<{ total: number }>>(ITEMS_QUERY_KEY)
+        ?.pages[0].total,
+    ).toBe(2);
+    expect(posthog.captureException).not.toHaveBeenCalled();
+  });
+
+  it("tries again when the fetch fails", async () => {
+    vi.mocked(api.get)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({ items: [makeItem("new", "new")] });
+    const { result, listedIds } = setup();
+
+    await reveal(() => result.current("new"));
+
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(listedIds()).toEqual(["new", "old"]);
     expect(posthog.captureException).not.toHaveBeenCalled();
   });
 
   it("reports an item that never shows up", async () => {
-    vi.mocked(api.get).mockResolvedValue(page("old"));
-    const result = setup();
+    vi.mocked(api.get).mockResolvedValue({ items: [] });
+    const { result } = setup();
 
     await reveal(() => result.current("new"));
 
-    // The first check plus one per retry
-    expect(api.get).toHaveBeenCalledTimes(
-      CREATED_ITEM_RETRY_DELAYS_MS.length + 1,
-    );
+    // One fetch per wait before the last check
+    expect(api.get).toHaveBeenCalledTimes(CREATED_ITEM_RETRY_DELAYS_MS.length);
     expect(posthog.captureException).toHaveBeenCalledTimes(1);
   });
 
-  it("doesn't wait on a list nothing is showing", async () => {
-    const result = setup({ showList: false });
+  it("doesn't fetch for a list nothing has loaded", async () => {
+    const { result } = setup({ showList: false });
 
     await reveal(() => result.current("new"));
 
     expect(api.get).not.toHaveBeenCalled();
     expect(posthog.captureException).not.toHaveBeenCalled();
+  });
+});
+
+describe("item cache helpers", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  type Page = { items: Item[]; cursor: string | null; total?: number };
+  const item = (
+    id: string,
+    title: string,
+    updatedAt = "2026-01-01T00:00:00Z",
+  ) => ({ id, title, updatedAt }) as unknown as Item;
+  const searchKey = ["items", "search", { q: "x" }];
+
+  // Two loaded list pages, a search holding "b", and per-item queries
+  function setup() {
+    const client = new QueryClient();
+    client.setQueryData<InfiniteData<Page>>(ITEMS_QUERY_KEY, {
+      pages: [
+        { items: [item("a", "A")], cursor: "c1", total: 10 },
+        { items: [item("b", "B"), item("c", "C")], cursor: null },
+      ],
+      pageParams: [null, "c1"],
+    });
+    client.setQueryData(searchKey, {
+      pages: [
+        {
+          items: [{ ...item("b", "B"), match: { reasons: ["tag"] } }],
+          total: 3,
+        },
+      ],
+      pageParams: [null],
+    });
+    client.setQueryData(itemQueryKey("b"), item("b", "B"));
+    client.setQueryData(["items", "a", "similar"], {
+      items: [{ id: "b" }, { id: "c" }],
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    const hooks = renderHook(
+      () => ({
+        remove: useRemoveCachedItem(),
+        replace: useReplaceCachedItem(),
+        refresh: useRefreshCachedItems(),
+      }),
+      { wrapper },
+    ).result;
+    const list = () => client.getQueryData<InfiniteData<Page>>(ITEMS_QUERY_KEY);
+    const search = () =>
+      client.getQueryData<InfiniteData<Page>>(searchKey)?.pages[0];
+    return { client, hooks, list, search };
+  }
+
+  it("removes a deleted item from every cache and counts it out", () => {
+    const { client, hooks, list, search } = setup();
+
+    act(() => hooks.current.remove("b"));
+
+    expect(list()?.pages.map((p) => p.items.map((i) => i.id))).toEqual([
+      ["a"],
+      ["c"],
+    ]);
+    // The total lives on the first page, even when the item was on another
+    expect(list()?.pages[0].total).toBe(9);
+    expect(search()).toMatchObject({ items: [], total: 2 });
+    expect(client.getQueryData(itemQueryKey("b"))).toBeUndefined();
+    expect(client.getQueryData(["items", "a", "similar"])).toEqual({
+      items: [{ id: "c" }],
+    });
+  });
+
+  it("writes an updated item everywhere, keeping search match reasons", () => {
+    const { client, hooks, list, search } = setup();
+
+    act(() => hooks.current.replace(item("b", "B2", "2026-01-02T00:00:00Z")));
+
+    expect(list()?.pages[1].items[0].title).toBe("B2");
+    expect(search()?.items[0]).toMatchObject({
+      title: "B2",
+      match: { reasons: ["tag"] },
+    });
+    expect(client.getQueryData<Item>(itemQueryKey("b"))?.title).toBe("B2");
+    // Nothing else is touched
+    expect(list()?.pages[0].total).toBe(10);
+  });
+
+  it("keeps a cached copy written after the one arriving", () => {
+    const { hooks, list } = setup();
+
+    act(() =>
+      hooks.current.replace(item("b", "Newer", "2026-01-03T00:00:00Z")),
+    );
+    act(() =>
+      hooks.current.replace(item("b", "Older", "2026-01-02T00:00:00Z")),
+    );
+
+    expect(list()?.pages[1].items[0].title).toBe("Newer");
+  });
+
+  it("refreshes just the given items, dropping ones that no longer exist", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      items: [item("a", "A2", "2026-01-02T00:00:00Z")],
+    });
+    const { hooks, list } = setup();
+
+    let ok = false;
+    await act(async () => {
+      ok = await hooks.current.refresh(["a", "c"]);
+    });
+
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledWith("/api/v1/items?ids=a%2Cc");
+    expect(ok).toBe(true);
+    expect(list()?.pages.map((p) => p.items.map((i) => i.title))).toEqual([
+      ["A2"],
+      ["B"],
+    ]);
+  });
+
+  it("reports a refresh that failed, leaving the caches as they were", async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error("offline"));
+    const { hooks, list } = setup();
+    const before = list();
+
+    let ok = true;
+    await act(async () => {
+      ok = await hooks.current.refresh(["a"]);
+    });
+
+    expect(ok).toBe(false);
+    expect(list()).toBe(before);
   });
 });

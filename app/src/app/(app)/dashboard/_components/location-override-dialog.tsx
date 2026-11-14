@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog-or-drawer";
 import { IsLoading } from "@/components/ui/is-loading";
 import { api, isDailyLimitError } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRefreshCachedItems } from "@/lib/api-hooks";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
 import type { ItemLocation } from "@/lib/types/item";
@@ -46,7 +46,7 @@ export function LocationOverrideDialog({
   newGpsLocation,
   sourceFileName,
 }: LocationOverrideDialogProps) {
-  const invalidateItems = useInvalidateItems();
+  const refreshCachedItems = useRefreshCachedItems();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -57,7 +57,7 @@ export function LocationOverrideDialog({
         longitude: newGpsLocation.longitude,
       });
       toast.success("Location updated");
-      invalidateItems();
+      void refreshCachedItems([itemId]);
       onOpenChange(false);
     } catch (error) {
       log.error({ error }, "Failed to update location");

@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useRefreshCachedItems } from "@/lib/api-hooks";
 import type { ExifGpsLocation } from "@/lib/exif.client";
 import { extractGpsFromFile } from "@/lib/exif.client";
 import { createLogger } from "@/lib/logger.client";
@@ -61,7 +61,7 @@ export function LocationDropzone({
   isManualOverride,
   children,
 }: LocationDropzoneProps) {
-  const invalidateItems = useInvalidateItems();
+  const refreshCachedItems = useRefreshCachedItems();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -121,14 +121,14 @@ export function LocationDropzone({
       await api.delete(`/api/v1/items/${itemId}/location`);
       toast.success("Location override removed");
       setPopoverOpen(false);
-      invalidateItems();
+      void refreshCachedItems([itemId]);
     } catch (error) {
       log.error({ error }, "Failed to remove location override");
       toast.error("Failed to remove location override");
     } finally {
       setIsRemoving(false);
     }
-  }, [itemId, invalidateItems]);
+  }, [itemId, refreshCachedItems]);
 
   return (
     <>

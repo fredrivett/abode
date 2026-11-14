@@ -138,12 +138,14 @@ describe("pollDelayMs", () => {
 describe("useProcessingPoll", () => {
   const ids = (count: number) =>
     Array.from({ length: count }, (_, i) => `item-${i}`);
+
+  // `/status?ids=a,b` batches only
   const requestedIds = () =>
     vi
       .mocked(api.get)
-      .mock.calls.map(([url]) =>
-        decodeURIComponent(String(url).split("ids=")[1]).split(","),
-      );
+      .mock.calls.map(([url]) => String(url))
+      .filter((url) => url.includes("/status"))
+      .map((url) => decodeURIComponent(url.split("ids=")[1]).split(","));
 
   function renderPoll(processingIds: string[]) {
     const client = new QueryClient();
@@ -227,19 +229,44 @@ describe("useProcessingPoll", () => {
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("refreshes the list once when an item finishes", async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({ items: [item("item-0", "processing", "t1")] })
-      .mockResolvedValue({ items: [item("item-0", "completed", "t2")] });
+  it("fetches just a finished item, once", async () => {
+    const statuses = [
+      { items: [item("item-0", "processing", "t1")] },
+      { items: [item("item-0", "completed", "t2")] },
+    ];
+    vi.mocked(api.get).mockImplementation(async (url: string) =>
+      url.includes("/status")
+        ? (statuses.shift() ?? statuses[0])
+        : { items: [] },
+    );
     const { invalidate } = renderPoll(ids(1));
 
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["items"] });
-    expect(
-      invalidate.mock.calls.filter(([f]) => f?.queryKey?.[0] === "items"),
-    ).toHaveLength(1);
+    const urls = vi.mocked(api.get).mock.calls.map(([url]) => String(url));
+    expect(urls.filter((url) => url.startsWith("/api/v1/items?ids="))).toEqual([
+      "/api/v1/items?ids=item-0",
+    ]);
+    // Never the whole list
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["items"] });
     // The finished item isn't polled again
-    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(urls.filter((url) => url.includes("/status"))).toHaveLength(2);
+  });
+
+  it("reports a change again when fetching the item failed", async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes("/status")) {
+        return { items: [item("item-0", "completed", "t2")] };
+      }
+      throw new Error("offline");
+    });
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const refreshes = vi
+      .mocked(api.get)
+      .mock.calls.filter(([url]) => String(url).includes("?ids="));
+    expect(refreshes.length).toBeGreaterThan(1);
   });
 });

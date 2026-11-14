@@ -92,7 +92,11 @@ import { WebpageLinkCard } from "@/components/webpage/webpage-link-card";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api, isDailyLimitError } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import {
+  useRefreshCachedItems,
+  useRemoveCachedItem,
+  useReplaceCachedItem,
+} from "@/lib/api-hooks";
 import { APP_NAME } from "@/lib/app";
 import {
   BOOK_TILE_PADDING_X,
@@ -278,7 +282,7 @@ type ItemCardProps = {
   /**
    * Called after the item is successfully deleted.
    * Lets a parent that keeps its own list (e.g. the room view's local state)
-   * remove the card, since invalidateItems only touches the ["items"] query.
+   * remove the card, since deleting only updates the React Query items caches.
    */
   onDeleted?: () => void;
 };
@@ -298,7 +302,7 @@ export function ItemCard({
   canEdit = true,
   onDeleted,
 }: ItemCardProps) {
-  const invalidateItems = useInvalidateItems();
+  const removeCachedItem = useRemoveCachedItem();
   const gridImageSizes = useGridImageSizes();
   const [itemName, setItemName] = useState(name);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -420,7 +424,7 @@ export function ItemCard({
       // Close the detail dialog explicitly so it dismisses regardless of whether
       // the parent list unmounts this card (the room view keeps its own state).
       setShowDetailDialog(false);
-      invalidateItems();
+      removeCachedItem(item.id);
       onDeleted?.();
     } catch (error) {
       log.error({ error }, "Delete error");
@@ -1429,7 +1433,9 @@ export function ItemDetailBody({
   canEdit,
   animateEntrance = true,
 }: ItemDetailDialogProps) {
-  const invalidateItems = useInvalidateItems();
+  const removeCachedItem = useRemoveCachedItem();
+  const replaceCachedItem = useReplaceCachedItem();
+  const refreshCachedItems = useRefreshCachedItems();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -1449,7 +1455,7 @@ export function ItemDetailBody({
       // Close the detail dialog explicitly so it dismisses regardless of whether
       // the parent list unmounts this card (the room view keeps its own state).
       onOpenChange(false);
-      invalidateItems();
+      removeCachedItem(item.id);
       onDeleted?.();
     } catch (error) {
       log.error({ error }, "Delete error");
@@ -1684,7 +1690,9 @@ export function ItemDetailBody({
     const newHidden = !coverHidden;
     setIsSavingCover(true);
     try {
-      await api.patch(`/api/v1/items/${item.id}`, { coverHidden: newHidden });
+      const updated = await api.patch<Item>(`/api/v1/items/${item.id}`, {
+        coverHidden: newHidden,
+      });
       setCoverHidden(newHidden);
 
       posthog.capture("item_cover_visibility_updated", {
@@ -1692,8 +1700,8 @@ export function ItemDetailBody({
         cover_hidden: newHidden,
       });
 
-      // Refetch so the grid card swaps between cover and text immediately
-      invalidateItems();
+      // The grid card swaps between cover and text immediately
+      replaceCachedItem(updated);
       toast.success(newHidden ? "Cover hidden" : "Cover shown");
     } catch (error) {
       log.error({ error }, "Cover toggle error");
@@ -1801,8 +1809,11 @@ export function ItemDetailBody({
   ) => {
     setIsSavingUserTags(true);
     try {
-      await api.patch(`/api/v1/items/${item.id}`, { userTags: newTags });
-      invalidateItems();
+      replaceCachedItem(
+        await api.patch<Item>(`/api/v1/items/${item.id}`, {
+          userTags: newTags,
+        }),
+      );
 
       // Mark milestone if user added their first tag
       if (shouldCompleteAddFirstTag(newTags)) {
@@ -1995,7 +2006,7 @@ export function ItemDetailBody({
         `/api/v1/items/${item.id}/retry`,
       );
       setCurrentProcessingStatus(response.processingStatus);
-      invalidateItems();
+      void refreshCachedItems([item.id]);
 
       // Track retry event
       posthog.capture("item_retry", {
@@ -2081,10 +2092,11 @@ export function ItemDetailBody({
                 canEdit
                   ? async (index) => {
                       try {
-                        await api.patch(`/api/v1/items/${item.id}`, {
-                          twitterCoverMediaIndex: index,
-                        });
-                        invalidateItems();
+                        replaceCachedItem(
+                          await api.patch<Item>(`/api/v1/items/${item.id}`, {
+                            twitterCoverMediaIndex: index,
+                          }),
+                        );
                       } catch {
                         toast.error("Failed to set cover image");
                       }
@@ -2108,10 +2120,11 @@ export function ItemDetailBody({
                 canEdit
                   ? async (index) => {
                       try {
-                        await api.patch(`/api/v1/items/${item.id}`, {
-                          productCoverImageIndex: index,
-                        });
-                        invalidateItems();
+                        replaceCachedItem(
+                          await api.patch<Item>(`/api/v1/items/${item.id}`, {
+                            productCoverImageIndex: index,
+                          }),
+                        );
                       } catch {
                         toast.error("Failed to set cover image");
                       }
@@ -2311,7 +2324,7 @@ export function ItemDetailBody({
                     canEdit={canEdit}
                     onReassigned={(status) => {
                       setCurrentProcessingStatus(status);
-                      invalidateItems();
+                      void refreshCachedItems([item.id]);
                     }}
                   />
                 </div>

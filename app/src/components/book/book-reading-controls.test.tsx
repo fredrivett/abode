@@ -8,7 +8,7 @@ const patch = vi.fn().mockResolvedValue({});
 vi.mock("@/lib/api-client", () => ({
   api: { patch: (...a: unknown[]) => patch(...a) },
 }));
-vi.mock("@/lib/api-hooks", () => ({ useInvalidateItems: () => vi.fn() }));
+vi.mock("@/lib/api-hooks", () => ({ useReplaceCachedItem: () => vi.fn() }));
 vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
