@@ -60,7 +60,7 @@ async function handleGET(request: NextRequest) {
     // changed without refetching every loaded page
     const idsParam = searchParams.get("ids");
     if (idsParam !== null) {
-      const ids = idsParam.split(",").filter(Boolean);
+      const ids = idsParam.split(",");
       if (
         ids.length > MAX_ITEM_IDS_PER_REQUEST ||
         !ids.every(isCanonicalUuid)

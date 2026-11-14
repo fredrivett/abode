@@ -61,6 +61,8 @@ describe("GET /api/v1/items?ids=", () => {
   it.each([
     ["more than 50 ids", Array.from({ length: 51 }, (_, i) => uuid(i))],
     ["an id that isn't a uuid", [uuid(1), "nope"]],
+    ["no ids", [""]],
+    ["an empty id", [uuid(1), ""]],
   ])("rejects %s", async (_, ids) => {
     const response = await call(`ids=${ids.join(",")}`);
 

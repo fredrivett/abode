@@ -18,6 +18,7 @@ import {
   useRevealCreatedItem,
   useUpdateCachedItemTitle,
 } from "./api-hooks";
+import { highlightsQueryKey } from "./highlights/use-highlights";
 import { itemQueryKey } from "./items/use-item";
 import type { Item } from "./types/item";
 
@@ -195,6 +196,7 @@ describe("item cache helpers", () => {
       pageParams: [null],
     });
     client.setQueryData(itemQueryKey("b"), item("b", "B"));
+    client.setQueryData(highlightsQueryKey("b"), []);
     client.setQueryData(["items", "a", "similar"], {
       items: [{ id: "b" }, { id: "c" }],
     });
@@ -227,6 +229,7 @@ describe("item cache helpers", () => {
     expect(list()?.pages[0].total).toBe(9);
     expect(search()).toMatchObject({ items: [], total: 2 });
     expect(client.getQueryData(itemQueryKey("b"))).toBeUndefined();
+    expect(client.getQueryData(highlightsQueryKey("b"))).toBeUndefined();
     expect(client.getQueryData(["items", "a", "similar"])).toEqual({
       items: [{ id: "c" }],
     });
@@ -280,9 +283,10 @@ describe("item cache helpers", () => {
     ]);
   });
 
-  it("reports a refresh that failed, leaving the caches as they were", async () => {
+  it("reports a refresh that failed and falls back to refetching the list", async () => {
     vi.mocked(api.get).mockRejectedValue(new Error("offline"));
-    const { hooks, list } = setup();
+    const { client, hooks, list } = setup();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
     const before = list();
 
     let ok = true;
@@ -292,5 +296,47 @@ describe("item cache helpers", () => {
 
     expect(ok).toBe(false);
     expect(list()).toBe(before);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ITEMS_QUERY_KEY });
+  });
+
+  it("keeps a delete when a list fetch already in flight lands without it", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    const page = (...ids: string[]) => ({
+      items: ids.map((id) => item(id, id)),
+      cursor: null,
+      hasMore: false,
+      total: ids.length,
+    });
+    let respond: (value: unknown) => void = () => {};
+    vi.mocked(api.get).mockImplementation(
+      () => new Promise((resolve) => (respond = resolve)),
+    );
+    const { result } = renderHook(
+      () => {
+        useItemsInfinite(page("a", "b"));
+        return useRemoveCachedItem();
+      },
+      { wrapper },
+    );
+    const listedIds = () =>
+      client
+        .getQueryData<InfiniteData<Page>>(ITEMS_QUERY_KEY)
+        ?.pages.flatMap((p) => p.items.map((i) => i.id));
+
+    // A refetch of every page starts, then the item is deleted mid-flight
+    act(() => {
+      void client.refetchQueries({ queryKey: ITEMS_QUERY_KEY });
+    });
+    act(() => result.current("b"));
+    expect(listedIds()).toEqual(["a"]);
+
+    // The refetch read the list before the delete, and still has the item
+    await act(async () => respond(page("a", "b")));
+
+    expect(listedIds()).toEqual(["a"]);
   });
 });

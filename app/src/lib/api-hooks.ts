@@ -90,7 +90,39 @@ function isNewer(cached: Item, fresh: Item) {
   );
 }
 
+/**
+ * Runs a cache patch now, and again whenever an items query that was already
+ * fetching lands: an infinite query rebuilds its pages from the data it had
+ * when the fetch started (a load-more, or a refetch of every page), so its
+ * result would otherwise undo the patch.
+ */
+function patchNowAndAfterFetches(queryClient: QueryClient, patch: () => void) {
+  patch();
+  if (queryClient.isFetching({ queryKey: ITEMS_QUERY_KEY }) === 0) return;
+  const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== "updated" || event.query.queryKey[0] !== "items") return;
+    const { action } = event;
+    // Its own writes (setQueryData) are `manual`; skip them, or it would loop
+    if (action.type === "success" && !action.manual) patch();
+    if (queryClient.isFetching({ queryKey: ITEMS_QUERY_KEY }) === 0) {
+      unsubscribe();
+    }
+  });
+}
+
 function replaceCachedItem(queryClient: QueryClient, item: Item) {
+  patchNowAndAfterFetches(queryClient, () =>
+    writeCachedItem(queryClient, item),
+  );
+}
+
+function removeCachedItem(queryClient: QueryClient, itemId: string) {
+  patchNowAndAfterFetches(queryClient, () =>
+    dropCachedItem(queryClient, itemId),
+  );
+}
+
+function writeCachedItem(queryClient: QueryClient, item: Item) {
   queryClient.setQueryData<CachedPages<Item>>(ITEMS_QUERY_KEY, (old) =>
     patchPages(old, item.id, (cached) =>
       isNewer(cached, item) ? cached : item,
@@ -109,7 +141,7 @@ function replaceCachedItem(queryClient: QueryClient, item: Item) {
   );
 }
 
-function removeCachedItem(queryClient: QueryClient, itemId: string) {
+function dropCachedItem(queryClient: QueryClient, itemId: string) {
   queryClient.setQueryData<CachedPages<Item>>(ITEMS_QUERY_KEY, (old) =>
     patchPages(old, itemId, () => null),
   );
@@ -171,8 +203,9 @@ export function useRemoveCachedItem() {
  * Returns a stable callback that refetches just the given items
  * (`GET /api/v1/items?ids=`) and writes them into the caches, dropping any that
  * no longer exist. For changes whose response isn't the item (retry, reassign,
- * location edits) and for the processing poll. Resolves `false` when a fetch
- * failed, so a caller that needs the refresh can try again.
+ * location edits) and for the processing poll. When a fetch fails it falls
+ * back to refetching the whole list, and resolves `false` so a caller can also
+ * try again.
  */
 export function useRefreshCachedItems() {
   const queryClient = useQueryClient();
@@ -191,7 +224,10 @@ export function useRefreshCachedItems() {
         }),
       );
       invalidateSearchResults(queryClient);
-      return results.every(({ status }) => status === "fulfilled");
+      const ok = results.every(({ status }) => status === "fulfilled");
+      if (!ok)
+        void queryClient.invalidateQueries({ queryKey: ITEMS_QUERY_KEY });
+      return ok;
     },
     [queryClient],
   );
