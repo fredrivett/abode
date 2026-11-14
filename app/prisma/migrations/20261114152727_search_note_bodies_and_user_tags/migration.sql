@@ -6,9 +6,16 @@
 -- body itself. Two triggers keep it current:
 --   - items: on insert and on any change to a column it reads (now including
 --     user_tags), as before;
---   - item_note_details: when a note body is written or removed, it rewrites
---     the parent item's vector. That UPDATE sets only search_vector, so it
---     doesn't re-fire the items trigger.
+--   - item_note_details: when a note body is written, moved or removed, it
+--     rewrites the affected items' vectors. That UPDATE sets only
+--     search_vector, so it doesn't re-fire the items trigger.
+--
+-- Only the first 100,000 characters of a note body are indexed. A tsvector is
+-- capped at 1 MB and to_tsvector errors past it, which would fail the note save
+-- (the trigger runs in the same write) and the backfill below. Dense text (many
+-- short unique tokens) costs about 2 bytes of tsvector per character, so the
+-- cap stays well under the limit. Quoted-phrase search still scans the whole
+-- body.
 --
 -- Both functions stay SECURITY INVOKER with an empty search_path (see
 -- 20260725235016_harden_function_search_path), so under the restricted
@@ -23,10 +30,10 @@ AS $$
     setweight(to_tsvector('english', COALESCE(item.title, '')), 'A') ||
     setweight(to_tsvector('english', COALESCE(array_to_string(item.tags || item.user_tags, ' '), '')), 'B') ||
     setweight(to_tsvector('english', COALESCE(item.description, '')), 'C') ||
-    setweight(to_tsvector('english', COALESCE(
+    setweight(to_tsvector('english', left(COALESCE(
       (SELECT note.content FROM public.item_note_details note WHERE note.item_id = item.id),
       ''
-    )), 'C') ||
+    ), 100000)), 'C') ||
     setweight(to_tsvector('english', COALESCE(item.notes, '')), 'D')
 $$;
 
@@ -50,16 +57,21 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $$
 BEGIN
-  -- AFTER trigger: item_search_vector already sees the written (or removed) body
+  -- AFTER trigger: item_search_vector already sees the written (or removed)
+  -- body. The app never moves a body between items (item_id is the primary
+  -- key), but if one moves, both the old and the new item are refreshed.
   UPDATE public.items item
   SET search_vector = public.item_search_vector(item)
-  WHERE item.id = CASE WHEN TG_OP = 'DELETE' THEN OLD.item_id ELSE NEW.item_id END;
+  WHERE item.id IN (
+    CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN OLD.item_id END,
+    CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN NEW.item_id END
+  );
   RETURN NULL;
 END
 $$;
 
 CREATE TRIGGER item_note_details_search_vector_trigger
-AFTER INSERT OR UPDATE OF content OR DELETE ON public.item_note_details
+AFTER INSERT OR UPDATE OF content, item_id OR DELETE ON public.item_note_details
 FOR EACH ROW EXECUTE FUNCTION public.item_note_details_search_vector_update();
 
 -- Existing rows: only items whose vector gains something (manual tags or a
