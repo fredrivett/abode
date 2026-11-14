@@ -34,7 +34,7 @@ cp .env.example .env      # fill in your Supabase URL + anon key (see below)
 bun run dev               # launches a dev browser with the extension loaded
 ```
 
-`bun run dev` opens a browser with the unpacked extension and hot-reloads on change. In dev, `host_permissions` include `http://localhost/*` and the save target is **auto-derived from this checkout's port** — Conductor's `CONDUCTOR_PORT`, or `:3300` for a plain checkout — so it hits whichever local abode server this branch runs. No per-workspace config needed.
+`bun run dev` opens a browser with the unpacked extension and hot-reloads on change. In dev, `host_permissions` include `http://localhost/*` and the save target is **auto-derived from this checkout's port** — the worktree's `ABODE_PORT` (written by `scripts/workspace/ports.sh`), Conductor's `CONDUCTOR_PORT`, or `:3300` for the root checkout — so it hits whichever local abode server this branch runs. No per-workspace config needed.
 
 ### Load unpacked into your own browser (Chrome)
 
@@ -88,7 +88,7 @@ Config comes from `WXT_`-prefixed env vars (see `.env.example`). All are **publi
 
 | Var | What | Default |
 | --- | --- | --- |
-| `WXT_ABODE_BASE_URL` | The abode web app to save to (override) | dev → `localhost:${CONDUCTOR_PORT:-3300}`, prod build → `https://www.abode.fyi` |
+| `WXT_ABODE_BASE_URL` | The abode web app to save to (override) | dev → `localhost:<checkout base port>`, prod build → `https://www.abode.fyi` |
 | `WXT_SUPABASE_URL` | Supabase project URL (auth) | `http://localhost:55321` |
 | `WXT_SUPABASE_ANON_KEY` | Supabase anon/publishable key | — |
 

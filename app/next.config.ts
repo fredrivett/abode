@@ -5,6 +5,7 @@ import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
 import { extractUiLabels } from "./src/lib/analytics/extract-ui-labels";
+import { getBasePort } from "./src/lib/dev-port";
 import { securityHeadersConfig } from "./src/lib/security-headers";
 
 let revision: string;
@@ -60,6 +61,11 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_SHA: revision,
     NEXT_PUBLIC_UI_LABELS: JSON.stringify(uiLabels),
     ...(gitBranch ? { NEXT_PUBLIC_GIT_BRANCH: gitBranch } : {}),
+    // Local dev only: this checkout's port, so client code (where process.env
+    // is empty) builds localhost links that match the server's
+    ...(process.env.NODE_ENV === "development"
+      ? { NEXT_PUBLIC_ABODE_PORT: String(getBasePort()) }
+      : {}),
   },
   // @trigger.dev/core uses `z.ZodSchema`, which zod v4 dropped from the
   // top-level export. Trigger ships its own nested zod v3, so externalizing

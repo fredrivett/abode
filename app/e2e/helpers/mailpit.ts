@@ -1,14 +1,15 @@
+import { getBasePort } from "../../src/lib/dev-port";
+
 /**
  * Helpers for interacting with the Mailpit email testing server
  * used by the E2E Supabase instance.
  *
- * Mailpit API runs on CONDUCTOR_PORT + 3 (e.g., 3303).
+ * Mailpit API runs on the base port + 3 (e.g., 3303).
  * Supabase auth emails (confirmation links) are delivered here.
  */
 
 function getBaseUrl(): string {
-  const basePort = Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10);
-  return `http://localhost:${basePort + 3}`;
+  return `http://localhost:${getBasePort() + 3}`;
 }
 
 interface MailpitMessage {

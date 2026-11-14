@@ -1,6 +1,6 @@
 # Orca worktree lifecycle (https://www.onorca.dev/docs/migrate-from-conductor).
-# Orca doesn't reserve per-worktree ports, so nothing here sets one; the app
-# falls back to :3300 when CONDUCTOR_PORT is unset.
+# Orca doesn't allocate ports, so setup claims a per-worktree block itself
+# (scripts/workspace/ports.sh) and archive frees it.
 # The dev-server run action is an Orca Quick Command (Settings → Quick Commands),
 # not part of this file: label "Run", command ./scripts/workspace/run.sh
 scripts:
