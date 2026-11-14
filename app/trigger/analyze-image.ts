@@ -12,6 +12,10 @@ import {
 import { extractExifData } from "../src/lib/exif";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import { buildImageDetailsUpdate } from "../src/lib/image-analysis/image-details-write";
+import {
+  capturedFileKeysSelect,
+  collectCapturedFileKeys,
+} from "../src/lib/item-storage";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
 import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
@@ -404,14 +408,15 @@ async function enrichFromItemText({
   fileKey,
   extraSourceText,
 }: AnalyzeImagePayload) {
-  // A re-capture since this run was queued replaced the cover (and deleted the
-  // old one, often why this run failed); the newer run enriches the item
+  // A re-capture since this run was queued replaced the item's files (and
+  // deleted this cover, often why the run failed); the newer run enriches the
+  // item. A product cover swap keeps the image, so it still falls back here.
   const item = await db.item.findFirst({
     where: { id: itemId, userId },
-    select: { coverFileKey: true },
+    select: capturedFileKeysSelect,
   });
-  if (item?.coverFileKey !== fileKey) {
-    logger.log("Cover replaced since queued — skipping text fallback", {
+  if (!item || !collectCapturedFileKeys(item).includes(fileKey)) {
+    logger.log("Item re-captured since queued — skipping text fallback", {
       itemId,
       fileKey,
     });
