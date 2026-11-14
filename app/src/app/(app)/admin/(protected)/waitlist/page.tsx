@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { systemDb } from "@/lib/db";
 import { WaitlistTable } from "../../_components/waitlist-table";
 
@@ -15,6 +16,8 @@ type SearchParams = Promise<{ page?: string }>;
 export default async function AdminWaitlistPage(props: {
   searchParams: SearchParams;
 }) {
+  await requireAdmin();
+
   const searchParams = await props.searchParams;
   const page = Math.max(1, Number.parseInt(searchParams.page || "1", 10));
 

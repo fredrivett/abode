@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import {
   getDailyCostTrend,
   getGlobalUsageToday,
@@ -18,6 +19,8 @@ const TREND_DAYS = 30;
 const TOP_SPENDERS = 10;
 
 export default async function AdminCostsPage() {
+  await requireAdmin();
+
   const [dailyCost, topSpenders, usage] = await Promise.all([
     getDailyCostTrend(TREND_DAYS),
     getTopSpendersThisMonth(TOP_SPENDERS),

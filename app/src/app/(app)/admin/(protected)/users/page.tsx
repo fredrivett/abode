@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { getUsersUsageToday } from "@/lib/admin/usage-stats";
 import { systemDb } from "@/lib/db";
 import { getPostHogPersonReplaysUrl } from "@/lib/posthog-app-url";
@@ -57,6 +58,8 @@ type SearchParams = Promise<{
 export default async function AdminUsersPage(props: {
   searchParams: SearchParams;
 }) {
+  await requireAdmin();
+
   const searchParams = await props.searchParams;
   const page = Math.max(1, parseInt(searchParams.page || "1", 10));
   const search = searchParams.search?.trim() || "";

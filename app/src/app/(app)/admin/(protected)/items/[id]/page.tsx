@@ -19,6 +19,7 @@ import {
   reconcileTweetMedia,
   SIMILAR_INSPECTOR_META,
 } from "@/lib/admin/item-inspector";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { triggerRunsUrl } from "@/lib/admin/trigger-dashboard";
 import { itemTag } from "@/lib/items/run-tags";
 import type { ImageColor, TwitterMedia } from "@/lib/types/item";
@@ -29,6 +30,8 @@ import { ItemRunsSection } from "./_components/item-runs-section";
 type PageParams = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: PageParams }) {
+  await requireAdmin();
+
   const { id } = await params;
   return { title: `${id.slice(0, 8)} | Item inspector | Admin | abode` };
 }
@@ -431,6 +434,8 @@ export default async function AdminItemInspectorPage({
 }: {
   params: PageParams;
 }) {
+  await requireAdmin();
+
   const { id } = await params;
   const item = await getItemInspection(id);
   if (!item) notFound();
