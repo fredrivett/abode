@@ -10,6 +10,7 @@ const {
   mockCapture,
   mockMarkMilestoneComplete,
   mockGuard,
+  mockTriggerConfigured,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockItemCreate: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockCapture: vi.fn(),
   mockMarkMilestoneComplete: vi.fn(),
   mockGuard: vi.fn(),
+  mockTriggerConfigured: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authenticate-request", () => ({
@@ -34,6 +36,10 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@trigger.dev/sdk", () => ({
   tasks: { trigger: mockTrigger },
+}));
+
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: mockTriggerConfigured,
 }));
 
 vi.mock("@/lib/posthog-server", () => ({
@@ -78,6 +84,7 @@ function request(
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuth.mockResolvedValue({ user: { id: "user_1" }, method: "cookie" });
+  mockTriggerConfigured.mockReturnValue(true);
   // Default: within the daily limit — proceed.
   mockGuard.mockResolvedValue({
     ok: true,

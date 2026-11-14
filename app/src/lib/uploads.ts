@@ -75,3 +75,16 @@ export function validateUploadFile(file: {
   }
   return { ok: true, kind: "image" };
 }
+
+/**
+ * A readable title from an uploaded file's name: the extension dropped and
+ * underscores read as spaces. Null when nothing is left of it.
+ */
+export function fileNameTitle(name: string): string | null {
+  const title = name
+    .replace(/\.[a-z0-9]{1,5}$/i, "")
+    .replace(/_+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return title || null;
+}

@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   // The transaction the route runs its writes in, to check counters join it
   tx: {} as Record<string, unknown>,
   enqueue: vi.fn(),
+  triggerConfigured: vi.fn(),
   logActivity: vi.fn(),
   milestone: vi.fn(),
 }));
@@ -22,6 +23,9 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: m.guard }));
 vi.mock("@/lib/items/enqueue-document-analysis", () => ({
   enqueueDocumentAnalysis: m.enqueue,
+}));
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: m.triggerConfigured,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: m.logActivity }));
 vi.mock("@/lib/milestones", () => ({ markMilestoneComplete: m.milestone }));
@@ -70,6 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.getUser.mockResolvedValue({ data: { user: { id: USER } }, error: null });
   m.guard.mockResolvedValue({ ok: true });
+  m.triggerConfigured.mockReturnValue(true);
   m.itemCreate.mockResolvedValue({
     id: "item-1",
     kind: "document",
@@ -188,6 +193,22 @@ describe("POST /api/v1/items/documents", () => {
   it("enqueues analysis for the saved document", async () => {
     await call({ pages: [page(1)] });
     expect(m.enqueue).toHaveBeenCalledWith({ itemId: "item-1", userId: USER });
+  });
+
+  it("saves the scan completed, without enqueueing, when Trigger.dev isn't configured", async () => {
+    m.triggerConfigured.mockReturnValue(false);
+    m.itemCreate.mockImplementation(
+      async ({ data }: { data: { processingStatus: string } }) => ({
+        id: "item-1",
+        kind: "document",
+        processingStatus: data.processingStatus,
+      }),
+    );
+    const res = await call({ pages: [page(1)] });
+    expect(res.status).toBe(201);
+    // The client's toast reads the returned status
+    expect((await res.json()).processingStatus).toBe("completed");
+    expect(m.enqueue).not.toHaveBeenCalled();
   });
 
   it("completes the scan-your-first-document milestone", async () => {

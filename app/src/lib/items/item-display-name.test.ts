@@ -26,6 +26,20 @@ describe("getItemDisplayName", () => {
     ).toBe("example.com");
   });
 
+  it("shows the domain for a completed URL with no title (saved without enrichment)", () => {
+    expect(
+      getItemDisplayName(
+        item({
+          title: null,
+          kind: "webpage",
+          sourceType: "url",
+          processingStatus: "completed",
+          sourceUrl: "https://www.example.com/some/path",
+        }),
+      ),
+    ).toBe("www.example.com");
+  });
+
   it("prefers an explicit title over the processing-URL domain", () => {
     expect(
       getItemDisplayName(

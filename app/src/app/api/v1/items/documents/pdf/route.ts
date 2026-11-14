@@ -13,6 +13,7 @@ import { enqueuePdfImport } from "@/lib/items/enqueue-pdf-import";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { PDF_MIME_TYPE } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
 import { adjustUserCounters } from "@/lib/user-counters";
@@ -56,6 +57,9 @@ async function handlePOST(request: NextRequest) {
       return dailyLimitResponse(guard.check.retryAfterSeconds);
     }
 
+    // Without Trigger.dev nothing would ever render the pages, so it's saved
+    // as just its source PDF (downloadable) rather than left processing
+    const importPdf = isTriggerConfigured();
     const item = await db.$transaction(async (tx) => {
       const created = await tx.item.create({
         data: {
@@ -67,7 +71,7 @@ async function handlePOST(request: NextRequest) {
           sourceType: "upload",
           captureSource: "web",
           userId: user.id,
-          processingStatus: "processing",
+          processingStatus: importPdf ? "processing" : "completed",
           // Like scans, PDFs are often personal (statements, contracts): keep
           // them out of public rooms unless the owner opts one in
           excludeFromPublicRooms: true,
@@ -80,7 +84,14 @@ async function handlePOST(request: NextRequest) {
 
     // The document is committed; an enqueue failure marks it failed (Retry)
     // rather than failing the request
-    await enqueuePdfImport({ itemId: item.id, userId: user.id });
+    if (importPdf) {
+      await enqueuePdfImport({ itemId: item.id, userId: user.id });
+    } else {
+      log.info(
+        { itemId: item.id },
+        "Trigger.dev not configured; saved PDF without importing its pages",
+      );
+    }
     void logActivity(user.id, "item_create", {
       itemId: item.id,
       kind: "document",

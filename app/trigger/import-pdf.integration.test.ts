@@ -24,6 +24,9 @@ vi.mock("@trigger.dev/sdk", () => ({
   logger: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   queue: (config: unknown) => config,
 }));
+// A configured Trigger.dev (tasks.trigger is mocked above); without it the
+// route saves the PDF as-is and never enqueues the import
+vi.mock("@/lib/trigger/item-runs", () => ({ isTriggerConfigured: () => true }));
 
 const fakeStorage = vi.hoisted(() => ({
   from: () => ({

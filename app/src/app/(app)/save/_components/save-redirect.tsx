@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProcessingStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useEffect, useRef } from "react";
@@ -29,15 +30,18 @@ export function SaveRedirect({ url }: { url: string }) {
 
     void (async () => {
       try {
-        await api.post("/api/v1/items/from-url", {
-          url,
-          source: "share_target",
-        });
+        const created = await api.post<{ processingStatus: ProcessingStatus }>(
+          "/api/v1/items/from-url",
+          { url, source: "share_target" },
+        );
         const { markComplete } = useMilestoneStore.getState();
         markComplete("save_first_url");
         markComplete("save_from_phone");
         invalidateItems();
-        router.replace(`${ROUTES.DASHBOARD}?share=saved`);
+        // A completed save means the instance has no background processing
+        const share =
+          created.processingStatus === "completed" ? "saved_link" : "saved";
+        router.replace(`${ROUTES.DASHBOARD}?share=${share}`);
       } catch (error) {
         log.error({ error }, "Share target save failed");
         posthog.captureException(error);
