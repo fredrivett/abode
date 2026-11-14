@@ -24,6 +24,11 @@ const MIN_POLL_INTERVAL_MS = 1500;
 const MAX_POLL_INTERVAL_MS = 60_000;
 /** Gives the background task time to start before an item's first poll */
 const FIRST_POLL_DELAY_MS = 1000;
+/**
+ * When a finished item is checked again: long enough for the list refetch it
+ * triggered to land, so a re-report doesn't cancel that refetch mid-flight
+ */
+const FINISHED_RECHECK_MS = 10_000;
 
 /**
  * How long to wait before polling an item again: a tenth of the time it has
@@ -214,10 +219,13 @@ export function useProcessingPoll(processingItemIds: string[]) {
             schedule.dueAt = now + pollDelayMs(now - schedule.changedAt);
           }
         }
-        // Done: no more polls; its card now shows it finished
-        for (const item of refreshed ? finished : []) {
+        // It leaves the set once its card shows it finished. If the list
+        // still shows it processing at the recheck (the fetch failed), it's
+        // reported again, as a first sighting
+        for (const item of finished) {
           const schedule = schedules.get(item.id);
-          if (schedule) schedule.dueAt = Number.POSITIVE_INFINITY;
+          if (schedule) schedule.dueAt = now + FINISHED_RECHECK_MS;
+          lastSeen.delete(item.id);
         }
       } finally {
         inFlight = false;

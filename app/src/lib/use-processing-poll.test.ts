@@ -229,34 +229,52 @@ describe("useProcessingPoll", () => {
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("fetches just a finished item, once", async () => {
+  it("fetches just a finished item, and again if the list still shows it processing", async () => {
     const statuses = [
       { items: [item("item-0", "processing", "t1")] },
       { items: [item("item-0", "completed", "t2")] },
     ];
     vi.mocked(api.get).mockImplementation(async (url: string) =>
       url.includes("/status")
-        ? (statuses.shift() ?? statuses[0])
+        ? statuses.length > 1
+          ? statuses.shift()
+          : statuses[0]
         : { items: [] },
     );
-    const { invalidate } = renderPoll(ids(1));
+    const { invalidate, rerender } = renderPoll(ids(1));
+    const refreshes = () =>
+      vi
+        .mocked(api.get)
+        .mock.calls.map(([url]) => String(url))
+        .filter((url) => url.startsWith("/api/v1/items?ids="));
 
-    await vi.advanceTimersByTimeAsync(60_000);
-
-    const urls = vi.mocked(api.get).mock.calls.map(([url]) => String(url));
-    expect(urls.filter((url) => url.startsWith("/api/v1/items?ids="))).toEqual([
-      "/api/v1/items?ids=item-0",
-    ]);
+    // Fetched once, not on every poll
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(refreshes()).toEqual(["/api/v1/items?ids=item-0"]);
     // Never the whole list
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["items"] });
-    // The finished item isn't polled again
-    expect(urls.filter((url) => url.includes("/status"))).toHaveLength(2);
+
+    // Still listed as processing at the recheck: fetched again
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(refreshes()).toHaveLength(2);
+
+    // Once the list shows it finished, it's no longer polled
+    rerender([]);
+    const calls = vi.mocked(api.get).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.get).toHaveBeenCalledTimes(calls);
   });
 
   it("reports a change again when fetching the item failed", async () => {
+    let statusPolls = 0;
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url.includes("/status")) {
-        return { items: [item("item-0", "completed", "t2")] };
+        statusPolls++;
+        return {
+          items: [
+            item("item-0", "processing", statusPolls === 1 ? "t1" : "t2"),
+          ],
+        };
       }
       throw new Error("offline");
     });
