@@ -34,7 +34,7 @@ import {
 import { RatingStars } from "@/components/ui/rating-stars";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api-client";
-import { useInvalidateItems } from "@/lib/api-hooks";
+import { useReplaceCachedItem } from "@/lib/api-hooks";
 import { type BookReview, toBookReview } from "@/lib/books/review";
 import {
   BOOK_READING_STATUS_LABELS,
@@ -46,7 +46,7 @@ import {
   formatReadingDate,
   MONTH_LABELS,
 } from "@/lib/items/date-precision";
-import type { BookDetails } from "@/lib/types/item";
+import type { BookDetails, Item } from "@/lib/types/item";
 import { cn } from "@/lib/utils";
 
 // Earliest year selectable in the year-precision picker — comfortably before
@@ -116,7 +116,7 @@ export function BookReadingControls({
   onShare,
   className,
 }: BookReadingControlsProps) {
-  const invalidateItems = useInvalidateItems();
+  const replaceCachedItem = useReplaceCachedItem();
   const [state, setState] = useState<ReadingState>(() =>
     toReadingState(bookDetails),
   );
@@ -153,8 +153,11 @@ export function BookReadingControls({
     setState({ ...state, ...partial });
     void (async () => {
       try {
-        await api.patch(`/api/v1/items/${itemId}`, { bookReading: partial });
-        invalidateItems();
+        replaceCachedItem(
+          await api.patch<Item>(`/api/v1/items/${itemId}`, {
+            bookReading: partial,
+          }),
+        );
       } catch {
         setState(prev);
         toast.error("Failed to update reading status");
@@ -186,8 +189,11 @@ export function BookReadingControls({
     ) => {
       void (async () => {
         try {
-          await api.patch(`/api/v1/items/${itemId}`, { bookReading: partial });
-          invalidateItems();
+          replaceCachedItem(
+            await api.patch<Item>(`/api/v1/items/${itemId}`, {
+              bookReading: partial,
+            }),
+          );
           posthog.capture("item_reading_progress_updated", {
             item_id: itemId,
             percent,
@@ -261,11 +267,11 @@ export function BookReadingControls({
       .catch(() => false)
       .then(async () => {
         try {
-          await api.patch(`/api/v1/items/${itemId}`, {
+          const updated = await api.patch<Item>(`/api/v1/items/${itemId}`, {
             bookReading: { review },
           });
           savedReview.current = review;
-          invalidateItems();
+          replaceCachedItem(updated);
           posthog.capture("item_reading_review_updated", { item_id: itemId });
           return true;
         } catch {

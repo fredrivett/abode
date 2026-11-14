@@ -4,8 +4,8 @@ import type { Item } from "@/lib/types/item";
 
 /**
  * Query key for a single item's detail fetch. Nested under the `["items"]`
- * namespace so {@link useInvalidateItems} (which invalidates by that prefix)
- * refreshes an open detail alongside the list.
+ * namespace, so invalidating that prefix refreshes an open detail alongside the
+ * list, and deleting the item drops it with its other per-item queries.
  */
 export function itemQueryKey(itemId: string) {
   return ["items", itemId, "detail"] as const;

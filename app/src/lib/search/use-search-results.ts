@@ -149,9 +149,10 @@ function hasSearchCriteria(state: SearchState): boolean {
 }
 
 /**
- * Query key for a search's results. Nested under the `["items"]` namespace so
- * {@link useInvalidateItems} — called after every item edit (reading status,
- * notes, tags…) — refetches the visible results too, not just the full list.
+ * Query key for a search's results. Nested under the `["items"]` namespace,
+ * whose cache helpers (`useReplaceCachedItem` and friends in `@/lib/api-hooks`)
+ * patch an edited item into every search and refetch the visible results, so an
+ * edit that changes whether it matches moves it in or out.
  */
 export function searchResultsQueryKey(params: SearchQueryParams) {
   return ["items", "search", params] as const;
