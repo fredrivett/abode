@@ -2004,7 +2004,12 @@ export function ItemDetailBody({
         source_type: item.sourceType,
       });
 
-      toast.success("Retrying analysis...");
+      // Completed means nothing will rerun (e.g. no background processing)
+      toast.success(
+        response.processingStatus === "completed"
+          ? "Item ready"
+          : "Retrying analysis...",
+      );
     } catch (error) {
       log.error({ error }, "Retry error");
       posthog.captureException(error);

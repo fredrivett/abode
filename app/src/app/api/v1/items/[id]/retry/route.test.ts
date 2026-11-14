@@ -10,6 +10,7 @@ const {
   mockTrigger,
   mockGuard,
   mockHasFullAdminAccess,
+  mockTriggerConfigured,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFindUnique: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockTrigger: vi.fn(),
   mockGuard: vi.fn(),
   mockHasFullAdminAccess: vi.fn(),
+  mockTriggerConfigured: vi.fn(),
 }));
 
 const connections = vi.hoisted(() => [] as string[]);
@@ -62,6 +64,10 @@ vi.mock("@/lib/db", () => {
 
 vi.mock("@trigger.dev/sdk", () => ({
   tasks: { trigger: mockTrigger },
+}));
+
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: mockTriggerConfigured,
 }));
 
 vi.mock("@/lib/logger.server", () => ({
@@ -133,6 +139,7 @@ beforeEach(() => {
   mockTrigger.mockResolvedValue({ id: "run_1" });
   mockHasFullAdminAccess.mockResolvedValue(false);
   mockGuard.mockResolvedValue(okGuard);
+  mockTriggerConfigured.mockReturnValue(true);
 });
 
 describe("POST /api/v1/items/[id]/retry", () => {
@@ -189,6 +196,57 @@ describe("POST /api/v1/items/[id]/retry", () => {
       expect((await res.json()).message).toBe("Cannot retry this item type");
       expect(mockItemUpdateMany).not.toHaveBeenCalled();
       expect(mockGuard).not.toHaveBeenCalled();
+    });
+
+    it("completes a failed, unclassified URL as a bare webpage when Trigger.dev isn't configured", async () => {
+      mockTriggerConfigured.mockReturnValue(false);
+      mockItemFindUnique.mockResolvedValue({ ...failedUrlItem, kind: null });
+      const res = await call();
+      expect(res.status).toBe(200);
+      expect((await res.json()).processingStatus).toBe("completed");
+      expect(mockItemUpdate).toHaveBeenCalledWith({
+        where: { id: ITEM_ID },
+        data: {
+          processingStatus: "completed",
+          processingError: null,
+          kind: "webpage",
+          title: "example.com/x",
+        },
+      });
+      // Nothing to run, so no claim, no daily-limit charge and no enqueue
+      expect(mockItemUpdateMany).not.toHaveBeenCalled();
+      expect(mockGuard).not.toHaveBeenCalled();
+      expect(mockTrigger).not.toHaveBeenCalled();
+    });
+
+    it("titles a failed, untitled image from its file name when Trigger.dev isn't configured", async () => {
+      mockTriggerConfigured.mockReturnValue(false);
+      mockItemFindUnique.mockResolvedValue({
+        ...failedImageItem,
+        title: null,
+        meta: { originalName: "beach_day.jpg" },
+      });
+      await call();
+      expect(mockItemUpdate).toHaveBeenCalledWith({
+        where: { id: ITEM_ID },
+        data: {
+          processingStatus: "completed",
+          processingError: null,
+          title: "beach day",
+        },
+      });
+    });
+
+    it("completes a failed image as-is when Trigger.dev isn't configured", async () => {
+      mockTriggerConfigured.mockReturnValue(false);
+      mockItemFindUnique.mockResolvedValue(failedImageItem);
+      const res = await call();
+      expect(res.status).toBe(200);
+      expect(mockItemUpdate).toHaveBeenCalledWith({
+        where: { id: ITEM_ID },
+        data: { processingStatus: "completed", processingError: null },
+      });
+      expect(mockTrigger).not.toHaveBeenCalled();
     });
 
     it("claims a failed URL item and re-triggers classify-url", async () => {
