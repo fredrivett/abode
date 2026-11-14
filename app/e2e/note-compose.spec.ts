@@ -158,6 +158,8 @@ test.describe("Note composer", () => {
     // Saving empties the composer (the placeholder only shows when empty) and
     // clears the server draft in the same request.
     await freshPage.getByRole("button", { name: /^save$/i }).click();
+    // Read-only while saving, so nothing typed mid-save is silently dropped
+    await expect(composer).toHaveAttribute("contenteditable", "false");
     await expect(freshPage.getByText("Take a note…")).toBeVisible({
       timeout: 30_000,
     });
