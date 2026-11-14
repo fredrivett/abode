@@ -194,20 +194,45 @@ export async function loadItemWithDetails(
   return item;
 }
 
-/**
- * Load all items for a user with the fields needed for room matching.
- */
-export async function loadUserItemsWithDetails(
-  userId: string,
-): Promise<RoomMatchItem[]> {
-  const items = await db.item.findMany({
-    where: {
-      userId,
-    },
-    select: roomMatchItemSelect,
-  });
+/** Items per page when a room sync walks a user's library */
+export const ROOM_SYNC_PAGE_SIZE = 500;
 
-  return items;
+/**
+ * Walk a user's items one page at a time, with the fields needed for room
+ * matching, so a sync holds one page in memory rather than the whole library.
+ *
+ * Newest first, keyed on (createdAt, id) to follow the (userId, createdAt)
+ * index. A hand-rolled keyset rather than Prisma's `cursor`, which needs the
+ * cursor row to still exist and would end the walk early if that item were
+ * deleted mid-sync.
+ */
+export async function* loadUserItemPages(
+  userId: string,
+): AsyncGenerator<RoomMatchItem[]> {
+  let after: { createdAt: Date; id: string } | null = null;
+
+  while (true) {
+    const page: RoomMatchItem[] = await db.item.findMany({
+      where: {
+        userId,
+        ...(after && {
+          OR: [
+            { createdAt: { lt: after.createdAt } },
+            { createdAt: after.createdAt, id: { lt: after.id } },
+          ],
+        }),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: ROOM_SYNC_PAGE_SIZE,
+      select: roomMatchItemSelect,
+    });
+
+    if (page.length > 0) yield page;
+    if (page.length < ROOM_SYNC_PAGE_SIZE) return;
+
+    const last = page[page.length - 1];
+    after = { createdAt: last.createdAt, id: last.id };
+  }
 }
 
 /**
@@ -303,8 +328,6 @@ export async function syncRoomItems(
     filters: room.filters as Filter[] | null,
   };
 
-  const items = await loadUserItemsWithDetails(userId);
-
   // Get current room items
   const currentRoomItems = await db.roomItem.findMany({
     where: { roomId },
@@ -315,14 +338,16 @@ export async function syncRoomItems(
   const itemsToAdd: string[] = [];
   const itemsToRemove: string[] = [];
 
-  for (const item of items) {
-    const matches = itemMatchesRoom(item, roomWithFilters);
-    const isInRoom = currentItemIds.has(item.id);
+  for await (const page of loadUserItemPages(userId)) {
+    for (const item of page) {
+      const matches = itemMatchesRoom(item, roomWithFilters);
+      const isInRoom = currentItemIds.has(item.id);
 
-    if (matches && !isInRoom) {
-      itemsToAdd.push(item.id);
-    } else if (!matches && isInRoom) {
-      itemsToRemove.push(item.id);
+      if (matches && !isInRoom) {
+        itemsToAdd.push(item.id);
+      } else if (!matches && isInRoom) {
+        itemsToRemove.push(item.id);
+      }
     }
   }
 
