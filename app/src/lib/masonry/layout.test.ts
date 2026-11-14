@@ -259,19 +259,19 @@ describe("layoutMasonry", () => {
     });
   });
 
-  it("centres fewer frames than columns at the normal column width", () => {
+  it("left-aligns fewer frames than columns at the normal column width", () => {
     const layout = layoutMasonry({
       frames: [square("a"), square("b")],
       columnCount: 4,
       columnWidth: 100,
       gap: 10,
     });
-    // Two unused columns (2 × 110px) split either side
-    expect(layout.placements.map((p) => p.x)).toEqual([110, 220]);
+    // The two unused columns are left empty on the right
+    expect(layout.placements.map((p) => p.x)).toEqual([0, 110]);
     expect(layout.placements[0].width).toBe(100);
   });
 
-  it("keeps columns when a sparse grid gains a frame — the group just slides to recentre", () => {
+  it("doesn't move frames when a sparse grid gains one", () => {
     const geometry = { columnCount: 4, columnWidth: 100, gap: 10 };
     const before = layoutMasonry({
       frames: [square("a"), square("b")],
@@ -282,14 +282,14 @@ describe("layoutMasonry", () => {
       ...geometry,
       previous: before,
     });
-    // Same columns, shifted by the same amount (half a column)
-    expect(after.placements.map((p) => p.column)).toEqual([0, 1, 2]);
-    const shift = after.placements[0].x - before.placements[0].x;
-    expect(shift).toBe(-55);
-    expect(after.placements[1].x - before.placements[1].x).toBe(shift);
+    expect(after.placements.map((p) => [p.column, p.x])).toEqual([
+      [0, 0],
+      [1, 110],
+      [2, 220],
+    ]);
   });
 
-  it("centres the occupied columns even when they don't start at the first", () => {
+  it("left-aligns the occupied columns even when they don't start at the first", () => {
     const geometry = { columnCount: 4, columnWidth: 100, gap: 10 };
     const before = layoutMasonry({
       frames: [square("a"), square("b"), square("c")],
@@ -302,8 +302,8 @@ describe("layoutMasonry", () => {
       previous: before,
     });
     expect(after.placements.map((p) => [p.column, p.x])).toEqual([
-      [1, 110],
-      [2, 220],
+      [1, 0],
+      [2, 110],
     ]);
   });
 
