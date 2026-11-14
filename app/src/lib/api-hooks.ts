@@ -13,7 +13,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import posthog from "posthog-js";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type { SimilarImagesResponse } from "@/app/api/v1/items/[id]/similar/route";
 import { api } from "./api-client";
 import { itemQueryKey } from "./items/use-item";
@@ -82,7 +82,8 @@ function patchPages<T extends Item>(
 }
 
 /** Whether `cached` was written after `fresh`, e.g. a slow response landing late */
-function isNewer(cached: Item, fresh: Item) {
+/** Whether `cached` was saved after `fresh`, so `fresh` is a stale copy */
+export function isNewer(cached: Item, fresh: Item) {
   return (
     cached.updatedAt !== undefined &&
     fresh.updatedAt !== undefined &&
@@ -110,10 +111,14 @@ function patchNowAndAfterFetches(queryClient: QueryClient, patch: () => void) {
   });
 }
 
+type ReplacedItemListener = (item: Item) => void;
+const replacedItemListeners = new Set<ReplacedItemListener>();
+
 function replaceCachedItem(queryClient: QueryClient, item: Item) {
   patchNowAndAfterFetches(queryClient, () =>
     writeCachedItem(queryClient, item),
   );
+  for (const listener of replacedItemListeners) listener(item);
 }
 
 function removeCachedItem(queryClient: QueryClient, itemId: string) {
@@ -185,6 +190,22 @@ export function useReplaceCachedItem() {
     },
     [queryClient],
   );
+}
+
+/**
+ * Calls `listener` with every item written into the caches by
+ * {@link useReplaceCachedItem} or {@link useRefreshCachedItems}, for lists kept
+ * outside React Query (a room's local items) that would otherwise keep showing
+ * the old copy, e.g. a stale read badge or processing status. Skip a copy older
+ * than yours with {@link isNewer}, as the caches do. Pass a stable callback.
+ */
+export function useOnReplacedCachedItem(listener: ReplacedItemListener) {
+  useEffect(() => {
+    replacedItemListeners.add(listener);
+    return () => {
+      replacedItemListeners.delete(listener);
+    };
+  }, [listener]);
 }
 
 /**

@@ -125,6 +125,9 @@ export function getCardFrame(
             readingTime: details?.readingTime,
           }),
           coverAspect: hasCover ? articleCoverAspect(item.meta) : null,
+          // Mirrors ArticleCard's reserveBadgeSpace: every article's text card
+          // keeps room for the read badge, which only its owner sees
+          titleInset: item.kind === "article" && !hasCover,
         },
         { columnWidthPx: columnWidth, cardRootPx, rootRemPx, measure },
       );

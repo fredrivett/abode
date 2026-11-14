@@ -43,8 +43,61 @@ export function getProxyImageUrl(
   return `/api/v1/images/${encodeURIComponent(fileKey)}?${searchParams.toString()}`;
 }
 
+/** Room preview tiles in the embed API and the share dialog's live preview */
+const ROOM_PREVIEW = { w: 200, q: 75 } as const;
+
+/** Proxy URL for a room preview tile (resized even for GIFs: tiles are stills) */
+export function roomPreviewImageUrl(fileKey: string): string {
+  return `/api/v1/images/${encodeURIComponent(fileKey)}?w=${ROOM_PREVIEW.w}&q=${ROOM_PREVIEW.q}`;
+}
+
 /** Smaller widths offered alongside a resized proxy URL (see {@link proxyImageSrcSet}) */
 const SRCSET_WIDTHS = [400, 600] as const;
+
+type ImageTransform = { width: number; quality: number };
+
+/**
+ * Every resize the proxy runs: each resized preset at its quality, the srcset
+ * widths below it at the same quality, and the room preview tile
+ */
+const IMAGE_TRANSFORMS: readonly ImageTransform[] = [
+  ...Object.values(SIZE_PRESETS).flatMap((preset) =>
+    "w" in preset
+      ? [...SRCSET_WIDTHS.filter((w) => w < preset.w), preset.w].map(
+          (width) => ({ width, quality: preset.q }),
+        )
+      : [],
+  ),
+  { width: ROOM_PREVIEW.w, quality: ROOM_PREVIEW.q },
+];
+
+/**
+ * The resize the image proxy runs for a request's `w`/`q` params: the app's
+ * own sizes as asked, anything else snapped up to the smallest of them at
+ * least as wide (the largest past them), then the closest quality, so older
+ * URLs keep working. Undefined (serve the original) without a positive `w`.
+ */
+export function imageTransformFor(
+  searchParams: URLSearchParams,
+): ImageTransform | undefined {
+  const requestedWidth = Number.parseInt(searchParams.get("w") ?? "", 10);
+  if (!(requestedWidth > 0)) return undefined;
+  const requestedQuality =
+    Number.parseInt(searchParams.get("q") ?? "", 10) || 80;
+
+  const widths = IMAGE_TRANSFORMS.map((t) => t.width);
+  const wideEnough = widths.filter((w) => w >= requestedWidth);
+  const width =
+    wideEnough.length > 0 ? Math.min(...wideEnough) : Math.max(...widths);
+  const distance = (t: ImageTransform) =>
+    Math.abs(t.quality - requestedQuality);
+  return IMAGE_TRANSFORMS.filter((t) => t.width === width).reduce((best, t) =>
+    distance(t) < distance(best) ||
+    (distance(t) === distance(best) && t.quality > best.quality)
+      ? t
+      : best,
+  );
+}
 
 /**
  * `sizes` for a grid image whose cell width isn't known: picks the full grid

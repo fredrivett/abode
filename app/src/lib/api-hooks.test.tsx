@@ -12,6 +12,7 @@ import {
   CREATED_ITEM_RETRY_DELAYS_MS,
   ITEMS_QUERY_KEY,
   useItemsInfinite,
+  useOnReplacedCachedItem,
   useRefreshCachedItems,
   useRemoveCachedItem,
   useReplaceCachedItem,
@@ -248,6 +249,26 @@ describe("item cache helpers", () => {
     expect(client.getQueryData<Item>(itemQueryKey("b"))?.title).toBe("B2");
     // Nothing else is touched
     expect(list()?.pages[0].total).toBe(10);
+  });
+
+  it("hands replaced and refreshed items to lists kept outside the cache until they unmount", async () => {
+    const { hooks } = setup();
+    const listener = vi.fn();
+    const room = renderHook(() => useOnReplacedCachedItem(listener));
+    const updated = item("z", "Not in any cache", "2026-01-02T00:00:00Z");
+    const refreshed = item("y", "Retried", "2026-01-02T00:00:00Z");
+    vi.mocked(api.get).mockResolvedValue({ items: [refreshed] });
+
+    act(() => hooks.current.replace(updated));
+    // Retry and reassign refresh by id rather than replacing a PATCH response
+    await act(async () => {
+      await hooks.current.refresh(["y"]);
+    });
+    expect(listener.mock.calls).toEqual([[updated], [refreshed]]);
+
+    room.unmount();
+    act(() => hooks.current.replace(item("z", "Again")));
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a cached copy written after the one arriving", () => {

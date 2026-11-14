@@ -23,6 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { roomPreviewImageUrl } from "@/lib/image-url";
 import type { Filter } from "@/lib/search/types";
 import { getAppBaseUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -158,9 +159,7 @@ function EmbedPreview({
         id: item.id,
         kind: item.kind,
         title: item.title,
-        imageUrl: imageFileKey
-          ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
-          : null,
+        imageUrl: imageFileKey ? roomPreviewImageUrl(imageFileKey) : null,
         width: isArticleOrWebpage ? 16 : ((meta.width as number) ?? 1),
         height: isArticleOrWebpage ? 9 : ((meta.height as number) ?? 1),
       };

@@ -4,11 +4,16 @@ import { useRef } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { AutoplayVideo } from "@/components/media/autoplay-video";
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
+import {
+  CardCornerBadge,
+  CardPlayIndicator,
+  CardTag,
+} from "@/components/ui/card-overlay";
 import { Img } from "@/components/ui/img";
 import { useAutoplayAllowed } from "@/hooks/use-autoplay-allowed";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { textCardStyle } from "@/lib/grid-styles";
+import { CARD_BADGE_EXTENT_EM, textCardStyle } from "@/lib/grid-styles";
 import { tweetImageAlt } from "@/lib/twitter/image-alt";
 import { twitterImageSrc } from "@/lib/twitter/image-src";
 import { parseTweetText } from "@/lib/twitter/parse-tweet-text";
@@ -99,17 +104,7 @@ export function TwitterCard({
           />
           {/* GIF badge */}
           {coverMedia?.type === "animated_gif" && (
-            <div
-              className="absolute rounded bg-black/80 font-medium text-white"
-              style={{
-                left: "0.5em",
-                bottom: "0.5em",
-                padding: "0.125em 0.375em",
-                fontSize: "0.75em",
-              }}
-            >
-              GIF
-            </div>
+            <CardTag corner="bottom-left">GIF</CardTag>
           )}
         </div>
       ) : previewImage ? (
@@ -131,25 +126,16 @@ export function TwitterCard({
             />
           )}
           {/* Play indicator for videos/GIFs that aren't autoplaying */}
-          {isPlayable && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="rounded-full bg-black/60 p-3">
-                <svg
-                  className="size-6 text-white"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            </div>
-          )}
+          {isPlayable && <CardPlayIndicator />}
         </div>
       ) : previewText ? (
         // No media - show the tweet text (with author), clipped with a fade
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden p-4 text-left">
-          <div className="flex shrink-0 items-center gap-2">
+          {/* Right padding keeps a long name from running under the X badge */}
+          <div
+            className="flex shrink-0 items-center gap-2"
+            style={{ paddingRight: `calc(${CARD_BADGE_EXTENT_EM}em - 1rem)` }}
+          >
             {authorAvatarSrc ? (
               // Decorative: the author name renders as visible text alongside
               <Img
@@ -185,13 +171,7 @@ export function TwitterCard({
         </div>
       )}
 
-      {/* X badge */}
-      <div
-        className="absolute rounded-full bg-black/60 backdrop-blur-sm"
-        style={{ top: "0.5em", right: "0.5em", padding: "0.375em" }}
-      >
-        <TwitterIcon className="h-[0.75em] w-[0.75em] text-white" />
-      </div>
+      <CardCornerBadge icon={<TwitterIcon />} />
     </button>
   );
 }

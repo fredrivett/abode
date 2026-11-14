@@ -2,6 +2,7 @@
 
 import { InstagramIcon } from "@/components/icons/platform-icons";
 import { BlurPlaceholder } from "@/components/ui/blur-placeholder";
+import { CardCornerBadge } from "@/components/ui/card-overlay";
 import { useImageLoaded } from "@/hooks/use-image-loaded";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { instagramImageSrc } from "@/lib/instagram/image-src";
@@ -87,13 +88,7 @@ export function InstagramCard({
         </div>
       )}
 
-      {/* Instagram badge */}
-      <div
-        className="absolute rounded-full bg-black/60 backdrop-blur-sm"
-        style={{ top: "0.5em", right: "0.5em", padding: "0.375em" }}
-      >
-        <InstagramIcon className="h-[0.75em] w-[0.75em] text-white" />
-      </div>
+      <CardCornerBadge icon={<InstagramIcon />} />
     </button>
   );
 }
