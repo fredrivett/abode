@@ -227,19 +227,27 @@ describe("useProcessingPoll", () => {
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("refreshes the list once when an item finishes", async () => {
+  it("refreshes the list once when an item finishes, and again if it still shows processing", async () => {
     vi.mocked(api.get)
       .mockResolvedValueOnce({ items: [item("item-0", "processing", "t1")] })
       .mockResolvedValue({ items: [item("item-0", "completed", "t2")] });
-    const { invalidate } = renderPoll(ids(1));
+    const { invalidate, rerender } = renderPoll(ids(1));
+    const listInvalidations = () =>
+      invalidate.mock.calls.filter(([f]) => f?.queryKey?.[0] === "items")
+        .length;
 
+    // Reported once, not on every poll while the refetch is in flight
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(listInvalidations()).toBe(1);
+
+    // The list still shows it processing (its refetch failed): reported again
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(listInvalidations()).toBe(2);
+
+    // Once the list shows it finished, it's no longer polled
+    rerender([]);
+    const calls = vi.mocked(api.get).mock.calls.length;
     await vi.advanceTimersByTimeAsync(60_000);
-
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["items"] });
-    expect(
-      invalidate.mock.calls.filter(([f]) => f?.queryKey?.[0] === "items"),
-    ).toHaveLength(1);
-    // The finished item isn't polled again
-    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.get).toHaveBeenCalledTimes(calls);
   });
 });
