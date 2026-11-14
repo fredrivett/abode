@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 const SHARE_MESSAGES = {
   saved: { kind: "success", text: "Saved to abode — processing in background" },
+  saved_link: { kind: "success", text: "Saved to abode" },
   no_link: { kind: "error", text: "Couldn't read a link from what you shared" },
   error: { kind: "error", text: "Couldn't save that link — please try again" },
 } as const;
