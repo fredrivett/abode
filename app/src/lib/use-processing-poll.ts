@@ -98,7 +98,8 @@ type PollSchedule = {
  * Refreshes an item in the cache when it finishes (completed/failed) or is
  * updated mid-processing (e.g. a URL is classified and rich data is saved),
  * so the grid can show the rich card as soon as the data exists. Only the
- * changed items are fetched, never every loaded page.
+ * changed items are fetched; the whole list is refetched only as a fallback
+ * when that fetch fails.
  *
  * Each item backs off on its own ({@link pollDelayMs}), ids go out in batches
  * the status endpoint accepts, one poll runs at a time, and a hidden tab
@@ -189,7 +190,6 @@ export function useProcessingPoll(processingItemIds: string[]) {
           lastSeen,
         );
 
-        let refreshed = true;
         if (changed) {
           const changedIds = [...finished, ...updated].map((i) => i.id);
           log.info(
@@ -199,13 +199,14 @@ export function useProcessingPoll(processingItemIds: string[]) {
             },
             "Processing items changed, refreshing them",
           );
-          refreshed = await refreshCachedItems(changedIds);
-          // Forget what was seen, so the next poll reports them again
-          if (!refreshed) for (const id of changedIds) lastSeen.set(id, "");
+          // Not awaited: a hung fetch must not hold up the next status poll
+          void refreshCachedItems(changedIds).then((ok) => {
+            // Forget what was seen, so the next poll reports them again
+            if (!ok) for (const id of changedIds) lastSeen.set(id, "");
+          });
           // Classification/analysis can introduce a new kind, source, tag, etc,
           // so refresh the filter options that power the search autocomplete
           invalidateFilterOptions();
-          if (disposed) return;
         }
 
         const now = Date.now();

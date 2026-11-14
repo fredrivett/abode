@@ -284,7 +284,26 @@ describe("useProcessingPoll", () => {
 
     const refreshes = vi
       .mocked(api.get)
-      .mock.calls.filter(([url]) => String(url).includes("?ids="));
+      .mock.calls.filter(([url]) =>
+        String(url).startsWith("/api/v1/items?ids="),
+      );
     expect(refreshes.length).toBeGreaterThan(1);
+  });
+
+  it("keeps polling while fetching a changed item hangs", async () => {
+    let statusPolls = 0;
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (!url.includes("/status")) return new Promise(() => {});
+      statusPolls++;
+      return Promise.resolve({
+        items: [item("item-0", "processing", `t${statusPolls}`)],
+      });
+    });
+    renderPoll(ids(1));
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    // Changes every poll, so stays on the fast interval despite the hung fetch
+    expect(statusPolls).toBeGreaterThan(4);
   });
 });
