@@ -56,7 +56,8 @@ test.describe("PDF upload", () => {
       .locator("input[type=file][accept*='application/pdf']")
       .setInputFiles(PDF);
     expect((await saved).status()).toBe(201);
-    await expect(page.getByText("PDF added — reading its pages")).toBeVisible();
+    // The e2e stack has no Trigger.dev, so the PDF is saved as-is, not imported
+    await expect(page.getByText("PDF added", { exact: true })).toBeVisible();
 
     expect(uploads).toHaveLength(1);
     expect(uploads[0]).toMatch(/\.pdf$/);
@@ -65,6 +66,7 @@ test.describe("PDF upload", () => {
     try {
       expect(document).toMatchObject({
         kind: "document",
+        processingStatus: "completed",
         title: "Q1 energy bill",
         meta: { type: "application/pdf", originalName: "Q1 energy bill.pdf" },
       });
