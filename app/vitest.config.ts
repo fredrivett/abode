@@ -35,6 +35,14 @@ export default defineConfig({
           // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
           storybookTest({ configDir: path.join(dirname, ".storybook") }),
         ],
+        optimizeDeps: {
+          // next's server tracer loads this conditionally, so Vite finds it
+          // only once a page requests it. On a slow CI runner that can come
+          // after the first optimize, which re-optimizes and reloads the
+          // page, failing every story still loading. Pre-bundling it keeps
+          // the dependency set stable for the whole run
+          include: ["@opentelemetry/api"],
+        },
         test: {
           name: "storybook",
           browser: {
