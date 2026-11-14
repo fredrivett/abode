@@ -216,6 +216,8 @@ export async function* loadUserItemPages(
       where: {
         userId,
         ...(after && {
+          // Redundant with the OR, but gives the index scan a range start
+          createdAt: { lte: after.createdAt },
           OR: [
             { createdAt: { lt: after.createdAt } },
             { createdAt: after.createdAt, id: { lt: after.id } },
