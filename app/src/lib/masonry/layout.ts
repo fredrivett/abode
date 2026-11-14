@@ -160,9 +160,11 @@ export function layoutMasonry({
   // column width (not stretched to fill the row). Columns keep their indices,
   // so when the first columns empty (a frame removed) the group just slides
   // left rather than relaying out everything
-  const firstUsed = placed.length
-    ? Math.min(...placed.map(({ column }) => column))
-    : 0;
+  // Not Math.min(...spread): a long grid would exceed the argument limit
+  const firstUsed = placed.reduce(
+    (first, { column }) => Math.min(first, column),
+    columnCount,
+  );
   const placements = placed.map((placement) => ({
     ...placement,
     x: (placement.column - firstUsed) * (columnWidth + gap),

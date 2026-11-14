@@ -282,11 +282,9 @@ describe("layoutMasonry", () => {
       ...geometry,
       previous: before,
     });
-    expect(after.placements.map((p) => [p.column, p.x])).toEqual([
-      [0, 0],
-      [1, 110],
-      [2, 220],
-    ]);
+    // a and b stay exactly where they were; c fills the next column
+    expect(after.placements.slice(0, 2)).toEqual(before.placements);
+    expect(after.placements[2]).toMatchObject({ column: 2, x: 220 });
   });
 
   it("left-aligns the occupied columns even when they don't start at the first", () => {
