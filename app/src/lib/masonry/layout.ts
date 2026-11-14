@@ -156,23 +156,18 @@ export function layoutMasonry({
     running[column] += height + gap;
   }
 
-  // Fewer frames than columns: centre the occupied columns at the normal
+  // Fewer frames than columns: left-align the occupied columns at the normal
   // column width (not stretched to fill the row). Columns keep their indices,
-  // so a frame joining an empty column just slides the group over rather
-  // than relaying out everything
-  let firstUsed = columnCount;
-  let lastUsed = -1;
-  for (const { column } of placed) {
-    firstUsed = Math.min(firstUsed, column);
-    lastUsed = Math.max(lastUsed, column);
-  }
-  const usedSpan =
-    lastUsed >= firstUsed ? lastUsed - firstUsed + 1 : columnCount;
-  const offsetColumns =
-    (columnCount - usedSpan) / 2 - (lastUsed >= 0 ? firstUsed : 0);
+  // so when the first columns empty (a frame removed) the group just slides
+  // left rather than relaying out everything
+  // Not Math.min(...spread): a long grid would exceed the argument limit
+  const firstUsed = placed.reduce(
+    (first, { column }) => Math.min(first, column),
+    columnCount,
+  );
   const placements = placed.map((placement) => ({
     ...placement,
-    x: (offsetColumns + placement.column) * (columnWidth + gap),
+    x: (placement.column - firstUsed) * (columnWidth + gap),
   }));
 
   const tallest = Math.max(0, ...running);

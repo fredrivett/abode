@@ -17,8 +17,17 @@ const { mockToast, filterHandlers } = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: mockToast }));
 vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("@/components/layout/dashboard-header/client", () => ({
-  DashboardHeaderClient: ({ centerSlot }: { centerSlot?: React.ReactNode }) => (
-    <div>{centerSlot}</div>
+  DashboardHeaderClient: ({
+    centerSlot,
+    showHomeLink,
+  }: {
+    centerSlot?: React.ReactNode;
+    showHomeLink?: boolean;
+  }) => (
+    <div>
+      {showHomeLink && "take me home"}
+      {centerSlot}
+    </div>
   ),
 }));
 vi.mock("@/components/rooms/filter-badges", () => ({
@@ -64,7 +73,9 @@ const room: Room = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
 
-function renderPage() {
+function renderPage(
+  viewer: Partial<React.ComponentProps<typeof RoomPageClient>> = {},
+) {
   render(
     <RoomPageClient
       room={room}
@@ -74,6 +85,7 @@ function renderPage() {
       isOwner
       isAuthenticated={false}
       availableInvites={0}
+      {...viewer}
       roomOwner={{
         username: "owner",
         firstName: null,
@@ -193,5 +205,29 @@ describe("RoomPageClient — refresh after a filter save", () => {
     for (let i = 0; i < 10; i++) await tick();
     expect(mockToast.error).not.toHaveBeenCalled();
     expect(screen.getByTestId("grid")).toHaveTextContent("x (2)");
+  });
+});
+
+describe("RoomPageClient — header home hint", () => {
+  const signedIn = {
+    isAuthenticated: true,
+    userId: "viewer-1",
+    signOutAction: async () => {},
+  };
+
+  // The owner's "Back to rooms" link sits where the hint would
+  it("hides it from the owner", () => {
+    renderPage({ ...signedIn, isOwner: true });
+    expect(screen.queryByText("take me home")).not.toBeInTheDocument();
+  });
+
+  it("shows it to a signed-in visitor", () => {
+    renderPage({ ...signedIn, isOwner: false });
+    expect(screen.getByText("take me home")).toBeInTheDocument();
+  });
+
+  it("shows it to a signed-out visitor", () => {
+    renderPage({ isAuthenticated: false, isOwner: false });
+    expect(screen.getByText("take me home")).toBeInTheDocument();
   });
 });
