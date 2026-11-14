@@ -16,6 +16,12 @@ import {
 } from "@/lib/embeddings";
 import { buildNoteEmbeddingText } from "@/lib/items/note-embedding";
 import { captureServerException } from "@/lib/posthog-server";
+import {
+  assertSystemDailyBudget,
+  assertUserDailyBudget,
+  assertUserMonthlyBudget,
+  isUsageLimitsEnforced,
+} from "@/lib/usage-limits";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
 const TEXT_EMBEDDING_MODEL = "text-embedding-3-small";
@@ -24,13 +30,29 @@ export type EmbedNotePayload = { itemId: string; userId: string };
 
 export type EmbedNoteResult = {
   success: true;
-  outcome: "embedded" | "cleared" | "skipped";
+  outcome: "embedded" | "cleared" | "skipped" | "over-budget";
 };
 
 /**
- * Embed the note as it is now. A note emptied of all text has its old vector
- * removed, so it stops matching what it used to say. Extracted from the task so
- * it's testable outside a run.
+ * Whether a $ cap (the user's daily or monthly, or the system breaker) is spent
+ * and enforced. Note edits aren't a gated action like a capture, so their
+ * embeddings check the caps here, at the point they'd spend.
+ */
+async function isOverBudget(userId: string): Promise<boolean> {
+  if (!isUsageLimitsEnforced()) return false;
+  const budgets = await Promise.all([
+    assertUserDailyBudget(userId),
+    assertUserMonthlyBudget(userId),
+    assertSystemDailyBudget(),
+  ]);
+  return budgets.some((budget) => !budget.underBudget);
+}
+
+/**
+ * Embed the note as it is now. A note emptied of all text, or edited while its
+ * owner is over budget, has its old vector removed, so it stops matching what it
+ * used to say; the text-vector backfill embeds it later. Extracted from the task
+ * so it's testable outside a run.
  */
 export async function embedNote({
   itemId,
@@ -57,11 +79,18 @@ export async function embedNote({
     userTags: note.userTags,
     content: note.noteDetails?.content,
   });
-  if (!text) {
-    await db.itemTextVector.deleteMany({
+  const clearVector = () =>
+    db.itemTextVector.deleteMany({
       where: { itemId, model: TEXT_EMBEDDING_MODEL },
     });
+  if (!text) {
+    await clearVector();
     return { success: true, outcome: "cleared" };
+  }
+  if (await isOverBudget(userId)) {
+    logger.info("Over budget — not embedding note", { itemId });
+    await clearVector();
+    return { success: true, outcome: "over-budget" };
   }
 
   const { embedding, totalTokens } = await generateTextEmbedding(
@@ -96,6 +125,10 @@ export const embedNoteTask = task({
     maxTimeoutInMs: 30000,
   },
   maxDuration: 60,
+  // Queued with the note's id as concurrencyKey, so runs for one note never
+  // overlap: a later edit's run starts after the earlier one has written, and
+  // reads the latest text
+  queue: { concurrencyLimit: 1 },
   run: async (payload: EmbedNotePayload) => {
     try {
       return await embedNote(payload);

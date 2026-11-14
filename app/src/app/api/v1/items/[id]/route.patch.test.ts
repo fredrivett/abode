@@ -13,6 +13,7 @@ const {
   mockArticleFind,
   mockTrigger,
   mockOpenAiConfigured,
+  mockNoteUpsert,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFind: vi.fn(),
@@ -22,6 +23,7 @@ const {
   mockArticleFind: vi.fn(),
   mockTrigger: vi.fn(),
   mockOpenAiConfigured: vi.fn(() => false),
+  mockNoteUpsert: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -40,7 +42,7 @@ vi.mock("@/lib/db", () => ({
       upsert: mockArticleUpsert,
       findUnique: mockArticleFind,
     },
-    itemNoteDetails: { upsert: vi.fn() },
+    itemNoteDetails: { upsert: mockNoteUpsert },
   },
 }));
 vi.mock("@/lib/embeddings", () => ({
@@ -218,7 +220,10 @@ describe("PATCH /api/v1/items/:id — note embedding", () => {
         [
           "embed-note",
           { itemId: "item-1", userId: "owner" },
-          { debounce: expect.objectContaining({ key: "item-1" }) },
+          {
+            debounce: expect.objectContaining({ key: "item-1" }),
+            concurrencyKey: "item-1",
+          },
         ],
       ]);
     },
@@ -251,5 +256,9 @@ describe("PATCH /api/v1/items/:id — note embedding", () => {
     mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
 
     expect((await patch({ content: "Call grandma" })).status).toBe(200);
+    expect(embedCalls()).toHaveLength(1);
+    expect(mockNoteUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: { content: "Call grandma" } }),
+    );
   });
 });

@@ -16,6 +16,7 @@ export const NOTE_WITH_TEXT: Prisma.ItemWhereInput = {
   kind: "note",
   OR: [
     { title: { not: "" } },
+    { userTags: { isEmpty: false } },
     { noteDetails: { is: { content: { not: "" } } } },
   ],
 };
@@ -39,7 +40,8 @@ export function buildNoteEmbeddingText(note: {
 /**
  * Queue a (re-)embedding of a note after it's created or its title, body or
  * tags change. Debounced per note, so a burst of autosaves embeds once, and the
- * task reads the note when it runs, so it always embeds the latest text.
+ * task reads the note when it runs, so it always embeds the latest text. The
+ * task checks the $ caps before it spends.
  *
  * Semantic search needs OpenAI: without it, skip without queueing anything. A
  * queueing failure is reported but never fails the save.
@@ -59,7 +61,11 @@ export async function enqueueNoteEmbedding({
     await tasks.trigger<typeof embedNoteTask>(
       "embed-note",
       { itemId, userId },
-      { debounce: { key: itemId, delay: "10s", maxDelay: "2m" } },
+      {
+        debounce: { key: itemId, delay: "10s", maxDelay: "2m" },
+        // One run per note at a time (the task's queue limit is 1 per key)
+        concurrencyKey: itemId,
+      },
     );
   } catch (error) {
     log.warn({ error, itemId }, "Failed to enqueue note embedding");

@@ -115,9 +115,11 @@ describe("backfillTextVectors", () => {
     const result = await backfillTextVectors();
 
     expect(result).toMatchObject({ total: 2, updated: 2, failed: 0 });
+    expect(generateTextEmbedding).toHaveBeenCalledTimes(2);
     expect(generateTextEmbedding).toHaveBeenCalledWith(
       "baking\n\nWeekend plans\n\nPick up sourdough starter",
     );
+    expect(generateTextEmbedding).toHaveBeenCalledWith("Call Grandma");
     expect(await vectorCount(withText.id)).toBe(1);
     expect(await vectorCount(bodyOnly.id)).toBe(1);
     expect(await vectorCount(empty.id)).toBe(0);
