@@ -120,7 +120,8 @@ function gateProblems(source: string): string[] {
 }
 
 const pages = readdirSync(APP_DIR, { recursive: true, encoding: "utf8" })
-  .filter((path) => path === "page.tsx" || path.endsWith(`${sep}page.tsx`))
+  // Every extension Next accepts for a page, so one can't skip the scan
+  .filter((path) => /(^|[\\/])page\.(js|jsx|ts|tsx)$/.test(path))
   .map((path) => path.split(sep).join("/"))
   .sort();
 
