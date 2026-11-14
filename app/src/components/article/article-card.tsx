@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Img } from "@/components/ui/img";
+import { useFaviconTone } from "@/hooks/use-favicon-tone";
+import { FAVICON_BACKDROP_CLASS } from "@/lib/favicon-tone";
 import { textCardStyle } from "@/lib/grid-styles";
 import {
   ARTICLE_BYLINE_ICON_EM,
@@ -54,16 +56,27 @@ const SMALL_LINE = `${ARTICLE_SMALL_LINE_HEIGHT}em`;
 
 function BylineIcon({ faviconUrl }: { faviconUrl?: string | null }) {
   const [failed, setFailed] = useState(false);
+  const tone = useFaviconTone(faviconUrl);
   const size = `${ARTICLE_BYLINE_ICON_EM}em`;
   if (faviconUrl && !failed) {
     return (
-      <Img
-        src={faviconUrl}
-        alt=""
-        className="shrink-0 rounded-[0.2em] object-contain"
+      // A backdrop chip insets the icon within the same box, so the byline's
+      // measured layout is unchanged
+      <span
+        data-tone={tone ?? undefined}
+        className={cn(
+          "flex shrink-0 rounded-[0.2em] data-[tone=light]:not-dark:p-[0.12em] data-[tone=dark]:dark:p-[0.12em]",
+          FAVICON_BACKDROP_CLASS,
+        )}
         style={{ width: size, height: size }}
-        onError={() => setFailed(true)}
-      />
+      >
+        <Img
+          src={faviconUrl}
+          alt=""
+          className="size-full rounded-[0.2em] object-contain"
+          onError={() => setFailed(true)}
+        />
+      </span>
     );
   }
   return (
