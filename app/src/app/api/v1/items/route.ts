@@ -17,7 +17,13 @@ import {
 } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
-import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
+import {
+  decodeCursor,
+  encodeCursor,
+  isCanonicalUuid,
+  MAX_ITEM_IDS_PER_REQUEST,
+  parsePageSize,
+} from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -33,6 +39,8 @@ const allowedKinds = new Set(["image", "article", "webpage"]);
  *
  * Supports cursor-based pagination with optional `cursor` and `limit` query params.
  * Returns { items, cursor, hasMore, total } for paginated requests.
+ * With `ids` (comma-separated, up to {@link MAX_ITEM_IDS_PER_REQUEST}) returns
+ * { items } for just those of the user's items; missing ones were deleted.
  */
 async function handleGET(request: NextRequest) {
   try {
@@ -47,6 +55,30 @@ async function handleGET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+
+    // `?ids=a,b`: just those items, so the client can refresh the ones that
+    // changed without refetching every loaded page
+    const idsParam = searchParams.get("ids");
+    if (idsParam !== null) {
+      const ids = idsParam.split(",").filter(Boolean);
+      if (
+        ids.length > MAX_ITEM_IDS_PER_REQUEST ||
+        !ids.every(isCanonicalUuid)
+      ) {
+        return NextResponse.json(
+          {
+            message: `ids must be up to ${MAX_ITEM_IDS_PER_REQUEST} item ids`,
+          },
+          { status: 400 },
+        );
+      }
+      const items = await db.item.findMany({
+        where: { id: { in: ids }, userId: user.id },
+        select: itemSelect,
+      });
+      return NextResponse.json({ items: items.map(transformItem) });
+    }
+
     const cursor = searchParams.get("cursor");
     const limit = parsePageSize(searchParams.get("limit"));
 
