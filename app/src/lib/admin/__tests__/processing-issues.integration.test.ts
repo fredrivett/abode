@@ -19,6 +19,7 @@ describe("getProcessingIssues", () => {
     tags?: string[];
     withArticleDetails?: boolean;
     withNoteDetails?: boolean;
+    noteContent?: string;
     withTextVector?: boolean;
     withVisualVector?: boolean;
     imageDetails?: { blurDataUrl: string | null };
@@ -44,7 +45,8 @@ describe("getProcessingIssues", () => {
         create: { blurDataUrl: opts.imageDetails.blurDataUrl },
       };
     if (opts.withArticleDetails) data.articleDetails = { create: {} };
-    if (opts.withNoteDetails) data.noteDetails = { create: {} };
+    if (opts.withNoteDetails)
+      data.noteDetails = { create: { content: opts.noteContent } };
     if (opts.withTextVector)
       data.textVectors = {
         create: { userId: user.id, model: "text-embedding-3-small" },
@@ -104,7 +106,7 @@ describe("getProcessingIssues", () => {
     for (const ids of m.values()) expect(ids).not.toContain(okArticle);
   });
 
-  test("missing-text-vector flags tagged items without a vector, excludes text-less ones", async () => {
+  test("missing-text-vector flags tagged items and notes with text that lack a vector, excludes text-less ones", async () => {
     // Has tags (⇒ had embeddable content) but no vector → flagged
     const tagged = await seed({
       status: "completed",
@@ -125,12 +127,20 @@ describe("getProcessingIssues", () => {
       kind: "note",
       withNoteDetails: true,
     });
+    // Notes have no auto tags, but one with a body has text to embed
+    const noteWithBody = await seed({
+      status: "completed",
+      kind: "note",
+      withNoteDetails: true,
+      noteContent: "Pick up sourdough starter",
+    });
 
     const m = await membership();
     expect(m.get("missing-text-vector")).toContain(tagged);
     expect(m.get("missing-text-vector")).not.toContain(okTagged);
     expect(m.get("missing-text-vector")).not.toContain(textless);
     expect(m.get("missing-text-vector")).not.toContain(note);
+    expect(m.get("missing-text-vector")).toContain(noteWithBody);
   });
 
   test("missing-visual-vector: images always, cover kinds only with a cover", async () => {

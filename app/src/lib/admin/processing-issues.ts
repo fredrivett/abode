@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { systemDb } from "@/lib/db";
 import { BLUR_HEALABLE_KINDS } from "@/lib/items/blur-healable-kinds";
+import { NOTE_WITH_TEXT } from "@/lib/items/note-embedding";
 import { STUCK_ITEM_THRESHOLD_MS } from "@/lib/items/reap-stuck-items";
 
 /** How many sample rows to pull per group (counts are exact, lists are capped). */
@@ -20,8 +21,8 @@ export type IssueSeverity = "error" | "incomplete";
  *   sharp — no AI, no cost. A pure decode-time artifact, so re-running vision to
  *   refill it is pure waste (scoped to the backfill-blur-placeholders task).
  * - `"text-vector"`: rebuild only the text embedding from the item's persisted
- *   tags — one cheap embedding call, no vision or tag re-generation (scoped to
- *   the backfill-text-vectors task).
+ *   tags (a note's title, body and tags) — one cheap embedding call, no vision
+ *   or tag re-generation (scoped to the backfill-text-vectors task).
  *
  * The non-`full-pipeline` values are targeted heals; reprocess-issues.ts maps
  * each to the scoped backfill task that repairs exactly that field.
@@ -130,7 +131,7 @@ export function issueSpecs(): IssueSpec[] {
       key: "missing-text-vector",
       label: "Missing text vector",
       description:
-        "Completed with content (has tags) but no text embedding — weaker search. Mirrors enrich-item: a text vector is created whenever there was text to embed, and non-empty tags prove there was. Text-less items are correctly excluded.",
+        "Completed with content (has tags, or is a note with text) but no text embedding — weaker search. Mirrors enrich-item and embed-note: a text vector is created whenever there was text to embed, and non-empty tags prove there was. Text-less items are correctly excluded.",
       severity: "incomplete",
       // One embedding from the persisted tags refills this — no vision/tag-gen.
       repair: "text-vector",
@@ -138,7 +139,8 @@ export function issueSpecs(): IssueSpec[] {
         processingStatus: "completed",
         // Non-empty tags ⇒ buildEmbeddingText was non-empty ⇒ a vector is owed.
         // (sourceText, the other input, isn't persisted, so tags is the proxy.)
-        tags: { isEmpty: false },
+        // Notes have no auto tags; their text is all stored, so check it directly.
+        OR: [{ tags: { isEmpty: false } }, NOTE_WITH_TEXT],
         textVectors: { none: {} },
       },
     },
