@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { CARD_BADGE_EXTENT_EM } from "@/lib/grid-styles";
 import {
   type AspectBounds,
   CARD_BORDER_X_PX,
@@ -39,6 +40,10 @@ export const ARTICLE_GAP_EM = 0.5;
 export const ARTICLE_BYLINE_SEP_EM = 1;
 export const ARTICLE_BYLINE_ICON_EM = 1.1;
 export const ARTICLE_BYLINE_ICON_GAP_EM = 0.35;
+// Right inset that keeps the text card's title clear of the corner status
+// badge, in card em (the badge overlaps the padding, so only the rest is inset)
+export const ARTICLE_TITLE_BADGE_INSET_EM =
+  CARD_BADGE_EXTENT_EM - ARTICLE_PADDING_EM + 0.25;
 
 // Most covers are og:images (1200×630); without stored dims assume that. Real
 // dims are clamped so a tall poster or a thin banner doesn't swamp the caption.
@@ -195,6 +200,8 @@ export type ArticleFrameInput = {
   bylineParts: string[];
   /** Cover width/height ratio when the cover variant renders, else null */
   coverAspect: number | null;
+  /** Title inset by {@link ARTICLE_TITLE_BADGE_INSET_EM} (text variant with a status badge) */
+  titleInset?: boolean;
 };
 
 export type ArticleFrameContext = {
@@ -206,7 +213,12 @@ export type ArticleFrameContext = {
 
 /** Height (px) of the caption block — padding, title, teaser and byline */
 export function estimateArticleCaptionHeight(
-  { title, teaser, bylineParts }: Omit<ArticleFrameInput, "coverAspect">,
+  {
+    title,
+    teaser,
+    bylineParts,
+    titleInset = false,
+  }: Omit<ArticleFrameInput, "coverAspect">,
   { columnWidthPx, cardRootPx, rootRemPx = 16, measure }: ArticleFrameContext,
 ): number {
   const padding = ARTICLE_PADDING_EM * cardRootPx;
@@ -225,7 +237,10 @@ export function estimateArticleCaptionHeight(
   const blocks: number[] = [];
   const trimmedTitle = title?.trim();
   if (trimmedTitle) {
-    const lines = wrapLines(trimmedTitle, availWidth, measure, {
+    const titleWidth = titleInset
+      ? Math.max(1, availWidth - ARTICLE_TITLE_BADGE_INSET_EM * cardRootPx)
+      : availWidth;
+    const lines = wrapLines(trimmedTitle, titleWidth, measure, {
       px: titlePx,
       weight: 600,
       family: "serif",

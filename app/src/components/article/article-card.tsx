@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
 import { BlurImage } from "@/components/ui/blur-image";
 import { Img } from "@/components/ui/img";
@@ -19,6 +19,7 @@ import {
   ARTICLE_SMALL_LINE_HEIGHT,
   ARTICLE_SMALL_MIN_REM,
   ARTICLE_TEASER_MAX_LINES,
+  ARTICLE_TITLE_BADGE_INSET_EM,
   ARTICLE_TITLE_LINE_HEIGHT,
   ARTICLE_TITLE_MAX_LINES,
   ARTICLE_TITLE_MIN_REM,
@@ -48,6 +49,14 @@ type ArticleCardProps = {
    */
   coverUrl?: string | null;
   coverBlurDataUrl?: string | null;
+  /** Corner badge (the article's read status), drawn over the card */
+  statusBadge?: ReactNode;
+  /**
+   * Inset the text card's title so a corner badge never covers it. Set for
+   * every article, badge or not: the grid's frame estimate can't tell who's
+   * viewing, so the layout mustn't depend on it
+   */
+  reserveBadgeSpace?: boolean;
   onClick?: () => void;
 };
 
@@ -148,6 +157,8 @@ export function ArticleCard({
   faviconUrl,
   coverUrl,
   coverBlurDataUrl,
+  statusBadge,
+  reserveBadgeSpace = false,
   onClick,
 }: ArticleCardProps) {
   const gridImageSizes = useGridImageSizes();
@@ -194,19 +205,28 @@ export function ArticleCard({
         }}
       >
         {title?.trim() && (
-          <p
-            className="font-semibold font-serif text-foreground"
-            style={{
-              fontSize: `max(${ARTICLE_TITLE_MIN_REM}rem, 1em)`,
-              lineHeight: ARTICLE_TITLE_LINE_HEIGHT,
-              display: "-webkit-box",
-              WebkitBoxOrient: "vertical",
-              WebkitLineClamp: ARTICLE_TITLE_MAX_LINES,
-              overflow: "hidden",
-            }}
+          // The inset is in card em, so it sits on a wrapper at card size
+          <div
+            style={
+              reserveBadgeSpace && !coverUrl
+                ? { paddingRight: `${ARTICLE_TITLE_BADGE_INSET_EM}em` }
+                : undefined
+            }
           >
-            {title}
-          </p>
+            <p
+              className="font-semibold font-serif text-foreground"
+              style={{
+                fontSize: `max(${ARTICLE_TITLE_MIN_REM}rem, 1em)`,
+                lineHeight: ARTICLE_TITLE_LINE_HEIGHT,
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: ARTICLE_TITLE_MAX_LINES,
+                overflow: "hidden",
+              }}
+            >
+              {title}
+            </p>
+          </div>
         )}
         {teaser && (
           <p
@@ -225,6 +245,7 @@ export function ArticleCard({
         )}
         <Byline parts={bylineParts} faviconUrl={faviconUrl} />
       </div>
+      {statusBadge}
     </button>
   );
 }

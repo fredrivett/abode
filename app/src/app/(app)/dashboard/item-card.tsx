@@ -47,6 +47,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMediaQuery } from "usehooks-ts";
 import { ArticleCard } from "@/components/article/article-card";
 import { ArticleDetailPlaceholder } from "@/components/article/article-detail-placeholder";
+import { ArticleReadStatusBadge } from "@/components/article/article-read-status-badge";
 import { BookAuthors } from "@/components/book/book-authors";
 import { BookCover3D } from "@/components/book/book-cover-3d";
 import { BookDetailView } from "@/components/book/book-detail-view";
@@ -621,6 +622,14 @@ export function ItemCard({
             }
             coverUrl={articleMode === "cover" ? previewUrl : null}
             coverBlurDataUrl={articleMode === "cover" ? blurDataUrl : null}
+            // Read state is the owner's own (like the detail toggle), so
+            // visitors don't see it
+            statusBadge={
+              isArticle && item.articleDetails && canEdit ? (
+                <ArticleReadStatusBadge readAt={item.articleDetails.readAt} />
+              ) : null
+            }
+            reserveBadgeSpace={isArticle}
             onClick={handleOpenDetail}
           />
         </div>

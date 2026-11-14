@@ -8,6 +8,7 @@ import {
 } from "react";
 import { expect, waitFor } from "storybook/test";
 import { ArticleCard } from "@/components/article/article-card";
+import { ArticleReadStatusBadge } from "@/components/article/article-read-status-badge";
 import { NoteCard } from "@/components/note/note-card";
 import { TwitterCard } from "@/components/twitter/twitter-card";
 import type { TwitterDetails } from "@/components/twitter/types";
@@ -266,6 +267,16 @@ const CASES: Array<{ label: string; item: Item }> = [
     label: "article: text, no teaser",
     item: article({ title: "Just a title", description: "Too short" }),
   },
+  {
+    // The title wraps around the read badge's inset
+    label: "article: text, long title",
+    item: article({ title: `${LOREM} ${LOREM}`, description: LOREM }),
+  },
+  {
+    // Webpages carry no read status, so their title runs full width
+    label: "webpage: text, long title",
+    item: article({ kind: "webpage", title: `${LOREM} ${LOREM}` }),
+  },
 ];
 
 /** The leaf card `ItemCard` renders for these kinds, with the same props */
@@ -301,6 +312,12 @@ function Card({ item }: { item: Item }) {
       readingTime={details?.readingTime ?? null}
       faviconUrl={null}
       coverUrl={hasCover ? PIXEL : null}
+      statusBadge={
+        item.kind === "article" && details ? (
+          <ArticleReadStatusBadge readAt={details.readAt ?? null} />
+        ) : null
+      }
+      reserveBadgeSpace={item.kind === "article"}
       onClick={noop}
     />
   );
@@ -310,6 +327,7 @@ const FIT_KIND: Partial<Record<string, CardFitKind>> = {
   note: "note",
   twitter: "tweet",
   article: "article",
+  webpage: "article",
 };
 
 function FitCase({
