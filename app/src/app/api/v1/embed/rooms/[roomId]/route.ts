@@ -3,6 +3,7 @@ import { systemDb } from "@/lib/db";
 import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
 import { withViewer } from "@/lib/http/with-viewer";
+import { roomPreviewImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -164,9 +165,7 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
         id: ri.item.id,
         kind: ri.item.kind,
         title: ri.item.title,
-        imageUrl: imageFileKey
-          ? `/api/v1/images/${encodeURIComponent(imageFileKey)}?w=200&q=75`
-          : null,
+        imageUrl: imageFileKey ? roomPreviewImageUrl(imageFileKey) : null,
         width: isArticleOrWebpage ? 16 : ((meta?.width as number) ?? 1),
         height: isArticleOrWebpage ? 9 : ((meta?.height as number) ?? 1),
       };

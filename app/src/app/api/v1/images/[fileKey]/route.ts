@@ -1,6 +1,7 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { withViewer } from "@/lib/http/with-viewer";
+import { imageTransformFor } from "@/lib/image-url";
 import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
@@ -54,28 +55,15 @@ type RouteParams = {
  *
  * Query params for image transforms (requires Supabase Pro):
  * - w: width in pixels
- * - h: height in pixels
  * - q: quality (1-100, default 80)
+ * Only the sizes the app requests are produced; others snap up to the smallest
+ * of them at least as wide, or the largest (see `imageTransformFor`).
  */
 async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {
     // fileKey comes URL-encoded, decode it (e.g., "userId%2Ffilename.jpg" -> "userId/filename.jpg")
     const { fileKey: encodedFileKey } = await params;
     const fileKey = decodeURIComponent(encodedFileKey);
-
-    // Parse transform query params
-    const searchParams = request.nextUrl.searchParams;
-    const widthParam = searchParams.get("w");
-    const heightParam = searchParams.get("h");
-    const qualityParam = searchParams.get("q");
-
-    const width = widthParam
-      ? parseInt(widthParam, 10) || undefined
-      : undefined;
-    const height = heightParam
-      ? parseInt(heightParam, 10) || undefined
-      : undefined;
-    const quality = qualityParam ? parseInt(qualityParam, 10) || 80 : 80;
 
     if (!fileKey) {
       return NextResponse.json(
@@ -119,17 +107,13 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
     // Fetch the image using admin client (bypasses RLS)
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Build transform options if width or height specified
+    // Resize only to the sizes the app requests (see imageTransformFor)
     // Note: Supabase automatically converts to WebP when transforms are applied
     // Transforms are only supported in hosted Supabase (Pro), not in local dev
+    const size = imageTransformFor(request.nextUrl.searchParams);
     const transform =
-      process.env.NODE_ENV === "production" && (width || height)
-        ? {
-            width,
-            height,
-            quality,
-            resize: "contain" as const,
-          }
+      process.env.NODE_ENV === "production" && size
+        ? { ...size, resize: "contain" as const }
         : undefined;
 
     const { data, error } = await supabaseAdmin.storage

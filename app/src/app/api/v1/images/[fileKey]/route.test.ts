@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGetUser, mockFindItem, mockDownload } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
@@ -41,13 +41,13 @@ function item(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function get(viewerId: string | null) {
+function get(viewerId: string | null, query = "") {
   mockGetUser.mockResolvedValue({
     data: { user: viewerId ? { id: viewerId } : null },
   });
   return GET(
     new NextRequest(
-      `http://localhost/api/v1/images/${encodeURIComponent(KEY)}`,
+      `http://localhost/api/v1/images/${encodeURIComponent(KEY)}${query}`,
     ),
     { params: Promise.resolve({ fileKey: encodeURIComponent(KEY) }) },
   );
@@ -116,5 +116,28 @@ describe("GET /api/v1/images/[fileKey] cache headers", () => {
 
     expect(res.status).toBe(403);
     expect(mockDownload).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/images/[fileKey] transforms", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.SUPABASE_URL = "http://supabase.test";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    mockFindItem.mockResolvedValue(item());
+    mockDownload.mockResolvedValue({
+      data: new Blob([new Uint8Array([1])], { type: "image/webp" }),
+      error: null,
+    });
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("resizes to one of the app's own sizes, ignoring height", async () => {
+    await get(OWNER, "?w=601&h=300&q=1");
+
+    expect(mockDownload).toHaveBeenCalledWith(KEY, {
+      transform: { width: 800, quality: 80, resize: "contain" },
+    });
   });
 });
