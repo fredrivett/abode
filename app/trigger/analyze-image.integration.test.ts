@@ -51,9 +51,12 @@ vi.mock("@/lib/posthog-server", () => ({
 
 import { analyzeImageTask } from "./analyze-image";
 
-type Runnable = { run: (payload: object) => Promise<unknown> };
-const runTask = (payload: object) =>
-  (analyzeImageTask as unknown as Runnable).run(payload);
+type Runnable = {
+  run: (payload: object) => Promise<unknown>;
+  onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
+};
+const hooks = analyzeImageTask as unknown as Runnable;
+const runTask = (payload: object) => hooks.run(payload);
 
 describe("analyze-image integration", () => {
   beforeEach(async () => {
@@ -105,10 +108,42 @@ describe("analyze-image integration", () => {
     expect(tasks.trigger).toHaveBeenCalledTimes(1);
     const [taskId, payload] = vi.mocked(tasks.trigger).mock.calls[0];
     expect(taskId).toBe("enrich-item");
-    expect(payload).toMatchObject({
+    // Tags come from the blend, not the cover's vision tags alone; the cover's
+    // text leads so a long description is what the token limit cuts
+    expect(payload).toEqual({
       itemId,
-      precomputedTags: ["book", "desert"],
-      sourceText: "Dune Frank Herbert A desert planet epic sand dune DUNE",
+      userId,
+      sourceText: "sand dune DUNE Dune Frank Herbert A desert planet epic",
+    });
+  });
+
+  test("keeps the vision tags for a plain image", async () => {
+    const { itemId, userId, fileKey } = await createItem("processing");
+    storage.set(fileKey, new Uint8Array([0xff, 0xd8, 0xff]));
+
+    await runTask({ itemId, userId, fileKey });
+
+    const [, payload] = vi.mocked(tasks.trigger).mock.calls[0];
+    expect(payload).toMatchObject({ precomputedTags: ["book", "desert"] });
+  });
+
+  test("enriches a book from its text once its cover analysis has failed for good", async () => {
+    const { itemId, userId, fileKey } = await createItem("processing");
+
+    await hooks.onFailure({
+      payload: {
+        itemId,
+        userId,
+        fileKey,
+        extraSourceText: "Dune Frank Herbert",
+      },
+      error: new Error("Failed to download image"),
+    });
+
+    expect(tasks.trigger).toHaveBeenCalledWith("enrich-item", {
+      itemId,
+      userId,
+      sourceText: "Dune Frank Herbert",
     });
   });
 

@@ -100,7 +100,9 @@ export function formatStorageError(error: unknown) {
  *
  * For a book or product cover this is the item's only enrichment: the item's
  * text arrives as `extraSourceText` and is blended with the cover's objects/OCR,
- * so no separate text-only enrich races it for tags and the text vector.
+ * so no separate text-only enrich races it for tags and the text vector. The
+ * cover is an enhancement there, so once its analysis has failed for good the
+ * item is enriched from its text alone rather than left without tags.
  *
  * Marks a not-yet-completed item `failed` on error so the UI can show
  * processing status; a reprocess must not regress a completed item.
@@ -110,6 +112,9 @@ export const analyzeImageTask = task({
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
+  onFailure: async ({ payload }: { payload: AnalyzeImagePayload }) => {
+    if (payload.extraSourceText) await enrichFromItemText(payload);
+  },
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey, extraSourceText } = payload;
 
@@ -329,11 +334,13 @@ export const analyzeImageTask = task({
 
       logger.log("Image analysis complete", { itemId });
 
-      // Step 5: Trigger enrichment (tags, text embedding, room sync)
+      // Step 5: Trigger enrichment (tags, text embedding, room sync). The
+      // cover's text goes first so a long item description is what the token
+      // limit cuts, not the cover's objects/OCR.
       const sourceText = [
-        extraSourceText,
         ...analysis.objects,
         analysis.ocrText,
+        extraSourceText,
       ]
         .filter(Boolean)
         .join(" ");
@@ -342,7 +349,9 @@ export const analyzeImageTask = task({
       await tasks.trigger<typeof enrichItemTask>("enrich-item", {
         itemId,
         userId,
-        precomputedTags: analysis.tags,
+        // With item text, tag from the blend so the title and description
+        // shape the tags too; a plain image's vision tags are already complete
+        ...(!extraSourceText && { precomputedTags: analysis.tags }),
         sourceText: truncateToTokenLimit(sourceText, EMBEDDING_TOKEN_LIMIT),
       });
 
@@ -383,3 +392,26 @@ export const analyzeImageTask = task({
     }
   },
 });
+
+/**
+ * Enrich a book or product from its own text when its cover couldn't be
+ * analysed. enrich-item completes the item, so a failed cover doesn't strand an
+ * item whose title and description are fine.
+ */
+async function enrichFromItemText({
+  itemId,
+  userId,
+  extraSourceText,
+}: AnalyzeImagePayload) {
+  logger.log("Cover analysis failed — enriching from the item's text", {
+    itemId,
+  });
+  await tasks.trigger<typeof enrichItemTask>("enrich-item", {
+    itemId,
+    userId,
+    sourceText: truncateToTokenLimit(
+      extraSourceText ?? "",
+      EMBEDDING_TOKEN_LIMIT,
+    ),
+  });
+}
