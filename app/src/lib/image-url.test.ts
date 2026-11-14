@@ -68,9 +68,12 @@ describe("imageTransformFor", () => {
     ["?w=500&q=85", { width: 600, quality: 90 }],
     ["?w=5000&q=100", { width: 1800, quality: 90 }],
     ["?w=600", { width: 600, quality: 80 }],
-  ])("snaps %s to the nearest app size", (query, expected) => {
-    expect(transformOf(`/api/v1/images/k.jpg${query}`)).toEqual(expected);
-  });
+  ])(
+    "snaps %s up to an app size at least as wide (else the largest)",
+    (query, expected) => {
+      expect(transformOf(`/api/v1/images/k.jpg${query}`)).toEqual(expected);
+    },
+  );
 
   it.each(["", "?q=50", "?h=300", "?w=0", "?w=-400", "?w=abc"])(
     "serves the original for %s",

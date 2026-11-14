@@ -56,8 +56,8 @@ type RouteParams = {
  * Query params for image transforms (requires Supabase Pro):
  * - w: width in pixels
  * - q: quality (1-100, default 80)
- * Only the sizes the app requests are produced; others snap to the nearest
- * of them (see `imageTransformFor`).
+ * Only the sizes the app requests are produced; others snap up to the smallest
+ * of them at least as wide, or the largest (see `imageTransformFor`).
  */
 async function handleGET(request: NextRequest, { params }: RouteParams) {
   try {

@@ -73,9 +73,9 @@ const IMAGE_TRANSFORMS: readonly ImageTransform[] = [
 
 /**
  * The resize the image proxy runs for a request's `w`/`q` params: the app's
- * own sizes as asked, anything else snapped to the nearest of them (the
- * smallest width at least as wide, then the closest quality), so older URLs
- * keep working. Undefined (serve the original) without a positive `w`.
+ * own sizes as asked, anything else snapped up to the smallest of them at
+ * least as wide (the largest past them), then the closest quality, so older
+ * URLs keep working. Undefined (serve the original) without a positive `w`.
  */
 export function imageTransformFor(
   searchParams: URLSearchParams,
