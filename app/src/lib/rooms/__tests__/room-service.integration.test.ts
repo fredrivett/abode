@@ -274,6 +274,34 @@ describe("Room Service Integration", () => {
       ).toEqual(ownIds);
     });
 
+    it("keeps walking when the last item of a page is deleted mid-sync", async () => {
+      const user = await createTestUser();
+      const { write } = await import("@/lib/db");
+      const { loadUserItemPages, ROOM_SYNC_PAGE_SIZE } = await import(
+        "@/lib/rooms/room-service"
+      );
+
+      await write.item.createMany({
+        data: Array.from({ length: ROOM_SYNC_PAGE_SIZE + 10 }, (_, i) => ({
+          userId: user.id,
+          kind: "image" as const,
+          createdAt: new Date(Date.UTC(2024, 0, 1 + i)),
+        })),
+      });
+
+      const seen: string[] = [];
+      for await (const page of loadUserItemPages(user.id)) {
+        if (seen.length === 0) {
+          // The next page is keyed on this item, so the walk must not need it
+          await write.item.delete({ where: { id: page[page.length - 1].id } });
+        }
+        seen.push(...page.map((item) => item.id));
+      }
+
+      expect(seen).toHaveLength(ROOM_SYNC_PAGE_SIZE + 10);
+      expect(new Set(seen).size).toBe(seen.length);
+    });
+
     it("loads the fields the matcher reads, not heavy content", async () => {
       const user = await createTestUser();
       const { write } = await import("@/lib/db");
