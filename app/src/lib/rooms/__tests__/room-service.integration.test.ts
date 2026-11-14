@@ -225,28 +225,86 @@ describe("Room Service Integration", () => {
     });
   });
 
-  describe("loadUserItemsWithDetails", () => {
-    it("returns all items for user", async () => {
+  describe("loadUserItemPages", () => {
+    const collectPages = async (userId: string) => {
+      const { loadUserItemPages } = await import("@/lib/rooms/room-service");
+      const pages = [];
+      for await (const page of loadUserItemPages(userId)) pages.push(page);
+      return pages;
+    };
+
+    it("walks every item exactly once across pages, including createdAt ties", async () => {
       const user = await createTestUser();
-      const { loadUserItemsWithDetails } = await import(
+      const other = await createTestUser("other@example.com");
+      const { write } = await import("@/lib/db");
+      const { ROOM_SYNC_PAGE_SIZE } = await import("@/lib/rooms/room-service");
+
+      // Three timestamps for 2 pages + 1 items, so page boundaries land
+      // inside runs of equal createdAt and only the id tie-break separates them
+      const total = ROOM_SYNC_PAGE_SIZE * 2 + 1;
+      await write.item.createMany({
+        data: Array.from({ length: total }, (_, i) => ({
+          userId: user.id,
+          kind: "image" as const,
+          createdAt: new Date(Date.UTC(2024, 0, 1 + (i % 3))),
+        })),
+      });
+      await createTestItem(other.id);
+      const ownIds = (
+        await write.item.findMany({
+          where: { userId: user.id },
+          select: { id: true },
+        })
+      )
+        .map((item) => item.id)
+        .sort();
+
+      const pages = await collectPages(user.id);
+
+      expect(pages.map((page) => page.length)).toEqual([
+        ROOM_SYNC_PAGE_SIZE,
+        ROOM_SYNC_PAGE_SIZE,
+        1,
+      ]);
+      expect(
+        pages
+          .flat()
+          .map((item) => item.id)
+          .sort(),
+      ).toEqual(ownIds);
+    });
+
+    it("keeps walking when the last item of a page is deleted mid-sync", async () => {
+      const user = await createTestUser();
+      const { write } = await import("@/lib/db");
+      const { loadUserItemPages, ROOM_SYNC_PAGE_SIZE } = await import(
         "@/lib/rooms/room-service"
       );
 
-      await createTestItem(user.id, { tags: ["first"] });
-      await createTestItem(user.id, { tags: ["second"] });
+      await write.item.createMany({
+        data: Array.from({ length: ROOM_SYNC_PAGE_SIZE + 10 }, (_, i) => ({
+          userId: user.id,
+          kind: "image" as const,
+          createdAt: new Date(Date.UTC(2024, 0, 1 + i)),
+        })),
+      });
 
-      const items = await loadUserItemsWithDetails(user.id);
+      const seen: string[] = [];
+      for await (const page of loadUserItemPages(user.id)) {
+        if (seen.length === 0) {
+          // The next page is keyed on this item, so the walk must not need it
+          await write.item.delete({ where: { id: page[page.length - 1].id } });
+        }
+        seen.push(...page.map((item) => item.id));
+      }
 
-      expect(items).toHaveLength(2);
+      expect(seen).toHaveLength(ROOM_SYNC_PAGE_SIZE + 10);
+      expect(new Set(seen).size).toBe(seen.length);
     });
 
     it("loads the fields the matcher reads, not heavy content", async () => {
       const user = await createTestUser();
       const { write } = await import("@/lib/db");
-      const { loadUserItemsWithDetails } = await import(
-        "@/lib/rooms/room-service"
-      );
-
       const readAt = new Date("2024-05-01");
       await write.item.create({
         data: {
@@ -257,7 +315,7 @@ describe("Room Service Integration", () => {
         },
       });
 
-      const [item] = await loadUserItemsWithDetails(user.id);
+      const [[item]] = await collectPages(user.id);
 
       expect(item.articleDetails).toEqual({ readAt });
       expect(item).not.toHaveProperty("title");
