@@ -24,6 +24,8 @@ type AnalyzeImagePayload = {
   itemId: string;
   userId: string;
   fileKey: string;
+  /** Item text (e.g. a book's title and description) blended into the enrichment sourceText. */
+  extraSourceText?: string;
 };
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -96,7 +98,12 @@ export function formatStorageError(error: unknown) {
  * generates CLIP visual embedding, then triggers enrich-item for tags +
  * text embedding + room sync.
  *
- * Marks the item as `failed` on error so the UI can show processing status.
+ * For a book or product cover this is the item's only enrichment: the item's
+ * text arrives as `extraSourceText` and is blended with the cover's objects/OCR,
+ * so no separate text-only enrich races it for tags and the text vector.
+ *
+ * Marks a not-yet-completed item `failed` on error so the UI can show
+ * processing status; a reprocess must not regress a completed item.
  */
 export const analyzeImageTask = task({
   id: "analyze-image",
@@ -104,7 +111,7 @@ export const analyzeImageTask = task({
   queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
   run: async (payload: AnalyzeImagePayload) => {
-    const { itemId, userId, fileKey } = payload;
+    const { itemId, userId, fileKey, extraSourceText } = payload;
 
     // Advance the reaper clock — first pipeline stage
     await markProcessingActive(itemId);
@@ -323,7 +330,11 @@ export const analyzeImageTask = task({
       logger.log("Image analysis complete", { itemId });
 
       // Step 5: Trigger enrichment (tags, text embedding, room sync)
-      const sourceText = [...analysis.objects, analysis.ocrText]
+      const sourceText = [
+        extraSourceText,
+        ...analysis.objects,
+        analysis.ocrText,
+      ]
         .filter(Boolean)
         .join(" ");
 
@@ -357,12 +368,10 @@ export const analyzeImageTask = task({
         itemId,
       });
 
-      // Mark item as failed with a safe, user-facing reason code
-      await db.item.update({
-        where: {
-          id: itemId,
-          userId: userId, // Multi-tenant isolation
-        },
+      // Mark item as failed with a safe, user-facing reason code — unless it
+      // already completed (a reprocess must not regress it to failed)
+      await db.item.updateMany({
+        where: { id: itemId, userId, processingStatus: { not: "completed" } },
         data: {
           processingStatus: "failed",
           processingError: classifyFailureReason(error),

@@ -107,6 +107,9 @@ vi.mock("./handle-instagram-url", () => ({
   handleInstagramUrl: mockHandleInstagramUrl,
 }));
 vi.mock("./handle-pdf-url", () => ({ handlePdfUrl: mockHandlePdfUrl }));
+vi.mock("../src/lib/rooms/auto-book-rooms", () => ({
+  ensureBookRooms: vi.fn(),
+}));
 
 import { classifyUrlTask } from "./classify-url";
 
@@ -417,5 +420,49 @@ describe("classifyUrlTask — PDFs", () => {
     await run({ itemId: "item_1", userId: "user_1", url: PDF_URL });
     expect(mockHandlePdfUrl).not.toHaveBeenCalled();
     expect(mockItemUpdate).toHaveBeenCalled();
+  });
+});
+
+describe("classifyUrlTask — book and product enrichment", () => {
+  const productHtml = (image: string) =>
+    `<html><head><meta property="og:title" content="Trail Runner"><meta property="og:description" content="Lightweight trail shoe">${image}</head><body></body></html>`;
+
+  it("enriches a product with a cover once, through the cover analysis, blending its text", async () => {
+    mockSafeFetch.mockResolvedValue(
+      imageResponse("https://shop.example.com/shoe.png"),
+    );
+
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url: "https://shop.example.com/p/trail-runner",
+      forcedKind: "product",
+      html: productHtml(
+        '<meta property="og:image" content="https://shop.example.com/shoe.png">',
+      ),
+    });
+
+    // A second, text-only enrich would race the cover pass for tags + vector
+    expect(mockTrigger).toHaveBeenCalledTimes(1);
+    const [taskId, payload] = mockTrigger.mock.calls[0];
+    expect(taskId).toBe("analyze-image");
+    expect(payload.fileKey).toMatch(/^user_1\//);
+    expect(payload.extraSourceText).toContain("Trail Runner");
+    expect(payload.extraSourceText).toContain("Lightweight trail shoe");
+  });
+
+  it("enriches a book without a cover from its text alone", async () => {
+    await run({
+      itemId: "item_1",
+      userId: "user_1",
+      url: "https://books.example.com/dune",
+      forcedKind: "book",
+      html: '<html><head><meta property="og:title" content="Dune"></head><body></body></html>',
+    });
+
+    expect(mockTrigger).toHaveBeenCalledTimes(1);
+    const [taskId, payload] = mockTrigger.mock.calls[0];
+    expect(taskId).toBe("enrich-item");
+    expect(payload.sourceText).toContain("Dune");
   });
 });
