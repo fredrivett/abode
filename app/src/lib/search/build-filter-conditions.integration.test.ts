@@ -168,7 +168,7 @@ describe("buildFilterConditions integration", () => {
       const { write } = await import("@/lib/db");
       const user = await createUser(`phrase-${alias}@example.com`);
       const make = (data: {
-        kind?: "image" | "document";
+        kind?: "image" | "document" | "note";
         title?: string;
         description?: string;
         notes?: string;
@@ -205,6 +205,13 @@ describe("buildFilterConditions integration", () => {
           ocrText: "…on the equality of all things…",
         },
       });
+      const inNoteBody = await make({ kind: "note", title: "Reading" });
+      await write.itemNoteDetails.create({
+        data: {
+          itemId: inNoteBody,
+          content: "Zhuangzi: *Equality of All Things*",
+        },
+      });
       // Every word present, but not as the phrase
       await make({
         title: "All things considered",
@@ -213,7 +220,9 @@ describe("buildFilterConditions integration", () => {
 
       expect(
         await runQuery(user.id, { phrases: ["equality of all things"] }, alias),
-      ).toEqual([inTitle, inNotes, inUserTag, inOcr, inDocPage].sort());
+      ).toEqual(
+        [inTitle, inNotes, inUserTag, inOcr, inDocPage, inNoteBody].sort(),
+      );
 
       // Several phrases must all match
       expect(
