@@ -144,9 +144,22 @@ test.describe("Note composer", () => {
     });
     await expect(composer).toContainText("Draft title");
 
+    // An edit right before Save leaves its draft autosave pending; it must not
+    // land after the save's clear and bring the draft back. Holding the save's
+    // response past the 1s debounce makes that write fire mid-save every time.
+    await freshPage.route("**/api/v1/items/notes", async (route) => {
+      const response = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await route.fulfill({ response });
+    });
+    await composer.click();
+    await freshPage.keyboard.type(" Edited just before saving.");
+
     // Saving empties the composer (the placeholder only shows when empty) and
     // clears the server draft in the same request.
     await freshPage.getByRole("button", { name: /^save$/i }).click();
+    // Read-only while saving, so nothing typed mid-save is silently dropped
+    await expect(composer).toHaveAttribute("contenteditable", "false");
     await expect(freshPage.getByText("Take a note…")).toBeVisible({
       timeout: 30_000,
     });

@@ -26,6 +26,8 @@ const log = createLogger("dashboard/note-composer");
 
 // Delay before an edit is persisted to the server draft
 const DRAFT_SAVE_DEBOUNCE_MS = 1000;
+// How long a save waits for draft writes already sent, so a stalled one can't block it
+const DRAFT_WRITE_WAIT_MS = 3000;
 const DRAFT_ENDPOINT = "/api/v1/note-draft";
 
 type NoteComposerProps = {
@@ -64,12 +66,19 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const contentRef = useRef(initialContent);
   const savedContentRef = useRef(initialContent);
   const dirtyRef = useRef(false);
+  // Every draft write still in flight, so a save can wait for them to land first
+  const draftWritesRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const isEmpty = isBlankNote(markdown);
 
   const persistDraft = useDebouncedCallback(async (value: string) => {
+    const write = api.post(DRAFT_ENDPOINT, { content: value });
+    draftWritesRef.current = Promise.all([
+      draftWritesRef.current,
+      write.catch(() => undefined),
+    ]);
     try {
-      await api.post(DRAFT_ENDPOINT, { content: value });
+      await write;
       savedContentRef.current = value;
       dirtyRef.current = false;
     } catch (error) {
@@ -158,8 +167,16 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const handleSave = useCallback(async () => {
     if (isEmpty || isSaving) return;
     setIsSaving(true);
+    // Creating the note clears its server draft, so a draft write landing after
+    // that would bring the saved text back as a draft: drop the pending one, stop
+    // a mid-save tab hide beaconing it, and let ones already sent finish first
+    persistDraft.cancel();
+    dirtyRef.current = false;
+    await Promise.race([
+      draftWritesRef.current,
+      new Promise((resolve) => setTimeout(resolve, DRAFT_WRITE_WAIT_MS)),
+    ]);
     try {
-      // Creating the note clears its server draft in the same request
       const created = await api.post<{ id: string }>("/api/v1/items/notes", {
         content: markdown,
       });
@@ -172,6 +189,11 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     } catch (error) {
       log.error({ error }, "Note create error");
       toast.error("Failed to save note");
+      // The text stays in the composer, so resume autosaving it
+      if (contentRef.current !== savedContentRef.current) {
+        dirtyRef.current = true;
+        persistDraft(contentRef.current);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -179,6 +201,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     isEmpty,
     isSaving,
     markdown,
+    persistDraft,
     revealCreatedItem,
     resetComposer,
     clearConfirm.reset,
@@ -218,7 +241,9 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
         <LazyNoteEditor
           key={editorKey}
           content={editorContent}
-          editable={!disabled}
+          // Read-only while saving: the save sends the click-time text and then
+          // empties the composer, so an edit made meanwhile would be lost
+          editable={!disabled && !isSaving}
           onChange={handleChange}
           className="min-h-full"
           titleFirst
