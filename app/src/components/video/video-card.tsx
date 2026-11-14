@@ -1,8 +1,12 @@
 "use client";
 
-import { Play } from "lucide-react";
 import { VimeoIcon, YouTubeIcon } from "@/components/icons/platform-icons";
 import { useGridImageSizes } from "@/components/masonry/masonry-cell-width";
+import {
+  CardCornerBadge,
+  CardPlayIndicator,
+  CardTag,
+} from "@/components/ui/card-overlay";
 import { Img } from "@/components/ui/img";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { getProxyImageUrl } from "@/lib/image-url";
@@ -61,18 +65,7 @@ export function VideoCard({
               loading="lazy"
               sizes={gridImageSizes}
             />
-            {/* Play button overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="rounded-full bg-black/60 transition-transform group-hover:scale-110"
-                style={{ padding: "0.75em" }}
-              >
-                <Play
-                  className="fill-white text-white"
-                  style={{ width: "1.5em", height: "1.5em" }}
-                />
-              </div>
-            </div>
+            <CardPlayIndicator />
           </>
         ) : (
           // No thumbnail - show platform branding
@@ -81,31 +74,11 @@ export function VideoCard({
           </div>
         )}
 
-        {/* Duration badge (bottom-right) */}
         {duration && duration > 0 && (
-          <div
-            className="absolute rounded bg-black/80 font-medium text-white"
-            style={{
-              right: "0.5em",
-              bottom: "0.5em",
-              padding: "0.125em 0.375em",
-              fontSize: "0.75em",
-            }}
-          >
-            {formatDuration(duration)}
-          </div>
+          <CardTag corner="bottom-right">{formatDuration(duration)}</CardTag>
         )}
 
-        {/* Platform badge (top-right) */}
-        <div
-          className={cn(
-            "absolute rounded-full backdrop-blur-sm",
-            platform === "youtube" ? "bg-red-600/90" : "bg-[#1ab7ea]/90",
-          )}
-          style={{ top: "0.5em", right: "0.5em", padding: "0.375em" }}
-        >
-          <PlatformBadgeIcon className="h-[0.75em] w-[0.75em] text-white" />
-        </div>
+        <CardCornerBadge icon={<PlatformBadgeIcon />} />
       </div>
     </button>
   );
