@@ -20,6 +20,8 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { decodeCursor, encodeCursor, parsePageSize } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
+import { fileNameTitle } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
 import { adjustUserCounters } from "@/lib/user-counters";
 import { getFileSizeFromMeta } from "@/lib/utils";
@@ -149,6 +151,19 @@ async function handlePOST(request: NextRequest) {
 
     // Get file size from meta for storage tracking
     const fileSize = getFileSizeFromMeta(meta);
+    // Without Trigger.dev nothing would ever analyse the image, so it's saved
+    // as-is (completed) rather than left processing or marked failed
+    const isImageUpload = kind === "image" && !!fileKey;
+    const analyze = isImageUpload && isTriggerConfigured();
+    // Analysis would title it; a bare image falls back to its file name
+    const originalName =
+      meta && typeof meta === "object" && typeof meta.originalName === "string"
+        ? meta.originalName
+        : null;
+    const bareTitle =
+      isImageUpload && !analyze && originalName
+        ? fileNameTitle(originalName)
+        : null;
 
     // Create the item and update user storage in a transaction
     const item = await db.$transaction(async (tx) => {
@@ -157,13 +172,15 @@ async function handlePOST(request: NextRequest) {
           kind: kind || null,
           fileKey: fileKey || null,
           meta: meta || null,
+          ...(bareTitle ? { title: bareTitle } : {}),
           sourceType: sourceType || null,
           sourceUrl: sourceUrl || null,
           // Uploads only ever originate from the web app today; accept a client
           // source for forward-compat but default to "web".
           captureSource: isItemSource(source) ? source : "web",
           userId: user.id,
-          processingStatus: "processing",
+          processingStatus:
+            isImageUpload && !analyze ? "completed" : "processing",
         },
         select: {
           id: true,
@@ -192,8 +209,13 @@ async function handlePOST(request: NextRequest) {
 
     // Enqueue image enrichment. The item is already committed above; enqueue
     // failures don't fail the request (graceful degradation — see AGENTS.md).
-    if (kind === "image" && fileKey) {
+    if (analyze) {
       await enqueueImageAnalysis({ itemId: item.id, userId: user.id, fileKey });
+    } else if (isImageUpload) {
+      log.info(
+        { itemId: item.id },
+        "Trigger.dev not configured; saved image without analysis",
+      );
     }
 
     // Log activity (fire-and-forget)

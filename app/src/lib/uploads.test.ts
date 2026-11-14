@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fileNameTitle,
   MAX_IMAGE_UPLOAD_BYTES,
   MAX_PDF_UPLOAD_BYTES,
   UPLOAD_ACCEPT,
@@ -95,5 +96,20 @@ describe("UPLOAD_ACCEPT", () => {
       "image/webp",
       "application/pdf",
     ]);
+  });
+});
+
+describe("fileNameTitle", () => {
+  it("drops any extension and reads underscores as spaces", () => {
+    expect(fileNameTitle("Energy_bill  March.pdf")).toBe("Energy bill March");
+    expect(fileNameTitle("IMG_2041.JPEG")).toBe("IMG 2041");
+  });
+
+  it("keeps dots that aren't the extension", () => {
+    expect(fileNameTitle("v1.2 release notes.png")).toBe("v1.2 release notes");
+  });
+
+  it("is null when only an extension is left", () => {
+    expect(fileNameTitle(" .webp")).toBeNull();
   });
 });

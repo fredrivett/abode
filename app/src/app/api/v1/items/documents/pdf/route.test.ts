@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   // The transaction the route runs its writes in, to check counters join it
   tx: {} as Record<string, unknown>,
   enqueue: vi.fn(),
+  triggerConfigured: vi.fn(),
   logActivity: vi.fn(),
 }));
 
@@ -20,6 +21,9 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: m.guard }));
 vi.mock("@/lib/items/enqueue-pdf-import", () => ({
   enqueuePdfImport: m.enqueue,
+}));
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: m.triggerConfigured,
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: m.logActivity }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
@@ -62,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.getUser.mockResolvedValue({ data: { user: { id: USER } }, error: null });
   m.guard.mockResolvedValue({ ok: true });
+  m.triggerConfigured.mockReturnValue(true);
   m.itemCreate.mockResolvedValue({
     id: "item-1",
     kind: "document",
@@ -146,5 +151,14 @@ describe("POST /api/v1/items/documents/pdf", () => {
       itemId: "item-1",
       kind: "document",
     });
+  });
+
+  it("saves the PDF completed, without enqueueing, when Trigger.dev isn't configured", async () => {
+    m.triggerConfigured.mockReturnValue(false);
+    expect((await call(body())).status).toBe(201);
+    expect(m.itemCreate.mock.calls[0][0].data.processingStatus).toBe(
+      "completed",
+    );
+    expect(m.enqueue).not.toHaveBeenCalled();
   });
 });
