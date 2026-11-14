@@ -9,7 +9,7 @@ Auth is Supabase-based. The current user is fetched server-side via the `@/lib/s
 
 ## Pages under `app/src/app/(app)/`
 
-Every `(app)` page awaits `requireCompletedSignup()` first: it redirects to `ROUTES.LOGIN` if there's no user and to `ROUTES.COMPLETE_SIGNUP` if signup is incomplete (completing signup means claiming an invite, so this is also the invite-only barrier). **Call it as the first statement of the page component and of any `generateMetadata` — don't rely on `(app)/layout.tsx` for it.** A layout isn't an auth boundary: Next renders a page without the layouts above it when the client's router state says it already has them. `app-page-gate.test.ts` fails for an `(app)` page that lacks the gate. Sign-in itself is also enforced by the middleware, so a new top-level `(app)` section must be added to `PROTECTED_ROUTE_PREFIXES` in `@/lib/supabase/middleware` — `middleware-protection.test.ts` fails until it is.
+Every `(app)` page awaits `requireCompletedSignup()` first: it redirects to `ROUTES.LOGIN` if there's no user and to `ROUTES.COMPLETE_SIGNUP` if signup is incomplete (completing signup means claiming an invite, so this is also the invite-only barrier). **Call it as the first statement of the page component and of any `generateMetadata` — don't rely on `(app)/layout.tsx` for it.** A layout isn't an auth boundary: Next renders a page without the layouts above it when the client's router state says it already has them. `app-page-gate.test.ts` fails for an `(app)` page that lacks the gate. Two exceptions, listed in that test: pages under `admin/` await the stricter `requireAdmin()` instead (see below), and the client-only `dev/colors` page can't await a server gate. Sign-in itself is also enforced by the middleware, so a new top-level `(app)` section must be added to `PROTECTED_ROUTE_PREFIXES` in `@/lib/supabase/middleware` — `middleware-protection.test.ts` fails until it is.
 
 ```tsx
 // app/src/app/(app)/my-page/page.tsx
@@ -29,7 +29,7 @@ import { getAuthUser } from "@/lib/supabase/server";
 const user = await getAuthUser();
 ```
 
-For stricter access (e.g. admin), nest under a protected group with its own layout guard — see `app/src/app/(app)/admin/(protected)/layout.tsx` (`checkAdminAccess`, MFA/AAL2 checks).
+For stricter access (e.g. admin), nest under a protected group whose pages each await their own gate, as admin pages await `requireAdmin()` (`@/lib/admin/require-admin`: admin + MFA at aal2) first in the component and `generateMetadata` — enforced by `admin-page-gate.test.ts`. The group's layout calls the gate too, but only to redirect on navigation.
 
 ## Protected API routes (`app/src/app/api/**/route.ts`)
 
