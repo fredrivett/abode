@@ -43,5 +43,8 @@ describe("getCompletedSignupUser", () => {
     mockHasCompletedSignup.mockResolvedValue(true);
 
     expect(await getCompletedSignupUser(supabase)).toBe(user);
+    // The caller's client is forwarded, so the action's later session
+    // mutations act on the same session this resolved.
+    expect(mockGetUserWithMfa).toHaveBeenCalledWith(supabase);
   });
 });
