@@ -13,7 +13,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import posthog from "posthog-js";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type { SimilarImagesResponse } from "@/app/api/v1/items/[id]/similar/route";
 import { api } from "./api-client";
 import { itemQueryKey } from "./items/use-item";
@@ -182,9 +182,28 @@ export function useReplaceCachedItem() {
     (item: Item) => {
       replaceCachedItem(queryClient, item);
       invalidateSearchResults(queryClient);
+      for (const listener of replacedItemListeners) listener(item);
     },
     [queryClient],
   );
+}
+
+type ReplacedItemListener = (item: Item) => void;
+const replacedItemListeners = new Set<ReplacedItemListener>();
+
+/**
+ * Calls `listener` with every item {@link useReplaceCachedItem} writes, for
+ * lists kept outside React Query (a room's local items) that would otherwise
+ * keep showing the old copy, e.g. a stale read or reading-status badge. Pass a
+ * stable callback.
+ */
+export function useOnReplacedCachedItem(listener: ReplacedItemListener) {
+  useEffect(() => {
+    replacedItemListeners.add(listener);
+    return () => {
+      replacedItemListeners.delete(listener);
+    };
+  }, [listener]);
 }
 
 /**

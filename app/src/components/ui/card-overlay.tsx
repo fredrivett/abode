@@ -120,7 +120,7 @@ export function CardPlayIndicator() {
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
       <div
         className={cn(
-          "rounded-full transition-transform group-hover:scale-110",
+          "rounded-full transition-transform group-hover:scale-110 motion-reduce:transition-none",
           SURFACE_CLASS,
         )}
         style={{ padding: "0.75em" }}

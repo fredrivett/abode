@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CentralItemDialog } from "@/app/(app)/dashboard/_components/central-item-dialog";
 import { ItemCard } from "@/app/(app)/dashboard/item-card";
@@ -57,7 +57,9 @@ import { Input } from "@/components/ui/input";
 import { IsLoading } from "@/components/ui/is-loading";
 import { ProfileTag } from "@/components/user/profile-tag";
 import { useGridDensity } from "@/hooks/use-grid-density";
+import { useOnReplacedCachedItem } from "@/lib/api-hooks";
 import { useCardFrame } from "@/lib/items/use-card-frame";
+import type { Item } from "@/lib/types/item";
 import type { Room, RoomItem } from "@/lib/types/room";
 
 type RoomOwner = {
@@ -295,6 +297,20 @@ export function RoomDetail({
       prev.map((i) => (i.id === itemId ? { ...i, title } : i)),
     );
   };
+  // Edits saved from the dialog (read toggle, reading status) arrive as the
+  // updated item; keep the room's own fields (its addedAt is when the item
+  // joined the room, not the library)
+  useOnReplacedCachedItem(
+    useCallback((updated: Item) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === updated.id
+            ? { ...i, ...updated, roomItemId: i.roomItemId, addedAt: i.addedAt }
+            : i,
+        ),
+      );
+    }, []),
+  );
   const removeRoomItem = (itemId: string) => {
     // The dialog can delete an item that isn't in this room (an owner deleting
     // an off-grid "similar images" result), so only touch the room when the

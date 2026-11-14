@@ -12,6 +12,7 @@ import {
   CREATED_ITEM_RETRY_DELAYS_MS,
   ITEMS_QUERY_KEY,
   useItemsInfinite,
+  useOnReplacedCachedItem,
   useRefreshCachedItems,
   useRemoveCachedItem,
   useReplaceCachedItem,
@@ -248,6 +249,20 @@ describe("item cache helpers", () => {
     expect(client.getQueryData<Item>(itemQueryKey("b"))?.title).toBe("B2");
     // Nothing else is touched
     expect(list()?.pages[0].total).toBe(10);
+  });
+
+  it("hands a replaced item to lists kept outside the cache until they unmount", () => {
+    const { hooks } = setup();
+    const listener = vi.fn();
+    const room = renderHook(() => useOnReplacedCachedItem(listener));
+    const updated = item("z", "Not in any cache", "2026-01-02T00:00:00Z");
+
+    act(() => hooks.current.replace(updated));
+    expect(listener).toHaveBeenCalledWith(updated);
+
+    room.unmount();
+    act(() => hooks.current.replace(item("z", "Again")));
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a cached copy written after the one arriving", () => {

@@ -199,10 +199,29 @@ function Gallery() {
           </CardTag>
         </ImageTile>
       </Tile>
-      <Tile label="Tweet · GIF tag" aspectRatio="3 / 2">
-        <ImageTile>
-          <CardTag corner="bottom-left">GIF</CardTag>
-        </ImageTile>
+      <Tile label="Tweet · GIF" aspectRatio="3 / 2">
+        <TwitterCard
+          twitterDetails={{
+            ...tweetBase,
+            tweetId: "gif",
+            text: "",
+            media: [
+              {
+                type: "animated_gif",
+                url: COVER,
+                posterUrl: COVER,
+                width: 1200,
+                height: 630,
+                // The GIF tag shows on the autoplaying card, which needs an mp4
+                variants: [
+                  { type: "video/mp4", src: "https://video.twimg.com/x.mp4" },
+                ],
+              },
+            ],
+          }}
+          itemId="story"
+          onClick={noop}
+        />
       </Tile>
     </div>
   );

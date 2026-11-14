@@ -200,7 +200,7 @@ export type ArticleFrameInput = {
   bylineParts: string[];
   /** Cover width/height ratio when the cover variant renders, else null */
   coverAspect: number | null;
-  /** Title inset by {@link ARTICLE_TITLE_BADGE_INSET_EM} (text variant with a status badge) */
+  /** Title inset by {@link ARTICLE_TITLE_BADGE_INSET_EM} on coverless article text cards, badge or not */
   titleInset?: boolean;
 };
 
