@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase/server";
 import type { ImportSnapshot } from "@/lib/use-import-poll";
 import { ImportSettings } from "../_components/import-settings";
 
 export default async function ImportSettingsPage() {
+  await requireCompletedSignup();
   const user = await getAuthUser();
   if (!user) {
     redirect("/login");

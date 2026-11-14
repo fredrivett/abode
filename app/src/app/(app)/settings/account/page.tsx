@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import { createLogger } from "@/lib/logger.server";
 import { getMFAFactors } from "@/lib/mfa";
@@ -21,6 +22,7 @@ type AccountSettingsPageProps = {
 export default async function AccountSettingsPage({
   searchParams,
 }: AccountSettingsPageProps) {
+  await requireCompletedSignup();
   const { email_changed } = await searchParams;
   const supabase = await createClient();
   const { user, metadata } = await getOAuthMetadata();

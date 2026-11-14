@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { MarkdownRenderer } from "../_components/markdown-renderer";
 
 export const metadata = {
@@ -18,6 +19,7 @@ async function getBookReviewsContent() {
  * rendered from a Markdown file.
  */
 export default async function BookReviewsHelpPage() {
+  await requireCompletedSignup();
   const bookReviewsContent = await getBookReviewsContent();
 
   return (

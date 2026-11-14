@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { getAppBaseUrl } from "@/lib/url";
 import { MarkdownRenderer } from "../_components/markdown-renderer";
 
@@ -23,6 +24,7 @@ async function getConnectingAiAssistantsContent() {
  * with a read-scoped personal access token, rendered from a Markdown file.
  */
 export default async function ConnectingAiAssistantsHelpPage() {
+  await requireCompletedSignup();
   const content = await getConnectingAiAssistantsContent();
 
   return (

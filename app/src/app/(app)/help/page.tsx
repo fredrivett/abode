@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { AbodeInline } from "@/components/abode-inline";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 
 export const metadata = {
   title: "Help | abode",
   description: "Get help with using abode to organize and find your items",
 };
 
-export default function HelpPage() {
+export default async function HelpPage() {
+  await requireCompletedSignup();
   return (
     <div className="mx-auto max-w-2xl">
       <article className="prose prose-neutral dark:prose-invert prose-h2:mt-8 prose-h2:mb-4 prose-headings:font-serif prose-h1:text-3xl prose-h2:text-2xl prose-p:text-base">

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { MarkdownRenderer } from "../_components/markdown-renderer";
 
 export const metadata = {
@@ -16,6 +17,7 @@ async function getPdfsContent() {
  * Help page explaining PDF uploads, rendered from a Markdown file.
  */
 export default async function PdfsHelpPage() {
+  await requireCompletedSignup();
   const pdfsContent = await getPdfsContent();
 
   return (

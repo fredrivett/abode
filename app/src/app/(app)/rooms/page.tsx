@@ -1,4 +1,5 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
@@ -10,6 +11,7 @@ import { RoomsList } from "./_components/rooms-list";
  * Rooms listing page showing all of the authenticated user's rooms.
  */
 export default async function RoomsPage() {
+  await requireCompletedSignup();
   const user = await getAuthUser();
 
   // Safety net for the write-path creation: materialize any missing book shelves
