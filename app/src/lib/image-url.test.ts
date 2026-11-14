@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getProxyImageUrl, proxyImageSrcSet } from "./image-url";
+import {
+  getProxyImageUrl,
+  type ImageSize,
+  imageTransformFor,
+  proxyImageSrcSet,
+  roomPreviewImageUrl,
+} from "./image-url";
 
 describe("proxyImageSrcSet", () => {
   it("offers smaller renditions up to the URL's own width", () => {
@@ -30,4 +36,46 @@ describe("proxyImageSrcSet", () => {
   ])("skips %s", (_label, src) => {
     expect(proxyImageSrcSet(src)).toBeUndefined();
   });
+});
+
+describe("imageTransformFor", () => {
+  const transformOf = (url: string) =>
+    imageTransformFor(new URL(url, "http://abode.test").searchParams);
+
+  const sizes: ImageSize[] = ["thumb", "grid", "embed", "detail", "full"];
+  const appUrls = [
+    ...sizes.flatMap((size) => {
+      const src = getProxyImageUrl("k.jpg", size);
+      const srcSet = proxyImageSrcSet(src)?.split(", ") ?? [];
+      return [src, ...srcSet.map((candidate) => candidate.split(" ")[0])];
+    }),
+    roomPreviewImageUrl("k.gif"),
+  ];
+
+  it.each(appUrls)("serves %s at the size it asks for", (url) => {
+    const params = new URL(url, "http://abode.test").searchParams;
+    const width = params.get("w");
+    expect(transformOf(url)).toEqual(
+      width
+        ? { width: Number(width), quality: Number(params.get("q")) }
+        : undefined,
+    );
+  });
+
+  it.each([
+    ["?w=700&q=75", { width: 800, quality: 80 }],
+    ["?w=150&q=76", { width: 200, quality: 75 }],
+    ["?w=500&q=85", { width: 600, quality: 90 }],
+    ["?w=5000&q=100", { width: 1800, quality: 90 }],
+    ["?w=600", { width: 600, quality: 80 }],
+  ])("snaps %s to the nearest app size", (query, expected) => {
+    expect(transformOf(`/api/v1/images/k.jpg${query}`)).toEqual(expected);
+  });
+
+  it.each(["", "?q=50", "?h=300", "?w=0", "?w=-400", "?w=abc"])(
+    "serves the original for %s",
+    (query) => {
+      expect(transformOf(`/api/v1/images/k.jpg${query}`)).toBeUndefined();
+    },
+  );
 });
