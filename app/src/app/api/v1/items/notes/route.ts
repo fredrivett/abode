@@ -5,6 +5,7 @@ import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
 import { createNote } from "@/lib/items/create-note";
 import { clearNoteDraft } from "@/lib/items/note-draft";
+import { enqueueNoteEmbedding } from "@/lib/items/note-embedding";
 import { transformItem } from "@/lib/items/query";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -64,6 +65,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       source: captureSource,
       personalAccessTokenId,
     });
+    await enqueueNoteEmbedding({ itemId: item.id, userId: user.id });
 
     // The in-app composer's save clears its in-progress draft in the same
     // request, so the client needs no extra call. Keyed on the attributed source,

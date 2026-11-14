@@ -12,6 +12,7 @@ const {
   mockArticleUpsert,
   mockArticleFind,
   mockTrigger,
+  mockOpenAiConfigured,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFind: vi.fn(),
@@ -20,6 +21,7 @@ const {
   mockArticleUpsert: vi.fn(),
   mockArticleFind: vi.fn(),
   mockTrigger: vi.fn(),
+  mockOpenAiConfigured: vi.fn(() => false),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -38,7 +40,11 @@ vi.mock("@/lib/db", () => ({
       upsert: mockArticleUpsert,
       findUnique: mockArticleFind,
     },
+    itemNoteDetails: { upsert: vi.fn() },
   },
+}));
+vi.mock("@/lib/embeddings", () => ({
+  isOpenAiConfigured: mockOpenAiConfigured,
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
@@ -173,5 +179,77 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
       excludeFromPublicRooms: true,
     });
     expect(syncCalls()).toHaveLength(1);
+  });
+});
+
+describe("PATCH /api/v1/items/:id — note embedding", () => {
+  const item = (kind: string) => ({
+    id: "item-1",
+    userId: "owner",
+    kind,
+    title: "Weekend plans",
+    sourceType: kind === "note" ? "compose" : "url",
+    excludeFromPublicRooms: false,
+    tags: [],
+    userTags: [],
+    sharedAt: null,
+  });
+  const embedCalls = () =>
+    mockTrigger.mock.calls.filter((c) => c[0] === "embed-note");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: "owner" } } });
+    mockItemUpdate.mockResolvedValue({ id: "item-1" });
+    mockOpenAiConfigured.mockReturnValue(true);
+  });
+
+  it.each([
+    ["body", { content: "Pick up a sourdough starter" }],
+    ["title", { title: "Weekend errands" }],
+    ["manual tags", { userTags: ["baking"] }],
+  ])(
+    "re-embeds a note when its %s changes, debounced per note",
+    async (_, body) => {
+      mockItemFind.mockResolvedValue(item("note"));
+
+      expect((await patch(body)).status).toBe(200);
+      expect(embedCalls()).toEqual([
+        [
+          "embed-note",
+          { itemId: "item-1", userId: "owner" },
+          { debounce: expect.objectContaining({ key: "item-1" }) },
+        ],
+      ]);
+    },
+  );
+
+  it("leaves the vector alone when nothing it's built from changed", async () => {
+    mockItemFind.mockResolvedValue(item("note"));
+
+    await patch({ title: "Weekend plans", coverHidden: true });
+    expect(embedCalls()).toHaveLength(0);
+  });
+
+  it("only embeds notes", async () => {
+    mockItemFind.mockResolvedValue(item("article"));
+
+    await patch({ userTags: ["baking"] });
+    expect(embedCalls()).toHaveLength(0);
+  });
+
+  it("skips cleanly without OpenAI", async () => {
+    mockOpenAiConfigured.mockReturnValue(false);
+    mockItemFind.mockResolvedValue(item("note"));
+
+    expect((await patch({ content: "Call grandma" })).status).toBe(200);
+    expect(embedCalls()).toHaveLength(0);
+  });
+
+  it("still saves the note when queueing fails", async () => {
+    mockItemFind.mockResolvedValue(item("note"));
+    mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
+
+    expect((await patch({ content: "Call grandma" })).status).toBe(200);
   });
 });
