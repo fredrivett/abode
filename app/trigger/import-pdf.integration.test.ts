@@ -20,7 +20,6 @@ const auth = vi.hoisted(() => ({ userId: "" }));
 vi.mock("@trigger.dev/sdk", () => ({
   task: (config: unknown) => config,
   tasks: { trigger: vi.fn() },
-  AbortTaskRunError: class AbortTaskRunError extends Error {},
   logger: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   queue: (config: unknown) => config,
 }));
@@ -297,9 +296,17 @@ describe("PDF upload integration", () => {
       ),
     );
 
-    await expect(
-      runTask(importPdfTask, { itemId, userId: user.id }),
-    ).rejects.toThrow();
+    const payload = { itemId, userId: user.id };
+    const error = await runTask(importPdfTask, payload).catch(
+      (e: unknown) => e,
+    );
+    const hooks = importPdfTask as unknown as {
+      catchError: (params: { error: unknown }) => unknown;
+      onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
+    };
+    // Not retried; Trigger goes straight to onFailure
+    expect(hooks.catchError({ error })).toEqual({ skipRetrying: true });
+    await hooks.onFailure({ payload, error });
 
     const { read } = await import("@/lib/db");
     expect(

@@ -11,6 +11,7 @@ const {
   mockSafeFetch,
   mockUpload,
   mockItemUpdate,
+  mockItemUpdateMany,
   mockArticleUpsert,
   mockTrigger,
   mockMarkProcessingActive,
@@ -26,6 +27,7 @@ const {
   mockSafeFetch: vi.fn(),
   mockUpload: vi.fn(),
   mockItemUpdate: vi.fn(),
+  mockItemUpdateMany: vi.fn(),
   mockArticleUpsert: vi.fn(),
   mockTrigger: vi.fn(),
   mockMarkProcessingActive: vi.fn(),
@@ -56,7 +58,7 @@ vi.mock("@supabase/supabase-js", () => ({
 
 vi.mock("../src/lib/db", () => ({
   default: {
-    item: { update: mockItemUpdate },
+    item: { update: mockItemUpdate, updateMany: mockItemUpdateMany },
     itemArticleDetails: { upsert: mockArticleUpsert },
     itemBookDetails: { upsert: vi.fn() },
     itemProductDetails: { upsert: vi.fn() },
@@ -111,6 +113,7 @@ vi.mock("../src/lib/rooms/auto-book-rooms", () => ({
   ensureBookRooms: vi.fn(),
 }));
 
+import { FetchError } from "../src/lib/items/processing-error";
 import { classifyUrlTask } from "./classify-url";
 
 // A real, metadata-less long-form essay (same fixture the article classifier
@@ -122,11 +125,13 @@ const ARTICLE_HTML = readFileSync(
 );
 const ARTICLE_URL = "https://paulgraham.com/kids.html";
 
-type TaskWithRun = {
+type TaskWithHooks = {
   run: (payload: Record<string, unknown>) => Promise<unknown>;
+  catchError: (params: { error: unknown }) => unknown;
+  onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
 };
-const run = (payload: Record<string, unknown>) =>
-  (classifyUrlTask as unknown as TaskWithRun).run(payload);
+const hooks = classifyUrlTask as unknown as TaskWithHooks;
+const run = (payload: Record<string, unknown>) => hooks.run(payload);
 
 function htmlResponse(url: string, opts?: { method?: string }) {
   const headers = {
@@ -464,5 +469,42 @@ describe("classifyUrlTask — book and product enrichment", () => {
     const [taskId, payload] = mockTrigger.mock.calls[0];
     expect(taskId).toBe("enrich-item");
     expect(payload.sourceText).toContain("Dune");
+  });
+});
+
+describe("classifyUrlTask — failures", () => {
+  const notFound = { ok: false, status: 404, headers: { get: () => null } };
+
+  it("leaves the item processing when an attempt fails, for Trigger's retry", async () => {
+    mockSafeFetch.mockResolvedValue(notFound);
+
+    await expect(
+      run({ itemId: "item_1", userId: "user_1", url: ARTICLE_URL }),
+    ).rejects.toThrow("Failed to fetch URL: 404");
+
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+    expect(mockItemUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("doesn't retry a source that answered 403 or 404, but retries a 503", () => {
+    expect(hooks.catchError({ error: new FetchError(404) })).toEqual({
+      skipRetrying: true,
+    });
+    expect(hooks.catchError({ error: new FetchError(403) })).toEqual({
+      skipRetrying: true,
+    });
+    expect(hooks.catchError({ error: new FetchError(503) })).toBeUndefined();
+  });
+
+  it("marks the item failed with its reason once no retry is left", async () => {
+    await hooks.onFailure({
+      payload: { itemId: "item_1", userId: "user_1", url: ARTICLE_URL },
+      error: new FetchError(404),
+    });
+
+    expect(mockItemUpdateMany).toHaveBeenCalledWith({
+      where: { id: "item_1", userId: "user_1" },
+      data: { processingStatus: "failed", processingError: "source_not_found" },
+    });
   });
 });

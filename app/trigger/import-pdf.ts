@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { AbortTaskRunError, logger, task } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import {
   isDocumentOcrConfigured,
@@ -17,8 +17,8 @@ import { getPostHogClient } from "../src/lib/posthog-server";
 import { MAX_PDF_UPLOAD_BYTES } from "../src/lib/uploads";
 import { guardDailyLimit } from "../src/lib/usage-limits";
 import type { analyzeDocumentTask } from "./analyze-document";
-import { markDocumentFailed } from "./analyze-document";
 import { formatStorageError, getSupabaseConfig } from "./analyze-image";
+import { itemFailureHooks } from "./item-failure";
 import { documentImportQueue } from "./queues";
 
 /** Page uploads in flight while the next page renders */
@@ -40,9 +40,14 @@ type ImportPdfPayload = {
  *      it searchable — the same pipeline as a scan.
  *
  * Idempotent: once pages exist, a retry skips straight to step 3. A damaged,
- * encrypted or over-long PDF fails without retrying, with a reason the UI
- * explains.
+ * encrypted or over-long PDF fails without retrying (itemFailureHooks'
+ * catchError), with a reason the UI explains.
  */
+const failureHooks = itemFailureHooks({
+  task: "import-pdf",
+  keepCompleted: false,
+});
+
 export const importPdfTask = task({
   id: "import-pdf",
   retry: {
@@ -52,6 +57,14 @@ export const importPdfTask = task({
   },
   queue: documentImportQueue,
   maxDuration: 1800, // rendering + uploading up to MAX_PDF_PAGES pages
+  ...failureHooks,
+  onFailure: async (params) => {
+    await failureHooks.onFailure(params);
+    captureImportEvent(params.payload.userId, "pdf_import_failed", {
+      item_id: params.payload.itemId,
+      reason: classifyFailureReason(params.error),
+    });
+  },
   run: async ({ itemId, userId }: ImportPdfPayload) => {
     await markProcessingActive(itemId);
     try {
@@ -114,19 +127,9 @@ export const importPdfTask = task({
         maxOcrPages,
       };
     } catch (error) {
-      await markDocumentFailed({ itemId, userId, error, task: "import-pdf" });
-      captureImportEvent(userId, "pdf_import_failed", {
-        item_id: itemId,
-        reason: classifyFailureReason(error),
-      });
-      // Retrying can't fix a damaged, encrypted or over-long file
-      if (
-        error instanceof ProcessingFailure &&
-        (error.reason === "file_unreadable" ||
-          error.reason === "document_too_long")
-      ) {
-        throw new AbortTaskRunError(error.message);
-      }
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("PDF import attempt failed", { itemId, error });
       throw error;
     }
   },

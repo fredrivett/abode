@@ -13,11 +13,11 @@ import { extractExifData } from "../src/lib/exif";
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import { buildImageDetailsUpdate } from "../src/lib/image-analysis/image-details-write";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
-import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import type { enrichItemTask } from "./enrich-item";
+import { itemFailureHooks } from "./item-failure";
 import { imageAnalysisQueue } from "./queues";
 
 type AnalyzeImagePayload = {
@@ -102,14 +102,15 @@ export function formatStorageError(error: unknown) {
  * text arrives as `extraSourceText` and is blended with the cover's objects/OCR,
  * so no separate text-only enrich races it for tags and the text vector.
  *
- * Marks a not-yet-completed item `failed` on error so the UI can show
- * processing status; a reprocess must not regress a completed item.
+ * Marks a not-yet-completed item `failed` once no retry is left, so the UI can
+ * show processing status; a reprocess must not regress a completed item.
  */
 export const analyzeImageTask = task({
   id: "analyze-image",
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
+  ...itemFailureHooks({ task: "analyze-image", keepCompleted: true }),
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey, extraSourceText } = payload;
 
@@ -362,23 +363,9 @@ export const analyzeImageTask = task({
         },
       };
     } catch (error) {
-      logger.error("Image analysis failed", { itemId, error });
-      captureServerException(error, userId, {
-        task: "analyze-image",
-        itemId,
-      });
-
-      // Mark item as failed with a safe, user-facing reason code — unless it
-      // already completed (a reprocess must not regress it to failed)
-      await db.item.updateMany({
-        where: { id: itemId, userId, processingStatus: { not: "completed" } },
-        data: {
-          processingStatus: "failed",
-          processingError: classifyFailureReason(error),
-        },
-      });
-
-      // Re-throw so Trigger.dev can retry
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("Image analysis attempt failed", { itemId, error });
       throw error;
     }
   },

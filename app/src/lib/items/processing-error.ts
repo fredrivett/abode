@@ -96,3 +96,19 @@ export function classifyFailureReason(error: unknown): ProcessingErrorReason {
 
   return "unknown";
 }
+
+// Reasons a retry moments later can't change: the source refused or lost the
+// page, or answered with something we can't use. A 429 is in source_blocked
+// too: Trigger's retry comes seconds later, well inside any rate-limit window.
+const PERMANENT_FAILURE_REASONS: ReadonlySet<ProcessingErrorReason> = new Set([
+  "source_blocked",
+  "source_not_found",
+  "unsupported_content",
+  "file_unreadable",
+  "document_too_long",
+]);
+
+/** Whether retrying the same work can't succeed, so the run should stop now. */
+export function isPermanentFailure(error: unknown): boolean {
+  return PERMANENT_FAILURE_REASONS.has(classifyFailureReason(error));
+}

@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   findItem: vi.fn(),
   findItemSource: vi.fn(),
   updateItem: vi.fn(),
+  updateManyItems: vi.fn(),
   upsertImageDetails: vi.fn(),
   transaction: vi.fn(),
   download: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock("../src/lib/db", () => ({
       findFirstOrThrow: m.findItem,
       findFirst: m.findItemSource,
       update: m.updateItem,
+      updateMany: m.updateManyItems,
     },
     itemImageDetails: { upsert: m.upsertImageDetails },
     $transaction: m.transaction,
@@ -74,7 +76,10 @@ vi.mock("./analyze-image", () => ({
 
 import { analyzeDocumentPages, analyzeDocumentTask } from "./analyze-document";
 
-type TaskWithRun = { run: (payload: object) => Promise<unknown> };
+type TaskWithRun = {
+  run: (payload: object) => Promise<unknown>;
+  onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
+};
 const run = () =>
   (analyzeDocumentTask as unknown as TaskWithRun).run({
     itemId: "item-1",
@@ -262,11 +267,6 @@ describe("analyzeDocumentTask", () => {
   it("fails a document that has no pages", async () => {
     m.findPages.mockResolvedValue([]);
     await expect(run()).rejects.toThrow("Document has no pages");
-    expect(m.updateItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ processingStatus: "failed" }),
-      }),
-    );
     expect(m.trigger).not.toHaveBeenCalled();
   });
 
@@ -281,14 +281,22 @@ describe("analyzeDocumentTask", () => {
     expect(m.trigger).toHaveBeenCalledWith("enrich-item", expect.anything());
   });
 
-  it("marks the item failed and rethrows when a page can't be downloaded", async () => {
+  it("rethrows for Trigger's retry, leaving the item processing, when a page can't be downloaded", async () => {
     m.download.mockResolvedValue({ data: null, error: new Error("gone") });
     await expect(run()).rejects.toThrow(/Failed to download/);
-    expect(m.updateItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ processingStatus: "failed" }),
-      }),
-    );
+    expect(m.updateItem).not.toHaveBeenCalled();
+    expect(m.updateManyItems).not.toHaveBeenCalled();
+  });
+
+  it("marks the item failed once no retry is left", async () => {
+    await (analyzeDocumentTask as unknown as TaskWithRun).onFailure({
+      payload: { itemId: "item-1", userId: "user-1" },
+      error: new Error("Failed to download page"),
+    });
+    expect(m.updateManyItems).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { processingStatus: "failed", processingError: "unknown" },
+    });
   });
 });
 
@@ -403,16 +411,11 @@ describe("analyzeDocumentTask after a PDF re-capture", () => {
     expect(m.updateItem).not.toHaveBeenCalled();
   });
 
-  it("still fails the item when its PDF is unchanged", async () => {
+  it("still fails the run when its PDF is unchanged", async () => {
     m.download.mockResolvedValue({ data: null, error: new Error("gone") });
     m.findItemSource.mockResolvedValue({ sourceFileKey: "user-1/old.pdf" });
     await expect(runFor("user-1/old.pdf")).rejects.toThrow(
       /Failed to download/,
-    );
-    expect(m.updateItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ processingStatus: "failed" }),
-      }),
     );
   });
 });

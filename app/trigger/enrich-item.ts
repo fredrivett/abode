@@ -12,8 +12,7 @@ import {
   upsertTextVector,
 } from "../src/lib/embeddings";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
-import { classifyFailureReason } from "../src/lib/items/processing-error";
-import { captureServerException } from "../src/lib/posthog-server";
+import { itemFailureHooks } from "./item-failure";
 import type { syncItemToRoomsTask } from "./sync-item-to-rooms";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -29,6 +28,9 @@ export const enrichItemTask = task({
   id: "enrich-item",
   retry: { maxAttempts: 2 },
   maxDuration: 120,
+  // A re-enrichment (e.g. cover re-analysis after a swap) must not regress a
+  // completed item to failed
+  ...itemFailureHooks({ task: "enrich-item", keepCompleted: true }),
   run: async (payload: EnrichItemPayload) => {
     const { itemId, userId, precomputedTags, sourceText } = payload;
 
@@ -137,23 +139,9 @@ export const enrichItemTask = task({
         tagCount: tags.length,
       };
     } catch (error) {
-      logger.error("Item enrichment failed", { itemId, error });
-      captureServerException(error, userId, {
-        task: "enrich-item",
-        itemId,
-      });
-
-      // Only transition to failed if the item hasn't already completed — a
-      // re-enrichment (e.g. cover re-analysis after a swap) must not regress a
-      // completed item to failed.
-      await db.item.updateMany({
-        where: { id: itemId, userId, processingStatus: { not: "completed" } },
-        data: {
-          processingStatus: "failed",
-          processingError: classifyFailureReason(error),
-        },
-      });
-
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("Item enrichment attempt failed", { itemId, error });
       throw error;
     }
   },
