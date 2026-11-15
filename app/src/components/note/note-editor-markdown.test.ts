@@ -43,3 +43,29 @@ describe("note editor markdown", () => {
     expect(editor.getMarkdown()).toBe("# Shopping\n\n- [x] bread");
   });
 });
+
+describe("title-first trailing node", () => {
+  // The trailing-node plugin runs on the first transaction after load, e.g. a
+  // click into the composer
+  function afterFirstTransaction(markdown: string): Editor {
+    const loaded = roundTrip(markdown, true);
+    loaded.view.dispatch(loaded.state.tr);
+    return loaded;
+  }
+
+  it.each([
+    "# Draft title\n\nUnsaved thoughts to keep.",
+    "# Draft title\n\nUnsaved thoughts to keep.\n\n",
+    "# Draft title",
+  ])(
+    "leaves a draft ending in a paragraph or its title as loaded: %j",
+    (markdown) => {
+      expect(afterFirstTransaction(markdown).getMarkdown()).toBe(markdown);
+    },
+  );
+
+  it("trails a list with a paragraph, never an empty heading", () => {
+    const { state } = afterFirstTransaction("# Shopping\n\n- [ ] milk");
+    expect(state.doc.lastChild?.type.name).toBe("paragraph");
+  });
+});

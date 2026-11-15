@@ -168,6 +168,58 @@ test.describe("Note composer", () => {
     await fresh.close();
   });
 
+  test("clicking into a loaded draft leaves it as it was", async ({
+    browser,
+  }) => {
+    const user = await createUser({
+      email: "note-draft-load@test.local",
+      username: "note_draft_load_user",
+    });
+    const prisma = getE2EPrisma();
+    await prisma.item.create({
+      data: {
+        userId: user.id,
+        kind: "note",
+        sourceType: "compose",
+        processingStatus: "completed",
+        title: "Seed note",
+        noteDetails: { create: { content: "Seed body" } },
+      },
+    });
+    // Ending in a list: the editor adds a blank line after it on the first
+    // transaction, which used to be autosaved as an edit
+    const draft = "# Shopping\n\n- [ ] milk";
+    await prisma.noteDraft.create({
+      data: { userId: user.id, content: draft },
+    });
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await loginAs(page, user);
+    await page.goto("/dashboard");
+    const composer = page.locator(".ProseMirror").first();
+    await expect(composer).toContainText("milk", { timeout: 15_000 });
+
+    const draftWrites: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/v1/note-draft")) {
+        draftWrites.push(request.postData() ?? "");
+      }
+    });
+    await composer.click();
+    // Past the 1s autosave debounce
+    await page.waitForTimeout(2500);
+
+    expect(draftWrites).toEqual([]);
+    await expect(composer.locator("h1")).toHaveCount(1);
+    const stored = await prisma.noteDraft.findUnique({
+      where: { userId: user.id },
+    });
+    expect(stored?.content).toBe(draft);
+
+    await context.close();
+  });
+
   test("clearing a draft takes a two-step confirm that reverts on hover-off", async ({
     browser,
   }) => {

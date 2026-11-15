@@ -61,17 +61,25 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   // Remount the editor to clear its content after a save or clear
   const [editorKey, setEditorKey] = useState(0);
 
-  // Latest content and the last value known to be persisted, so we can dedupe
-  // writes and flush the current text on page hide without re-subscribing.
+  // Latest content and what the server holds once the draft writes already
+  // sent land, so we can dedupe writes and flush the current text on page hide
+  // without re-subscribing.
   const contentRef = useRef(initialContent);
   const savedContentRef = useRef(initialContent);
   const dirtyRef = useRef(false);
+  // Counts draft writes sent, so a failed one only rolls back if none came after
+  const draftWriteCountRef = useRef(0);
   // Every draft write still in flight, so a save can wait for them to land first
   const draftWritesRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const isEmpty = isBlankNote(markdown);
 
   const persistDraft = useDebouncedCallback(async (value: string) => {
+    // Counted as saved once sent: an edit back to the text before this write
+    // must still be written, or this one lands last and brings its text back
+    const previous = savedContentRef.current;
+    savedContentRef.current = value;
+    const writeNumber = ++draftWriteCountRef.current;
     const write = api.post(DRAFT_ENDPOINT, { content: value });
     draftWritesRef.current = Promise.all([
       draftWritesRef.current,
@@ -79,9 +87,12 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     ]);
     try {
       await write;
-      savedContentRef.current = value;
       dirtyRef.current = false;
     } catch (error) {
+      // Unless a newer write has been sent since
+      if (draftWriteCountRef.current === writeNumber) {
+        savedContentRef.current = previous;
+      }
       // Keep it dirty — a later edit or the page-hide flush will retry
       log.error({ error }, "Note draft save error");
     }
@@ -151,7 +162,10 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
       clearConfirm.reset();
       setMarkdown(value);
       contentRef.current = value;
-      if (value === savedContentRef.current) {
+      // Trailing blank lines don't change the note: the editor adds an empty
+      // paragraph after a draft ending in a list on its first transaction,
+      // which would otherwise rewrite the draft once on load
+      if (value.trimEnd() === savedContentRef.current.trimEnd()) {
         // Back to the persisted state — or a spurious blank emit from the
         // editor's heading normalisation on mount/reset. Nothing to save.
         persistDraft.cancel();
