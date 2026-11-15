@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@trigger.dev/sdk";
 import { safeFetch } from "@/lib/http/safe-fetch";
+import { ITEMS_BUCKET_MAX_BYTES } from "@/lib/storage-buckets";
 import { parseMimeType } from "@/lib/url-utils";
 
 // Only re-host raster formats the renderers actually support. Notably excludes
@@ -46,6 +47,7 @@ export async function downloadAndStoreImage(
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
       },
+      maxBytes: ITEMS_BUCKET_MAX_BYTES,
     });
     if (!response.ok) {
       logger.warn("Failed to download image", {
