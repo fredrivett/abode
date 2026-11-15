@@ -4,7 +4,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { buildEmbeddingText } from "@/lib/ai/generate-tags-from-content";
 import { isOpenAiConfigured } from "@/lib/embeddings";
 import { createLogger } from "@/lib/logger.server";
-import { captureServerException } from "@/lib/posthog-server";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 
 const log = createLogger("lib/items/note-embedding");
 
@@ -43,8 +43,8 @@ export function buildNoteEmbeddingText(note: {
  * task reads the note when it runs, so it always embeds the latest text. The
  * task checks the $ caps before it spends.
  *
- * Semantic search needs OpenAI: without it, skip without queueing anything. A
- * queueing failure is reported but never fails the save.
+ * Semantic search needs OpenAI: without it (or Trigger.dev), skip without
+ * queueing anything. A queueing failure is reported but never fails the save.
  */
 export async function enqueueNoteEmbedding({
   itemId,
@@ -57,18 +57,17 @@ export async function enqueueNoteEmbedding({
     log.info({ itemId }, "OpenAI not configured — skipping note embedding");
     return;
   }
-  try {
-    await tasks.trigger<typeof embedNoteTask>(
-      "embed-note",
-      { itemId, userId },
-      {
-        debounce: { key: itemId, delay: "10s", maxDelay: "2m" },
-        // One run per note at a time (the task's queue limit is 1 per key)
-        concurrencyKey: itemId,
-      },
-    );
-  } catch (error) {
-    log.warn({ error, itemId }, "Failed to enqueue note embedding");
-    captureServerException(error, userId, { task: "embed-note", itemId });
-  }
+  await enqueueAfterSave(
+    () =>
+      tasks.trigger<typeof embedNoteTask>(
+        "embed-note",
+        { itemId, userId },
+        {
+          debounce: { key: itemId, delay: "10s", maxDelay: "2m" },
+          // One run per note at a time (the task's queue limit is 1 per key)
+          concurrencyKey: itemId,
+        },
+      ),
+    { task: "embed-note", itemId, userId },
+  );
 }

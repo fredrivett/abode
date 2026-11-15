@@ -9,6 +9,7 @@ import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import type { syncRoomItemsTask } from "../../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/rooms/[id]");
@@ -174,12 +175,17 @@ async function handlePATCH(request: NextRequest, { params }: RouteParams) {
 
     // If filters changed, trigger re-sync. The run id goes back to the client,
     // which polls it (rooms/[id]/sync/[runId]) to refresh the grid once done;
-    // the room tag is what that endpoint checks the run against.
+    // the room tag is what that endpoint checks the run against. No run (no
+    // Trigger.dev, or queueing failed) means no id, so the client doesn't poll
     const syncRun = shouldSyncRoom
-      ? await tasks.trigger<typeof syncRoomItemsTask>(
-          "sync-room-items",
-          { roomId: id, userId: user.id },
-          { tags: [roomTag(id), userTag(user.id)] },
+      ? await enqueueAfterSave(
+          () =>
+            tasks.trigger<typeof syncRoomItemsTask>(
+              "sync-room-items",
+              { roomId: id, userId: user.id },
+              { tags: [roomTag(id), userTag(user.id)] },
+            ),
+          { task: "sync-room-items", roomId: id, userId: user.id },
         )
       : null;
 

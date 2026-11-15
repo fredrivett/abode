@@ -17,6 +17,7 @@ import {
 } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
 import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
@@ -219,6 +220,7 @@ async function handlePATCH(
     // Update twitter cover media index, re-point coverFileKey to the selected
     // image, and (re)analyse it so search + similar-images follow the chosen
     // cover (analyze-media-cover re-mirrors from cache if already analysed).
+    // Without Trigger.dev the cover still swaps; search keeps the old analysis.
     if (twitterCoverMediaIndex !== undefined) {
       await db.itemTwitterDetails.updateMany({
         where: { itemId: id },
@@ -247,14 +249,15 @@ async function handlePATCH(
         // Reflect the swap in the response — updatedItem was read before this
         // second update, so it still holds the pre-swap coverFileKey
         updatedItem.coverFileKey = newCoverFileKey;
-        await tasks.trigger<typeof analyzeMediaCoverTask>(
-          "analyze-media-cover",
-          {
-            itemId: id,
-            userId: user.id,
-            fileKey: newCoverFileKey,
-            extraSourceText: details?.text ?? undefined,
-          },
+        await enqueueAfterSave(
+          () =>
+            tasks.trigger<typeof analyzeMediaCoverTask>("analyze-media-cover", {
+              itemId: id,
+              userId: user.id,
+              fileKey: newCoverFileKey,
+              extraSourceText: details?.text ?? undefined,
+            }),
+          { task: "analyze-media-cover", itemId: id, userId: user.id },
         );
       }
     }
@@ -389,10 +392,14 @@ async function handlePATCH(
 
     // Trigger room sync if filter-relevant fields changed
     if (filterRelevantFieldsChanged) {
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
-        itemId: id,
-        userId: user.id,
-      });
+      await enqueueAfterSave(
+        () =>
+          tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+            itemId: id,
+            userId: user.id,
+          }),
+        { task: "sync-item-to-rooms", itemId: id, userId: user.id },
+      );
     }
 
     // Log activity (fire-and-forget)

@@ -14,6 +14,8 @@ const {
   mockTrigger,
   mockOpenAiConfigured,
   mockNoteUpsert,
+  mockTweetFind,
+  mockResolveCover,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFind: vi.fn(),
@@ -24,6 +26,8 @@ const {
   mockTrigger: vi.fn(),
   mockOpenAiConfigured: vi.fn(() => false),
   mockNoteUpsert: vi.fn(),
+  mockTweetFind: vi.fn(),
+  mockResolveCover: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -43,6 +47,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: mockArticleFind,
     },
     itemNoteDetails: { upsert: mockNoteUpsert },
+    itemTwitterDetails: { updateMany: vi.fn(), findFirst: mockTweetFind },
   },
 }));
 vi.mock("@/lib/embeddings", () => ({
@@ -64,10 +69,17 @@ vi.mock("@/lib/milestones/conditions", () => ({
   shouldCompleteAddFirstTag: () => false,
   shouldCompleteSeeAiAnalysis: () => false,
 }));
-vi.mock("@/lib/twitter/cover", () => ({ resolveTweetCoverFileKey: vi.fn() }));
+vi.mock("@/lib/twitter/cover", () => ({
+  resolveTweetCoverFileKey: mockResolveCover,
+}));
 vi.mock("@/lib/items/delete-item", () => ({ deleteOwnedItem: vi.fn() }));
 
 import { PATCH } from "./route";
+
+// Trigger.dev configured unless a test clears it
+beforeEach(() => {
+  vi.stubEnv("TRIGGER_SECRET_KEY", "tr_test");
+});
 
 function patch(body: unknown) {
   return PATCH(
@@ -260,5 +272,77 @@ describe("PATCH /api/v1/items/:id — note embedding", () => {
     expect(mockNoteUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: { content: "Call grandma" } }),
     );
+  });
+});
+
+// Trigger.dev is optional: a save is written before its room sync is queued, so
+// a missing or failing Trigger must not turn it into a 500 the client rolls back
+describe("PATCH /api/v1/items/:id — room sync without Trigger.dev", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: "owner" } } });
+    mockItemUpdate.mockResolvedValue({ id: "item-1" });
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "article",
+      sourceType: "url",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+    });
+    mockArticleFind.mockResolvedValue({ readAt: null });
+    mockArticleUpsert.mockResolvedValue({
+      itemId: "item-1",
+      readAt: new Date(),
+    });
+  });
+
+  it("marks an article read and skips the room sync when Trigger.dev isn't configured", async () => {
+    vi.stubEnv("TRIGGER_SECRET_KEY", "");
+
+    const res = await patch({ articleReading: { read: true } });
+
+    expect(res.status).toBe(200);
+    expect(mockArticleUpsert).toHaveBeenCalledTimes(1);
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["isn't configured", () => vi.stubEnv("TRIGGER_SECRET_KEY", "")],
+    ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down"))],
+  ])("swaps a tweet's cover when Trigger.dev %s", async (_, setUp) => {
+    setUp();
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "twitter",
+      sourceType: "url",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+    });
+    mockTweetFind.mockResolvedValue({ media: [], text: null });
+    mockResolveCover.mockReturnValue("tweets/item-1/media-1.jpg");
+
+    const res = await patch({ twitterCoverMediaIndex: 1 });
+
+    expect(res.status).toBe(200);
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: { coverFileKey: "tweets/item-1/media-1.jpg" },
+    });
+  });
+
+  it("still saves when queueing the room sync fails", async () => {
+    mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
+
+    const res = await patch({ articleReading: { read: true } });
+
+    expect(res.status).toBe(200);
+    expect(mockArticleUpsert).toHaveBeenCalledTimes(1);
+    expect(syncCalls()).toHaveLength(1);
   });
 });
