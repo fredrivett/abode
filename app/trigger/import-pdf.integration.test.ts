@@ -143,7 +143,7 @@ describe("PDF upload integration", () => {
         id: crypto.randomUUID(),
         email: `pdf-${crypto.randomUUID()}@example.com`,
         // A completed signup, so the upload route's signup gate lets it through
-        username: `pdf-${crypto.randomUUID().slice(0, 8)}`,
+        username: `pdf_${crypto.randomUUID().slice(0, 8)}`,
       },
     });
     auth.userId = user.id;
