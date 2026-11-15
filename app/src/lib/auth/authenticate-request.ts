@@ -65,12 +65,12 @@ export async function authenticateRequest(
 ): Promise<AuthenticatedRequest | null> {
   const caller = await resolveCaller(request, options);
   if (!caller) return null;
-  // The rest of the request acts for this user (row level security)
-  recordViewer(caller.user.id);
 
   // An email-confirmed account that never claimed an invite has a user but no
-  // username; the pages turn it away, so the API must too
-  if (!(await hasCompletedSignup(caller.user.id))) {
+  // username; the pages turn it away, so the API must too. Checked on the
+  // system connection, before the viewer is recorded, so a rejected caller
+  // leaves the request anonymous
+  if (!(await hasCompletedSignup(caller.user.id, systemDb))) {
     log.warn(
       { userId: caller.user.id, method: caller.method },
       "Rejected request from an account that hasn't completed signup",
@@ -78,6 +78,8 @@ export async function authenticateRequest(
     return null;
   }
 
+  // The rest of the request acts for this user (row level security)
+  recordViewer(caller.user.id);
   return caller;
 }
 

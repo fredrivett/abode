@@ -705,8 +705,29 @@ describe("authenticateRequest — incomplete signup", () => {
     );
 
     expect(result).toBeNull();
-    expect(mockHasCompletedSignup).toHaveBeenCalledWith(credential.userId);
+    expect(mockHasCompletedSignup).toHaveBeenCalledWith(
+      credential.userId,
+      expect.anything(),
+    );
   });
+
+  it.each(credentials)(
+    "leaves the request anonymous when rejecting a $name",
+    async (credential) => {
+      credential.setup();
+      mockHasCompletedSignup.mockResolvedValue(false);
+
+      const viewer = await runInViewerFrame(async () => {
+        await authenticateRequest(
+          request(credential.authorization),
+          credential.options,
+        );
+        return currentViewerFrame()?.viewerId;
+      });
+
+      expect(viewer).toBeNull();
+    },
+  );
 
   it.each(credentials)(
     "accepts a $name once signup is complete",
