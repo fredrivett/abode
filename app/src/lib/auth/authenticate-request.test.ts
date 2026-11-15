@@ -10,6 +10,7 @@ const {
   mockFindUnique,
   mockUpdateMany,
   mockAdminGetUserById,
+  mockHasCompletedSignup,
 } = vi.hoisted(() => ({
   mockCookieGetUser: vi.fn(),
   mockCookieAAL: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockFindUnique: vi.fn(),
   mockUpdateMany: vi.fn(),
   mockAdminGetUserById: vi.fn(),
+  mockHasCompletedSignup: vi.fn(),
 }));
 
 // No mfa.listFactors: the cookie path reads factors off getUser's user, as
@@ -56,6 +58,10 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/has-completed-signup", () => ({
+  hasCompletedSignup: mockHasCompletedSignup,
+}));
+
 import { currentViewerFrame, runInViewerFrame } from "@/lib/viewer-context";
 import { authenticateRequest } from "./authenticate-request";
 import { hashPersonalAccessToken } from "./personal-access-token";
@@ -90,6 +96,7 @@ const COOKIE_USER_WITH_MFA = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateMany.mockResolvedValue({ count: 1 });
+  mockHasCompletedSignup.mockResolvedValue(true);
   // Default cookie session: no MFA enrolled
   mockCookieAAL.mockResolvedValue({
     data: { currentLevel: "aal1", nextLevel: "aal1" },
@@ -636,4 +643,82 @@ describe("authenticateRequest — personal access tokens", () => {
       expect(mockCookieGetUser).not.toHaveBeenCalled();
     });
   });
+});
+
+// An email-confirmed account that never claimed an invite has a user but no
+// username; every credential must be turned away, as the pages turn it away
+describe("authenticateRequest — incomplete signup", () => {
+  const PAT = "abode_pat_exampletoken";
+
+  const credentials = [
+    {
+      name: "cookie session",
+      userId: "u_cookie",
+      authorization: undefined,
+      options: SESSION_ONLY,
+      setup: () =>
+        mockCookieGetUser.mockResolvedValue({
+          data: { user: { id: "u_cookie" } },
+          error: null,
+        }),
+    },
+    {
+      name: "Supabase bearer token",
+      userId: "u_bearer",
+      authorization: "Bearer token-abc",
+      options: SESSION_ONLY,
+      setup: () =>
+        mockBearerGetUser.mockResolvedValue({
+          data: { user: { id: "u_bearer" } },
+          error: null,
+        }),
+    },
+    {
+      name: "personal access token",
+      userId: "u_pat",
+      authorization: `Bearer ${PAT}`,
+      options: READ,
+      setup: () => {
+        mockFindUnique.mockResolvedValue({
+          id: "tok_1",
+          userId: "u_pat",
+          expiresAt: null,
+          revokedAt: null,
+          lastUsedAt: null,
+          scopes: ["read"],
+        });
+        mockAdminGetUserById.mockResolvedValue({
+          data: { user: { id: "u_pat" } },
+          error: null,
+        });
+      },
+    },
+  ];
+
+  it.each(credentials)("rejects a $name", async (credential) => {
+    credential.setup();
+    mockHasCompletedSignup.mockResolvedValue(false);
+
+    const result = await authenticateRequest(
+      request(credential.authorization),
+      credential.options,
+    );
+
+    expect(result).toBeNull();
+    expect(mockHasCompletedSignup).toHaveBeenCalledWith(credential.userId);
+  });
+
+  it.each(credentials)(
+    "accepts a $name once signup is complete",
+    async (credential) => {
+      credential.setup();
+
+      const result = await authenticateRequest(
+        request(credential.authorization),
+        credential.options,
+      );
+
+      expect(result?.user.id).toBe(credential.userId);
+    },
+  );
 });

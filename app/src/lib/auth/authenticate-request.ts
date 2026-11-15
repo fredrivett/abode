@@ -1,6 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
+import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import {
   hashPersonalAccessToken,
   isPersonalAccessTokenFormat,
@@ -54,14 +55,29 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  * page navigations, not direct API calls. Personal access tokens are exempt (an
  * explicit, user-created credential, like a GitHub PAT — MFA is a login-time
  * concern).
+ *
+ * Every path also rejects an account that hasn't completed signup (claimed an
+ * invite), matching `getCompletedSignupUser` for cookie-only routes.
  */
 export async function authenticateRequest(
   request: NextRequest,
   options: AuthenticateRequestOptions,
 ): Promise<AuthenticatedRequest | null> {
   const caller = await resolveCaller(request, options);
+  if (!caller) return null;
   // The rest of the request acts for this user (row level security)
-  if (caller) recordViewer(caller.user.id);
+  recordViewer(caller.user.id);
+
+  // An email-confirmed account that never claimed an invite has a user but no
+  // username; the pages turn it away, so the API must too
+  if (!(await hasCompletedSignup(caller.user.id))) {
+    log.warn(
+      { userId: caller.user.id, method: caller.method },
+      "Rejected request from an account that hasn't completed signup",
+    );
+    return null;
+  }
+
   return caller;
 }
 
