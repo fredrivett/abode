@@ -6,9 +6,11 @@ import { z } from "zod";
 import { authenticateRequest } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
+import { ACTIVE_IMPORT_STATUSES } from "@/lib/imports/constants";
 import { fetchLiteralBooks } from "@/lib/imports/literal/adapter";
 import { LiteralApiError } from "@/lib/imports/literal/client";
 import { serializeBook } from "@/lib/imports/payload";
+import { reserveItemImport } from "@/lib/imports/reserve-item-import";
 import { failUnstartedImport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
@@ -25,6 +27,13 @@ const bodySchema = z.union([
   z.object({ token: z.string().min(1) }),
   z.object({ email: z.string().email(), password: z.string().min(1) }),
 ]);
+
+function importInProgress(importId: string) {
+  return NextResponse.json(
+    { message: "An import is already in progress", importId },
+    { status: 409 },
+  );
+}
 
 async function handlePOST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -50,17 +59,13 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // One active import per user — cheap guard against concurrent/duplicate runs.
+    // One active import per user. Checked here before the Literal fetch so a
+    // duplicate request fails fast; reserveItemImport re-checks under a lock.
     const active = await db.itemImport.findFirst({
-      where: { userId, status: { in: ["pending", "importing"] } },
+      where: { userId, status: { in: [...ACTIVE_IMPORT_STATUSES] } },
       select: { id: true },
     });
-    if (active) {
-      return NextResponse.json(
-        { message: "An import is already in progress", importId: active.id },
-        { status: 409 },
-      );
-    }
+    if (active) return importInProgress(active.id);
 
     // Fetch + normalize the whole library here (the token stays in this request
     // and never enters a Trigger payload). ~2 GraphQL calls.
@@ -81,17 +86,17 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
       throw error;
     }
 
+    const reservation = await reserveItemImport({
+      userId,
+      source: "literal",
+      totalCount: books.length,
+    });
+    if (reservation.status === "in_progress") {
+      return importInProgress(reservation.importId);
+    }
+    const { importId } = reservation;
+
     if (books.length === 0) {
-      const empty = await db.itemImport.create({
-        data: {
-          userId,
-          source: "literal",
-          status: "completed",
-          totalCount: 0,
-          completedAt: new Date(),
-        },
-        select: { id: true },
-      });
       // Keep the empty import in the funnel: it starts and immediately completes.
       const posthog = getPostHogClient();
       posthog?.capture({
@@ -110,28 +115,15 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
           failed: 0,
         },
       });
-      return NextResponse.json(
-        { importId: empty.id, total: 0 },
-        { status: 200 },
-      );
+      return NextResponse.json({ importId, total: 0 }, { status: 200 });
     }
-
-    const itemImport = await db.itemImport.create({
-      data: {
-        userId,
-        source: "literal",
-        status: "importing",
-        totalCount: books.length,
-      },
-      select: { id: true },
-    });
 
     const runs = [];
     for (let i = 0; i < books.length; i += CHUNK_SIZE) {
       runs.push({
         payload: {
           userId,
-          importId: itemImport.id,
+          importId,
           books: books.slice(i, i + CHUNK_SIZE).map(serializeBook),
         },
       });
@@ -144,7 +136,7 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       // Enqueue failed — don't leave the row stuck `importing` (it would 409
       // every future attempt). Mark it failed so the user can retry.
-      await failUnstartedImport(itemImport.id).catch((failError) =>
+      await failUnstartedImport(importId).catch((failError) =>
         log.error({ error: failError }, "Couldn't fail an unstarted import"),
       );
       throw error;
@@ -157,7 +149,7 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
     });
 
     return NextResponse.json(
-      { importId: itemImport.id, total: books.length },
+      { importId, total: books.length },
       { status: 202 },
     );
   } catch (error) {
