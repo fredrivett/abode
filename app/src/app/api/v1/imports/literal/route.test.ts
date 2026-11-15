@@ -15,9 +15,16 @@ vi.mock("@/lib/auth/authenticate-request", () => ({ authenticateRequest }));
 vi.mock("@/lib/imports/literal/adapter", () => ({ fetchLiteralBooks }));
 vi.mock("@/lib/trigger/item-runs", () => ({ isTriggerConfigured }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { batchTrigger } }));
-vi.mock("@/lib/db", () => ({
-  default: { itemImport: { findFirst, create } },
-}));
+vi.mock("@/lib/db", () => {
+  const itemImport = { findFirst, create };
+  return {
+    default: {
+      itemImport,
+      $transaction: (fn: (tx: object) => unknown) =>
+        fn({ $executeRaw: vi.fn(), itemImport }),
+    },
+  };
+});
 vi.mock("@/lib/jobs/start-failures", () => ({ failUnstartedImport }));
 vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => null,
@@ -90,6 +97,21 @@ describe("POST /api/v1/imports/literal", () => {
     const res = await POST(req({ token: "t" }));
     expect(res.status).toBe(409);
     expect(fetchLiteralBooks).not.toHaveBeenCalled();
+  });
+
+  it("409 when another request started an import during the Literal fetch", async () => {
+    fetchLiteralBooks.mockResolvedValue([book()]);
+    // The fast pre-check passes; the locked check at creation sees the racer
+    findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "racer" });
+
+    const res = await POST(req({ token: "t" }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ importId: "racer" });
+    expect(create).not.toHaveBeenCalled();
+    expect(batchTrigger).not.toHaveBeenCalled();
   });
 
   it("502 when the Literal fetch fails", async () => {

@@ -10,7 +10,10 @@ import type { NormalizedBook } from "@/lib/imports/types";
 const trigger = vi.hoisted(() => vi.fn());
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger } }));
 
-import { importBookChunk } from "@/lib/imports/import-book-chunk";
+import {
+  importBookChunk,
+  tallyImportChunk,
+} from "@/lib/imports/import-book-chunk";
 
 const supabase = {} as SupabaseClient; // covers are null below → never touched
 
@@ -184,5 +187,99 @@ describe("importBookChunk", () => {
     expect(row?.importedCount).toBe(2);
     expect(row?.failedCount).toBe(1);
     expect(row?.status).toBe("completed"); // failures still count toward total
+  });
+
+  test("a crashed chunk tallied as failed still lets the import complete", async () => {
+    const userId = await createUser();
+    const importId = await createImport(userId, 3);
+
+    // The crashed chunk (task onFailure) lands before its sibling finishes
+    expect(
+      await tallyImportChunk({
+        userId,
+        importId,
+        tally: { imported: 0, skipped: 0, failed: 2 },
+      }),
+    ).toBe(false);
+    expect((await importRow(importId))?.status).toBe("importing");
+
+    const sibling = await importBookChunk({
+      userId,
+      importId,
+      books: [makeBook()],
+      supabase,
+    });
+
+    expect(sibling.completed).toBe(true);
+    const row = await importRow(importId);
+    expect(row).toMatchObject({
+      status: "completed",
+      importedCount: 1,
+      failedCount: 2,
+    });
+  });
+
+  test("concurrent final tallies complete the import exactly once", async () => {
+    const userId = await createUser();
+    const importId = await createImport(userId, 4);
+    await tallyImportChunk({
+      userId,
+      importId,
+      tally: { imported: 2, skipped: 0, failed: 0 },
+    });
+
+    // Both remaining chunks land at once, each enough alone to reach the
+    // total: hold the row so both statements are in flight before either runs
+    const { write } = await import("@/lib/db");
+    let rowHeld!: () => void;
+    const held = new Promise<void>((resolve) => {
+      rowHeld = resolve;
+    });
+    const holder = write.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM item_imports WHERE id = ${importId}::uuid FOR UPDATE`;
+      rowHeld();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    await held;
+    const results = await Promise.all(
+      [1, 1].map((imported) =>
+        tallyImportChunk({
+          userId,
+          importId,
+          tally: { imported, skipped: 1, failed: 0 },
+        }),
+      ),
+    );
+    await holder;
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await importRow(importId)).toMatchObject({
+      status: "completed",
+      importedCount: 4,
+      skippedCount: 2,
+    });
+  });
+
+  test("tallying onto a failed import counts the books but doesn't complete it", async () => {
+    const userId = await createUser();
+    const importId = await createImport(userId, 1);
+    const { write } = await import("@/lib/db");
+    await write.itemImport.update({
+      where: { id: importId },
+      data: { status: "failed" },
+    });
+
+    expect(
+      await tallyImportChunk({
+        userId,
+        importId,
+        tally: { imported: 1, skipped: 0, failed: 0 },
+      }),
+    ).toBe(false);
+    expect(await importRow(importId)).toMatchObject({
+      status: "failed",
+      importedCount: 1,
+      completedAt: null,
+    });
   });
 });

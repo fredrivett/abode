@@ -17,9 +17,15 @@ export async function failUnstartedExport(exportId: string): Promise<void> {
 }
 
 export async function failUnstartedImport(importId: string): Promise<void> {
-  // Only while still at its initial status — see failUnstartedExport
+  // Only while no chunk has tallied anything — see failUnstartedExport
   await systemDb.itemImport.updateMany({
-    where: { id: importId, status: "importing", importedCount: 0 },
+    where: {
+      id: importId,
+      status: "importing",
+      importedCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+    },
     data: { status: "failed", error: "Couldn't start the import" },
   });
 }
