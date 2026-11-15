@@ -67,12 +67,14 @@ describe("POST /api/v1/rooms — smart room population", () => {
   // Trigger.dev is optional: the room is created before its sync is queued, so
   // a missing or failing Trigger must not turn the create into a 500
   it.each([
-    ["isn't configured", () => vi.stubEnv("TRIGGER_SECRET_KEY", "")],
-    ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down"))],
-  ])("still creates the room when Trigger.dev %s", async (_, setUp) => {
+    ["isn't configured", () => vi.stubEnv("TRIGGER_SECRET_KEY", ""), 0],
+    ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down")), 1],
+  ])("still creates the room when Trigger.dev %s", async (_, setUp, queued) => {
     setUp();
 
     expect((await createSmartRoom()).status).toBe(201);
     expect(mockRoomCreate).toHaveBeenCalledTimes(1);
+    // Without a key nothing is queued; a failing queue is tried once
+    expect(mockTrigger).toHaveBeenCalledTimes(queued);
   });
 });
