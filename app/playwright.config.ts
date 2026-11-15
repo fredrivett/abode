@@ -13,14 +13,17 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   workers: process.env.CI ? 4 : undefined,
-  reporter: process.env.CI ? "github" : "html",
+  // CI also writes the HTML report: it's what the workflow uploads, so a
+  // failure there keeps its screenshots and trace
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "html",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   timeout: 60000,
   use: {
     baseURL:
       process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${e2eServerPort}`,
-    trace: "on-first-retry",
+    // Not "on-first-retry": with retries off that never records anything
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
