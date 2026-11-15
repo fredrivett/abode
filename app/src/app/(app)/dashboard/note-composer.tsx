@@ -151,7 +151,10 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
       clearConfirm.reset();
       setMarkdown(value);
       contentRef.current = value;
-      if (value === savedContentRef.current) {
+      // Trailing blank lines don't change the note: the editor adds an empty
+      // paragraph after a draft ending in a list on its first transaction,
+      // which would otherwise rewrite the draft once on load
+      if (value.trimEnd() === savedContentRef.current.trimEnd()) {
         // Back to the persisted state — or a spurious blank emit from the
         // editor's heading normalisation on mount/reset. Nothing to save.
         persistDraft.cancel();
