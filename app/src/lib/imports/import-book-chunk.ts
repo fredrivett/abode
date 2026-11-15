@@ -22,12 +22,11 @@ export type ImportChunkResult = {
 
 /**
  * Write one chunk of a library's books into an in-progress `ItemImport`, then
- * atomically fold this chunk's tally onto the shared row. Chunks run concurrently
- * (one Trigger run each), so the counters use `increment` and completion is a
- * conditional, idempotent update — the chunk that accounts for the final book
- * flips `status` to `completed` (others match no rows) and reports the funnel
- * completion. Per-book failures are tallied, never thrown, so one bad book can't
- * abort the chunk.
+ * atomically fold this chunk's tally onto the shared row ({@link tallyImportChunk}).
+ * Chunks run concurrently (one Trigger run each); the chunk that accounts for the
+ * final book flips `status` to `completed` and reports the funnel completion.
+ * Per-book failures are tallied, never thrown, so one bad book can't abort the
+ * chunk.
  *
  * Each created book's enrichment is enqueued through the budget-aware background
  * path so it respects the interactive reserve (defers when the user's out of
@@ -94,51 +93,79 @@ export async function importBookChunk({
     await ensureBookRooms(userId);
   }
 
-  await db.itemImport.update({
-    where: { id: importId },
-    data: {
-      importedCount: { increment: imported },
-      skippedCount: { increment: skipped },
-      failedCount: { increment: failed },
+  const completed = await tallyImportChunk({
+    userId,
+    importId,
+    tally: { imported, skipped, failed },
+  });
+  return { imported, skipped, failed, completed };
+}
+
+type ChunkTally = { imported: number; skipped: number; failed: number };
+
+/**
+ * Fold one chunk's tally onto its import and complete the import once every
+ * book across all chunks is accounted for, reporting the funnel completion.
+ * One statement, so a chunk is either fully tallied or not at all (a crashed
+ * chunk can then be tallied as failed without counting twice). The row is
+ * locked before `completes` is worked out, so concurrent chunks queue and only
+ * the one that accounts for the final book completes the import. Returns
+ * whether this call completed it.
+ */
+export async function tallyImportChunk({
+  userId,
+  importId,
+  tally,
+}: {
+  userId: string;
+  importId: string;
+  tally: ChunkTally;
+}): Promise<boolean> {
+  const { imported, skipped, failed } = tally;
+  const added = imported + skipped + failed;
+  const [row] = await db.$queryRaw<
+    {
+      completes: boolean;
+      source: string;
+      totalCount: number;
+      importedCount: number;
+      skippedCount: number;
+      failedCount: number;
+    }[]
+  >`
+    WITH prev AS (
+      SELECT id,
+        status = 'importing'
+          AND imported_count + skipped_count + failed_count + ${added} >= total_count
+          AS completes
+      FROM item_imports WHERE id = ${importId}::uuid
+      FOR UPDATE
+    )
+    UPDATE item_imports AS i
+    SET imported_count = i.imported_count + ${imported},
+        skipped_count = i.skipped_count + ${skipped},
+        failed_count = i.failed_count + ${failed},
+        status = CASE WHEN prev.completes THEN 'completed'::"ImportStatus" ELSE i.status END,
+        completed_at = CASE WHEN prev.completes THEN now() ELSE i.completed_at END,
+        updated_at = now()
+    FROM prev
+    WHERE i.id = prev.id
+    RETURNING prev.completes, i.source::text AS source, i.total_count AS "totalCount",
+      i.imported_count AS "importedCount", i.skipped_count AS "skippedCount",
+      i.failed_count AS "failedCount"
+  `;
+  if (!row?.completes) return false;
+
+  getPostHogClient()?.capture({
+    distinctId: userId,
+    event: "book_import_completed",
+    properties: {
+      source: row.source,
+      total: row.totalCount,
+      imported: row.importedCount,
+      skipped: row.skippedCount,
+      failed: row.failedCount,
     },
   });
-
-  // Complete once every book across all chunks is accounted for. Raw SQL because
-  // the check compares columns to `total_count`; conditional + idempotent.
-  const completedNow = await db.$executeRaw`
-    UPDATE item_imports
-    SET status = 'completed', completed_at = now()
-    WHERE id = ${importId}::uuid
-      AND status = 'importing'
-      AND imported_count + skipped_count + failed_count >= total_count
-  `;
-  const completed = completedNow > 0;
-
-  if (completed) {
-    const final = await db.itemImport.findUnique({
-      where: { id: importId },
-      select: {
-        source: true,
-        totalCount: true,
-        importedCount: true,
-        skippedCount: true,
-        failedCount: true,
-      },
-    });
-    if (final) {
-      getPostHogClient()?.capture({
-        distinctId: userId,
-        event: "book_import_completed",
-        properties: {
-          source: final.source,
-          total: final.totalCount,
-          imported: final.importedCount,
-          skipped: final.skippedCount,
-          failed: final.failedCount,
-        },
-      });
-    }
-  }
-
-  return { imported, skipped, failed, completed };
+  return true;
 }

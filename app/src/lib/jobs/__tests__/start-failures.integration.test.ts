@@ -89,7 +89,8 @@ describe("failing an export or import whose job never started", () => {
         userId,
         source: "literal",
         status: "importing",
-        importedCount: 3,
+        // A chunk that only skipped books has still started
+        skippedCount: 3,
       },
       select: { id: true },
     });

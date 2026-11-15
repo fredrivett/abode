@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { logger, task } from "@trigger.dev/sdk";
-import db from "../src/lib/db";
-import { importBookChunk } from "../src/lib/imports/import-book-chunk";
+import { IMPORT_CHUNK_MAX_DURATION_S } from "../src/lib/imports/constants";
+import {
+  importBookChunk,
+  tallyImportChunk,
+} from "../src/lib/imports/import-book-chunk";
 import {
   hydrateBook,
   type SerializedNormalizedBook,
@@ -35,34 +38,32 @@ type ImportLiteralBooksPayload = {
 export const importLiteralBooksTask = task({
   id: "import-literal-books",
   retry: { maxAttempts: 1 },
-  maxDuration: 600,
+  maxDuration: IMPORT_CHUNK_MAX_DURATION_S,
   run: async (payload: ImportLiteralBooksPayload) => {
     const { userId, importId } = payload;
-    try {
-      const result = await importBookChunk({
-        userId,
-        importId,
-        books: payload.books.map(hydrateBook),
-        supabase: supabaseServiceClient(),
-      });
-      logger.log("Imported book chunk", { importId, ...result });
-      return { success: true, importId, ...result };
-    } catch (error) {
-      logger.error("Import chunk failed", { importId, error });
-      captureServerException(error, userId, {
-        task: "import-literal-books",
-        importId,
-      });
-      // Don't leave the import stuck `importing` on an unrecoverable chunk error
-      // (maxAttempts is 1). Mark it failed so it reaches a terminal state and the
-      // user can re-import (best-effort; must not mask the original error).
-      await db.itemImport
-        .updateMany({
-          where: { id: importId, status: "importing" },
-          data: { status: "failed", error: "Import could not be completed" },
-        })
-        .catch(() => {});
-      throw error;
-    }
+    const result = await importBookChunk({
+      userId,
+      importId,
+      books: payload.books.map(hydrateBook),
+      supabase: supabaseServiceClient(),
+    });
+    logger.log("Imported book chunk", { importId, ...result });
+    return { success: true, importId, ...result };
+  },
+  // The chunk never got tallied (its tally is one statement, the last step),
+  // so count its books as failed: the import still completes once its other
+  // chunks land, rather than turning `failed` while they keep importing. If
+  // this tally fails too, the stranded-imports sweep fails the import.
+  onFailure: async ({ payload, error }) => {
+    const { userId, importId } = payload;
+    captureServerException(error, userId, {
+      task: "import-literal-books",
+      importId,
+    });
+    await tallyImportChunk({
+      userId,
+      importId,
+      tally: { imported: 0, skipped: 0, failed: payload.books.length },
+    });
   },
 });
