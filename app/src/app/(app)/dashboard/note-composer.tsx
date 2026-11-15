@@ -61,8 +61,9 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   // Remount the editor to clear its content after a save or clear
   const [editorKey, setEditorKey] = useState(0);
 
-  // Latest content and the last value known to be persisted, so we can dedupe
-  // writes and flush the current text on page hide without re-subscribing.
+  // Latest content and what the server holds once the draft writes already
+  // sent land, so we can dedupe writes and flush the current text on page hide
+  // without re-subscribing.
   const contentRef = useRef(initialContent);
   const savedContentRef = useRef(initialContent);
   const dirtyRef = useRef(false);
@@ -72,6 +73,10 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const isEmpty = isBlankNote(markdown);
 
   const persistDraft = useDebouncedCallback(async (value: string) => {
+    // Counted as saved once sent: an edit back to the text before this write
+    // must still be written, or this one lands last and brings its text back
+    const previous = savedContentRef.current;
+    savedContentRef.current = value;
     const write = api.post(DRAFT_ENDPOINT, { content: value });
     draftWritesRef.current = Promise.all([
       draftWritesRef.current,
@@ -79,9 +84,10 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     ]);
     try {
       await write;
-      savedContentRef.current = value;
       dirtyRef.current = false;
     } catch (error) {
+      // Unless a newer write has been sent since
+      if (savedContentRef.current === value) savedContentRef.current = previous;
       // Keep it dirty — a later edit or the page-hide flush will retry
       log.error({ error }, "Note draft save error");
     }
