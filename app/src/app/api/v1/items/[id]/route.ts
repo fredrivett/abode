@@ -17,6 +17,7 @@ import {
 } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
 import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
@@ -24,6 +25,27 @@ import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to
 import { itemPatchSchema } from "./schema";
 
 const log = createLogger("api/v1/items/[id]");
+
+/**
+ * Queue a follow-up job for a save that has already been written. Trigger.dev
+ * is optional: without it, skip; a queueing failure is reported but never fails
+ * the save, or the client would roll back a change the database kept.
+ */
+async function enqueueAfterSave(
+  enqueue: () => Promise<unknown>,
+  context: { task: string; itemId: string; userId: string },
+) {
+  if (!isTriggerConfigured()) {
+    log.info(context, "Trigger.dev not configured — skipping follow-up job");
+    return;
+  }
+  try {
+    await enqueue();
+  } catch (error) {
+    log.warn({ error, ...context }, "Failed to enqueue follow-up job");
+    captureServerException(error, context.userId, context);
+  }
+}
 
 async function handleGET(
   _request: NextRequest,
@@ -247,14 +269,15 @@ async function handlePATCH(
         // Reflect the swap in the response — updatedItem was read before this
         // second update, so it still holds the pre-swap coverFileKey
         updatedItem.coverFileKey = newCoverFileKey;
-        await tasks.trigger<typeof analyzeMediaCoverTask>(
-          "analyze-media-cover",
-          {
-            itemId: id,
-            userId: user.id,
-            fileKey: newCoverFileKey,
-            extraSourceText: details?.text ?? undefined,
-          },
+        await enqueueAfterSave(
+          () =>
+            tasks.trigger<typeof analyzeMediaCoverTask>("analyze-media-cover", {
+              itemId: id,
+              userId: user.id,
+              fileKey: newCoverFileKey,
+              extraSourceText: details?.text ?? undefined,
+            }),
+          { task: "analyze-media-cover", itemId: id, userId: user.id },
         );
       }
     }
@@ -389,10 +412,14 @@ async function handlePATCH(
 
     // Trigger room sync if filter-relevant fields changed
     if (filterRelevantFieldsChanged) {
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
-        itemId: id,
-        userId: user.id,
-      });
+      await enqueueAfterSave(
+        () =>
+          tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+            itemId: id,
+            userId: user.id,
+          }),
+        { task: "sync-item-to-rooms", itemId: id, userId: user.id },
+      );
     }
 
     // Log activity (fire-and-forget)

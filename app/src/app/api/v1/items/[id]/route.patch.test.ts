@@ -14,6 +14,7 @@ const {
   mockTrigger,
   mockOpenAiConfigured,
   mockNoteUpsert,
+  mockTriggerConfigured,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFind: vi.fn(),
@@ -24,6 +25,7 @@ const {
   mockTrigger: vi.fn(),
   mockOpenAiConfigured: vi.fn(() => false),
   mockNoteUpsert: vi.fn(),
+  mockTriggerConfigured: vi.fn(() => true),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -50,6 +52,9 @@ vi.mock("@/lib/embeddings", () => ({
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: mockTriggerConfigured,
+}));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/logger.server", () => ({
@@ -260,5 +265,50 @@ describe("PATCH /api/v1/items/:id — note embedding", () => {
     expect(mockNoteUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: { content: "Call grandma" } }),
     );
+  });
+});
+
+// Trigger.dev is optional: a save is written before its room sync is queued, so
+// a missing or failing Trigger must not turn it into a 500 the client rolls back
+describe("PATCH /api/v1/items/:id — room sync without Trigger.dev", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: "owner" } } });
+    mockItemUpdate.mockResolvedValue({ id: "item-1" });
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "article",
+      sourceType: "url",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+    });
+    mockArticleFind.mockResolvedValue({ readAt: null });
+    mockArticleUpsert.mockResolvedValue({
+      itemId: "item-1",
+      readAt: new Date(),
+    });
+  });
+
+  it("marks an article read and skips the room sync when Trigger.dev isn't configured", async () => {
+    mockTriggerConfigured.mockReturnValueOnce(false);
+
+    const res = await patch({ articleReading: { read: true } });
+
+    expect(res.status).toBe(200);
+    expect(mockArticleUpsert).toHaveBeenCalledTimes(1);
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it("still saves when queueing the room sync fails", async () => {
+    mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
+
+    const res = await patch({ articleReading: { read: true } });
+
+    expect(res.status).toBe(200);
+    expect(mockArticleUpsert).toHaveBeenCalledTimes(1);
+    expect(syncCalls()).toHaveLength(1);
   });
 });
