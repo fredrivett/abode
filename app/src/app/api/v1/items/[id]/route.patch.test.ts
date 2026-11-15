@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Routes resolve the user through getCompletedSignupUser; these tests are for
+// a user who has completed signup
+vi.mock("@/lib/auth/has-completed-signup", () => ({
+  hasCompletedSignup: async () => true,
+}));
+
 // P1 regression guard: changing a book's reading status must re-sync smart-room
 // (incl. auto book shelf) membership. Reading-status writes weren't in
 // `filterRelevantFieldsChanged`, so a finished book stayed in the Reading shelf.

@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { systemDb } from "@/lib/db";
 import type { DocumentPagesResponse } from "@/lib/documents/document-pages";
 import { withViewer } from "@/lib/http/with-viewer";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/pages");
 
@@ -23,9 +24,7 @@ async function handleGET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
     const item = await systemDb.item.findFirst({
       where: { id, kind: "document", ...itemViewableWhere(user?.id ?? null) },

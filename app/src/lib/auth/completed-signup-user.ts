@@ -3,11 +3,11 @@ import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { getUserWithMfa } from "@/lib/supabase/server";
 
 /**
- * The authenticated user for a server action, or null when there's no user,
- * the 2FA challenge is still owed, or signup isn't complete.
+ * The authenticated user for a server action or API route, or null when
+ * there's no user, the 2FA challenge is still owed, or signup isn't complete.
  *
- * Server actions are never wrapped by `(app)/layout.tsx`, so an action POSTed
- * directly only sees the guard it runs itself. `getUserWithMfa` alone lets
+ * Server actions and route handlers are never wrapped by `(app)/layout.tsx`, so
+ * a request made directly only sees the guard it runs itself. `getUserWithMfa` alone lets
  * through an email-confirmed account that never claimed an invite (completing
  * signup means claiming one): it has a user but no username. That matters most
  * for `changeUsername`, which would set the username and so complete signup —

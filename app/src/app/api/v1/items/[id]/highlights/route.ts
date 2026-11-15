@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/highlights");
 
@@ -14,12 +15,9 @@ async function handleGET(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -71,12 +69,9 @@ async function handlePOST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: itemId } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

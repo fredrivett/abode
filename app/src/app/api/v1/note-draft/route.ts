@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { withViewer } from "@/lib/http/with-viewer";
 import {
   clearNoteDraft,
@@ -7,7 +8,7 @@ import {
 } from "@/lib/items/note-draft";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/note-draft");
 
@@ -17,9 +18,7 @@ const MAX_DRAFT_LENGTH = 500_000;
 
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserWithMfa(supabase);
+  const user = await getCompletedSignupUser(supabase);
   return user?.id ?? null;
 }
 

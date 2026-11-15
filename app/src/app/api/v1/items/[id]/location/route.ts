@@ -1,5 +1,6 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
@@ -11,7 +12,7 @@ import {
   reverseGeocode,
 } from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { accrueUsageCost, guardDailyLimit } from "@/lib/usage-limits";
 import type { syncItemToRoomsTask } from "../../../../../../../trigger/sync-item-to-rooms";
 
@@ -37,12 +38,9 @@ async function handlePOST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -169,12 +167,9 @@ async function handleDELETE(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

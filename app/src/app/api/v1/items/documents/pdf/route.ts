@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import {
   createPdfDocumentSchema,
@@ -12,7 +13,7 @@ import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueuePdfImport } from "@/lib/items/enqueue-pdf-import";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { PDF_MIME_TYPE } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -31,11 +32,8 @@ const log = createLogger("api/v1/items/documents/pdf");
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
-    if (authError || !user) {
+    const user = await getCompletedSignupUser(supabase);
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { systemRead } from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { itemViewableWhere } from "@/lib/items/access";
@@ -8,7 +9,7 @@ import {
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getAppBaseUrl } from "@/lib/url";
 
 const log = createLogger("api/v1/twitter-video");
@@ -229,9 +230,7 @@ async function handleGET(request: NextRequest) {
   // 2. Auth (may be anonymous). getUserWithMfa, never raw getUser, so a 2FA
   //    user's AAL1 session can't slip past — see no-raw-cookie-getuser.grit.
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserWithMfa(supabase);
+  const user = await getCompletedSignupUser(supabase);
 
   // 3. Rate limit (defense-in-depth). Best-effort: in-memory, per instance, and
   //    reset on deploy — the same-origin gate + item scoping + size cap are the

@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Routes resolve the user through getCompletedSignupUser; these tests are for
+// a user who has completed signup
+vi.mock("@/lib/auth/has-completed-signup", () => ({
+  hasCompletedSignup: async () => true,
+}));
+
 import { MAX_PDF_UPLOAD_BYTES } from "@/lib/uploads";
 
 const m = vi.hoisted(() => ({

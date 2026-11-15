@@ -1,12 +1,13 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { withViewer } from "@/lib/http/with-viewer";
 import { imageTransformFor } from "@/lib/image-url";
 import { canViewItem } from "@/lib/items/access";
 import { findItemOwningImageKey } from "@/lib/items/image-key-lookup";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/images");
 
@@ -74,9 +75,7 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
 
     // Check if user is authenticated
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
     // Find the item that owns this key (its own fileKey/coverFileKey or a key
     // embedded in product/tweet JSON), with the fields needed to authorize.

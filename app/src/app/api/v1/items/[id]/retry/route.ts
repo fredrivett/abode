@@ -5,6 +5,7 @@ import type { importPdfTask } from "@app/trigger/import-pdf";
 import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db, { systemDb } from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
@@ -12,7 +13,7 @@ import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { fileNameTitle } from "@/lib/uploads";
 import { getHostAndPath } from "@/lib/url-utils";
@@ -27,12 +28,9 @@ async function handlePOST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

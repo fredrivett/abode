@@ -10,7 +10,7 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { BIO_MAX_LENGTH } from "@/lib/profile";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { normalizeWebsiteUrl } from "@/lib/url-utils";
 
 const log = createLogger("api/v1/user/profile");
@@ -29,12 +29,9 @@ const profileUpdateSchema = z.object({
 async function handleGET(_request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

@@ -1,5 +1,6 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
@@ -8,7 +9,7 @@ import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeAllObjectsUnderPrefix } from "@/lib/storage-objects";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
 
@@ -45,12 +46,9 @@ function getSupabaseAdmin() {
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -165,12 +163,9 @@ async function handlePOST(request: NextRequest) {
 async function handleDELETE(_request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

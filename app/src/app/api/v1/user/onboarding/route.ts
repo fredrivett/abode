@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
 
@@ -17,12 +18,9 @@ const onboardingSchema = z.object({
 async function handlePATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

@@ -1,6 +1,7 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
@@ -16,7 +17,7 @@ import {
   shouldCompleteSeeAiAnalysis,
 } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
 import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
@@ -32,12 +33,9 @@ async function handleGET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -93,12 +91,9 @@ async function handlePATCH(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -423,12 +418,9 @@ async function handleDELETE(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
