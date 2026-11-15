@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Input } from "@/components/ui/input";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { systemDb } from "@/lib/db";
+import { getEffectiveStatus } from "@/lib/invites";
 import { InvitesTable } from "../../_components/invites-table";
 
 const PAGE_SIZE = 20;
@@ -95,20 +96,12 @@ export default async function AdminInvitesPage(props: {
     skip: (page - 1) * PAGE_SIZE,
   });
 
-  const now = new Date();
   const formattedInvites = invites.map((invite) => {
-    let displayStatus: "pending" | "accepted" | "expired" = "pending";
-    if (invite.status === "accepted") {
-      displayStatus = "accepted";
-    } else if (invite.expiresAt <= now) {
-      displayStatus = "expired";
-    }
-
     return {
       id: invite.id,
       email: invite.email,
       origin: invite.origin,
-      status: displayStatus,
+      status: getEffectiveStatus(invite),
       expiresAt: invite.expiresAt.toISOString(),
       acceptedAt: invite.acceptedAt?.toISOString() || null,
       sendCount: invite.sendCount,
