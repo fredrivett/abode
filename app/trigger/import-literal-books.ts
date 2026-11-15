@@ -58,9 +58,13 @@ export const importLiteralBooksTask = task({
         userId,
         importId,
         tally: { imported: 0, skipped: 0, failed: payload.books.length },
-      }).catch((tallyError) =>
-        logger.error("Couldn't tally a failed chunk", { importId, tallyError }),
-      );
+      }).catch((tallyError) => {
+        logger.error("Couldn't tally a failed chunk", { importId, tallyError });
+        captureServerException(tallyError, userId, {
+          task: "import-literal-books",
+          importId,
+        });
+      });
       throw error;
     }
     // Past this point a throw is the chunk's own tally failing (per-book
