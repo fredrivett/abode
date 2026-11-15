@@ -67,6 +67,8 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
   const contentRef = useRef(initialContent);
   const savedContentRef = useRef(initialContent);
   const dirtyRef = useRef(false);
+  // Counts draft writes sent, so a failed one only rolls back if none came after
+  const draftWriteCountRef = useRef(0);
   // Every draft write still in flight, so a save can wait for them to land first
   const draftWritesRef = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -77,6 +79,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
     // must still be written, or this one lands last and brings its text back
     const previous = savedContentRef.current;
     savedContentRef.current = value;
+    const writeNumber = ++draftWriteCountRef.current;
     const write = api.post(DRAFT_ENDPOINT, { content: value });
     draftWritesRef.current = Promise.all([
       draftWritesRef.current,
@@ -87,7 +90,9 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
       dirtyRef.current = false;
     } catch (error) {
       // Unless a newer write has been sent since
-      if (savedContentRef.current === value) savedContentRef.current = previous;
+      if (draftWriteCountRef.current === writeNumber) {
+        savedContentRef.current = previous;
+      }
       // Keep it dirty — a later edit or the page-hide flush will retry
       log.error({ error }, "Note draft save error");
     }

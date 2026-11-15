@@ -48,6 +48,23 @@ describe("NoteComposer draft autosave", () => {
     ]);
   });
 
+  it("keeps a newer write of the same text when an older one fails", async () => {
+    let failFirst = (_error: Error) => {};
+    post.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failFirst = reject;
+      }),
+    );
+    render(<NoteComposer initialDraft={"# Trip\n\nLisbon"} />);
+    edit("# Trip\n\nLisbon, Porto");
+    edit("# Trip\n\nLisbon, Faro");
+    edit("# Trip\n\nLisbon, Porto");
+    await act(async () => failFirst(new Error("offline")));
+    // The last write sent still lands, so going back to the loaded text is an edit
+    edit("# Trip\n\nLisbon");
+    expect(draftWrites().at(-1)).toBe("# Trip\n\nLisbon");
+  });
+
   it("doesn't write a change that only adds trailing blank lines", () => {
     render(<NoteComposer initialDraft={"# Shopping\n\n- [ ] milk"} />);
     edit("# Shopping\n\n- [ ] milk\n\n");
