@@ -64,12 +64,26 @@ const CHECKLIST_EXTENSIONS = [
 // menu) rather than navigating away mid-edit; ⌘/Ctrl-click opens instead
 const LINK_OPTIONS = { openOnClick: false } as const;
 
+// The trailing node defaults to the document's first allowed type, which in a
+// title-first note is the heading: the first transaction after loading then
+// appended an empty heading after the last paragraph (an extra title-styled
+// line, saved as two more trailing newlines). Trail with a paragraph, and
+// still not after a title-only note, so an empty composer stays one line
+const TITLE_FIRST_TRAILING_NODE = {
+  node: "paragraph",
+  notAfter: ["heading"],
+};
+
 /** The editor's extensions; exported so tests can round-trip markdown. */
 export function noteEditorExtensions({ titleFirst }: { titleFirst: boolean }) {
   return titleFirst
     ? [
         TitleDocument,
-        StarterKit.configure({ document: false, link: LINK_OPTIONS }),
+        StarterKit.configure({
+          document: false,
+          link: LINK_OPTIONS,
+          trailingNode: TITLE_FIRST_TRAILING_NODE,
+        }),
         ...CHECKLIST_EXTENSIONS,
         Markdown,
         LinkModifierClick,
