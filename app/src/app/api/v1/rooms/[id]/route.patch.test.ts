@@ -49,6 +49,7 @@ describe("PATCH /api/v1/rooms/:id — filter re-sync", () => {
       _count: { roomItems: 3 },
     });
     mockTrigger.mockResolvedValue({ id: "run_1" });
+    vi.stubEnv("TRIGGER_SECRET_KEY", "tr_test");
   });
 
   it("returns the sync run id, tagged with the room the status endpoint checks", async () => {
@@ -63,6 +64,26 @@ describe("PATCH /api/v1/rooms/:id — filter re-sync", () => {
       { tags: expect.arrayContaining(["room_room-1"]) },
     );
   });
+
+  // Trigger.dev is optional: the filters are saved before the sync is queued,
+  // so a missing or failing Trigger must not turn the save into a 500
+  it.each([
+    ["isn't configured", () => vi.stubEnv("TRIGGER_SECRET_KEY", "")],
+    ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down"))],
+  ])(
+    "saves new filters with no sync run when Trigger.dev %s",
+    async (_, setUp) => {
+      setUp();
+
+      const res = await patch({
+        filters: [{ id: "f", type: "tag", value: "travel", negated: false }],
+      });
+
+      expect(res.status).toBe(200);
+      expect(mockRoomUpdate).toHaveBeenCalledTimes(1);
+      expect(await res.json()).not.toHaveProperty("syncRunId");
+    },
+  );
 
   it("returns no sync run when the body has no filters", async () => {
     const res = await patch({ name: "Renamed" });

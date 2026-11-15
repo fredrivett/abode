@@ -11,6 +11,7 @@ import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
 import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
 
 const log = createLogger("api/v1/rooms");
@@ -157,10 +158,14 @@ async function handlePOST(request: NextRequest) {
 
     // For smart rooms, trigger initial population
     if (type === "smart") {
-      await tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
-        roomId: room.id,
-        userId: user.id,
-      });
+      await enqueueAfterSave(
+        () =>
+          tasks.trigger<typeof syncRoomItemsTask>("sync-room-items", {
+            roomId: room.id,
+            userId: user.id,
+          }),
+        { task: "sync-room-items", roomId: room.id, userId: user.id },
+      );
     }
 
     // Log activity (fire-and-forget)
