@@ -11,9 +11,15 @@ language js
 // Scoped by an `overrides` entry in biome.json to `src/app/api/**`. Biome 2.2
 // can't suppress plugin diagnostics with `biome-ignore`, so a route that must
 // serve incomplete accounts has to be exempted by path in that override.
-`getUserWithMfa($...)` as $call where {
+// Matches every reference to the name, not just a bare call: an import
+// (aliased or not) and a namespace member such as `server.getUserWithMfa`.
+or {
+  `getUserWithMfa`,
+  `getUserWithMfa as $alias`,
+  `$obj.getUserWithMfa`
+} as $ref where {
   register_diagnostic(
-    span=$call,
+    span=$ref,
     message="API routes must resolve the user with `getCompletedSignupUser(supabase)` from `@/lib/auth/completed-signup-user` (or `authenticateRequest`), not `getUserWithMfa` — it also rejects an account that hasn't completed signup (claimed an invite).",
     severity="error"
   )
