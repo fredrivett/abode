@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useCallback, useEffect, useState } from "react";
+import { type RefObject, useCallback, useSyncExternalStore } from "react";
 import {
   DEFAULT_DENSITY,
   DENSITY_CONFIG,
@@ -14,25 +14,27 @@ import {
 } from "@/stores/grid-density-store";
 import { useGridPinch } from "./use-grid-pinch";
 
+const LG_MEDIA_QUERY = `(min-width: ${LG_BREAKPOINT}px)`;
+
+function subscribeToBreakpoint(onChange: () => void) {
+  const mediaQuery = window.matchMedia(LG_MEDIA_QUERY);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
+
+const getBreakpoint = (): DensityBreakpoint =>
+  window.matchMedia(LG_MEDIA_QUERY).matches ? "lg" : "default";
+const getServerBreakpoint = (): DensityBreakpoint => "default";
+
+// Read synchronously on the client's first render: a useState + useEffect
+// version rendered the grid at the mobile frame width first, then grew it to
+// the lg one a frame later on every desktop load
 function useBreakpoint(): DensityBreakpoint {
-  const [breakpoint, setBreakpoint] = useState<DensityBreakpoint>("default");
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(`(min-width: ${LG_BREAKPOINT}px)`);
-
-    const updateBreakpoint = () => {
-      setBreakpoint(mediaQuery.matches ? "lg" : "default");
-    };
-
-    // Set initial value
-    updateBreakpoint();
-
-    // Listen for changes
-    mediaQuery.addEventListener("change", updateBreakpoint);
-    return () => mediaQuery.removeEventListener("change", updateBreakpoint);
-  }, []);
-
-  return breakpoint;
+  return useSyncExternalStore(
+    subscribeToBreakpoint,
+    getBreakpoint,
+    getServerBreakpoint,
+  );
 }
 
 interface UseGridDensityOptions {
