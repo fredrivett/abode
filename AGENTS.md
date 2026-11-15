@@ -51,6 +51,10 @@ Most "always / never" rules live in the relevant sections below. In addition, **
 - Rewriting git history, force-pushing, or deleting branches.
 - Deploying to production or promoting a deployment.
 
+## Tracking work in Sidetrack
+
+abode's work is tracked on the production board (sidetrack.it), in the **abode** list (prefix **ABD**). Find or create items in that list only, following the Sidetrack MCP server's instructions; never use another list for work in this repository.
+
 ## Git Commits
 
 - Commit only when the user asks — don't auto-commit after every change. Asking you to open a PR counts as asking you to commit and push to it, including the CI and review fixes in Pull Requests below.
@@ -60,8 +64,9 @@ Most "always / never" rules live in the relevant sections below. In addition, **
 
 ### Opening one
 
-- One concern per PR. Unrelated work (docs/tooling picked up along the way) goes in its own PR off `main`; work that depends on an open PR is stacked on its branch (`gh pr create --base <that-branch>`) and says so in the body.
+- One concern per PR. Unrelated work (docs/tooling picked up along the way) goes in its own PR off `main`; work that depends on an open PR is stacked on its branch (`gh pr create --base <that-branch>`) and says so in the body. Work that needs several PRs gets one Sidetrack sub-item per PR.
 - Run `bun run check:fix` after your last edit, then commit in logical chunks (see Git Commits).
+- The title ends with the Sidetrack item's ref in square brackets, e.g. `Fix onboarding redirect [ABD-7]` (use the `branch` and `pr_title` that `start_work` returns), so the GitHub webhook links the PR and completes the item when it merges. After opening, link it with `link_item_to_pr`.
 - Title and body describe **this PR's actual diff** (`git diff <base>...HEAD`, where `<base>` is `origin/main` or the branch it's stacked on) — never reuse text from another PR.
 - The body follows `.github/pull_request_template.md`. Answer every checklist line: tick it with a reason or `N/A`; skipped tests or docs need the reason stated, not a silently unchecked box.
 - Under **Notes**, say what you verified and how, and what you didn't (e.g. "not run end to end", "CI covers X only").
