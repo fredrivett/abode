@@ -19,7 +19,6 @@ import {
 import { analyzeImageBytes } from "../src/lib/image-analysis/analyze-image-bytes";
 import { buildImageDetailsUpdate } from "../src/lib/image-analysis/image-details-write";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
-import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import {
@@ -28,6 +27,7 @@ import {
   getSupabaseConfig,
 } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
+import { itemFailureHooks } from "./item-failure";
 import { imageAnalysisQueue } from "./queues";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -57,14 +57,15 @@ type AnalyzeDocumentPayload = {
  *   3. Store the combined text as the item's OCR text (searched and shown like
  *      an image's), then enrich-item derives tags + the text embedding from it.
  *
- * Marks the item `failed` on error so the UI offers Retry — unless the PDF it
- * was started for has since been replaced, when it just stops.
+ * Marks the item `failed` once no retry is left so the UI offers Retry — unless
+ * the PDF it was started for has since been replaced, when it just stops.
  */
 export const analyzeDocumentTask = task({
   id: "analyze-document",
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 1800, // up to MAX_OCR_PAGES_PER_DOCUMENT OCR calls plus the cover analysis
+  ...itemFailureHooks("analyze-document"),
   run: async ({
     itemId,
     userId,
@@ -92,42 +93,13 @@ export const analyzeDocumentTask = task({
         });
         return { success: true, itemId, superseded: true };
       }
-      await markDocumentFailed({
-        itemId,
-        userId,
-        error,
-        task: "analyze-document",
-      });
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("Document analysis attempt failed", { itemId, error });
       throw error;
     }
   },
 });
-
-/**
- * Log, report and mark a document `failed` (so the UI offers Retry, or explains
- * why not) with a safe reason code.
- */
-export async function markDocumentFailed({
-  itemId,
-  userId,
-  error,
-  task,
-}: {
-  itemId: string;
-  userId: string;
-  error: unknown;
-  task: string;
-}): Promise<void> {
-  logger.error("Document processing failed", { itemId, task, error });
-  captureServerException(error, userId, { task, itemId });
-  await db.item.update({
-    where: { id: itemId, userId },
-    data: {
-      processingStatus: "failed",
-      processingError: classifyFailureReason(error),
-    },
-  });
-}
 
 /**
  * The document pipeline (steps above) for an item whose pages are saved: shared

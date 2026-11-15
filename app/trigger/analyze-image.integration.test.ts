@@ -51,12 +51,23 @@ vi.mock("@/lib/posthog-server", () => ({
 
 import { analyzeImageTask } from "./analyze-image";
 
-type Runnable = {
+type Hooks = {
   run: (payload: object) => Promise<unknown>;
   onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
 };
-const hooks = analyzeImageTask as unknown as Runnable;
+const hooks = analyzeImageTask as unknown as Hooks;
 const runTask = (payload: object) => hooks.run(payload);
+// What Trigger calls once no retry is left
+const failRun = (payload: object, error: unknown) =>
+  hooks.onFailure({ payload, error });
+
+async function statusOf(itemId: string) {
+  const { read } = await import("@/lib/db");
+  return read.item.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { processingStatus: true, processingError: true },
+  });
+}
 
 describe("analyze-image integration", () => {
   beforeEach(async () => {
@@ -189,34 +200,40 @@ describe("analyze-image integration", () => {
     expect(tasks.trigger).not.toHaveBeenCalled();
   });
 
-  test("a failed cover analysis never turns a completed item failed", async () => {
+  test("a failed attempt leaves the item processing for Trigger's retry", async () => {
     // No stored bytes, so the download fails
-    const { itemId, userId, fileKey } = await createItem("completed");
+    const { itemId, userId, fileKey } = await createItem("processing");
 
     await expect(runTask({ itemId, userId, fileKey })).rejects.toThrow(
       /Failed to download image/,
     );
 
-    const { read } = await import("@/lib/db");
-    expect(
-      await read.item.findUniqueOrThrow({
-        where: { id: itemId },
-        select: { processingStatus: true, processingError: true },
-      }),
-    ).toEqual({ processingStatus: "completed", processingError: null });
+    // Still processing: the grid keeps polling and Retry stays closed
+    expect(await statusOf(itemId)).toEqual({
+      processingStatus: "processing",
+      processingError: null,
+    });
   });
 
-  test("a failed analysis of an item still processing marks it failed", async () => {
-    const { itemId, userId, fileKey } = await createItem("processing");
+  test("the final failure marks an item still processing failed", async () => {
+    const { itemId, userId } = await createItem("processing");
 
-    await expect(runTask({ itemId, userId, fileKey })).rejects.toThrow();
+    await failRun({ itemId, userId }, new Error("Failed to download image"));
 
-    const { read } = await import("@/lib/db");
-    expect(
-      await read.item.findUniqueOrThrow({
-        where: { id: itemId },
-        select: { processingStatus: true },
-      }),
-    ).toEqual({ processingStatus: "failed" });
+    expect(await statusOf(itemId)).toEqual({
+      processingStatus: "failed",
+      processingError: "unknown",
+    });
+  });
+
+  test("the final failure never turns a completed item failed", async () => {
+    const { itemId, userId } = await createItem("completed");
+
+    await failRun({ itemId, userId }, new Error("Failed to download image"));
+
+    expect(await statusOf(itemId)).toEqual({
+      processingStatus: "completed",
+      processingError: null,
+    });
   });
 });

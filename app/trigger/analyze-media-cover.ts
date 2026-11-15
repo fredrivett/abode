@@ -10,14 +10,13 @@ import {
   mirrorCoverAnalysisToItem,
   upsertMediaAnalysis,
 } from "../src/lib/items/media-analysis";
-import { classifyFailureReason } from "../src/lib/items/processing-error";
-import { captureServerException } from "../src/lib/posthog-server";
 import {
   formatStorageError,
   getMimeTypeFromFileKey,
   getSupabaseConfig,
 } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
+import { itemFailureHooks } from "./item-failure";
 import { imageAnalysisQueue } from "./queues";
 
 const EMBEDDING_TOKEN_LIMIT = 8191;
@@ -41,8 +40,8 @@ type AnalyzeMediaCoverPayload = {
  *
  * For a tweet captured with a cover this is the sole enrichment (no racing
  * text-only enrich); for a cover swap it re-runs against the already-completed
- * item. On failure it only marks a not-yet-completed item failed, so a swap or
- * backfill can't regress a completed item.
+ * item. Once no retry is left it only marks a not-yet-completed item failed, so
+ * a swap or backfill can't regress a completed item.
  */
 export const analyzeMediaCoverTask = task({
   id: "analyze-media-cover",
@@ -52,32 +51,11 @@ export const analyzeMediaCoverTask = task({
   // visual embedding).
   queue: imageAnalysisQueue,
   maxDuration: 600,
+  ...itemFailureHooks("analyze-media-cover"),
   run: async (payload: AnalyzeMediaCoverPayload) => {
-    const { itemId, userId, fileKey } = payload;
-
     // Advance the reaper clock — this is a chained pipeline stage
-    await markProcessingActive(itemId);
-
-    try {
-      return await analyseCover(payload);
-    } catch (error) {
-      captureServerException(error, userId, {
-        task: "analyze-media-cover",
-        itemId,
-        fileKey,
-      });
-      // Reflect the failure only if the item hasn't already completed: at
-      // capture this is the primary enrichment (mark failed, like analyze-image),
-      // but a swap/backfill refinement must not regress a completed item.
-      await db.item.updateMany({
-        where: { id: itemId, userId, processingStatus: { not: "completed" } },
-        data: {
-          processingStatus: "failed",
-          processingError: classifyFailureReason(error),
-        },
-      });
-      throw error;
-    }
+    await markProcessingActive(payload.itemId);
+    return await analyseCover(payload);
   },
 });
 

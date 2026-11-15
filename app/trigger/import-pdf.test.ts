@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   countPages: vi.fn(),
   createPages: vi.fn(),
   updateItem: vi.fn(),
+  updateManyItems: vi.fn(),
   updateUser: vi.fn(),
   download: vi.fn(),
   upload: vi.fn(),
@@ -24,14 +25,12 @@ const m = vi.hoisted(() => ({
   guard: vi.fn(),
   ocrConfigured: vi.fn(),
   enqueue: vi.fn(),
-  markFailed: vi.fn(),
   markActive: vi.fn(),
   capture: vi.fn(),
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({
   task: (config: unknown) => config,
-  AbortTaskRunError: class AbortTaskRunError extends Error {},
   logger: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 vi.mock("@supabase/supabase-js", () => ({
@@ -54,6 +53,7 @@ vi.mock("../src/lib/db", () => {
     }),
     findUniqueOrThrow: async () => ({ meta: db.meta }),
     update: m.updateItem,
+    updateMany: m.updateManyItems,
   };
   const itemDocumentPage = { count: m.countPages, createMany: m.createPages };
   const tx = { item, itemDocumentPage, user: { update: m.updateUser } };
@@ -76,7 +76,6 @@ vi.mock("../src/lib/items/enqueue-user-processing", () => ({
 vi.mock("../src/lib/items/mark-processing-active", () => ({
   markProcessingActive: m.markActive,
 }));
-vi.mock("./analyze-document", () => ({ markDocumentFailed: m.markFailed }));
 vi.mock("./analyze-image", () => ({
   getSupabaseConfig: () => ({ url: "http://storage.test", key: "key" }),
   formatStorageError: String,
@@ -84,17 +83,25 @@ vi.mock("./analyze-image", () => ({
 vi.mock("./queues", () => ({ documentImportQueue: {} }));
 vi.mock("../src/lib/posthog-server", () => ({
   getPostHogClient: () => ({ capture: m.capture }),
+  captureServerException: vi.fn(),
 }));
 
 import { ProcessingFailure } from "../src/lib/items/processing-error";
 import { importPdfTask } from "./import-pdf";
 
-type TaskWithRun = { run: (payload: object) => Promise<unknown> };
-const run = () =>
-  (importPdfTask as unknown as TaskWithRun).run({
-    itemId: "item-1",
-    userId: "user-1",
-  });
+type TaskWithHooks = {
+  run: (payload: object) => Promise<unknown>;
+  catchError: (params: { error: unknown }) => unknown;
+  onFailure: (params: { payload: object; error: unknown }) => Promise<void>;
+};
+const hooks = importPdfTask as unknown as TaskWithHooks;
+const PAYLOAD = { itemId: "item-1", userId: "user-1" };
+const run = () => hooks.run(PAYLOAD);
+// What Trigger does with an attempt's error: retry unless catchError skips it
+const runToFailure = async () => {
+  const error = await run().catch((e: unknown) => e);
+  return { error, retried: hooks.catchError({ error }) === undefined };
+};
 
 const TEXT = "Northside Energy quarterly bill, total due 84.20 GBP";
 
@@ -272,11 +279,10 @@ describe("importPdfTask", () => {
 
   it("fails a damaged PDF as unreadable without retrying or storing anything", async () => {
     await storePdf(new TextEncoder().encode("%PDF-1.7 truncated nonsense"));
-    const error = await run().catch((e: unknown) => e);
-    expect((error as Error).constructor.name).toBe("AbortTaskRunError");
-    const [{ error: cause }] = m.markFailed.mock.calls[0];
-    expect(cause).toBeInstanceOf(ProcessingFailure);
-    expect(cause.reason).toBe("file_unreadable");
+    const { error, retried } = await runToFailure();
+    expect(retried).toBe(false);
+    expect(error).toBeInstanceOf(ProcessingFailure);
+    expect((error as ProcessingFailure).reason).toBe("file_unreadable");
     expect(m.upload).not.toHaveBeenCalled();
     expect(m.enqueue).not.toHaveBeenCalled();
   });
@@ -286,11 +292,9 @@ describe("importPdfTask", () => {
       data: { size: 26 * 1024 * 1024, arrayBuffer: vi.fn() },
       error: null,
     });
-    const error = await run().catch((e: unknown) => e);
-    expect((error as Error).constructor.name).toBe("AbortTaskRunError");
-    expect(m.markFailed.mock.calls[0][0].error.reason).toBe(
-      "document_too_long",
-    );
+    const { error, retried } = await runToFailure();
+    expect(retried).toBe(false);
+    expect((error as ProcessingFailure).reason).toBe("document_too_long");
   });
 
   it("lets in-flight uploads settle before cleaning up after a failed one", async () => {
@@ -325,12 +329,19 @@ describe("importPdfTask", () => {
     m.upload
       .mockResolvedValueOnce({ error: null })
       .mockResolvedValueOnce({ error: new Error("storage down") });
-    await expect(run()).rejects.toThrow(/Failed to upload page 2/);
+    const { error, retried } = await runToFailure();
+    expect(error).toEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/Failed to upload page 2/),
+      }),
+    );
     expect(m.remove).toHaveBeenCalledWith(
       m.upload.mock.calls.map(([key]) => key),
     );
     expect(m.createPages).not.toHaveBeenCalled();
-    expect(m.markFailed).toHaveBeenCalledTimes(1);
+    // Left processing for the retry, which can succeed
+    expect(m.updateManyItems).not.toHaveBeenCalled();
+    expect(retried).toBe(true);
   });
 
   it("drops its pages if a concurrent attempt saved first", async () => {
@@ -361,7 +372,7 @@ describe("importPdfTask", () => {
       m.upload.mock.calls.map(([key]) => key),
     );
     expect(m.enqueue).not.toHaveBeenCalled();
-    expect(m.markFailed).not.toHaveBeenCalled();
+    expect(m.updateManyItems).not.toHaveBeenCalled();
   });
 
   it("records the OCR charge so a retry doesn't pay for the same pages again", async () => {
@@ -399,9 +410,22 @@ describe("importPdfTask", () => {
     });
   });
 
-  it("reports a failed import with its reason", async () => {
+  it("marks the item failed and reports it once no retry is left", async () => {
     await storePdf(new TextEncoder().encode("not a pdf"));
-    await run().catch(() => undefined);
+    const { error } = await runToFailure();
+    // Nothing is reported or marked on the attempt itself
+    expect(m.capture).not.toHaveBeenCalled();
+    expect(m.updateManyItems).not.toHaveBeenCalled();
+
+    await hooks.onFailure({ payload: PAYLOAD, error });
+    expect(m.updateManyItems).toHaveBeenCalledWith({
+      where: {
+        id: "item-1",
+        userId: "user-1",
+        processingStatus: { not: "completed" },
+      },
+      data: { processingStatus: "failed", processingError: "file_unreadable" },
+    });
     expect(m.capture).toHaveBeenCalledWith({
       distinctId: "user-1",
       event: "pdf_import_failed",

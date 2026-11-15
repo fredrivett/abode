@@ -6,7 +6,10 @@ Scoped rules for files in this directory. See the `add-trigger-task` skill (`.ag
 - Tasks are **auto-discovered** via `dirs: ["trigger"]` in `trigger.config.ts` — no manual registration.
 - `id` is kebab-case, unique, and **stable** (it's the trigger key). Keep it in sync with the exported symbol.
 - Always set a `retry` config and a sensible `maxDuration`.
-- **Error handling convention**: in `run`, `try/catch` → `logger.error(...)` + `captureServerException(error, userId, { task })` → if the work backs a user-visible item, set `processingStatus: "failed"` → **re-throw** so Trigger.dev retries.
+- **Error handling convention**: let errors throw out of `run` so Trigger.dev retries. Report and mark failed once no attempt is left, never in `run`'s catch: a `failed` item with a retry still queued shows a red card, hides that retry's success from the grid poll, and lets the user's Retry start a second paid run beside it.
+  - Work that backs a user-visible item: spread `itemFailureHooks(task)` (`./item-failure`) into the task. Its `onFailure` reports and sets `processingStatus: "failed"` after the last attempt, leaving an already-completed item as it is; its `catchError` skips retrying a failure that can't succeed on another attempt (`isPermanentFailure`: a 403/404 source, unusable content).
+  - Other work: `captureServerException(error, userId, { task })` in `onFailure`. Throw `AbortTaskRunError` (or return `{ skipRetrying: true }` from `catchError`) for input that retrying can't fix.
+  - `onFailure` doesn't run for a run stopped at `maxDuration`, crashed, cancelled or expired in the queue; the stuck-items reaper (`reap-stuck-items`) marks those items `stalled`.
 - Return an object including at least `{ success: true }`.
 - **Fetch a user-supplied URL with `safeFetch`** (`../src/lib/http/safe-fetch`), never the global `fetch` — it's the SSRF gate (blocks private/loopback/metadata IPs, caps time and body size, re-validates redirects). The `no-raw-fetch.grit` plugin enforces this across `trigger/**`; a genuinely fixed-host call is exempted by path in `biome.json` (Biome can't suppress plugin diagnostics inline).
 - Don't remove `@trigger.dev/sdk`/`@trigger.dev/core` from `serverExternalPackages` in `next.config.ts` (zod v4-vs-v3 resolution).

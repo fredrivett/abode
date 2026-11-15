@@ -11,8 +11,7 @@ Tasks live in `app/trigger/`. They are auto-discovered (`trigger.config.ts` has 
 
 ```ts
 import { logger, task } from "@trigger.dev/sdk";
-import { captureServerException } from "../src/lib/posthog-server";
-import db from "../src/lib/db";
+import { itemFailureHooks } from "./item-failure";
 
 type MyTaskPayload = {
   itemId: string;
@@ -28,18 +27,14 @@ export const myTask = task({
     minTimeoutInMs: 1000,
     maxTimeoutInMs: 30000,
   },
+  // Work backing a user-visible item marks it failed once no retry is left,
+  // and skips retrying failures that can't succeed (see trigger/AGENTS.md).
+  // Other work reports in its own onFailure instead.
+  ...itemFailureHooks("my-task"),
   run: async (payload: MyTaskPayload) => {
     logger.log("Starting my-task", { itemId: payload.itemId });
-    try {
-      // ...work...
-      return { success: true, itemId: payload.itemId };
-    } catch (error) {
-      logger.error("my-task failed", { error });
-      captureServerException(error, payload.userId, { task: "my-task" });
-      // If the work backs a user-visible item, mark it failed:
-      // await db.item.update({ where: { id: payload.itemId, userId: payload.userId }, data: { processingStatus: "failed" } });
-      throw error; // re-throw so Trigger.dev retries
-    }
+    // ...work... — let errors throw so Trigger.dev retries
+    return { success: true, itemId: payload.itemId };
   },
 });
 ```

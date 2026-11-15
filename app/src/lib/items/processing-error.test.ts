@@ -3,6 +3,7 @@ import { SafeFetchError, SsrfBlockedError } from "@/lib/http/safe-fetch";
 import {
   classifyFailureReason,
   FetchError,
+  isPermanentFailure,
   ProcessingFailure,
   reasonFromStatus,
 } from "./processing-error";
@@ -111,5 +112,33 @@ describe("reasonFromStatus", () => {
     expect(reasonFromStatus(404)).toBe("source_not_found");
     expect(reasonFromStatus(410)).toBe("source_not_found");
     expect(reasonFromStatus(500)).toBe("source_unreachable");
+  });
+});
+
+describe("isPermanentFailure", () => {
+  it("is true for failures a retry can't fix", () => {
+    expect(isPermanentFailure(new FetchError(403))).toBe(true);
+    expect(isPermanentFailure(new FetchError(404))).toBe(true);
+    expect(
+      isPermanentFailure(new SsrfBlockedError("blocked_address", "blocked")),
+    ).toBe(true);
+    // Classified source_unreachable, yet the same request is refused again
+    expect(
+      isPermanentFailure(new SafeFetchError("body_too_large", "too big")),
+    ).toBe(true);
+    expect(
+      isPermanentFailure(new SafeFetchError("too_many_redirects", "loop")),
+    ).toBe(true);
+    expect(
+      isPermanentFailure(new ProcessingFailure("unsupported_content")),
+    ).toBe(true);
+  });
+
+  it("is false for failures worth another attempt", () => {
+    expect(isPermanentFailure(new FetchError(503))).toBe(false);
+    expect(isPermanentFailure(new TypeError("fetch failed"))).toBe(false);
+    expect(isPermanentFailure(new Error("Failed to download image"))).toBe(
+      false,
+    );
   });
 });

@@ -35,7 +35,6 @@ import {
 } from "../src/lib/items/processing-error";
 import { imageExtForContentType } from "../src/lib/media/rehost-image";
 import { detectPlatform } from "../src/lib/platforms";
-import { captureServerException } from "../src/lib/posthog-server";
 import {
   extractReadableSignals,
   type ReadableSignals,
@@ -48,6 +47,7 @@ import { handlePdfUrl } from "./handle-pdf-url";
 import { handleTwitterArticle } from "./handle-twitter-article";
 import { handleTwitterUrl } from "./handle-twitter-url";
 import { handleVideoUrl } from "./handle-video-url";
+import { itemFailureHooks } from "./item-failure";
 import {
   deleteReplacedFiles,
   reclaimReplacedStorage,
@@ -290,6 +290,7 @@ export const classifyUrlTask = task({
   retry: { maxAttempts: 2 },
   queue: { concurrencyLimit: 3 },
   maxDuration: 120, // 2 minutes should be plenty for fetching and classifying
+  ...itemFailureHooks("classify-url"),
   run: async (payload: ClassifyUrlPayload) => {
     const { itemId, userId, url, forcedKind, html: providedHtml } = payload;
 
@@ -832,22 +833,9 @@ export const classifyUrlTask = task({
         },
       };
     } catch (error) {
-      logger.error("URL classification failed", { itemId, error });
-      captureServerException(error, userId, {
-        task: "classify-url",
-        itemId,
-        url,
-      });
-
-      // Mark item as failed with a safe, user-facing reason code
-      await db.item.update({
-        where: { id: itemId, userId },
-        data: {
-          processingStatus: "failed",
-          processingError: classifyFailureReason(error),
-        },
-      });
-
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("URL classification attempt failed", { itemId, error });
       throw error;
     }
   },

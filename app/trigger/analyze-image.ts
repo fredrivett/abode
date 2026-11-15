@@ -17,11 +17,11 @@ import {
   collectCapturedFileKeys,
 } from "../src/lib/item-storage";
 import { markProcessingActive } from "../src/lib/items/mark-processing-active";
-import { classifyFailureReason } from "../src/lib/items/processing-error";
 import { visionMayWriteTitle } from "../src/lib/items/vision-title";
 import { captureServerException } from "../src/lib/posthog-server";
 import { reverseGeocode } from "../src/lib/reverse-geocode";
 import type { enrichItemTask } from "./enrich-item";
+import { itemFailureHooks, reportItemFailure } from "./item-failure";
 import { imageAnalysisQueue } from "./queues";
 
 type AnalyzeImagePayload = {
@@ -108,16 +108,26 @@ export function formatStorageError(error: unknown) {
  * cover is an enhancement there, so once its analysis has failed for good the
  * item is enriched from its text alone rather than left without tags.
  *
- * Marks a not-yet-completed item `failed` on error so the UI can show
- * processing status; a reprocess must not regress a completed item.
+ * Marks a not-yet-completed item `failed` once no retry is left, so the UI can
+ * show processing status; a reprocess must not regress a completed item.
  */
+const failureHooks = itemFailureHooks("analyze-image");
+
 export const analyzeImageTask = task({
   id: "analyze-image",
   retry: { maxAttempts: 2 },
   queue: imageAnalysisQueue,
   maxDuration: 600, // 10 minutes should be plenty for Vision + embeddings
-  onFailure: async ({ payload }: { payload: AnalyzeImagePayload }) => {
-    if (payload.extraSourceText) await enrichFromItemText(payload);
+  catchError: failureHooks.catchError,
+  // A book or product's cover is an enhancement: once its analysis has failed
+  // for good, enrich from the item's text so the item still completes
+  onFailure: async (params: {
+    payload: AnalyzeImagePayload;
+    error: unknown;
+  }) => {
+    if (!params.payload.extraSourceText) return failureHooks.onFailure(params);
+    reportItemFailure({ task: "analyze-image", ...params });
+    await enrichFromItemText(params.payload);
   },
   run: async (payload: AnalyzeImagePayload) => {
     const { itemId, userId, fileKey, extraSourceText } = payload;
@@ -375,23 +385,9 @@ export const analyzeImageTask = task({
         },
       };
     } catch (error) {
-      logger.error("Image analysis failed", { itemId, error });
-      captureServerException(error, userId, {
-        task: "analyze-image",
-        itemId,
-      });
-
-      // Mark item as failed with a safe, user-facing reason code — unless it
-      // already completed (a reprocess must not regress it to failed)
-      await db.item.updateMany({
-        where: { id: itemId, userId, processingStatus: { not: "completed" } },
-        data: {
-          processingStatus: "failed",
-          processingError: classifyFailureReason(error),
-        },
-      });
-
-      // Re-throw so Trigger.dev can retry
+      // Reported, and the item marked failed, once no retry is left
+      // (itemFailureHooks)
+      logger.error("Image analysis attempt failed", { itemId, error });
       throw error;
     }
   },
