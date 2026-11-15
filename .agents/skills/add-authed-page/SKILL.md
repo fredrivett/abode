@@ -38,15 +38,16 @@ Routes are not covered by the `(app)` layout — guard explicitly:
 ```ts
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger.server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("my-route");
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await getUserWithMfa(supabase);
-    if (authError || !user) {
+    const user = await getCompletedSignupUser(supabase);
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     // ...use user.id...
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
 
 ## Conventions
 
-- Always fetch the user with `getUserWithMfa(supabase)` or a helper built on it (`getAuthUser`, `getAuthenticatedUser`) — it validates the session and treats a 2FA user who hasn't finished the challenge as signed out. Never raw `supabase.auth.getUser()` (lint error via `no-raw-cookie-getuser.grit`) or `getSession()`.
+- In API routes, fetch the user with `getCompletedSignupUser(supabase)` (or `authenticateRequest` for extension/token routes): it adds the completed-signup check to `getUserWithMfa`, so an email-confirmed account that never claimed an invite counts as signed out. Return 401 when the route needs a user; a route that also serves visitors treats a null user as anonymous. `no-api-incomplete-signup.grit` flags `getUserWithMfa` in `src/app/api/**`.
+- Elsewhere, fetch the user with `getUserWithMfa(supabase)` or a helper built on it (`getAuthUser`, `getAuthenticatedUser`) — it validates the session and treats a 2FA user who hasn't finished the challenge as signed out. Never raw `supabase.auth.getUser()` (lint error via `no-raw-cookie-getuser.grit`) or `getSession()`.
 - Use route constants from `@/lib/routes` (`ROUTES.*`) for redirects.
 - Error responses use `{ message: string }`; log details with the structured logger, don't leak them in the response.
 - Verify with `bun run check:fix`.

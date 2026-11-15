@@ -1,13 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createWaitlistInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { inviteSchema } from "./schema";
 
 const log = createLogger("api/v1/admin/waitlist/invite");
@@ -20,9 +21,7 @@ async function handlePOST(request: NextRequest) {
   try {
     // Check if user is admin
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

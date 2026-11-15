@@ -2,6 +2,7 @@ import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
@@ -10,7 +11,7 @@ import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimDailyReassign } from "@/lib/items/reassign-claim";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { guardDailyLimit, secondsUntilUtcMidnight } from "@/lib/usage-limits";
 
 const log = createLogger("api/v1/items/[id]/reassign");
@@ -29,12 +30,9 @@ async function handlePOST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

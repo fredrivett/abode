@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
@@ -25,7 +26,7 @@ import {
   parsePageSize,
 } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { fileNameTitle } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -47,12 +48,9 @@ const allowedKinds = new Set(["image", "article", "webpage"]);
 async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -146,12 +144,9 @@ async function handleGET(request: NextRequest) {
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -272,12 +267,9 @@ async function handlePOST(request: NextRequest) {
 async function handleDELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

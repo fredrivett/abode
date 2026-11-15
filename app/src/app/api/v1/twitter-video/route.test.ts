@@ -1,6 +1,12 @@
 import type { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Routes resolve the user through getCompletedSignupUser; these tests are for
+// a user who has completed signup
+vi.mock("@/lib/auth/has-completed-signup", () => ({
+  hasCompletedSignup: async () => true,
+}));
+
 const { mockCheckRateLimit, mockGetUser, mockItemFindFirst } = vi.hoisted(
   () => ({
     mockCheckRateLimit: vi.fn(),

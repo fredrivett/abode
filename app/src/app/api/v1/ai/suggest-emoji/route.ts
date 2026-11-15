@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { getOpenAiClient, isOpenAiConfigured } from "@/lib/embeddings";
 import { isValidEmoji } from "@/lib/emoji";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/ai/suggest-emoji");
 
@@ -16,12 +17,9 @@ const log = createLogger("api/v1/ai/suggest-emoji");
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

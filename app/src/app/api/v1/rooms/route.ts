@@ -1,6 +1,7 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
@@ -10,7 +11,7 @@ import { captureServerException } from "@/lib/posthog-server";
 import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
 import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
 
@@ -24,12 +25,9 @@ const log = createLogger("api/v1/rooms");
 async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -65,12 +63,9 @@ async function handleGET(request: NextRequest) {
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

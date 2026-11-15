@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { TOKEN_SCOPES, type TokenScope } from "@/lib/auth/token-scopes";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/personal-access-tokens";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/tokens");
 
@@ -43,12 +44,9 @@ const createTokenSchema = z.object({
 async function handleGET() {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -71,12 +69,9 @@ async function handleGET() {
 async function handlePOST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

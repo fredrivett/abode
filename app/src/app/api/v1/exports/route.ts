@@ -1,6 +1,7 @@
 import type { exportUserDataTask } from "@app/trigger/export-user-data";
 import { tasks } from "@trigger.dev/sdk";
 import { NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { MAX_EXPORTS_PER_DAY } from "@/lib/export/constants";
 import { reserveDataExport } from "@/lib/export/reserve-data-export";
@@ -13,7 +14,7 @@ import { withViewer } from "@/lib/http/with-viewer";
 import { failUnstartedExport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 
 const log = createLogger("api/v1/exports");
@@ -22,9 +23,7 @@ const log = createLogger("api/v1/exports");
 async function handleGET(): Promise<NextResponse> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -54,9 +53,7 @@ async function handleGET(): Promise<NextResponse> {
 async function handlePOST(): Promise<NextResponse> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

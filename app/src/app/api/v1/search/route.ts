@@ -6,6 +6,7 @@ import type {
   SourceType,
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import db from "@/lib/db";
 import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
@@ -26,7 +27,7 @@ import {
   validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { rankedSearch } from "@/lib/search/ranked-search";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { mapTwitterDetails } from "@/lib/twitter/map-twitter-details";
 import type {
   BookDetails,
@@ -410,12 +411,9 @@ async function handleGET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

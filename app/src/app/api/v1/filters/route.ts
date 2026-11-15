@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
 import { withViewer } from "@/lib/http/with-viewer";
 import {
   type AvailableFilterType,
@@ -7,7 +8,7 @@ import {
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/filters");
 
@@ -39,12 +40,9 @@ function isValidFilterType(value: string | null): value is AvailableFilterType {
 async function handleGET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await getUserWithMfa(supabase);
+    const user = await getCompletedSignupUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

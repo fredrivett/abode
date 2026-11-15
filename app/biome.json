@@ -97,6 +97,10 @@
       "plugins": ["./biome/no-raw-user-processing.grit"]
     },
     {
+      "includes": ["src/app/api/**", "!src/app/api/**/*.test.ts"],
+      "plugins": ["./biome/no-api-incomplete-signup.grit"]
+    },
+    {
       "includes": [
         "src/**",
         "!src/lib/supabase/server.ts",
