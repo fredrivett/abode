@@ -21,12 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { EffectiveInviteStatus } from "@/lib/invites";
 
 type Invite = {
   id: string;
   email: string;
   origin: "user" | "waitlist" | "admin";
-  status: "pending" | "accepted" | "expired";
+  status: EffectiveInviteStatus;
   expiresAt: string;
   acceptedAt: string | null;
   sendCount: number;
@@ -82,6 +83,14 @@ export function InvitesTable({
         <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs dark:bg-green-900/30 dark:text-green-400">
           <Check className="size-3" />
           Accepted
+        </span>
+      );
+    }
+    if (invite.status === "joined_elsewhere") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs dark:bg-gray-900/30 dark:text-gray-400">
+          <Check className="size-3" />
+          Joined via another invite
         </span>
       );
     }
@@ -187,7 +196,7 @@ export function InvitesTable({
                   })}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
-                  {invite.status === "accepted" && invite.acceptedAt
+                  {invite.acceptedAt
                     ? formatDistanceToNow(new Date(invite.acceptedAt), {
                         addSuffix: true,
                       })

@@ -456,12 +456,18 @@ export async function getUserInvites(userId: string) {
   }));
 }
 
+export type EffectiveInviteStatus =
+  | "pending"
+  | "accepted"
+  | "expired"
+  | "joined_elsewhere";
+
 /**
  * Get effective invite status (accounts for expiry)
  */
-function getEffectiveStatus(
+export function getEffectiveStatus(
   invite: Pick<Invite, "status" | "expiresAt">,
-): "pending" | "accepted" | "expired" | "joined_elsewhere" {
+): EffectiveInviteStatus {
   if (invite.status === "accepted") return "accepted";
   if (invite.status === "joined_elsewhere") return "joined_elsewhere";
   if (isInviteExpired(invite.expiresAt)) return "expired";
