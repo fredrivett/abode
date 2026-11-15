@@ -54,8 +54,8 @@ describe("validateUploadFile", () => {
     },
   );
 
-  it("allows a PDF up to 25MB and rejects anything larger", () => {
-    expect(MAX_PDF_UPLOAD_BYTES).toBe(25 * 1024 * 1024);
+  it("allows a PDF up to 15MB and rejects anything larger", () => {
+    expect(MAX_PDF_UPLOAD_BYTES).toBe(15 * 1024 * 1024);
     expect(
       validateUploadFile(file("a.pdf", "application/pdf", MAX_PDF_UPLOAD_BYTES))
         .ok,
@@ -67,7 +67,7 @@ describe("validateUploadFile", () => {
     ).toEqual({
       ok: false,
       kind: "pdf",
-      error: "PDF is too large. Max size is 25MB.",
+      error: "PDF is too large. Max size is 15MB.",
     });
   });
 

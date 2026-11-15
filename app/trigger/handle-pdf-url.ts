@@ -19,7 +19,7 @@ import {
   reclaimReplacedStorage,
 } from "./reclaim-item-storage";
 
-/** A 25MB PDF on a slow host takes far longer than a page's default ~10s */
+/** A 15MB PDF on a slow host takes far longer than a page's default ~10s */
 const PDF_FETCH_TIMEOUT_MS = 60_000;
 
 const isTooLarge = (error: unknown) =>

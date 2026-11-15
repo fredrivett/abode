@@ -1,4 +1,6 @@
-export const MAX_IMAGE_UPLOAD_MB = 15;
+import { BUCKET_SIZE_LIMIT_MB } from "./storage-buckets";
+
+export const MAX_IMAGE_UPLOAD_MB = BUCKET_SIZE_LIMIT_MB.items;
 export const MAX_IMAGE_UPLOAD_BYTES = MAX_IMAGE_UPLOAD_MB * 1024 * 1024;
 export const MAX_IMAGE_UPLOAD_LABEL = `${MAX_IMAGE_UPLOAD_MB}MB`;
 
@@ -14,10 +16,11 @@ export const allowedImageMimeTypes = new Set<string>(ALLOWED_IMAGE_MIME_TYPES);
 export const PDF_MIME_TYPE = "application/pdf";
 
 /**
- * Largest PDF we accept. Below the `items` bucket's 50MB limit; every page is
- * rendered to an image, so this also bounds the import's time and memory.
+ * Largest PDF we accept: the `items` bucket's limit, which storage enforces.
+ * Every page is rendered to an image, so this also bounds the import's time
+ * and memory.
  */
-export const MAX_PDF_UPLOAD_MB = 25;
+export const MAX_PDF_UPLOAD_MB = BUCKET_SIZE_LIMIT_MB.items;
 export const MAX_PDF_UPLOAD_BYTES = MAX_PDF_UPLOAD_MB * 1024 * 1024;
 export const MAX_PDF_UPLOAD_LABEL = `${MAX_PDF_UPLOAD_MB}MB`;
 
