@@ -49,8 +49,15 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { mockTrigger } = vi.hoisted(() => ({ mockTrigger: vi.fn() }));
+const { mockTrigger, mockTriggerConfigured } = vi.hoisted(() => ({
+  mockTrigger: vi.fn(),
+  mockTriggerConfigured: vi.fn(() => true),
+}));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
+vi.mock("@/lib/trigger/item-runs", () => ({
+  isTriggerConfigured: mockTriggerConfigured,
+}));
+vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 
 vi.mock("@/lib/logger.server", () => ({
   createLogger: () => ({
@@ -170,6 +177,18 @@ describe.each([
       itemId: ITEM_ID,
       userId: USER_ID,
     });
+  });
+
+  it("still saves when Trigger.dev isn't configured or queueing fails", async () => {
+    mockGetSmartRooms.mockResolvedValue([{ id: "room_1" }]);
+
+    mockTriggerConfigured.mockReturnValueOnce(false);
+    expect((await sendLocationEdit[method]()).status).toBe(status);
+    expect(mockTrigger).not.toHaveBeenCalled();
+
+    mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
+    expect((await sendLocationEdit[method]()).status).toBe(status);
+    expect(mockTrigger).toHaveBeenCalledTimes(1);
   });
 
   it("skips the sync when no room filters on location", async () => {

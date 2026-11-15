@@ -15,6 +15,8 @@ const {
   mockOpenAiConfigured,
   mockNoteUpsert,
   mockTriggerConfigured,
+  mockTweetFind,
+  mockResolveCover,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockItemFind: vi.fn(),
@@ -26,6 +28,8 @@ const {
   mockOpenAiConfigured: vi.fn(() => false),
   mockNoteUpsert: vi.fn(),
   mockTriggerConfigured: vi.fn(() => true),
+  mockTweetFind: vi.fn(),
+  mockResolveCover: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -45,6 +49,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: mockArticleFind,
     },
     itemNoteDetails: { upsert: mockNoteUpsert },
+    itemTwitterDetails: { updateMany: vi.fn(), findFirst: mockTweetFind },
   },
 }));
 vi.mock("@/lib/embeddings", () => ({
@@ -69,7 +74,9 @@ vi.mock("@/lib/milestones/conditions", () => ({
   shouldCompleteAddFirstTag: () => false,
   shouldCompleteSeeAiAnalysis: () => false,
 }));
-vi.mock("@/lib/twitter/cover", () => ({ resolveTweetCoverFileKey: vi.fn() }));
+vi.mock("@/lib/twitter/cover", () => ({
+  resolveTweetCoverFileKey: mockResolveCover,
+}));
 vi.mock("@/lib/items/delete-item", () => ({ deleteOwnedItem: vi.fn() }));
 
 import { PATCH } from "./route";
@@ -300,6 +307,36 @@ describe("PATCH /api/v1/items/:id — room sync without Trigger.dev", () => {
     expect(res.status).toBe(200);
     expect(mockArticleUpsert).toHaveBeenCalledTimes(1);
     expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "isn't configured",
+      () => mockTriggerConfigured.mockReturnValueOnce(false),
+    ],
+    ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down"))],
+  ])("swaps a tweet's cover when Trigger.dev %s", async (_, setUp) => {
+    setUp();
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "twitter",
+      sourceType: "url",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+    });
+    mockTweetFind.mockResolvedValue({ media: [], text: null });
+    mockResolveCover.mockReturnValue("tweets/item-1/media-1.jpg");
+
+    const res = await patch({ twitterCoverMediaIndex: 1 });
+
+    expect(res.status).toBe(200);
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: { coverFileKey: "tweets/item-1/media-1.jpg" },
+    });
   });
 
   it("still saves when queueing the room sync fails", async () => {

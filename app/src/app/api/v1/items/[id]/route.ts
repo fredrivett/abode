@@ -17,7 +17,7 @@ import {
 } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
-import { isTriggerConfigured } from "@/lib/trigger/item-runs";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import { resolveTweetCoverFileKey } from "@/lib/twitter/cover";
 import type { TwitterMedia } from "@/lib/types/item";
 import type { analyzeMediaCoverTask } from "../../../../../../trigger/analyze-media-cover";
@@ -25,27 +25,6 @@ import type { syncItemToRoomsTask } from "../../../../../../trigger/sync-item-to
 import { itemPatchSchema } from "./schema";
 
 const log = createLogger("api/v1/items/[id]");
-
-/**
- * Queue a follow-up job for a save that has already been written. Trigger.dev
- * is optional: without it, skip; a queueing failure is reported but never fails
- * the save, or the client would roll back a change the database kept.
- */
-async function enqueueAfterSave(
-  enqueue: () => Promise<unknown>,
-  context: { task: string; itemId: string; userId: string },
-) {
-  if (!isTriggerConfigured()) {
-    log.info(context, "Trigger.dev not configured — skipping follow-up job");
-    return;
-  }
-  try {
-    await enqueue();
-  } catch (error) {
-    log.warn({ error, ...context }, "Failed to enqueue follow-up job");
-    captureServerException(error, context.userId, context);
-  }
-}
 
 async function handleGET(
   _request: NextRequest,
@@ -241,6 +220,7 @@ async function handlePATCH(
     // Update twitter cover media index, re-point coverFileKey to the selected
     // image, and (re)analyse it so search + similar-images follow the chosen
     // cover (analyze-media-cover re-mirrors from cache if already analysed).
+    // Without Trigger.dev the cover still swaps; search keeps the old analysis.
     if (twitterCoverMediaIndex !== undefined) {
       await db.itemTwitterDetails.updateMany({
         where: { itemId: id },

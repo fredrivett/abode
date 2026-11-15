@@ -12,6 +12,7 @@ import {
 } from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
 import { createClient, getUserWithMfa } from "@/lib/supabase/server";
+import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import { accrueUsageCost, guardDailyLimit } from "@/lib/usage-limits";
 import type { syncItemToRoomsTask } from "../../../../../../../trigger/sync-item-to-rooms";
 
@@ -143,10 +144,14 @@ async function handlePOST(
         { itemId: id, roomCount: roomsWithLocationFilter.length },
         "Triggering item-to-rooms sync for location change",
       );
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
-        itemId: id,
-        userId: user.id,
-      });
+      await enqueueAfterSave(
+        () =>
+          tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+            itemId: id,
+            userId: user.id,
+          }),
+        { task: "sync-item-to-rooms", itemId: id, userId: user.id },
+      );
     }
 
     return NextResponse.json(location);
@@ -209,10 +214,14 @@ async function handleDELETE(
         { itemId: id, roomCount: roomsWithLocationFilter.length },
         "Triggering item-to-rooms sync for location change",
       );
-      await tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
-        itemId: id,
-        userId: user.id,
-      });
+      await enqueueAfterSave(
+        () =>
+          tasks.trigger<typeof syncItemToRoomsTask>("sync-item-to-rooms", {
+            itemId: id,
+            userId: user.id,
+          }),
+        { task: "sync-item-to-rooms", itemId: id, userId: user.id },
+      );
     }
 
     return new NextResponse(null, { status: 204 });
