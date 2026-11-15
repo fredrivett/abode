@@ -84,29 +84,39 @@ describe("failing an export or import whose job never started", () => {
       data: { userId, status: "exporting" },
       select: { id: true },
     });
-    const progressing = await systemDb.itemImport.create({
-      data: {
-        userId,
-        source: "literal",
-        status: "importing",
-        // A chunk that only skipped books has still started
-        skippedCount: 3,
-      },
-      select: { id: true },
-    });
+    // Any tallied book means a chunk has started, whichever counter it hit
+    const progressing = await Promise.all(
+      (["importedCount", "skippedCount", "failedCount"] as const).map(
+        (counter) =>
+          systemDb.itemImport.create({
+            data: {
+              userId,
+              source: "literal",
+              status: "importing",
+              [counter]: 3,
+            },
+            select: { id: true },
+          }),
+      ),
+    );
 
     await asOwner(async () => {
       await failUnstartedExport(running.id);
-      await failUnstartedImport(progressing.id);
+      for (const { id } of progressing) await failUnstartedImport(id);
     });
 
     const exportRow = await systemDb.dataExport.findUniqueOrThrow({
       where: { id: running.id },
     });
-    const importRow = await systemDb.itemImport.findUniqueOrThrow({
-      where: { id: progressing.id },
+    const importRows = await systemDb.itemImport.findMany({
+      where: { id: { in: progressing.map(({ id }) => id) } },
+      select: { status: true },
     });
     expect(exportRow.status).toBe("exporting");
-    expect(importRow.status).toBe("importing");
+    expect(importRows.map(({ status }) => status)).toEqual([
+      "importing",
+      "importing",
+      "importing",
+    ]);
   });
 });

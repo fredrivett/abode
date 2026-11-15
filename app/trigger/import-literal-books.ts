@@ -41,29 +41,40 @@ export const importLiteralBooksTask = task({
   maxDuration: IMPORT_CHUNK_MAX_DURATION_S,
   run: async (payload: ImportLiteralBooksPayload) => {
     const { userId, importId } = payload;
-    const result = await importBookChunk({
-      userId,
-      importId,
-      books: payload.books.map(hydrateBook),
-      supabase: supabaseServiceClient(),
-    });
+    let chunk: Pick<
+      Parameters<typeof importBookChunk>[0],
+      "books" | "supabase"
+    >;
+    try {
+      chunk = {
+        books: payload.books.map(hydrateBook),
+        supabase: supabaseServiceClient(),
+      };
+    } catch (error) {
+      // Nothing written yet, so every book in the chunk failed: tally them so
+      // the import still completes once its other chunks land, rather than
+      // turning `failed` while they keep importing
+      await tallyImportChunk({
+        userId,
+        importId,
+        tally: { imported: 0, skipped: 0, failed: payload.books.length },
+      }).catch((tallyError) =>
+        logger.error("Couldn't tally a failed chunk", { importId, tallyError }),
+      );
+      throw error;
+    }
+    // Past this point a throw is the chunk's own tally failing (per-book
+    // errors are tallied, not thrown). Its books may be written and the tally
+    // may even have committed, so it isn't retallied here: if the import
+    // can't complete, the stranded-imports sweep fails it.
+    const result = await importBookChunk({ userId, importId, ...chunk });
     logger.log("Imported book chunk", { importId, ...result });
     return { success: true, importId, ...result };
   },
-  // The chunk never got tallied (its tally is one statement, the last step),
-  // so count its books as failed: the import still completes once its other
-  // chunks land, rather than turning `failed` while they keep importing. If
-  // this tally fails too, the stranded-imports sweep fails the import.
   onFailure: async ({ payload, error }) => {
-    const { userId, importId } = payload;
-    captureServerException(error, userId, {
+    captureServerException(error, payload.userId, {
       task: "import-literal-books",
-      importId,
-    });
-    await tallyImportChunk({
-      userId,
-      importId,
-      tally: { imported: 0, skipped: 0, failed: payload.books.length },
+      importId: payload.importId,
     });
   },
 });
