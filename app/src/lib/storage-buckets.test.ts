@@ -59,8 +59,19 @@ function splitTopLevel(list: string): string[] {
   return parts;
 }
 
-function parseLimit(value: string): number | null {
-  return value.toUpperCase() === "NULL" ? null : Number(value);
+/** A literal limit; anything else (expressions, quoted strings) fails loudly */
+function parseLimit({
+  value,
+  migration,
+}: {
+  value: string;
+  migration: string;
+}): number | null {
+  if (/^NULL$/i.test(value)) return null;
+  if (/^\d+$/.test(value)) return Number(value);
+  throw new Error(
+    `${migration} sets file_size_limit to \`${value}\`, which this test can't replay; extend parseLimit`,
+  );
 }
 
 /** Each bucket's `file_size_limit` after every migration has run */
@@ -92,12 +103,20 @@ function bucketLimitsFromMigrations(): Map<string, number | null> {
         const values = splitTopLevel(m[2]);
         const id = values[columns.indexOf("id")].replace(/'/g, "");
         const limitIndex = columns.indexOf("file_size_limit");
-        const limit = limitIndex === -1 ? null : parseLimit(values[limitIndex]);
+        const limit =
+          limitIndex === -1
+            ? null
+            : parseLimit({ value: values[limitIndex], migration: name });
         // ON CONFLICT DO NOTHING leaves an existing bucket as it was
         if (!m[3] || !limits.has(id)) limits.set(id, limit);
       } else {
-        const limit = /file_size_limit\s*=\s*(\d+|NULL)/i.exec(m[1]);
-        if (limit) limits.set(m[2], parseLimit(limit[1]));
+        const assignment = splitTopLevel(m[1]).find((part) =>
+          /^file_size_limit\s*=/i.test(part),
+        );
+        if (assignment) {
+          const value = assignment.replace(/^file_size_limit\s*=\s*/i, "");
+          limits.set(m[2], parseLimit({ value, migration: name }));
+        }
       }
     }
   }
