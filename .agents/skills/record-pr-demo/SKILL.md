@@ -136,7 +136,9 @@ gh pr edit <number> --body-file "$DEMO_DIR/pr-body.md" \
   --attach "$DEMO_DIR/pr-<number>-before.mp4" --attach "$DEMO_DIR/pr-<number>-after.mp4"
 ```
 
-Then `gh pr view <number> --json body` to check every local path became a `github.com/user-attachments/...` URL. For parity, add the checkpoint results under the videos.
+Then `gh pr view <number> --json body` to check every local path became a `github.com/user-attachments/...` URL. If gh appended the URL to the end of the body instead and left the local path in place, move the URL onto the path's line (a bare attachment URL on its own line plays inline) with a plain `gh pr edit --body-file`. For parity, add the checkpoint results under the videos.
+
+**`unsupported authentication type`:** in some environments (e.g. Amp orbs) gh's default token can't upload attachments. Where `GH_ATTACH_TOKEN` (a PAT) is set, rerun just the attach command with it: `GH_TOKEN="$GH_ATTACH_TOKEN" gh pr edit <number> --body-file ... --attach ...`. Keep the default token for everything else. If neither works, say in the PR that the video is recorded but not attached, rather than ticking the checklist line.
 
 ## Gotchas
 
