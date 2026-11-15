@@ -247,7 +247,7 @@ Add `--full` for the whole page. Check both light and dark mode, and a narrow vi
 
 ### PR demo videos
 
-**Every user-facing change ships with a demo video in its PR**, recorded with the `record-pr-demo` skill (`.agents/skills/record-pr-demo/`): a captioned recording of the flow on an isolated demo stack (`bun run demo:stack`), before and after where the old behaviour is quick to show, attached with `gh pr edit --attach` so it plays inline. For a refactor that runs through a user flow, record a parity run (the same flow on the base commit and the branch, with screenshot diffs) to prove nothing changed. Only ever record the demo stack's test data: the repo and its PR attachments are public.
+**Every user-facing change ships with a demo video in its PR**, recorded with the `record-pr-demo` skill (`.agents/skills/record-pr-demo/`): a captioned recording of the flow on an isolated demo stack (`bun run demo:stack`), before and after where the old behaviour is quick to show, attached with `gh pr edit --attach` so it plays inline. If that fails with `unsupported authentication type` (gh's default token can't upload, as in Amp orbs), rerun the attach with `GH_TOKEN="$GH_ATTACH_TOKEN"`, a PAT; see the skill's "Attach to the PR" step. For a refactor that runs through a user flow, record a parity run (the same flow on the base commit and the branch, with screenshot diffs) to prove nothing changed. Only ever record the demo stack's test data: the repo and its PR attachments are public.
 
 ### Debug trace (UX jank)
 
