@@ -14,7 +14,6 @@ const {
   mockTrigger,
   mockOpenAiConfigured,
   mockNoteUpsert,
-  mockTriggerConfigured,
   mockTweetFind,
   mockResolveCover,
 } = vi.hoisted(() => ({
@@ -27,7 +26,6 @@ const {
   mockTrigger: vi.fn(),
   mockOpenAiConfigured: vi.fn(() => false),
   mockNoteUpsert: vi.fn(),
-  mockTriggerConfigured: vi.fn(() => true),
   mockTweetFind: vi.fn(),
   mockResolveCover: vi.fn(),
 }));
@@ -57,9 +55,6 @@ vi.mock("@/lib/embeddings", () => ({
 }));
 
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
-vi.mock("@/lib/trigger/item-runs", () => ({
-  isTriggerConfigured: mockTriggerConfigured,
-}));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 vi.mock("@/lib/logger.server", () => ({
@@ -80,6 +75,11 @@ vi.mock("@/lib/twitter/cover", () => ({
 vi.mock("@/lib/items/delete-item", () => ({ deleteOwnedItem: vi.fn() }));
 
 import { PATCH } from "./route";
+
+// Trigger.dev configured unless a test clears it
+beforeEach(() => {
+  vi.stubEnv("TRIGGER_SECRET_KEY", "tr_test");
+});
 
 function patch(body: unknown) {
   return PATCH(
@@ -300,7 +300,7 @@ describe("PATCH /api/v1/items/:id — room sync without Trigger.dev", () => {
   });
 
   it("marks an article read and skips the room sync when Trigger.dev isn't configured", async () => {
-    mockTriggerConfigured.mockReturnValueOnce(false);
+    vi.stubEnv("TRIGGER_SECRET_KEY", "");
 
     const res = await patch({ articleReading: { read: true } });
 
@@ -310,10 +310,7 @@ describe("PATCH /api/v1/items/:id — room sync without Trigger.dev", () => {
   });
 
   it.each([
-    [
-      "isn't configured",
-      () => mockTriggerConfigured.mockReturnValueOnce(false),
-    ],
+    ["isn't configured", () => vi.stubEnv("TRIGGER_SECRET_KEY", "")],
     ["fails", () => mockTrigger.mockRejectedValueOnce(new Error("down"))],
   ])("swaps a tweet's cover when Trigger.dev %s", async (_, setUp) => {
     setUp();

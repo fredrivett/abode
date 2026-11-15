@@ -49,14 +49,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { mockTrigger, mockTriggerConfigured } = vi.hoisted(() => ({
-  mockTrigger: vi.fn(),
-  mockTriggerConfigured: vi.fn(() => true),
-}));
+const { mockTrigger } = vi.hoisted(() => ({ mockTrigger: vi.fn() }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
-vi.mock("@/lib/trigger/item-runs", () => ({
-  isTriggerConfigured: mockTriggerConfigured,
-}));
 vi.mock("@/lib/posthog-server", () => ({ captureServerException: vi.fn() }));
 
 vi.mock("@/lib/logger.server", () => ({
@@ -69,6 +63,11 @@ vi.mock("@/lib/logger.server", () => ({
 }));
 
 import { DELETE, POST } from "./route";
+
+// Trigger.dev configured unless a test clears it
+beforeEach(() => {
+  vi.stubEnv("TRIGGER_SECRET_KEY", "tr_test");
+});
 
 const ITEM_ID = "item_1";
 const USER_ID = "user_1";
@@ -182,10 +181,11 @@ describe.each([
   it("still saves when Trigger.dev isn't configured or queueing fails", async () => {
     mockGetSmartRooms.mockResolvedValue([{ id: "room_1" }]);
 
-    mockTriggerConfigured.mockReturnValueOnce(false);
+    vi.stubEnv("TRIGGER_SECRET_KEY", "");
     expect((await sendLocationEdit[method]()).status).toBe(status);
     expect(mockTrigger).not.toHaveBeenCalled();
 
+    vi.stubEnv("TRIGGER_SECRET_KEY", "tr_test");
     mockTrigger.mockRejectedValueOnce(new Error("trigger down"));
     expect((await sendLocationEdit[method]()).status).toBe(status);
     expect(mockTrigger).toHaveBeenCalledTimes(1);
