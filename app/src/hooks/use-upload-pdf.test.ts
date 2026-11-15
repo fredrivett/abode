@@ -118,7 +118,7 @@ describe("useUpload with a PDF", () => {
     expect(await uploadFile(pdf(MAX_PDF_UPLOAD_BYTES + 1))).toBe(false);
     expect(m.upload).not.toHaveBeenCalled();
     expect(m.toastError).toHaveBeenCalledWith(
-      "PDF is too large. Max size is 25MB.",
+      "PDF is too large. Max size is 15MB.",
     );
     expect(m.capture).toHaveBeenCalledWith("pdf_upload_rejected", {
       reason: "too_large",

@@ -4,6 +4,7 @@ import { logger, tasks } from "@trigger.dev/sdk";
 import db from "../src/lib/db";
 import { safeFetch } from "../src/lib/http/safe-fetch";
 import { pruneStaleItemDetails } from "../src/lib/item-details";
+import { ITEMS_BUCKET_MAX_BYTES } from "../src/lib/storage-buckets";
 import {
   fetchVideoMetadata,
   getBestYouTubeThumbnailUrl,
@@ -50,6 +51,7 @@ async function downloadAndStoreThumbnail(
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
       },
+      maxBytes: ITEMS_BUCKET_MAX_BYTES,
     });
 
     if (!response.ok) {

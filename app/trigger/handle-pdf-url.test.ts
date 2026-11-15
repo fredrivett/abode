@@ -88,7 +88,7 @@ describe("handlePdfUrl", () => {
     await handle();
     expect(m.safeFetch).toHaveBeenCalledWith(
       URL_,
-      expect.objectContaining({ maxBytes: 25 * 1024 * 1024 }),
+      expect.objectContaining({ maxBytes: 15 * 1024 * 1024 }),
     );
   });
 

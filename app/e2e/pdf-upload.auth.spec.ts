@@ -49,7 +49,7 @@ test.describe("PDF upload", () => {
     await page.getByRole("button", { name: "Add item" }).click();
     // Scoped to the dialog: an empty dashboard has its own upload picker
     const dialog = page.getByRole("dialog", { name: "Add Item" });
-    await expect(dialog.getByText("PDFs up to 25MB")).toBeVisible();
+    await expect(dialog.getByText("PDFs up to 15MB")).toBeVisible();
 
     const saved = pdfSaved(page);
     await dialog
@@ -118,7 +118,7 @@ test.describe("PDF upload", () => {
     await deleteItem(page, document.id);
   });
 
-  test("rejects a PDF over 25MB before uploading it", async ({ page }) => {
+  test("rejects a PDF over 15MB before uploading it", async ({ page }) => {
     const uploads = await stubStorageUploads(page);
     await page.goto("/dashboard");
     await page.getByRole("button", { name: "Add item" }).click();
@@ -126,9 +126,9 @@ test.describe("PDF upload", () => {
     await page
       .getByRole("dialog", { name: "Add Item" })
       .locator("input[type=file][accept*='application/pdf']")
-      .setInputFiles({ ...PDF, buffer: Buffer.alloc(25 * 1024 * 1024 + 1) });
+      .setInputFiles({ ...PDF, buffer: Buffer.alloc(15 * 1024 * 1024 + 1) });
     await expect(
-      page.getByText("PDF is too large. Max size is 25MB."),
+      page.getByText("PDF is too large. Max size is 15MB."),
     ).toBeVisible();
     expect(uploads).toHaveLength(0);
   });

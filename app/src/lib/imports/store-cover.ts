@@ -4,6 +4,7 @@ import { imageSize } from "image-size";
 import { safeFetch } from "@/lib/http/safe-fetch";
 import { generateBlurDataUrl } from "@/lib/image-analysis/blur-placeholder";
 import { imageExtForContentType } from "@/lib/media/rehost-image";
+import { ITEMS_BUCKET_MAX_BYTES } from "@/lib/storage-buckets";
 
 export type StoredCover = {
   fileKey: string;
@@ -40,6 +41,7 @@ export async function downloadAndStoreCover({
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
       },
+      maxBytes: ITEMS_BUCKET_MAX_BYTES,
     });
     if (!response.ok) return null;
 

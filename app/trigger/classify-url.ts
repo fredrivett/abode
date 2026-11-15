@@ -40,6 +40,7 @@ import {
   type ReadableSignals,
 } from "../src/lib/readable-signals";
 import { ensureBookRooms } from "../src/lib/rooms/auto-book-rooms";
+import { ITEMS_BUCKET_MAX_BYTES } from "../src/lib/storage-buckets";
 import type { analyzeImageTask } from "./analyze-image";
 import type { enrichItemTask } from "./enrich-item";
 import { handleInstagramUrl } from "./handle-instagram-url";
@@ -145,6 +146,7 @@ async function fetchImageBuffer(imageUrl: string): Promise<ImageFetchResult> {
         "User-Agent":
           "Mozilla/5.0 (compatible; AbodeBot/1.0; +https://www.abode.fyi)",
       },
+      maxBytes: ITEMS_BUCKET_MAX_BYTES,
     });
 
     if (!response.ok) {
