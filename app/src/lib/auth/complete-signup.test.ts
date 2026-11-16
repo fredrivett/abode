@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // completeSignup touches Prisma (@/lib/db), the invite lib, and Trigger.dev.
 // Mock all three so this stays a fast unit test focused on the invite gate.
 const {
-  mockUserUpdate,
+  mockUserUpdateMany,
   mockUserFindUnique,
   mockInviteFindUnique,
   mockAcceptInvite,
   mockTrigger,
   mockSaveSharedItem,
 } = vi.hoisted(() => ({
-  mockUserUpdate: vi.fn(),
+  mockUserUpdateMany: vi.fn(),
   mockUserFindUnique: vi.fn(),
   mockInviteFindUnique: vi.fn(),
   mockAcceptInvite: vi.fn(),
@@ -20,7 +20,7 @@ const {
 
 vi.mock("@/lib/db", () => ({
   default: {
-    user: { update: mockUserUpdate, findUnique: mockUserFindUnique },
+    user: { updateMany: mockUserUpdateMany, findUnique: mockUserFindUnique },
     invite: { findUnique: mockInviteFindUnique },
   },
 }));
@@ -51,7 +51,7 @@ import { completeSignup } from "./complete-signup";
 describe("completeSignup (invite-only gate)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUserUpdate.mockResolvedValue({});
+    mockUserUpdateMany.mockResolvedValue({ count: 1 });
     mockUserFindUnique.mockResolvedValue({ username: null });
     mockTrigger.mockResolvedValue(undefined);
   });
@@ -68,7 +68,7 @@ describe("completeSignup (invite-only gate)", () => {
       expect(result.code).toBe("INVITE_REQUIRED");
     }
     // No account mutation and no downstream jobs on the reject path
-    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
     expect(mockTrigger).not.toHaveBeenCalled();
   });
 
@@ -92,8 +92,8 @@ describe("completeSignup (invite-only gate)", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockUserUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "user-2" } }),
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "user-2", username: null } }),
     );
     expect(mockAcceptInvite).toHaveBeenCalledWith("tok_valid", "user-2");
   });
@@ -127,7 +127,7 @@ describe("completeSignup (invite-only gate)", () => {
       expect(result.code).toBe("ALREADY_ACCEPTED");
     }
     // Account must NOT be finalized when the claim fails
-    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
   });
 
   it("rejects when the invite token does not exist", async () => {
@@ -144,7 +144,7 @@ describe("completeSignup (invite-only gate)", () => {
     if (!result.success) {
       expect(result.code).toBe("INVALID_TOKEN");
     }
-    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
   });
 
   it("rejects a pending invite used by a different email", async () => {
@@ -164,7 +164,7 @@ describe("completeSignup (invite-only gate)", () => {
       expect(result.code).toBe("INVITE_EMAIL_MISMATCH");
     }
     expect(mockAcceptInvite).not.toHaveBeenCalled();
-    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
   });
 
   it("matches the invite email case-insensitively", async () => {
@@ -217,8 +217,31 @@ describe("completeSignup (invite-only gate)", () => {
       expect(result.code).toBe("ALREADY_COMPLETED");
     }
     expect(mockAcceptInvite).not.toHaveBeenCalled();
-    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
     expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it("doesn't finalize twice when a concurrent completion sets the username first", async () => {
+    // Both calls passed the up-front check; the other one won the update
+    mockInviteFindUnique.mockResolvedValue({
+      ...pendingInvite,
+      status: "accepted",
+    });
+    mockUserUpdateMany.mockResolvedValue({ count: 0 });
+
+    const result = await completeSignup({
+      userId: "user-12",
+      email: "invited@example.com",
+      username: "second",
+      inviteToken: "tok_valid",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("ALREADY_COMPLETED");
+    }
+    expect(mockTrigger).not.toHaveBeenCalled();
+    expect(mockSaveSharedItem).not.toHaveBeenCalled();
   });
 
   it("saves the shared item after completing signup from a share invite", async () => {

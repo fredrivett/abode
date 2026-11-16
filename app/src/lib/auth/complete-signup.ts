@@ -24,6 +24,12 @@ export type CompleteSignupResult =
   | { success: true; savedItemId?: string }
   | { success: false; error: string; code: string };
 
+const alreadyCompleted: CompleteSignupResult = {
+  success: false,
+  error: "Signup is already complete",
+  code: "ALREADY_COMPLETED",
+};
+
 /**
  * Completes user signup by setting username, handling invite acceptance,
  * and triggering avatar checks.
@@ -53,11 +59,7 @@ export async function completeSignup(
   // another invite for its email
   if (await hasCompletedSignup(userId)) {
     log.warn({ userId }, "Rejecting signup completion: already completed");
-    return {
-      success: false,
-      error: "Signup is already complete",
-      code: "ALREADY_COMPLETED",
-    };
+    return alreadyCompleted;
   }
 
   // Track invite info for admin notification
@@ -204,8 +206,10 @@ export async function completeSignup(
       { userId, username, origin: invite.origin },
       "Updating user record with username and origin",
     );
-    await db.user.update({
-      where: { id: userId },
+    // Only sets the username if it's still unset, so a concurrent completion
+    // that passed the check above can't finalize the account a second time
+    const { count } = await db.user.updateMany({
+      where: { id: userId, username: null },
       data: {
         username,
         origin: invite.origin,
@@ -216,6 +220,13 @@ export async function completeSignup(
         }),
       },
     });
+    if (count === 0) {
+      log.warn(
+        { userId },
+        "Rejecting signup completion: completed concurrently",
+      );
+      return alreadyCompleted;
+    }
     log.info({ userId, username }, "User record updated successfully");
   } else {
     // Invite-only launch: no invite means no account. Every legitimate signup
