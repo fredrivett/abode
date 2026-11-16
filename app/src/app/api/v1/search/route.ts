@@ -22,6 +22,7 @@ import {
   normalizeColorFilterValue,
   type ParsedFilters,
   parseFiltersFromParams,
+  validateDateFilters,
   validateSourceFilters,
   validateStatusFilters,
   validateTypeFilters,
@@ -449,6 +450,11 @@ async function handleGET(request: NextRequest) {
     if (filters.status && filters.status.length > 0) {
       const { valid, invalid } = validateStatusFilters(filters.status);
       filters.status = valid.length > 0 ? valid : undefined;
+      invalidFilters.push(...invalid);
+    }
+    if (filters.date && filters.date.length > 0) {
+      const { valid, invalid } = validateDateFilters(filters.date);
+      filters.date = valid.length > 0 ? valid : undefined;
       invalidFilters.push(...invalid);
     }
 

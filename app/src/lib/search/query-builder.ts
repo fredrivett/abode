@@ -18,7 +18,12 @@ import {
   normalizeColor,
 } from "./color-utils";
 import { phraseToPattern } from "./quoted-phrases";
-import { NONE_FILTER_VALUE, NOT_NONE_FILTER_VALUE } from "./types";
+import {
+  type DateOperator,
+  NONE_FILTER_VALUE,
+  NOT_NONE_FILTER_VALUE,
+  parseFilterString,
+} from "./types";
 
 /**
  * Check if a filter value is a special null filter ((none) or !(none)).
@@ -41,6 +46,15 @@ function checkNullFilter(
 
 export type FilterValue = { value: string; negated: boolean; orGroup?: number };
 
+/** One `@date:` filter; several are AND'd together. */
+export type DateFilterValue = {
+  operator: DateOperator;
+  value: string;
+  /** Range end, for the "between" operator */
+  endDate?: string;
+  negated: boolean;
+};
+
 export type ParsedFilters = {
   type?: FilterValue[];
   tag?: FilterValue[];
@@ -49,8 +63,7 @@ export type ParsedFilters = {
   source?: FilterValue[];
   location?: FilterValue[];
   status?: FilterValue[];
-  dateAfter?: string;
-  dateBefore?: string;
+  date?: DateFilterValue[];
   /**
    * Exact phrases (quoted text in the search query) every item must contain,
    * case-insensitively. Set by ranked search from the query, never from URL
@@ -257,21 +270,68 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
     }
   }
 
-  // Parse date filters
-  const dateValues = params.getAll("date");
-  for (const dateValue of dateValues) {
-    if (dateValue.startsWith(">")) {
-      filters.dateAfter = dateValue.slice(1);
-    } else if (dateValue.startsWith("<")) {
-      filters.dateBefore = dateValue.slice(1);
-    } else if (dateValue.includes("..")) {
-      const [start, end] = dateValue.split("..");
-      filters.dateAfter = start;
-      filters.dateBefore = end;
-    }
+  // Parse date filters: same syntax as the search bar's @date: (see types.ts)
+  const dateFilters: DateFilterValue[] = [];
+  for (const raw of params.getAll("date")) {
+    const negated = raw.startsWith("!");
+    const parsed = parseFilterString(`@date:${negated ? raw.slice(1) : raw}`);
+    if (parsed?.value === undefined || !parsed.dateOperator) continue;
+    dateFilters.push({
+      operator: parsed.dateOperator,
+      value: parsed.value,
+      ...(parsed.endDate !== undefined ? { endDate: parsed.endDate } : {}),
+      negated,
+    });
+  }
+  if (dateFilters.length > 0) {
+    filters.date = dateFilters;
   }
 
   return filters;
+}
+
+/** An ISO date (`2024-01-15`, optionally with a time) Postgres can cast. */
+function isValidDateValue(value: string): boolean {
+  const day = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(value))) {
+    return false;
+  }
+  // Date.parse rolls nonexistent days over (2024-02-30 -> Mar 1); Postgres doesn't
+  return new Date(`${day}T00:00:00Z`).toISOString().startsWith(day);
+}
+
+/**
+ * Validate date filter values, so a malformed date is reported back instead of
+ * failing the SQL cast.
+ */
+export function validateDateFilters(filters: DateFilterValue[]): {
+  valid: DateFilterValue[];
+  invalid: InvalidFilterValue[];
+} {
+  const valid: DateFilterValue[] = [];
+  const invalid: InvalidFilterValue[] = [];
+
+  for (const filter of filters) {
+    const dates =
+      filter.operator === "between"
+        ? [filter.value, filter.endDate ?? ""]
+        : [filter.value];
+    if (dates.every(isValidDateValue)) {
+      valid.push(filter);
+    } else {
+      const value =
+        filter.operator === "between"
+          ? `${filter.value}..${filter.endDate ?? ""}`
+          : filter.value;
+      invalid.push({
+        filterType: "date",
+        value,
+        reason: `"${value}" is not a valid date. Use YYYY-MM-DD`,
+      });
+    }
+  }
+
+  return { valid, invalid };
 }
 
 /**
@@ -530,12 +590,15 @@ export function buildLocationCondition(
 }
 
 /**
- * Build SQL WHERE conditions for date filter.
+ * Build SQL WHERE conditions for date filters (AND'd together).
  * Uses capture_date with fallback to created_at.
+ *
+ * Must mirror `matchesDateFilter` in rooms/room-matcher.ts: "is" matches the
+ * whole (UTC) day, "before"/"after"/"between" compare against the timestamp
+ * as given, and negation excludes what the filter would match.
  */
 export function buildDateCondition(
-  dateAfter?: string,
-  dateBefore?: string,
+  filters: DateFilterValue[],
   startParamIndex = 1,
 ): { sql: string; params: unknown[] } {
   const conditions: string[] = [];
@@ -547,17 +610,30 @@ export function buildDateCondition(
     (SELECT iid.capture_date FROM item_image_details iid WHERE iid.item_id = items.id),
     items.created_at
   )`;
+  const param = (value: string) => {
+    sqlParams.push(value);
+    return `$${paramIndex++}`;
+  };
 
-  if (dateAfter) {
-    conditions.push(`${dateExpr} >= $${paramIndex}::timestamp`);
-    sqlParams.push(dateAfter);
-    paramIndex++;
-  }
-
-  if (dateBefore) {
-    conditions.push(`${dateExpr} <= $${paramIndex}::timestamp`);
-    sqlParams.push(dateBefore);
-    paramIndex++;
+  for (const filter of filters) {
+    let condition: string;
+    switch (filter.operator) {
+      case "after":
+        condition = `${dateExpr} >= ${param(filter.value)}::timestamp`;
+        break;
+      case "before":
+        condition = `${dateExpr} <= ${param(filter.value)}::timestamp`;
+        break;
+      case "between":
+        condition = `${dateExpr} >= ${param(filter.value)}::timestamp AND ${dateExpr} <= ${param(filter.endDate ?? filter.value)}::timestamp`;
+        break;
+      case "is": {
+        const day = param(filter.value);
+        condition = `${dateExpr} >= ${day}::date AND ${dateExpr} < ${day}::date + 1`;
+        break;
+      }
+    }
+    conditions.push(filter.negated ? `NOT (${condition})` : `(${condition})`);
   }
 
   return {
@@ -863,12 +939,8 @@ export function buildFilterConditions(
   }
 
   // Date filter
-  if (filters.dateAfter || filters.dateBefore) {
-    const dateCondition = buildDateCondition(
-      filters.dateAfter,
-      filters.dateBefore,
-      paramIndex,
-    );
+  if (filters.date && filters.date.length > 0) {
+    const dateCondition = buildDateCondition(filters.date, paramIndex);
     if (dateCondition.sql) {
       conditions.push(dateCondition.sql.replace(/\bitems\./g, `${alias}.`));
       params.push(...dateCondition.params);
@@ -929,8 +1001,7 @@ export function hasFilters(filters: ParsedFilters): boolean {
     (filters.source && filters.source.length > 0) ||
     (filters.location && filters.location.length > 0) ||
     (filters.status && filters.status.length > 0) ||
-    filters.dateAfter !== undefined ||
-    filters.dateBefore !== undefined
+    (filters.date?.length ?? 0) > 0
   );
 }
 

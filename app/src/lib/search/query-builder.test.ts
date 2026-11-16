@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildSearchParams as buildApiSearchParams } from "./api";
 import {
   buildColorCondition,
   buildColorRelevanceCte,
@@ -18,10 +19,13 @@ import {
   VALID_ITEM_KINDS,
   VALID_SOURCE_TYPES,
   VALID_STATUS_VALUES,
+  validateDateFilters,
   validateSourceFilters,
   validateStatusFilters,
   validateTypeFilters,
 } from "./query-builder";
+import type { DateOperator, Filter } from "./types";
+import { buildSearchParams as buildHookSearchParams } from "./use-search-results";
 
 describe("parseFiltersFromParams", () => {
   describe("array-type filters", () => {
@@ -139,30 +143,51 @@ describe("parseFiltersFromParams", () => {
   });
 
   describe("date filters", () => {
-    it("parses date after (>)", () => {
-      const params = new URLSearchParams("date=>2024-01-01");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.dateAfter).toBe("2024-01-01");
+    const dateFilter = (
+      value: string,
+      dateOperator: DateOperator,
+      negated = false,
+      endDate?: string,
+    ): Filter => ({
+      id: value,
+      type: "date",
+      value,
+      negated,
+      dateOperator,
+      endDate,
     });
 
-    it("parses date before (<)", () => {
-      const params = new URLSearchParams("date=<2024-06-01");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.dateBefore).toBe("2024-06-01");
+    // Guards the client/server contract: what the search bar sends is what the
+    // search API reads (it once sent dateAfter/dateBefore, which nothing parsed)
+    it("round-trips every date chip from the search bar to the API", () => {
+      const filters = [
+        dateFilter("2024-03-15", "is"),
+        dateFilter("2024-01-01", "after"),
+        dateFilter("2024-06-01", "before", true),
+        dateFilter("2024-02-01", "between", false, "2024-02-29"),
+      ];
+      const url = buildApiSearchParams(
+        buildHookSearchParams({ query: "", filters }),
+      );
+
+      expect(parseFiltersFromParams(url)).toEqual({
+        date: [
+          { operator: "is", value: "2024-03-15", negated: false },
+          { operator: "after", value: "2024-01-01", negated: false },
+          { operator: "before", value: "2024-06-01", negated: true },
+          {
+            operator: "between",
+            value: "2024-02-01",
+            endDate: "2024-02-29",
+            negated: false,
+          },
+        ],
+      });
     });
 
-    it("parses date range (..)", () => {
-      const params = new URLSearchParams("date=2024-01-01..2024-06-01");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.dateAfter).toBe("2024-01-01");
-      expect(filters.dateBefore).toBe("2024-06-01");
-    });
-
-    it("parses multiple date params", () => {
-      const params = new URLSearchParams("date=>2024-01-01&date=<2024-06-01");
-      const filters = parseFiltersFromParams(params);
-      expect(filters.dateAfter).toBe("2024-01-01");
-      expect(filters.dateBefore).toBe("2024-06-01");
+    it("ignores the legacy dateAfter/dateBefore params", () => {
+      const params = new URLSearchParams("dateAfter=2024-01-01");
+      expect(parseFiltersFromParams(params)).toEqual({});
     });
   });
 
@@ -509,36 +534,57 @@ describe("buildLocationCondition", () => {
 });
 
 describe("buildDateCondition", () => {
-  it("builds condition for date after", () => {
-    const result = buildDateCondition("2024-01-01", undefined, 1);
-    expect(result.sql).toContain(">= $1::timestamp");
-    expect(result.params).toEqual(["2024-01-01"]);
+  it("builds one condition per filter with sequential params", () => {
+    const result = buildDateCondition(
+      [
+        { operator: "after", value: "2024-01-01", negated: false },
+        {
+          operator: "between",
+          value: "2024-02-01",
+          endDate: "2024-02-29",
+          negated: false,
+        },
+      ],
+      3,
+    );
+    expect(result.sql).toContain(">= $3::timestamp");
+    expect(result.sql).toContain(">= $4::timestamp");
+    expect(result.sql).toContain("<= $5::timestamp");
+    expect(result.params).toEqual(["2024-01-01", "2024-02-01", "2024-02-29"]);
   });
 
-  it("builds condition for date before", () => {
-    const result = buildDateCondition(undefined, "2024-06-01", 1);
-    expect(result.sql).toContain("<= $1::timestamp");
-    expect(result.params).toEqual(["2024-06-01"]);
-  });
-
-  it("builds condition for date range", () => {
-    const result = buildDateCondition("2024-01-01", "2024-06-01", 1);
-    expect(result.sql).toContain(">= $1::timestamp");
-    expect(result.sql).toContain("<= $2::timestamp");
-    expect(result.params).toEqual(["2024-01-01", "2024-06-01"]);
-  });
-
-  it("uses COALESCE with capture_date and created_at", () => {
-    const result = buildDateCondition("2024-01-01", undefined, 1);
-    expect(result.sql).toContain("COALESCE");
-    expect(result.sql).toContain("capture_date");
-    expect(result.sql).toContain("created_at");
+  it("matches the whole day for 'is' and wraps negation in NOT", () => {
+    const result = buildDateCondition([
+      { operator: "is", value: "2024-03-15", negated: true },
+    ]);
+    expect(result.sql).toContain("NOT (");
+    expect(result.sql).toContain(">= $1::date");
+    expect(result.sql).toContain("< $1::date + 1");
+    expect(result.params).toEqual(["2024-03-15"]);
   });
 
   it("returns empty for no dates", () => {
-    const result = buildDateCondition(undefined, undefined, 1);
+    const result = buildDateCondition([]);
     expect(result.sql).toBe("");
     expect(result.params).toEqual([]);
+  });
+});
+
+describe("validateDateFilters", () => {
+  it("rejects values Postgres can't cast", () => {
+    const { valid, invalid } = validateDateFilters([
+      { operator: "is", value: "2024-03-15", negated: false },
+      { operator: "after", value: "yesterday", negated: false },
+      { operator: "between", value: "2024-01-01", negated: false },
+      { operator: "is", value: "2024-02-30", negated: false },
+      { operator: "is", value: "2024-02-29", negated: false },
+    ]);
+    expect(valid.map((f) => f.value)).toEqual(["2024-03-15", "2024-02-29"]);
+    expect(invalid.map((f) => f.value)).toEqual([
+      "yesterday",
+      "2024-01-01..",
+      "2024-02-30",
+    ]);
   });
 });
 
@@ -815,8 +861,12 @@ describe("hasFilters", () => {
   });
 
   it("returns true for date filters", () => {
-    expect(hasFilters({ dateAfter: "2024-01-01" })).toBe(true);
-    expect(hasFilters({ dateBefore: "2024-06-01" })).toBe(true);
+    expect(
+      hasFilters({
+        date: [{ operator: "after", value: "2024-01-01", negated: false }],
+      }),
+    ).toBe(true);
+    expect(hasFilters({ date: [] })).toBe(false);
   });
 
   it("returns true for status filter", () => {
