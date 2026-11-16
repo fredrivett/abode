@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock all three so this stays a fast unit test focused on the invite gate.
 const {
   mockUserUpdate,
+  mockUserFindUnique,
   mockInviteFindUnique,
   mockAcceptInvite,
   mockTrigger,
   mockSaveSharedItem,
 } = vi.hoisted(() => ({
   mockUserUpdate: vi.fn(),
+  mockUserFindUnique: vi.fn(),
   mockInviteFindUnique: vi.fn(),
   mockAcceptInvite: vi.fn(),
   mockTrigger: vi.fn(),
@@ -18,7 +20,7 @@ const {
 
 vi.mock("@/lib/db", () => ({
   default: {
-    user: { update: mockUserUpdate },
+    user: { update: mockUserUpdate, findUnique: mockUserFindUnique },
     invite: { findUnique: mockInviteFindUnique },
   },
 }));
@@ -50,6 +52,7 @@ describe("completeSignup (invite-only gate)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserUpdate.mockResolvedValue({});
+    mockUserFindUnique.mockResolvedValue({ username: null });
     mockTrigger.mockResolvedValue(undefined);
   });
 
@@ -193,6 +196,29 @@ describe("completeSignup (invite-only gate)", () => {
 
     expect(result.success).toBe(true);
     expect(mockAcceptInvite).not.toHaveBeenCalled();
+  });
+
+  it("refuses to re-run for an account that already completed signup", async () => {
+    // A pending invite for the same email would otherwise be claimed and the
+    // account renamed
+    mockUserFindUnique.mockResolvedValue({ username: "existing" });
+    mockInviteFindUnique.mockResolvedValue(pendingInvite);
+    mockAcceptInvite.mockResolvedValue({ success: true });
+
+    const result = await completeSignup({
+      userId: "user-11",
+      email: "invited@example.com",
+      username: "renamed",
+      inviteToken: "tok_valid",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("ALREADY_COMPLETED");
+    }
+    expect(mockAcceptInvite).not.toHaveBeenCalled();
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockTrigger).not.toHaveBeenCalled();
   });
 
   it("saves the shared item after completing signup from a share invite", async () => {

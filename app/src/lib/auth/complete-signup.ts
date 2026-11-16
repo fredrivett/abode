@@ -1,6 +1,5 @@
-"use server";
-
 import { tasks } from "@trigger.dev/sdk";
+import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import db from "@/lib/db";
 import { acceptInvite, normalizeEmail } from "@/lib/invites";
 import { saveSharedItemForNewUser } from "@/lib/invites/share-invite";
@@ -49,6 +48,17 @@ export async function completeSignup(
     },
     "Starting completeSignup",
   );
+
+  // Signup completes once: re-running would rename the account and claim
+  // another invite for its email
+  if (await hasCompletedSignup(userId)) {
+    log.warn({ userId }, "Rejecting signup completion: already completed");
+    return {
+      success: false,
+      error: "Signup is already complete",
+      code: "ALREADY_COMPLETED",
+    };
+  }
 
   // Track invite info for admin notification
   let signupOrigin: "user" | "waitlist" | "admin" | "direct" = "direct";
