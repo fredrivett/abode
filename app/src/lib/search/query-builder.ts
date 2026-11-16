@@ -292,7 +292,12 @@ export function parseFiltersFromParams(params: URLSearchParams): ParsedFilters {
 
 /** An ISO date (`2024-01-15`, optionally with a time) Postgres can cast. */
 function isValidDateValue(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}/.test(value) && !Number.isNaN(Date.parse(value));
+  const day = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(value))) {
+    return false;
+  }
+  // Date.parse rolls nonexistent days over (2024-02-30 -> Mar 1); Postgres doesn't
+  return new Date(`${day}T00:00:00Z`).toISOString().startsWith(day);
 }
 
 /**

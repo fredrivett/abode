@@ -576,9 +576,15 @@ describe("validateDateFilters", () => {
       { operator: "is", value: "2024-03-15", negated: false },
       { operator: "after", value: "yesterday", negated: false },
       { operator: "between", value: "2024-01-01", negated: false },
+      { operator: "is", value: "2024-02-30", negated: false },
+      { operator: "is", value: "2024-02-29", negated: false },
     ]);
-    expect(valid.map((f) => f.value)).toEqual(["2024-03-15"]);
-    expect(invalid.map((f) => f.value)).toEqual(["yesterday", "2024-01-01.."]);
+    expect(valid.map((f) => f.value)).toEqual(["2024-03-15", "2024-02-29"]);
+    expect(invalid.map((f) => f.value)).toEqual([
+      "yesterday",
+      "2024-01-01..",
+      "2024-02-30",
+    ]);
   });
 });
 
