@@ -305,30 +305,34 @@ export function serializeSearchParams(state: SearchState): URLSearchParams {
   }
 
   for (const filter of state.filters) {
-    let value = filter.value;
-
-    if (filter.type === "date") {
-      switch (filter.dateOperator) {
-        case "after":
-          value = `>${filter.value}`;
-          break;
-        case "before":
-          value = `<${filter.value}`;
-          break;
-        case "between":
-          value = `${filter.value}..${filter.endDate}`;
-          break;
-      }
-    }
-
-    if (filter.negated) {
-      value = `!${value}`;
-    }
-
-    params.append(filter.type, value);
+    params.append(filter.type, filterParamValue(filter));
   }
 
   return params;
+}
+
+/**
+ * A filter's URL param value (`!` for negation, `>`/`<`/`..` for date
+ * operators) — the format both the page URL and `/api/v1/search` parse.
+ */
+export function filterParamValue(filter: Filter): string {
+  let value = filter.value;
+
+  if (filter.type === "date") {
+    switch (filter.dateOperator) {
+      case "after":
+        value = `>${filter.value}`;
+        break;
+      case "before":
+        value = `<${filter.value}`;
+        break;
+      case "between":
+        value = `${filter.value}..${filter.endDate}`;
+        break;
+    }
+  }
+
+  return filter.negated ? `!${value}` : value;
 }
 
 /**

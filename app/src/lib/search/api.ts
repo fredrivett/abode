@@ -58,15 +58,15 @@ export type SearchParams = {
   source?: string[];
   location?: string[];
   status?: string[];
-  dateAfter?: string;
-  dateBefore?: string;
+  /** Date filters in URL syntax: `2024-01-15`, `>…`, `<…`, `a..b`, `!` negates */
+  date?: string[];
   cursor?: string;
 };
 
 /**
  * Build URL search params from search parameters.
  */
-function buildSearchParams(params: SearchParams): URLSearchParams {
+export function buildSearchParams(params: SearchParams): URLSearchParams {
   const searchParams = new URLSearchParams();
 
   if (params.q) {
@@ -82,6 +82,7 @@ function buildSearchParams(params: SearchParams): URLSearchParams {
     "source",
     "location",
     "status",
+    "date",
   ] as const;
   for (const key of arrayParams) {
     const values = params[key];
@@ -92,12 +93,6 @@ function buildSearchParams(params: SearchParams): URLSearchParams {
     }
   }
 
-  if (params.dateAfter) {
-    searchParams.set("dateAfter", params.dateAfter);
-  }
-  if (params.dateBefore) {
-    searchParams.set("dateBefore", params.dateBefore);
-  }
   if (params.cursor) {
     searchParams.set("cursor", params.cursor);
   }

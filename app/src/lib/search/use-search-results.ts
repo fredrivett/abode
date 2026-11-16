@@ -16,7 +16,7 @@ import {
   type SearchResponse,
   search,
 } from "./api";
-import type { Filter, SearchState } from "./types";
+import { type Filter, filterParamValue, type SearchState } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -70,7 +70,7 @@ export type SearchResultsState = {
 /**
  * Convert frontend Filter to API search params.
  */
-function buildSearchParams(state: SearchState): SearchQueryParams {
+export function buildSearchParams(state: SearchState): SearchQueryParams {
   const params: SearchQueryParams = {};
 
   // Add query if present (strip incomplete filter syntax)
@@ -92,7 +92,7 @@ function buildSearchParams(state: SearchState): SearchQueryParams {
 
   // Convert filters to API format
   for (const [type, filters] of filtersByType) {
-    const values = filters.map((f) => (f.negated ? `!${f.value}` : f.value));
+    const values = filters.map(filterParamValue);
 
     switch (type) {
       case "type":
@@ -117,21 +117,7 @@ function buildSearchParams(state: SearchState): SearchQueryParams {
         params.status = values;
         break;
       case "date":
-        // Date filters are handled specially
-        for (const filter of filters) {
-          if (filter.dateOperator === "after") {
-            params.dateAfter = filter.value;
-          } else if (filter.dateOperator === "before") {
-            params.dateBefore = filter.value;
-          } else if (filter.dateOperator === "between" && filter.endDate) {
-            params.dateAfter = filter.value;
-            params.dateBefore = filter.endDate;
-          } else if (filter.dateOperator === "is") {
-            // Exact date: set both to same day
-            params.dateAfter = filter.value;
-            params.dateBefore = filter.value;
-          }
-        }
+        params.date = values;
         break;
     }
   }

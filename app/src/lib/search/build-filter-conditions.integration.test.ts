@@ -153,12 +153,35 @@ describe("buildFilterConditions integration", () => {
       // Effective date falls back to created_at (now)
       const recent = await createItem(user.id, { kind: "image" });
 
+      const date = (
+        operator: "is" | "after" | "before",
+        value: string,
+        negated = false,
+      ): ParsedFilters => ({ date: [{ operator, value, negated }] });
+
       expect(
-        await runQuery(user.id, { dateBefore: "2021-01-01" }, alias),
+        await runQuery(user.id, date("before", "2021-01-01"), alias),
       ).toEqual([past]);
       expect(
-        await runQuery(user.id, { dateAfter: "2021-01-01" }, alias),
+        await runQuery(user.id, date("after", "2021-01-01"), alias),
       ).toEqual([recent]);
+      expect(
+        await runQuery(user.id, date("before", "2021-01-01", true), alias),
+      ).toEqual([recent]);
+
+      // "is" matches the whole day, not only its midnight
+      const midday = await createItem(user.id, {
+        createdAt: new Date("2024-03-15T13:45:00Z"),
+      });
+      await createItem(user.id, {
+        createdAt: new Date("2024-03-16T00:00:00Z"),
+      });
+      expect(await runQuery(user.id, date("is", "2024-03-15"), alias)).toEqual([
+        midday,
+      ]);
+      expect(
+        (await runQuery(user.id, date("is", "2024-03-15", true), alias)).length,
+      ).toBe(3);
     },
   );
 
