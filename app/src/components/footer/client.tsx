@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { comparePath } from "@/lib/comparisons/paths";
 import { GITHUB_URL } from "@/lib/github";
+import { ROUTES } from "@/lib/routes";
 import { X_URL } from "@/lib/social";
 import { cn } from "@/lib/utils";
 import { AbodeLogo } from "../abode-logo";
@@ -113,6 +114,12 @@ export function FooterClient({ isAuthenticated }: FooterClientProps) {
               className="transition-colors hover:text-foreground"
             >
               /compare
+            </Link>
+            <Link
+              href={ROUTES.PRIVACY}
+              className="transition-colors hover:text-foreground"
+            >
+              privacy
             </Link>
             <a
               href={GITHUB_URL}
