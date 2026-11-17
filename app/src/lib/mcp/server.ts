@@ -2,7 +2,7 @@ import type { AuthInfo, CallToolResult } from "@modelcontextprotocol/server";
 import { McpServer } from "@modelcontextprotocol/server";
 import { ItemKind } from "@prisma/client";
 import { z } from "zod";
-import type { AuthenticatedRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -27,7 +27,7 @@ const log = createLogger("lib/mcp/server");
 /** Who an MCP request is for, carried from the route's auth check to the tools */
 export type McpCaller = {
   userId: string;
-  authMethod: AuthenticatedRequest["method"];
+  authMethod: Principal["method"];
   /** The personal access token used, or null for a web/extension session */
   tokenId: string | null;
 };
@@ -46,7 +46,7 @@ Everything is read-only.`;
  * Packs the authenticated caller into the SDK's AuthInfo, which the handler
  * passes through untouched to the per-request server factory.
  */
-export function toAuthInfo(auth: AuthenticatedRequest): AuthInfo {
+export function toAuthInfo(auth: Principal): AuthInfo {
   const tokenId = auth.method === "pat" ? auth.tokenId : null;
   const caller: McpCaller = {
     userId: auth.user.id,

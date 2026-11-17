@@ -3,9 +3,9 @@ import { tasks } from "@trigger.dev/sdk";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { ACTIVE_IMPORT_STATUSES } from "@/lib/imports/constants";
 import { fetchLiteralBooks } from "@/lib/imports/literal/adapter";
 import { LiteralApiError } from "@/lib/imports/literal/client";
@@ -35,13 +35,12 @@ function importInProgress(importId: string) {
   );
 }
 
-async function handlePOST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request, { tokenScope: null });
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    const userId = auth.user.id;
+    const userId = principal.user.id;
 
     // Import needs the background queue; degrade cleanly where it isn't set up.
     if (!isTriggerConfigured()) {
@@ -164,4 +163,4 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ tokenScope: null }, handlePOST);

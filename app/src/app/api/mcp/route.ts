@@ -1,7 +1,7 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { type NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
-import { withViewer } from "@/lib/http/with-viewer";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import {
   buildMcpServer,
@@ -26,23 +26,15 @@ const handler = createMcpHandler(({ authInfo }) => {
   return buildMcpServer(caller);
 });
 
-async function handle(request: NextRequest): Promise<Response> {
+async function handle(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<Response> {
   try {
-    const auth = await authenticateRequest(request, { tokenScope: "read" });
-    if (!auth) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        // Plain bearer challenge: abode has no OAuth server to point clients at
-        {
-          status: 401,
-          headers: { "WWW-Authenticate": 'Bearer realm="abode"' },
-        },
-      );
-    }
-    return await handler.fetch(request, { authInfo: toAuthInfo(auth) });
+    return await handler.fetch(request, { authInfo: toAuthInfo(principal) });
   } catch (error) {
-    // Tool failures are handled per tool (lib/mcp/server); this catches the
-    // auth lookup or the transport itself failing
+    // Tool failures are handled per tool (lib/mcp/server) and auth failures by
+    // authedRoute; this catches the transport itself failing
     log.error({ error }, "MCP request failed");
     captureServerException(error, undefined, {
       route: `${request.method} /api/mcp`,
@@ -54,6 +46,6 @@ async function handle(request: NextRequest): Promise<Response> {
   }
 }
 
-const framedHandle = withViewer(handle);
+const framedHandle = authedRoute({ tokenScope: "read" }, handle);
 
 export { framedHandle as DELETE, framedHandle as GET, framedHandle as POST };

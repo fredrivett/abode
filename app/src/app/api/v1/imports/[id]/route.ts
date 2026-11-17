@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 
@@ -10,18 +10,16 @@ const log = createLogger("api/imports/[id]");
 
 /** Poll a single import's status + counts (owner-scoped). Drives the progress UI. */
 async function handleGET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  _request: NextRequest,
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }>; principal: Principal },
 ): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request, { tokenScope: null });
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     const itemImport = await db.itemImport.findFirst({
-      where: { id, userId: auth.user.id },
+      where: { id, userId: principal.user.id },
       select: {
         id: true,
         source: true,
@@ -56,4 +54,4 @@ async function handleGET(
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ tokenScope: null }, handleGET);

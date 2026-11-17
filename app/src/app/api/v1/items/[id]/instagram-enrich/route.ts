@@ -1,8 +1,9 @@
 import type { enrichInstagramItemTask } from "@app/trigger/enrich-instagram-item";
 import { type NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { preflight, withCors } from "@/lib/http/cors";
+import { authedRoute } from "@/lib/http/authed-route";
+import { preflight } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
@@ -21,27 +22,19 @@ function handleOPTIONS(request: NextRequest) {
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function handlePOST(request: NextRequest, ctx: Ctx) {
-  return withCors(request, await handlePost(request, ctx));
-}
-
 /**
  * Upgrade an existing Instagram item to `full` capture from media the browser
  * extension scraped off the logged-in post page. Validates the payload, then
  * enqueues the enrich task (which re-hosts the media and rewrites the details).
  */
-async function handlePost(
+async function handlePOST(
   request: NextRequest,
-  { params }: Ctx,
+  { params, principal }: Ctx & { principal: Principal },
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
 
-    const auth = await authenticateRequest(request, { tokenScope: null });
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user;
+    const user = principal.user;
 
     const parsed = instagramEnrichSchema.safeParse(await request.json());
     if (!parsed.success) {
@@ -153,4 +146,4 @@ async function handlePost(
 }
 
 export const OPTIONS = withViewer(handleOPTIONS);
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ tokenScope: null, cors: true }, handlePOST);
