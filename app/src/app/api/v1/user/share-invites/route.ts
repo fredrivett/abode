@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import { type NextRequest, NextResponse } from "next/server";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { getAvailableInvites } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/share-invites");
 
@@ -14,13 +13,12 @@ const log = createLogger("api/v1/user/share-invites");
  * Whether readers of the user's shared links can join with their invites, and
  * how many invites they have left. Toggled via PATCH /api/v1/user/profile.
  */
-async function handleGET() {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const [dbUser, availableInvites] = await Promise.all([
       db.user.findUnique({
@@ -49,4 +47,4 @@ async function handleGET() {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

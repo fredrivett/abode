@@ -1,19 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import {
   createPdfDocumentSchema,
   titleFromFileName,
 } from "@/lib/documents/create-pdf-document-schema";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueuePdfImport } from "@/lib/items/enqueue-pdf-import";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { PDF_MIME_TYPE } from "@/lib/uploads";
 import { guardDailyLimit } from "@/lib/usage-limits";
@@ -29,13 +28,12 @@ const log = createLogger("api/v1/items/documents/pdf");
  * ingestion action; the import counts each scanned page it OCRs (see
  * import-pdf), since the page count isn't known until the PDF is opened.
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const parsed = createPdfDocumentSchema.safeParse(
       await request.json().catch(() => null),
@@ -108,4 +106,4 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

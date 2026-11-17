@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Routes resolve the user through getCompletedSignupUser; these tests are for
 // a user who has completed signup
-vi.mock("@/lib/auth/has-completed-signup", () => ({
-  hasCompletedSignup: async () => true,
-}));
 
 const { mockGetUser, mockFindRoom, mockFindItems } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
@@ -16,7 +13,12 @@ const connections = vi.hoisted(() => [] as string[]);
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
-  getUserWithMfa: mockGetUser,
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await mockGetUser();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 
 vi.mock("@/lib/db", () => {

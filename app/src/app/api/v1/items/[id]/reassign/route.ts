@@ -2,10 +2,10 @@ import type { classifyUrlTask } from "@app/trigger/classify-url";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { canReassignKind, isForcibleKind } from "@/lib/item-kind-reassignment";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimDailyReassign } from "@/lib/items/reassign-claim";
@@ -25,16 +25,15 @@ const log = createLogger("api/v1/items/[id]/reassign");
  */
 async function handlePOST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const { kind } = body;
@@ -162,4 +161,4 @@ async function handlePOST(
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

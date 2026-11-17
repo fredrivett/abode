@@ -3,9 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Routes resolve the user through getCompletedSignupUser; these tests are for
 // a user who has completed signup
-vi.mock("@/lib/auth/has-completed-signup", () => ({
-  hasCompletedSignup: async () => true,
-}));
 
 const { mockCheckRateLimit, mockGetUser, mockItemFindFirst } = vi.hoisted(
   () => ({
@@ -29,7 +26,12 @@ vi.mock("@/lib/url", () => ({ getAppBaseUrl: () => "https://www.abode.fyi" }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mockGetUser } }),
   // Route auth goes through getUserWithMfa; pass through to the mocked getUser
-  getUserWithMfa: () => mockGetUser(),
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await (() => mockGetUser())();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 
 vi.mock("@/lib/db", () => {

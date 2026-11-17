@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { TOKEN_SCOPES, type TokenScope } from "@/lib/auth/token-scopes";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import {
   createPersonalAccessToken,
@@ -10,7 +10,6 @@ import {
 } from "@/lib/personal-access-tokens";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/tokens");
 
@@ -41,14 +40,12 @@ const createTokenSchema = z.object({
 /**
  * GET /api/v1/tokens - List the current user's active personal access tokens
  */
-async function handleGET() {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const tokens = await listPersonalAccessTokens(user.id);
     return NextResponse.json({ tokens });
@@ -66,14 +63,12 @@ async function handleGET() {
  * POST /api/v1/tokens - Mint a new personal access token. The raw token is
  * returned once in the response and never again.
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const rateLimit = checkRateLimit(user.id, "tokenCreate");
     if (!rateLimit.allowed) {
@@ -132,5 +127,5 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

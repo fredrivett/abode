@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { detectPlatform, normalizeUrl } from "@/lib/platforms";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
 import type { ExternalLink } from "@/lib/types/item";
 
 const log = createLogger("api/v1/items/[id]/links");
@@ -17,16 +16,14 @@ const log = createLogger("api/v1/items/[id]/links");
  */
 async function handlePOST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Rate limiting
     const rateLimitResult = checkRateLimit(user.id, "itemLinks");
@@ -126,16 +123,14 @@ async function handlePOST(
  */
 async function handleDELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Rate limiting
     const rateLimitResult = checkRateLimit(user.id, "itemLinks");
@@ -208,5 +203,5 @@ async function handleDELETE(
   }
 }
 
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

@@ -52,14 +52,17 @@ const fakeStorage = vi.hoisted(() => ({
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ storage: fakeStorage }),
 }));
-vi.mock("@/lib/supabase/server", async () => {
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({ storage: fakeStorage }),
+}));
+// The route authenticates through authedRoute; like the real helper, record
+// the caller so RLS acts for them
+vi.mock("@/lib/auth/authenticate-request", async () => {
   const { recordViewer } = await import("@/lib/viewer-context");
   return {
-    createClient: async () => ({ storage: fakeStorage }),
-    // Like the real helper, record the caller so RLS acts for them
-    getUserWithMfa: async () => {
+    authenticateRequest: async () => {
       recordViewer(auth.userId);
-      return { data: { user: { id: auth.userId } }, error: null };
+      return { user: { id: auth.userId }, method: "cookie" };
     },
   };
 });
@@ -142,7 +145,7 @@ describe("PDF upload integration", () => {
       data: {
         id: crypto.randomUUID(),
         email: `pdf-${crypto.randomUUID()}@example.com`,
-        // A completed signup, so the upload route's signup gate lets it through
+        // A completed signup, as authenticateRequest would require
         username: `pdf_${crypto.randomUUID().slice(0, 8)}`,
       },
     });

@@ -1,11 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
-import { withViewer } from "@/lib/http/with-viewer";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { decodeCursor, parsePageSize } from "@/lib/pagination";
 import { listTokenSavedItems } from "@/lib/personal-access-tokens";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/tokens/[id]/items");
 
@@ -18,15 +17,13 @@ type RouteParams = {
  * newest first (`?cursor=` for the next page). Session-only: a token can't
  * list what tokens did.
  */
-async function handleGET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Absent = first page; present but empty or undecodable = a bad request
     const rawCursor = request.nextUrl.searchParams.get("cursor");
@@ -58,4 +55,4 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

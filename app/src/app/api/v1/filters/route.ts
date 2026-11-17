@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
-import { withViewer } from "@/lib/http/with-viewer";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
 import {
   type AvailableFilterType,
   getAvailableFilters,
@@ -8,7 +8,6 @@ import {
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/filters");
 
@@ -37,14 +36,12 @@ function isValidFilterType(value: string | null): value is AvailableFilterType {
  * - All values sorted alphabetically
  * - Location values deduplicated across all location fields
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Rate limiting
     const rateLimitResult = checkRateLimit(user.id, "filters");
@@ -81,4 +78,4 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

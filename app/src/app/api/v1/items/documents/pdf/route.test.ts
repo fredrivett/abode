@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Routes resolve the user through getCompletedSignupUser; these tests are for
 // a user who has completed signup
-vi.mock("@/lib/auth/has-completed-signup", () => ({
-  hasCompletedSignup: async () => true,
-}));
 
 import { MAX_PDF_UPLOAD_BYTES } from "@/lib/uploads";
 
@@ -23,7 +20,12 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
-  getUserWithMfa: () => m.getUser(),
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await (() => m.getUser())();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 vi.mock("@/lib/usage-limits", () => ({ guardDailyLimit: m.guard }));
 vi.mock("@/lib/items/enqueue-pdf-import", () => ({

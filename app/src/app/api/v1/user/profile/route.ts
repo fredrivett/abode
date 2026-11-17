@@ -1,16 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { BIO_MAX_LENGTH } from "@/lib/profile";
-import { createClient } from "@/lib/supabase/server";
 import { normalizeWebsiteUrl } from "@/lib/url-utils";
 
 const log = createLogger("api/v1/user/profile");
@@ -26,14 +25,12 @@ const profileUpdateSchema = z.object({
   allowShareInvites: z.boolean().optional(),
 });
 
-async function handleGET(_request: NextRequest) {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const profile = await db.user.findUnique({
       where: { id: user.id },
@@ -71,15 +68,14 @@ async function handleGET(_request: NextRequest) {
   }
 }
 
-async function handlePATCH(request: NextRequest) {
+async function handlePATCH(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
     // Writes to the profile need a completed signup (an invite claimed), not
     // just a session; API routes aren't covered by the (app) page gate
-    const user = await getCompletedSignupUser(await createClient());
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json().catch(() => ({}));
     const parsed = profileUpdateSchema.safeParse(body);
@@ -172,5 +168,5 @@ async function handlePATCH(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const PATCH = withViewer(handlePATCH);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const PATCH = authedRoute({ credentials: "session" }, handlePATCH);

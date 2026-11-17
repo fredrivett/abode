@@ -1,17 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import {
   DOWNLOAD_URL_TTL_SECONDS,
   EXPORTS_BUCKET,
   exportDownloadFilename,
 } from "@/lib/export/constants";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { isCanonicalUuid } from "@/lib/pagination";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/exports/[id]/download");
 
@@ -30,14 +29,13 @@ function parsePartNumber(value: string | null): number | null {
 
 async function handleGET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ): Promise<NextResponse> {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const { id } = await params;
     // Not a UUID can't be an export; don't let it reach the uuid column
@@ -122,4 +120,4 @@ async function handleGET(
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

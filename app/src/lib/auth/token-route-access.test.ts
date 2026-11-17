@@ -4,14 +4,18 @@ import { describe, expect, it } from "vitest";
 import type { TokenScope } from "./token-scopes";
 
 /**
- * Every API route wrapped in authedRoute, and the tokenScope each wrapper
- * declares (null = tokens rejected). Opening a route to tokens is a security
- * decision, so it has to show up here in review — tokens once gained write
- * access by accident when token support was added to the shared auth helper.
- * The list is exhaustive on purpose: a route that dodges the scan (an aliased
+ * Every API route that accepts a bearer credential, and what each authedRoute
+ * call in it declares: a tokenScope (null = personal access tokens rejected,
+ * Supabase bearer tokens still accepted) or "session" (cookie only). Opening a
+ * route to tokens is a security decision, so it has to show up here in review —
+ * tokens once gained write access by accident when token support was added to
+ * the shared auth helper. Routes whose every call is `credentials: "session"`
+ * are left out; switching one to a tokenScope makes it appear and fails. The
+ * list is exhaustive on purpose: a route that dodges the scan (an aliased
  * import, a differently shaped call) changes the scanned set and fails.
  */
-const ROUTE_TOKEN_ACCESS: Record<string, (TokenScope | null)[]> = {
+type Access = TokenScope | null | "session";
+const ROUTE_TOKEN_ACCESS: Record<string, Access[]> = {
   "app/api/mcp/route.ts": ["read"],
   "app/api/v1/imports/[id]/route.ts": [null],
   "app/api/v1/imports/literal/route.ts": [null],
@@ -28,11 +32,11 @@ const IMPORTS_AUTHENTICATE =
 const IMPORTS_HELPER =
   /import\s+(?!type\b)[^;]*from\s+["']@\/lib\/http\/authed-route["']/;
 const CALL = /\bauthedRoute(?:<[^>]*>)?\(/g;
-// The route must declare the scope as a literal, first, so this test can read it
+// The route must declare its credentials as a literal, first, so this test can read them
 const SCOPED_CALL =
-  /\bauthedRoute(?:<[^>]*>)?\(\s*\{\s*tokenScope:\s*(?:"(read|write)"|null)\s*[,}]/g;
+  /\bauthedRoute(?:<[^>]*>)?\(\s*\{\s*(?:tokenScope:\s*(?:"(read|write)"|null)|credentials:\s*"(session)")\s*[,}]/g;
 
-type Caller = { file: string; calls: number; scopes: (TokenScope | null)[] };
+type Caller = { file: string; calls: number; scopes: Access[] };
 
 function sourceFiles() {
   return readdirSync(SRC_DIR, { recursive: true, encoding: "utf8" })
@@ -49,9 +53,10 @@ function helperCallers(): Caller[] {
     .map(({ file, source }) => ({
       file,
       calls: source.match(CALL)?.length ?? 0,
-      scopes: [...source.matchAll(SCOPED_CALL)].map((match) =>
-        match[1] === "read" || match[1] === "write" ? match[1] : null,
-      ),
+      scopes: [...source.matchAll(SCOPED_CALL)].map((match): Access => {
+        if (match[2] === "session") return "session";
+        return match[1] === "read" || match[1] === "write" ? match[1] : null;
+      }),
     }));
 }
 
@@ -73,7 +78,7 @@ describe("personal access token route access", () => {
   });
 
   it.each(callers.map((c) => [c.file, c] as const))(
-    "%s calls authedRoute directly, with a literal tokenScope each time",
+    "%s calls authedRoute directly, declaring its credentials as a literal each time",
     (_, { calls, scopes }) => {
       // calls === 0 means an aliased import, which the scan can't follow
       expect(calls).toBeGreaterThan(0);
@@ -83,7 +88,9 @@ describe("personal access token route access", () => {
 
   it("matches the reviewed route list exactly", () => {
     const actual = Object.fromEntries(
-      callers.map(({ file, scopes }) => [file, scopes]),
+      callers
+        .filter(({ scopes }) => scopes.some((scope) => scope !== "session"))
+        .map(({ file, scopes }) => [file, scopes]),
     );
     expect(actual).toEqual(ROUTE_TOKEN_ACCESS);
   });

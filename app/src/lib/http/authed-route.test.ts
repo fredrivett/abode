@@ -72,6 +72,19 @@ describe("authedRoute", () => {
     expect(isViewerFramed(route)).toBe(true);
   });
 
+  it("runs an allowAnonymous handler for a signed-out request, with a null principal", async () => {
+    mockAuthenticate.mockResolvedValue(null);
+    const route = authedRoute(
+      { credentials: "session", allowAnonymous: true },
+      async (_request, { principal }: { principal: Principal | null }) =>
+        Response.json({ principal }),
+    );
+
+    const response = await route(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ principal: null });
+  });
+
   it("adds CORS headers to the 401 as well as the handler's response", async () => {
     const route = authedRoute({ tokenScope: null, cors: true }, async () =>
       Response.json({}),
@@ -90,12 +103,16 @@ describe("authedRoute", () => {
     expect(denied.status).toBe(401);
   });
 
-  it("500s when the auth lookup itself throws", async () => {
+  it.each([
+    ["a request", request],
+    // Callers that build a bare request object (no URL) still get the 500
+    ["a request without a URL", () => ({ method: "POST" }) as NextRequest],
+  ])("500s when the auth lookup itself throws, for %s", async (_, make) => {
     mockAuthenticate.mockRejectedValue(new Error("db down"));
     const response = await authedRoute(
       { tokenScope: null },
       unreachable,
-    )(request());
+    )(make());
     expect(response.status).toBe(500);
     expect(unreachable).not.toHaveBeenCalled();
   });

@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db, { systemDb } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { canViewRoom, viewableRoomItemsWhere } from "@/lib/rooms/room-access";
 import { roomItemSelect, toClientRoomItem } from "@/lib/rooms/room-item-query";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/items");
 
@@ -22,11 +21,13 @@ type RouteParams = { params: Promise<{ id: string }> };
  * items. A private room is a 404 to non-owners, so its existence isn't
  * revealed.
  */
-async function handleGET(request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal | null },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
+    const user = principal?.user ?? null;
     const viewerId = user?.id ?? null;
 
     // Public rooms are listed to anyone, so this reads on the system connection
@@ -88,15 +89,13 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
 /**
  * POST /api/v1/rooms/:id/items - Add an item to a manual room
  */
-async function handlePOST(request: NextRequest, { params }: RouteParams) {
+async function handlePOST(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const { itemId } = body;
@@ -213,15 +212,13 @@ async function handlePOST(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/v1/rooms/:id/items - Remove an item from a manual room
  */
-async function handleDELETE(request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const { itemId } = body;
@@ -281,6 +278,9 @@ async function handleDELETE(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const GET = authedRoute(
+  { credentials: "session", allowAnonymous: true },
+  handleGET,
+);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

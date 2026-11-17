@@ -1,10 +1,8 @@
+import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Routes resolve the user through getCompletedSignupUser; these tests are for
 // a user who has completed signup
-vi.mock("@/lib/auth/has-completed-signup", () => ({
-  hasCompletedSignup: async () => true,
-}));
 
 const m = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -19,7 +17,12 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
-  getUserWithMfa: () => m.getUser(),
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await (() => m.getUser())();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 vi.mock("@/lib/trigger/item-runs", () => ({
   isTriggerConfigured: () => m.triggerConfigured,
@@ -43,6 +46,8 @@ vi.mock("@/lib/logger.server", () => ({
 }));
 
 import { GET, POST } from "./route";
+
+const request = () => new NextRequest("http://localhost/api/v1/exports");
 
 const USER = "user-1";
 const createdRow = {
@@ -70,19 +75,19 @@ beforeEach(() => {
 describe("POST /api/v1/exports", () => {
   it("rejects a signed-out (or 2FA-pending) request", async () => {
     m.getUser.mockResolvedValue({ data: { user: null } });
-    expect((await POST()).status).toBe(401);
+    expect((await POST(request())).status).toBe(401);
     expect(m.reserve).not.toHaveBeenCalled();
   });
 
   it("is unavailable without the background worker", async () => {
     m.triggerConfigured = false;
-    expect((await POST()).status).toBe(503);
+    expect((await POST(request())).status).toBe(503);
     expect(m.reserve).not.toHaveBeenCalled();
   });
 
   it("allows one export in progress at a time", async () => {
     m.reserve.mockResolvedValue({ status: "in_progress", exportId: "running" });
-    const res = await POST();
+    const res = await POST(request());
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ exportId: "running" });
     expect(m.trigger).not.toHaveBeenCalled();
@@ -90,12 +95,12 @@ describe("POST /api/v1/exports", () => {
 
   it("caps exports per day", async () => {
     m.reserve.mockResolvedValue({ status: "daily_limit" });
-    expect((await POST()).status).toBe(429);
+    expect((await POST(request())).status).toBe(429);
     expect(m.trigger).not.toHaveBeenCalled();
   });
 
   it("creates the export, enqueues the build and reports it", async () => {
-    const res = await POST();
+    const res = await POST(request());
 
     expect(res.status).toBe(202);
     expect(m.reserve).toHaveBeenCalledWith(USER);
@@ -118,7 +123,7 @@ describe("POST /api/v1/exports", () => {
   it("fails the export if it can't be enqueued, so it won't block the next one", async () => {
     m.trigger.mockRejectedValue(new Error("trigger down"));
 
-    expect((await POST()).status).toBe(500);
+    expect((await POST(request())).status).toBe(500);
     // On the system connection: under RLS the user can't update their export
     expect(m.failExport).toHaveBeenCalledWith("export-1");
     expect(m.update).not.toHaveBeenCalled();
@@ -139,7 +144,7 @@ describe("GET /api/v1/exports", () => {
       },
     ]);
 
-    const res = await GET();
+    const res = await GET(request());
 
     expect(m.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: USER }, take: 5 }),
@@ -159,6 +164,6 @@ describe("GET /api/v1/exports", () => {
 
   it("rejects a signed-out request", async () => {
     m.getUser.mockResolvedValue({ data: { user: null } });
-    expect((await GET()).status).toBe(401);
+    expect((await GET(request())).status).toBe(401);
   });
 });

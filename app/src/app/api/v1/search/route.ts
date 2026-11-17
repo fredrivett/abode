@@ -6,9 +6,9 @@ import type {
   SourceType,
 } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { isCanonicalUuid } from "@/lib/pagination";
@@ -28,7 +28,6 @@ import {
   validateTypeFilters,
 } from "@/lib/search/query-builder";
 import { rankedSearch } from "@/lib/search/ranked-search";
-import { createClient } from "@/lib/supabase/server";
 import { mapTwitterDetails } from "@/lib/twitter/map-twitter-details";
 import type {
   BookDetails,
@@ -406,17 +405,15 @@ function decodeCursor(cursor: string): CursorData | null {
  *
  * Requires at least one filter or query parameter.
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   const startTime = Date.now();
   const warnings: SearchWarning[] = [];
 
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Rate limiting
     const rateLimitResult = checkRateLimit(user.id, "search");
@@ -1124,4 +1121,4 @@ async function executeRankedSearch(
   };
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

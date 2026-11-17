@@ -1,15 +1,14 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { roomTag, userTag } from "@/lib/items/run-tags";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
 import { hasValidFilters } from "@/lib/rooms";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
 import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import type { syncRoomItemsTask } from "../../../../../../trigger/sync-room-items";
 
@@ -20,15 +19,13 @@ type RouteParams = { params: Promise<{ id: string }> };
 /**
  * GET /api/v1/rooms/:id - Get a single room by ID
  */
-async function handleGET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  _request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const room = await db.room.findUnique({
       where: {
@@ -77,15 +74,13 @@ async function handleGET(_request: NextRequest, { params }: RouteParams) {
 /**
  * PATCH /api/v1/rooms/:id - Update a room
  */
-async function handlePATCH(request: NextRequest, { params }: RouteParams) {
+async function handlePATCH(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Check if room exists and belongs to user
     const existingRoom = await db.room.findUnique({
@@ -226,15 +221,13 @@ async function handlePATCH(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/v1/rooms/:id - Delete a room
  */
-async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(
+  _request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Check if room exists and belongs to user
     const existingRoom = await db.room.findUnique({
@@ -291,6 +284,6 @@ async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const PATCH = withViewer(handlePATCH);
-export const DELETE = withViewer(handleDELETE);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const PATCH = authedRoute({ credentials: "session" }, handlePATCH);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

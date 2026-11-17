@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/referrers");
 
@@ -13,15 +12,13 @@ type RouteParams = { params: Promise<{ id: string }> };
 /**
  * GET /api/v1/rooms/:id/referrers - Get embed referrer stats for a room
  */
-async function handleGET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  _request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Verify room ownership
     const room = await db.room.findUnique({
@@ -71,4 +68,4 @@ async function handleGET(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

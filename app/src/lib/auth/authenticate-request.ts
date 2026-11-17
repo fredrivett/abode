@@ -25,16 +25,25 @@ export type Principal =
   // tokenId attributes what the token did (items it saved, analytics)
   | { user: User; method: "pat"; tokenId: string };
 
-export type AuthenticateRequestOptions = {
-  /**
-   * The scope a personal access token needs to reach this route, or null to
-   * reject tokens outright (session-only routes). Required — every route must
-   * decide explicitly whether tokens can reach it. Web-app sessions and the
-   * extension's Supabase login are unaffected: they're the user themselves and
-   * keep full access.
-   */
-  tokenScope: TokenScope | null;
-};
+export type AuthenticateRequestOptions =
+  | {
+      /**
+       * The scope a personal access token needs to reach this route, or null
+       * to reject personal access tokens. Required — every route must decide
+       * explicitly whether tokens can reach it. Web-app sessions and the
+       * extension's Supabase login are unaffected: they're the user themselves
+       * and keep full access.
+       */
+      tokenScope: TokenScope | null;
+    }
+  | {
+      /**
+       * Only the web app's cookie session: the Authorization header is ignored,
+       * so neither personal access tokens nor Supabase bearer tokens (the
+       * extension) reach the route.
+       */
+      credentials: "session";
+    };
 
 // Touch last_used_at at most this often, so a busy token isn't written on every request
 const LAST_USED_THROTTLE_MS = 60 * 1000;
@@ -52,7 +61,8 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
  * null when nothing yields a user.
  *
  * A personal access token is only accepted when the route opts in via
- * `tokenScope` and the token holds that scope; otherwise it returns null.
+ * `tokenScope` and the token holds that scope; otherwise it returns null. With
+ * `credentials: "session"` only the cookie session is read.
  *
  * Both interactive paths (bearer and cookie) reject a session that hasn't
  * completed MFA when the user has 2FA enabled — the page middleware only guards
@@ -89,13 +99,15 @@ export async function authenticateRequest(
 
 async function resolveCaller(
   request: NextRequest,
-  { tokenScope }: AuthenticateRequestOptions,
+  options: AuthenticateRequestOptions,
 ): Promise<Principal | null> {
-  const token = extractBearerToken(request);
-  if (token) {
+  // Session-only routes never read the Authorization header
+  const token = "tokenScope" in options ? extractBearerToken(request) : null;
+  if (token && "tokenScope" in options) {
+    const { tokenScope } = options;
     if (isPersonalAccessTokenFormat(token)) {
       if (!tokenScope) {
-        log.warn("Rejected personal access token on a session-only route");
+        log.warn("Rejected personal access token on a route closed to tokens");
         return null;
       }
       const resolved = await resolvePersonalAccessToken(token, tokenScope);

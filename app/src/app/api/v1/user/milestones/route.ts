@@ -1,8 +1,8 @@
 import type { MilestoneType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
-import { withViewer } from "@/lib/http/with-viewer";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -12,7 +12,6 @@ import {
   markMilestoneComplete,
 } from "@/lib/milestones";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/milestones");
 
@@ -20,14 +19,12 @@ const log = createLogger("api/v1/user/milestones");
  * GET /api/v1/user/milestones
  * Returns the user's milestone status
  */
-async function handleGET() {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const status = await getMilestoneStatus(user.id);
 
@@ -60,14 +57,12 @@ const markCompleteSchema = z.object({
  * POST /api/v1/user/milestones
  * Marks a milestone as complete
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json().catch(() => ({}));
     const parsed = markCompleteSchema.safeParse(body);
@@ -91,5 +86,5 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { systemRead } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { itemViewableWhere } from "@/lib/items/access";
 import { createLogger } from "@/lib/logger.server";
 import {
@@ -9,7 +9,6 @@ import {
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
 import { getAppBaseUrl } from "@/lib/url";
 
 const log = createLogger("api/v1/twitter-video");
@@ -196,7 +195,10 @@ async function fetchAllowlisted(
  * a rate limit, no blind redirect following, a response size cap, and an
  * upstream timeout.
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal | null },
+) {
   // 1. First-party gate (primary control). Reject cross-site embeds and bare
   //    curl/script hits before doing any work or touching the upstream.
   if (!isFirstPartyRequest(request)) {
@@ -227,10 +229,9 @@ async function handleGET(request: NextRequest) {
     return NextResponse.json({ message: "host not allowed" }, { status: 400 });
   }
 
-  // 2. Auth (may be anonymous). getUserWithMfa, never raw getUser, so a 2FA
-  //    user's AAL1 session can't slip past — see no-raw-cookie-getuser.grit.
-  const supabase = await createClient();
-  const user = await getCompletedSignupUser(supabase);
+  // 2. Auth (may be anonymous): authedRoute resolved the caller, with 2FA and
+  //    completed signup enforced, before this handler ran.
+  const user = principal?.user ?? null;
 
   // 3. Rate limit (defense-in-depth). Best-effort: in-memory, per instance, and
   //    reset on deploy — the same-origin gate + item scoping + size cap are the
@@ -344,4 +345,7 @@ async function handleGET(request: NextRequest) {
   });
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute(
+  { credentials: "session", allowAnonymous: true },
+  handleGET,
+);
