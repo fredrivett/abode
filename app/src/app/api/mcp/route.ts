@@ -33,8 +33,8 @@ async function handle(
   try {
     return await handler.fetch(request, { authInfo: toAuthInfo(principal) });
   } catch (error) {
-    // Tool failures are handled per tool (lib/mcp/server); this catches the
-    // auth lookup or the transport itself failing
+    // Tool failures are handled per tool (lib/mcp/server) and auth failures by
+    // authedRoute; this catches the transport itself failing
     log.error({ error }, "MCP request failed");
     captureServerException(error, undefined, {
       route: `${request.method} /api/mcp`,
