@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { hasCompletedSignup } from "@/lib/auth/has-completed-signup";
 import { ROUTES } from "@/lib/routes";
 import { getRequestUserWithMfa } from "@/lib/supabase/server";
@@ -18,14 +19,18 @@ import { getRequestUserWithMfa } from "@/lib/supabase/server";
  * `app-page-gate.test.ts` fails for a page that doesn't. Stricter sections
  * (admin) nest their own gate instead.
  *
+ * Returns the caller as a principal, so a page reads its user from the gate
+ * instead of looking the session up again.
+ *
  * React `cache` resolves it once per server render however many of the layout,
  * page and metadata ask.
  */
-export const requireCompletedSignup = cache(async (): Promise<void> => {
+export const requireCompletedSignup = cache(async (): Promise<Principal> => {
   const {
     data: { user },
   } = await getRequestUserWithMfa();
 
   if (!user) redirect(ROUTES.LOGIN);
   if (!(await hasCompletedSignup(user.id))) redirect(ROUTES.COMPLETE_SIGNUP);
+  return { user, method: "cookie" };
 });

@@ -3,7 +3,6 @@ import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
 import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
-import { getAuthUser } from "@/lib/supabase/server";
 import type { RoomWithSlug } from "@/lib/types/room";
 import { RoomsList } from "./_components/rooms-list";
 
@@ -11,46 +10,41 @@ import { RoomsList } from "./_components/rooms-list";
  * Rooms listing page showing all of the authenticated user's rooms.
  */
 export default async function RoomsPage() {
-  await requireCompletedSignup();
-  const user = await getAuthUser();
+  const { user } = await requireCompletedSignup();
 
   // Safety net for the write-path creation: materialize any missing book shelves
   // before the query so they appear in this same render (covers pre-existing books).
-  if (user) await ensureBookRooms(user.id);
+  await ensureBookRooms(user.id);
 
   // Get the user's username
-  const dbUser = user
-    ? await db.user.findUnique({
-        where: { id: user.id },
-        select: { username: true },
-      })
-    : null;
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { username: true },
+  });
 
   // Fetch rooms for the user (only those with slugs)
-  const rooms = user
-    ? await db.room.findMany({
-        where: {
-          userId: user.id,
-          slug: { not: null },
-        },
-        select: {
-          id: true,
-          name: true,
-          emoji: true,
-          slug: true,
-          type: true,
-          filters: true,
-          visibility: true,
-          autoKind: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: { roomItems: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      })
-    : [];
+  const rooms = await db.room.findMany({
+    where: {
+      userId: user.id,
+      slug: { not: null },
+    },
+    select: {
+      id: true,
+      name: true,
+      emoji: true,
+      slug: true,
+      type: true,
+      filters: true,
+      visibility: true,
+      autoKind: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: { roomItems: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
   const username = dbUser?.username;
 

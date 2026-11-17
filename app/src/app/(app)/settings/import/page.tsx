@@ -1,16 +1,10 @@
-import { redirect } from "next/navigation";
 import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import db from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase/server";
 import type { ImportSnapshot } from "@/lib/use-import-poll";
 import { ImportSettings } from "../_components/import-settings";
 
 export default async function ImportSettingsPage() {
-  await requireCompletedSignup();
-  const user = await getAuthUser();
-  if (!user) {
-    redirect("/login");
-  }
+  const { user } = await requireCompletedSignup();
 
   // Seed the UI only with an in-flight import (query the active row directly, so a
   // newer completed/failed row can't hide a still-running one), so progress

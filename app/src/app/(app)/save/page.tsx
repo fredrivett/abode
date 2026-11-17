@@ -4,7 +4,6 @@ import { createLogger } from "@/lib/logger.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { ROUTES } from "@/lib/routes";
 import { describeSharedValue, extractSharedUrl } from "@/lib/share-target";
-import { getRequestUserWithMfa } from "@/lib/supabase/server";
 import { SaveRedirect } from "./_components/save-redirect";
 
 const log = createLogger("save");
@@ -27,7 +26,7 @@ export default async function SavePage({
     title?: string | string[];
   }>;
 }) {
-  await requireCompletedSignup();
+  const { user } = await requireCompletedSignup();
   const params = await searchParams;
   const sharedUrl = extractSharedUrl(params);
 
@@ -41,24 +40,18 @@ export default async function SavePage({
   // Only the shape of what was shared — never its contents
   const received = describeSharedValue(params);
   log.warn({ received }, "Share target opened without a parseable URL");
-
-  const {
-    data: { user },
-  } = await getRequestUserWithMfa();
-  if (user) {
-    getPostHogClient()?.capture({
-      distinctId: user.id,
-      event: "share_target_failed",
-      properties: {
-        reason: "no_url",
-        received_param: received.param,
-        received_length: received.length,
-        received_has_scheme: received.hasScheme,
-        received_has_dot: received.hasDot,
-        received_has_whitespace: received.hasWhitespace,
-      },
-    });
-  }
+  getPostHogClient()?.capture({
+    distinctId: user.id,
+    event: "share_target_failed",
+    properties: {
+      reason: "no_url",
+      received_param: received.param,
+      received_length: received.length,
+      received_has_scheme: received.hasScheme,
+      received_has_dot: received.hasDot,
+      received_has_whitespace: received.hasWhitespace,
+    },
+  });
 
   redirect(`${ROUTES.DASHBOARD}?share=no_link`);
 }
