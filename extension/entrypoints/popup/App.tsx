@@ -1,24 +1,51 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { browser } from "wxt/browser";
 import logoDark from "@/assets/abode.svg";
 import logoLight from "@/assets/abode-light.svg";
-import { Button, Input, LoadingEllipsis, Spinner } from "@/components/ui";
+import {
+  Button,
+  Input,
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  LoadingEllipsis,
+  Spinner,
+} from "@/components/ui";
 import { NotSignedInError, saveUrl } from "@/lib/api";
 import { captureRenderedHtml } from "@/lib/capture";
-import { getSession, signIn, signOut } from "@/lib/auth";
+import {
+  type AuthState,
+  getAuthState,
+  signIn,
+  signOut,
+  verifyMfa,
+} from "@/lib/auth";
 import { CONFIG, isConfigured } from "@/lib/config";
 import { fetchLatestBuild, isNewerBuild, type LatestBuild } from "@/lib/updates";
 
-type Status = "loading" | "signedOut" | "ready";
+type Status = "loading" | AuthState;
 
 export function App() {
   const [status, setStatus] = useState<Status>("loading");
 
   const refresh = useCallback(async () => {
     if (!isConfigured()) return;
-    const session = await getSession();
-    setStatus(session ? "ready" : "signedOut");
+    setStatus(await getAuthState());
   }, []);
+
+  // A save was refused: re-read the stored session, and drop it if it still
+  // looks valid locally (the API rejected it, e.g. revoked or 2FA enabled since)
+  const handleSaveRejected = useCallback(async () => {
+    if ((await getAuthState()) === "signedIn") await signOut();
+    await refresh();
+  }, [refresh]);
 
   useEffect(() => {
     void refresh();
@@ -27,14 +54,14 @@ export function App() {
   return (
     <div className="flex flex-col gap-4 bg-background p-4 text-foreground">
       <header className="flex items-center justify-between">
-        {status === "ready" ? (
+        {status === "signedIn" ? (
           <a href={CONFIG.abodeBaseUrl} target="_blank" rel="noreferrer">
             <Logo />
           </a>
         ) : (
           <Logo />
         )}
-        {status === "ready" && (
+        {status === "signedIn" && (
           <button
             type="button"
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -55,9 +82,17 @@ export function App() {
           <Spinner className="size-5 text-muted-foreground" />
         </div>
       ) : status === "signedOut" ? (
-        <LoginView onSignedIn={() => setStatus("ready")} />
+        <LoginView onSignedIn={refresh} />
+      ) : status === "mfaRequired" ? (
+        <MfaView
+          onVerified={refresh}
+          onCancel={async () => {
+            await signOut();
+            setStatus("signedOut");
+          }}
+        />
       ) : (
-        <SaveView onSignedOut={() => setStatus("signedOut")} />
+        <SaveView onSignedOut={handleSaveRejected} />
       )}
 
       {isConfigured() && <BuildFooter />}
@@ -211,6 +246,86 @@ function LoginView({ onSignedIn }: { onSignedIn: () => void }) {
       >
         Don't have an account? Sign up
       </a>
+    </form>
+  );
+}
+
+const OTP_SLOTS = [0, 1, 2, 3, 4, 5];
+
+function MfaView({
+  onVerified,
+  onCancel,
+}: {
+  onVerified: () => void;
+  onCancel: () => void;
+}) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Verifying disables (and so blurs) the input; give focus back after a wrong
+  // code so the user can type the next one straight away
+  useEffect(() => {
+    if (error) inputRef.current?.focus();
+  }, [error]);
+
+  // Runs on the 6th digit (like the web form) and on submit
+  async function verify(value: string) {
+    if (value.length !== 6 || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await verifyMfa(value);
+      onVerified();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+      setCode("");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void verify(code);
+      }}
+      className="flex flex-col gap-3"
+    >
+      <p className="text-sm text-muted-foreground">
+        Enter the 6-digit code from your authenticator app.
+      </p>
+      <InputOTP
+        ref={inputRef}
+        maxLength={6}
+        pattern={REGEXP_ONLY_DIGITS}
+        aria-label="Authentication code"
+        value={code}
+        onChange={setCode}
+        onComplete={verify}
+        disabled={loading}
+        autoFocus
+        containerClassName="justify-center"
+      >
+        <InputOTPGroup>
+          {OTP_SLOTS.map((index) => (
+            <InputOTPSlot key={index} index={index} />
+          ))}
+        </InputOTPGroup>
+      </InputOTP>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" disabled={loading || code.length !== 6}>
+        {loading ? <Spinner className="size-4" /> : "Verify"}
+      </Button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="text-center text-xs text-muted-foreground underline"
+      >
+        Use a different account
+      </button>
     </form>
   );
 }

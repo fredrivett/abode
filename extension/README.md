@@ -21,6 +21,8 @@ Everything routes through abode's existing `from-url` pipeline, so saved items g
 
 The extension signs the user in against Supabase directly (public URL + anon key — the same values the web app ships) and stores the session in `chrome.storage.local`. Saves are sent to abode's API with an `Authorization: Bearer <supabase access token>` header. The server verifies the JWT via `supabase.auth.getUser(token)` in a shared `authenticateRequest()` helper.
 
+Users with 2FA enter a code from their authenticator app after their password, as on the web. The server rejects a password-only (AAL1) token for them, so the extension withholds it and shows the code step until the session is AAL2.
+
 This deliberately avoids cookies (no `SameSite` downgrade, no CSRF surface) and is the same token model a future mobile app would use. The token is short-lived and refreshed on demand before each save (MV3 service workers can't be relied on to run refresh timers).
 
 **Backend dependency:** the `/api/v1/items/from-url` and `/api/v1/items/notes` routes in the web app accept the bearer token and send CORS for extension origins. See `app/src/lib/auth/authenticate-request.ts` and `app/src/lib/http/cors.ts`.
