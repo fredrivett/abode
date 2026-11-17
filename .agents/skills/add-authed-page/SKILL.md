@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 ## Conventions
 
-- In API routes, fetch the user with `getCompletedSignupUser(supabase)` (or `authenticateRequest` for extension/token routes): it adds the completed-signup check to `getUserWithMfa`, so an email-confirmed account that never claimed an invite counts as signed out. Return 401 when the route needs a user; a route that also serves visitors treats a null user as anonymous. `no-api-incomplete-signup.grit` flags `getUserWithMfa` in `src/app/api/**`.
+- In API routes, fetch the user with `getCompletedSignupUser(supabase)` (or export through `authedRoute({ tokenScope }, handler)` from `@/lib/http/authed-route` for extension/token routes): it adds the completed-signup check to `getUserWithMfa`, so an email-confirmed account that never claimed an invite counts as signed out. Return 401 when the route needs a user; a route that also serves visitors treats a null user as anonymous. `no-api-incomplete-signup.grit` flags `getUserWithMfa` in `src/app/api/**`.
 - Elsewhere, fetch the user with `getUserWithMfa(supabase)` or a helper built on it (`getAuthUser`, `getAuthenticatedUser`) — it validates the session and treats a 2FA user who hasn't finished the challenge as signed out. Never raw `supabase.auth.getUser()` (lint error via `no-raw-cookie-getuser.grit`) or `getSession()`.
 - Use route constants from `@/lib/routes` (`ROUTES.*`) for redirects.
 - Error responses use `{ message: string }`; log details with the structured logger, don't leak them in the response.
