@@ -1258,7 +1258,7 @@ describe("cross-user isolation", () => {
     }
     expect(
       unframed,
-      "Wrap the export: export const GET = withViewer(handleGET)",
+      'Wrap the export: export const GET = authedRoute({ credentials: "session" }, handleGET)',
     ).toEqual([]);
   });
 

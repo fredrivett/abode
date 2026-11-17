@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import type { Principal } from "@/lib/auth/authenticate-request";
-import { authedRoute } from "@/lib/http/authed-route";
+import { authedRoute, publicRoute } from "@/lib/http/authed-route";
 import { preflight } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
 import { createItemFromUrl, InvalidUrlError } from "@/lib/items/from-url";
 import { createLogger } from "@/lib/logger.server";
@@ -75,7 +74,7 @@ async function handlePOST(
   }
 }
 
-export const OPTIONS = withViewer(handleOPTIONS);
+export const OPTIONS = publicRoute(handleOPTIONS);
 export const POST = authedRoute(
   { tokenScope: "write", cors: true },
   handlePOST,

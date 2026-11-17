@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getUserDailyActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { systemDb } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +15,10 @@ type RouteParams = { params: Promise<{ id: string }> };
 /**
  * GET /api/v1/admin/users/:id - Get user detail with activity
  */
-async function handleGET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  _request: NextRequest,
+  { params }: RouteParams & { principal: Principal },
+) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -84,4 +88,5 @@ async function handleGET(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
+// Signed in through the cookie session; the admin check stays in the handler
+export const GET = authedRoute({ credentials: "session" }, handleGET);

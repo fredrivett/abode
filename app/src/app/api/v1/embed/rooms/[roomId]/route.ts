@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { systemDb } from "@/lib/db";
 import { trackEmbedReferrer } from "@/lib/embed-tracking";
 import { getDisplayName } from "@/lib/get-display-name";
-import { withViewer } from "@/lib/http/with-viewer";
+import { publicRoute } from "@/lib/http/authed-route";
 import { roomPreviewImageUrl } from "@/lib/image-url";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -214,5 +214,5 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const OPTIONS = withViewer(handleOPTIONS);
-export const GET = withViewer(handleGET);
+export const OPTIONS = publicRoute(handleOPTIONS);
+export const GET = publicRoute(handleGET);

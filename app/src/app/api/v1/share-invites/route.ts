@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { withViewer } from "@/lib/http/with-viewer";
+import { publicRoute } from "@/lib/http/authed-route";
 import { requestShareInvite } from "@/lib/invites/share-invite";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -67,4 +67,4 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = publicRoute(handlePOST);

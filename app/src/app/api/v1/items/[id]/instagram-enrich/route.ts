@@ -2,10 +2,9 @@ import type { enrichInstagramItemTask } from "@app/trigger/enrich-instagram-item
 import { type NextRequest, NextResponse } from "next/server";
 import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { authedRoute } from "@/lib/http/authed-route";
+import { authedRoute, publicRoute } from "@/lib/http/authed-route";
 import { preflight } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -145,5 +144,5 @@ async function handlePOST(
   }
 }
 
-export const OPTIONS = withViewer(handleOPTIONS);
+export const OPTIONS = publicRoute(handleOPTIONS);
 export const POST = authedRoute({ tokenScope: null, cors: true }, handlePOST);

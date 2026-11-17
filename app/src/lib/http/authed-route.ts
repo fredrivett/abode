@@ -94,6 +94,19 @@ export function authedRoute<Context extends { principal: Principal | null }>(
   );
 }
 
+/**
+ * Wrap an API route handler that serves anyone, signed in or not, without
+ * authenticating: CORS preflights and deliberately public endpoints (waitlist,
+ * embeds, username checks). The request still runs in its own anonymous
+ * viewer frame, so `db` sees no user-owned rows. Every route using it is listed
+ * in `api-route-wrappers.test.ts`, so making a route public shows up in review.
+ */
+export function publicRoute<Args extends unknown[], Result>(
+  handler: (...args: Args) => Result,
+): (...args: Args) => Result {
+  return withViewer(handler);
+}
+
 /** What Next passes a route handler (`params`), without the principal we add */
 type RouteContext<Context> = Omit<Context, "principal">;
 

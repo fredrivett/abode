@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { systemRead } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { publicRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -94,4 +94,4 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = publicRoute(handleGET);

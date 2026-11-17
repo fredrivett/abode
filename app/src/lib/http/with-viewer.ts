@@ -3,9 +3,9 @@ import { runInViewerFrame } from "@/lib/viewer-context";
 const VIEWER_FRAMED = Symbol("viewerFramed");
 
 /**
- * Wrap a route handler export so the request runs in its own viewer frame:
- *
- *   export const GET = withViewer(handleGet);
+ * Run each call of `handler` in its own viewer frame. Route files don't call
+ * this directly: `authedRoute` and `publicRoute` (`@/lib/http/authed-route`)
+ * build on it, and `api-route-wrappers.test.ts` requires one of them.
  *
  * The frame starts anonymous; `getUserWithMfa` / `authenticateRequest` record
  * the caller once they've authenticated them. With RLS_ENFORCED on, every `db`
