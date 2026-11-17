@@ -72,6 +72,19 @@ describe("authedRoute", () => {
     expect(isViewerFramed(route)).toBe(true);
   });
 
+  it("runs an allowAnonymous handler for a signed-out request, with a null principal", async () => {
+    mockAuthenticate.mockResolvedValue(null);
+    const route = authedRoute(
+      { credentials: "session", allowAnonymous: true },
+      async (_request, { principal }: { principal: Principal | null }) =>
+        Response.json({ principal }),
+    );
+
+    const response = await route(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ principal: null });
+  });
+
   it("adds CORS headers to the 401 as well as the handler's response", async () => {
     const route = authedRoute({ tokenScope: null, cors: true }, async () =>
       Response.json({}),

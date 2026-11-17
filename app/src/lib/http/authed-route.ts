@@ -14,24 +14,45 @@ const log = createLogger("lib/http/authed-route");
 type AuthedRouteOptions = AuthenticateRequestOptions & {
   /** Add CORS headers to every response, the 401 included (extension routes) */
   cors?: boolean;
+  /**
+   * Run the handler for signed-out visitors too, with a null principal,
+   * instead of answering 401 (routes that serve public content)
+   */
+  allowAnonymous?: boolean;
 };
+
+type Handler<Context> = (
+  request: NextRequest,
+  context: Context,
+) => Promise<Response>;
 
 /**
  * Wrap an API route handler that needs a signed-in caller:
  *
  *   export const POST = authedRoute({ tokenScope: "write" }, async (request, { principal }) => …);
+ *   export const GET = authedRoute({ credentials: "session" }, handleGET);
  *
  * The request runs in its own viewer frame (see `withViewer`), is
- * authenticated by `authenticateRequest` with the declared `tokenScope`, and
- * gets a 401 before the handler runs when that fails. The handler receives the
- * route context (`params`), if any, plus the `principal`.
+ * authenticated by `authenticateRequest` with the declared credentials, and
+ * gets a 401 before the handler runs when that fails (or a 500 when the lookup
+ * itself throws). The handler receives the route context (`params`), if any,
+ * plus the `principal`. With `allowAnonymous` a signed-out request reaches the
+ * handler with a null principal instead.
  *
- * `tokenScope` must be a literal: `token-route-access.test.ts` reads it from
- * the source to pin which routes personal access tokens can reach.
+ * `tokenScope` / `credentials` must be literals: `token-route-access.test.ts`
+ * reads them from the source to pin which routes tokens can reach.
  */
 export function authedRoute<Context extends { principal: Principal }>(
-  { cors = false, ...authOptions }: AuthedRouteOptions,
-  handler: (request: NextRequest, context: Context) => Promise<Response>,
+  options: AuthedRouteOptions & { allowAnonymous?: false },
+  handler: Handler<Context>,
+): RouteHandler<Context>;
+export function authedRoute<Context extends { principal: Principal | null }>(
+  options: AuthedRouteOptions & { allowAnonymous: true },
+  handler: Handler<Context>,
+): RouteHandler<Context>;
+export function authedRoute<Context extends { principal: Principal | null }>(
+  { cors = false, allowAnonymous = false, ...authOptions }: AuthedRouteOptions,
+  handler: Handler<Context>,
 ): RouteHandler<Context> {
   async function respond(
     request: NextRequest,
@@ -50,7 +71,7 @@ export function authedRoute<Context extends { principal: Principal }>(
         { status: 500 },
       );
     }
-    if (!principal) {
+    if (!principal && !allowAnonymous) {
       return NextResponse.json(
         { message: "Unauthorized" },
         // Plain bearer challenge: abode has no OAuth server to point clients at

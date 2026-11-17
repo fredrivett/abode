@@ -74,8 +74,9 @@ function jwt(aal: string): string {
 }
 
 // Session paths ignore tokenScope, so they're exercised on a route that rejects
-// tokens outright — proving the web app and extension keep full access
-const SESSION_ONLY = { tokenScope: null } as const;
+// personal access tokens — proving the web app and extension keep full access
+const PATS_REJECTED = { tokenScope: null } as const;
+const COOKIE_ONLY = { credentials: "session" } as const;
 const READ = { tokenScope: "read" } as const;
 const WRITE = { tokenScope: "write" } as const;
 
@@ -119,7 +120,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request("Bearer token-abc"),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toEqual({ user: { id: "u_bearer" }, method: "bearer" });
@@ -134,7 +135,10 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    await authenticateRequest(request("bearer   spaced-token  "), SESSION_ONLY);
+    await authenticateRequest(
+      request("bearer   spaced-token  "),
+      PATS_REJECTED,
+    );
 
     expect(mockBearerGetUser).toHaveBeenCalledWith("spaced-token");
   });
@@ -151,7 +155,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request("Bearer bad"),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toBeNull();
@@ -164,7 +168,7 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(), SESSION_ONLY);
+    const result = await authenticateRequest(request(), PATS_REJECTED);
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
     expect(mockBearerGetUser).not.toHaveBeenCalled();
@@ -177,7 +181,7 @@ describe("authenticateRequest", () => {
     });
 
     const viewer = await runInViewerFrame(async () => {
-      await authenticateRequest(request(), SESSION_ONLY);
+      await authenticateRequest(request(), PATS_REJECTED);
       return currentViewerFrame()?.viewerId;
     });
 
@@ -188,7 +192,7 @@ describe("authenticateRequest", () => {
     mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
     const viewer = await runInViewerFrame(async () => {
-      await authenticateRequest(request(), SESSION_ONLY);
+      await authenticateRequest(request(), PATS_REJECTED);
       return currentViewerFrame()?.viewerId;
     });
 
@@ -206,7 +210,7 @@ describe("authenticateRequest", () => {
     });
 
     const viewer = await runInViewerFrame(async () => {
-      await authenticateRequest(request(), SESSION_ONLY);
+      await authenticateRequest(request(), PATS_REJECTED);
       return currentViewerFrame()?.viewerId;
     });
 
@@ -220,7 +224,7 @@ describe("authenticateRequest", () => {
     });
 
     const viewer = await runInViewerFrame(async () => {
-      await authenticateRequest(request("Bearer token-abc"), SESSION_ONLY);
+      await authenticateRequest(request("Bearer token-abc"), PATS_REJECTED);
       return currentViewerFrame()?.viewerId;
     });
 
@@ -239,7 +243,7 @@ describe("authenticateRequest", () => {
 
     // A direct API call with an unverified (AAL1) cookie must not bypass 2FA,
     // even though the page middleware would only redirect page navigations
-    const result = await authenticateRequest(request(), SESSION_ONLY);
+    const result = await authenticateRequest(request(), PATS_REJECTED);
 
     expect(result).toBeNull();
   });
@@ -254,7 +258,7 @@ describe("authenticateRequest", () => {
       error: null,
     });
 
-    const result = await authenticateRequest(request(), SESSION_ONLY);
+    const result = await authenticateRequest(request(), PATS_REJECTED);
 
     expect(result).toEqual({ user: COOKIE_USER_WITH_MFA, method: "cookie" });
   });
@@ -267,7 +271,7 @@ describe("authenticateRequest", () => {
     // A transient Supabase failure during the MFA check must not grant access
     mockCookieAAL.mockRejectedValue(new Error("supabase unavailable"));
 
-    const result = await authenticateRequest(request(), SESSION_ONLY);
+    const result = await authenticateRequest(request(), PATS_REJECTED);
 
     expect(result).toBeNull();
   });
@@ -280,7 +284,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request("Basic abc123"),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
@@ -290,7 +294,7 @@ describe("authenticateRequest", () => {
   it("returns null when neither a bearer token nor a cookie session is present", async () => {
     mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
-    const result = await authenticateRequest(request(), SESSION_ONLY);
+    const result = await authenticateRequest(request(), PATS_REJECTED);
 
     expect(result).toBeNull();
   });
@@ -305,7 +309,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request(`Bearer ${jwt("aal2")}`),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toEqual({
@@ -328,7 +332,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request(`Bearer ${jwt("aal1")}`),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     // 2FA is enrolled but not satisfied → treated as unauthenticated, and never
@@ -348,7 +352,7 @@ describe("authenticateRequest", () => {
     // getUser somehow validated it, but there is no readable aal claim
     const result = await authenticateRequest(
       request("Bearer not-a-jwt"),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toBeNull();
@@ -365,7 +369,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request(`Bearer ${jwt("aal1")}`),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toEqual({
@@ -382,7 +386,7 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request(`Bearer ${jwt("aal1")}`),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toEqual({ user: { id: "u_plain" }, method: "bearer" });
@@ -395,11 +399,47 @@ describe("authenticateRequest", () => {
 
     const result = await authenticateRequest(
       request("Bearer token-abc"),
-      SESSION_ONLY,
+      PATS_REJECTED,
     );
 
     expect(result).toBeNull();
     expect(mockBearerGetUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("authenticateRequest — cookie-only routes", () => {
+  it.each([
+    ["a personal access token", "Bearer abode_pat_exampletoken"],
+    ["a Supabase bearer token", `Bearer ${jwt("aal2")}`],
+  ])("ignores %s and uses the cookie session", async (_, authorization) => {
+    mockCookieGetUser.mockResolvedValue({
+      data: { user: { id: "u_cookie" } },
+      error: null,
+    });
+
+    const result = await authenticateRequest(
+      request(authorization),
+      COOKIE_ONLY,
+    );
+
+    expect(result).toEqual({ user: { id: "u_cookie" }, method: "cookie" });
+    expect(mockFindUnique).not.toHaveBeenCalled();
+    expect(mockBearerGetUser).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a bearer token alone, without a cookie session", async () => {
+    mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    mockBearerGetUser.mockResolvedValue({
+      data: { user: { id: "u_bearer" } },
+      error: null,
+    });
+
+    const result = await authenticateRequest(
+      request(`Bearer ${jwt("aal2")}`),
+      COOKIE_ONLY,
+    );
+
+    expect(result).toBeNull();
   });
 });
 
@@ -635,7 +675,7 @@ describe("authenticateRequest — personal access tokens", () => {
 
       const result = await authenticateRequest(
         request(`Bearer ${PAT}`),
-        SESSION_ONLY,
+        PATS_REJECTED,
       );
 
       expect(result).toBeNull();
@@ -655,7 +695,7 @@ describe("authenticateRequest — incomplete signup", () => {
       name: "cookie session",
       userId: "u_cookie",
       authorization: undefined,
-      options: SESSION_ONLY,
+      options: PATS_REJECTED,
       setup: () =>
         mockCookieGetUser.mockResolvedValue({
           data: { user: { id: "u_cookie" } },
@@ -666,7 +706,7 @@ describe("authenticateRequest — incomplete signup", () => {
       name: "Supabase bearer token",
       userId: "u_bearer",
       authorization: "Bearer token-abc",
-      options: SESSION_ONLY,
+      options: PATS_REJECTED,
       setup: () =>
         mockBearerGetUser.mockResolvedValue({
           data: { user: { id: "u_bearer" } },
