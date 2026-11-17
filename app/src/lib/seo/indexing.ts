@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { COMPARISONS } from "@/lib/comparisons";
 import { comparePath } from "@/lib/comparisons/paths";
+import { ROUTES } from "@/lib/routes";
 import { getAppBaseUrl, HOSTED_APP_URL } from "@/lib/url";
 
 /**
@@ -25,6 +26,7 @@ export const SITEMAP_PATHS: readonly string[] = [
   "/",
   comparePath(),
   ...COMPARISONS.map(({ slug }) => comparePath(slug)),
+  ROUTES.PRIVACY,
 ];
 
 /** `robots` metadata for pages that must never appear in search (app, auth) */
