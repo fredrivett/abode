@@ -76,12 +76,8 @@ export function authedRoute<Context extends { principal: Principal }>(
 /** What Next passes a route handler (`params`), without the principal we add */
 type RouteContext<Context> = Omit<Context, "principal">;
 
-// Optional for routes without params, so callers (and tests) can pass just the request
-type RouteContextArg<Context> = keyof RouteContext<Context> extends never
-  ? [ctx?: RouteContext<Context>]
-  : [ctx: RouteContext<Context>];
-
-type RouteHandler<Context> = (
-  request: NextRequest,
-  ...ctx: RouteContextArg<Context>
-) => Promise<Response>;
+// Routes without params take just the request, as Next's generated route
+// types expect; routes with params take their context, required
+type RouteHandler<Context> = keyof RouteContext<Context> extends never
+  ? (request: NextRequest) => Promise<Response>
+  : (request: NextRequest, ctx: RouteContext<Context>) => Promise<Response>;
