@@ -57,12 +57,22 @@ function importsGate(file: ts.SourceFile): boolean {
   });
 }
 
-// The body opens with exactly `await requireCompletedSignup();`
+// The body opens with exactly `await requireCompletedSignup();`, or a single
+// `const … = await requireCompletedSignup();` that keeps the principal
 function opensWithGate(fn: ts.FunctionDeclaration): boolean {
   const first = fn.body?.statements[0];
-  if (!first || !ts.isExpressionStatement(first)) return false;
-  if (!ts.isAwaitExpression(first.expression)) return false;
-  const call = first.expression.expression;
+  if (!first) return false;
+  let awaited: ts.Expression | undefined;
+  if (ts.isExpressionStatement(first)) {
+    awaited = first.expression;
+  } else if (
+    ts.isVariableStatement(first) &&
+    first.declarationList.declarations.length === 1
+  ) {
+    awaited = first.declarationList.declarations[0].initializer;
+  }
+  if (!awaited || !ts.isAwaitExpression(awaited)) return false;
+  const call = awaited.expression;
   return (
     ts.isCallExpression(call) &&
     ts.isIdentifier(call.expression) &&
@@ -164,7 +174,24 @@ describe("gateProblems", () => {
     expect(gateProblems(source)).toEqual([]);
   });
 
+  it("accepts a gate whose principal the page keeps", () => {
+    const source = `${IMPORT}
+      export default async function Page() {
+        const { user } = await requireCompletedSignup();
+        return <List rows={await loadRows(user.id)} />;
+      }`;
+    expect(gateProblems(source)).toEqual([]);
+  });
+
   it.each([
+    [
+      "a kept principal declared after a query",
+      `${IMPORT}
+       export default async function Page() {
+         const rows = await loadRows(), { user } = await requireCompletedSignup();
+         return <List rows={rows} />;
+       }`,
+    ],
     [
       "no gate at all",
       "export default async function Page() { return <List rows={await loadRows()} />; }",

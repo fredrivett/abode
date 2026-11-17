@@ -16,7 +16,6 @@ import {
   encodeCursor,
   isCanonicalUuid,
 } from "@/lib/pagination";
-import { getRequestUserWithMfa } from "@/lib/supabase/server";
 import { OpenScannerOnLoad } from "./open-scanner-on-load";
 import { SearchableItemsGrid } from "./searchable-items-grid";
 import { ShareToast } from "./share-toast";
@@ -54,15 +53,10 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<{ item?: string | string[] }>;
 }): Promise<Metadata> {
-  await requireCompletedSignup();
+  const { user } = await requireCompletedSignup();
   const { item } = await searchParams;
   const openItemId = resolveOpenItemId(item);
   if (!openItemId) return {};
-
-  const {
-    data: { user },
-  } = await getRequestUserWithMfa();
-  if (!user) return {};
 
   const openItemRaw = await fetchOpenItem({
     itemId: openItemId,
@@ -90,33 +84,28 @@ export default async function DashboardPage({
     action?: string;
   }>;
 }) {
-  await requireCompletedSignup();
+  const { user } = await requireCompletedSignup();
   const { share, item: openItemParam, action } = await searchParams;
   const openItemId = resolveOpenItemId(openItemParam);
-  const {
-    data: { user },
-  } = await getRequestUserWithMfa();
 
   // Fetch only first page + 1 to check if there are more
   const fetchLimit = DEFAULT_PAGE_SIZE + 1;
 
-  const [rawItems, total, initialNoteDraft, openItemRaw] = user
-    ? await Promise.all([
-        db.item.findMany({
-          where: { userId: user.id },
-          orderBy: ITEM_TIMELINE_ORDER_BY,
-          take: fetchLimit,
-          select: itemSelect,
-        }),
-        db.item.count({ where: { userId: user.id } }),
-        getNoteDraft(user.id),
-        // Fetch the deep-linked/refreshed open item so its dialog reopens even
-        // when it isn't on the first page of the grid
-        openItemId
-          ? fetchOpenItem({ itemId: openItemId, userId: user.id })
-          : Promise.resolve(null),
-      ])
-    : [[], 0, null, null];
+  const [rawItems, total, initialNoteDraft, openItemRaw] = await Promise.all([
+    db.item.findMany({
+      where: { userId: user.id },
+      orderBy: ITEM_TIMELINE_ORDER_BY,
+      take: fetchLimit,
+      select: itemSelect,
+    }),
+    db.item.count({ where: { userId: user.id } }),
+    getNoteDraft(user.id),
+    // Fetch the deep-linked/refreshed open item so its dialog reopens even
+    // when it isn't on the first page of the grid
+    openItemId
+      ? fetchOpenItem({ itemId: openItemId, userId: user.id })
+      : Promise.resolve(null),
+  ]);
 
   // Check if there are more results
   const hasMore = rawItems.length > DEFAULT_PAGE_SIZE;
