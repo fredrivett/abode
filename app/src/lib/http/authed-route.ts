@@ -64,7 +64,7 @@ export function authedRoute<Context extends { principal: Principal | null }>(
     } catch (error) {
       log.error({ error }, "Authenticating request failed");
       captureServerException(error, undefined, {
-        route: `${request.method} ${new URL(request.url).pathname}`,
+        route: `${request.method} ${routePath(request)}`,
       });
       return NextResponse.json(
         { message: "Internal server error" },
@@ -102,3 +102,12 @@ type RouteContext<Context> = Omit<Context, "principal">;
 type RouteHandler<Context> = keyof RouteContext<Context> extends never
   ? (request: NextRequest) => Promise<Response>
   : (request: NextRequest, ctx: RouteContext<Context>) => Promise<Response>;
+
+// For error labels only: must not throw, or the 500 path itself fails
+function routePath(request: NextRequest): string {
+  try {
+    return new URL(request.url).pathname;
+  } catch {
+    return "(unknown path)";
+  }
+}

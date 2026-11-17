@@ -103,12 +103,16 @@ describe("authedRoute", () => {
     expect(denied.status).toBe(401);
   });
 
-  it("500s when the auth lookup itself throws", async () => {
+  it.each([
+    ["a request", request],
+    // Callers that build a bare request object (no URL) still get the 500
+    ["a request without a URL", () => ({ method: "POST" }) as NextRequest],
+  ])("500s when the auth lookup itself throws, for %s", async (_, make) => {
     mockAuthenticate.mockRejectedValue(new Error("db down"));
     const response = await authedRoute(
       { tokenScope: null },
       unreachable,
-    )(request());
+    )(make());
     expect(response.status).toBe(500);
     expect(unreachable).not.toHaveBeenCalled();
   });
