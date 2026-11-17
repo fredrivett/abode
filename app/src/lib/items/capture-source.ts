@@ -1,5 +1,5 @@
 import type { CaptureSource } from "@prisma/client";
-import type { AuthenticatedRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 
 // The entry points a client may claim an item was saved from, kept as a runtime
 // array so request handlers can validate untrusted input before persisting it.
@@ -46,7 +46,7 @@ export type CaptureAttribution = {
  * (in-app vs extension), falling back to `web`.
  */
 export function captureAttribution(
-  auth: AuthenticatedRequest,
+  auth: Principal,
   clientSource: unknown,
 ): CaptureAttribution {
   if (auth.method === "pat") {

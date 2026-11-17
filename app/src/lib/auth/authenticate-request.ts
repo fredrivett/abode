@@ -16,7 +16,11 @@ import { recordViewer } from "@/lib/viewer-context";
 
 const log = createLogger("lib/auth/authenticate-request");
 
-export type AuthenticatedRequest =
+/**
+ * Who an API request acts for. Only ever built by `authenticateRequest`, so
+ * holding one means the 2FA, completed-signup and token-scope checks passed.
+ */
+export type Principal =
   | { user: User; method: "cookie" | "bearer" }
   // tokenId attributes what the token did (items it saved, analytics)
   | { user: User; method: "pat"; tokenId: string };
@@ -62,7 +66,7 @@ const LAST_USED_THROTTLE_MS = 60 * 1000;
 export async function authenticateRequest(
   request: NextRequest,
   options: AuthenticateRequestOptions,
-): Promise<AuthenticatedRequest | null> {
+): Promise<Principal | null> {
   const caller = await resolveCaller(request, options);
   if (!caller) return null;
 
@@ -86,7 +90,7 @@ export async function authenticateRequest(
 async function resolveCaller(
   request: NextRequest,
   { tokenScope }: AuthenticateRequestOptions,
-): Promise<AuthenticatedRequest | null> {
+): Promise<Principal | null> {
   const token = extractBearerToken(request);
   if (token) {
     if (isPersonalAccessTokenFormat(token)) {

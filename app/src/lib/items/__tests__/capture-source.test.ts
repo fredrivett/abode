@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import type { AuthenticatedRequest } from "@/lib/auth/authenticate-request";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import {
   captureAttribution,
   captureSourceLabel,
@@ -36,10 +36,10 @@ describe("captureSourceLabel", () => {
 });
 
 describe("captureAttribution", () => {
-  const user = { id: "u1" } as AuthenticatedRequest["user"];
+  const user = { id: "u1" } as Principal["user"];
 
   it("stamps a token save as api with the token id, ignoring the client's claim", () => {
-    const auth: AuthenticatedRequest = {
+    const auth: Principal = {
       user,
       method: "pat",
       tokenId: "tok_1",
@@ -51,7 +51,7 @@ describe("captureAttribution", () => {
   });
 
   it("keeps a session's self-reported source, with no token", () => {
-    const auth: AuthenticatedRequest = { user, method: "bearer" };
+    const auth: Principal = { user, method: "bearer" };
     expect(captureAttribution(auth, "extension")).toEqual({
       captureSource: "extension",
       personalAccessTokenId: null,
@@ -59,7 +59,7 @@ describe("captureAttribution", () => {
   });
 
   it("falls back to web for a session with no or an invalid source", () => {
-    const auth: AuthenticatedRequest = { user, method: "cookie" };
+    const auth: Principal = { user, method: "cookie" };
     expect(captureAttribution(auth, undefined).captureSource).toBe("web");
     // A session can't claim to be a token save
     expect(captureAttribution(auth, "api")).toEqual({
