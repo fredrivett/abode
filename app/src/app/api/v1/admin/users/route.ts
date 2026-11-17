@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
 import { systemDb } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import { createClient } from "@/lib/supabase/server";
@@ -104,4 +104,5 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+// Signed in through the cookie session; the admin check stays in the handler
+export const GET = authedRoute({ credentials: "session" }, handleGET);

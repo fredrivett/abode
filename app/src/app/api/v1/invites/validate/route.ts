@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { withViewer } from "@/lib/http/with-viewer";
+import { publicRoute } from "@/lib/http/authed-route";
 import { validateInviteToken } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -70,4 +70,4 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = publicRoute(handleGET);

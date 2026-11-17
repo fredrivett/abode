@@ -29,8 +29,9 @@ const SRC_DIR = join(process.cwd(), "src");
 // A value import of the helper (type-only imports can't authenticate anything)
 const IMPORTS_AUTHENTICATE =
   /import\s+(?!type\b)[^;]*from\s+["']@\/lib\/auth\/authenticate-request["']/;
+// An import naming authedRoute (an alias still matches, and then fails below)
 const IMPORTS_HELPER =
-  /import\s+(?!type\b)[^;]*from\s+["']@\/lib\/http\/authed-route["']/;
+  /import\s+(?!type\b)\{[^}]*\bauthedRoute\b[^}]*\}\s*from\s+["']@\/lib\/http\/authed-route["']/;
 const CALL = /\bauthedRoute(?:<[^>]*>)?\(/g;
 // The route must declare its credentials as a literal, first, so this test can read them
 const SCOPED_CALL =
