@@ -87,6 +87,18 @@ export async function signOut(): Promise<void> {
 
 export type AuthState = "signedOut" | "mfaRequired" | "signedIn";
 
+/**
+ * Re-checks the session after the API refused a save. The API returns 401 for
+ * more than a bad session (e.g. the auth server erroring), so rather than
+ * signing out, refresh: a revoked session is cleared (signed out), one that
+ * gained 2FA since comes back AAL1 with the factor (mfaRequired), and a valid
+ * one stays signedIn so the caller can offer a retry.
+ */
+export async function recheckAuthState(): Promise<AuthState> {
+  await supabase().auth.refreshSession();
+  return getAuthState();
+}
+
 export async function getAuthState(): Promise<AuthState> {
   const sb = supabase();
   const { data } = await sb.auth.getSession();

@@ -94,7 +94,7 @@ async function onError(error: unknown): Promise<void> {
   if (error instanceof NotSignedInError) {
     notify(
       "Sign in to abode",
-      "Open the abode extension to sign in, then try again.",
+      "Open the abode extension to finish signing in, then try again.",
     );
     return;
   }

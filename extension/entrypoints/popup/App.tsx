@@ -23,6 +23,7 @@ import { captureRenderedHtml } from "@/lib/capture";
 import {
   type AuthState,
   getAuthState,
+  recheckAuthState,
   signIn,
   signOut,
   verifyMfa,
@@ -40,12 +41,13 @@ export function App() {
     setStatus(await getAuthState());
   }, []);
 
-  // A save was refused: re-read the stored session, and drop it if it still
-  // looks valid locally (the API rejected it, e.g. revoked or 2FA enabled since)
+  // A save was refused: re-check the session, and report whether it's still
+  // signed in (so the save view shows a retry rather than switching views)
   const handleSaveRejected = useCallback(async () => {
-    if ((await getAuthState()) === "signedIn") await signOut();
-    await refresh();
-  }, [refresh]);
+    const state = await recheckAuthState();
+    setStatus(state);
+    return state === "signedIn";
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -92,7 +94,7 @@ export function App() {
           }}
         />
       ) : (
-        <SaveView onSignedOut={handleSaveRejected} />
+        <SaveView onRejected={handleSaveRejected} />
       )}
 
       {isConfigured() && <BuildFooter />}
@@ -256,7 +258,7 @@ function MfaView({
   onVerified,
   onCancel,
 }: {
-  onVerified: () => void;
+  onVerified: () => Promise<void>;
   onCancel: () => void;
 }) {
   const [code, setCode] = useState("");
@@ -277,7 +279,8 @@ function MfaView({
     setError(null);
     try {
       await verifyMfa(value);
-      onVerified();
+      // Keep the form disabled until the popup has switched views
+      await onVerified();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid code");
       setCode("");
@@ -322,6 +325,7 @@ function MfaView({
       <button
         type="button"
         onClick={onCancel}
+        disabled={loading}
         className="text-center text-xs text-muted-foreground underline"
       >
         Use a different account
@@ -333,7 +337,11 @@ function MfaView({
 type Tab = { id?: number; url?: string; title?: string; favIconUrl?: string };
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
+function SaveView({
+  onRejected,
+}: {
+  onRejected: () => Promise<boolean>;
+}) {
   const [tab, setTab] = useState<Tab | null>(null);
   const [state, setState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -356,10 +364,12 @@ function SaveView({ onSignedOut }: { onSignedOut: () => void }) {
       setState("saved");
     } catch (err) {
       if (err instanceof NotSignedInError) {
-        onSignedOut();
-        return;
+        // Still signed in after a re-check: the refusal wasn't about the session
+        if (await onRejected()) setError("Couldn't save. Try again.");
+        else return;
+      } else {
+        setError(err instanceof Error ? err.message : "Couldn't save");
       }
-      setError(err instanceof Error ? err.message : "Couldn't save");
       setState("error");
     }
   }
