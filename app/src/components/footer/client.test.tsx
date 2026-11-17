@@ -5,12 +5,16 @@ import { X_URL } from "@/lib/social";
 import { FooterClient } from "./client";
 
 describe("FooterClient", () => {
-  it("gives logged-out visitors links to compare, github and x", () => {
+  it("gives logged-out visitors links to compare, privacy, github and x", () => {
     render(<FooterClient isAuthenticated={false} />);
 
     expect(screen.getByRole("link", { name: "/compare" })).toHaveAttribute(
       "href",
       "/compare",
+    );
+    expect(screen.getByRole("link", { name: "privacy" })).toHaveAttribute(
+      "href",
+      "/privacy",
     );
     expect(screen.getByRole("link", { name: "github" })).toHaveAttribute(
       "href",
