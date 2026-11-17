@@ -1,11 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { MAX_ITEM_IDS_PER_REQUEST } from "@/lib/pagination";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/status");
 
@@ -15,14 +14,12 @@ const log = createLogger("api/v1/items/status");
  * Lightweight endpoint for polling processing items — `updatedAt` lets the
  * client detect mid-processing progress (e.g. a URL being classified).
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const idsParam = request.nextUrl.searchParams.get("ids");
     if (!idsParam) {
@@ -70,4 +67,4 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

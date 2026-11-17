@@ -1,11 +1,11 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { getUserInviteEmail } from "@/lib/email/templates";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import {
   createUserInvite,
   getAvailableInvites,
@@ -14,7 +14,6 @@ import {
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 import type { adminNotificationTask } from "../../../../../trigger/admin-notification";
 
 const log = createLogger("api/v1/invites");
@@ -26,14 +25,12 @@ const sendInviteSchema = z.object({
 /**
  * GET /api/v1/invites - Get current user's invite status and sent invites
  */
-async function handleGET() {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Get available invites (computed) and sent invites
     const [availableInvites, invites] = await Promise.all([
@@ -78,14 +75,12 @@ async function handleGET() {
 /**
  * POST /api/v1/invites - Send an invite to an email address
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Parse and validate request body
     const body = await request.json();
@@ -232,5 +227,5 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

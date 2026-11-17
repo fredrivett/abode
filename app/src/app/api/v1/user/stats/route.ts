@@ -1,21 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/stats");
 
-async function handleGET(_request: NextRequest) {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const [itemCount, roomCount] = await Promise.all([
       db.item.count({
@@ -39,4 +36,4 @@ async function handleGET(_request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

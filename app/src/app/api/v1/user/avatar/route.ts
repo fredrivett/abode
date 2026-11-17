@@ -1,15 +1,14 @@
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { isAllowedAvatarType, MAX_AVATAR_SIZE } from "@/lib/avatar";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteProfile } from "@/lib/milestones/conditions";
 import { captureServerException } from "@/lib/posthog-server";
 import { removeAllObjectsUnderPrefix } from "@/lib/storage-objects";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/avatar");
 
@@ -43,14 +42,12 @@ function getSupabaseAdmin() {
   return createSupabaseAdmin(url, key);
 }
 
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -160,14 +157,12 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-async function handleDELETE(_request: NextRequest) {
+async function handleDELETE(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -198,5 +193,5 @@ async function handleDELETE(_request: NextRequest) {
   }
 }
 
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

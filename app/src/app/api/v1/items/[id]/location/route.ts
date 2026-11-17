@@ -1,9 +1,9 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -12,7 +12,6 @@ import {
   reverseGeocode,
 } from "@/lib/reverse-geocode";
 import { getSmartRoomsWithLocationFilter } from "@/lib/rooms";
-import { createClient } from "@/lib/supabase/server";
 import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import { accrueUsageCost, guardDailyLimit } from "@/lib/usage-limits";
 import type { syncItemToRoomsTask } from "../../../../../../../trigger/sync-item-to-rooms";
@@ -34,16 +33,14 @@ function isValidLatLon(latitude: unknown, longitude: unknown) {
 
 async function handlePOST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Setting a manual location reverse-geocodes via Mapbox (paid per call).
     const guard = await guardDailyLimit(user.id, "location");
@@ -167,16 +164,14 @@ async function handlePOST(
 
 async function handleDELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Check if item exists and belongs to user
     const existingItem = await db.item.findUnique({
@@ -232,5 +227,5 @@ async function handleDELETE(
   }
 }
 
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

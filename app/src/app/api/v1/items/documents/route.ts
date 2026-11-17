@@ -1,21 +1,20 @@
 import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import {
   createDocumentSchema,
   documentFileKeys,
 } from "@/lib/documents/create-document-schema";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { enqueueDocumentAnalysis } from "@/lib/items/enqueue-document-analysis";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 import { guardDailyLimit } from "@/lib/usage-limits";
 import { adjustUserCounters } from "@/lib/user-counters";
@@ -29,13 +28,12 @@ const log = createLogger("api/v1/items/documents");
  * to storage: creates the `document` item and its pages, then enqueues OCR +
  * cover analysis. Counts one ingestion action per page.
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const parsed = createDocumentSchema.safeParse(
       await request.json().catch(() => null),
@@ -141,4 +139,4 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

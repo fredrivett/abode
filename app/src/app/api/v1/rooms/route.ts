@@ -1,9 +1,9 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { markMilestoneComplete } from "@/lib/milestones";
 import { shouldCompleteCreateDynamicRoom } from "@/lib/milestones/conditions";
@@ -11,7 +11,6 @@ import { captureServerException } from "@/lib/posthog-server";
 import { generateRoomSlug, hasValidFilters, listUserRooms } from "@/lib/rooms";
 import { ensureBookRooms } from "@/lib/rooms/auto-book-rooms";
 import type { Filter } from "@/lib/search/types";
-import { createClient } from "@/lib/supabase/server";
 import { enqueueAfterSave } from "@/lib/trigger/enqueue-after-save";
 import type { syncRoomItemsTask } from "../../../../../trigger/sync-room-items";
 
@@ -22,14 +21,12 @@ const log = createLogger("api/v1/rooms");
  * Query params:
  *   - type: Filter by room type ('smart' | 'manual')
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const typeParam = new URL(request.url).searchParams.get("type");
 
@@ -60,14 +57,12 @@ async function handleGET(request: NextRequest) {
 /**
  * POST /api/v1/rooms - Create a new room
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const { name, emoji, type, filters, visibility } = body;
@@ -186,5 +181,5 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

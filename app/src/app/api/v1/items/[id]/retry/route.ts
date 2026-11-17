@@ -5,10 +5,10 @@ import type { importPdfTask } from "@app/trigger/import-pdf";
 import type { ProcessingErrorReason } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db, { systemDb } from "@/lib/db";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { enqueueUserProcessing } from "@/lib/items/enqueue-user-processing";
 import { claimFailedRetry } from "@/lib/items/retry-claim";
 import { createLogger } from "@/lib/logger.server";
@@ -23,16 +23,15 @@ const log = createLogger("api/v1/items/[id]/retry");
 
 async function handlePOST(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const isAdmin = await hasFullAdminAccess(supabase);
     // Admins retry anyone's item, so they need the system connection; everyone
@@ -266,4 +265,4 @@ async function handlePOST(
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

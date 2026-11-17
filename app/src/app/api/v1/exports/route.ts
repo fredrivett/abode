@@ -1,7 +1,7 @@
 import type { exportUserDataTask } from "@app/trigger/export-user-data";
 import { tasks } from "@trigger.dev/sdk";
-import { NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import { type NextRequest, NextResponse } from "next/server";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
 import { MAX_EXPORTS_PER_DAY } from "@/lib/export/constants";
 import { reserveDataExport } from "@/lib/export/reserve-data-export";
@@ -10,23 +10,21 @@ import {
   RECENT_EXPORTS_LIMIT,
   toDataExportSnapshot,
 } from "@/lib/export/snapshot";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { failUnstartedExport } from "@/lib/jobs/start-failures";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 import { isTriggerConfigured } from "@/lib/trigger/item-runs";
 
 const log = createLogger("api/v1/exports");
 
 /** The user's most recent exports, newest first — drives the settings page */
-async function handleGET(): Promise<NextResponse> {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<NextResponse> {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const exports = await db.dataExport.findMany({
       where: { userId: user.id },
@@ -50,13 +48,13 @@ async function handleGET(): Promise<NextResponse> {
  * never a personal access token: an export is the whole library in one file.
  * One export at a time per user, and a few per day.
  */
-async function handlePOST(): Promise<NextResponse> {
+async function handlePOST(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<NextResponse> {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
+
     const userId = user.id;
 
     // Exports are built by the background worker; degrade cleanly without it
@@ -119,5 +117,5 @@ async function handlePOST(): Promise<NextResponse> {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

@@ -1,12 +1,11 @@
 import { NotFoundError, runs } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { roomTag } from "@/lib/items/run-tags";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/rooms/[id]/sync/[runId]");
 
@@ -20,15 +19,13 @@ type RouteParams = { params: Promise<{ id: string; runId: string }> };
  * Owner-only, and the run must be a sync of this room, so a run id can't be
  * used to read another room's or task's run.
  */
-async function handleGET(_request: NextRequest, { params }: RouteParams) {
+async function handleGET(
+  _request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id, runId } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const room = await db.room.findUnique({
       where: { id, userId: user.id },
@@ -71,4 +68,4 @@ async function handleGET(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute({ credentials: "session" }, handleGET);

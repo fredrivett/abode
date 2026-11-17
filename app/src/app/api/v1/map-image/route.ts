@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isDevelopment } from "@/env";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { read as prisma } from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
 import {
@@ -10,7 +10,6 @@ import {
   getClientIp,
   getRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/map-image");
 
@@ -66,7 +65,10 @@ function pickCanonicalLocation(
   return { latitude: canonical.latitude, longitude: canonical.longitude };
 }
 
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal | null },
+) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const itemId = searchParams.get("itemId");
@@ -80,8 +82,7 @@ async function handleGET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
+    const user = principal?.user ?? null;
 
     // Secondary, best-effort rate limit. This is defence-in-depth only: it's
     // in-memory/per-instance, so the real fix is that coordinates are derived
@@ -204,4 +205,7 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
+export const GET = authedRoute(
+  { credentials: "session", allowAnonymous: true },
+  handleGET,
+);

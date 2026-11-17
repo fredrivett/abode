@@ -9,7 +9,12 @@ const { mockGetUser, mockRoomCreate, mockTrigger } = vi.hoisted(() => ({
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: mockTrigger } }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
-  getUserWithMfa: mockGetUser,
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await mockGetUser();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 vi.mock("@/lib/db", () => ({
   default: {

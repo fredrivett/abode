@@ -1,24 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/items/[id]/highlights/[highlightId]");
 
 type RouteParams = { params: Promise<{ id: string; highlightId: string }> };
 
-async function handlePATCH(request: NextRequest, { params }: RouteParams) {
+async function handlePATCH(
+  request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id: itemId, highlightId } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Verify highlight exists and belongs to user
     const existingHighlight = await db.articleHighlight.findUnique({
@@ -89,15 +86,13 @@ async function handlePATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
+async function handleDELETE(
+  _request: NextRequest,
+  { params, principal }: RouteParams & { principal: Principal },
+) {
   try {
     const { id: itemId, highlightId } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Verify highlight exists and belongs to user
     const existingHighlight = await db.articleHighlight.findUnique({
@@ -143,5 +138,5 @@ async function handleDELETE(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export const PATCH = withViewer(handlePATCH);
-export const DELETE = withViewer(handleDELETE);
+export const PATCH = authedRoute({ credentials: "session" }, handlePATCH);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Routes resolve the user through getCompletedSignupUser; these tests are for
 // a user who has completed signup
-vi.mock("@/lib/auth/has-completed-signup", () => ({
-  hasCompletedSignup: async () => true,
-}));
 
 // P1 regression guard: changing a book's reading status must re-sync smart-room
 // (incl. auto book shelf) membership. Reading-status writes weren't in
@@ -38,7 +35,12 @@ const {
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
-  getUserWithMfa: mockGetUser,
+}));
+vi.mock("@/lib/auth/authenticate-request", () => ({
+  authenticateRequest: async () => {
+    const { data } = await mockGetUser();
+    return data.user ? { user: data.user, method: "cookie" } : null;
+  },
 }));
 
 vi.mock("@/lib/db", () => ({

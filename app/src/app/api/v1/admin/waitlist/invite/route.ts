@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { hasFullAdminAccess } from "@/lib/admin/auth";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import { sendEmail } from "@/lib/email";
 import { getWaitlistInviteEmail } from "@/lib/email/templates";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { createWaitlistInvite } from "@/lib/invites";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
@@ -17,16 +17,14 @@ const log = createLogger("api/v1/admin/waitlist/invite");
  * POST /api/v1/admin/waitlist/invite
  * Send invite to a waitlist entry (admin only)
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
     // Check if user is admin
     const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const { user } = principal;
     // Same bar as every other admin route: admin flag plus a completed 2FA
     // challenge (AAL2), not the admin flag alone
     if (!(await hasFullAdminAccess(supabase))) {
@@ -102,4 +100,4 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
-import { withViewer } from "@/lib/http/with-viewer";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
 import {
   clearNoteDraft,
   getNoteDraft,
@@ -8,7 +8,6 @@ import {
 } from "@/lib/items/note-draft";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/note-draft");
 
@@ -16,19 +15,13 @@ const log = createLogger("api/v1/note-draft");
 // row/request rather than trust unbounded client input.
 const MAX_DRAFT_LENGTH = 500_000;
 
-async function getUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const user = await getCompletedSignupUser(supabase);
-  return user?.id ?? null;
-}
-
 /** Returns the caller's saved composer draft, if any. */
-async function handleGET() {
+async function handleGET(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = principal.user.id;
     return NextResponse.json({ content: await getNoteDraft(userId) });
   } catch (error) {
     log.error({ error }, "Note draft read error");
@@ -46,12 +39,12 @@ async function handleGET() {
  * Upserts the caller's composer draft. Uses POST (not PUT) so the composer can
  * also flush it via `navigator.sendBeacon`, which only issues POST requests.
  */
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = principal.user.id;
 
     const body = await request.json().catch(() => ({}));
     const { content } = body;
@@ -81,12 +74,12 @@ async function handlePOST(request: NextRequest) {
 }
 
 /** Clears the caller's composer draft (explicit "Clear"). */
-async function handleDELETE() {
+async function handleDELETE(
+  _request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = principal.user.id;
     await clearNoteDraft(userId);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
@@ -101,6 +94,6 @@ async function handleDELETE() {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

@@ -1,9 +1,9 @@
 import { tasks } from "@trigger.dev/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { computeArticleReadingUpdate } from "@/lib/items/article-reading-status";
 import { isReadingDateRangeInverted } from "@/lib/items/book-reading-status";
@@ -29,16 +29,14 @@ const log = createLogger("api/v1/items/[id]");
 
 async function handleGET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const item = await db.item.findUnique({
       where: {
@@ -87,16 +85,14 @@ async function handleGET(
 
 async function handlePATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const parsed = itemPatchSchema.safeParse(body);
@@ -420,16 +416,15 @@ async function handlePATCH(
 
 async function handleDELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  {
+    params,
+    principal,
+  }: { params: Promise<{ id: string }> } & { principal: Principal },
 ) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Someone else's item is indistinguishable from a missing one here
     const result = await deleteOwnedItem({
@@ -454,6 +449,6 @@ async function handleDELETE(
   }
 }
 
-export const GET = withViewer(handleGET);
-export const PATCH = withViewer(handlePATCH);
-export const DELETE = withViewer(handleDELETE);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const PATCH = authedRoute({ credentials: "session" }, handlePATCH);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

@@ -1,10 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
+import { authedRoute } from "@/lib/http/authed-route";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
-import { withViewer } from "@/lib/http/with-viewer";
 import { isKeyInUserFolder } from "@/lib/item-storage";
 import { isItemSource } from "@/lib/items/capture-source";
 import { deleteOwnedItem } from "@/lib/items/delete-item";
@@ -45,14 +45,12 @@ const allowedKinds = new Set(["image", "article", "webpage"]);
  * With `ids` (comma-separated, up to {@link MAX_ITEM_IDS_PER_REQUEST}) returns
  * { items } for just those of the user's items; missing ones were deleted.
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const { searchParams } = new URL(request.url);
 
@@ -141,14 +139,12 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-async function handlePOST(request: NextRequest) {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     // Durable per-user daily cap (counts every attempt; only blocks when
     // USAGE_LIMITS_ENFORCED). Each item = several paid AI calls.
@@ -264,14 +260,13 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-async function handleDELETE(request: NextRequest) {
+async function handleDELETE(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
     const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json();
     const { id } = body;
@@ -311,6 +306,6 @@ async function handleDELETE(request: NextRequest) {
   }
 }
 
-export const GET = withViewer(handleGET);
-export const POST = withViewer(handlePOST);
-export const DELETE = withViewer(handleDELETE);
+export const GET = authedRoute({ credentials: "session" }, handleGET);
+export const POST = authedRoute({ credentials: "session" }, handlePOST);
+export const DELETE = authedRoute({ credentials: "session" }, handleDELETE);

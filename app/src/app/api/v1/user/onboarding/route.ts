@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCompletedSignupUser } from "@/lib/auth/completed-signup-user";
+import type { Principal } from "@/lib/auth/authenticate-request";
 import db from "@/lib/db";
-import { withViewer } from "@/lib/http/with-viewer";
+import { authedRoute } from "@/lib/http/authed-route";
 import { zodErrorResponse } from "@/lib/http/zod-error";
 import { createLogger } from "@/lib/logger.server";
 import { captureServerException, getPostHogClient } from "@/lib/posthog-server";
-import { createClient } from "@/lib/supabase/server";
 
 const log = createLogger("api/v1/user/onboarding");
 
@@ -15,14 +14,12 @@ const onboardingSchema = z.object({
   lastName: z.string().optional(),
 });
 
-async function handlePATCH(request: NextRequest) {
+async function handlePATCH(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+) {
   try {
-    const supabase = await createClient();
-    const user = await getCompletedSignupUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const { user } = principal;
 
     const body = await request.json().catch(() => ({}));
     const parsed = onboardingSchema.safeParse(body);
@@ -71,4 +68,4 @@ async function handlePATCH(request: NextRequest) {
   }
 }
 
-export const PATCH = withViewer(handlePATCH);
+export const PATCH = authedRoute({ credentials: "session" }, handlePATCH);
