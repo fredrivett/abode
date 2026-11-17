@@ -62,3 +62,40 @@ test.describe("Pages require a completed MFA challenge", () => {
     }
   });
 });
+
+test.describe("MFA challenge retry", () => {
+  test("a wrong code keeps the input focused so the next code can be typed", async ({
+    browser,
+  }) => {
+    const email = "mfa-retry@test.local";
+    const { user, totpSecret } = await createUserWithMfa({
+      email,
+      username: "mfa_retry_user",
+    });
+    const mfaSetupAtMs = Date.now();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    try {
+      await page.goto("/login");
+      await page.waitForLoadState("networkidle");
+      await page.getByLabel(/email/i).fill(user.email);
+      await page.getByLabel(/password/i).fill(user.password);
+      await page.getByRole("button", { name: /sign in/i }).click();
+      await expect(page).toHaveURL(/\/login\/verify-mfa/, { timeout: 30000 });
+
+      await enterMfaCode(page, "000000");
+      await expect(page.getByText(/invalid/i)).toBeVisible();
+      const otp = page.locator('[data-slot="input-otp"]');
+      await expect(otp).toBeFocused();
+
+      // Just type: no click needed to get back into the input
+      await waitForTotpWindowAfter(mfaSetupAtMs);
+      await page.keyboard.type(generateTotp(totpSecret));
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 30000 });
+    } finally {
+      await context.close();
+      await deleteUserByEmail(email);
+    }
+  });
+});

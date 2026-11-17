@@ -256,7 +256,7 @@ function touchLastUsed(id: string, lastUsedAt: Date | null): void {
  *
  * Enforces 2FA: a user with a verified MFA factor must present an AAL2 token.
  * A password-only sign-in yields an AAL1 token (raising it to AAL2 needs a TOTP
- * challenge — the web login does this, the extension does not yet). Accepting an
+ * challenge — the web login and the extension's sign-in both do this). Accepting an
  * AAL1 token here would let anyone with just the password reach the account over
  * the bearer path, silently bypassing the 2FA the user opted into. Fails closed:
  * an unparseable token is treated as non-AAL2.

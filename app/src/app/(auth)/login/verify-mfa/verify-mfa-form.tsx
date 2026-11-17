@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -26,6 +26,13 @@ export function VerifyMFAForm({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Verifying disables (and so blurs) the input; give focus back after a wrong
+  // code so the user can type the next one straight away
+  useEffect(() => {
+    if (error) inputRef.current?.focus();
+  }, [error]);
 
   const handleVerify = async () => {
     if (code.length !== 6 || isLoading) return;
@@ -60,6 +67,7 @@ export function VerifyMFAForm({
     <div className="space-y-4">
       <div className="flex justify-center">
         <InputOTP
+          ref={inputRef}
           maxLength={6}
           value={code}
           onChange={setCode}

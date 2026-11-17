@@ -1,6 +1,9 @@
+import { OTPInput, OTPInputContext } from "input-otp";
 import {
   type ButtonHTMLAttributes,
+  type ComponentProps,
   type InputHTMLAttributes,
+  useContext,
   useEffect,
   useState,
 } from "react";
@@ -36,6 +39,52 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
       className={`h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring ${className}`}
       {...props}
     />
+  );
+}
+
+// One-time-code input, ported from the web app's shadcn InputOTP
+// (app/src/components/ui/input-otp.tsx) so 2FA codes look the same in both
+export function InputOTP({
+  className = "",
+  containerClassName = "",
+  ...props
+}: ComponentProps<typeof OTPInput> & { containerClassName?: string }) {
+  return (
+    <OTPInput
+      containerClassName={`flex items-center gap-2 has-disabled:opacity-50 ${containerClassName}`}
+      className={`disabled:cursor-not-allowed ${className}`}
+      {...props}
+    />
+  );
+}
+
+export function InputOTPGroup({
+  className = "",
+  ...props
+}: ComponentProps<"div">) {
+  return <div className={`flex items-center ${className}`} {...props} />;
+}
+
+export function InputOTPSlot({
+  index,
+  className = "",
+  ...props
+}: ComponentProps<"div"> & { index: number }) {
+  const { char, hasFakeCaret, isActive } =
+    useContext(OTPInputContext)?.slots[index] ?? {};
+  return (
+    <div
+      data-active={isActive}
+      className={`relative flex size-10 items-center justify-center border-y border-r border-input bg-background text-base shadow-xs outline-none transition-all first:rounded-l-md first:border-l last:rounded-r-md data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-[3px] data-[active=true]:ring-ring/50 dark:bg-input/30 ${className}`}
+      {...props}
+    >
+      {char}
+      {hasFakeCaret && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="h-4 w-px animate-caret-blink bg-foreground" />
+        </div>
+      )}
+    </div>
   );
 }
 
