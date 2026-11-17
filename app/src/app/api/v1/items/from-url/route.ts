@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
-import { preflight, withCors } from "@/lib/http/cors";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
+import { preflight } from "@/lib/http/cors";
 import { dailyLimitResponse } from "@/lib/http/daily-limit";
 import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
@@ -17,17 +18,12 @@ function handleOPTIONS(request: NextRequest) {
   return preflight(request);
 }
 
-async function handlePOST(request: NextRequest) {
-  return withCors(request, await handlePost(request));
-}
-
-async function handlePost(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request, { tokenScope: "write" });
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user;
+    const user = principal.user;
 
     // Durable per-user daily cap (each URL import = several paid AI calls).
     const guard = await guardDailyLimit(user.id, "ingestion");
@@ -44,7 +40,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
 
     try {
       const { captureSource, personalAccessTokenId } = captureAttribution(
-        auth,
+        principal,
         source,
       );
       const item = await createItemFromUrl({
@@ -80,4 +76,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
 }
 
 export const OPTIONS = withViewer(handleOPTIONS);
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute(
+  { tokenScope: "write", cors: true },
+  handlePOST,
+);

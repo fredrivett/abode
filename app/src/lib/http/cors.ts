@@ -36,10 +36,10 @@ function isAllowedOrigin(origin: string | null): origin is string {
 }
 
 /** Attaches CORS headers to a response (used on the actual POST responses). */
-export function withCors(
+export function withCors<R extends Response>(
   request: NextRequest,
-  response: NextResponse,
-): NextResponse {
+  response: R,
+): R {
   for (const [key, value] of Object.entries(corsHeaders(request))) {
     response.headers.set(key, value);
   }

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/auth/authenticate-request";
-import { preflight, withCors } from "@/lib/http/cors";
+import type { Principal } from "@/lib/auth/authenticate-request";
+import { authedRoute } from "@/lib/http/authed-route";
+import { preflight } from "@/lib/http/cors";
 import { withViewer } from "@/lib/http/with-viewer";
 import { captureAttribution } from "@/lib/items/capture-source";
 import { createNote } from "@/lib/items/create-note";
@@ -24,17 +25,12 @@ function handleOPTIONS(request: NextRequest) {
  * the extension, so there's no URL fetch or background classification — the
  * item is created synchronously and marked completed.
  */
-async function handlePOST(request: NextRequest) {
-  return withCors(request, await handlePost(request));
-}
-
-async function handlePost(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(
+  request: NextRequest,
+  { principal }: { principal: Principal },
+): Promise<NextResponse> {
   try {
-    const auth = await authenticateRequest(request, { tokenScope: "write" });
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user;
+    const user = principal.user;
 
     const body = await request.json().catch(() => ({}));
     const { content, title, source } = body;
@@ -56,7 +52,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
     // Extension "save selection as note" passes source: "extension"; the in-app
     // composer omits it and defaults to "web". A token save is always "api".
     const { captureSource, personalAccessTokenId } = captureAttribution(
-      auth,
+      principal,
       source,
     );
     const item = await createNote(user.id, {
@@ -98,4 +94,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
 }
 
 export const OPTIONS = withViewer(handleOPTIONS);
-export const POST = withViewer(handlePOST);
+export const POST = authedRoute(
+  { tokenScope: "write", cors: true },
+  handlePOST,
+);
