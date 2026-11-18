@@ -6,7 +6,8 @@
 # Steps:
 #   1. Symlink workspace .env.local from the root checkout's .env.local
 #   2. Symlink app/.env to the workspace .env.local (Next.js reads .env)
-#   3. Install app dependencies
+#   3. Claim this worktree's port block (ports.sh)
+#   4. Install app dependencies
 
 set -euo pipefail
 
@@ -29,5 +30,8 @@ else
   echo "No .env.local in workspace; skipping app/.env link"
 fi
 
-# 3. Install dependencies
+# 3. Claim a port block (writes ABODE_PORT into app/.env.local)
+echo "Port block: $("$(dirname "$0")/ports.sh" ensure)"
+
+# 4. Install dependencies
 cd app && bun install
