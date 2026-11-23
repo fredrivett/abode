@@ -108,7 +108,9 @@ describe("useSaveScannedDocument", () => {
     });
     expect(body.pages[0].fileKey).not.toBe(body.pages[0].originalFileKey);
     expect(body.pages[1].originalFileKey).toBe(body.pages[1].fileKey);
-    expect(m.success).toHaveBeenCalledWith("Document saved (2 pages)");
+    expect(m.success).toHaveBeenCalledWith("Document saved (2 pages)", {
+      action: expect.objectContaining({ label: "View" }),
+    });
     expect(m.reveal).toHaveBeenCalledWith("item-1");
     expect(m.markComplete).toHaveBeenCalledWith("scan_first_document");
   });

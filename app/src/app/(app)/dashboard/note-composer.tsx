@@ -19,6 +19,7 @@ import { api } from "@/lib/api-client";
 import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
 import { isBlankNote } from "@/lib/items/note-title";
+import { viewSavedItemAction } from "@/lib/items/view-saved-item";
 import { createLogger } from "@/lib/logger.client";
 import { useMilestoneStore } from "@/stores/milestone-store";
 
@@ -199,7 +200,7 @@ export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
       void revealCreatedItem(created.id);
       resetComposer();
       clearConfirm.reset();
-      toast.success("Note saved");
+      toast.success("Note saved", { action: viewSavedItemAction(created.id) });
     } catch (error) {
       log.error({ error }, "Note create error");
       toast.error("Failed to save note");

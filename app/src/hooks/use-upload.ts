@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { api, isDailyLimitError } from "@/lib/api-client";
 import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { getImagePreview } from "@/lib/image-preview";
+import { viewSavedItemAction } from "@/lib/items/view-saved-item";
 import { createLogger } from "@/lib/logger.client";
 import { createClient } from "@/lib/supabase/client";
 import { PDF_MIME_TYPE, validateUploadFile } from "@/lib/uploads";
@@ -90,6 +91,7 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
           created.processingStatus === "completed"
             ? "URL saved"
             : "URL added — processing in background",
+          { action: viewSavedItemAction(created.id) },
         );
         useMilestoneStore.getState().markComplete("save_first_url");
         if (isOnDashboard) {
@@ -219,9 +221,12 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadReturn {
             created.processingStatus === "completed"
               ? "PDF added"
               : "PDF added — reading its pages",
+            { action: viewSavedItemAction(created.id) },
           );
         } else {
-          toast.success("Upload complete");
+          toast.success("Upload complete", {
+            action: viewSavedItemAction(created.id),
+          });
           useMilestoneStore.getState().markComplete("upload_first_image");
         }
         if (isOnDashboard) {

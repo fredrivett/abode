@@ -8,6 +8,7 @@ import { ApiClientError, api, isDailyLimitError } from "@/lib/api-client";
 import { useRevealCreatedItem } from "@/lib/api-hooks";
 import type { CreateDocumentBody } from "@/lib/documents/create-document-schema";
 import { getImagePreview } from "@/lib/image-preview";
+import { viewSavedItemAction } from "@/lib/items/view-saved-item";
 import { createLogger } from "@/lib/logger.client";
 import type { FinishedScanPage } from "@/lib/scanner/pages";
 import { createClient } from "@/lib/supabase/client";
@@ -119,6 +120,7 @@ export function useSaveScannedDocument() {
           pageCount === 1
             ? "Document saved"
             : `Document saved (${pageCount} pages)`,
+          { action: viewSavedItemAction(created.id) },
         );
         if (pathname === "/" || pathname.startsWith("/dashboard")) {
           void revealCreatedItem(created.id);
