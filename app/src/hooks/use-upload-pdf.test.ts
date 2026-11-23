@@ -33,6 +33,9 @@ vi.mock("@/lib/supabase/client", () => ({
 vi.mock("sonner", () => ({
   toast: { success: m.toastSuccess, error: m.toastError },
 }));
+// Every save toast offers to open the new item
+const viewAction = { action: expect.objectContaining({ label: "View" }) };
+
 // jsdom can't decode images; the preview is best-effort anyway
 vi.mock("@/lib/image-preview", () => ({
   getImagePreview: async () => ({ width: 10, height: 10, blurDataUrl: null }),
@@ -96,6 +99,7 @@ describe("useUpload with a PDF", () => {
     });
     expect(m.toastSuccess).toHaveBeenCalledWith(
       "PDF added — reading its pages",
+      viewAction,
     );
     expect(m.reveal).toHaveBeenCalledWith("item-1");
   });
@@ -143,7 +147,7 @@ describe("useUpload with a PDF", () => {
       processingStatus: "completed",
     });
     await uploadFile(pdf());
-    expect(m.toastSuccess).toHaveBeenCalledWith("PDF added");
+    expect(m.toastSuccess).toHaveBeenCalledWith("PDF added", viewAction);
   });
 
   it("still saves an image through the image route", async () => {
@@ -166,6 +170,7 @@ describe("useUpload with a URL", () => {
     await submitUrl("https://example.com/a");
     expect(m.toastSuccess).toHaveBeenCalledWith(
       "URL added — processing in background",
+      viewAction,
     );
   });
 
@@ -175,6 +180,6 @@ describe("useUpload with a URL", () => {
       processingStatus: "completed",
     });
     await submitUrl("https://example.com/a");
-    expect(m.toastSuccess).toHaveBeenCalledWith("URL saved");
+    expect(m.toastSuccess).toHaveBeenCalledWith("URL saved", viewAction);
   });
 });
