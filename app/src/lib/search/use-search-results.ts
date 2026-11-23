@@ -128,7 +128,7 @@ export function buildSearchParams(state: SearchState): SearchQueryParams {
 /**
  * Check if search state has any active search criteria.
  */
-function hasSearchCriteria(state: SearchState): boolean {
+export function hasSearchCriteria(state: SearchState): boolean {
   const cleanQuery = state.query.replace(/@\w*:?[^\s]*$/, "").trim();
 
   return cleanQuery.length > 0 || state.filters.length > 0;

@@ -6,7 +6,7 @@ import {
 import { act, renderHook } from "@testing-library/react";
 import posthog from "posthog-js";
 import { createElement, type ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "./api-client";
 import {
   CREATED_ITEM_RETRY_DELAYS_MS,
@@ -67,9 +67,17 @@ describe("useUpdateCachedItemTitle", () => {
 });
 
 describe("useRevealCreatedItem", () => {
+  // jsdom doesn't implement scrolling
+  const scrollTo = vi.fn();
+  beforeEach(() => {
+    vi.stubGlobal("scrollTo", scrollTo);
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    window.history.replaceState(null, "", "/");
   });
 
   const page = (...ids: string[]) => ({
@@ -113,6 +121,45 @@ describe("useRevealCreatedItem", () => {
       await done;
     });
   }
+
+  it("smooth-scrolls to the top, where the new item lands", async () => {
+    vi.mocked(api.get).mockResolvedValue({ items: [makeItem("new", "new")] });
+    const { result } = setup();
+
+    await reveal(() => result.current("new"));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  });
+
+  it("keeps the scroll position when search results are showing", async () => {
+    // A filter alone counts; an unrelated param (the open item) doesn't
+    window.history.replaceState(null, "", "/dashboard?type=image&item=x");
+    const { result } = setup({ showList: false });
+
+    await reveal(() => result.current("new"));
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("scrolls when the URL has only non-search params", async () => {
+    window.history.replaceState(null, "", "/dashboard?item=x");
+    const { result } = setup({ showList: false });
+
+    await reveal(() => result.current("new"));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  });
+
+  it("jumps to the top without animating when motion is reduced", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    const { result } = setup({ showList: false });
+
+    await reveal(() => result.current("new"));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" });
+  });
 
   it("fetches just the new item and puts it first in the list", async () => {
     vi.mocked(api.get).mockResolvedValue({ items: [makeItem("new", "new")] });
@@ -161,6 +208,8 @@ describe("useRevealCreatedItem", () => {
 
     expect(api.get).not.toHaveBeenCalled();
     expect(posthog.captureException).not.toHaveBeenCalled();
+    // Scrolls even when there's nothing to fetch
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
   });
 });
 

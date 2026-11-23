@@ -22,6 +22,8 @@ import {
   DEFAULT_PAGE_SIZE,
   MAX_ITEM_IDS_PER_REQUEST,
 } from "./pagination";
+import { parseSearchParams } from "./search/types";
+import { hasSearchCriteria } from "./search/use-search-results";
 import type { Item, SearchItem } from "./types/item";
 
 type ItemMeta = Prisma.JsonValue;
@@ -258,9 +260,10 @@ export function useRefreshCachedItems() {
 export const CREATED_ITEM_RETRY_DELAYS_MS = [500, 1500, 4000];
 
 /**
- * Returns a stable callback for after creating an item: fetches it and puts it
- * at the top of the loaded full list, then re-checks until it's still there, so
- * the grid can't silently miss it until a reload — the fetch can fail, or a
+ * Returns a stable callback for after creating an item: scrolls to the top of
+ * the page (unless search results are showing), fetches the item and puts it
+ * at the top of the loaded full list, then re-checks until it's still there,
+ * so the grid can't silently miss it until a reload — the fetch can fail, or a
  * list refetch already in flight can land without it. If it never shows up,
  * reports it.
  */
@@ -268,6 +271,17 @@ export function useRevealCreatedItem() {
   const queryClient = useQueryClient();
   return useCallback(
     async (itemId: string): Promise<void> => {
+      // The new item goes first in the full list, so bring the top into view.
+      // Search results rank it elsewhere or leave it out, so keep the place there
+      const searchState = parseSearchParams(
+        new URLSearchParams(window.location.search),
+      );
+      if (!hasSearchCriteria(searchState)) {
+        const reduceMotion = window.matchMedia?.(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      }
       // No list loaded counts as listed: its first fetch includes the item
       const isListed = () =>
         queryClient
