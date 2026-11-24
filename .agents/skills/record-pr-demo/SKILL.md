@@ -29,13 +29,13 @@ A reviewer should watch the video once, with no narration, and know what changed
 cd app && bun run demo:stack
 ```
 
-Run it in the background with the longest timeout available, and wait for `[demo-stack] ready at http://localhost:<port>`. It starts the e2e stack: its own Supabase on ports derived from `CONDUCTOR_PORT`, migrations applied, a seeded test user (no 2FA), and a dev server on its own port and build dir.
+Run it in the background with the longest timeout available, and wait for `[demo-stack] ready at http://localhost:<port>`. It starts the e2e stack: its own Supabase on ports derived from the checkout's base port, migrations applied, a seeded test user (no 2FA), and a dev server on its own port and build dir.
 
 - It never touches the shared local DB or the dev server the user is watching, so there's nothing of theirs to stop or restore.
 - **Videos are public** (this repo is public, and attachments on public repos are viewable by anyone), so only ever record this stack: never the user's dev DB, prod, or a real account.
 - It's the same stack `bun run test:e2e` uses, so don't run e2e tests in this checkout while it's up.
 - Background processing (Trigger.dev) doesn't run against it. Saved links stay unprocessed, so prefer fixtures that don't need enrichment (notes, rooms, settings), or say in a caption that the item would process in production.
-- Without a per-checkout `CONDUCTOR_PORT`, every checkout uses the same ports, so only one demo stack can run at a time.
+- Each worktree gets its own port block when setup or the run script runs (`scripts/workspace/ports.sh ensure`), so worktrees can run demo stacks side by side. Check with `scripts/workspace/ports.sh current` first: `3300` means no block yet (or the root checkout), so run `scripts/workspace/ports.sh ensure` before `bun run demo:stack`, or it shares the root checkout's ports.
 
 When you're done, stop it: end the background task (SIGTERM stops the dev server and Supabase), then run `cd app && bun run demo:stop` in case cleanup didn't run.
 

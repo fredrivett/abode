@@ -7,9 +7,10 @@ import { defineConfig } from "wxt";
 // local abode server and grants localhost host access; a normal build targets
 // production. Derived here in Node so it's deterministic (not mode-inferred).
 const isLocal = process.env.WXT_ABODE_LOCAL === "1";
-// The local abode server's origin: Conductor sets CONDUCTOR_PORT per workspace;
-// a plain checkout serves :3300.
-const devBaseUrl = `http://localhost:${process.env.CONDUCTOR_PORT ?? "3300"}`;
+// The local abode server's origin: a worktree's ABODE_PORT (extension/.env.local,
+// written by scripts/workspace/ports.sh), else Conductor's CONDUCTOR_PORT, else
+// the root checkout's :3300. Same order as getBasePort() in app/src/lib/dev-port.ts.
+const devBaseUrl = `http://localhost:${process.env.ABODE_PORT || process.env.CONDUCTOR_PORT || "3300"}`;
 
 // Build identity, so a running extension can tell whether it's stale. In CI both
 // come from GitHub's default env vars (set in every step, no workflow wiring):

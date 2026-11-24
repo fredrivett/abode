@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
+import { getBasePort } from "../src/lib/dev-port";
 import { createTestUser, TEST_USERS } from "./auth-helpers";
 import {
   createAdminClient,
@@ -43,9 +44,7 @@ async function main() {
         RESEND_API_KEY: "re_e2e_placeholder_not_real",
         TEST_USER_EMAIL: defaultUser.email,
         TEST_USER_PASSWORD: defaultUser.password,
-        LOCAL_SMTP_PORT: String(
-          Number.parseInt(process.env.CONDUCTOR_PORT || "3300", 10) + 4,
-        ),
+        LOCAL_SMTP_PORT: String(getBasePort() + 4),
       },
     });
   } finally {

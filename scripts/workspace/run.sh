@@ -25,6 +25,10 @@ set -euo pipefail
 
 source "$(dirname "$0")/root-path.sh"
 
+# Claim a port block if setup didn't (skipped, denied, or a worktree made
+# outside Orca/Conductor); a no-op when this worktree already has one
+"$(dirname "$0")/ports.sh" ensure >/dev/null
+
 cd app
 
 bold=$'\033[1m'

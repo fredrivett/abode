@@ -1,6 +1,6 @@
 // Baked at build time from wxt.config.ts. __ABODE_LOCAL__ is true for a local
 // build (bun run dev / build:local); __ABODE_DEV_BASE_URL__ is the workspace's
-// abode origin (CONDUCTOR_PORT, else :3300).
+// abode origin (ABODE_PORT, else CONDUCTOR_PORT, else :3300).
 declare const __ABODE_LOCAL__: boolean;
 declare const __ABODE_DEV_BASE_URL__: string;
 // Build identity baked in wxt.config.ts. buildNumber is 0 outside CI.
