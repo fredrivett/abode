@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import posthog from "posthog-js";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TwitterIcon } from "@/components/icons/platform-icons";
 import { Button } from "@/components/ui/button";
 import { Img } from "@/components/ui/img";
@@ -71,7 +72,8 @@ export function TwitterDetailView({
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center bg-background p-6 md:p-8",
+        // `@container` + `--pad` let the media carousel bleed out to this box's edges
+        "@container flex h-full w-full flex-col items-center justify-center bg-background p-(--pad) [--pad:--spacing(6)] md:[--pad:--spacing(8)]",
         className,
       )}
     >
@@ -148,36 +150,13 @@ export function TwitterDetailView({
 
         {/* Media */}
         {media && media.length > 0 && (
-          <div
-            className={cn(
-              "grid gap-2 overflow-hidden rounded-xl",
-              media.length === 1 && "grid-cols-1",
-              media.length === 2 && "grid-cols-2",
-              media.length === 3 && "grid-cols-2",
-              media.length >= 4 && "grid-cols-2",
-            )}
-          >
-            {media.map((item, index) => {
-              const isCover = index === (twitterDetails.coverMediaIndex ?? 0);
-              const imageAlt = tweetImageAlt(
-                { name: authorName, username: authorUsername },
-                { index, total: media.length },
-              );
-              return (
-                <CoverImageMedia
-                  // biome-ignore lint/suspicious/noArrayIndexKey: url can repeat; static, never-reordered list
-                  key={`${item.url}-${index}`}
-                  item={item}
-                  itemId={itemId}
-                  index={index}
-                  isCover={isCover}
-                  mediaLength={media.length}
-                  imageAlt={imageAlt}
-                  onCoverImageChange={onCoverImageChange}
-                />
-              );
-            })}
-          </div>
+          <TweetMedia
+            media={media}
+            itemId={itemId}
+            coverIndex={twitterDetails.coverMediaIndex ?? 0}
+            author={{ name: authorName, username: authorUsername }}
+            onCoverImageChange={onCoverImageChange}
+          />
         )}
 
         {poll && <TweetPoll poll={poll} />}
@@ -197,12 +176,193 @@ export function TwitterDetailView({
   );
 }
 
+// Like X: up to 4 media sit in a grid, more scroll sideways in a carousel
+const MAX_GRID_MEDIA = 4;
+
+// How far the carousel reaches past the tweet column on each side: from the
+// column's edge (max-w-xl, centred) out to the detail view's own edge
+const CAROUSEL_BLEED =
+  "calc(50cqw + var(--pad) - min(var(--container-xl) / 2, 50cqw))";
+
+// Items past the tweet column fade out towards the view's edges: about a third
+// strength halfway out, gone at the edge
+const CAROUSEL_FADE = `linear-gradient(to right, transparent, rgb(0 0 0 / 0.35) calc(${CAROUSEL_BLEED} / 2), #000 ${CAROUSEL_BLEED}, #000 calc(100% - ${CAROUSEL_BLEED}), rgb(0 0 0 / 0.35) calc(100% - ${CAROUSEL_BLEED} / 2), transparent)`;
+
+function TweetMedia({
+  media,
+  itemId,
+  coverIndex,
+  author,
+  onCoverImageChange,
+}: {
+  media: TwitterMedia[];
+  itemId: string;
+  coverIndex: number;
+  author: { name: string | null; username: string };
+  onCoverImageChange?: (index: number) => Promise<void>;
+}) {
+  const isCarousel = media.length > MAX_GRID_MEDIA;
+  const tiles = media.map((item, index) => (
+    <CoverImageMedia
+      // biome-ignore lint/suspicious/noArrayIndexKey: url can repeat; static, never-reordered list
+      key={`${item.url}-${index}`}
+      item={item}
+      itemId={itemId}
+      index={index}
+      isCover={index === coverIndex}
+      mediaLength={media.length}
+      layout={isCarousel ? "carousel" : "grid"}
+      imageAlt={tweetImageAlt(author, { index, total: media.length })}
+      onCoverImageChange={onCoverImageChange}
+    />
+  ));
+
+  if (isCarousel) {
+    return <MediaCarousel itemId={itemId}>{tiles}</MediaCarousel>;
+  }
+
+  return (
+    <div
+      className={cn(
+        "grid gap-2",
+        media.length === 1 ? "grid-cols-1" : "grid-cols-2",
+      )}
+    >
+      {tiles}
+    </div>
+  );
+}
+
+/**
+ * Side-scrolling media row: starts aligned with the tweet, runs out to the
+ * edges of the detail view, and snaps each item to the tweet's left edge.
+ */
+function MediaCarousel({
+  itemId,
+  children,
+}: {
+  itemId: string;
+  children: React.ReactNode;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState({ back: false, forward: false });
+
+  const updateCanScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setCanScroll({
+      back: el.scrollLeft > 1,
+      forward: el.scrollLeft < el.scrollWidth - el.clientWidth - 1,
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    updateCanScroll();
+    const observer = new ResizeObserver(updateCanScroll);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateCanScroll]);
+
+  // Scroll to the previous/next item's snap point (its left edge on the tweet's)
+  const step = (direction: 1 | -1) => {
+    posthog.capture("tweet_media_carousel_navigated", {
+      item_id: itemId,
+      direction: direction === 1 ? "next" : "previous",
+    });
+    const el = scrollerRef.current;
+    if (!el) return;
+    const inset =
+      Number.parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0;
+    const origin = el.getBoundingClientRect().left - el.scrollLeft + inset;
+    const stops = Array.from(
+      el.children,
+      (child) => child.getBoundingClientRect().left - origin,
+    );
+    const target =
+      direction === 1
+        ? stops.find((stop) => stop > el.scrollLeft + 1)
+        : stops.findLast((stop) => stop < el.scrollLeft - 1);
+    if (target !== undefined) el.scrollTo({ left: target, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative">
+      <section
+        ref={scrollerRef}
+        aria-label="Post media"
+        onScroll={updateCanScroll}
+        style={{
+          marginInline: `calc(-1 * ${CAROUSEL_BLEED})`,
+          paddingInline: CAROUSEL_BLEED,
+          scrollPaddingInline: CAROUSEL_BLEED,
+          maskImage: CAROUSEL_FADE,
+        }}
+        // py-1.5 leaves room for the cover ring, which overflow would clip
+        className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain py-1.5 [scrollbar-width:none]"
+      >
+        {children}
+      </section>
+      <CarouselArrow
+        direction="back"
+        visible={canScroll.back}
+        onClick={() => step(-1)}
+      />
+      <CarouselArrow
+        direction="forward"
+        visible={canScroll.forward}
+        onClick={() => step(1)}
+      />
+    </div>
+  );
+}
+
+function CarouselArrow({
+  direction,
+  visible,
+  onClick,
+}: {
+  direction: "back" | "forward";
+  visible: boolean;
+  onClick: () => void;
+}) {
+  const Icon = direction === "back" ? ChevronLeft : ChevronRight;
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={direction === "back" ? "Previous media" : "Next media"}
+      onClick={onClick}
+      tabIndex={visible ? 0 : -1}
+      aria-hidden={!visible}
+      className={cn(
+        "absolute top-1/2 size-9 -translate-y-1/2 rounded-full transition-opacity",
+        "bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 hover:text-white",
+        // Inside the tweet column, so they always sit over an image
+        direction === "back" ? "left-2" : "right-2",
+        visible ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <Icon />
+    </Button>
+  );
+}
+
+// Carousel items keep their aspect ratio, clamped so a panorama can't fill the
+// row and a tall portrait doesn't turn into a sliver
+function carouselAspect(item: TwitterMedia) {
+  if (!item.width || !item.height) return 1;
+  return Math.min(Math.max(item.width / item.height, 3 / 4), 16 / 9);
+}
+
 function CoverImageMedia({
   item,
   itemId,
   index,
   isCover,
   mediaLength,
+  layout,
   imageAlt,
   onCoverImageChange,
 }: {
@@ -211,9 +371,11 @@ function CoverImageMedia({
   index: number;
   isCover: boolean;
   mediaLength: number;
+  layout: "grid" | "carousel";
   imageAlt: string;
   onCoverImageChange?: (index: number) => Promise<void>;
 }) {
+  const canChooseCover = !!onCoverImageChange && mediaLength > 1;
   const [isSettingCover, setIsSettingCover] = useState(false);
 
   const handleSetCover = async () => {
@@ -228,9 +390,19 @@ function CoverImageMedia({
 
   return (
     <div
+      style={
+        layout === "carousel"
+          ? { aspectRatio: carouselAspect(item) }
+          : undefined
+      }
       className={cn(
-        "group/media relative overflow-hidden bg-gray-100 dark:bg-gray-800",
-        mediaLength === 3 && index === 0 && "row-span-2",
+        "group/media relative overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800",
+        layout === "grid" && mediaLength === 3 && index === 0 && "row-span-2",
+        layout === "carousel" && "h-72 shrink-0 snap-start sm:h-96",
+        // A ring (box-shadow) rather than a border, so the cover doesn't shift
+        canChooseCover &&
+          isCover &&
+          "ring-3 ring-yellow-500 ring-offset-2 ring-offset-background dark:ring-yellow-400",
       )}
     >
       {item.type === "video" || item.type === "animated_gif" ? (
@@ -252,9 +424,10 @@ function CoverImageMedia({
           alt={imageAlt}
           className="h-full w-full object-cover"
           loading="lazy"
+          draggable={false}
         />
       )}
-      {onCoverImageChange && mediaLength > 1 && (
+      {canChooseCover && (
         <Button
           variant="ghost"
           size="sm"
