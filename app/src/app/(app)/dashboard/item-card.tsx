@@ -159,7 +159,10 @@ import { ColorHighlightOverlay } from "./_components/color-highlight-overlay";
 import { ColorsBar } from "./_components/colors-bar";
 import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
-import { LocationDropzone } from "./_components/location-dropzone";
+import {
+  LOCATION_DROP_HINT,
+  LocationDropzone,
+} from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
 import { useItemDetailDialog, useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
@@ -2956,7 +2959,7 @@ export function ItemDetailBody({
                         />
                       ) : (
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          Drop an image here to set location from EXIF data
+                          {LOCATION_DROP_HINT}
                         </p>
                       )}
                     </LocationDropzone>

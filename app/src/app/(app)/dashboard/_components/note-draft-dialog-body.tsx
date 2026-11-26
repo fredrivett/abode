@@ -7,6 +7,7 @@ import { DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { NoteDraftActions, NoteDraftPlaceholder } from "../note-composer";
 import { useNoteDraft } from "../note-draft-context";
+import { LOCATION_DROP_HINT } from "./location-dropzone";
 
 // The saved note's detail rows, with a value width each
 const DETAIL_ROWS = [
@@ -142,10 +143,13 @@ export function NoteDraftDialogBody() {
             </GhostSection>
             <GhostSection title="Tags" action="w-16" />
             <GhostSection title="Location" action="w-4" rowHeight="h-6">
-              <div className="pt-1">
-                <GhostLine className="w-64" />
-                <GhostLine className="w-24" />
-              </div>
+              {/* The real hint's text, hidden, so it wraps as the saved
+                  sidebar's does in whatever font the browser has */}
+              <p className="pt-1 text-sm">
+                <span className="select-none rounded-full bg-muted-foreground/15 box-decoration-clone text-transparent">
+                  {LOCATION_DROP_HINT}
+                </span>
+              </p>
             </GhostSection>
             <GhostSection title="Rooms" action="w-24" rowHeight="h-7">
               <GhostLine className="w-48" />
