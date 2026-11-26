@@ -95,5 +95,28 @@ step "agent-browser Chrome (repo-pinned copy)"
 node_modules/.bin/agent-browser install
 done_step
 
+step "System UI font for screenshots"
+# Text outside the app's web fonts asks for the OS font (-apple-system and
+# friends). Without a match, Chrome falls to DejaVu Sans, and then to Noto
+# Color Emoji, whose space glyph is 1.2em wide, so screenshots look nothing
+# like a Mac. Inter is the closest open font to SF Pro
+if ! dpkg -s fonts-inter >/dev/null 2>&1; then
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fonts-inter
+fi
+fontconfig_alias=/etc/fonts/conf.d/50-system-ui-inter.conf
+fontconfig_conf='<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <alias binding="same"><family>-apple-system</family><prefer><family>Inter</family></prefer></alias>
+  <alias binding="same"><family>BlinkMacSystemFont</family><prefer><family>Inter</family></prefer></alias>
+  <alias binding="same"><family>Helvetica Neue</family><prefer><family>Inter</family></prefer></alias>
+</fontconfig>'
+if [ "$(cat "$fontconfig_alias" 2>/dev/null)" != "$fontconfig_conf" ]; then
+  printf '%s\n' "$fontconfig_conf" | sudo tee "$fontconfig_alias" >/dev/null
+  sudo fc-cache -f >/dev/null
+fi
+done_step
+
 echo
 echo "Setup complete in ${SECONDS}s"
