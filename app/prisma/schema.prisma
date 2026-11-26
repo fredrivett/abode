@@ -260,6 +260,9 @@ model Item {
   searchVector Unsupported("tsvector")? @map("search_vector")
 
   createdAt DateTime @default(now()) @map("created_at")
+  // When anything the app shows for the item last changed, including its
+  // details, locations and rooms. Set by database triggers from the database's
+  // clock (they override the value Prisma sends), so raw SQL writes count too
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // The date this item entered the user's library — its position on the
@@ -307,6 +310,10 @@ model Item {
   @@index([userId, createdAt(sort: Desc)])
   // Mirrors the createdAt index for the dashboard's addedAt keyset ordering.
   @@index([userId, addedAt(sort: Desc)])
+  // The offline library's changes keyset (GET /api/v1/items/changes). The
+  // database sets updated_at on every change an item shows (see the
+  // offline_sync_updated_at migration's triggers)
+  @@index([userId, updatedAt, id])
   @@index([tags])
   @@index([userTags])
   // Drives the hourly stuck-items reaper: seeks straight to non-terminal rows
