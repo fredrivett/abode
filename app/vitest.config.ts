@@ -41,7 +41,9 @@ export default defineConfig({
           // after the first optimize, which re-optimizes and reloads the
           // page, failing every story still loading. Pre-bundling it keeps
           // the dependency set stable for the whole run
-          include: ["@opentelemetry/api"],
+          // Same for the item dialog's own deps, which only the note draft
+          // dialog story pulls in
+          include: ["@opentelemetry/api", "next/dynamic", "exifr"],
         },
         test: {
           name: "storybook",
