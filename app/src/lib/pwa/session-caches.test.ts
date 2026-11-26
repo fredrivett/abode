@@ -1,4 +1,8 @@
+import "fake-indexeddb/auto";
+import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Item } from "@/lib/types/item";
+import { openOfflineItemStore } from "../offline/item-store";
 import {
   claimUserCaches,
   clearUserCaches,
@@ -111,6 +115,37 @@ describe("session caches", () => {
     await releaseUserCaches();
     expect(store.has("item-images")).toBe(false);
     expect(localStorage.getItem(OWNER_KEY)).toBeNull();
+  });
+
+  describe("offline library", () => {
+    beforeEach(async () => {
+      vi.stubGlobal("indexedDB", new IDBFactory());
+      // Left open, as by another tab
+      const store = await openOfflineItemStore("user-a");
+      await store?.putItems([
+        { id: "a-private", addedAt: "2026-01-01T00:00:00.000Z" } as Item,
+      ]);
+    });
+
+    const databases = () => indexedDB.databases();
+
+    it("is deleted when another user signs in", async () => {
+      localStorage.setItem(OWNER_KEY, "user-a");
+      await claimUserCaches("user-b");
+      expect(await databases()).toEqual([]);
+    });
+
+    it("is deleted on sign-out", async () => {
+      localStorage.setItem(OWNER_KEY, "user-a");
+      await releaseUserCaches();
+      expect(await databases()).toEqual([]);
+    });
+
+    it("is kept when the owner signs back in", async () => {
+      localStorage.setItem(OWNER_KEY, "user-a");
+      await claimUserCaches("user-a");
+      expect(await databases()).toHaveLength(1);
+    });
   });
 
   describe("offline share queue", () => {

@@ -1,7 +1,11 @@
+import { deleteOfflineItemStore } from "../offline/item-store";
 import { CLEAR_SHARE_QUEUE_MESSAGE } from "./share-queue";
 import { isUserScopedCache } from "./sw-caches";
 
-/** Who the service worker's user-scoped caches currently belong to */
+/**
+ * Who the user-scoped data on this device currently belongs to: the service
+ * worker's caches and the offline library (`offline/item-store`)
+ */
 const CACHE_OWNER_KEY = "abode:sw-cache-owner";
 
 function readOwner(): string | null {
@@ -70,16 +74,20 @@ export function claimUserCaches(userId: string): Promise<void> {
   return inOrder(async () => {
     if (readOwner() === userId) return;
     clearShareQueue();
+    const [cachesCleared, storeDeleted] = await Promise.all([
+      clearUserCaches(),
+      deleteOfflineItemStore(),
+    ]);
     // Only recorded once cleared, so a failed clear is retried next load
-    if (await clearUserCaches()) writeOwner(userId);
+    if (cachesCleared && storeDeleted) writeOwner(userId);
   });
 }
 
-/** Clears the user-scoped caches on sign-out */
+/** Clears the user-scoped caches and the offline library on sign-out */
 export function releaseUserCaches(): Promise<void> {
   return inOrder(async () => {
     writeOwner(null);
     clearShareQueue();
-    await clearUserCaches();
+    await Promise.all([clearUserCaches(), deleteOfflineItemStore()]);
   });
 }
