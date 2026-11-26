@@ -57,8 +57,6 @@ type ItemsGridProps = {
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
   total?: number;
-  /** Server-rendered composer draft, passed straight to the note composer */
-  initialNoteDraft?: string | null;
 };
 
 /**
@@ -74,7 +72,6 @@ export function ItemsGrid({
   isLoadingMore,
   onLoadMore,
   total,
-  initialNoteDraft,
 }: ItemsGridProps) {
   const {
     frameWidth,
@@ -232,12 +229,7 @@ export function ItemsGrid({
             }
             renderItem={(entry) => {
               if (entry.type === "composer") {
-                return (
-                  <NoteComposer
-                    initialDraft={initialNoteDraft}
-                    disabled={isSearchPending}
-                  />
-                );
+                return <NoteComposer disabled={isSearchPending} />;
               }
               if (entry.type === "skeleton") return <ItemCardSkeleton />;
               const { item } = entry;

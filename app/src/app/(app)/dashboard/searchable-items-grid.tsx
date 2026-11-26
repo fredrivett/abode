@@ -9,6 +9,7 @@ import { useProcessingPoll } from "@/lib/use-processing-poll";
 import { CentralItemDialog } from "./_components/central-item-dialog";
 import { ItemDialogProvider } from "./item-dialog-context";
 import { ItemsGrid } from "./items-grid";
+import { NoteDraftProvider } from "./note-draft-context";
 
 type SearchableItemsGridProps = {
   initialItems: Item[];
@@ -169,24 +170,25 @@ export function SearchableItemsGrid({
 
   return (
     <ItemDialogProvider>
-      <ItemsGrid
-        items={displayItems}
-        hasActiveSearch={searchResults.hasActiveSearch}
-        showComposer={showComposer}
-        isSearchPending={isSearchPending}
-        onClearSearch={clearAll}
-        hasMore={pagination.hasMore}
-        isLoadingMore={pagination.isLoadingMore}
-        onLoadMore={pagination.onLoadMore}
-        total={pagination.total}
-        initialNoteDraft={initialNoteDraft}
-      />
-      <CentralItemDialog
-        items={displayItems}
-        initialItem={initialOpenItem}
-        canEdit
-        onItemRenamed={handleItemRenamed}
-      />
+      <NoteDraftProvider initialDraft={initialNoteDraft}>
+        <ItemsGrid
+          items={displayItems}
+          hasActiveSearch={searchResults.hasActiveSearch}
+          showComposer={showComposer}
+          isSearchPending={isSearchPending}
+          onClearSearch={clearAll}
+          hasMore={pagination.hasMore}
+          isLoadingMore={pagination.isLoadingMore}
+          onLoadMore={pagination.onLoadMore}
+          total={pagination.total}
+        />
+        <CentralItemDialog
+          items={displayItems}
+          initialItem={initialOpenItem}
+          canEdit
+          onItemRenamed={handleItemRenamed}
+        />
+      </NoteDraftProvider>
     </ItemDialogProvider>
   );
 }

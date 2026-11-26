@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { NoteComposer } from "@/app/(app)/dashboard/note-composer";
+import { NoteDraftProvider } from "@/app/(app)/dashboard/note-draft-context";
 
 const queryClient = new QueryClient();
 
@@ -16,9 +17,11 @@ const meta = {
     (Story) => (
       <QueryClientProvider client={queryClient}>
         {/* The composer fills a 1:1 grid card, so give it a square frame */}
-        <div className="aspect-square w-64">
-          <Story />
-        </div>
+        <NoteDraftProvider initialDraft={null}>
+          <div className="aspect-square w-64">
+            <Story />
+          </div>
+        </NoteDraftProvider>
       </QueryClientProvider>
     ),
   ],

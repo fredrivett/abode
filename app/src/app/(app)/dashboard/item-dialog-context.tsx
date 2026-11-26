@@ -13,6 +13,7 @@ import {
 } from "react";
 import { debugTrace } from "@/lib/debug/trace";
 import {
+  isNewNoteParam,
   readItemParam,
   withOpenItem,
   withoutOpenItem,
@@ -48,8 +49,15 @@ type ItemDialogContextValue = {
   openItemId: string | null;
   /** Seed data for the open item when it was opened from outside the grid. */
   openItemSeed: OpenItemSeed | null;
+  /** Whether the dialog is open on the note composer's draft (`?item=new`). */
+  composingNote: boolean;
   /** Open an item's dialog, pushing a history entry (Back closes it). */
   openItem: (itemId: string, seed?: OpenItemSeed) => void;
+  /**
+   * Point the open dialog at another item without a new history entry, so
+   * Back still closes it — the draft becoming the note it was saved as.
+   */
+  replaceOpenItem: (itemId: string) => void;
   /** Close the open dialog: pop history if we pushed, else strip the param. */
   closeItem: () => void;
   /**
@@ -80,6 +88,7 @@ const ItemDialogContext = createContext<ItemDialogContextValue | null>(null);
 export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const openItemId = readItemParam(searchParams);
+  const composingNote = isNewNoteParam(searchParams);
 
   // Seed data (image/title) for items opened from outside the grid, so the
   // dialog can paint before the full item loads. Kept per id rather than as a
@@ -112,6 +121,12 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
     window.history.pushState(null, "", `?${query}`);
   }, []);
 
+  const replaceOpenItem = useCallback((itemId: string) => {
+    debugTrace("dialog", "replaceOpenItem", { itemId });
+    const query = withOpenItem(window.location.search, itemId);
+    window.history.replaceState(null, "", `?${query}`);
+  }, []);
+
   const closeItem = useCallback(() => {
     debugTrace("dialog", "closeItem", {
       itemId: readItemParam(window.location.search),
@@ -137,8 +152,24 @@ export function ItemDialogProvider({ children }: { children: ReactNode }) {
   const reportItemTitle = useOpenItemTabTitle(openItemId);
 
   const value = useMemo(
-    () => ({ openItemId, openItemSeed, openItem, closeItem, reportItemTitle }),
-    [openItemId, openItemSeed, openItem, closeItem, reportItemTitle],
+    () => ({
+      openItemId,
+      openItemSeed,
+      composingNote,
+      openItem,
+      replaceOpenItem,
+      closeItem,
+      reportItemTitle,
+    }),
+    [
+      openItemId,
+      openItemSeed,
+      composingNote,
+      openItem,
+      replaceOpenItem,
+      closeItem,
+      reportItemTitle,
+    ],
   );
 
   return (

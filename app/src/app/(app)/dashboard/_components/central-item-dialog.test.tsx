@@ -55,7 +55,11 @@ vi.mock("../item-card", () => ({
 
 type Seed = { id: string; imageFileKey: string | null } | null;
 const closeItem = vi.fn();
-let dialogState: { openItemId: string | null; openItemSeed?: Seed } = {
+let dialogState: {
+  openItemId: string | null;
+  openItemSeed?: Seed;
+  composingNote?: boolean;
+} = {
   openItemId: null,
   openItemSeed: null,
 };
@@ -73,6 +77,13 @@ vi.mock("@/lib/items/use-item", () => ({
 }));
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+
+// The dashboard's composer draft; null in a room
+let noteDraft: object | null = null;
+vi.mock("../note-draft-context", () => ({ useNoteDraft: () => noteDraft }));
+vi.mock("./note-draft-dialog-body", () => ({
+  NoteDraftDialogBody: () => <div data-testid="draft" />,
+}));
 
 vi.mock("./item-dialog-skeleton", () => ({
   ItemDialogSkeletonBody: ({ seed }: { seed: { id: string } }) => (
@@ -109,6 +120,7 @@ beforeEach(() => {
   closeItem.mockClear();
   dialogState = { openItemId: null, openItemSeed: null };
   useItemReturn = { data: undefined };
+  noteDraft = null;
 });
 
 describe("CentralItemDialog", () => {
@@ -152,6 +164,29 @@ describe("CentralItemDialog", () => {
     // The frame is the same element — it must not remount (that's what flashed).
     expect(screen.getByTestId("frame")).toBe(frame);
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+  });
+
+  it("becomes the saved note in place when the draft is saved", () => {
+    noteDraft = {};
+    dialogState = { openItemId: null, composingNote: true };
+    const { rerender } = renderDialog();
+    expect(screen.getByTestId("draft")).toBeInTheDocument();
+    const frame = screen.getByTestId("frame");
+
+    // Saving points the dialog at the new note (here already in the list)
+    dialogState = { openItemId: "a", composingNote: false };
+    rerender(
+      <CentralItemDialog onItemRenamed={() => {}} canEdit items={items} />,
+    );
+    expect(screen.queryByTestId("draft")).not.toBeInTheDocument();
+    expect(screen.getByTestId("body")).toHaveAttribute("data-animate", "false");
+    expect(screen.getByTestId("frame")).toBe(frame);
+  });
+
+  it("has no draft mode without a composer draft (a room)", () => {
+    dialogState = { openItemId: null, composingNote: true };
+    renderDialog();
+    expect(screen.queryByTestId("frame")).not.toBeInTheDocument();
   });
 
   it("keeps an off-grid swap instant across its loading gap", () => {

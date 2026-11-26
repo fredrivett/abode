@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { debugTrace } from "@/lib/debug/trace";
 import { useDebugLifecycle } from "@/lib/debug/use-debug-lifecycle";
 import { getProxyImageUrl } from "@/lib/image-url";
+import { NEW_NOTE_ITEM } from "@/lib/items/item-dialog-url";
 import { getItemDisplayName } from "@/lib/items/item-display-name";
 import { useItem } from "@/lib/items/use-item";
 import type { Item } from "@/lib/types/item";
 import { formatBytes, getFileSizeFromMeta } from "@/lib/utils";
 import { ItemDetailBody, ItemDialogFrame } from "../item-card";
 import { useItemDialog } from "../item-dialog-context";
+import { useNoteDraft } from "../note-draft-context";
 import { ItemDialogSkeletonBody } from "./item-dialog-skeleton";
+import { NoteDraftDialogBody } from "./note-draft-dialog-body";
 
 /** For articles/webpages/products/books the cover is the display image; images use their own file. */
 function detailImageFileKey(item: Item): string | null {
@@ -31,6 +34,10 @@ function detailImageFileKey(item: Item): string | null {
  * open; its body swaps between the resolved item and the loading skeleton (for
  * an off-grid item still being fetched) without tearing down the dialog. Cards
  * don't render their own dialog inside a provider; they just set the open item.
+ *
+ * Inside a {@link NoteDraftProvider} (the dashboard) it also has a draft mode,
+ * `?item=new`, for the expanded note composer. Saving there points the dialog
+ * at the new note, which swaps the body in place like any item-to-item swap.
  *
  * Mount this once inside an {@link ItemDialogProvider}, alongside the grid.
  */
@@ -56,6 +63,8 @@ export function CentralItemDialog({
   onItemDeleted?: (itemId: string) => void;
 }) {
   const itemDialog = useItemDialog();
+  // Null outside the dashboard (rooms), where there's no composer draft
+  const noteDraft = useNoteDraft();
   const openItemId = itemDialog?.openItemId ?? null;
   const seed = itemDialog?.openItemSeed ?? null;
 
@@ -95,14 +104,15 @@ export function CentralItemDialog({
     }
   }, [needsFetch, isError, closeItem]);
 
-  const open = openItemId !== null;
+  const showDraft = (itemDialog?.composingNote ?? false) && noteDraft !== null;
+  const open = openItemId !== null || showDraft;
 
   // Fresh open (grid → dialog) animates the frame in; swapping straight from one
   // open item to another (a "similar images" click) keeps the frame mounted and
   // just swaps the body, so the dialog only fades on open/close, not between
   // items. Keyed off openItemId (not resolved.id) so an off-grid swap's loading
   // gap — where resolved is briefly null — doesn't read as a close→open.
-  const shownId = open ? openItemId : null;
+  const shownId = open ? (openItemId ?? NEW_NOTE_ITEM) : null;
   const prevShownIdRef = useRef<string | null>(null);
   const animateEntranceRef = useRef(true);
   if (shownId !== prevShownIdRef.current) {
@@ -116,7 +126,7 @@ export function CentralItemDialog({
   // open with no seed (a non-owner's off-grid deep link, or a seedless one
   // mid-fetch) would flash a blank, title-less full-screen dialog.
   const showSeed = !resolved && !!seed && seed.id === openItemId;
-  const hasContent = resolved !== null || showSeed;
+  const hasContent = resolved !== null || showSeed || showDraft;
 
   // Debug trace: which source resolved the open item, so a dialog that exits
   // and re-enters shows the input that flipped (e.g. list → none mid-refetch)
@@ -168,6 +178,8 @@ export function CentralItemDialog({
           ) : seed && seed.id === openItemId ? (
             // Off-grid item still fetching — show the seed image/title meanwhile.
             <ItemDialogSkeletonBody seed={seed} />
+          ) : showDraft ? (
+            <NoteDraftDialogBody />
           ) : null}
         </ItemDialogFrame>
       )}
