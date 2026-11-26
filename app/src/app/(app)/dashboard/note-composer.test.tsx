@@ -187,6 +187,34 @@ describe("NoteComposer save", () => {
     expect(cardField()).toHaveValue("");
   });
 
+  it("leaves the dialog closed and empties the card when closed mid-save", async () => {
+    let finishCreate = (_item: { id: string }) => {};
+    post.mockImplementation((url: string) =>
+      url === "/api/v1/items/notes"
+        ? new Promise((resolve) => {
+            finishCreate = resolve;
+          })
+        : Promise.resolve({}),
+    );
+    render(<Dashboard initialDraft={"# Trip\n\nLisbon"} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand note" }));
+    await act(async () => {
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Save",
+        }),
+      );
+    });
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+    );
+    await act(async () => finishCreate({ id: "note-1" }));
+    expect(itemDialog.replaceOpenItem).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Saved once: the card can't save the same text again
+    expect(cardField()).toHaveValue("");
+  });
+
   it("stays in the grid when saved from the card", async () => {
     render(<Dashboard initialDraft={"# Trip\n\nLisbon"} />);
     await act(async () => {

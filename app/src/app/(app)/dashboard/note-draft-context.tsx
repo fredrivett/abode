@@ -152,15 +152,16 @@ export function NoteDraftProvider({
   }, []);
 
   // Back from the dialog (closed, or saved and now showing the note): remount
-  // the card's editor with the latest text, which is empty after a save
-  const wasComposingRef = useRef(composingNote);
+  // the card's editor with the latest text, which is empty after a save. The
+  // ref also tells a save that finishes later whether the dialog is still open.
+  const composingNoteRef = useRef(composingNote);
   useEffect(() => {
-    if (wasComposingRef.current && !composingNote) {
+    if (composingNoteRef.current && !composingNote) {
       setMarkdown(contentRef.current);
       setEditorContent(contentRef.current);
       setEditorKey((key) => key + 1);
     }
-    wasComposingRef.current = composingNote;
+    composingNoteRef.current = composingNote;
   }, [composingNote]);
 
   // Empty the draft and drop any pending draft write. Only the refs, so the
@@ -245,7 +246,9 @@ export function NoteDraftProvider({
         void revealCreatedItem(created.id);
         emptyDraft();
         clearConfirm.reset();
-        if (from === "dialog" && itemDialog) {
+        // Closed mid-save, the dialog stays closed: the card already took the
+        // text back, so it empties like a card save
+        if (from === "dialog" && itemDialog && composingNoteRef.current) {
           // The dialog becomes the saved note's, in place: its frame stays up
           // and the body swaps. Primed so the note shows without a fetch; the
           // card picks up the emptied draft as the dialog leaves draft mode.
