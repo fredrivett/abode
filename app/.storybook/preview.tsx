@@ -1,8 +1,12 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import { useEffect } from "react";
+import { sb } from "storybook/test";
 
 import "../src/app/globals.css";
+
+// Stories run against src/lib/supabase/__mocks__/client.ts: no env, no real project
+sb.mock(import("../src/lib/supabase/client.ts"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
