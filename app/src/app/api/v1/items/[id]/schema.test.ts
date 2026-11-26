@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { itemPatchSchema, MAX_ITEM_TITLE_LENGTH } from "./schema";
+import { MAX_ITEM_TITLE_LENGTH } from "@/lib/items/note-title";
+import { itemPatchSchema } from "./schema";
 
 describe("itemPatchSchema", () => {
   it("accepts an empty object (all fields optional)", () => {

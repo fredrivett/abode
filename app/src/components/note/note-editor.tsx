@@ -4,6 +4,7 @@ import { Extension, InputRule } from "@tiptap/core";
 import Document from "@tiptap/extension-document";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Markdown } from "@tiptap/markdown";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo } from "react";
@@ -21,6 +22,38 @@ import {
 // a title line (Notion-style). The required heading can't be deleted, only
 // edited — an empty document is normalised to a single empty heading.
 const TitleDocument = Document.extend({ content: "heading block*" });
+
+// The title line is plain text, as the item's title stores it: formatting
+// (bold, an autolinked URL) would save as literal markdown, and a line break
+// would push the rest of the line into the body. Strip both as they appear.
+const PlainTitle = Extension.create({
+  name: "plainTitle",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey("plainTitle"),
+        appendTransaction: (transactions, _oldState, state) => {
+          const title = state.doc.firstChild;
+          if (!title || !transactions.some((tr) => tr.docChanged)) return null;
+          const breaks: number[] = [];
+          let marked = false;
+          title.forEach((child, offset) => {
+            if (child.marks.length > 0) marked = true;
+            // The title's content starts one past the document's start
+            if (child.type.name === "hardBreak") breaks.push(1 + offset);
+          });
+          if (!marked && breaks.length === 0) return null;
+          const tr = state.tr;
+          for (const pos of breaks.reverse()) {
+            tr.replaceWith(pos, pos + 1, state.schema.text(" "));
+          }
+          tr.removeMark(1, 1 + (tr.doc.firstChild?.content.size ?? 0));
+          return tr;
+        },
+      }),
+    ];
+  },
+});
 
 // Typing `[ ] ` / `[x] ` at the start of a bullet item makes it a checklist
 // item, so the markdown way of starting one (`- [ ] `) works. TaskItem's own
@@ -80,6 +113,7 @@ export function noteEditorExtensions({ titleFirst }: { titleFirst: boolean }) {
   return titleFirst
     ? [
         TitleDocument,
+        PlainTitle,
         StarterKit.configure({
           document: false,
           link: LINK_OPTIONS,

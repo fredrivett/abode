@@ -11,6 +11,10 @@
  * afterwards the title is edited independently in the header.
  */
 
+// Generous ceiling for a user-edited title — guards against abuse without
+// rejecting any realistic page title. The item PATCH enforces it.
+export const MAX_ITEM_TITLE_LENGTH = 1000;
+
 // Longest title we'll derive; headings are short, but a first-line fallback
 // could be a whole sentence. Display surfaces line-clamp beyond this anyway.
 const MAX_TITLE_LENGTH = 200;
@@ -44,7 +48,7 @@ export function promoteNoteHeading(content: string): {
   const match = lines[start].match(ATX_HEADING);
   if (!match) return { title: null, content };
 
-  const title = truncate(match[1].trim());
+  const title = truncate(headingText(match[1]));
   // A heading with no text (e.g. "#   ") isn't a title — leave the note intact
   // rather than storing an empty title and discarding the line
   if (!title) return { title: null, content };
@@ -100,6 +104,17 @@ const HTML_ENTITIES: Record<string, string> = {
 };
 
 /**
+ * A heading's markdown as plain text: the editor escapes punctuation and
+ * writes `&`, `<` and `>` as entities, and a title stores neither
+ */
+function headingText(markdown: string): string {
+  return markdown
+    .replace(MARKDOWN_ESCAPE, "$1")
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITIES[entity])
+    .trim();
+}
+
+/**
  * A note as the title-first editor shows it: the title as its opening heading,
  * then the body. The title is plain text, so its punctuation is escaped to keep
  * `*` or `[1]` from turning into markup. An untitled note opens with an empty
@@ -129,11 +144,11 @@ export function splitNoteTitle(markdown: string): {
   content: string;
 } {
   const [first = "", ...rest] = markdown.split("\n");
-  const text = first
-    .replace(/^ {0,3}#{1,6}(?: +|$)/, "")
-    .replace(MARKDOWN_ESCAPE, "$1")
-    .replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITIES[entity])
-    .trim();
+  const text = headingText(first.replace(/^ {0,3}#{1,6}(?: +|$)/, ""))
+    // Cut, not rejected: an over-long title would fail the whole save, body
+    // included, every time until the line was shortened
+    .slice(0, MAX_ITEM_TITLE_LENGTH)
+    .trimEnd();
   while (rest.length > 0 && rest[0].trim() === "") rest.shift();
   return { title: text || null, content: rest.join("\n").trimEnd() };
 }
