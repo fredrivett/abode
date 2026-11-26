@@ -1538,7 +1538,6 @@ export function ItemDetailBody({
   const username = useUserStore((state) => state.username);
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
-  const supabase = createClient();
 
   // Tab title for the open item. Off-dashboard (rooms, no provider) the dialog
   // owns it directly. On the dashboard the dialog instead reports its live name
@@ -1918,8 +1917,10 @@ export function ItemDetailBody({
 
     setIsDownloading(true);
     try {
-      const { data, error: downloadError } = await supabase.storage
-        .from("items")
+      // Created on use, so the sidebar renders without Supabase configured
+      // (Storybook); the browser client is a singleton anyway
+      const { data, error: downloadError } = await createClient()
+        .storage.from("items")
         .download(downloadKey);
 
       if (downloadError || !data) {
