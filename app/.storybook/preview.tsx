@@ -1,8 +1,12 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { Geist, Geist_Mono, Hedvig_Letters_Serif } from "next/font/google";
 import { useEffect } from "react";
+import { sb } from "storybook/test";
 
 import "../src/app/globals.css";
+
+// Stories run against src/lib/supabase/__mocks__/client.ts: no env, no real project
+sb.mock(import("../src/lib/supabase/client.ts"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,13 +25,13 @@ const hedvigSerif = Hedvig_Letters_Serif({
 
 const fontVariables = `${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable}`;
 
-// Mirrors the app's <body> so portalled content (dialogs, popovers) gets the
-// font variables too, not just the story's own subtree
-function BodyFonts() {
+// Mirrors the app's <html>, where Tailwind sets the page font, so the stories
+// render in Geist and portalled content (dialogs, popovers) gets it too
+function RootFonts() {
   useEffect(() => {
     const classes = fontVariables.split(" ");
-    document.body.classList.add(...classes);
-    return () => document.body.classList.remove(...classes);
+    document.documentElement.classList.add(...classes);
+    return () => document.documentElement.classList.remove(...classes);
   }, []);
   return null;
 }
@@ -50,7 +54,7 @@ const preview: Preview = {
   decorators: [
     (Story) => (
       <div className={`${fontVariables} antialiased`}>
-        <BodyFonts />
+        <RootFonts />
         <Story />
       </div>
     ),

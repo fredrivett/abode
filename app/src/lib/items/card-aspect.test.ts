@@ -256,6 +256,14 @@ describe("estimateTweetAspect", () => {
 });
 
 describe("wrapLines", () => {
+  it("counts kerning when it breaks a word too wide for the line", () => {
+    // "AV" kerns 4px tighter than its two 10px glyphs measured alone
+    const kerned: TextMeasurer = (text) =>
+      text.length * 10 - (text.match(/AV/g)?.length ?? 0) * 4;
+    // 96px of kerned text fills two 50px lines; glyph by glyph it's 120px
+    expect(wrapLines("AVAVAVAVAVAV", 50, kerned, { px: 10 })).toBe(2);
+  });
+
   it("breaks a word wider than the line between characters", () => {
     // 19 characters (95px) fit a 99px line, so 59 take 4 lines: the leftover
     // space on each line adds up, which width ÷ line (2.98) misses

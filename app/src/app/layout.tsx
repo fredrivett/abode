@@ -86,7 +86,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    // The font variables live on <html>, where Tailwind sets the page's
+    // font-family; on <body> the sans stack falls back to the system font
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Applies the persisted theme before first paint so every route
             (including auth pages that render no header/toggle) avoids a flash
@@ -98,9 +104,7 @@ export default function RootLayout({
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, constant-built theme bootstrap script */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${hedvigSerif.variable} flex min-h-screen flex-col antialiased`}
-      >
+      <body className="flex min-h-screen flex-col antialiased">
         <QueryProvider>
           <div className="flex flex-1 flex-col">{children}</div>
           <Suspense>

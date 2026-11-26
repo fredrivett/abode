@@ -108,3 +108,36 @@ export const ReplyToUnavailablePost: Story = {
     },
   },
 };
+
+const storyPhoto = (seed: string, width: number, height: number) => ({
+  type: "photo" as const,
+  url: `https://picsum.photos/seed/${seed}/${width}/${height}`,
+  width,
+  height,
+});
+
+/** Up to 4 media sit in a grid; the owner sees the cover ringed */
+export const MediaGrid: Story = {
+  args: {
+    onCoverImageChange: async () => {},
+    twitterDetails: {
+      ...storyTweet,
+      coverMediaIndex: 1,
+      media: [1, 2, 3, 4].map((n) => storyPhoto(`abode-grid-${n}`, 800, 800)),
+    },
+  },
+};
+
+/** More than 4 media scroll sideways in a carousel that bleeds past the tweet */
+export const MediaCarousel: Story = {
+  args: {
+    onCoverImageChange: async () => {},
+    twitterDetails: {
+      ...storyTweet,
+      coverMediaIndex: 0,
+      media: Array.from({ length: 12 }, (_, n) =>
+        storyPhoto(`abode-carousel-${n}`, 800, n % 3 === 1 ? 600 : 1000),
+      ),
+    },
+  },
+};
