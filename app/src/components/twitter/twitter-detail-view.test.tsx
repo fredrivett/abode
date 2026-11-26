@@ -101,4 +101,39 @@ describe("TwitterDetailView", () => {
     expect(screen.getByText("Article title")).toBeInTheDocument();
     expect(screen.getByText("Quoted post")).toBeInTheDocument();
   });
+
+  const photos = (count: number) =>
+    Array.from({ length: count }, (_, n) => ({
+      type: "photo" as const,
+      url: `https://pbs.twimg.com/media/${n}.jpg`,
+    }));
+
+  it("keeps up to 4 media in a grid, with no carousel controls", () => {
+    renderTweet({ media: photos(4) });
+    expect(screen.getAllByRole("img", { name: /\(\d of 4\)/ })).toHaveLength(4);
+    expect(
+      screen.queryByRole("region", { name: "Post media" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Next media")).not.toBeInTheDocument();
+  });
+
+  it("puts 5+ media in a carousel and tracks stepping through it", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    renderTweet({ media: photos(20) });
+    const carousel = screen.getByRole("region", { name: "Post media" });
+    expect(carousel.querySelectorAll("img")).toHaveLength(20);
+    // jsdom has no layout, so nothing overflows and the arrow stays hidden
+    fireEvent.click(screen.getByLabelText("Next media"));
+    expect(capture).toHaveBeenCalledWith("tweet_media_carousel_navigated", {
+      item_id: "item-1",
+      direction: "next",
+    });
+    vi.unstubAllGlobals();
+  });
 });
