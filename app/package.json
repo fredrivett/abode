@@ -157,7 +157,7 @@
     "fake-indexeddb": "^6.2.8",
     "jsdom": "29",
     "serwist": "^9.5.11",
-    "storybook": "^9.1.10",
+    "storybook": "^10.6.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"
   }
