@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ExtensionDetector } from "@/components/extension/extension-detector";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { OfflineLibrarySync } from "@/components/pwa/offline-library-sync";
 import { requireCompletedSignup } from "@/lib/auth/require-completed-signup";
 import { NO_INDEX_ROBOTS } from "@/lib/seo/indexing";
 
@@ -25,6 +26,7 @@ export default async function AppLayout({
       <OfflineBanner />
       {children}
       <ExtensionDetector />
+      <OfflineLibrarySync />
     </>
   );
 }
