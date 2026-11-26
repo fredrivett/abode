@@ -15,7 +15,14 @@ export const MAX_ITEM_TITLE_LENGTH = 1000;
 // keys, processing state, AI tags, source URL) is server-owned and stripped —
 // accepting it would let a caller point their item at another user's files.
 export const itemPatchSchema = z.object({
-  title: z.string().trim().min(1).max(MAX_ITEM_TITLE_LENGTH).optional(),
+  // null clears the title, which only notes allow (the route checks the kind)
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MAX_ITEM_TITLE_LENGTH)
+    .nullable()
+    .optional(),
   excludeFromPublicRooms: z.boolean().optional(),
   notes: z.string().nullable().optional(),
   shared: z.boolean().optional(),

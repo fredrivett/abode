@@ -1,5 +1,6 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
+import { joinNoteTitle, splitNoteTitle } from "@/lib/items/note-title";
 import { noteEditorExtensions } from "./note-editor";
 
 let editor: Editor | undefined;
@@ -67,5 +68,37 @@ describe("title-first trailing node", () => {
   it("trails a list with a paragraph, never an empty heading", () => {
     const { state } = afterFirstTransaction("# Shopping\n\n- [ ] milk");
     expect(state.doc.lastChild?.type.name).toBe("paragraph");
+  });
+});
+
+describe("saved note title in the title-first editor", () => {
+  // What the detail view saves after loading a note and editing nothing
+  const reloaded = (note: { title: string | null; content: string }) =>
+    splitNoteTitle(roundTrip(joinNoteTitle(note), true).getMarkdown());
+
+  it.each([
+    { title: "Trip ideas", content: "Lisbon, Porto\n\n- [ ] book flights" },
+    { title: "notes_v2 [1] *draft* #3 & <b>", content: "body" },
+    { title: "Untouched body", content: "" },
+    { title: null, content: "## Not the title\n\nbody" },
+    { title: null, content: "" },
+  ])("keeps the title and body as stored: %j", (note) => {
+    expect(reloaded(note)).toEqual(note);
+  });
+
+  it("reads an emptied title line as no title", () => {
+    const editor = roundTrip(
+      joinNoteTitle({ title: "Trip ideas", content: "Lisbon" }),
+      true,
+    );
+    const title = editor.state.doc.firstChild;
+    editor.commands.deleteRange({
+      from: 1,
+      to: 1 + (title?.content.size ?? 0),
+    });
+    expect(splitNoteTitle(editor.getMarkdown())).toEqual({
+      title: null,
+      content: "Lisbon",
+    });
   });
 });

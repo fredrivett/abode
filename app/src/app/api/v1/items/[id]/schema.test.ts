@@ -31,7 +31,6 @@ describe("itemPatchSchema", () => {
         "",
         "   ",
         "a".repeat(MAX_ITEM_TITLE_LENGTH + 1),
-        null,
         5,
       ]) {
         expect(itemPatchSchema.safeParse({ title }).success).toBe(false);

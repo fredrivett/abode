@@ -193,6 +193,35 @@ describe("PATCH /api/v1/items/:id — server-owned fields", () => {
     expect(mockItemUpdate).not.toHaveBeenCalled();
   });
 
+  it("refuses to clear the title of anything but a note", async () => {
+    const res = await patch({ title: null });
+
+    expect(res.status).toBe(400);
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("clears a note's title", async () => {
+    mockItemFind.mockResolvedValue({
+      id: "item-1",
+      userId: "owner",
+      kind: "note",
+      sourceType: "compose",
+      excludeFromPublicRooms: false,
+      tags: [],
+      userTags: [],
+      sharedAt: null,
+      title: "Trip ideas",
+    });
+
+    const res = await patch({ title: null });
+
+    expect(res.status).toBe(200);
+    expect(mockItemUpdate.mock.calls[0][0].data).toEqual({
+      title: null,
+      titleEditedByUser: true,
+    });
+  });
+
   it("re-syncs rooms when excludeFromPublicRooms changes", async () => {
     const res = await patch({ excludeFromPublicRooms: true });
 

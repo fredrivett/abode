@@ -86,3 +86,54 @@ export function noteDisplayName(content: string): string | null {
 
   return stripped ? truncate(stripped) : null;
 }
+
+// Every ASCII punctuation character can be backslash-escaped in CommonMark
+const MARKDOWN_PUNCTUATION = /[!-/:-@[-`{-~]/g;
+const MARKDOWN_ESCAPE = /\\([!-/:-@[-`{-~])/g;
+// The editor writes these characters in text as HTML entities
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
+
+/**
+ * A note as the title-first editor shows it: the title as its opening heading,
+ * then the body. The title is plain text, so its punctuation is escaped to keep
+ * `*` or `[1]` from turning into markup. An untitled note opens with an empty
+ * heading, so the editor's first line is still the title.
+ */
+export function joinNoteTitle({
+  title,
+  content,
+}: {
+  title: string | null;
+  content: string;
+}): string {
+  const heading = title
+    ? `# ${title.replace(MARKDOWN_PUNCTUATION, "\\$&")}`
+    : "#";
+  return content ? `${heading}\n\n${content}` : heading;
+}
+
+/**
+ * Splits title-first editor markdown back into the title and body that
+ * {@link joinNoteTitle} joined. The first line is always the title heading (an
+ * empty one serializes as a blank line, meaning no title), so a heading further
+ * down stays in the body.
+ */
+export function splitNoteTitle(markdown: string): {
+  title: string | null;
+  content: string;
+} {
+  const [first = "", ...rest] = markdown.split("\n");
+  const text = first
+    .replace(/^ {0,3}#{1,6}(?: +|$)/, "")
+    .replace(MARKDOWN_ESCAPE, "$1")
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITIES[entity])
+    .trim();
+  while (rest.length > 0 && rest[0].trim() === "") rest.shift();
+  return { title: text || null, content: rest.join("\n").trimEnd() };
+}

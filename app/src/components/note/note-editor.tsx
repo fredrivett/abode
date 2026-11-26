@@ -14,6 +14,7 @@ import {
   NOTE_EDITOR_CLASS,
   NOTE_PROSE_CLASS,
   NOTE_PROSE_FONT_SIZE,
+  TITLE_HEADING_CLASS,
 } from "./note-prose";
 
 // A document whose first node must be a heading, so the note always opens with
@@ -95,12 +96,6 @@ export function noteEditorExtensions({ titleFirst }: { titleFirst: boolean }) {
         LinkModifierClick,
       ];
 }
-
-// Style the mandatory first line as a title, overriding the flattened heading
-// size from the shared prose. `[&>*:first-child]` has real specificity, so it
-// beats the plugin's `:where()` heading rules.
-const TITLE_HEADING_CLASS =
-  "[&>*:first-child]:font-serif [&>*:first-child]:font-semibold [&>*:first-child]:text-[1.4em] [&>*:first-child]:leading-[1.2] [&>*:first-child]:text-foreground [&>*:first-child]:mb-[0.5em]";
 
 type NoteEditorProps = {
   /** Initial markdown content */

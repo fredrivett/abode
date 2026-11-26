@@ -135,6 +135,15 @@ async function handlePATCH(
       );
     }
 
+    // A note can be untitled (its card and name fall back to the body); every
+    // other kind keeps a title
+    if (title === null && existingItem.kind !== "note") {
+      return NextResponse.json(
+        { message: "Only a note's title can be cleared" },
+        { status: 400 },
+      );
+    }
+
     // Article read state only applies to articles — reject rather than silently
     // create a stray ItemArticleDetails row for another kind.
     if (articleReading !== undefined && existingItem.kind !== "article") {

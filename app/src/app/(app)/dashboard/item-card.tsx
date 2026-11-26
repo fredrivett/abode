@@ -183,6 +183,7 @@ function NoteDetailLoading() {
   const detail = useContext(DetailViewContext);
   return (
     <NoteDetailPlaceholder
+      title={detail?.item.title ?? null}
       content={detail?.item.noteDetails?.content ?? ""}
       canEdit={detail?.canEdit ?? false}
     />
@@ -2061,8 +2062,11 @@ export function ItemDetailBody({
           <DetailPaneFade animateEntrance={animateEntrance}>
             <NoteDetailView
               itemId={item.id}
+              title={item.title}
               content={item.noteDetails?.content ?? ""}
               canEdit={canEdit}
+              // "" reads as untitled, so the card falls back to the first line
+              onTitleSaved={(title) => onNameChange(title ?? "")}
             />
           </DetailPaneFade>
         ) : isArticle && item.articleDetails?.content ? (
@@ -2282,16 +2286,19 @@ export function ItemDetailBody({
 
       {/* Bottom (mobile) / Right (desktop) - Details */}
       <div className="flex flex-col border-border border-t bg-background md:w-[400px] md:overflow-hidden md:border-t-0 md:border-l">
-        <DialogHeader className="items-start p-6 pb-4">
+        <DialogHeader className={cn("items-start p-6 pb-4", isNote && "pb-0")}>
           <DialogTitle className="sr-only">Item details for {name}</DialogTitle>
-          <EditableTitle
-            value={name}
-            onSubmit={handleNameSubmit}
-            size="xl"
-            isSaving={isSavingName}
-            multiline
-            disabled={!canEdit}
-          />
+          {/* A note's title is its first line, edited in the note itself */}
+          {!isNote && (
+            <EditableTitle
+              value={name}
+              onSubmit={handleNameSubmit}
+              size="xl"
+              isSaving={isSavingName}
+              multiline
+              disabled={!canEdit}
+            />
+          )}
         </DialogHeader>
 
         {/* Opaque scroller so unrastered tiles mid-scroll don't show through */}
