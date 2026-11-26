@@ -90,6 +90,13 @@ describe("saved note title in the title-first editor", () => {
     expect(reloaded(note)).toEqual(note);
   });
 
+  it("keeps a title saved with a line break on the title line", () => {
+    expect(reloaded({ title: "Trip\nideas", content: "body" })).toEqual({
+      title: "Trip ideas",
+      content: "body",
+    });
+  });
+
   it("reads an emptied title line as no title", () => {
     const editor = roundTrip(
       joinNoteTitle({ title: "Trip ideas", content: "Lisbon" }),

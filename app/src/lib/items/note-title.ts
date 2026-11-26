@@ -127,8 +127,11 @@ export function joinNoteTitle({
   title: string | null;
   content: string;
 }): string {
-  const heading = title
-    ? `# ${title.replace(MARKDOWN_PUNCTUATION, "\\$&")}`
+  // A heading is one line: a title saved with a line break (through the notes
+  // API) shows joined up, rather than its later lines falling into the body
+  const text = title?.replace(/\s+/g, " ").trim();
+  const heading = text
+    ? `# ${text.replace(MARKDOWN_PUNCTUATION, "\\$&")}`
     : "#";
   return content ? `${heading}\n\n${content}` : heading;
 }
