@@ -33,6 +33,10 @@ export default async function HelpPage() {
             filters to search and organize your items
           </li>
           <li>
+            <Link href="/help/notes">Writing notes</Link> — Write notes, expand
+            them to full screen, and edit them later
+          </li>
+          <li>
             <Link href="/help/scanning">Scanning documents</Link> — Scan
             multi-page documents with your camera
           </li>
