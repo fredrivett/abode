@@ -266,11 +266,17 @@ export function wrapLines(
       // breaks between characters wherever it fills one
       if (lineWidth + gap > 0) lines++;
       graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
-      // Sum each character's width (measured once and cached) rather than
-      // re-measuring the growing line, which is quadratic
+      // Sum each character's advance rather than re-measuring the growing
+      // line, which is quadratic. An advance is measured after the character
+      // before it (pairs repeat, so they cache): a character measured alone
+      // misses kerning, overshooting a long URL by a few % and a spare line
       lineWidth = 0;
+      let previous = "";
       for (const { segment } of graphemes.segment(word)) {
-        const advance = measure(segment, style);
+        const advance = previous
+          ? measure(previous + segment, style) - measure(previous, style)
+          : measure(segment, style);
+        previous = segment;
         if (lineWidth > 0 && lineWidth + advance > availWidth) {
           lines++;
           lineWidth = advance;
